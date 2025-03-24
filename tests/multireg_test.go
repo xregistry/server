@@ -58,7 +58,7 @@ func TestMultiReg(t *testing.T) {
 
 	xHTTP(t, reg2, "GET", "/reg-reg2/reg2_dirs", "", 200, "{}\n")
 
-	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2", "", 201, `{
+	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2", "{}", 201, `{
   "reg2_dirid": "d2",
   "self": "http://localhost:8181/reg-reg2/reg2_dirs/d2",
   "xid": "/reg2_dirs/d2",
@@ -71,7 +71,7 @@ func TestMultiReg(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2/reg2_files/f2$details", "", 201, `{
+	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2/reg2_files/f2$details", "{}", 201, `{
   "reg2_fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/reg-reg2/reg2_dirs/d2/reg2_files/f2$details",

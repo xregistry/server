@@ -1490,10 +1490,11 @@ func HTTPPutPost(info *RequestInfo) error {
 	isNew := false
 	paths := ([]string)(nil)
 	what := "Entity"
+	numParts := len(info.Parts)
 
 	metaInBody := (info.ResourceModel == nil) ||
 		(info.ResourceModel.GetHasDocument() == false || info.ShowDetails ||
-			(len(info.Parts) == 5 && info.Parts[4] == "meta"))
+			(numParts == 5 && info.Parts[4] == "meta"))
 
 	log.VPrintf(3, "HTTPPutPost: %s %s", method, info.OriginalPath)
 
@@ -1522,7 +1523,7 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	// Check for some obvious high-level bad states up-front
 	// //////////////////////////////////////////////////////
-	if len(info.Parts) == 0 && method == "POST" {
+	if numParts == 0 && method == "POST" {
 		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("POST not allowed on the root of the registry")
 	}
@@ -1532,28 +1533,30 @@ func HTTPPutPost(info *RequestInfo) error {
 		return fmt.Errorf("PUT not allowed on collections")
 	}
 
-	if info.What == "Coll" && method == "PATCH" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("PATCH not allowed on collections")
-	}
+	/*
+		if info.What == "Coll" && method == "PATCH" {
+			info.StatusCode = http.StatusMethodNotAllowed
+			return fmt.Errorf("PATCH not allowed on collections")
+		}
+	*/
 
-	if len(info.Parts) == 2 && method == "POST" {
-		info.StatusCode = http.StatusBadRequest
+	if numParts == 2 && method == "POST" {
+		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("POST not allowed on a group")
 	}
 
-	if len(info.Parts) >= 5 && info.Parts[4] == "meta" && method == "POST" {
+	if numParts >= 5 && info.Parts[4] == "meta" && method == "POST" {
 		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("POST not allowed on a 'meta'")
 	}
 
-	if len(info.Parts) == 6 && method == "POST" {
+	if numParts == 6 && method == "POST" {
 		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("POST not allowed on a version")
 	}
 
-	if !metaInBody && method == "PATCH" {
-		info.StatusCode = http.StatusBadRequest
+	if (numParts == 4 || numParts == 6) && !metaInBody && method == "PATCH" {
+		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("PATCH is not allowed on Resource documents")
 	}
 
@@ -1593,7 +1596,7 @@ func HTTPPutPost(info *RequestInfo) error {
 	group := (*Group)(nil)
 	groupUID := info.GroupUID
 
-	if len(info.Parts) == 1 {
+	if numParts == 1 {
 		// POST /GROUPs + body:map[id]Group
 
 		objMap, err := IncomingObj2Map(IncomingObj)
@@ -1625,7 +1628,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		return SerializeQuery(info, paths, "Coll", info.Filters)
 	}
 
-	if len(info.Parts) == 2 {
+	if numParts == 2 {
 		// PUT /GROUPs/gID
 		addType := ADD_UPSERT
 		if method == "PATCH" {
@@ -1676,7 +1679,7 @@ func HTTPPutPost(info *RequestInfo) error {
 	// If there isn't an explicit "return" then this assumes we're left with
 	// a version and will return that back to the client
 
-	if len(info.Parts) == 3 {
+	if numParts == 3 {
 		// POST GROUPs/gID/RESOURCEs + body:map[id]Resource
 
 		objMap, err := IncomingObj2Map(IncomingObj)
@@ -1709,7 +1712,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		return SerializeQuery(info, paths, "Coll", info.Filters)
 	}
 
-	if len(info.Parts) > 3 {
+	if numParts > 3 {
 		// GROUPs/gID/RESOURCEs/rID...
 
 		resource, err = group.FindResource(info.ResourceType, resourceUID,
@@ -1721,7 +1724,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 	}
 
-	if len(info.Parts) == 4 && (method == "PUT" || method == "PATCH") {
+	if numParts == 4 && (method == "PUT" || method == "PATCH") {
 		// PUT GROUPs/gID/RESOURCEs/rID [$details]
 
 		propsID := "" // RESOURCEid
@@ -1780,7 +1783,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 	}
 
-	if method == "POST" && len(info.Parts) == 4 {
+	if method == "POST" && numParts == 4 {
 		// POST GROUPs/gID/RESOURCEs/rID[$details], body=obj or doc
 		propsID := "" // versionid
 		if v, ok := IncomingObj["versionid"]; ok {
@@ -1811,7 +1814,7 @@ func HTTPPutPost(info *RequestInfo) error {
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/meta
-	if len(info.Parts) > 4 && info.Parts[4] == "meta" {
+	if numParts > 4 && info.Parts[4] == "meta" {
 		// PUT /GROUPs/gID/RESOURCEs/rID/meta
 		addType := ADD_UPSERT
 		if method == "PATCH" {
@@ -1862,21 +1865,23 @@ func HTTPPutPost(info *RequestInfo) error {
 	}
 
 	// Just double-check
-	if len(info.Parts) > 4 {
+	if numParts > 4 {
 		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s"+info.Parts[4])
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/versions...
 
-	if info.ShowDetails && method == "POST" && len(info.Parts) == 5 {
-		// POST GROUPs/gID/RESOURCEs/rID/versions$details - error
+	if info.ShowDetails && numParts == 5 {
+		// PATCH|POST GROUPs/gID/RESOURCEs/rID/versions$details - error
 		info.StatusCode = http.StatusBadRequest
+		// TODO add a test for this
 		return fmt.Errorf("Use of \"$details\" on the \"versions\" " +
 			" collection is not allowed")
 	}
 
-	if method == "POST" && len(info.Parts) == 5 {
+	if (method == "POST" || method == "PATCH") && numParts == 5 {
 		// POST GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
+		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
 		// Convert IncomingObj to a map of Objects
 		objMap, err := IncomingObj2Map(IncomingObj)
@@ -1981,7 +1986,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		return SerializeQuery(info, paths, "Coll", info.Filters)
 	}
 
-	if len(info.Parts) == 6 {
+	if numParts == 6 {
 		// PUT GROUPs/gID/RESOURCEs/rID/versions/vID [$details]
 		propsID := "" //versionid
 		if v, ok := IncomingObj["versionid"]; ok {
@@ -2042,7 +2047,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		return err
 	}
 
-	originalLen := len(info.Parts)
+	originalLen := numParts
 
 	// Need to setup info stuff in case we call HTTPGetContent
 	info.Parts = []string{info.Parts[0], groupUID,
@@ -2682,8 +2687,23 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 	}
 
 	resSingular := ""
+	hasDoc := false
 	if info.ResourceModel != nil {
 		resSingular = info.ResourceModel.Singular
+		hasDoc = info.ResourceModel.GetHasDocument()
+	}
+
+	// Start with the assumption that we need a body, until proven otherwise
+	requireBody := true
+	if hasDoc && !info.ShowDetails {
+		// .../rID || .../vID
+		if len(info.Parts) == 4 || len(info.Parts) == 6 {
+			requireBody = false
+		}
+	}
+
+	if requireBody && len(body) == 0 {
+		return nil, fmt.Errorf("An HTTP body must be specified")
 	}
 
 	// len=5 is a special case where we know .../versions always has the
@@ -2693,14 +2713,13 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 	metaInBody := (info.ShowDetails ||
 		len(info.Parts) == 3 ||
 		len(info.Parts) == 5 ||
-		(info.ResourceModel != nil && info.ResourceModel.GetHasDocument() == false))
+		(info.ResourceModel != nil && hasDoc == false))
 
 	if len(info.Parts) < 3 || metaInBody {
 		for k, _ := range info.OriginalRequest.Header {
 			k := strings.ToLower(k)
 			if strings.HasPrefix(k, "xregistry-") {
-				info.StatusCode = http.StatusBadRequest
-				if info.ResourceModel.GetHasDocument() == false {
+				if hasDoc == false {
 					return nil, fmt.Errorf("Including \"xRegistry\" headers " +
 						"for a Resource that has the model \"hasdocument\" " +
 						"value of \"false\" is invalid")
@@ -2710,13 +2729,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 			}
 		}
 
-		if strings.TrimSpace(string(body)) == "" {
-			body = []byte("{}") // Be forgiving
-		}
-
 		err := Unmarshal(body, &IncomingObj)
 		if err != nil {
-			info.StatusCode = http.StatusBadRequest
 			return nil, err
 		}
 	}

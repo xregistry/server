@@ -1791,7 +1791,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", "", 201, `*`)
+	xHTTP(t, reg, "PUT", "/dirs/d1", "{}", 201, `*`)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
   "specversion": "0.5",
@@ -1887,7 +1887,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, `*`)
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, ``)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
   "specversion": "0.5",
@@ -2449,7 +2449,7 @@ func TestExportNoDoc(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "", 201, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "#/",
@@ -2462,7 +2462,7 @@ func TestExportNoDoc(t *testing.T) {
 `)
 
 	// Make sure there's no $details
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline=meta", "", 200, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline=meta", "{}", 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",
@@ -2488,7 +2488,7 @@ func TestExportNoDoc(t *testing.T) {
 `)
 
 	// No $default
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline", "", 200, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline", "{}", 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",

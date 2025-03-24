@@ -16,9 +16,10 @@ func TestMetaSimple(t *testing.T) {
 
 	// Simple no body create PUT
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f1/meta",
-		Method: "PUT",
-		Code:   201,
+		URL:     "/dirs/d1/files/f1/meta",
+		Method:  "PUT",
+		ReqBody: "{}",
+		Code:    201,
 		ResHeaders: []string{
 			"Location: http://localhost:8181/dirs/d1/files/f1/meta",
 		},
@@ -83,9 +84,10 @@ func TestMetaSimple(t *testing.T) {
 
 	// Simple create no body POST - error
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f11/meta",
-		Method: "POST",
-		Code:   405,
+		URL:     "/dirs/d1/files/f11/meta",
+		Method:  "POST",
+		ReqBody: "{}",
+		Code:    405,
 		ResBody: `POST not allowed on a 'meta'
 `,
 	})
@@ -119,9 +121,10 @@ func TestMetaSimple(t *testing.T) {
 
 	// Simple create no body PATCH
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f12/meta",
-		Method: "PUT",
-		Code:   201,
+		URL:     "/dirs/d1/files/f12/meta",
+		Method:  "PUT",
+		ReqBody: "{}",
+		Code:    201,
 		ResHeaders: []string{
 			"Location: http://localhost:8181/dirs/d1/files/f12/meta",
 		},
@@ -204,9 +207,10 @@ func TestMetaSimple(t *testing.T) {
 
 	// Update PUT no body - erases ext
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f2/meta",
-		Method: "PUT",
-		Code:   200,
+		URL:     "/dirs/d1/files/f2/meta",
+		Method:  "PUT",
+		ReqBody: "{}",
+		Code:    200,
 		ResHeaders: []string{
 			"-Location",
 		},
@@ -269,32 +273,6 @@ func TestMetaSimple(t *testing.T) {
 }
 `)
 
-	// Update PATCH no body
-	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f21/meta",
-		Method: "PATCH",
-		Code:   200,
-		ResHeaders: []string{
-			"-Location",
-		},
-		ResBody: `{
-  "fileid": "f21",
-  "self": "http://localhost:8181/dirs/d1/files/f21/meta",
-  "xid": "/dirs/d1/files/f21/meta",
-  "epoch": 2,
-  "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:02Z",
-  "readonly": false,
-  "compatibility": "none",
-  "foo": "bar",
-
-  "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f21/versions/1",
-  "defaultversionsticky": false
-}
-`,
-	})
-
 	// Update PUT empty body
 	xCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
@@ -334,7 +312,7 @@ func TestMetaSimple(t *testing.T) {
   "fileid": "f21",
   "self": "http://localhost:8181/dirs/d1/files/f21/meta",
   "xid": "/dirs/d1/files/f21/meta",
-  "epoch": 3,
+  "epoch": 2,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
@@ -388,7 +366,7 @@ func TestMetaSimple(t *testing.T) {
   "fileid": "f21",
   "self": "http://localhost:8181/dirs/d1/files/f21/meta",
   "xid": "/dirs/d1/files/f21/meta",
-  "epoch": 4,
+  "epoch": 3,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
@@ -455,7 +433,7 @@ func TestMetaSimple(t *testing.T) {
   "fileid": "f21",
   "self": "http://localhost:8181/dirs/d1/files/f21/meta",
   "xid": "/dirs/d1/files/f21/meta",
-  "epoch": 5,
+  "epoch": 4,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
@@ -710,9 +688,10 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PUT w/o body should just bump epoch/modifiedat
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f1",
-		Method: "PUT",
-		Code:   200,
+		URL:     "/dirs/d1/files/f1",
+		Method:  "PUT",
+		ReqBody: "{}",
+		Code:    200,
 		ResBody: `{
   "fileid": "f1",
   "versionid": "v2.0",
@@ -992,9 +971,10 @@ func TestMetaCombos(t *testing.T) {
 	// Create new version, defverid should not change, nor meta epoch/ts.
 	// New vid should be generated - ie '1'
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f1",
-		Method: "POST",
-		Code:   201,
+		URL:     "/dirs/d1/files/f1",
+		Method:  "POST",
+		ReqBody: "{}",
+		Code:    201,
 		ResBody: `{
   "fileid": "f1",
   "versionid": "1",
@@ -1363,9 +1343,10 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PUT - empty - should erase ext and unstick it
 	xCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f1/meta",
-		Method: "PUT",
-		Code:   200,
+		URL:     "/dirs/d1/files/f1/meta",
+		Method:  "PUT",
+		ReqBody: "{}",
+		Code:    200,
 		ResBody: `{
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",

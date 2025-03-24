@@ -1343,7 +1343,7 @@ func TestHTTPRegistry(t *testing.T) {
 		URL:        "/",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody:    "",
+		ReqBody:    "{}",
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
@@ -1869,20 +1869,6 @@ func TestHTTPGroups(t *testing.T) {
 	})
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "Create group - empty",
-		URL:        "/dirs",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    "",
-		Code:       200,
-		ResHeaders: []string{
-			"Content-Type:application/json",
-		},
-		ResBody: `{}
-`,
-	})
-
-	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Create group - {}",
 		URL:        "/dirs",
 		Method:     "POST",
@@ -2390,7 +2376,6 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		ResBody:    "PUT not allowed on collections\n",
 	})
 
-	xHTTP(t, reg, "POST", "/dirs/dir1/files", "", 200, "{}\n")
 	xHTTP(t, reg, "POST", "/dirs/dir1/files", "{}", 200, "{}\n")
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -6088,6 +6073,7 @@ func TestHTTPDefault(t *testing.T) {
 		Name:    "POST file f1?setdefault= not allowed",
 		URL:     "/dirs/d1/files/f1?setdefaultversionid",
 		Method:  "POST",
+		ReqBody: "{}",
 		Code:    400,
 		ResBody: `Resource "files" doesn't allow setting of "defaultversionid"` + "\n",
 	})
@@ -6096,6 +6082,7 @@ func TestHTTPDefault(t *testing.T) {
 		Name:    "POST file f1$details?setdefault= not allowed",
 		URL:     "/dirs/d1/files/f1$details?setdefaultversionid",
 		Method:  "POST",
+		ReqBody: "{}",
 		Code:    400,
 		ResBody: `Resource "files" doesn't allow setting of "defaultversionid"` + "\n",
 	})
@@ -6123,6 +6110,7 @@ func TestHTTPDefault(t *testing.T) {
 		Name:    "POST file f1$details?setdefault - empty",
 		URL:     "/dirs/d1/files/f1$details?setdefaultversionid",
 		Method:  "POST",
+		ReqBody: "{}",
 		Code:    400,
 		ResBody: `"setdefaultversionid" must not be empty` + "\n",
 	})
@@ -6131,6 +6119,7 @@ func TestHTTPDefault(t *testing.T) {
 		Name:    "POST file f1$details?setdefault= - empty",
 		URL:     "/dirs/d1/files/f1$details?setdefaultversionid=",
 		Method:  "POST",
+		ReqBody: "{}",
 		Code:    400,
 		ResBody: `"setdefaultversionid" must not be empty` + "\n",
 	})
@@ -6223,6 +6212,7 @@ func TestHTTPDefault(t *testing.T) {
 		URL:        "/dirs/d1/files/f1$details?setdefaultversionid=3",
 		Method:     "POST",
 		ReqHeaders: []string{`xRegistry-versionid: bogus`},
+		ReqBody:    "{}",
 		Code:       400,
 		ResHeaders: []string{"Content-Type: text/plain; charset=utf-8"},
 		ResBody:    `Including "xRegistry" headers when "$details" is used is invalid` + "\n",
@@ -6253,6 +6243,7 @@ func TestHTTPDefault(t *testing.T) {
 		URL:        "/dirs/d1/files/f1$details?setdefaultversionid=3",
 		Method:     "POST",
 		ReqHeaders: []string{`xRegistry-versionid: bogus`},
+		ReqBody:    "{}",
 		Code:       400,
 		ResHeaders: []string{"Content-Type: text/plain; charset=utf-8"},
 		ResBody:    `Including "xRegistry" headers when "$details" is used is invalid` + "\n",
@@ -6262,6 +6253,7 @@ func TestHTTPDefault(t *testing.T) {
 		Name:       "POST setdefault bad version",
 		URL:        "/dirs/d1/files/f1$details?setdefaultversionid=6",
 		Method:     "POST",
+		ReqBody:    "{}",
 		Code:       400,
 		ResHeaders: []string{"Content-Type: text/plain; charset=utf-8"},
 		ResBody:    `Version "6" not found` + "\n",
@@ -6620,7 +6612,7 @@ func TestHTTPDelete(t *testing.T) {
 		"Epoch value for \"f3\" must be 1 not 2\n")
 
 	// Bump epoch of f3
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f3/meta", "", 200, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f3/meta", "{}", 200, `{
   "fileid": "f3",
   "self": "http://localhost:8181/dirs/d1/files/f3/meta",
   "xid": "/dirs/d1/files/f3/meta",
@@ -6637,7 +6629,7 @@ func TestHTTPDelete(t *testing.T) {
 `)
 
 	// Bump epoch of f2
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2/meta", "", 200, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2/meta", "{}", 200, `{
   "fileid": "f2",
   "self": "http://localhost:8181/dirs/d1/files/f2/meta",
   "xid": "/dirs/d1/files/f2/meta",

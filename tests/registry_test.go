@@ -252,7 +252,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", "", 200, `{
+	xHTTP(t, reg, "PUT", "/", "{}", 200, `{
   "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",

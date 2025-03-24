@@ -51,7 +51,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	})
 
 	// Load up one that has hasdocument=true
-	xHTTP(t, reg, "PUT", "/dirs/d1/bars/b1$details", "", 201, `{
+	xHTTP(t, reg, "PUT", "/dirs/d1/bars/b1$details", "{}", 201, `{
   "barid": "b1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/bars/b1$details",
@@ -527,19 +527,19 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
 		"PATCH is not allowed on Resource documents\n")
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", "", 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", "{}", 400,
 		"Write operations on read-only resources are not allowed\n")
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1", "", 400,
 		"Write operations on read-only resources are not allowed\n")
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1", "", 400,
 		"Write operations on read-only resources are not allowed\n")
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1/versions", "", 400,
+	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1/versions", "{}", 400,
 		"Write operations on read-only resources are not allowed\n")
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
 		"PATCH is not allowed on Resource documents\n")
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", "", 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", "{}", 400,
 		"Write operations on read-only resources are not allowed\n")
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", "", 400,
 		"Write operations on read-only resources are not allowed\n")
@@ -633,9 +633,9 @@ func TestDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "", 400, `"setdefaultversionid" must not be empty`+"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "", 400, `"setdefaultversionid" must not be empty`+"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "", 400, `Can't use 'request' if a version wasn't processed`+"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "{}", 400, `"setdefaultversionid" must not be empty`+"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "{}", 400, `"setdefaultversionid" must not be empty`+"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `Can't use 'request' if a version wasn't processed`+"\n")
 
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `"setdefaultversionid" must not be empty`+"\n")
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid=", "", 400, `"setdefaultversionid" must not be empty`+"\n")
@@ -2437,20 +2437,6 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	reg.AddGroup("dirs", "dir1")
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "POST resources - empty",
-		URL:        "/dirs/dir1/files",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    ``,
-		Code:       200,
-		ResHeaders: []string{
-			"Content-Type:application/json",
-		},
-		ResBody: `{}
-`,
-	})
-
-	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - {}",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2930,7 +2916,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		URL:        "/dirs/dir1/files/f9$details",
 		Method:     "POST",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
+		ReqBody:    `{}`,
 		Code:       201,
 		ResHeaders: []string{},
 		ResBody: `{
@@ -2972,7 +2958,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		URL:        "/dirs/dir1/files/f99/versions",
 		Method:     "POST",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
+		ReqBody:    `{}`,
 		Code:       400,
 		ResHeaders: []string{
 			"Content-Type:text/plain; charset=utf-8",
@@ -3395,7 +3381,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		URL:        "/dirs/dir1/files/f13/versions/5$details",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
+		ReqBody:    `{}`,
 		Code:       201,
 		ResHeaders: []string{},
 		ResBody: `{
@@ -3655,8 +3641,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	gmod := g.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs", `{}`, 405,
-		`PATCH not allowed on collections
+	xHTTP(t, reg, "PATCH", "/dirs", `{}`, 200,
+		`{}
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{}`, 200, `{
@@ -3801,11 +3787,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	v, _ := f.GetDefault()
 	vmod := v.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 405,
-		`PATCH not allowed on collections
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 200,
+		`{}
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
 		`PATCH is not allowed on Resource documents
 `)
 
@@ -3975,11 +3961,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	v, _ = f.GetDefault()
 	vmod = v.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 405,
-		`PATCH not allowed on collections
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 200,
+		`{}
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 400,
+	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
 		`PATCH is not allowed on Resource documents
 `)
 
@@ -4673,7 +4659,7 @@ func TestHTTPURLs(t *testing.T) {
 		URL:        "/",
 		Method:     "POST",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
+		ReqBody:    `{}`,
 		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `POST not allowed on the root of the registry
@@ -4697,7 +4683,7 @@ func TestHTTPURLs(t *testing.T) {
 		URL:        "/dirs",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
+		ReqBody:    `{}`,
 		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `PUT not allowed on collections
@@ -4709,10 +4695,10 @@ func TestHTTPURLs(t *testing.T) {
 		URL:        "/dirs",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
-		Code:       405,
+		ReqBody:    `{}`,
+		Code:       200,
 		ResHeaders: []string{},
-		ResBody: `PATCH not allowed on collections
+		ResBody: `{}
 `})
 
 	// POST /GROUPs
@@ -4823,7 +4809,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody:    ``,
-		Code:       400,
+		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `POST not allowed on a group
 `,
@@ -4855,14 +4841,14 @@ func TestHTTPURLs(t *testing.T) {
 
 	// PATCH /GROUPs/gID/RESOURCEs
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "PATCH /GROUPs/gID/REOURCES",
+		Name:       "PATCH /GROUPs/gID/RESOURCES",
 		URL:        "/dirs/d2/files",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
-		ReqBody:    ``,
-		Code:       405,
+		ReqBody:    `{}`,
+		Code:       200,
 		ResHeaders: []string{},
-		ResBody: `PATCH not allowed on collections
+		ResBody: `{}
 `})
 
 	// POST /GROUPs/gID/RESOURCEs
@@ -4968,7 +4954,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-description:foo",
 		},
 		ReqBody:    `Everybody wants to rule the world`,
-		Code:       400,
+		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `PATCH is not allowed on Resource documents
 `,
@@ -5178,9 +5164,9 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody:    `{}`,
-		Code:       405,
+		Code:       200,
 		ResHeaders: []string{},
-		ResBody: `PATCH not allowed on collections
+		ResBody: `{}
 `})
 
 	// POST /GROUPs/gID/RESOURCEs/rID/versions
@@ -5268,7 +5254,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody:    `test doc`,
-		Code:       400,
+		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `PATCH is not allowed on Resource documents
 `,
@@ -7942,4 +7928,70 @@ func TestHTTPSpecVersion(t *testing.T) {
 	xHTTP(t, reg, "GET", "?specversion=0.5", "", 200, "*")
 	xHTTP(t, reg, "GET", "?specversion=0.x", "", 400,
 		"Unsupported xRegistry spec version: 0.x\n")
+}
+
+func TestHTTPMissingBody(t *testing.T) {
+	reg := NewRegistry("TestHTTPMissingBody")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)  //doc
+	_, err = gm.AddResourceModel("datas", "data", 0, true, true, false) //nodoc
+	xNoErr(t, err)
+
+	// Just check for an error about a missing body based on the path + method
+
+	msg := "An HTTP body must be specified\n"
+
+	xHTTP(t, reg, "PUT", "/", "", 400, msg)
+	xHTTP(t, reg, "POST", "/", "", 405, "*") // 405=bad method
+	xHTTP(t, reg, "PATCH", "/", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1", "", 405, "*")
+	xHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1/files", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, "")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1", "", 201, "")
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", "", 405, "*")
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", "", 200, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1", "", 405, "*")
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1", "", 405, "*")
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1$details", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1$details", "", 405, "*")
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1$details", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1/datas", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions", "", 400, msg)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions/1", "", 405, "*")
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
 }

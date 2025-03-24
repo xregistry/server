@@ -147,5 +147,10 @@ TODOs:
 - why are "capabilities" and "model" readonly?
 - allow any model change, verify entities
 - make sure that maxversions=0 when we only support 1 means sitcky must be false
-- add "relaxednames" to attr aspects
 - require "none" to be in "compats" enum
+- stop defaulting the body to {}
+- group/resource type names must be unique across plural and singular
+- support $details when hasdoc=false
+  - apparently $details is appened to the end of URLs pointing to this resourc/version in this case
+- support PATCH on collections - fix testcase TestHTTPMissingBody
+- test PATCH on collections - in particular versions
