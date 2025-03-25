@@ -154,3 +154,4 @@ TODOs:
   - apparently $details is appened to the end of URLs pointing to this resourc/version in this case
 - support PATCH on collections - fix testcase TestHTTPMissingBody
 - test PATCH on collections - in particular versions
+- verify readonly attrs are ignored on writes, but readonly resources generate an error
