@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"testing"
@@ -4484,7 +4485,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 	// Versions + IDs
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff8/versions?setdefaultversionid=v2", `{
 	  "v1": { "versionid": "v1" },
-	  "v2": { "versionid": "v2" }}
+	  "v2": { "versionid": "v2" }
 	}`, 200, `{
   "v1": {
     "fileid": "ff8",
@@ -4512,7 +4513,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 	// Versions + bad IDs
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff9/versions?setdefaultversionid=v2", `{
 	  "v1": { "versionid": "v1" },
-	  "v2": { "versionid": "ev2" }}
+	  "v2": { "versionid": "ev2" }
 	}`, 400, `The "versionid" attribute must be set to "v2", not "ev2"
 `)
 }
@@ -7994,4 +7995,44 @@ func TestHTTPMissingBody(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
 	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions/1", "", 405, "*")
 	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
+}
+
+func TestHTTPJsonParsingErrors(t *testing.T) {
+	reg := NewRegistry("TestHTTPJsonParsingErrors")
+	defer PassDeleteReg(t, reg)
+
+	tests := []struct {
+		body string
+		msg  string
+	}{
+		{`{1`, `Syntax error at line 1: invalid character '1' looking for beginning of object key string`},
+		{`{"}`, `Error parsing json: unexpected EOF`},
+		{`{},"}`, `Syntax error at line 1: invalid character ',' looking for beginning of value; possibly near position 2`},
+		{`{}[]`, `Error parsing json: extra data possibly near position 3: [`},
+		{`{}{}`, `Error parsing json: extra data possibly near position 3: {`},
+		{`[]`, `Can't parse "array" as a(n) "map[string]interface {}" at line 1`},
+		{``, `An HTTP body must be specified`},
+		{`,`, `Syntax error at line 1: invalid character ',' looking for beginning of value`},
+		{`"`, `Error parsing json: unexpected EOF`},
+		{`1`, `Can't parse "number" as a(n) "map[string]interface {}" at line 1`},
+	}
+
+	for _, test := range tests {
+		body := bytes.NewReader([]byte(test.body))
+
+		client := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}}
+
+		req, err := http.NewRequest("PUT", "http://localhost:8181/", body)
+		xNoErr(t, err)
+		res, err := client.Do(req)
+		xNoErr(t, err)
+		xCheckEqual(t, test.body, res.StatusCode, 400)
+
+		data, err := io.ReadAll(res.Body)
+		xNoErr(t, err)
+		xCheckEqual(t, test.body, string(data), test.msg+"\n")
+	}
 }

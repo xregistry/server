@@ -377,52 +377,57 @@ func Unmarshal(buf []byte, v any) error {
 	dec := json.NewDecoder(bytes.NewReader(buf))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		// Try to grab the json around the error
-		offset := int(dec.InputOffset())
-		nearStart := offset - 200
-		// lineNum := LineNum(buf, int(offset))
-		if nearStart < 0 {
-			nearStart = 0
-		}
-		nearEnd := offset + 200
-		if nearEnd >= len(buf) {
-			nearEnd = len(buf)
-		}
-		near := "" // fmt.Sprintf(" near: ") //  line #%d\n", lineNum)
-		// log.Printf("offset: %d  len(buf): %d, nearStart: %d", offset, len(buf), nearStart)
-		// log.Printf("**  %s", buf[offset:])
-		if nearStart != offset {
-			if nearStart != 0 {
-				near += "..."
-			}
-			near += string(buf[nearStart:nearEnd])
-		}
-		if offset > 0 && nearEnd != offset {
-			near += "..."
-		}
-
-		msg := err.Error()
-
-		if jerr, ok := err.(*json.UnmarshalTypeError); ok {
-			msg = fmt.Sprintf("Can't parse %q as a(n) %q at line %d",
-				jerr.Value, jerr.Type.String(),
-				LineNum(buf, int(jerr.Offset)))
-		} else if jerr, ok := err.(*json.SyntaxError); ok {
-			msg = fmt.Sprintf("Syntax error at line %d: %s",
-				LineNum(buf, int(jerr.Offset)), msg)
-		} else {
-			if msg == "unexpected EOF" {
-				msg = "Error parsing json: " + msg
-			}
-		}
-		msg, _ = strings.CutPrefix(msg, "json: ")
-		if near != "" {
-			msg += " near: " + near
-		}
-
+		msg := JsonErrorToString(buf, dec, err)
 		return errors.New(msg)
 	}
+
+	token, err := dec.Token()
+	if err != nil && err != io.EOF { // Non-EOF error
+		msg := JsonErrorToString(buf, dec, err)
+		return errors.New(msg)
+	}
+
+	if !IsNil(token) { // There's more
+		offset := int(dec.InputOffset())
+		near := ""
+		if offset > 0 && offset < len(buf) {
+			near = fmt.Sprintf(" possibly near position %d", offset)
+		}
+
+		return fmt.Errorf("Error parsing json: extra data%s: %s",
+			near, token)
+	}
+
 	return nil
+}
+
+func JsonErrorToString(buf []byte, dec *json.Decoder, err error) string {
+	offset := int(dec.InputOffset())
+	near := ""
+	if offset > 0 && offset < len(buf) {
+		near = fmt.Sprintf("possibly near position %d", offset)
+	}
+
+	msg := err.Error()
+
+	if jerr, ok := err.(*json.UnmarshalTypeError); ok {
+		msg = fmt.Sprintf("Can't parse %q as a(n) %q at line %d",
+			jerr.Value, jerr.Type.String(),
+			LineNum(buf, int(jerr.Offset)))
+	} else if jerr, ok := err.(*json.SyntaxError); ok {
+		msg = fmt.Sprintf("Syntax error at line %d: %s",
+			LineNum(buf, int(jerr.Offset)), msg)
+	} else {
+		if msg == "unexpected EOF" {
+			msg = "Error parsing json: " + msg
+		}
+	}
+	msg, _ = strings.CutPrefix(msg, "json: ")
+	if near != "" {
+		msg += "; " + near
+	}
+
+	return msg
 }
 
 // var re = regexp.MustCompile(`(?m:([^#]*)#[^"]*$)`)

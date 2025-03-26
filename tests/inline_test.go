@@ -701,7 +701,7 @@ func TestInlineWildcards(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
-		`{"file": { "hello": "world"}}}`, 201, `*`)
+		`{"file": { "hello": "world"}}`, 201, `*`)
 
 	xHTTP(t, reg, "GET", "?inline=*", ``,
 		200, `{
