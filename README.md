@@ -121,7 +121,6 @@ TODOs:
 - support validating that xref points to the same resource def
 - allow $meta on hasdoc=false resources
 - fix init.sql, it's too slow due to latest xref stuff in commit 9c583e7
-- support ETag/If-Match
 - Split the model.verify stuff so it doesn't verify the data unless asked to
 - add support for shortself
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
@@ -150,8 +149,6 @@ TODOs:
 - require "none" to be in "compats" enum
 - stop defaulting the body to {}
 - group/resource type names must be unique across plural and singular
-- support $details when hasdoc=false
-  - apparently $details is appened to the end of URLs pointing to this resourc/version in this case
 - support PATCH on collections - fix testcase TestHTTPMissingBody
 - test PATCH on collections - in particular versions
 - verify readonly attrs are ignored on writes, but readonly resources generate an error

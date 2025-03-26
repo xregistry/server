@@ -132,13 +132,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info.HTTPWriter = NewBufferedWriter(info)
 	}
 
-	if info.ResourceModel != nil && info.ResourceModel.GetHasDocument() == false &&
-		info.ShowDetails {
-		info.StatusCode = http.StatusBadRequest
-		err = fmt.Errorf("Specifying \"$details\" for a Resource that has " +
-			"the model \"hasdocument\" value set to \"false\" is invalid")
-	}
-
 	if err == nil {
 		if sv := info.GetFlag("specversion"); sv != "" {
 			if !info.Registry.Capabilities.SpecVersionEnabled(sv) {

@@ -25,17 +25,8 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 
 	xHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400,
 		"$details isn't allowed on \"/dirs/d1/files$details\"\n")
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{}`, 400,
-		"Specifying \"$details\" for a Resource that has the model "+
-			"\"hasdocument\" value set to \"false\" is invalid\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", `{}`, 400,
-		"Specifying \"$details\" for a Resource that has the model "+
-			"\"hasdocument\" value set to \"false\" is invalid\n")
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details", `{}`, 400,
 		"$details isn't allowed on \"/dirs/d1/files/f1/versions$details\"\n")
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`, 400,
-		"Specifying \"$details\" for a Resource that has the model "+
-			"\"hasdocument\" value set to \"false\" is invalid\n")
 
 	// Not really a "hasdoc" test, but it has to go someplace :-)
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -222,7 +213,27 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"foo2":"test2"}`, 200,
+	// Make sure $details is ok on GET and not in response
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200,
+		`{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "foo": "test",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// also make sure $details is ok on PUT
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"foo2":"test2"}`, 200,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -4230,11 +4241,8 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 
 	xNoErr(t, err)
 
+	// Just double check $details on PATCH at the same time
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
-		`{}`, 400, `Specifying "$details" for a Resource that has the model "hasdocument" value set to "false" is invalid
-`)
-
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1",
 		`{"description": "desc"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4269,11 +4277,8 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 }
 `)
 
+	// check $details on request too at the same time
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details",
-		`{}`, 400, `Specifying "$details" for a Resource that has the model "hasdocument" value set to "false" is invalid
-`)
-
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1",
 		`{"description": "desc"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",

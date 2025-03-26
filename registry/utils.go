@@ -1019,3 +1019,9 @@ func ParseXIDTemplate(xid string) ([]string, error) {
 	}
 	return parts, nil
 }
+
+func PrettyPrint(object any, prefix string, indent string) string {
+	// objType := reflect.ValueOf(object).Type().String()
+	buf, _ := json.MarshalIndent(object, prefix, indent)
+	return string(buf)
+}
