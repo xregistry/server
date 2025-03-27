@@ -72,15 +72,10 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 		}
 
 		buf, err = registry.ProcessIncludes(fileName, buf, true)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(err)
 
 		tmp := map[string]any{}
-		err = registry.Unmarshal(buf, &tmp)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(registry.Unmarshal(buf, &tmp))
 		fmt.Printf("%s\n", registry.ToJSON(tmp))
 	}
 }

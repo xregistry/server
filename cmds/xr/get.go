@@ -17,7 +17,8 @@ func addGetCmd(parent *cobra.Command) {
 		Short: "Retrieve data from the registry",
 		Run:   getFunc,
 	}
-	getCmd.Flags().StringP("output", "o", "table", "Output format(table,json)")
+	getCmd.Flags().StringP("output", "o", "json", "Output format(json,human)")
+	getCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 
 	parent.AddCommand(getCmd)
 }
@@ -28,51 +29,63 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
-	if err != nil {
-		Error(err.Error())
-	}
+	Error(err)
 
 	output, _ := cmd.Flags().GetString("output")
-	if !xrlib.ArrayContains([]string{"table", "json"}, output) {
-		Error("--ouput must be one of 'table', 'json'")
+	if !xrlib.ArrayContains([]string{"human", "json"}, output) {
+		Error("--output must be one of 'json', 'human'")
 	}
 
 	if len(args) == 0 {
 		args = []string{"/"}
 	}
 
-	objects := map[string]any{}
-	for _, xid := range args {
-		suffix := ""
-		if len(args) > 1 {
-			rm, err := reg.GetResourceModelFromXID(xid)
-			if err != nil {
-				Error(err.Error())
-			}
-			if rm != nil && rm.HasDocument != nil && *(rm.HasDocument) == true {
-				suffix = "$details"
-			}
-		}
-		body, err := reg.HttpDo("GET", xid+suffix, nil)
-		if err != nil {
-			if len(args) > 1 {
-				Error(xid + ": " + err.Error())
-			} else {
-				Error(err.Error())
-			}
-		}
-		obj := map[string]any(nil)
-		if err = json.Unmarshal(body, &obj); err != nil {
-			Error(err.Error())
-		}
-		objects[xid] = obj
+	if len(args) > 1 {
+		Error("Only one XID is allowed to be specified")
 	}
 
-	if output == "json" {
-		str, _ := json.MarshalIndent(objects, "", "  ")
-		fmt.Printf("%s\n", str)
+	xid := args[0]
+	object := any(nil)
+	XID := xrlib.ParseXID(xid)
+	resIsJSON := true
+	suffix := ""
+
+	rm, err := XID.GetResourceModelFrom(reg)
+	Error(err)
+
+	hasDetails, _ := cmd.Flags().GetBool("details")
+
+	// If we have doc + ../rID or ../vID (but not .../versions) then...
+	if XID.ResourceID != "" && rm.HasDoc() && XID.IsEntity {
+		if hasDetails == false {
+			resIsJSON = false
+		} else {
+			suffix = "$details"
+		}
+	}
+
+	res, err := reg.HttpDo("GET", xid+suffix, nil)
+	Error(err)
+
+	if !resIsJSON {
+		fmt.Printf("%s", string(res.Body))
+		if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+			fmt.Print("\n")
+		}
 		return
 	}
 
-	// output == "table"
+	Error(json.Unmarshal(res.Body, &object))
+
+	if output == "json" {
+		fmt.Printf("%s\n", xrlib.PrettyPrint(object, "", "  "))
+		return
+	}
+
+	if output == "human" {
+		fmt.Printf("%s\n", xrlib.Humanize(xid, object))
+		return
+	}
+
+	Error("Unknown output format: %s", output)
 }

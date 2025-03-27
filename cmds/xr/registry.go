@@ -122,13 +122,10 @@ func registryGetFunc(cmd *cobra.Command, args []string) {
 	}
 
 	res, err := http.Get(url)
-	ErrStop(err, "Error talking to server (%s): %s", Server, err)
-	if err != nil {
-		Error(err.Error())
-	}
+	Error(err, "Error talking to server (%s): %s", Server, err)
 
 	body, err := io.ReadAll(res.Body)
-	ErrStop(err, "Error reading server response: %s", err)
+	Error(err, "Error reading server response: %s", err)
 	fmt.Printf("%s", string(body))
 }
 
@@ -238,10 +235,7 @@ func registryPutFunc(cmd *cobra.Command, args []string) {
 
 		// Make sure it's value JSON
 		tmp := map[string]any{}
-		err = registry.Unmarshal(buf, &tmp)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(registry.Unmarshal(buf, &tmp))
 
 		// xr registry put [PATH?QUERY] [ - | FILE... ]
 

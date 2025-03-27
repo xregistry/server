@@ -29,10 +29,33 @@ func ErrStop(err error, prefix ...any) {
 	Error(str)
 }
 
-func Error(str string, args ...any) {
-	if str != "" {
-		str = strings.TrimSpace(str) + "\n"
-		fmt.Fprintf(os.Stderr, str, args...)
+func Error(obj any, args ...any) {
+	if registry.IsNil(obj) {
+		return
+	}
+	fmtStr, ok := obj.(string)
+	if !ok {
+		if err, ok := obj.(error); ok {
+			if err == nil {
+				return
+			}
+			fmtStr = err.Error()
+
+			if len(args) > 0 {
+				fmtStr, ok = args[0].(string)
+				if !ok {
+					panic("First arg must be a string")
+				}
+				args = args[1:]
+			}
+		} else {
+			panic(fmt.Sprintf("Unknown Error arg: %q(%T)", obj, obj))
+		}
+	}
+
+	if fmtStr != "" {
+		fmtStr = strings.TrimSpace(fmtStr) + "\n"
+		fmt.Fprintf(os.Stderr, fmtStr, args...)
 	}
 	os.Exit(1)
 }
@@ -84,6 +107,10 @@ func main() {
 	addRegistryCmd(xrCmd)
 	addGroupCmd(xrCmd)
 	addGetCmd(xrCmd)
+	addCreateCmd(xrCmd)
+	addUpsertCmd(xrCmd)
+	addUpdateCmd(xrCmd)
+	addDeleteCmd(xrCmd)
 
 	if err := xrCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)

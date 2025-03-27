@@ -31,7 +31,15 @@ func Debug(args ...any) {
 		fmtStr = fmt.Sprintf("%v", args[0])
 	}
 
-	fmt.Fprintf(os.Stderr, fmtStr+"\n", args[1:]...)
+	if len(fmtStr) == 0 {
+		return
+	}
+
+	str := fmt.Sprintf(fmtStr, args[1:]...)
+	fmt.Fprint(os.Stderr, str)
+	if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {
+		fmt.Fprint(os.Stderr, "\n")
+	}
 }
 
 /*
@@ -69,9 +77,14 @@ func EnvString(name string, def string) string {
 	return def
 }
 
+type HttpResponse struct {
+	Code int
+	Body []byte
+}
+
 // statusCode, body
 // Add headers (in and out) later
-func HttpDo(verb string, url string, body []byte) ([]byte, error) {
+func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -86,7 +99,8 @@ func HttpDo(verb string, url string, body []byte) ([]byte, error) {
 
 	Debug("Request: %s %s", verb, url)
 	if len(body) != 0 {
-		Debug("Body:\n%s", string(body))
+		Debug("Request Body:\n%s", string(body))
+		Debug("^--")
 	}
 
 	res, err := client.Do(req)
@@ -107,12 +121,18 @@ func HttpDo(verb string, url string, body []byte) ([]byte, error) {
 		err = fmt.Errorf(tmp)
 	}
 
-	Debug("Response: %s", res.Status)
-	if len(body) != 0 {
-		Debug("Body:\n%s", string(body))
+	httpRes := &HttpResponse{
+		Code: res.StatusCode,
+		Body: body,
 	}
 
-	return body, err
+	Debug("Response: %d", httpRes.Code)
+	if len(body) != 0 {
+		Debug("Response Body:\n%s", string(body))
+		Debug("^--")
+	}
+
+	return httpRes, err
 }
 
 // Support "http" and "-" (stdin)
@@ -183,34 +203,130 @@ func ArrayContains(strs []string, needle string) bool {
 }
 
 type XID struct {
+	str        string
+	Type       int
+	IsEntity   bool
 	Group      string
 	GroupID    string
 	Resource   string
 	ResourceID string
-	Version    string // non-"" if xid included .../versions
+	Version    string // always "versions" if "/versions" was present
 	VersionID  string
 }
+
+const (
+	ENTITY_REGISTRY = iota
+	ENTITY_GROUP
+	ENTITY_RESOURCE
+	ENTITY_META
+	ENTITY_VERSION
+	ENTITY_MODEL
+
+	ENTITY_GROUPTYPE
+	ENTITY_RESOURCETYPE
+	ENTITY_VERSIONTYPE
+)
 
 func ParseXID(xidStr string) *XID {
 	xidStr = strings.TrimLeft(xidStr, "/")
 	parts := strings.SplitN(xidStr, "/", 6)
 
-	xid := &XID{}
-	xid.Group = parts[0]
-	if len(parts) > 1 {
-		xid.GroupID = parts[1]
-		if len(parts) > 2 {
-			xid.Resource = parts[2]
-			if len(parts) > 3 {
-				xid.ResourceID = parts[3]
-				if len(parts) > 4 {
-					xid.Version = parts[4]
-					if len(parts) > 5 {
-						xid.VersionID = parts[5]
+	xid := &XID{
+		str:      xidStr,
+		Type:     ENTITY_REGISTRY,
+		IsEntity: true,
+	}
+
+	if len(parts) > 0 {
+		xid.Group = parts[0]
+		if xid.Group != "" {
+			xid.Type = ENTITY_GROUPTYPE
+			xid.IsEntity = false
+		}
+		if len(parts) > 1 {
+			xid.GroupID = parts[1]
+			if xid.GroupID != "" {
+				xid.Type = ENTITY_GROUP
+				xid.IsEntity = true
+			}
+			if len(parts) > 2 {
+				xid.Resource = parts[2]
+				if xid.Resource != "" {
+					xid.Type = ENTITY_RESOURCETYPE
+					xid.IsEntity = false
+				}
+				if len(parts) > 3 {
+					xid.ResourceID = parts[3]
+					if xid.ResourceID != "" {
+						xid.Type = ENTITY_RESOURCE
+						xid.IsEntity = true
+					}
+					if len(parts) > 4 {
+						xid.Version = parts[4]
+						if xid.Version != "" {
+							xid.Type = ENTITY_VERSIONTYPE
+							xid.IsEntity = false
+						}
+						if len(parts) > 5 {
+							xid.VersionID = parts[5]
+							if xid.VersionID != "" {
+								xid.Type = ENTITY_VERSION
+								xid.IsEntity = true
+							}
+						}
 					}
 				}
 			}
 		}
 	}
 	return xid
+}
+
+func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
+	if xid.Resource == "" {
+		return nil, nil
+	}
+
+	gm := reg.Model.Groups[xid.Group]
+	if gm == nil {
+		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
+	}
+
+	rm := gm.Resources[xid.Resource]
+	if rm == nil {
+		return nil, fmt.Errorf("Uknown resource type: %s", xid.Resource)
+	}
+	return rm, nil
+}
+
+func (xid *XID) String() string {
+	return xid.str
+}
+
+func PrettyPrint(object any, prefix string, indent string) string {
+	return registry.PrettyPrint(object, prefix, indent)
+}
+
+func Humanize(xid string, object any) string {
+	str := ""
+	xidParts := ParseXID(xid)
+
+	switch xidParts.Type {
+	case ENTITY_REGISTRY:
+		str = HumanizeRegistry(object)
+	case ENTITY_GROUPTYPE:
+	case ENTITY_GROUP:
+	case ENTITY_RESOURCETYPE:
+	case ENTITY_RESOURCE:
+	case ENTITY_VERSIONTYPE:
+	case ENTITY_VERSION:
+	default:
+		panic(fmt.Sprintf("Unknown xid type: %v", xidParts.Type))
+	}
+
+	return str
+}
+
+func HumanizeRegistry(regObj any) string {
+	return "Registry:"
 }

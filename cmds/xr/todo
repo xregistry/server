@@ -1,0 +1,2 @@
+check for valid xids in args
+check for valid repsonses - e.g. make sure: xr registry get is actually a registry

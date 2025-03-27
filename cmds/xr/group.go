@@ -83,23 +83,17 @@ func groupCreateFunc(cmd *cobra.Command, args []string) {
 
 	if file != "" {
 		buf, err := xrlib.ReadFile(file)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(err)
 		data = string(buf)
 	}
 
 	dataMap := map[string]any(nil)
 	if data != "" {
-		if err := registry.Unmarshal([]byte(data), &dataMap); err != nil {
-			Error(err.Error())
-		}
+		Error(registry.Unmarshal([]byte(data), &dataMap))
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
-	if err != nil {
-		Error(err.Error())
-	}
+	Error(err)
 
 	defaultPlural := ""
 	defaultSingular := ""
@@ -184,9 +178,7 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
-	if err != nil {
-		Error(err.Error())
-	}
+	Error(err)
 
 	keys := registry.SortedKeys(reg.Model.Groups)
 
@@ -198,9 +190,7 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 		for _, key := range keys {
 			g := reg.Model.Groups[key]
 			url, err := reg.URLWithPath(g.Plural)
-			if err != nil {
-				Error(err.Error())
-			}
+			Error(err)
 			fmt.Fprintf(tw, "%s\t%s\t%s\n", g.Plural, g.Singular, url.String())
 		}
 		tw.Flush()
@@ -214,15 +204,13 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 		for _, key := range keys {
 			g := reg.Model.Groups[key]
 			url, err := reg.URLWithPath(g.Plural)
-			if err != nil {
-				Error(err.Error())
-			}
+			Error(err)
 			res = append(res, out{g.Plural, g.Singular, url.String()})
 		}
 		buf, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Printf("%s\n", string(buf))
 	default:
-		Error("--ouput must be one of 'table', 'json'")
+		Error("--output must be one of 'table', 'json'")
 	}
 }
 
@@ -235,9 +223,7 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
-	if err != nil {
-		Error(err.Error())
-	}
+	Error(err)
 
 	if len(args) == 0 {
 		args = append(args, registry.SortedKeys(reg.Model.Groups)...)
@@ -251,15 +237,10 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 		if g == nil {
 			Error("Uknown Group type: %s", plural)
 		}
-		body, err := reg.HttpDo("GET", plural, nil)
-		if err != nil {
-			Error(err.Error())
-		}
+		resHttp, err := reg.HttpDo("GET", plural, nil)
+		Error(err)
 		resMap := map[string]map[string]any{}
-		err = json.Unmarshal(body, &resMap)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(json.Unmarshal(resHttp.Body, &resMap))
 		res[plural] = resMap
 	}
 
@@ -292,7 +273,7 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 	case "json":
 		fmt.Printf("%s\n", xrlib.ToJSON(res))
 	default:
-		Error("--ouput must be one of 'table', 'json'")
+		Error("--output must be one of 'table', 'json'")
 	}
 }
 
@@ -310,9 +291,7 @@ func groupDeleteFunc(cmd *cobra.Command, args []string) {
 		all, _ := cmd.Flags().GetBool("all")
 
 		reg, err := xrlib.GetRegistry(Server)
-		if err != nil {
-			Error(err.Error())
-		}
+		Error(err)
 
 		defaultPlural := ""
 		defaultSingular := ""

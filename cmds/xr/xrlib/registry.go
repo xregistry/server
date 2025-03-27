@@ -19,6 +19,24 @@ type Registry struct {
 	server string
 }
 
+type RegistryDefined struct {
+	SpecVersion   string            `json:"specversion,omitempty"`
+	RegistryID    string            `json:"registryid,omitempty"`
+	Self          string            `json:"self,omitempty"`
+	ShortSelf     string            `json:"shortself,omitempty"`
+	XID           string            `json:"xid,omitempty"`
+	Epoch         uint              `json:"self,omitempty"`
+	Name          string            `json:"name,omitempty"`
+	Description   string            `json:"description,omitempty"`
+	Documentation string            `json:"documentation,omitempty"`
+	Labels        map[string]string `json:"labels,omitemty"`
+	CreatedAt     string            `json:"createdat,omitempty"`
+	ModifiedAt    string            `json:"modifiedat,omitempty"`
+
+	Extensions  map[string]any       `json:"-"`
+	Collections []*CollectionDefined `json:"-"`
+}
+
 type Capabilities map[string]any
 
 type Model struct {
@@ -68,6 +86,13 @@ type GroupModel struct {
 	Attributes Attributes        `json:"attributes,omitempty"`
 
 	Resources map[string]*ResourceModel
+}
+
+type CollectionDefined struct {
+	Plural   string
+	Singular string
+	URL      string
+	Count    uint
 }
 
 type ResourceModel struct {
@@ -136,13 +161,13 @@ func GetRegistry(url string) (*Registry, error) {
 
 func (reg *Registry) Refresh() error {
 	// GET root and verify it's an xRegistry
-	body, err := reg.HttpDo("GET", "", nil)
+	res, err := reg.HttpDo("GET", "", nil)
 	if err != nil {
 		return err
 	}
 
 	attrs := map[string]any(nil)
-	if err := registry.Unmarshal(body, &attrs); err != nil {
+	if err := registry.Unmarshal(res.Body, &attrs); err != nil {
 		return err
 	}
 
@@ -163,27 +188,27 @@ func (reg *Registry) Refresh() error {
 }
 
 func (reg *Registry) RefreshModel() error {
-	buf, err := reg.HttpDo("GET", "/model", nil)
+	res, err := reg.HttpDo("GET", "/model", nil)
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(buf, &reg.Model); err != nil {
+	if err := json.Unmarshal(res.Body, &reg.Model); err != nil {
 		return fmt.Errorf("Unable to parse registry model: %s\n%s",
-			err, string(buf))
+			err, string(res.Body))
 	}
 	return nil
 }
 
 func (reg *Registry) RefreshCapabilities() error {
-	buf, err := reg.HttpDo("GET", "/capabilities", nil)
+	res, err := reg.HttpDo("GET", "/capabilities", nil)
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(buf, &reg.Capabilities); err != nil {
+	if err := json.Unmarshal(res.Body, &reg.Capabilities); err != nil {
 		return fmt.Errorf("Unable to parse registry capabilities: %s\n%s",
-			err, string(buf))
+			err, string(res.Body))
 	}
 	return nil
 }
@@ -202,7 +227,7 @@ func (reg *Registry) ToString() string {
 	return string(buf)
 }
 
-func (reg *Registry) HttpDo(verb, path string, body []byte) ([]byte, error) {
+func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, error) {
 	u, err := reg.URLWithPath(path)
 	if err != nil {
 		return nil, err
@@ -270,4 +295,8 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, err
 		return nil, fmt.Errorf("Uknown resource type: %s", xid.Resource)
 	}
 	return rm, nil
+}
+
+func (rm *ResourceModel) HasDoc() bool {
+	return rm != nil && rm.HasDocument != nil && *(rm.HasDocument) == true
 }
