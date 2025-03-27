@@ -68,8 +68,12 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
     RegistrySID       VARCHAR(64),
     ParentSID         VARCHAR(64),        # ID of parent ModelEntity
 
-    Singular          VARCHAR(64),
+    # For Groups and Resources
     Plural            VARCHAR(64),
+    Singular          VARCHAR(64),
+    ModelVersion      VARCHAR(255),
+    CompatibleWith    VARCHAR(255),
+    Labels            JSON,
     Attributes        JSON,               # Until we use the Attributes table
 
     # For Resources
@@ -78,7 +82,6 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
     SetDefaultSticky  BOOL,
     HasDocument       BOOL,
     TypeMap           JSON,
-    Labels            JSON,
     MetaAttributes    JSON,
 
     PRIMARY KEY(SID),
