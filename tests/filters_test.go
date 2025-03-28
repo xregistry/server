@@ -269,7 +269,7 @@ func TestFiltersBasic(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1.1",
-            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
@@ -375,7 +375,7 @@ func TestFiltersBasic(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1.1",
-            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",

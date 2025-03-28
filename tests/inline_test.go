@@ -105,7 +105,7 @@ func TestInlineBasic(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v2",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -168,7 +168,7 @@ func TestInlineBasic(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1.1",
-            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
@@ -235,7 +235,7 @@ func TestInlineBasic(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
+            "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",
@@ -751,7 +751,7 @@ func TestInlineWildcards(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -829,7 +829,7 @@ func TestInlineWildcards(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -907,7 +907,7 @@ func TestInlineWildcards(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1085,7 +1085,7 @@ func TestInlineWildcards(t *testing.T) {
           "compatibility": "none",
 
           "defaultversionid": "v1",
-          "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+          "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
           "defaultversionsticky": false
         },
         "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1197,7 +1197,7 @@ func TestInlineWildcards(t *testing.T) {
         "compatibility": "none",
 
         "defaultversionid": "v1",
-        "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+        "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
         "defaultversionsticky": false
       },
       "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",

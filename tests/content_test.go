@@ -167,7 +167,7 @@ func TestResourceContents(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
   "defaultversionsticky": true
 }
 `)

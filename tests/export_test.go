@@ -1197,7 +1197,7 @@ func TestExportBasic(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
   "defaultversionsticky": false
 }
 `)
@@ -1322,7 +1322,7 @@ func TestExportBasic(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v2",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "defaultversionsticky": false
   }
 }
@@ -1538,7 +1538,7 @@ func TestExportBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v2",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1653,7 +1653,7 @@ func TestExportBasic(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
   "defaultversionsticky": false
 }
 `)
@@ -1967,7 +1967,7 @@ func TestExportURLs(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2158,7 +2158,7 @@ func TestExportURLs(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2230,7 +2230,7 @@ func TestExportURLs(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2309,7 +2309,7 @@ func TestExportURLs(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
   "defaultversionsticky": false
 }
 `)

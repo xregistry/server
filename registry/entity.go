@@ -1605,16 +1605,6 @@ var OrderedSpecProps = []*Attribute{
 				// remove "/meta" so we can add "/versions/vID"
 				result += "/" + path
 
-				details := e.GetResourceModel().GetHasDocument()
-
-				if details && !isAbsURL {
-					details = false
-				}
-
-				if details {
-					result += "$details"
-				}
-
 				return result
 			},
 			checkFn:  nil,

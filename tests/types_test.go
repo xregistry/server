@@ -533,7 +533,7 @@ func TestBasicTypes(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
