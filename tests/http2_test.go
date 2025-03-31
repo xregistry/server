@@ -4659,18 +4659,6 @@ func TestHTTPURLs(t *testing.T) {
 }
 `})
 
-	// POST /
-	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "POST /",
-		URL:        "/",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    `{}`,
-		Code:       405,
-		ResHeaders: []string{},
-		ResBody: `POST not allowed on the root of the registry
-`})
-
 	// GET /GROUPs
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPs",
@@ -7950,7 +7938,7 @@ func TestHTTPMissingBody(t *testing.T) {
 	msg := "An HTTP body must be specified\n"
 
 	xHTTP(t, reg, "PUT", "/", "", 400, msg)
-	xHTTP(t, reg, "POST", "/", "", 405, "*") // 405=bad method
+	xHTTP(t, reg, "POST", "/", "", 400, msg)
 	xHTTP(t, reg, "PATCH", "/", "", 400, msg)
 
 	xHTTP(t, reg, "PUT", "/dirs", "", 405, "*")

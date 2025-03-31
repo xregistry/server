@@ -1337,12 +1337,37 @@ func HTTPGet(info *RequestInfo) error {
 	}
 
 	// Serialize the xReg metadata
-	return SerializeQuery(info, []string{strings.Join(info.Parts, "/")},
-		info.What, info.Filters)
+	resPaths := map[string][]string{
+		"": []string{strings.Join(info.Parts, "/")},
+	}
+	return SerializeQuery(info, resPaths, info.What, info.Filters)
 }
 
-func SerializeQuery(info *RequestInfo, paths []string, what string,
-	filters [][]*FilterExpr) error {
+func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
+	what string, filters [][]*FilterExpr) error {
+
+	// resPaths is used to group the items we want to return. In most cases
+	// the items will all be part of one group where that group name doesn't
+	// need to be returned - e.g. POST /schemagroup where the response will
+	// just be a map of gIDs.
+	// However, there are cases where we want to return multiple groupings
+	// and each group has a different grouping name. For example:
+	// POST / +   { "schemagroups": { "sg1"...}, "messagegroups": { "mg1"...}}
+	// In this case the "paths" within each group are all processed as a
+	// single query but the normal jwWriter stuff won't show the parent
+	// group (schemagroups) because to do so would mean to also so the
+	// attributes at that level (meaning the Registry attrs in this case).
+	// To avoid this we pass in resPaths which is a map of groupings for
+	// each "paths" (IDs) we want to serialize.
+	// Each key in the map becomes the grouping key/name.
+	// When the key is "" then there shouldn't be any other keys and we
+	// won't wrapper it at all.
+	// So, "" is for things like:  POST .../rID/versions + map[vID]{version}
+	// And "xxx" is for things like POST /  + map[GROUPS]map[gID]{group}
+	if resPaths == nil {
+		resPaths = map[string][]string{"": nil}
+	}
+
 	start := time.Now()
 
 	// TODO comment this out at some point... maybe
@@ -1363,100 +1388,138 @@ func SerializeQuery(info *RequestInfo, paths []string, what string,
 		info.AddInline("model")
 	}
 
-	query, args, err := GenerateQuery(info.Registry, what, paths, filters,
-		info.DoDocView())
-	results, err := Query(info.tx, query, args...)
-	defer results.Close()
+	info.AddHeader("Content-Type", "application/json")
+	var jw *JsonWriter
+	hasData := false
+	keys := SortedKeys(resPaths)
+	for i, key := range keys {
+		paths, ok := resPaths[key]
+		PanicIf(!ok, "can't find %q", key)
 
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return err
-	}
+		query, args, err := GenerateQuery(info.Registry, what, paths, filters,
+			info.DoDocView())
+		results, err := Query(info.tx, query, args...)
+		defer results.Close()
 
-	if log.GetVerbose() > 3 {
-		log.Printf("SerializeQuery: %s", SubQuery(query, args))
-		diff := time.Now().Sub(start).Truncate(time.Millisecond)
-		log.Printf("  Query: # results: %d (time: %s)",
-			len(results.AllRows), diff)
-	}
-
-	jw := NewJsonWriter(info, results)
-	jw.NextEntity()
-
-	// Collections will need to print the {}, so don't error for them
-	if what != "Coll" {
-		if jw.Entity == nil {
-			// Special case, if the URL is ../rID/versions/vID?doc then
-			// check to see if Resource has xref set, if so then the error
-			// is 400, not 404
-			if info.VersionUID != "" && info.DoDocView() {
-				path := strings.Join(info.Parts[:len(info.Parts)-2], "/")
-				path += "/meta"
-				entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID,
-					path, false)
-				if err != nil {
-					return err
-				}
-
-				// Assume that if we cant' find the Resource's meta object
-				// then the Resource doesn't exist, so a 404 really is the
-				// best response in those cases, so skip the 400
-				if entity != nil && !IsNil(entity.Object["xref"]) {
-					info.StatusCode = http.StatusBadRequest
-					return fmt.Errorf("'doc' flag not allowed on xref'd Versions")
-				}
-			}
-
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
-		}
-	}
-
-	// Special case, if we're doing a collection, let's make sure we didn't
-	// get an empty result due to it's parent not even existing - for example
-	// the user used the wrong case (or even name) in the parent's Path
-	if jw.Entity == nil && len(info.Parts) > 1 {
-		path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
-		entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID, path,
-			false)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error finding parent(%s): %s", path, err)
+			return err
 		}
-		if IsNil(entity) {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+
+		if log.GetVerbose() > 3 {
+			log.Printf("SerializeQuery: %s", SubQuery(query, args))
+			diff := time.Now().Sub(start).Truncate(time.Millisecond)
+			log.Printf("  Query: # results: %d (time: %s)",
+				len(results.AllRows), diff)
 		}
-	}
 
-	// GROUPS/gID/RESOURCES/rID/versions
-	// Another special case .../rID/versions?doc when rID has xref
-	if jw.Entity == nil && info.DoDocView() && len(info.Parts) == 5 && info.Parts[4] == "versions" {
-		// Should be our case since "versions" can never be empty except
-		// when xref is set. If this is not longer true then we'll need to
-		// check this Resource's xref to see if it's set.
-		// Can copy the RawEntityFromPath... stuff above
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf("'doc' flag not allowed on xref'd Versions")
-	}
+		jw = NewJsonWriter(info, results)
 
-	info.AddHeader("Content-Type", "application/json")
-	if what == "Coll" {
-		_, err = jw.WriteCollection()
-	} else {
-		err = jw.WriteEntity()
-	}
+		// Only do this if we're adding the extra grouping wrapper
+		if key != "" {
+			// Cause the jwWriter to indent since we're adding a wrapper
+			jw.indent = "  "
+			if i == 0 {
+				jw.Print("{\n")
+			}
+			jw.Printf("  %q: ", key)
+		}
 
-	if err == nil {
+		jw.NextEntity()
+
+		// Collections will need to print the {}, so don't error for them
+		if what != "Coll" {
+			if jw.Entity == nil {
+				// Special case, if the URL is ../rID/versions/vID?doc then
+				// check to see if Resource has xref set, if so then the error
+				// is 400, not 404
+				if info.VersionUID != "" && info.DoDocView() {
+					path := strings.Join(info.Parts[:len(info.Parts)-2], "/")
+					path += "/meta"
+					entity, err := RawEntityFromPath(info.tx,
+						info.Registry.DbSID,
+						path, false)
+					if err != nil {
+						return err
+					}
+
+					// Assume that if we cant' find the Resource's meta object
+					// then the Resource doesn't exist, so a 404 really is the
+					// best response in those cases, so skip the 400
+					if entity != nil && !IsNil(entity.Object["xref"]) {
+						info.StatusCode = http.StatusBadRequest
+						return fmt.Errorf("'doc' flag not allowed on " +
+							"xref'd Versions")
+					}
+				}
+
+				info.StatusCode = http.StatusNotFound
+				return fmt.Errorf("Not found")
+			}
+		}
+
+		// Special case, if we're doing a collection, let's make sure we didn't
+		// get an empty result due to it's parent not even existing - for
+		// example the user used the wrong case (or even name) in the parent's
+		// Path
+		if jw.Entity == nil && len(info.Parts) > 1 {
+			path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
+			entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID,
+				path, false)
+			if err != nil {
+				info.StatusCode = http.StatusInternalServerError
+				return fmt.Errorf("Error finding parent(%s): %s", path, err)
+			}
+			if IsNil(entity) {
+				info.StatusCode = http.StatusNotFound
+				return fmt.Errorf("Not found")
+			}
+		}
+
+		// GROUPS/gID/RESOURCES/rID/versions
+		// Another special case .../rID/versions?doc when rID has xref
+		if jw.Entity == nil && info.DoDocView() && len(info.Parts) == 5 &&
+			info.Parts[4] == "versions" {
+
+			// Should be our case since "versions" can never be empty except
+			// when xref is set. If this is not longer true then we'll need to
+			// check this Resource's xref to see if it's set.
+			// Can copy the RawEntityFromPath... stuff above
+			info.StatusCode = http.StatusBadRequest
+			return fmt.Errorf("'doc' flag not allowed on xref'd Versions")
+		}
+
+		if what == "Coll" {
+			_, err = jw.WriteCollection()
+		} else {
+			err = jw.WriteEntity()
+		}
+
+		if err != nil {
+			info.StatusCode = http.StatusInternalServerError
+			return err
+		}
+
 		if jw.hasData {
-			// Add a tailing \n if there's any data, else skip it
-			jw.Print("\n")
+			hasData = true
 		}
-	} else {
-		info.StatusCode = http.StatusInternalServerError
+
+		// Only do this if we're adding the extra grouping wrapper
+		if key != "" {
+			if i+1 < len(keys) {
+				jw.Print(",\n")
+			} else {
+				jw.Print("\n}")
+			}
+		}
 	}
 
-	return err
+	if hasData {
+		// Add a tailing \n if there's any data, else skip it
+		jw.Print("\n")
+	}
+
+	return nil
 }
 
 var attrHeaders = map[string]*Attribute{}
@@ -1508,22 +1571,10 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	// Check for some obvious high-level bad states up-front
 	// //////////////////////////////////////////////////////
-	if numParts == 0 && method == "POST" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("POST not allowed on the root of the registry")
-	}
-
 	if info.What == "Coll" && method == "PUT" {
 		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("PUT not allowed on collections")
 	}
-
-	/*
-		if info.What == "Coll" && method == "PATCH" {
-			info.StatusCode = http.StatusMethodNotAllowed
-			return fmt.Errorf("PATCH not allowed on collections")
-		}
-	*/
 
 	if numParts == 2 && method == "POST" {
 		info.StatusCode = http.StatusMethodNotAllowed
@@ -1560,20 +1611,66 @@ func HTTPPutPost(info *RequestInfo) error {
 	// URL: /
 	// ////////////////////////////////////////////////////////////////
 	if info.GroupType == "" {
-		// PUT /
+		// PUT /     + body:Registry
+		// PATCH /   + body:Registry
+		// POST /    + body:map[GROUPS]map[id]Group
 
-		addType := ADD_UPDATE
-		if method == "PATCH" {
-			addType = ADD_PATCH
+		if method == "PUT" || method == "PATCH" {
+			addType := ADD_UPDATE
+			if method == "PATCH" {
+				addType = ADD_PATCH
+			}
+			err = info.Registry.Update(IncomingObj, addType)
+			if err != nil {
+				info.StatusCode = http.StatusBadRequest
+				return err
+			}
+
+			// Return HTTP GET of Registry root
+			resPaths := map[string][]string{"": []string{""}}
+			return SerializeQuery(info, resPaths, "Registry", info.Filters)
 		}
-		err = info.Registry.Update(IncomingObj, addType)
+
+		// Must be POST /    + body:map[GROUPS]map[id]Group
+		objMap, err := IncomingObj2Map(IncomingObj)
 		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+			return fmt.Errorf("Body must be a map of Group types")
 		}
 
-		// Return HTTP GET of Registry root
-		return SerializeQuery(info, []string{""}, "Registry", info.Filters)
+		resPaths := map[string][]string{}
+		for gType, gAny := range objMap {
+			if info.Registry.Model.Groups[gType] == nil {
+				return fmt.Errorf("Unknown Group type: %s", gType)
+			}
+
+			gMap, err := IncomingObj2Map(gAny)
+			if err != nil {
+				return err
+			}
+
+			for id, obj := range gMap {
+				g, _, err := info.Registry.UpsertGroupWithObject(gType,
+					id, obj, ADD_UPDATE)
+				if err != nil {
+					return err
+				}
+				resPaths[gType] = append(resPaths[gType], g.Path)
+			}
+
+			if len(resPaths[gType]) == 0 {
+				// Force an empty collection to be returned
+				resPaths[gType] = []string{"!"}
+			}
+
+		}
+
+		// Special case - if req is {} then make response {}
+		if len(objMap) == 0 {
+			resPaths = map[string][]string{"": []string{"!"}}
+		}
+
+		// Return HTTP GET of Groups created or updated
+		return SerializeQuery(info, resPaths, "Coll", info.Filters)
 	}
 
 	// URL: /GROUPs[/gID]...
@@ -1586,7 +1683,6 @@ func HTTPPutPost(info *RequestInfo) error {
 
 		objMap, err := IncomingObj2Map(IncomingObj)
 		if err != nil {
-			info.StatusCode = http.StatusBadRequest
 			return err
 		}
 
@@ -1610,7 +1706,8 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		// Return HTTP GET of Groups created or updated
-		return SerializeQuery(info, paths, "Coll", info.Filters)
+		resPaths := map[string][]string{"": paths}
+		return SerializeQuery(info, resPaths, "Coll", info.Filters)
 	}
 
 	if numParts == 2 {
@@ -1633,8 +1730,8 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		// Return HTTP GET of Group
-		return SerializeQuery(info, []string{group.Path}, "Entity",
-			info.Filters)
+		resPaths := map[string][]string{"": []string{group.Path}}
+		return SerializeQuery(info, resPaths, "Entity", info.Filters)
 	}
 
 	// Must be PUT/POST /GROUPs/gID/...
@@ -1694,7 +1791,8 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		// Return HTTP GET of Resources created or modified
-		return SerializeQuery(info, paths, "Coll", info.Filters)
+		resPaths := map[string][]string{"": paths}
+		return SerializeQuery(info, resPaths, "Coll", info.Filters)
 	}
 
 	if numParts > 3 {
@@ -1846,7 +1944,8 @@ func HTTPPutPost(info *RequestInfo) error {
 			info.StatusCode = http.StatusCreated
 		}
 
-		return SerializeQuery(info, []string{meta.Path}, "Entity", info.Filters)
+		resPaths := map[string][]string{"": []string{meta.Path}}
+		return SerializeQuery(info, resPaths, "Entity", info.Filters)
 	}
 
 	// Just double-check
@@ -1864,7 +1963,7 @@ func HTTPPutPost(info *RequestInfo) error {
 			" collection is not allowed")
 	}
 
-	if (method == "POST" || method == "PATCH") && numParts == 5 {
+	if numParts == 5 && (method == "POST" || method == "PATCH") {
 		// POST GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
@@ -1968,7 +2067,8 @@ func HTTPPutPost(info *RequestInfo) error {
 		if len(paths) == 0 {
 			paths = []string{"!"} // Force an empty collection to be returned
 		}
-		return SerializeQuery(info, paths, "Coll", info.Filters)
+		resPaths := map[string][]string{"": paths}
+		return SerializeQuery(info, resPaths, "Coll", info.Filters)
 	}
 
 	if numParts == 6 {
@@ -2067,7 +2167,8 @@ func HTTPPutPost(info *RequestInfo) error {
 		paths = []string{strings.Join(info.Parts, "/")}
 	}
 
-	return SerializeQuery(info, paths, what, info.Filters)
+	resPaths := map[string][]string{"": paths}
+	return SerializeQuery(info, resPaths, what, info.Filters)
 }
 
 func HTTPPUTCapabilities(info *RequestInfo) error {
@@ -2219,7 +2320,8 @@ func HTTPSetDefaultVersionID(info *RequestInfo) error {
 		return err
 	}
 
-	return SerializeQuery(info, []string{resource.Path}, "Entity", info.Filters)
+	resPaths := map[string][]string{"": []string{resource.Path}}
+	return SerializeQuery(info, resPaths, "Entity", info.Filters)
 }
 
 func HTTPDelete(info *RequestInfo) error {

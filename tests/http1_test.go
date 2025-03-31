@@ -1317,17 +1317,6 @@ func TestHTTPRegistry(t *testing.T) {
 	xCheckErr(t, err, "")
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "POST reg",
-		URL:        "/",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    "",
-		Code:       405,
-		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
-		ResBody:    "POST not allowed on the root of the registry\n",
-	})
-
-	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - empty string id",
 		URL:        "/",
 		Method:     "PUT",
@@ -2355,6 +2344,210 @@ func TestHTTPGroups(t *testing.T) {
 `,
 	})
 
+}
+
+func TestHTTPRegGroups(t *testing.T) {
+	reg := NewRegistry("TestHTTPRegGroups")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm, _ = reg.Model.AddGroupModel("foos", "foo")
+	gm.AddResourceModel("bars", "bat", 0, true, true, true)
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - empty",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    "",
+		Code:       400,
+		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
+		ResBody:    "An HTTP body must be specified\n",
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - empty",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    "{}",
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody:    `{}` + "\n",
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - one grouptype/no groups",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{}}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "dirs": {}
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - one grouptype/one group",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{"d1":{}}}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 0
+    }
+  }
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - one grouptype/two groups",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{"d1":{},"d2":{}}}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 2,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 0
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:02Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filescount": 0
+    }
+  }
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		URL:     "/dirs",
+		Method:  "DELETE",
+		Code:    204,
+		ResBody: "*",
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - two grouptypes/no groups",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{}, "foos":{}}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "dirs": {},
+  "foos": {}
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - two grouptypes/groups",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{"d1":{}}, "foos":{"f1":{},"f2":{}}}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 0
+    }
+  },
+  "foos": {
+    "f1": {
+      "fooid": "f1",
+      "self": "http://localhost:8181/foos/f1",
+      "xid": "/foos/f1",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "barsurl": "http://localhost:8181/foos/f1/bars",
+      "barscount": 0
+    },
+    "f2": {
+      "fooid": "f2",
+      "self": "http://localhost:8181/foos/f2",
+      "xid": "/foos/f2",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "barsurl": "http://localhost:8181/foos/f2/bars",
+      "barscount": 0
+    }
+  }
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - err",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs":{"d1":{}}, "foos":{"f1":{},"f2":{"foo":"bar"}}}`,
+		Code:       400,
+		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
+		ResBody:    "Invalid extension(s): foo\n",
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - err - bad type",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"name": "foo"}`,
+		Code:       400,
+		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
+		ResBody:    "Body must be a map of Group types\n",
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - err - bad group",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"name": { "foo":{} } }`,
+		Code:       400,
+		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
+		ResBody:    "Unknown Group type: name\n",
+	})
 }
 
 func TestHTTPResourcesHeaders(t *testing.T) {

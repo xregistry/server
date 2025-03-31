@@ -475,8 +475,8 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 
 		resValue, ok := resHeaders[name]
 		if !ok {
-			t.Errorf("%s\nMissing header: %s: %s\n\nGot headers:%s",
-				test.Name, name, value, gotHeaders)
+			t.Errorf("%s\nMissing header: %s: %s\n\nGot headers:%s\n\nBody: %s",
+				test.Name, name, value, gotHeaders, string(resBody))
 			t.FailNow()
 		}
 

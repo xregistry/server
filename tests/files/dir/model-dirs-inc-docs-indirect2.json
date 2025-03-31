@@ -10,6 +10,6 @@
         } 
       }
     } ,
-    "$include": "http://localhost:8282/model-docs.json#groups"
+    "$include": "../dir/model-docs.json#groups"
   } 
 }
