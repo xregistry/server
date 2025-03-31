@@ -62,13 +62,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var info *RequestInfo
 	var err error
 
-	// Don't bother with a Tx for this test flow
-	if strings.HasPrefix(r.URL.Path, "/EMPTY") {
-		tmp := fmt.Sprintf("hello%s", r.URL.Path[6:])
-		w.Write([]byte(tmp))
-		return
-	}
-
 	tx, err := NewTx()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -85,7 +78,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				log.Printf(">End of HTTP Request")
 				DumpTXs()
 
-				// Info can be nil in the /EMPTY cases
 				log.Printf("Info: %s", ToJSON(info))
 				log.Printf("<Exit http req")
 
@@ -2119,22 +2111,20 @@ func HTTPPUTModel(info *RequestInfo) error {
 		return err
 	}
 
-	model := Model{}
-	// err = json.Unmarshal(reqBody, &model)
-	err = Unmarshal(reqBody, &model)
+	// Don't allow local files to be included (e.g. ../foo)
+	reqBody, err = ProcessIncludes("", reqBody, false)
 	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
 		return err
 	}
 
+	model := Model{}
+	err = Unmarshal(reqBody, &model)
 	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
 		return err
 	}
 
 	err = info.Registry.Model.ApplyNewModel(&model)
 	if err != nil {
-		info.StatusCode = http.StatusBadRequest
 		return err
 	}
 

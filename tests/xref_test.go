@@ -1209,7 +1209,7 @@ func TestXrefDocs(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello world", 201, "hello world")
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details?inline=file",
-		`{"fileurl":"http://localhost:8181/EMPTY-URL"}`, 201, `{
+		`{"fileurl":"http://localhost:8282/EMPTY-URL"}`, 201, `{
   "fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f2$details",
@@ -1218,7 +1218,7 @@ func TestXrefDocs(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "fileurl": "http://localhost:8181/EMPTY-URL",
+  "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -1226,7 +1226,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f3$details?inline=file",
-		`{"fileproxyurl":"http://localhost:8181/EMPTY-Proxy"}`, 201, `{
+		`{"fileproxyurl":"http://localhost:8282/EMPTY-Proxy"}`, 201, `{
   "fileid": "f3",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f3$details",
@@ -1235,8 +1235,8 @@ func TestXrefDocs(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-  "filebase64": "aGVsbG8tUHJveHk=",
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+  "filebase64": "aGVsbG8tUHJveHkK",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
@@ -1365,7 +1365,7 @@ func TestXrefDocs(t *testing.T) {
 		Method: "GET",
 
 		Code:       303,
-		ResHeaders: []string{"Location: http://localhost:8181/EMPTY-URL"},
+		ResHeaders: []string{"Location: http://localhost:8282/EMPTY-URL"},
 		ResBody:    ``})
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx$details", ``, 200, `{
   "fileid": "fx",
@@ -1376,7 +1376,7 @@ func TestXrefDocs(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "fileurl": "http://localhost:8181/EMPTY-URL",
+  "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -1394,7 +1394,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx", ``, 200, `hello-Proxy`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/fx", ``, 200, "hello-Proxy\n")
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx$details?inline=file", ``, 200, `{
   "fileid": "fx",
   "versionid": "1",
@@ -1404,8 +1404,8 @@ func TestXrefDocs(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-  "filebase64": "aGVsbG8tUHJveHk=",
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+  "filebase64": "aGVsbG8tUHJveHkK",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",

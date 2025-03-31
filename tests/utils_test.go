@@ -38,15 +38,22 @@ func TestMain(m *testing.M) {
 	// }
 	// registry.OpenDB(DBName)
 
-	// Start HTTP server
-
+	// Start xRegistry HTTP server
 	server := registry.NewServer(8181).Start()
+
+	// Start testing fileserver
+	fsServer := &http.Server{
+		Addr:    ":8282",
+		Handler: http.FileServer(http.Dir("files")),
+	}
+	go fsServer.ListenAndServe()
 
 	// Run the tests
 	rc := m.Run()
 
-	// Shutdown HTTP server
+	// Shutdown HTTP servers
 	server.Close()
+	fsServer.Close()
 
 	if rc == 0 {
 		// registry.DeleteDB("testreg")

@@ -1,20 +1,17 @@
 {
-  "schemas": [
-    "xRegistry-json/0.5"
-  ],
   "attributes": {
     "specversion": {
       "name": "specversion",
       "type": "string",
       "readonly": true,
       "immutable": true,
-      "serverrequired": true
+      "required": true
     },
     "id": {
       "name": "id",
       "type": "string",
       "immutable": true,
-      "serverrequired": true
+      "required": true
     },
     "name": {
       "name": "name",
@@ -23,13 +20,13 @@
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
-      "serverrequired": true
+      "required": true
     },
     "self": {
       "name": "self",
       "type": "url",
       "readonly": true,
-      "serverrequired": true
+      "required": true
     },
     "description": {
       "name": "description",
@@ -46,25 +43,17 @@
         "type": "string"
       }
     },
-    "createdby": {
-      "name": "createdby",
-      "type": "string",
-      "readonly": true
-    },
     "createdat": {
       "name": "createdat",
       "type": "timestamp",
-      "readonly": true
-    },
-    "modifiedby": {
-      "name": "modifiedby",
-      "type": "string",
-      "readonly": true
+      "readonly": true,
+      "required": true
     },
     "modifiedat": {
       "name": "modifiedat",
       "type": "timestamp",
-      "readonly": true
+      "readonly": true,
+      "required": true
     }
   },
 
@@ -77,7 +66,7 @@
           "name": "id",
           "type": "string",
           "immutable": true,
-          "serverrequired": true
+          "required": true
         },
         "name": {
           "name": "name",
@@ -86,13 +75,13 @@
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
-          "serverrequired": true
+          "required": true
         },
         "self": {
           "name": "self",
           "type": "url",
           "readonly": true,
-          "serverrequired": true
+          "required": true
         },
         "description": {
           "name": "description",
@@ -113,25 +102,17 @@
           "name": "origin",
           "type": "uri"
         },
-        "createdby": {
-          "name": "createdby",
-          "type": "string",
-          "readonly": true
-        },
         "createdat": {
           "name": "createdat",
           "type": "timestamp",
-          "readonly": true
-        },
-        "modifiedby": {
-          "name": "modifiedby",
-          "type": "string",
-          "readonly": true
+          "readonly": true,
+          "required": true
         },
         "modifiedat": {
           "name": "modifiedat",
           "type": "timestamp",
-          "readonly": true
+          "readonly": true,
+          "required": true
         }
       },
       "resources": {
@@ -143,7 +124,7 @@
               "name": "id",
               "type": "string",
               "immutable": true,
-              "serverrequired": true
+              "required": true
             },
             "name": {
               "name": "name",
@@ -152,13 +133,13 @@
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
-              "serverrequired": true
+              "required": true
             },
             "self": {
               "name": "self",
               "type": "url",
               "readonly": true,
-              "serverrequired": true
+              "required": true
             },
             "default": {
               "name": "default",
@@ -193,25 +174,17 @@
               "name": "origin",
               "type": "uri"
             },
-            "createdby": {
-              "name": "createdby",
-              "type": "string",
-              "readonly": true
-            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
-              "readonly": true
-            },
-            "modifiedby": {
-              "name": "modifiedby",
-              "type": "string",
-              "readonly": true
+              "readonly": true,
+              "required": true
             },
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
-              "readonly": true
+              "readonly": true,
+              "required": true
             },
             "contenttype": {
               "name": "contenttype",

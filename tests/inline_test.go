@@ -400,27 +400,27 @@ func TestInlineResource(t *testing.T) {
 	f.SetSaveDefault(NewPP().P("file").UI(), "Hello world! v1")
 
 	v, _ := f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8181/EMPTY-URL")
+	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
 
 	v, _ = f.AddVersion("v3")
-	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8181/EMPTY-Proxy")
+	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
 
 	// URL
 	f, _ = d.AddResource("files", "f2-url", "v1")
 	f.SetSaveDefault(NewPP().P("file").UI(), "Hello world! v1")
 
 	v, _ = f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8181/EMPTY-Proxy")
+	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
 
 	v, _ = f.AddVersion("v3")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8181/EMPTY-URL")
+	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
 
 	// Resource
 	f, _ = d.AddResource("files", "f3-resource", "v1")
-	f.SetSaveDefault(NewPP().P("fileproxyurl").UI(), "http://localhost:8181/EMPTY-Proxy")
+	f.SetSaveDefault(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
 
 	v, _ = f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8181/EMPTY-URL")
+	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
 
 	v, _ = f.AddVersion("v3")
 	xNoErr(t, v.SetSave(NewPP().P("file").UI(), "Hello world! v3"))
@@ -457,8 +457,8 @@ func TestInlineResource(t *testing.T) {
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1-proxy": {
-          "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-          "filebase64": "aGVsbG8tUHJveHk=",
+          "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+          "filebase64": "aGVsbG8tUHJveHkK",
           "meta": {
             "defaultversionid": "v3",
           },
@@ -467,17 +467,17 @@ func TestInlineResource(t *testing.T) {
               "filebase64": "SGVsbG8gd29ybGQhIHYx"
             },
             "v2": {
-              "fileurl": "http://localhost:8181/EMPTY-URL"
+              "fileurl": "http://localhost:8282/EMPTY-URL"
             },
             "v3": {
-              "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-              "filebase64": "aGVsbG8tUHJveHk="
+              "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+              "filebase64": "aGVsbG8tUHJveHkK"
             }
           },
           "versionscount": 3
         },
         "f2-url": {
-          "fileurl": "http://localhost:8181/EMPTY-URL",
+          "fileurl": "http://localhost:8282/EMPTY-URL",
           "meta": {
             "defaultversionid": "v3",
           },
@@ -486,11 +486,11 @@ func TestInlineResource(t *testing.T) {
               "filebase64": "SGVsbG8gd29ybGQhIHYx"
             },
             "v2": {
-              "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-              "filebase64": "aGVsbG8tUHJveHk="
+              "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+              "filebase64": "aGVsbG8tUHJveHkK"
             },
             "v3": {
-              "fileurl": "http://localhost:8181/EMPTY-URL"
+              "fileurl": "http://localhost:8282/EMPTY-URL"
             }
           },
           "versionscount": 3
@@ -502,11 +502,11 @@ func TestInlineResource(t *testing.T) {
           },
           "versions": {
             "v1": {
-              "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-              "filebase64": "aGVsbG8tUHJveHk="
+              "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+              "filebase64": "aGVsbG8tUHJveHkK"
             },
             "v2": {
-              "fileurl": "http://localhost:8181/EMPTY-URL"
+              "fileurl": "http://localhost:8282/EMPTY-URL"
             },
             "v3": {
               "filebase64": "SGVsbG8gd29ybGQhIHYz"
@@ -531,8 +531,8 @@ func TestInlineResource(t *testing.T) {
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1-proxy": {
-          "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-          "filebase64": "aGVsbG8tUHJveHk=",
+          "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+          "filebase64": "aGVsbG8tUHJveHkK",
           "meta": {
             "defaultversionid": "v3",
           },
@@ -555,7 +555,7 @@ func TestInlineResource(t *testing.T) {
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1-proxy": {
-          "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
+          "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
           "meta": {
             "defaultversionid": "v3",
           },
@@ -564,11 +564,11 @@ func TestInlineResource(t *testing.T) {
               "filebase64": "SGVsbG8gd29ybGQhIHYx"
             },
             "v2": {
-              "fileurl": "http://localhost:8181/EMPTY-URL"
+              "fileurl": "http://localhost:8282/EMPTY-URL"
             },
             "v3": {
-              "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-              "filebase64": "aGVsbG8tUHJveHk="
+              "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+              "filebase64": "aGVsbG8tUHJveHkK"
             }
           },
           "versionscount": 3
@@ -584,12 +584,12 @@ func TestInlineResource(t *testing.T) {
 		{
 			Name: "file-proxy",
 			URL:  "/dirs/d1/files/f1-proxy",
-			Exp:  `hello-Proxy`,
+			Exp:  "hello-Proxy\n",
 		},
 		{
 			Name: "file-url",
 			URL:  "/dirs/d1/files/f2-url",
-			Exp:  `hello-URL`,
+			Exp:  "hello-URL\n",
 		},
 		{
 			Name: "file-resource",
@@ -600,8 +600,8 @@ func TestInlineResource(t *testing.T) {
 			Name: "Inline - at file + inline file,meta",
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=file,meta",
 			Exp: `{
-  "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-  "filebase64": "aGVsbG8tUHJveHk=",
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+  "filebase64": "aGVsbG8tUHJveHkK",
   "meta": {
     "defaultversionid": "v3",
   },
@@ -613,7 +613,7 @@ func TestInlineResource(t *testing.T) {
 			Name: "Inline - at file + inline versions.file,meta",
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=versions.file,meta",
 			Exp: `{
-  "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
   "meta": {
     "defaultversionid": "v3",
   },
@@ -622,11 +622,11 @@ func TestInlineResource(t *testing.T) {
       "filebase64": "SGVsbG8gd29ybGQhIHYx"
     },
     "v2": {
-      "fileurl": "http://localhost:8181/EMPTY-URL"
+      "fileurl": "http://localhost:8282/EMPTY-URL"
     },
     "v3": {
-      "fileproxyurl": "http://localhost:8181/EMPTY-Proxy",
-      "filebase64": "aGVsbG8tUHJveHk="
+      "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
+      "filebase64": "aGVsbG8tUHJveHkK"
     }
   },
   "versionscount": 3

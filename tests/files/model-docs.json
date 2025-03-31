@@ -1,0 +1,14 @@
+{ 
+  "groups": {
+    "docs": {
+      "plural": "docs",
+      "singular": "doc",
+      "resources": {
+        "formats": {
+          "plural": "formats",
+          "singular": "format"
+        } 
+      }
+    } 
+  } 
+}
