@@ -266,15 +266,21 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
 		reg.server = "http://" + strings.TrimLeft(reg.server, "/")
 	}
 
-	u, err := url.Parse(reg.server)
+	path = strings.TrimRight(reg.server, "/") + "/" +
+		strings.TrimLeft(path, "/")
+
+	u, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
 
-	if u.Scheme == "" {
-		u.Scheme = "http"
-	}
-	u.Path += "/" + strings.TrimLeft(path, "/")
+	/*
+
+		if u.Scheme == "" {
+			u.Scheme = "http"
+		}
+		u.Path += "/" + strings.TrimLeft(path, "/")
+	*/
 
 	return u, nil
 }

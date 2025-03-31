@@ -43,6 +43,7 @@ func addUpdateCmd(parent *cobra.Command) {
 	}
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	updateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,-")
+	updateCmd.Flags().BoolP("patch", "p", false, "Only update specified attributes")
 
 	parent.AddCommand(updateCmd)
 }
@@ -79,6 +80,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	isMetadata, _ := cmd.Flags().GetBool("details")
+	patch, _ := cmd.Flags().GetBool("patch")
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
 	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
@@ -130,13 +132,21 @@ func createFunc(cmd *cobra.Command, args []string) {
 		// Nothing
 	}
 
+	method := "PUT"
+	if patch {
+		method = "PATCH"
+	}
 	for id, content := range objects {
-		res, err := reg.HttpDo("PUT", id+suffix, content)
+		res, err := reg.HttpDo(method, id+suffix, content)
 		Error(err)
 		if res.Code == 201 {
 			Verbose("Created: %s", id)
 		} else {
-			Verbose("Updated: %s", id)
+			if patch {
+				Verbose("Patched: %s", id)
+			} else {
+				Verbose("Updated: %s", id)
+			}
 		}
 	}
 

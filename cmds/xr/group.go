@@ -63,7 +63,7 @@ func addGroupCmd(parent *cobra.Command) {
 	groupDeleteCmd.Flags().Bool("all", false, "delete all instances of TYPE")
 	groupCmd.AddCommand(groupDeleteCmd)
 
-	parent.AddCommand(groupCmd)
+	// parent.AddCommand(groupCmd)
 }
 
 func groupCreateFunc(cmd *cobra.Command, args []string) {

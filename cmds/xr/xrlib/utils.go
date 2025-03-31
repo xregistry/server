@@ -231,6 +231,10 @@ func ParseXID(xidStr string) *XID {
 	xidStr = strings.TrimLeft(xidStr, "/")
 	parts := strings.SplitN(xidStr, "/", 6)
 
+	if xidStr == "" {
+		xidStr = "/"
+	}
+
 	xid := &XID{
 		str:      xidStr,
 		Type:     ENTITY_REGISTRY,

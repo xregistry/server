@@ -76,13 +76,13 @@ func addRegistryCmd(parent *cobra.Command) {
 	registryImportCmd.Flags().StringArrayP("filter", "f", nil, "Filter value")
 	registryCmd.AddCommand(registryImportCmd)
 
-	parent.AddCommand(registryCmd)
+	// parent.AddCommand(registryCmd)
 
 	// Put some of these commands on the 'xr' cmd itself as short-cuts
 	// parent.AddCommand(registryGetCmd)
-	parent.AddCommand(registryExportCmd)
-	parent.AddCommand(registryPutCmd)
-	parent.AddCommand(registryImportCmd)
+	// parent.AddCommand(registryExportCmd)
+	// parent.AddCommand(registryPutCmd)
+	// parent.AddCommand(registryImportCmd)
 
 }
 
