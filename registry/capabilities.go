@@ -55,7 +55,7 @@ var AllowableMutable = ArrayToLower([]string{
 
 var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 
-var AllowableSpecVersions = ArrayToLower([]string{"0.5"})
+var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc1", SPECVERSION})
 
 var DefaultCapabilities = &Capabilities{
 	EnforceCompatibility: false,
@@ -133,6 +133,7 @@ func ArrayToLower(arr []string) []string {
 	for i, s := range arr {
 		arr[i] = strings.ToLower(s)
 	}
+	arr = slices.Compact(arr) // remove dups
 	return arr
 }
 

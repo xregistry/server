@@ -6346,7 +6346,7 @@ func TestUseSpecAttrs(t *testing.T) {
 	}
 
 	xHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "1.0-rc1",
   "registryid": "TestUseSpecAttrs",
   "self": "http://localhost:8181/",
   "xid": "/",

@@ -705,7 +705,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?inline=*", ``,
 		200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -783,7 +783,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?inline=dirs.*", ``,
 		200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -861,7 +861,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?inline=dirs.files.*", ``,
 		200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -939,7 +939,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.*", ``,
 		200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1278,7 +1278,7 @@ func TestInlineEmpty(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	xHTTP(t, reg, "GET", "/?inline", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1293,7 +1293,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1308,7 +1308,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1323,7 +1323,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1338,7 +1338,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1355,7 +1355,7 @@ func TestInlineEmpty(t *testing.T) {
 	reg.AddGroup("dirs", "d1")
 
 	xHTTP(t, reg, "GET", "/?inline", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1383,7 +1383,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1410,7 +1410,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1438,7 +1438,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1466,7 +1466,7 @@ func TestInlineEmpty(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",

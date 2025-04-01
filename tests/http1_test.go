@@ -4765,7 +4765,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	xCheckEqual(t, "", v2.GetAsString("modifiedat"), "--"+m1.GetAsString("modifiedat"))
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4893,7 +4893,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	xCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4928,7 +4928,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
         }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4943,7 +4943,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	})
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",

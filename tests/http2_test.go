@@ -4591,7 +4591,7 @@ func TestHTTPURLs(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4616,7 +4616,7 @@ func TestHTTPURLs(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4642,7 +4642,7 @@ func TestHTTPURLs(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5372,7 +5372,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5401,7 +5401,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5451,7 +5451,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5468,7 +5468,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5564,7 +5564,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5581,7 +5581,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5687,7 +5687,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5704,7 +5704,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6611,7 +6611,7 @@ func TestHTTPExport(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6640,7 +6640,7 @@ func TestHTTPExport(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6676,7 +6676,7 @@ func TestHTTPExport(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{},
 		ResBody: `{
-  "specversion": "0.5",
+  "specversion": "` + registry.SPECVERSION + `",
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6831,7 +6831,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   }
 }`, 200,
 		`{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6845,7 +6845,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -7121,7 +7121,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   }
 }`, 200,
 		`{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -7135,7 +7135,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "0.5",
+  "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -7919,7 +7919,7 @@ func TestHTTPSpecVersion(t *testing.T) {
 	reg := NewRegistry("TestHTTPSpecVersion")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "GET", "?specversion=0.5", "", 200, "*")
+	xHTTP(t, reg, "GET", "?specversion="+registry.SPECVERSION, "", 200, "*")
 	xHTTP(t, reg, "GET", "?specversion=0.x", "", 400,
 		"Unsupported xRegistry spec version: 0.x\n")
 }

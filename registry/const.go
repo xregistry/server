@@ -7,7 +7,7 @@ var GitCommit = "<n/a>"
 
 var MAX_VARCHAR = 512
 
-const SPECVERSION = "0.5"
+const SPECVERSION = "1.0-rc1"
 const XREGSCHEMA = "xRegistry-json"
 
 // Model attribute default values

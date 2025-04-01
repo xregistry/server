@@ -77,7 +77,7 @@ func TestDBRows(t *testing.T) {
 : epoch, -> 2
 : modifiedat, -> YYYY-MM-DDTHH:MM:02Z
 : registryid, -> TestDBRows
-: specversion, -> 0.5
+: specversion, -> 1.0-rc1
 dirs/d1: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1: dirid, -> d1
 dirs/d1: epoch, -> 2
