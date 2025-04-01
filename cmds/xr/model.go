@@ -78,7 +78,7 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 		Error(err)
 	}
 
-	buf, err = registry.ProcessIncludes("", buf, true)
+	buf, err = registry.ProcessIncludes(fileName, buf, true)
 	Error(err)
 
 	tmp := map[string]any{}
@@ -138,6 +138,9 @@ func VerifyModel(fileName string, buf []byte) {
 }
 
 func modelUpdateFunc(cmd *cobra.Command, args []string) {
+	var buf []byte
+	var err error
+
 	if Server == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
@@ -145,18 +148,33 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	data, _ := cmd.Flags().GetString("data")
-	if len(data) > 0 && data[0] == '@' {
-		buf, err := xrlib.ReadFile(data[1:])
-		Error(err)
-		data = string(buf)
+	fileName := ""
+	if len(args) > 0 {
+		fileName = args[0]
+	} else {
+		data, _ := cmd.Flags().GetString("data")
+		if len(data) > 0 {
+			if data[0] == '@' {
+				fileName = data[1:]
+			} else {
+				buf = []byte(data)
+			}
+		}
 	}
 
-	if len(data) == 0 {
+	if len(buf) == 0 {
+		buf, err = xrlib.ReadFile(fileName)
+		Error(err)
+	}
+
+	buf, err = registry.ProcessIncludes(fileName, buf, true)
+	Error(err)
+
+	if len(buf) == 0 {
 		Error("Missing model data")
 	}
 
-	_, err = reg.HttpDo("PUT", "/model", []byte(data))
+	_, err = reg.HttpDo("PUT", "/model", []byte(buf))
 	Error(err)
 
 	Verbose("Model updated")
