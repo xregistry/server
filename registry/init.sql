@@ -71,6 +71,7 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
     # For Groups and Resources
     Plural            VARCHAR(64),
     Singular          VARCHAR(64),
+    Description       VARCHAR(255),
     ModelVersion      VARCHAR(255),
     CompatibleWith    VARCHAR(255),
     Labels            JSON,

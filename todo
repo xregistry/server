@@ -100,3 +100,4 @@ TODOs:
 	- 2 attributes must be the same( e.g. the envelope attr in msg spec)
 	- trying to mimize the code someone may need to write to create custom impl
 - add xr support to download as individual files
+- add test for model "description", "modelversion" and "compatwith"

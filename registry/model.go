@@ -128,6 +128,7 @@ type GroupModel struct {
 
 	Plural         string            `json:"plural"`
 	Singular       string            `json:"singular"`
+	Description    string            `json:"description,omitempty"`
 	ModelVersion   string            `json:"modelversion,omitempty"`
 	CompatibleWith string            `json:"compatiblewith,omitempty"`
 	Labels         map[string]string `json:"labels,omitempty"`
@@ -142,6 +143,7 @@ type ResourceModel struct {
 
 	Plural           string            `json:"plural"`
 	Singular         string            `json:"singular"`
+	Description      string            `json:"description,omitempty"`
 	MaxVersions      int               `json:"maxversions"`             // do not include omitempty
 	SetVersionId     *bool             `json:"setversionid"`            // do not include omitempty
 	SetDefaultSticky *bool             `json:"setdefaultversionsticky"` // do not include omitempty
@@ -727,7 +729,8 @@ func LoadModel(reg *Registry) *Model {
         SELECT
             SID, RegistrySID, ParentSID, Plural, Singular, Attributes,
 			MaxVersions, SetVersionId, SetDefaultSticky, HasDocument,
-			TypeMap, Labels, MetaAttributes, ModelVersion, CompatibleWith
+			TypeMap, Labels, MetaAttributes, ModelVersion, CompatibleWith,
+			Description
         FROM ModelEntities
         WHERE RegistrySID=?
         ORDER BY ParentSID ASC`, reg.DbSID)
@@ -763,6 +766,7 @@ func LoadModel(reg *Registry) *Model {
 
 				Plural:         NotNilString(row[3]), // Plural
 				Singular:       NotNilString(row[4]), // Singular
+				Description:    NotNilString(row[15]),
 				ModelVersion:   NotNilString(row[13]),
 				CompatibleWith: NotNilString(row[14]),
 				Labels:         labels,
@@ -781,11 +785,12 @@ func LoadModel(reg *Registry) *Model {
 
 			if g != nil { // should always be true, but...
 				r := &ResourceModel{
-					SID:        NotNilString(row[0]),
-					GroupModel: g,
-					Plural:     NotNilString(row[3]),
-					Singular:   NotNilString(row[4]),
-					Attributes: attrs,
+					SID:         NotNilString(row[0]),
+					GroupModel:  g,
+					Plural:      NotNilString(row[3]),
+					Singular:    NotNilString(row[4]),
+					Description: NotNilString(row[15]),
+					Attributes:  attrs,
 
 					MaxVersions:      NotNilIntDef(row[6], MAXVERSIONS),
 					SetVersionId:     PtrBool(NotNilBoolDef(row[7], SETVERSIONID)),
@@ -876,6 +881,7 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 		} else {
 			oldGM.Singular = newGM.Singular
 		}
+		oldGM.Description = newGM.Description
 		oldGM.ModelVersion = newGM.ModelVersion
 		oldGM.CompatibleWith = newGM.CompatibleWith
 		oldGM.Labels = newGM.Labels
@@ -888,6 +894,7 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 				oldRM, err = oldGM.AddResourceModelFull(&ResourceModel{
 					Plural:           newRM.Plural,
 					Singular:         newRM.Singular,
+					Description:      newRM.Description,
 					MaxVersions:      newRM.MaxVersions,
 					SetVersionId:     newRM.SetVersionId,
 					SetDefaultSticky: newRM.SetDefaultSticky,
@@ -902,6 +909,7 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 
 			} else {
 				oldRM.Singular = newRM.Singular
+				oldRM.Description = newRM.Description
 				oldRM.MaxVersions = newRM.MaxVersions
 				oldRM.SetVersionId = newRM.SetVersionId
 				oldRM.SetDefaultSticky = newRM.SetDefaultSticky
@@ -956,17 +964,17 @@ func (gm *GroupModel) Save() error {
         INSERT INTO ModelEntities(
             SID, RegistrySID,
 			ParentSID, Plural, Singular, Labels, Attributes, 
-			ModelVersion, CompatibleWith)
-        VALUES(?,?,?,?,?,?,?,?,?)
+			ModelVersion, CompatibleWith, Description)
+        VALUES(?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
 		    ParentSID=?,Plural=?,Singular=?,Labels=?,Attributes=?,
-			ModelVersion=?,CompatibleWith=?
+			ModelVersion=?,CompatibleWith=?,Description=?
 		`,
 		gm.SID, gm.Model.Registry.DbSID,
 		nil, gm.Plural, gm.Singular, labels, attrs,
-		gm.ModelVersion, gm.CompatibleWith,
+		gm.ModelVersion, gm.CompatibleWith, gm.Description,
 		nil, gm.Plural, gm.Singular, labels, attrs,
-		gm.ModelVersion, gm.CompatibleWith)
+		gm.ModelVersion, gm.CompatibleWith, gm.Description)
 	if err != nil {
 		log.Printf("Error updating groupModel(%s): %s", gm.Plural, err)
 	}
@@ -1124,11 +1132,11 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 		INSERT INTO ModelEntities(
 			SID, RegistrySID, ParentSID, Plural, Singular, MaxVersions,
 			SetVersionId, SetDefaultSticky, HasDocument, TypeMap, Labels,
-			ModelVersion, CompatibleWith)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			ModelVersion, CompatibleWith, Description)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		rm.SID, gm.Model.Registry.DbSID, gm.SID, rm.Plural, rm.Singular, rm.MaxVersions,
 		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		rm.ModelVersion, rm.CompatibleWith)
+		rm.ModelVersion, rm.CompatibleWith, rm.Description)
 	if err != nil {
 		log.Printf("Error inserting resourceModel(%s): %s", rm.Plural, err)
 		return nil, err
@@ -1230,23 +1238,23 @@ func (rm *ResourceModel) Save() error {
 			ParentSID, Plural, Singular, MaxVersions,
 			Attributes,
 			SetVersionId, SetDefaultSticky, HasDocument, TypeMap,
-			Labels, MetaAttributes,ModelVersion,CompatibleWith)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			Labels, MetaAttributes,ModelVersion,CompatibleWith, Description)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
             ParentSID=?, Plural=?, Singular=?,
 			Attributes=?,
             MaxVersions=?, SetVersionId=?, SetDefaultSticky=?, HasDocument=?, TypeMap=?, Labels=?,
-			MetaAttributes=?, ModelVersion=?, CompatibleWith=?`,
+			MetaAttributes=?, ModelVersion=?, CompatibleWith=?, Description=?`,
 		rm.SID, rm.GroupModel.Model.Registry.DbSID,
 		rm.GroupModel.SID, rm.Plural, rm.Singular, rm.MaxVersions,
 		attrs,
 		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		metaAttrs, rm.ModelVersion, rm.CompatibleWith,
+		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description,
 
 		rm.GroupModel.SID, rm.Plural, rm.Singular,
 		attrs,
 		rm.MaxVersions, rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		metaAttrs, rm.ModelVersion, rm.CompatibleWith)
+		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description)
 	if err != nil {
 		log.Printf("Error updating resourceModel(%s): %s", rm.Plural, err)
 		return err
