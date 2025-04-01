@@ -84,7 +84,7 @@ func main() {
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Just make sure Server starts with some variant of "http"
-			if !strings.HasPrefix(Server, "http") {
+			if Server != "" && !strings.HasPrefix(Server, "http") {
 				Server = "http://" + strings.TrimLeft(Server, "/")
 			}
 
@@ -99,13 +99,27 @@ func main() {
 	xrCmd.PersistentFlags().StringVarP(&Server, "server", "s", "",
 		"Server URL")
 
+	xrCmd.AddGroup(
+		&cobra.Group{"Entities", "Data Management:"},
+		&cobra.Group{"Admin", "Admin:"})
+	xrCmd.SetHelpCommand(&cobra.Command{
+		Use:    "help [command]",
+		Short:  "Help about any command",
+		Hidden: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			if err := cmd.Parent().Help(); err != nil {
+				fmt.Println(err)
+			}
+		},
+	})
+
 	// Set Server after we add the --server flag so we don't show the
 	// default value in the help text
 	Server = DefaultServer
 
 	addModelCmd(xrCmd)
-	addRegistryCmd(xrCmd)
-	addGroupCmd(xrCmd)
+	// addRegistryCmd(xrCmd)
+	// addGroupCmd(xrCmd)
 	addGetCmd(xrCmd)
 	addCreateCmd(xrCmd)
 	addUpsertCmd(xrCmd)

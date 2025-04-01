@@ -6,43 +6,46 @@ import (
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
+	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	// "github.com/xregistry/server/registry"
-	"github.com/spf13/cobra"
 )
 
 func addCreateCmd(parent *cobra.Command) {
 	createCmd := &cobra.Command{
-		Use:   "create [ XID ]",
-		Short: "Create a new entity in the registry",
-		Run:   createFunc,
+		Use:     "create [ XID ]",
+		Short:   "Create a new entity in the registry",
+		Run:     createFunc,
+		GroupID: "Entities",
 	}
 	createCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	createCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,-")
+	createCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
 
 	parent.AddCommand(createCmd)
 }
 
 func addUpsertCmd(parent *cobra.Command) {
 	upsertCmd := &cobra.Command{
-		Use:   "upsert [ XID ]",
-		Short: "Update, or insert(create), an entity in the registry",
-		Run:   createFunc,
+		Use:     "upsert [ XID ]",
+		Short:   "Update, or insert(create), an entity in the registry",
+		Run:     createFunc,
+		GroupID: "Entities",
 	}
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	upsertCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,-")
+	upsertCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
 
 	parent.AddCommand(upsertCmd)
 }
 
 func addUpdateCmd(parent *cobra.Command) {
 	updateCmd := &cobra.Command{
-		Use:   "update [ XID ]",
-		Short: "Update an entity in the registry",
-		Run:   createFunc,
+		Use:     "update [ XID ]",
+		Short:   "Update an entity in the registry",
+		Run:     createFunc,
+		GroupID: "Entities",
 	}
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	updateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,-")
+	updateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
 	updateCmd.Flags().BoolP("patch", "p", false, "Only update specified attributes")
 
 	parent.AddCommand(updateCmd)
@@ -100,6 +103,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	objects := map[string]json.RawMessage{}
 
+	Error(xid.ValidateTypes(reg, false))
+
 	if xid.IsEntity {
 		// If not uploading a domain doc then make sure data has something
 		if dataIsMeta && len(data) == 0 {
@@ -117,6 +122,9 @@ func createFunc(cmd *cobra.Command, args []string) {
 	case "create":
 		// Make sure none of the top-level entities already exist
 		for id, _ := range objects {
+			if !xid.IsEntity {
+				id = xid.String() + "/" + id
+			}
 			if _, err = reg.HttpDo("GET", id, nil); err == nil {
 				Error("%q already exists", id)
 			}
@@ -124,6 +132,9 @@ func createFunc(cmd *cobra.Command, args []string) {
 	case "update":
 		// Make sure all of the top-level entities already exist
 		for id, _ := range objects {
+			if !xid.IsEntity {
+				id = xid.String() + "/" + id
+			}
 			if _, err = reg.HttpDo("GET", id, nil); err != nil {
 				Error("%q doesn't exists", id)
 			}
@@ -136,7 +147,11 @@ func createFunc(cmd *cobra.Command, args []string) {
 	if patch {
 		method = "PATCH"
 	}
+
 	for id, content := range objects {
+		if !xid.IsEntity {
+			id = xid.String() + "/" + id
+		}
 		res, err := reg.HttpDo(method, id+suffix, content)
 		Error(err)
 		if res.Code == 201 {

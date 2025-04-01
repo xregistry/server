@@ -286,6 +286,45 @@ func ParseXID(xidStr string) *XID {
 	return xid
 }
 
+func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
+	if xid.Group == "" {
+		return nil
+	}
+
+	gm := (*GroupModel)(nil)
+	for _, m := range reg.Model.Groups {
+		if m.Plural == xid.Group || (allowSingular && m.Singular == xid.Group) {
+			gm = m
+			break
+		}
+	}
+	if gm == nil {
+		return fmt.Errorf("Unknown Group type: %s", xid.Group)
+	}
+
+	if xid.Resource == "" {
+		return nil
+	}
+
+	rm := (*ResourceModel)(nil)
+	for _, m := range gm.Resources {
+		if m.Plural == xid.Resource || (allowSingular && m.Singular == xid.Resource) {
+			rm = m
+			break
+		}
+	}
+	if rm == nil {
+		return fmt.Errorf("Unknown Resource type: %s", xid.Resource)
+	}
+
+	if xid.Version != "" {
+		if xid.Version != "versions" && (!allowSingular || xid.Version != "version") {
+			return fmt.Errorf("Expected %q not %q", "versions", xid.Version)
+		}
+	}
+	return nil
+}
+
 func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
 	if xid.Resource == "" {
 		return nil, nil

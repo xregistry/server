@@ -13,9 +13,10 @@ import (
 
 func addGetCmd(parent *cobra.Command) {
 	getCmd := &cobra.Command{
-		Use:   "get [ XID ]",
-		Short: "Retrieve data from the registry",
-		Run:   getFunc,
+		Use:     "get [ XID ]",
+		Short:   "Retrieve data from the registry",
+		Run:     getFunc,
+		GroupID: "Entities",
 	}
 	getCmd.Flags().StringP("output", "o", "json", "Output format(json,human)")
 	getCmd.Flags().BoolP("details", "m", false, "Show resource metadata")

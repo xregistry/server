@@ -13,12 +13,13 @@ import (
 
 func addDeleteCmd(parent *cobra.Command) {
 	deleteCmd := &cobra.Command{
-		Use:   "delete [ XID ]",
-		Short: "Delete an entity from the registry",
-		Run:   deleteFunc,
+		Use:     "delete [ XID ]",
+		Short:   "Delete an entity from the registry",
+		Run:     deleteFunc,
+		GroupID: "Entities",
 	}
 	deleteCmd.Flags().BoolP("force", "f", false, "Don't error if doesn't exist")
-	deleteCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,-")
+	deleteCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
 
 	parent.AddCommand(deleteCmd)
 }

@@ -142,6 +142,11 @@ type Entity struct {
 }
 
 func GetRegistry(url string) (*Registry, error) {
+	url = strings.TrimSpace(url)
+	if url == "" {
+		return nil, fmt.Errorf("No Server address provided")
+	}
+
 	if !strings.HasPrefix(url, "http") {
 		url = "http://" + strings.TrimLeft(url, "/")
 	}

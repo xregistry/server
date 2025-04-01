@@ -14,9 +14,10 @@ import (
 
 func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd := &cobra.Command{
-		Use:   "download DIR [ XID...]",
-		Short: "Download entities from registry as individual files",
-		Run:   downloadFunc,
+		Use:     "download DIR [ XID...]",
+		Short:   "Download entities from registry as individual files",
+		Run:     downloadFunc,
+		GroupID: "Entities",
 	}
 
 	parent.AddCommand(downloadCmd)
