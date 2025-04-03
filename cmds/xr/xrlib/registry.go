@@ -176,7 +176,7 @@ func (reg *Registry) Refresh() error {
 		return err
 	}
 
-	if attrs["specversion"] != "0.5" {
+	if attrs["specversion"] != registry.SPECVERSION {
 		return fmt.Errorf("Not a valid xRegistry, missing 'specversion'")
 	}
 

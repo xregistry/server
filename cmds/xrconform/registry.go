@@ -27,7 +27,7 @@ func TestRoot(td *TD) {
 	}
 	td.Log("GET / returned 200 + JSON body")
 
-	td.PropMustEqual(res.JSON, "specversion", "0.5")
+	td.PropMustEqual(res.JSON, "specversion", registry.SPECVERSION)
 	td.PropMustNotEqual(res.JSON, "registryid", "")
 	td.PropMustNotEqual(res.JSON, "self", "")
 	td.PropMustNotEqual(res.JSON, "epoch", "")
