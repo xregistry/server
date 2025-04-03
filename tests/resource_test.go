@@ -56,8 +56,8 @@ func TestCreateResource(t *testing.T) {
   "versionscount": 2
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/xxx", "Not found\n")
-	xCheckGet(t, reg, "dirs/d1/files/xxx", "Not found\n")
+	xCheckGet(t, reg, "/dirs/d1/files/xxx", "\"dirs/d1/files/xxx\" not found\n")
+	xCheckGet(t, reg, "dirs/d1/files/xxx", "\"dirs/d1/files/xxx\" not found\n")
 	xCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", "Expected \"versions\" or \"meta\", got: yyy\n")
 	xCheckGet(t, reg, "dirs/d1/files/xxx/yyy", "Expected \"versions\" or \"meta\", got: yyy\n")
 

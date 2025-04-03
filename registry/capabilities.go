@@ -10,14 +10,13 @@ import (
 )
 
 type Capabilities struct {
-	EnforceCompatibility bool     `json:"enforcecompatibility"`
-	Flags                []string `json:"flags"`
-	Mutable              []string `json:"mutable"`
-	Pagination           bool     `json:"pagination"`
-	Schemas              []string `json:"schemas"`
-	ShortSelf            bool     `json:"shortself"`
-	SpecVersions         []string `json:"specversions"`
-	Sticky               *bool    `json:"sticky"`
+	Flags        []string `json:"flags"`
+	Mutable      []string `json:"mutable"`
+	Pagination   bool     `json:"pagination"`
+	Schemas      []string `json:"schemas"`
+	ShortSelf    bool     `json:"shortself"`
+	SpecVersions []string `json:"specversions"`
+	Sticky       *bool    `json:"sticky"`
 }
 
 type OfferedCapability struct {
@@ -34,14 +33,13 @@ type OfferedItem struct {
 }
 
 type Offered struct {
-	EnforceCompatibility OfferedCapability `json:"enforcecompatibility,omitempty"`
-	Flags                OfferedCapability `json:"flags,omitempty"`
-	Mutable              OfferedCapability `json:"mutable,omitempty"`
-	Pagination           OfferedCapability `json:"pagination,omitempty"`
-	Schemas              OfferedCapability `json:"schemas,omitempty"`
-	ShortSelf            OfferedCapability `json:"shortself,omitempty"`
-	SpecVersions         OfferedCapability `json:"specversions,omitempty"`
-	Sticky               OfferedCapability `json:"sticky,omitempty"`
+	Flags        OfferedCapability `json:"flags,omitempty"`
+	Mutable      OfferedCapability `json:"mutable,omitempty"`
+	Pagination   OfferedCapability `json:"pagination,omitempty"`
+	Schemas      OfferedCapability `json:"schemas,omitempty"`
+	ShortSelf    OfferedCapability `json:"shortself,omitempty"`
+	SpecVersions OfferedCapability `json:"specversions,omitempty"`
+	Sticky       OfferedCapability `json:"sticky,omitempty"`
 }
 
 var AllowableFlags = ArrayToLower([]string{
@@ -58,14 +56,13 @@ var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc1", SPECVERSION})
 
 var DefaultCapabilities = &Capabilities{
-	EnforceCompatibility: false,
-	Flags:                AllowableFlags,
-	Mutable:              AllowableMutable,
-	Pagination:           false,
-	Schemas:              AllowableSchemas,
-	ShortSelf:            false,
-	SpecVersions:         AllowableSpecVersions,
-	Sticky:               PtrBool(true),
+	Flags:        AllowableFlags,
+	Mutable:      AllowableMutable,
+	Pagination:   false,
+	Schemas:      AllowableSchemas,
+	ShortSelf:    false,
+	SpecVersions: AllowableSpecVersions,
+	Sticky:       PtrBool(true),
 }
 
 func init() {
@@ -89,10 +86,6 @@ func String2AnySlice(strs []string) []any {
 
 func GetOffered() *Offered {
 	offered := &Offered{
-		EnforceCompatibility: OfferedCapability{
-			Type: "boolean",
-			Enum: []any{false},
-		},
 		Flags: OfferedCapability{
 			Type: "array",
 			Item: &OfferedItem{
@@ -196,10 +189,6 @@ func (c *Capabilities) Validate() error {
 		c.SpecVersions = []string{SPECVERSION}
 	}
 
-	if c.EnforceCompatibility != false {
-		return fmt.Errorf(`"enforcecapabilities" must be "false"`)
-	}
-
 	c.Flags, err = CleanArray(c.Flags, AllowableFlags, "flags")
 	if err != nil {
 		return err
@@ -256,10 +245,6 @@ func ParseCapabilitiesJSON(buf []byte) (*Capabilities, error) {
 		return nil, err
 	}
 	return &cap, nil
-}
-
-func (c *Capabilities) EnforceCompatibilityEnabled() bool {
-	return c.EnforceCompatibility
 }
 
 func (c *Capabilities) FlagEnabled(str string) bool {

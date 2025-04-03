@@ -38,7 +38,6 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
-    "enforcecompatibility": false,
     "flags": [
       "doc",
       "epoch",
@@ -557,7 +556,6 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
-    "enforcecompatibility": false,
     "flags": [
       "doc",
       "epoch",
@@ -1733,13 +1731,13 @@ func TestExportBasic(t *testing.T) {
 		"Not found\n")
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
-		"Not found\n")
+		"\"dirs/d1/files/fz\" not found\n")
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
 		"Not found\n")
 
 	xHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
-		"Not found\n")
+		"\"dirs/dx\" not found\n")
 
 	xHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
 		"Unknown Resource type: filesx\n")

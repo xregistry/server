@@ -152,7 +152,7 @@ func TestNoModel(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model/foo", "", 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/model/foo", "", 404, "\"model/foo\" not found\n")
 }
 
 func TestGroupModelCreate(t *testing.T) {

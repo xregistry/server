@@ -453,7 +453,7 @@ func (r *Result) Push() {
 }
 
 func (r *Result) NextRow() []*any {
-	if r.Data == nil {
+	if r == nil || r.Data == nil {
 		return nil
 	}
 

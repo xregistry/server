@@ -11,10 +11,10 @@ func TestCapabilitySimple(t *testing.T) {
 	reg := NewRegistry("TestCapabilitySimple")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "GET", "/capabilities/foo", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/capabilities/foo", ``, 404,
+		"\"capabilities/foo\" not found\n")
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [
     "doc",
     "epoch",
@@ -56,7 +56,6 @@ func TestCapabilitySimple(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
   "capabilities": {
-    "enforcecompatibility": false,
     "flags": [
       "doc",
       "epoch",
@@ -98,7 +97,6 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "empty",
 			Cap:  `{}`,
 			Exp: `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -116,7 +114,6 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "full mutable",
 			Cap:  `{"mutable":["entities","model","capabilities"]}`,
 			Exp: `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [
     "capabilities",
@@ -138,7 +135,6 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "dup mutable",
 			Cap:  `{"mutable":["entities","model","entities","capabilities"]}`,
 			Exp: `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [
     "capabilities",
@@ -160,7 +156,6 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "star mutable",
 			Cap:  `{"mutable":["*"]}`,
 			Exp: `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [
     "capabilities",
@@ -182,7 +177,6 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "mutable empty",
 			Cap:  `{"mutable":[]}`,
 			Exp: `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -261,7 +255,6 @@ func TestCapabilityPath(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [
     "doc",
     "epoch",
@@ -308,7 +301,6 @@ func TestCapabilityPath(t *testing.T) {
 	// Try to clear it all - some can't be totally erased
 	xHTTP(t, reg, "PUT", "/capabilities", `{}`, 200,
 		`{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -336,7 +328,6 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -353,7 +344,6 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Setting to nulls
 	xHTTP(t, reg, "PUT", "/capabilities", `{
-  "enforcecompatibility": null,
   "flags": null,
   "mutable": null,
   "pagination": null,
@@ -362,7 +352,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": null
 }`, 200,
 		`{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -378,7 +367,6 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -395,7 +383,6 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Testing setting everything to the default
 	xHTTP(t, reg, "PUT", "/capabilities", `{
-  "enforcecompatibility": false,
   "flags": [
     "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
@@ -409,7 +396,6 @@ func TestCapabilityPath(t *testing.T) {
   "sticky": true
 }`, 200,
 		`{
-  "enforcecompatibility": false,
   "flags": [
     "doc",
     "epoch",
@@ -442,7 +428,6 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [
     "doc",
     "epoch",
@@ -478,7 +463,6 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/capabilities", `{
 }`, 200,
 		`{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -494,7 +478,6 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -513,7 +496,6 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/capabilities", `{
 	"schemas": ["xregistry-json"]
 }`, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -530,12 +512,10 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Test some bools
 	xHTTP(t, reg, "PUT", "/capabilities", `{
-    "enforcecompatibility": false,
 	"pagination": false,
 	"shortself": false,
     "sticky": false
 }`, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -549,9 +529,6 @@ func TestCapabilityPath(t *testing.T) {
   "sticky": false
 }
 `)
-
-	xHTTP(t, reg, "PUT", "/capabilities", `{"enforcecompatibility":true}`, 400,
-		`"enforcecapabilities" must be "false"`+"\n")
 
 	xHTTP(t, reg, "PUT", "/capabilities", `{"pagination":true}`, 400,
 		`"pagination" must be "false"`+"\n")
@@ -603,7 +580,6 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
-    "enforcecompatibility": false,
     "flags": [],
     "mutable": [],
     "pagination": false,
@@ -622,7 +598,6 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to nulls
 	// notice ?inline is still disabled!
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "enforcecompatibility": null,
   "flags": null,
   "mutable": null,
   "pagination": null,
@@ -643,7 +618,6 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -661,7 +635,6 @@ func TestCapabilityAttr(t *testing.T) {
 	// Testing setting everything to the default
 	// inline still disabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "enforcecompatibility": false,
   "flags": [
     "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
@@ -686,7 +659,6 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [
     "doc",
     "epoch",
@@ -721,7 +693,6 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to minimal
 	// inline still enabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -740,7 +711,6 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
-    "enforcecompatibility": false,
     "flags": [],
     "mutable": [],
     "pagination": false,
@@ -757,7 +727,6 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -805,7 +774,6 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	xHTTP(t, reg, "PUT", "/capabilities", `{"mutable":["*"]}`, 200, `{
-  "enforcecompatibility": false,
   "flags": [],
   "mutable": [
     "capabilities",
@@ -914,12 +882,6 @@ func TestCapabilityOffered(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	xHTTP(t, reg, "GET", "/capabilities?offered", ``, 200, `{
-  "enforcecompatibility": {
-    "type": "boolean",
-    "enum": [
-      false
-    ]
-  },
   "flags": {
     "type": "array",
     "item": {

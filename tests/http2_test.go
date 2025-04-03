@@ -4796,19 +4796,6 @@ func TestHTTPURLs(t *testing.T) {
 }
 `})
 
-	// POST /GROUPs/gID
-	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "POST /GROUPs/gID",
-		URL:        "/dirs/d2",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    ``,
-		Code:       405,
-		ResHeaders: []string{},
-		ResBody: `POST not allowed on a group
-`,
-	})
-
 	// GET /GROUPs/gID/RESOURCEs
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPs/gID/REOURCES",
@@ -5352,6 +5339,196 @@ func TestHTTPURLs(t *testing.T) {
 		ResBody: `POST not allowed on a version
 `,
 	})
+
+}
+
+func TestHTTPGroupResources(t *testing.T) {
+	reg := NewRegistry("TestHTTPGroupResources")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("datas", "data", 0, true, true, true)
+
+	// Upload some resources into a preexisting group
+	// First create the group
+	xHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2025-04-03T11:56:00.456981454Z",
+  "modifiedat": "2025-04-03T11:56:00.456981454Z",
+
+  "datasurl": "http://localhost:8181/dirs/d1/datas",
+  "datascount": 0,
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
+
+	// Now do some "upload resources" tests
+	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{}}`, 200, `{
+  "files": {}
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{}}}`, 200, `{
+  "files": {
+    "f1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1$details",
+      "xid": "/dirs/d1/files/f1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 1
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{},"f2":{}}}`, 200, `{
+  "files": {
+    "f1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1$details",
+      "xid": "/dirs/d1/files/f1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 1
+    },
+    "f2": {
+      "fileid": "f2",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f2$details",
+      "xid": "/dirs/d1/files/f2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:02Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+      "versionscount": 1
+    }
+  }
+}
+`)
+
+	// Make sure epoch is right
+	xHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "datasurl": "http://localhost:8181/dirs/d1/datas",
+  "datascount": 0,
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 2
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f3":{}},"datas":{}}`, 200, `{
+  "datas": {},
+  "files": {
+    "f3": {
+      "fileid": "f3",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f3$details",
+      "xid": "/dirs/d1/files/f3",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
+      "versionscount": 1
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f4":{}},"datas":{"d1":{},"d2":{}}}`, 200, `{
+  "datas": {
+    "d1": {
+      "dataid": "d1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/datas/d1$details",
+      "xid": "/dirs/d1/datas/d1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
+      "versionscount": 1
+    },
+    "d2": {
+      "dataid": "d2",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/datas/d2$details",
+      "xid": "/dirs/d1/datas/d2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/datas/d2/versions",
+      "versionscount": 1
+    }
+  },
+  "files": {
+    "f4": {
+      "fileid": "f4",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f4$details",
+      "xid": "/dirs/d1/files/f4",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f4/versions",
+      "versionscount": 1
+    }
+  }
+}
+`)
+
+	// Make sure epoch is right
+	xHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 5,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "datasurl": "http://localhost:8181/dirs/d1/datas",
+  "datascount": 2,
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 4
+}
+`)
 
 }
 
@@ -7946,7 +8123,7 @@ func TestHTTPMissingBody(t *testing.T) {
 	xHTTP(t, reg, "PATCH", "/dirs", "", 400, msg)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1", "", 400, msg)
-	xHTTP(t, reg, "POST", "/dirs/d1", "", 405, "*")
+	xHTTP(t, reg, "POST", "/dirs/d1", "", 400, msg)
 	xHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, msg)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files", "", 405, "*")

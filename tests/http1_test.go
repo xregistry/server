@@ -2356,6 +2356,30 @@ func TestHTTPRegGroups(t *testing.T) {
 	gm.AddResourceModel("bars", "bat", 0, true, true, true)
 
 	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "PATCH / - update name",
+		URL:        "/",
+		Method:     "PATCH",
+		ReqBody:    `{"name":"hello"}`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
+
+	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - empty",
 		URL:        "/",
 		Method:     "POST",
@@ -2375,6 +2399,31 @@ func TestHTTPRegGroups(t *testing.T) {
 		ResBody:    `{}` + "\n",
 	})
 
+	// Check epoch didn't change
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
+
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - one grouptype/no groups",
 		URL:        "/",
@@ -2387,6 +2436,31 @@ func TestHTTPRegGroups(t *testing.T) {
 }
 `,
 	})
+
+	// Check epoch didn't change
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - one grouptype/one group",
@@ -2412,6 +2486,31 @@ func TestHTTPRegGroups(t *testing.T) {
 }
 `,
 	})
+
+	// Epoch bumped
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - one grouptype/two groups",
@@ -2449,12 +2548,62 @@ func TestHTTPRegGroups(t *testing.T) {
 `,
 	})
 
+	// Epoch bumped
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
+
 	xCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs",
 		Method:  "DELETE",
 		Code:    204,
 		ResBody: "*",
 	})
+
+	// Epoch bumped
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - two grouptypes/no groups",
@@ -2469,6 +2618,31 @@ func TestHTTPRegGroups(t *testing.T) {
 }
 `,
 	})
+
+	// Epoch unchanged
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`})
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - two grouptypes/groups",
@@ -2519,6 +2693,31 @@ func TestHTTPRegGroups(t *testing.T) {
 `,
 	})
 
+	// Epoch unchanged
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 6,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 2
+}
+`})
+
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST / - err",
 		URL:        "/",
@@ -2548,6 +2747,31 @@ func TestHTTPRegGroups(t *testing.T) {
 		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
 		ResBody:    "Unknown Group type: name\n",
 	})
+
+	// Make sure nothing changed at the registry level
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "GET /",
+		URL:        "/",
+		Method:     "GET",
+		ReqBody:    ``,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPRegGroups",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 6,
+  "name": "hello",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1,
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 2
+}
+`})
 }
 
 func TestHTTPResourcesHeaders(t *testing.T) {
@@ -3185,14 +3409,14 @@ func TestHTTPCases(t *testing.T) {
 	xHTTP(t, reg, "GET", "/Dirs/d1/Files", "", 404, "Unknown Group type: Dirs\n")
 	xHTTP(t, reg, "GET", "/Dirs/d1/files", "", 404, "Unknown Group type: Dirs\n")
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/F1", "", 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/F1", "", 404, "\"dirs/d1/files/F1\" not found\n")
 	xHTTP(t, reg, "GET", "/dirs/d1/Files/F1", "", 404, "Unknown Resource type: Files\n")
 	xHTTP(t, reg, "GET", "/dirs/D1/Files/F1", "", 404, "Unknown Resource type: Files\n")
 	xHTTP(t, reg, "GET", "/Dirs/D1/Files/F1", "", 404, "Unknown Group type: Dirs\n")
 	xHTTP(t, reg, "GET", "/Dirs/D1/Files/f1", "", 404, "Unknown Group type: Dirs\n")
 	xHTTP(t, reg, "GET", "/Dirs/D1/files/f1", "", 404, "Unknown Group type: Dirs\n")
 	xHTTP(t, reg, "GET", "/Dirs/d1/Files/f1", "", 404, "Unknown Group type: Dirs\n")
-	xHTTP(t, reg, "GET", "/dirs/D1/files/F1", "", 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/dirs/D1/files/F1", "", 404, "\"dirs/D1/files/F1\" not found\n")
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/Versions", "", 404, "Expected \"versions\" or \"meta\", got: Versions\n")
 	xHTTP(t, reg, "GET", "/dirs/d1/Files/f1/Versions", "", 404, "Unknown Resource type: Files\n")
@@ -3203,7 +3427,7 @@ func TestHTTPCases(t *testing.T) {
 	xHTTP(t, reg, "GET", "/Dirs/d1/Files/f1/Versions", "", 404, "Unknown Group type: Dirs\n")
 	xHTTP(t, reg, "GET", "/dirs/D1/Files/f1/Versions", "", 404, "Unknown Resource type: Files\n")
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/V1", "", 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/V1", "", 404, "\"dirs/d1/files/f1/versions/V1\" not found\n")
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/Versions/V1", "", 404, "Expected \"versions\" or \"meta\", got: Versions\n")
 	xHTTP(t, reg, "GET", "/dirs/d1/Files/f1/Versions/V1", "", 404, "Unknown Resource type: Files\n")
 	xHTTP(t, reg, "GET", "/dirs/D1/Files/f1/Versions/V1", "", 404, "Unknown Resource type: Files\n")
@@ -7336,7 +7560,8 @@ func TestHTTPDelete(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions", ``, 204, "")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions", "", 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions", "", 404,
+		"\"dirs/d1/files/f1\" not found\n")
 
 	// TODO
 	// DEL /..versions/ [ v2,v4 ] - bad epoch on 2nd,verify v2 is still there

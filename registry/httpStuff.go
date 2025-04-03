@@ -342,7 +342,7 @@ func (pw *PageWriter) Done() {
 			name = "<b>" + name + "</b>"
 		}
 
-		roots += fmt.Sprintf("  <li><a href=\"%s?ui\">%s</a>",
+		roots += fmt.Sprintf("  <li class=myli><a href=\"%s?ui\">%s</a>",
 			pw.Info.BaseURL+"/"+r.u, name)
 
 		if r.u == "capabilities" {
@@ -726,6 +726,10 @@ toggleExp(null, false);
   select:active { background: #c4c4c4 ; color : black ; }
   select:focus { background: darkgray ; color : black ; }
 
+  .myli {
+    margin-left: 3px ;
+  }
+
   .docview {
     margin-top: 5px ;
     font-size: 13px ;
@@ -1033,7 +1037,7 @@ func GetVersionModelInlines(rm *ResourceModel) []string {
 func HTTPGETCapabilities(info *RequestInfo) error {
 	if len(info.Parts) > 1 {
 		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Not found")
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
 	}
 
 	buf := []byte(nil)
@@ -1067,7 +1071,7 @@ func HTTPGETCapabilities(info *RequestInfo) error {
 func HTTPGETModel(info *RequestInfo) error {
 	if len(info.Parts) > 1 {
 		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Not found")
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
 	}
 
 	format := info.GetFlag("schema")
@@ -1137,7 +1141,7 @@ FROM FullTree WHERE RegSID=? AND `
 			log.Printf("Error loading entity: %s", err)
 			return fmt.Errorf("Error finding entity: %s", err)
 		} else {
-			return fmt.Errorf("Not found")
+			return fmt.Errorf("%q not found", path)
 		}
 	}
 
@@ -1396,34 +1400,30 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		paths, ok := resPaths[key]
 		PanicIf(!ok, "can't find %q", key)
 
-		query, args, err := GenerateQuery(info.Registry, what, paths, filters,
-			info.DoDocView())
-		results, err := Query(info.tx, query, args...)
-		defer results.Close()
+		var err error
+		var results *Result
 
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return err
-		}
+		// "!" is special - it means skip the query and just produce: {}
+		if len(paths) != 1 || paths[0] != "!" {
+			query, args, err := GenerateQuery(info.Registry, what, paths,
+				filters, info.DoDocView())
+			results, err = Query(info.tx, query, args...)
+			defer results.Close()
 
-		if log.GetVerbose() > 3 {
-			log.Printf("SerializeQuery: %s", SubQuery(query, args))
-			diff := time.Now().Sub(start).Truncate(time.Millisecond)
-			log.Printf("  Query: # results: %d (time: %s)",
-				len(results.AllRows), diff)
+			if err != nil {
+				info.StatusCode = http.StatusInternalServerError
+				return err
+			}
+
+			if log.GetVerbose() > 3 {
+				log.Printf("SerializeQuery: %s", SubQuery(query, args))
+				diff := time.Now().Sub(start).Truncate(time.Millisecond)
+				log.Printf("  Query: # results: %d (time: %s)",
+					len(results.AllRows), diff)
+			}
 		}
 
 		jw = NewJsonWriter(info, results)
-
-		// Only do this if we're adding the extra grouping wrapper
-		if key != "" {
-			// Cause the jwWriter to indent since we're adding a wrapper
-			jw.indent = "  "
-			if i == 0 {
-				jw.Print("{\n")
-			}
-			jw.Printf("  %q: ", key)
-		}
 
 		jw.NextEntity()
 
@@ -1437,8 +1437,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 					path := strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					path += "/meta"
 					entity, err := RawEntityFromPath(info.tx,
-						info.Registry.DbSID,
-						path, false)
+						info.Registry.DbSID, path, false)
 					if err != nil {
 						return err
 					}
@@ -1462,7 +1461,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		// get an empty result due to it's parent not even existing - for
 		// example the user used the wrong case (or even name) in the parent's
 		// Path
-		if jw.Entity == nil && len(info.Parts) > 1 {
+		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
 			entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID,
 				path, false)
@@ -1472,7 +1471,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			}
 			if IsNil(entity) {
 				info.StatusCode = http.StatusNotFound
-				return fmt.Errorf("Not found")
+				return fmt.Errorf("%q not found", path)
 			}
 		}
 
@@ -1487,6 +1486,16 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			// Can copy the RawEntityFromPath... stuff above
 			info.StatusCode = http.StatusBadRequest
 			return fmt.Errorf("'doc' flag not allowed on xref'd Versions")
+		}
+
+		// Only do this if we're adding the extra grouping wrapper
+		if key != "" {
+			// Cause the jwWriter to indent since we're adding a wrapper
+			jw.indent = "  "
+			if i == 0 {
+				jw.Print("{\n")
+			}
+			jw.Printf("  %q: ", key)
 		}
 
 		if what == "Coll" {
@@ -1576,11 +1585,6 @@ func HTTPPutPost(info *RequestInfo) error {
 		return fmt.Errorf("PUT not allowed on collections")
 	}
 
-	if numParts == 2 && method == "POST" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("POST not allowed on a group")
-	}
-
 	if numParts >= 5 && info.Parts[4] == "meta" && method == "POST" {
 		info.StatusCode = http.StatusMethodNotAllowed
 		return fmt.Errorf("POST not allowed on a 'meta'")
@@ -1610,7 +1614,7 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	// URL: /
 	// ////////////////////////////////////////////////////////////////
-	if info.GroupType == "" {
+	if numParts == 0 {
 		// PUT /     + body:Registry
 		// PATCH /   + body:Registry
 		// POST /    + body:map[GROUPS]map[id]Group
@@ -1711,27 +1715,78 @@ func HTTPPutPost(info *RequestInfo) error {
 	}
 
 	if numParts == 2 {
-		// PUT /GROUPs/gID
-		addType := ADD_UPSERT
-		if method == "PATCH" {
-			addType = ADD_PATCH
+		// PUT    /GROUPs/gID  + body: {group}
+		// PATCH  /GROUPs/gID  + body: {group}
+		// POST   /GROUPs/gID  + body: map[rType]map[rID]{resource}
+
+		if method == "PUT" || method == "PATCH" {
+			addType := ADD_UPSERT
+			if method == "PATCH" {
+				addType = ADD_PATCH
+			}
+
+			group, isNew, err := info.Registry.UpsertGroupWithObject(info.GroupType,
+				info.GroupUID, IncomingObj, addType)
+			if err != nil {
+				info.StatusCode = http.StatusBadRequest
+				return err
+			}
+
+			if isNew { // 201, else let it default to 200
+				info.AddHeader("Location", info.BaseURL+"/"+group.Path)
+				info.StatusCode = http.StatusCreated
+			}
+
+			// Return HTTP GET of Group
+			resPaths := map[string][]string{"": []string{group.Path}}
+			return SerializeQuery(info, resPaths, "Entity", info.Filters)
 		}
 
-		group, isNew, err := info.Registry.UpsertGroupWithObject(info.GroupType,
-			info.GroupUID, IncomingObj, addType)
+		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
+		objMap, err := IncomingObj2Map(IncomingObj)
 		if err != nil {
-			info.StatusCode = http.StatusBadRequest
+			return fmt.Errorf("Body must be a map of Resource types")
+		}
+
+		group, _, err = info.Registry.UpsertGroup(info.GroupType, groupUID)
+		if err != nil {
 			return err
 		}
 
-		if isNew { // 201, else let it default to 200
-			info.AddHeader("Location", info.BaseURL+"/"+group.Path)
-			info.StatusCode = http.StatusCreated
+		resPaths := map[string][]string{}
+		for rType, rAny := range objMap {
+			if info.GroupModel.Resources[rType] == nil {
+				return fmt.Errorf("Unknown Resource type: %s", rType)
+			}
+
+			rMap, err := IncomingObj2Map(rAny)
+			if err != nil {
+				return err
+			}
+
+			for id, obj := range rMap {
+				r, _, err := group.UpsertResourceWithObject(rType,
+					id, "", obj, ADD_UPDATE, false)
+				if err != nil {
+					return err
+				}
+				resPaths[rType] = append(resPaths[rType], r.Path)
+			}
+
+			if len(resPaths[rType]) == 0 {
+				// Force an empty collection to be returned
+				resPaths[rType] = []string{"!"}
+			}
+
 		}
 
-		// Return HTTP GET of Group
-		resPaths := map[string][]string{"": []string{group.Path}}
-		return SerializeQuery(info, resPaths, "Entity", info.Filters)
+		// Special case - if req is {} then make response {}
+		if len(objMap) == 0 {
+			resPaths = map[string][]string{"": []string{"!"}}
+		}
+
+		// Return HTTP GET of Resources created or updated
+		return SerializeQuery(info, resPaths, "Coll", info.Filters)
 	}
 
 	// Must be PUT/POST /GROUPs/gID/...
@@ -2174,7 +2229,7 @@ func HTTPPutPost(info *RequestInfo) error {
 func HTTPPUTCapabilities(info *RequestInfo) error {
 	if len(info.Parts) > 1 {
 		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Not found")
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
@@ -2203,7 +2258,7 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 func HTTPPUTModel(info *RequestInfo) error {
 	if len(info.Parts) > 1 {
 		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Not found")
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)

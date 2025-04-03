@@ -58,8 +58,8 @@ func TestCreateVersion(t *testing.T) {
   "modifiedat": "2024-01-01T12:00:01Z"
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", "Not found\n")
-	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx", "Not found\n")
+	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", "\"dirs/d1/files/f1/versions/xxx\" not found\n")
+	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx", "\"dirs/d1/files/f1/versions/xxx\" not found\n")
 	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx/yyy", "URL is too long\n")
 	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx/yyy", "URL is too long\n")
 
