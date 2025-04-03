@@ -5,18 +5,19 @@ MAKEFLAGS  += --no-print-directory
 # Notes:
 # export VERBOSE=[0-9]
 # Override these env vars as needed:
+export GIT_ORG      ?= xregistry
+export GIT_REPO     ?= $(shell basename `git rev-parse --show-toplevel`)
 # DOCKERHUB must end with /, if it's set at all
-export GIT_ORG    ?= xregistry
-export GIT_REPO   ?= $(shell basename `git rev-parse --show-toplevel`)
-export DOCKERHUB  ?=
-export DBHOST     ?= 127.0.0.1
-export DBPORT     ?= 3306
-export DBUSER     ?= root
-export DBPASSWORD ?= password
-export IMAGE      ?= $(DOCKERHUB)xreg-server
-export XR_SPEC    ?= $(HOME)/go/src/github.com/xregistry/spec
-export GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
-export BUILDFLAGS := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
+export DOCKERHUB    ?=
+export DBHOST       ?= 127.0.0.1
+export DBPORT       ?= 3306
+export DBUSER       ?= root
+export DBPASSWORD   ?= password
+export XR_IMAGE     ?= $(DOCKERHUB)xreg-xr
+export SERVER_IMAGE ?= $(DOCKERHUB)xreg-server
+export XR_SPEC      ?= $(HOME)/go/src/github.com/xregistry/spec
+export GIT_COMMIT   ?= $(shell git rev-list -1 HEAD)
+export BUILDFLAGS   := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
@@ -77,7 +78,9 @@ xrconform: cmds/xrconform/* registry/*
 	go build $(BUILDFLAGS) -o $@ cmds/xrconform/*.go
 
 image: .image
-.image: server misc/Dockerfile misc/waitformysql misc/Dockerfile-all misc/start
+.image: xr server misc/waitformysql \
+		misc/Dockerfile-xr misc/Dockerfile-server misc/Dockerfile-all \
+		misc/start
 	@echo
 	@echo "# Building the container images"
 	@rm -rf .spec
@@ -87,10 +90,12 @@ ifdef XR_SPEC
 		(echo "# Copy xReg spec files so 'docker build' gets them" && \
 		cp -r "$(XR_SPEC)/"* .spec/  )
 endif
-	@misc/errOutput docker build -f misc/Dockerfile \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(IMAGE) --no-cache .
+	@misc/errOutput docker build -f misc/Dockerfile-xr \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XR_IMAGE) --no-cache .
+	@misc/errOutput docker build -f misc/Dockerfile-server \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(SERVER_IMAGE) --no-cache .
 	@misc/errOutput docker build -f misc/Dockerfile-all \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(IMAGE)-all \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(SERVER_IMAGE)-all \
 		--no-cache .
 	@rm -rf .spec
 	@touch .image
@@ -100,17 +105,19 @@ testimage: .testimage
 	@echo
 	@echo "# Verifying the images"
 	@make mysql waitformysql
+	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
-		$(IMAGE) --recreate --verify
+		$(SERVER_IMAGE) --recreate --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(IMAGE) --recreate --verify
+		$(SERVER_IMAGE) --recreate --verify
 	@touch .testimage
 
 push: .push
 .push: .image
-	docker push $(IMAGE)
-	docker push $(IMAGE)-all
+	docker push $(XR_IMAGE)
+	docker push $(SERVER_IMAGE)
+	docker push $(SERVER_IMAGE)-all
 	@touch .push
 
 start: mysql server waitformysql
@@ -124,7 +131,7 @@ notest run local: mysql server waitformysql
 	./server --recreate $(VERIFY)
 
 docker-all: image
-	docker run -ti -p 8080:8080 $(IMAGE)-all --recreate
+	docker run -ti -p 8080:8080 $(SERVER_IMAGE)-all --recreate
 
 large:
 	# Run the server with a ton of data
@@ -133,7 +140,7 @@ large:
 docker: mysql image waitformysql
 	@echo
 	@echo "# Starting server in Docker from scratch"
-	docker run -ti --network host $(IMAGE) --recreate $(VERIFY)
+	docker run -ti --network host $(SERVER_IMAGE) --recreate $(VERIFY)
 
 mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
@@ -173,7 +180,7 @@ k3d: misc/mysql.yaml
 
 k3dserver: k3d image
 	-kubectl delete -f misc/deploy.yaml 2> /dev/null
-	k3d image import $(IMAGE) -c xreg
+	k3d image import $(SERVER_IMAGE) -c xreg
 	kubectl apply -f misc/deploy.yaml
 	sleep 2 ; kubectl logs -f xreg-server
 

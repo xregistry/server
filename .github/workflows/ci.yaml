@@ -11,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set IMAGE env var to use the github org name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY%/*}/xreg-server" >> $GITHUB_ENV
+      - name: Set DOCKERHUB env var to use the github org name
+        run: echo "DOCKERHUB=ghcr.io/${GITHUB_REPOSITORY%/*}/" >> $GITHUB_ENV
 
       - name: Show env vars for debugging
         run: env | sort
