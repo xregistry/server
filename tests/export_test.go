@@ -86,12 +86,14 @@ func TestExportBasic(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -144,12 +146,14 @@ func TestExportBasic(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -212,12 +216,14 @@ func TestExportBasic(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -277,12 +283,14 @@ func TestExportBasic(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -626,12 +634,14 @@ func TestExportBasic(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -684,12 +694,14 @@ func TestExportBasic(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -752,12 +764,14 @@ func TestExportBasic(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -817,12 +831,14 @@ func TestExportBasic(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {

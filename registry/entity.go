@@ -1002,10 +1002,11 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "self",
-		Type:     URL,
-		ReadOnly: true,
-		Required: true,
+		Name:      "self",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
 
 		internals: AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
@@ -1054,12 +1055,13 @@ var OrderedSpecProps = []*Attribute{
 			Name:           "shortself",
 			Type:           URL,
 			ReadOnly:       true,
+			Immutable: true,
 			Required: true,
 
 			internals: AttrInternals{
 				types:     "",
 				dontStore: true,
-			xrefrequired: true,
+				xrefrequired: true,
 				getFn: func(e *Entity, info *RequestInfo) any {
 					path := e.Path
 					base := ""
@@ -1090,10 +1092,11 @@ var OrderedSpecProps = []*Attribute{
 		},
 	*/
 	{
-		Name:     "xid",
-		Type:     XID,
-		ReadOnly: true,
-		Required: true,
+		Name:      "xid",
+		Type:      XID,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
 
 		internals: AttrInternals{
 			types:        "",
@@ -1490,10 +1493,11 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "metaurl",
-		Type:     URL,
-		ReadOnly: true,
-		Required: true,
+		Name:      "metaurl",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
 
 		internals: AttrInternals{
 			types:     StrTypes(ENTITY_RESOURCE),

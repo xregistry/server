@@ -8,7 +8,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	// "github.com/xregistry/server/registry"
+	"github.com/xregistry/server/registry"
 )
 
 func addCreateCmd(parent *cobra.Command) {
@@ -20,6 +20,10 @@ func addCreateCmd(parent *cobra.Command) {
 	}
 	createCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	createCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	createCmd.Flags().BoolP("patch", "p", false,
+		"Only 'update' specified attributes when -f is applied")
+	createCmd.Flags().BoolP("force", "f", false,
+		"Force an 'update' if entities already exist")
 
 	parent.AddCommand(createCmd)
 }
@@ -30,9 +34,12 @@ func addUpsertCmd(parent *cobra.Command) {
 		Short:   "Update, or insert(create), an entity in the registry",
 		Run:     createFunc,
 		GroupID: "Entities",
+		Hidden:  true,
 	}
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	upsertCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	upsertCmd.Flags().BoolP("patch", "p", false,
+		"Only update specified attributes")
 
 	parent.AddCommand(upsertCmd)
 }
@@ -46,7 +53,10 @@ func addUpdateCmd(parent *cobra.Command) {
 	}
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	updateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
-	updateCmd.Flags().BoolP("patch", "p", false, "Only update specified attributes")
+	updateCmd.Flags().BoolP("patch", "p", false,
+		"Only update specified attributes")
+	updateCmd.Flags().BoolP("force", "f", false,
+		"Force a 'create' if entities don't exist")
 
 	parent.AddCommand(updateCmd)
 }
@@ -84,6 +94,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	patch, _ := cmd.Flags().GetBool("patch")
+	force, _ := cmd.Flags().GetBool("force")
 
 	// If we have doc + ../rID or ../vID then...
 	if xid.ResourceID != "" && rm.HasDoc() {
@@ -101,69 +112,81 @@ func createFunc(cmd *cobra.Command, args []string) {
 		data = string(buf)
 	}
 
-	objects := map[string]json.RawMessage{}
-
 	Error(xid.ValidateTypes(reg, false))
 
+	objects := (map[string]json.RawMessage)(nil)
+	IDs := ""
+
+	// Make sure none of the top-level entities already exist
 	if xid.IsEntity {
+		if !force && action != "upsert" {
+			_, err = reg.HttpDo("GET", xid.String(), nil)
+			if action == "create" && err == nil {
+				Error("%q already exists", xid.String())
+			}
+			if action == "update" && err != nil {
+				Error("%q doesn't exists", xid.String())
+			}
+		}
+		IDs = xid.String()
+
 		// If not uploading a domain doc then make sure data has something
 		if dataIsMeta && len(data) == 0 {
 			data = `{}`
 		}
-		objects[xid.String()] = []byte(data)
 	} else {
 		if len(data) == 0 {
 			Error("Missing data")
 		}
-		Error(json.Unmarshal([]byte(data), &objects))
-	}
 
-	switch action {
-	case "create":
-		// Make sure none of the top-level entities already exist
-		for id, _ := range objects {
-			if !xid.IsEntity {
-				id = xid.String() + "/" + id
+		Error(json.Unmarshal([]byte(data), &objects))
+
+		for i, id := range registry.SortedKeys(objects) {
+			if i != 0 {
+				IDs += ", "
 			}
-			if _, err = reg.HttpDo("GET", id, nil); err == nil {
-				Error("%q already exists", id)
+			IDs += id
+			if !force && action != "upsert" {
+				id = xid.String() + "/" + id
+				_, err = reg.HttpDo("GET", id, nil)
+				if action == "create" && err == nil {
+					Error("%q already exists", id)
+				}
+				if action == "update" && err != nil {
+					Error("%q doesn't exists", id)
+				}
 			}
 		}
-	case "update":
-		// Make sure all of the top-level entities already exist
-		for id, _ := range objects {
-			if !xid.IsEntity {
-				id = xid.String() + "/" + id
-			}
-			if _, err = reg.HttpDo("GET", id, nil); err != nil {
-				Error("%q doesn't exists", id)
-			}
-		}
-	case "upsert":
-		// Nothing
 	}
 
 	method := "PUT"
+	if !xid.IsEntity {
+		method = "POST"
+	}
 	if patch {
 		method = "PATCH"
 	}
 
-	for id, content := range objects {
-		if !xid.IsEntity {
-			id = xid.String() + "/" + id
-		}
-		res, err := reg.HttpDo(method, id+suffix, content)
-		Error(err)
-		if res.Code == 201 {
-			Verbose("Created: %s", id)
+	// res := (*xrlib.HttpResponse)(nil)
+	if xid.IsEntity {
+		_, err = reg.HttpDo(method, xid.String()+suffix, []byte(data))
+	} else {
+		_, err = reg.HttpDo(method, xid.String(), []byte(data))
+	}
+
+	Error(err)
+	Verbose("Processed: %s", IDs)
+	/*
+		if res.Code == 201 || (action == "create" && !xid.IsEntity) {
+			Verbose("Created: %s", IDs)
 		} else {
 			if patch {
-				Verbose("Patched: %s", id)
+				Verbose("Patched: %s", IDs)
 			} else {
-				Verbose("Updated: %s", id)
+				Verbose("Updated: %s", IDs)
 			}
 		}
-	}
+	*/
 
 	// TODO allow for GET output to be shown via -o and inline/doc/filter...
 }

@@ -80,12 +80,14 @@ func TestHTTPModel(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -157,12 +159,14 @@ func TestHTTPModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -233,12 +237,14 @@ func TestHTTPModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -321,12 +327,14 @@ func TestHTTPModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -379,12 +387,14 @@ func TestHTTPModel(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -447,12 +457,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -512,12 +524,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -633,12 +647,14 @@ func TestHTTPModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -691,12 +707,14 @@ func TestHTTPModel(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -759,12 +777,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -824,12 +844,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -948,12 +970,14 @@ func TestHTTPModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -1010,12 +1034,14 @@ func TestHTTPModel(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1078,12 +1104,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -1143,12 +1171,14 @@ func TestHTTPModel(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {

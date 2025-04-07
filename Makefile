@@ -120,12 +120,12 @@ push: .push
 	docker push $(SERVER_IMAGE)-all
 	@touch .push
 
-start: mysql server waitformysql
+start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting server"
 	./server $(VERIFY)
 
-notest run local: mysql server waitformysql
+notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting server from scratch"
 	./server --recreate $(VERIFY)

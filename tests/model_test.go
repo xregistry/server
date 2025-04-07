@@ -31,12 +31,14 @@ func TestNoModel(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -105,12 +107,14 @@ func TestNoModel(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -181,12 +185,14 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -239,12 +245,14 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -306,12 +314,14 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -364,12 +374,14 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -431,12 +443,14 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -489,12 +503,14 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -613,12 +629,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -671,12 +689,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -739,12 +759,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -804,12 +826,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -889,12 +913,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -957,12 +983,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -1022,12 +1050,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -1117,12 +1147,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -1175,12 +1207,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1243,12 +1277,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -1308,12 +1344,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -1393,12 +1431,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1460,12 +1500,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -1518,12 +1560,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1586,12 +1630,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -1651,12 +1697,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -1736,12 +1784,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1804,12 +1854,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -1862,12 +1914,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -1930,12 +1984,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -1995,12 +2051,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -2089,12 +2147,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -2147,12 +2207,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -2215,12 +2277,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -2280,12 +2344,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -2400,12 +2466,14 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -2462,12 +2530,14 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -2530,12 +2600,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -2595,12 +2667,14 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -2719,12 +2793,14 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -2781,12 +2857,14 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -2849,12 +2927,14 @@ func TestResourceModelCreate(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -2914,12 +2994,14 @@ func TestResourceModelCreate(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -3070,12 +3152,14 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -3128,12 +3212,14 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -3196,12 +3282,14 @@ func TestResourceModelCreate(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -3261,12 +3349,14 @@ func TestResourceModelCreate(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -3391,12 +3481,14 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -3449,12 +3541,14 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -3548,12 +3642,14 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -3606,12 +3702,14 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -3701,12 +3799,14 @@ func TestMultModelCreate(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -3759,12 +3859,14 @@ func TestMultModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -3827,12 +3929,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -3892,12 +3996,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -3985,12 +4091,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -4050,12 +4158,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -4135,12 +4245,14 @@ func TestMultModelCreate(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -4203,12 +4315,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -4268,12 +4382,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -4361,12 +4477,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -4426,12 +4544,14 @@ func TestMultModelCreate(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -4572,12 +4692,14 @@ func TestMultModel2Create(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -4630,12 +4752,14 @@ func TestMultModel2Create(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -4698,12 +4822,14 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -4763,12 +4889,14 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -4848,12 +4976,14 @@ func TestMultModel2Create(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -4916,12 +5046,14 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -4981,12 +5113,14 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -5309,12 +5443,14 @@ func TestModelLabels(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -5370,12 +5506,14 @@ func TestModelLabels(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -5441,12 +5579,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -5506,12 +5646,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -5610,12 +5752,14 @@ func TestModelLabels(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -5668,12 +5812,14 @@ func TestModelLabels(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -5736,12 +5882,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -5801,12 +5949,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -5920,12 +6070,14 @@ func TestModelLabels(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -5981,12 +6133,14 @@ func TestModelLabels(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -6052,12 +6206,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -6117,12 +6273,14 @@ func TestModelLabels(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -6390,12 +6548,14 @@ func TestUseSpecAttrs(t *testing.T) {
         "name": "self",
         "type": "url",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "xid": {
         "name": "xid",
         "type": "xid",
         "readonly": true,
+        "immutable": true,
         "required": true
       },
       "epoch": {
@@ -6554,12 +6714,14 @@ func TestUseSpecAttrs(t *testing.T) {
             "name": "self",
             "type": "url",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "xid": {
             "name": "xid",
             "type": "xid",
             "readonly": true,
+            "immutable": true,
             "required": true
           },
           "epoch": {
@@ -6736,12 +6898,14 @@ func TestUseSpecAttrs(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "epoch": {
@@ -6927,12 +7091,14 @@ func TestUseSpecAttrs(t *testing.T) {
                 "name": "self",
                 "type": "url",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xid": {
                 "name": "xid",
                 "type": "xid",
                 "readonly": true,
+                "immutable": true,
                 "required": true
               },
               "xref": {
@@ -7363,12 +7529,14 @@ func TestModelCompatibleWith(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -7423,12 +7591,14 @@ func TestModelCompatibleWith(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -7492,12 +7662,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -7557,12 +7729,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -7652,12 +7826,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -7717,12 +7893,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -7811,12 +7989,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -7876,12 +8056,14 @@ func TestModelCompatibleWith(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -7979,12 +8161,14 @@ func TestModelIncludes(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -8045,12 +8229,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -8125,12 +8311,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -8216,12 +8404,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -8314,12 +8504,14 @@ func TestModelIncludes(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -8372,12 +8564,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -8440,12 +8634,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -8505,12 +8701,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -8590,12 +8788,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -8658,12 +8858,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -8723,12 +8925,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -8887,12 +9091,14 @@ func TestModelIncludes(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -8945,12 +9151,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -9013,12 +9221,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -9078,12 +9288,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -9163,12 +9375,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -9231,12 +9445,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -9296,12 +9512,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -9397,12 +9615,14 @@ func TestModelIncludes(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -9455,12 +9675,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -9523,12 +9745,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -9588,12 +9812,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -9673,12 +9899,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -9741,12 +9969,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -9806,12 +10036,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -9907,12 +10139,14 @@ func TestModelIncludes(t *testing.T) {
       "name": "self",
       "type": "url",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "xid": {
       "name": "xid",
       "type": "xid",
       "readonly": true,
+      "immutable": true,
       "required": true
     },
     "epoch": {
@@ -9965,12 +10199,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -10033,12 +10269,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -10098,12 +10336,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {
@@ -10183,12 +10423,14 @@ func TestModelIncludes(t *testing.T) {
           "name": "self",
           "type": "url",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "xid": {
           "name": "xid",
           "type": "xid",
           "readonly": true,
+          "immutable": true,
           "required": true
         },
         "epoch": {
@@ -10251,12 +10493,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "epoch": {
@@ -10316,12 +10560,14 @@ func TestModelIncludes(t *testing.T) {
               "name": "self",
               "type": "url",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xid": {
               "name": "xid",
               "type": "xid",
               "readonly": true,
+              "immutable": true,
               "required": true
             },
             "xref": {

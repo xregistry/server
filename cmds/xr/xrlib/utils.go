@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/xregistry/server/registry"
 )
@@ -442,4 +443,47 @@ func XRIndent(buf []byte) ([]byte, error) {
 	}
 
 	return res.Bytes(), nil
+}
+
+type indentTabWriter struct {
+	RealWriter io.Writer
+	Indent     string
+	First      *bool // must be a pointer to persist value across Write calls
+}
+
+func (itw indentTabWriter) Write(p []byte) (int, error) {
+	str := bytes.Buffer{}
+	for _, ch := range p {
+		if *itw.First {
+			*itw.First = false
+			str.Write([]byte(itw.Indent))
+		}
+		str.WriteByte(ch)
+		if ch == '\n' {
+			*itw.First = true
+		}
+	}
+	_, err := itw.RealWriter.Write(str.Bytes())
+	return len(p), err
+}
+
+func NewIndentTabWriter(indent string, output io.Writer, minwidth, tabwidth,
+	padding int, padchar byte, flags uint) *tabwriter.Writer {
+
+	mybool := true
+	itw := indentTabWriter{
+		RealWriter: output,
+		Indent:     indent,
+		First:      &mybool,
+	}
+	w := tabwriter.NewWriter(&itw, minwidth, tabwidth, padding, padchar, flags)
+
+	return w
+}
+
+func YesNo(v bool) string {
+	if v {
+		return "y"
+	}
+	return "n"
 }

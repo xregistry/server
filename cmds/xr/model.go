@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
+	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
@@ -46,6 +49,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Get the registry's model",
 		Run:   modelGetFunc,
 	}
+	modelGetCmd.Flags().BoolP("all", "a", false, "Show all data")
+	modelGetCmd.Flags().StringP("output", "o", "table", "output: table, json")
 	modelCmd.AddCommand(modelGetCmd)
 
 	parent.AddCommand(modelCmd)
@@ -188,10 +193,145 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
+	output, _ := cmd.Flags().GetString("output")
+	all, _ := cmd.Flags().GetBool("all")
+
 	res, err := reg.HttpDo("GET", "/model", nil)
 	Error(err)
 
-	tmp := map[string]any{}
-	Error(registry.Unmarshal(res.Body, &tmp))
-	fmt.Printf("%s\n", registry.ToJSON(tmp))
+	model := (*registry.Model)(nil)
+	Error(registry.Unmarshal(res.Body, &model))
+
+	if output == "json" {
+		fmt.Printf("%s\n", registry.ToJSON(model))
+		return
+	}
+
+	fmt.Println("xRegistry Model:")
+	PrintLabels(model.Labels, "  ", os.Stdout)
+	PrintAttributes("", model.Attributes, "registry", "", os.Stdout, all)
+
+	for _, gID := range registry.SortedKeys(model.Groups) {
+		g := model.Groups[gID]
+
+		fmt.Println("")
+		fmt.Printf("GROUP: %s / %s\n", g.Plural, g.Singular)
+
+		PrintNotEmpty("  Description    ", g.Description, os.Stdout)
+		PrintNotEmpty("  Model version  ", g.ModelVersion, os.Stdout)
+		PrintNotEmpty("  Compatible with", g.CompatibleWith, os.Stdout)
+
+		PrintLabels(g.Labels, "  ", os.Stdout)
+		PrintAttributes("", g.Attributes, g.Singular, "  ", os.Stdout, all)
+
+		for _, rID := range registry.SortedKeys(g.Resources) {
+			r := g.Resources[rID]
+
+			fmt.Println("")
+			fmt.Printf("  RESOURCE: %s/ %s\n", r.Plural, r.Singular)
+
+			PrintNotEmpty("    Description       ", r.Description, os.Stdout)
+			PrintNotEmpty("    Max versions      ", r.MaxVersions, os.Stdout)
+			PrintNotEmpty("    Set version id    ", r.SetVersionId, os.Stdout)
+			PrintNotEmpty("    Set version sticky", r.SetDefaultSticky, os.Stdout)
+			PrintNotEmpty("    Has document      ", r.HasDocument, os.Stdout)
+			PrintNotEmpty("    Model version     ", r.ModelVersion, os.Stdout)
+			PrintNotEmpty("    Compatible with   ", r.CompatibleWith, os.Stdout)
+
+			PrintLabels(g.Labels, "    ", os.Stdout)
+			PrintAttributes("", r.Attributes, r.Singular, "    ", os.Stdout, all)
+
+			PrintAttributes("META", r.MetaAttributes, r.Singular, "    ", os.Stdout, all)
+		}
+	}
+
+}
+
+func PrintNotEmpty(title, val any, w io.Writer) {
+	str, ok := val.(string)
+	if !ok {
+		i, ok := val.(int)
+		if ok {
+			str = fmt.Sprintf("%d", i)
+		} else {
+			p, ok := val.(*bool)
+			if ok {
+				if p == nil || !*p {
+					str = "false"
+				} else {
+					str = "true"
+				}
+			} else {
+				panic("dunno")
+			}
+		}
+	}
+
+	if val != "" {
+		fmt.Fprintf(w, "%s: %s\n", title, str)
+	}
+}
+
+func PrintLabels(labels map[string]string, indent string, w io.Writer) {
+	if len(labels) > 0 {
+		for i, k := range registry.SortedKeys(labels) {
+			v := labels[k]
+			if i == 0 {
+				fmt.Fprintf(w, "  Labels         : %s=%s\n", k, v)
+			} else {
+				fmt.Fprintf(w, "                   %s=%s\n", k, v)
+			}
+		}
+	}
+}
+
+func PrintAttributes(prefix string, attrs registry.Attributes,
+	singular string, indent string, w io.Writer, all bool) {
+
+	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 1, ' ', 0)
+
+	// Make sure list if alphabetical, but put "*" last
+	list := registry.SortedKeys(attrs)
+	if len(list) > 0 && list[0] == "*" {
+		list = append(list[1:], list[0])
+	}
+
+	if prefix != "" {
+		prefix += " "
+	}
+
+	count := 0
+	for _, aName := range list {
+		attr, _ := attrs[aName]
+
+		if !all {
+			if singular != "" && aName == singular+"id" {
+				continue
+			}
+			if registry.SpecProps[aName] != nil {
+				continue
+			}
+		}
+
+		if count == 0 {
+			fmt.Fprintln(ntw, "")
+			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tEDIT\tDEFAULT")
+		}
+		count++
+		typ := attr.Type
+		if typ == registry.MAP {
+			typ = fmt.Sprintf("%s(%s)", typ, attr.Item.Type)
+		}
+		req := xrlib.YesNo(attr.Required)
+		ro := xrlib.YesNo(attr.ReadOnly)
+		immut := xrlib.YesNo(!attr.Immutable)
+		def := ""
+		if !registry.IsNil(attr.Default) {
+			def = fmt.Sprintf("%v", attr.Default)
+		}
+		fmt.Fprintf(ntw, "%s\t%s\t%s\t%s\t%s\t%s\n", aName, typ,
+			req, ro, immut, def)
+	}
+
+	ntw.Flush()
 }

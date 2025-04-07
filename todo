@@ -57,7 +57,6 @@ TODOs:
 - support ximport
 - support validating that xref points to the same resource def
 - allow $meta on hasdoc=false resources
-- fix init.sql, it's too slow due to latest xref stuff in commit 9c583e7
 - Split the model.verify stuff so it doesn't verify the data unless asked to
 - add support for shortself
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
