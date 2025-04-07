@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/duglin/dlog"
 	"github.com/xregistry/server/registry"
@@ -57,6 +58,12 @@ func TestMain(m *testing.M) {
 
 	if rc == 0 {
 		// registry.DeleteDB("testreg")
+	}
+
+	if dump := registry.DumpTimings(); dump != "" {
+		now := time.Now()
+		os.WriteFile(fmt.Sprintf("timings-%s.txt", now.Format("15-04-05")),
+			[]byte(registry.DumpTimings()), 0666)
 	}
 	os.Exit(rc)
 }

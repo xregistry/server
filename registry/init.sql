@@ -43,9 +43,9 @@ CREATE TABLE Registries (
 CREATE TRIGGER RegistryTrigger BEFORE DELETE ON Registries
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props    WHERE RegistrySID=OLD.SID @
-    DELETE FROM "Groups" WHERE RegistrySID=OLD.SID @
-    DELETE FROM Models   WHERE RegistrySID=OLD.SID @
+    DELETE FROM Props    WHERE RegistrySID=OLD.SID $$
+    DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
+    DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
 END ;
 
 CREATE TABLE Models (
@@ -60,7 +60,7 @@ CREATE TABLE Models (
 CREATE TRIGGER ModelsTrigger BEFORE DELETE ON Models
 FOR EACH ROW
 BEGIN
-    DELETE FROM ModelEntities WHERE RegistrySID=OLD.RegistrySID @
+    DELETE FROM ModelEntities WHERE RegistrySID=OLD.RegistrySID $$
 END ;
 
 CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
@@ -93,9 +93,9 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
 CREATE TRIGGER ModelTrigger BEFORE DELETE ON ModelEntities
 FOR EACH ROW
 BEGIN
-    DELETE FROM "Groups"        WHERE ModelSID=OLD.SID @
-    DELETE FROM Resources       WHERE ModelSID=OLD.SID @
-    DELETE FROM ModelAttributes WHERE ParentSID=OLD.SID @
+    DELETE FROM "Groups"        WHERE ModelSID=OLD.SID $$
+    DELETE FROM Resources       WHERE ModelSID=OLD.SID $$
+    DELETE FROM ModelAttributes WHERE ParentSID=OLD.SID $$
 END ;
 
 # Not used yet
@@ -118,8 +118,8 @@ CREATE TABLE ModelAttributes (
 CREATE TRIGGER ModelAttributeTrigger BEFORE DELETE ON ModelAttributes
 FOR EACH ROW
 BEGIN
-    DELETE FROM ModelEnums    WHERE AttributeSID=OLD.SID @
-    DELETE FROM ModelIfValues WHERE AttributeSID=OLD.SID @
+    DELETE FROM ModelEnums    WHERE AttributeSID=OLD.SID $$
+    DELETE FROM ModelIfValues WHERE AttributeSID=OLD.SID $$
 END ;
 
 CREATE TABLE ModelEnums (
@@ -147,7 +147,7 @@ CREATE TABLE ModelIfValues (
 CREATE TRIGGER ModelIfValuesTrigger BEFORE DELETE ON ModelIfValues
 FOR EACH ROW
 BEGIN
-    DELETE FROM ModelAttributes    WHERE ParentSID=OLD.SID @
+    DELETE FROM ModelAttributes    WHERE ParentSID=OLD.SID $$
 END ;
 
 
@@ -167,8 +167,8 @@ CREATE TABLE "Groups" (
 CREATE TRIGGER GroupTrigger BEFORE DELETE ON "Groups"
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID @
-    DELETE FROM Resources WHERE GroupSID=OLD.SID @
+    DELETE FROM Props WHERE EntitySID=OLD.SID $$
+    DELETE FROM Resources WHERE GroupSID=OLD.SID $$
 END ;
 
 CREATE TABLE Resources (
@@ -179,23 +179,21 @@ CREATE TABLE Resources (
     ModelSID        VARCHAR(64) NOT NULL,
     Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-    # xRef            VARCHAR(255),
 
     PRIMARY KEY (SID),
     UNIQUE INDEX(RegistrySID,SID),
     INDEX(GroupSID, UID),
     INDEX(Path),
     INDEX(RegistrySID),
-    # INDEX(xRef),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
 );
 
 CREATE TRIGGER ResourcesTrigger BEFORE DELETE ON Resources
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID @
-    DELETE FROM Metas WHERE ResourceSID=OLD.SID @
-    DELETE FROM Versions WHERE ResourceSID=OLD.SID @
+    DELETE FROM Props WHERE EntitySID=OLD.SID $$
+    DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
+    DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
 END ;
 
 CREATE TABLE Metas (
@@ -205,18 +203,22 @@ CREATE TABLE Metas (
     Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
 
+    xRefSID         VARCHAR(64),           # Generated
+
     PRIMARY KEY (SID),
     UNIQUE INDEX(RegistrySID,SID),
-    INDEX(ResourceSID),
-    INDEX(Path),
-    INDEX(RegistrySID)
+    INDEX(RegistrySID, ResourceSID),
+    INDEX(RegistrySID, Path),
+    INDEX(RegistrySID),
+    INDEX(RegistrySID,xRefSID)
 );
 
-CREATE TRIGGER MetasTrigger BEFORE DELETE ON Metas
-FOR EACH ROW
-BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID @
-END ;
+# Can't use this because we get recursive triggers on meta.delete()
+# CREATE TRIGGER MetasTrigger BEFORE DELETE ON Metas
+# FOR EACH ROW
+# BEGIN
+    # DELETE FROM Props WHERE EntitySID=OLD.SID $$
+# END ;
 
 CREATE TABLE Versions (
     SID                 VARCHAR(64) NOT NULL,   # System ID
@@ -231,15 +233,20 @@ CREATE TABLE Versions (
     ResourceProxyURL    VARCHAR(255),
     ResourceContentSID  VARCHAR(64),
 
+    Ancestor            VARCHAR(65),            # Generated
+    CreatedAt           VARCHAR(255),           # Generated (for ancestor stuff
+
     PRIMARY KEY (SID),
     UNIQUE INDEX (ResourceSID, UID),
     UNIQUE INDEX (RegistrySID, SID),
-    INDEX (ResourceSID)
+    INDEX (ResourceSID),
+    INDEX (RegistrySID, ResourceSID, Ancestor)
 );
 
 CREATE TABLE Props (
     RegistrySID VARCHAR(64) NOT NULL,
     EntitySID   VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
+    eType       INT NOT NULL,
     PropName    VARCHAR(64) NOT NULL,
     PropValue   VARCHAR($MAX_VARCHAR),
     PropType    CHAR(64) NOT NULL,          # string, boolean, int, ...
@@ -258,6 +265,44 @@ CREATE TABLE Props (
     INDEX (RegistrySID, PropName)
 );
 
+CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
+FOR EACH ROW
+BEGIN
+    IF (NEW.eType=$ENTITY_VERSION) THEN
+        IF (NEW.PropName='ancestor$DB_IN') THEN
+          UPDATE Versions SET Ancestor=NEW.PropValue
+              WHERE SID=NEW.EntitySID $$
+        END IF $$
+        IF (NEW.PropName='createdat$DB_IN') THEN
+          UPDATE Versions SET CreatedAt=NEW.PropValue
+              WHERE SID=NEW.EntitySID $$
+        END IF $$
+    END IF $$
+
+    IF (NEW.eType=$ENTITY_META) THEN
+        IF (NEW.PropName='xref$DB_IN') THEN
+          # Remove leading /
+          SET @rSID := (SELECT SID FROM Resources WHERE
+                        RegistrySID=NEW.RegistrySID AND
+                        Path=SUBSTRING(NEW.PropValue,2)) $$
+
+          UPDATE Metas AS m SET xRefSID=@rSID
+            WHERE m.SID=NEW.EntitySID $$
+        END IF $$
+    END IF $$
+END ;
+
+CREATE TRIGGER PropsXref BEFORE DELETE ON Props
+FOR EACH ROW
+BEGIN
+    IF (OLD.eType=$ENTITY_META) THEN
+        IF (OLD.PropName='xref$DB_IN') THEN
+          UPDATE Metas SET xRefSID=NULL
+          WHERE SID=OLD.EntitySID $$
+        END IF $$
+    END IF $$
+END ;
+
 CREATE VIEW xRefSrc2TgtResources AS
 SELECT
     sR.RegistrySID,
@@ -265,15 +310,13 @@ SELECT
     sR.Path AS SourcePath,
     sR.Abstract AS SourceAbstract,
     mE.Singular AS Singular,
-    tR.SID as TargetSID,
-    tR.Path as TargetPath
+    sM.xRefSID AS TargetSID
 FROM Resources AS sR
-JOIN Metas AS sM ON (sM.ResourceSID=sR.SID)
+JOIN Metas AS sM ON (sM.RegistrySID=sR.RegistrySID AND sM.ResourceSID=sR.SID)
 JOIN ModelEntities AS mE ON (mE.SID=sR.ModelSID)
-JOIN Resources AS tR ON (tR.RegistrySID=sR.RegistrySID AND
-    tR.Path=(SELECT SUBSTRING(PropValue,2) FROM Props WHERE # remove leading /
-             EntitySID=sM.SID AND PropName='xref$DB_IN'));
-# JOIN Resources AS tR ON (tR.RegistrySID=sR.RegistrySID AND tR.Path=sR.xRef);
+WHERE sM.xRefSID IS NOT NULL ;
+# The IS NOT NULL at the end really speeds things up
+# Check to see if putting xRefSID on the Resource is faster than being on meta
 
 CREATE VIEW xRefVersions AS
 SELECT
@@ -292,14 +335,14 @@ JOIN Versions AS V ON (V.ResourceSID=xR.TargetSID);
 
 # This is Versions table + xref'd Versions
 CREATE VIEW EffectiveVersions AS
-SELECT * FROM Versions
+SELECT SID,UID,RegistrySID,ResourceSID,Path,Abstract,Counter,ResourceURL,ResourceProxyURL,ResourceContentSID FROM Versions
 UNION SELECT * FROM xRefVersions ;
 
 CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID @
-    DELETE FROM ResourceContents WHERE VersionSID=OLD.SID @
+    DELETE FROM Props WHERE EntitySID=OLD.SID $$
+    DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
 END ;
 
 CREATE VIEW Entities AS
@@ -415,7 +458,7 @@ JOIN Props AS P ON (
 
 # This is the Props table + xref'd props (for Resource and Versions)
 CREATE VIEW EffectiveProps AS
-SELECT * FROM Props
+SELECT RegistrySID, EntitySID, PropName, PropValue, PropType, DocView FROM Props
 UNION SELECT * FROM xRefProps ;
 
 CREATE TABLE ResourceContents (
@@ -555,4 +598,53 @@ SELECT
 FROM Props as p
 JOIN Entities as e ON (e.eSID=p.EntitySID)
 ORDER by Path ;
+
+# Find all of the versions of a resource. Users of this should order
+# the teulst: ORDER BY Pos ASC, Time ASC, VersionUID ASC
+# to get oldest first, newest last.
+# Pos (postion) makes sure roots are first, leaves are last.
+# For similar rows, order by createdat timestamps and then versionIDs
+CREATE VIEW VersionAncestors AS
+SELECT
+    v.RegistrySID AS RegistrySID,
+    v.ResourceSID AS ResourceSID,
+    v.SID AS VersionSID,
+    v.UID AS VersionUID,
+    v.Ancestor AS Ancestor,
+    v.CreatedAt AS Time,
+    IF (v.UID=v.Ancestor, '0-root',
+        IF(EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                  v2.ResourceSID=v.ResourceSID AND v2.Ancestor=v.UID),
+           '1-middle', '2-leaf')) AS Pos
+FROM Versions AS v ;
+
+# Find all Versions that are part of circular references (circles)
+# Would this be better to do in code and use args(?) for regSID?
+CREATE VIEW VersionCircles AS
+WITH RECURSIVE cte (RegistrySID,ResourceSID,UID) AS
+(
+    # Start with the roots and leaves, they can never be part of a circle
+    SELECT v.RegistrySID,v.ResourceSID,v.UID FROM Versions AS v
+    WHERE v.Ancestor=UID OR
+        NOT EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                   v2.RegistrySID=v.RegistrySID AND
+                   v2.ResourceSID=v.ResourceSID AND
+                   v2.Ancestor=v.UID)
+    UNION
+    # Now find all Versions whose Ancestor is in cte
+    SELECT v3.RegistrySID,v3.ResourceSID,v3.UID FROM Versions AS v3
+    INNER JOIN cte ON (
+        v3.RegistrySID=cte.RegistrySID AND
+        v3.ResourceSID=cte.ResourceSID AND
+        v3.Ancestor=cte.UID )
+)
+# And finally, return all Version UID that are NOT in cte (these are circular)
+SELECT v.RegistrySID, v.ResourceSID, v.UID FROM Versions AS v
+WHERE v.ResourceSID IN
+    (SELECT ResourceSID FROM cte WHERE cte.RegistrySID=v.RegistrySID) AND
+    v.UID NOT IN (
+        SELECT cte.UID FROM cte
+         WHERE cte.RegistrySID=v.RegistrySID AND
+               cte.ResourceSID=v.ResourceSID
+    );
 

@@ -85,12 +85,12 @@ func createFunc(cmd *cobra.Command, args []string) {
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	patch, _ := cmd.Flags().GetBool("patch")
 
-	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
-		if isMetadata == false {
-			dataIsMeta = false
-		} else {
+	// If we have doc + ../rID or ../vID then...
+	if xid.ResourceID != "" && rm.HasDoc() {
+		if isMetadata {
 			suffix = "$details"
+		} else {
+			dataIsMeta = false
 		}
 	}
 

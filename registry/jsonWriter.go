@@ -229,6 +229,10 @@ func (jw *JsonWriter) WriteEntity() error {
 			return nil
 		}
 
+		if attr != nil && attr.internals.neverSerialize {
+			return nil
+		}
+
 		if key[0] == '#' {
 			// Skip all other internal attributes
 			return nil

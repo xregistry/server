@@ -548,17 +548,57 @@ func (r *Result) RetrieveNextRowFromDB() bool {
 	return true
 }
 
+type queryTime struct {
+	count    int
+	prepDur  time.Duration
+	queryDur time.Duration
+	getDur   time.Duration
+	totalDur time.Duration
+}
+
+var queryTimes = map[string]*queryTime{}
+var doTime = os.Getenv("XR_TIMING") != ""
+
+func DumpTimings() string {
+	if !doTime {
+		return ""
+	}
+
+	str := ""
+	str += fmt.Sprintf("Count|Prep|Prep Avg|Query|Query Avg|Get|Get Avg|Total|Total Avg|CMD\n")
+	for cmd, qt := range queryTimes {
+		cmd = strings.ReplaceAll(cmd, "\n", " ")
+		cmd = strings.ReplaceAll(cmd, "|", "@")
+
+		str += fmt.Sprintf("%v|%d|%d|%d|%d|%d|%d|%d|%d|%s\n",
+			qt.count,
+			qt.prepDur, qt.prepDur/time.Duration(qt.count),
+			qt.queryDur, qt.queryDur/time.Duration(qt.count),
+			qt.getDur, qt.getDur/time.Duration(qt.count),
+			qt.totalDur, qt.totalDur/time.Duration(qt.count),
+			cmd)
+	}
+
+	return str
+}
+
 func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
-	doTime := os.Getenv("RX_TIMING") != ""
-	startTime := time.Now()
+	startTime := time.Time{}
+	pTime := time.Time{}
+	qTime := time.Time{}
+	gTime := time.Time{}
+
+	if doTime {
+		startTime = time.Now()
+	}
+
 	if log.GetVerbose() >= 4 {
 		log.Printf("Query: %s", SubQuery(cmd, args))
 	}
 
 	ps, err := tx.Prepare(cmd)
 	if doTime {
-		log.Printf("Query: %s", SubQuery(cmd, args))
-		log.Printf("Prep  time: %s", time.Now().Sub(startTime).Round(time.Millisecond).String())
+		pTime = time.Now()
 	}
 	if err != nil {
 		log.Printf("Error Prepping query (%s)->%s\n", cmd, err)
@@ -568,8 +608,9 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
 
 	rows, err := ps.Query(args...)
 	if doTime {
-		log.Printf("Query time: %s", time.Now().Sub(startTime).Round(time.Millisecond).String())
+		qTime = time.Now()
 	}
+
 	if err != nil {
 		log.Printf("Error querying DB(%s)(%v)->%s\n", cmd, args, err)
 		return nil, fmt.Errorf("Error querying DB(%s)->%s\n", cmd, err)
@@ -596,8 +637,25 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
 	// Download all data. We used to pull from DB on each PullNextRow
 	// but mysql doesn't support multiple queries being active in the same Tx
 	result.RetrieveAllRowsFromDB()
+
 	if doTime {
-		log.Printf("Get   time: %s", time.Now().Sub(startTime).Round(time.Millisecond).String())
+		gTime = time.Now()
+
+		qt, ok := queryTimes[cmd]
+		if !ok {
+			qt = &queryTime{}
+			queryTimes[cmd] = qt
+		}
+		pDiff := pTime.Sub(startTime)
+		qDiff := qTime.Sub(pTime)
+		gDiff := gTime.Sub(qTime)
+		tDiff := gTime.Sub(startTime)
+
+		qt.prepDur += pDiff
+		qt.queryDur += qDiff
+		qt.getDur += gDiff
+		qt.totalDur += tDiff
+		qt.count++
 	}
 
 	return result, nil
@@ -825,7 +883,7 @@ func ReplaceVariables(str string) string {
 	}
 
 	vars := [][2]string{
-		{"@", ";"}, // can't use ; in file
+		{"$$", ";"}, // can't use ; in file
 		{"$ENTITY_REGISTRY", StrTypes(ENTITY_REGISTRY)},
 		{"$ENTITY_GROUP", StrTypes(ENTITY_GROUP)},
 		{"$ENTITY_RESOURCE", StrTypes(ENTITY_RESOURCE)},

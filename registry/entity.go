@@ -37,8 +37,9 @@ type Entity struct {
 	Self     any    `json:"-"` // ptr to typed Entity (e.g. *Group)
 
 	// Save these values in memory so we only need to get them once
-	GroupModel    *GroupModel    `json:"-"` // gModel if it's not a Registry
-	ResourceModel *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
+	GroupModel     *GroupModel    `json:"-"` // gModel if it's not a Registry
+	ResourceModel  *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
+	VerifyVersions bool           `json:"-"` // If Res, check versions?
 
 	// Debugging
 	NewObjectStack []string `json:"-"` // stack when NewObj created via Ensure
@@ -706,9 +707,9 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 
 		err = DoOneTwo(e.tx, `
             REPLACE INTO Props(
-              RegistrySID, EntitySID, PropName, PropValue, PropType, DocView)
-            VALUES( ?,?,?,?,?, true )`,
-			e.Registry.DbSID, e.DbSID, name, dbVal, propType)
+              RegistrySID,EntitySID,eType,PropName,PropValue,PropType,DocView)
+            VALUES( ?,?,?,?,?,?, true )`,
+			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType)
 	}
 
 	if err != nil {
@@ -1376,6 +1377,28 @@ var OrderedSpecProps = []*Attribute{
 			getFn:     nil,
 			checkFn:   nil,
 			updateFn:  nil,
+		},
+	},
+	{
+		Name:     "ancestor",
+		Type:     STRING,
+		Required: true,
+
+		internals: AttrInternals{
+			types:          StrTypes(ENTITY_VERSION),
+			dontStore:      false,
+			neverSerialize: true,
+			getFn:          nil,
+			checkFn:        nil,
+			updateFn: func(e *Entity) error {
+				_, ok := e.NewObject["ancestor"]
+				if !ok {
+					v, ok := e.NewObject["versionid"]
+					PanicIf(!ok, "Missing versionid")
+					e.NewObject["ancestor"] = v
+				}
+				return nil
+			},
 		},
 	},
 	{

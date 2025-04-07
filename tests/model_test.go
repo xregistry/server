@@ -6210,17 +6210,16 @@ func TestUseSpecAttrs(t *testing.T) {
 	xNoErr(t, err)
 	vals := map[string]any{}
 
-	count := 0
 	for _, prop := range registry.OrderedSpecProps {
 		if prop.Name[0] == '$' {
 			continue
 		}
 
-		v := any(count)
+		v := any(len(prop.Name))
 		typ := registry.INTEGER
 		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
 			typ = registry.STRING
-			v = fmt.Sprintf("%d-%s", count, prop.Name)
+			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
 		xNoErr(t, err)
@@ -6229,9 +6228,8 @@ func TestUseSpecAttrs(t *testing.T) {
 		if prop.Name == "id" {
 			_, err := obj.AddAttr("registryid", typ)
 			xNoErr(t, err)
-			vals["obj.registryid"] = v
+			vals["obj.registryid"] = 10
 		}
-		count++
 	}
 
 	for k, v := range vals {
@@ -6243,38 +6241,32 @@ func TestUseSpecAttrs(t *testing.T) {
 	xNoErr(t, err)
 	vals = map[string]any{}
 
-	count = 0
+	d1, err := reg.AddGroup("dirs", "d1")
+	xNoErr(t, err)
 	for _, prop := range registry.OrderedSpecProps {
 		if prop.Name[0] == '$' {
 			continue
 		}
 
-		v := any(count)
+		v := any(len(prop.Name))
 		typ := registry.INTEGER
 		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
 			typ = registry.STRING
-			v = fmt.Sprintf("%d-%s", count, prop.Name)
+			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
 		xNoErr(t, err)
-		vals["obj."+prop.Name] = v
+		xNoErr(t, d1.SetSave("obj."+prop.Name, v))
 
 		if prop.Name == "id" {
 			_, err = obj.AddAttr("registryid", typ)
 			_, err = obj.AddAttr("dirid", typ)
 			_, err = obj.AddAttr("fileid", typ)
 			xNoErr(t, err)
-			vals["obj.registryid"] = v
-			vals["obj.dirid"] = v
-			vals["obj.fileid"] = v
+			xNoErr(t, d1.SetSave("obj.registryid", 10))
+			xNoErr(t, d1.SetSave("obj.dirid", 5))
+			xNoErr(t, d1.SetSave("obj.fileid", 6))
 		}
-		count++
-	}
-
-	d1, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
-	for k, v := range vals {
-		xNoErr(t, d1.SetSave(k, v))
 	}
 
 	// Resource level
@@ -6286,17 +6278,16 @@ func TestUseSpecAttrs(t *testing.T) {
 
 	vals = map[string]any{}
 
-	count = 0
 	for _, prop := range registry.OrderedSpecProps {
 		if prop.Name[0] == '$' {
 			continue
 		}
 
-		v := any(count)
+		v := any(len(prop.Name))
 		typ := registry.INTEGER
 		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
 			typ = registry.STRING
-			v = fmt.Sprintf("%d-%s", count, prop.Name)
+			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
 		xNoErr(t, err)
@@ -6321,14 +6312,13 @@ func TestUseSpecAttrs(t *testing.T) {
 			_, err = objMeta.AddAttr("filebase64", typ)
 			_, err = objMeta.AddAttr("fileurl", typ)
 			xNoErr(t, err)
-			vals["obj.registryid"] = v
-			vals["obj.dirid"] = v
-			vals["obj.fileid"] = v
-			vals["obj.file"] = v
-			vals["obj.filebase64"] = v
-			vals["obj.fileurl"] = v
+			vals["obj.registryid"] = 10
+			vals["obj.dirid"] = 5
+			vals["obj.fileid"] = 6
+			vals["obj.file"] = 4
+			vals["obj.filebase64"] = 10
+			vals["obj.fileurl"] = 7
 		}
-		count++
 	}
 
 	r1, err := d1.AddResource("files", "f1", "v1")
@@ -6354,30 +6344,31 @@ func TestUseSpecAttrs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "obj": {
-    "capabilities": 21,
-    "compatibility": 15,
-    "contenttype": 16,
-    "createdat": 12,
-    "defaultversionid": 18,
+    "ancestor": 8,
+    "capabilities": 12,
+    "compatibility": 13,
+    "contenttype": 11,
+    "createdat": 9,
+    "defaultversionid": 16,
     "defaultversionsticky": 20,
-    "defaultversionurl": 19,
-    "description": 9,
-    "documentation": 10,
-    "epoch": "6-epoch",
-    "id": 1,
-    "isdefault": 8,
-    "labels": 11,
-    "metaurl": 17,
-    "model": 22,
-    "modifiedat": 13,
-    "name": 7,
-    "readonly": 14,
-    "registryid": 1,
-    "self": 3,
-    "specversion": 0,
-    "versionid": 2,
-    "xid": 4,
-    "xref": 5
+    "defaultversionurl": 17,
+    "description": 11,
+    "documentation": 13,
+    "epoch": "5-epoch",
+    "id": 2,
+    "isdefault": 9,
+    "labels": 6,
+    "metaurl": 7,
+    "model": 5,
+    "modifiedat": 10,
+    "name": 4,
+    "readonly": 8,
+    "registryid": 10,
+    "self": 4,
+    "specversion": 11,
+    "versionid": 9,
+    "xid": 3,
+    "xref": 4
   },
 
   "model": {
@@ -6445,6 +6436,10 @@ func TestUseSpecAttrs(t *testing.T) {
         "name": "obj",
         "type": "object",
         "attributes": {
+          "ancestor": {
+            "name": "ancestor",
+            "type": "integer"
+          },
           "capabilities": {
             "name": "capabilities",
             "type": "integer"
@@ -6605,6 +6600,10 @@ func TestUseSpecAttrs(t *testing.T) {
             "name": "obj",
             "type": "object",
             "attributes": {
+              "ancestor": {
+                "name": "ancestor",
+                "type": "integer"
+              },
               "capabilities": {
                 "name": "capabilities",
                 "type": "integer"
@@ -6794,6 +6793,10 @@ func TestUseSpecAttrs(t *testing.T) {
                 "name": "obj",
                 "type": "object",
                 "attributes": {
+                  "ancestor": {
+                    "name": "ancestor",
+                    "type": "integer"
+                  },
                   "capabilities": {
                     "name": "capabilities",
                     "type": "integer"
@@ -6995,6 +6998,10 @@ func TestUseSpecAttrs(t *testing.T) {
                 "name": "obj",
                 "type": "object",
                 "attributes": {
+                  "ancestor": {
+                    "name": "ancestor",
+                    "type": "integer"
+                  },
                   "capabilities": {
                     "name": "capabilities",
                     "type": "integer"
@@ -7130,32 +7137,33 @@ func TestUseSpecAttrs(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:02Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
       "obj": {
-        "capabilities": 21,
-        "compatibility": 15,
-        "contenttype": 16,
-        "createdat": 12,
-        "defaultversionid": 18,
+        "ancestor": 8,
+        "capabilities": 12,
+        "compatibility": 13,
+        "contenttype": 11,
+        "createdat": 9,
+        "defaultversionid": 16,
         "defaultversionsticky": 20,
-        "defaultversionurl": 19,
-        "description": 9,
-        "dirid": 1,
-        "documentation": 10,
-        "epoch": "6-epoch",
-        "fileid": 1,
-        "id": 1,
-        "isdefault": 8,
-        "labels": 11,
-        "metaurl": 17,
-        "model": 22,
-        "modifiedat": 13,
-        "name": 7,
-        "readonly": 14,
-        "registryid": 1,
-        "self": 3,
-        "specversion": 0,
-        "versionid": 2,
-        "xid": 4,
-        "xref": 5
+        "defaultversionurl": 17,
+        "description": 11,
+        "dirid": 5,
+        "documentation": 13,
+        "epoch": "5-epoch",
+        "fileid": 6,
+        "id": 2,
+        "isdefault": 9,
+        "labels": 6,
+        "metaurl": 7,
+        "model": 5,
+        "modifiedat": 10,
+        "name": 4,
+        "readonly": 8,
+        "registryid": 10,
+        "self": 4,
+        "specversion": 11,
+        "versionid": 9,
+        "xid": 3,
+        "xref": 4
       },
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
@@ -7170,35 +7178,36 @@ func TestUseSpecAttrs(t *testing.T) {
           "createdat": "YYYY-MM-DDTHH:MM:02Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
           "obj": {
-            "capabilities": 21,
-            "compatibility": 15,
-            "contenttype": 16,
-            "createdat": 12,
-            "defaultversionid": 18,
+            "ancestor": 8,
+            "capabilities": 12,
+            "compatibility": 13,
+            "contenttype": 11,
+            "createdat": 9,
+            "defaultversionid": 16,
             "defaultversionsticky": 20,
-            "defaultversionurl": 19,
-            "description": 9,
-            "dirid": 1,
-            "documentation": 10,
-            "epoch": "6-epoch",
-            "file": 1,
-            "filebase64": 1,
-            "fileid": 1,
-            "fileurl": 1,
-            "id": 1,
-            "isdefault": 8,
-            "labels": 11,
-            "metaurl": 17,
-            "model": 22,
-            "modifiedat": 13,
-            "name": 7,
-            "readonly": 14,
-            "registryid": 1,
-            "self": 3,
-            "specversion": 0,
-            "versionid": 2,
-            "xid": 4,
-            "xref": 5
+            "defaultversionurl": 17,
+            "description": 11,
+            "dirid": 5,
+            "documentation": 13,
+            "epoch": "5-epoch",
+            "file": 4,
+            "filebase64": 10,
+            "fileid": 6,
+            "fileurl": 7,
+            "id": 2,
+            "isdefault": 9,
+            "labels": 6,
+            "metaurl": 7,
+            "model": 5,
+            "modifiedat": 10,
+            "name": 4,
+            "readonly": 8,
+            "registryid": 10,
+            "self": 4,
+            "specversion": 11,
+            "versionid": 9,
+            "xid": 3,
+            "xref": 4
           },
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -7212,35 +7221,36 @@ func TestUseSpecAttrs(t *testing.T) {
             "readonly": false,
             "compatibility": "none",
             "obj": {
-              "capabilities": 21,
-              "compatibility": 15,
-              "contenttype": 16,
-              "createdat": 12,
-              "defaultversionid": 18,
+              "ancestor": 8,
+              "capabilities": 12,
+              "compatibility": 13,
+              "contenttype": 11,
+              "createdat": 9,
+              "defaultversionid": 16,
               "defaultversionsticky": 20,
-              "defaultversionurl": 19,
-              "description": 9,
-              "dirid": 1,
-              "documentation": 10,
-              "epoch": "6-epoch",
-              "file": 1,
-              "filebase64": 1,
-              "fileid": 1,
-              "fileurl": 1,
-              "id": 1,
-              "isdefault": 8,
-              "labels": 11,
-              "metaurl": 17,
-              "model": 22,
-              "modifiedat": 13,
-              "name": 7,
-              "readonly": 14,
-              "registryid": 1,
-              "self": 3,
-              "specversion": 0,
-              "versionid": 2,
-              "xid": 4,
-              "xref": 5
+              "defaultversionurl": 17,
+              "description": 11,
+              "dirid": 5,
+              "documentation": 13,
+              "epoch": "5-epoch",
+              "file": 4,
+              "filebase64": 10,
+              "fileid": 6,
+              "fileurl": 7,
+              "id": 2,
+              "isdefault": 9,
+              "labels": 6,
+              "metaurl": 7,
+              "model": 5,
+              "modifiedat": 10,
+              "name": 4,
+              "readonly": 8,
+              "registryid": 10,
+              "self": 4,
+              "specversion": 11,
+              "versionid": 9,
+              "xid": 3,
+              "xref": 4
             },
 
             "defaultversionid": "v1",
@@ -7259,35 +7269,36 @@ func TestUseSpecAttrs(t *testing.T) {
               "createdat": "YYYY-MM-DDTHH:MM:02Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
               "obj": {
-                "capabilities": 21,
-                "compatibility": 15,
-                "contenttype": 16,
-                "createdat": 12,
-                "defaultversionid": 18,
+                "ancestor": 8,
+                "capabilities": 12,
+                "compatibility": 13,
+                "contenttype": 11,
+                "createdat": 9,
+                "defaultversionid": 16,
                 "defaultversionsticky": 20,
-                "defaultversionurl": 19,
-                "description": 9,
-                "dirid": 1,
-                "documentation": 10,
-                "epoch": "6-epoch",
-                "file": 1,
-                "filebase64": 1,
-                "fileid": 1,
-                "fileurl": 1,
-                "id": 1,
-                "isdefault": 8,
-                "labels": 11,
-                "metaurl": 17,
-                "model": 22,
-                "modifiedat": 13,
-                "name": 7,
-                "readonly": 14,
-                "registryid": 1,
-                "self": 3,
-                "specversion": 0,
-                "versionid": 2,
-                "xid": 4,
-                "xref": 5
+                "defaultversionurl": 17,
+                "description": 11,
+                "dirid": 5,
+                "documentation": 13,
+                "epoch": "5-epoch",
+                "file": 4,
+                "filebase64": 10,
+                "fileid": 6,
+                "fileurl": 7,
+                "id": 2,
+                "isdefault": 9,
+                "labels": 6,
+                "metaurl": 7,
+                "model": 5,
+                "modifiedat": 10,
+                "name": 4,
+                "readonly": 8,
+                "registryid": 10,
+                "self": 4,
+                "specversion": 11,
+                "versionid": 9,
+                "xid": 3,
+                "xref": 4
               }
             }
           },

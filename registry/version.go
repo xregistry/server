@@ -74,12 +74,12 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) error {
 	// If it was already gone we'll continue and process the nextVersionID...
 	// should we?
 
-	vIDs, err := v.Resource.GetVersionIDs()
+	numVers, err := v.Resource.GetNumberOfVersions()
 	if err != nil {
 		return fmt.Errorf("Error deleting Version %q: %s", v.UID, err)
 	}
 
-	if len(vIDs) == 0 {
+	if numVers == 0 {
 		// If there are no more Versions left, delete the Resource
 		// TODO: Could just do this instead of deleting the Version first?
 		return v.Resource.Delete()
@@ -113,4 +113,23 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) error {
 
 func (v *Version) SetDefault() error {
 	return v.Resource.SetDefault(v)
+}
+
+func (v *Version) GetChildren() ([]*Version, error) {
+	vIDs, err := v.Resource.GetChildVersionIDs(v.UID)
+	if err != nil {
+		return nil, err
+	}
+
+	children := ([]*Version)(nil)
+	for _, vid := range vIDs {
+		childVer, err := v.Resource.FindVersion(vid, false)
+		if err != nil {
+			return nil, err
+		}
+		PanicIf(childVer == nil, "Can't find child: %s.%s", v.UID, vid)
+		children = append(children, childVer)
+	}
+
+	return children, nil
 }

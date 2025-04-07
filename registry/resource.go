@@ -306,11 +306,11 @@ func (r *Resource) GetDefault() (*Version, error) {
 }
 
 func (r *Resource) GetNewest() (*Version, error) {
-	vIDs, err := r.GetVersionIDs()
+	vers, err := r.GetOrderedVersions()
 	Must(err)
 
-	if len(vIDs) > 0 {
-		return r.FindVersion(vIDs[len(vIDs)-1], false)
+	if len(vers) > 0 {
+		return r.FindVersion(vers[len(vers)-1].VID, false)
 	}
 	return nil, nil
 }
@@ -324,11 +324,11 @@ func (r *Resource) EnsureLatest() error {
 		return nil
 	}
 
-	vIDs, err := r.GetVersionIDs()
+	vers, err := r.GetOrderedVersions()
 	Must(err)
-	PanicIf(len(vIDs) == 0, "No versions")
+	PanicIf(len(vers) == 0, "No versions")
 
-	newDefault := vIDs[len(vIDs)-1]
+	newDefault := vers[len(vers)-1].VID
 
 	currentDefault := meta.GetAsString("defaultversionid")
 	if currentDefault == newDefault {
@@ -595,11 +595,11 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 			// if createVersion is true, make sure we have at least one
 			// version
 			if createVersion {
-				vs, err := r.GetVersionIDs()
+				numVers, err := r.GetNumberOfVersions()
 				if err != nil {
 					return nil, false, err
 				}
-				if len(vs) == 0 {
+				if numVers == 0 {
 					// UpsertVersion might twiddle defVer, so save/reset it.
 					// TODO I don't like this. I'd prefer if we add a flag
 					// to the call to UpsertV to tell it NOT to muck with the
@@ -696,6 +696,11 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 func (r *Resource) ProcessVersionInfo() error {
 	m, err := r.FindMeta(false)
 	Must(err)
+
+	if !IsNil(m.Get("xref")) {
+		// If xref set then don't touch any of the defaultversion stuff
+		return nil
+	}
 
 	// Process "defaultversion" attributes
 
@@ -1030,15 +1035,54 @@ func (r *Resource) AddVersionWithObject(id string, obj Object) (*Version, error)
 	return v, err
 }
 
-func (r *Resource) GetVersionIDs() ([]string, error) {
-	// Get the list of Version IDs for this Resource (oldest first)
+type VersionAncestor struct {
+	VID      string
+	Ancestor string
+	Pos      string // 0-root, 1-middle, 2-leaf
+}
+
+// Get the list of Version IDs for this resource.
+// The list is sorted such that:
+// - the roots are first
+// - then non-roots and non-leaves
+// - then leaves
+// Within each group if there's more than one then it's sorted as:
+// - newest (lowest) createdat timestamp first
+// If more than one share the same timestamp, then it's sorted as:
+// - lowest alphabetically (case sensitive) first
+func (r *Resource) GetOrderedVersions() ([]*VersionAncestor, error) {
 	results, err := Query(r.tx, `
-			SELECT v.UID,p.PropValue FROM Versions AS v
-			JOIN EffectiveProps as p
-			  ON (p.EntitySID=v.SID AND
-			      p.PropName='createdat`+string(DB_IN)+`')
-			WHERE v.RegistrySID=? AND v.ResourceSID=?
-			  ORDER BY p.PropValue ASC, v.UID ASC`,
+            SELECT VersionUID, Ancestor, Pos FROM VersionAncestors
+			WHERE RegistrySID=? AND ResourceSID=?
+			ORDER BY Pos ASC, Time ASC, VersionUID ASC`,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error getting Version IDs: %s", err)
+	}
+
+	vers := []*VersionAncestor{}
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vers = append(vers, &VersionAncestor{
+			VID:      NotNilString(row[0]),
+			Ancestor: NotNilString(row[1]),
+			Pos:      NotNilString(row[2]),
+		})
+	}
+
+	return vers, nil
+}
+
+func (r *Resource) GetRootVersionIDs() ([]string, error) {
+	// Find all versions whose Ancestor = its vID
+	results, err := Query(r.tx, `
+            SELECT UID FROM Versions
+			WHERE RegistrySID=? AND ResourceSID=? AND UID=Ancestor`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1046,7 +1090,7 @@ func (r *Resource) GetVersionIDs() ([]string, error) {
 		return nil, fmt.Errorf("Error counting Versions: %s", err)
 	}
 
-	vIDs := []string{}
+	vIDs := ([]string)(nil)
 	for {
 		row := results.NextRow()
 		if row == nil {
@@ -1054,8 +1098,82 @@ func (r *Resource) GetVersionIDs() ([]string, error) {
 		}
 		vIDs = append(vIDs, NotNilString(row[0]))
 	}
-	results.Close()
+
 	return vIDs, nil
+}
+
+func (r *Resource) GetDangingVersions() ([]*VersionAncestor, error) {
+	// Find all versions that point to non-existing versions
+	results, err := Query(r.tx, `
+            SELECT v1.UID, v1.Ancestor FROM Versions AS v1
+			WHERE v1.RegistrySID=? AND
+			      v1.ResourceSID=? AND
+			      v1.UID<>v1.Ancestor AND
+			      NOT EXIST(SELECT 1 FROM Versions AS v2
+				            WHERE v2.RegistrySID=v1.ResistrySID AND
+							      v2.ResourceSID=v1.ResourceSID AND
+							      v2.UID=v1.Ancestor)`,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error counting Versions: %s", err)
+	}
+
+	vers := ([]*VersionAncestor)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vers = append(vers, &VersionAncestor{
+			VID:      NotNilString(row[0]),
+			Ancestor: NotNilString(row[1]),
+			Pos:      "n/a",
+		})
+	}
+
+	return vers, nil
+}
+
+func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, error) {
+	// Find all versions that point to non-existing versions
+	results, err := Query(r.tx, `
+			SELECT UID FROM Versions
+			WHERE RegistrySID=? AND ResourceSID=? AND Ancestor=?`,
+		r.Registry.DbSID, r.DbSID, parentVID)
+	defer results.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error counting Versions: %s", err)
+	}
+
+	vIDs := ([]string)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vIDs = append(vIDs, NotNilString(row[0]))
+	}
+
+	return vIDs, nil
+}
+
+func (r *Resource) GetNumberOfVersions() (int, error) {
+	// Get the list of Version IDs for this Resource (oldest first)
+	results, err := Query(r.tx, `
+	        SELECT COUNT(*) FROM Versions
+			WHERE RegistrySID=? AND ResourceSID=?`,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	if err != nil {
+		return 0, fmt.Errorf("Error counting Versions: %s", err)
+	}
+
+	row := results.NextRow()
+	return NotNilInt(row[0]), nil
 }
 
 func (r *Resource) EnsureMaxVersions() error {
@@ -1065,11 +1183,13 @@ func (r *Resource) EnsureMaxVersions() error {
 		return nil
 	}
 
-	vIDs, err := r.GetVersionIDs()
+	vers, err := r.GetOrderedVersions()
 	if err != nil {
 		return err
 	}
-	PanicIf(len(vIDs) == 0, "Query can't be empty")
+
+	count := len(vers)
+	PanicIf(count == 0, "Query can't be empty")
 
 	tmp := r.Get("defaultversionid")
 	defaultID := NotNilString(&tmp)
@@ -1078,18 +1198,18 @@ func (r *Resource) EnsureMaxVersions() error {
 	// number of Versions allowed. Technically, this should always just
 	// delete 1, but ya never know. Also, skip the one that's tagged
 	// as "default" since that one is special
-	count := len(vIDs)
 	for count > rm.MaxVersions {
 		// Skip the "default" Version
-		if vIDs[0] != defaultID {
+		if vers[0].VID != defaultID {
 			err = DoOne(r.tx, `DELETE FROM Versions
-					WHERE ResourceSID=? AND UID=?`, r.DbSID, vIDs[0])
+					WHERE ResourceSID=? AND UID=?`, r.DbSID, vers[0].VID)
 			if err != nil {
-				return fmt.Errorf("Error deleting Version %q: %s", vIDs[0], err)
+				return fmt.Errorf("Error deleting Version %q: %s",
+					vers[0].VID, err)
 			}
 			count--
 		}
-		vIDs = vIDs[1:]
+		vers = vers[1:]
 	}
 	return nil
 }
@@ -1124,7 +1244,13 @@ func (m *Meta) Delete() error {
 	log.VPrintf(3, ">Enter: Meta.Delete(%s)", m.UID)
 	defer log.VPrintf(3, "<Exit: Meta.Delete")
 
-	err := DoOne(m.tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
+	// Can't use a trigger to do this because we get recusive triggers
+	err := Do(m.tx, `DELETE FROM Props WHERE EntitySID=?`, m.DbSID)
+	if err != nil {
+		return err
+	}
+
+	err = DoOne(m.tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
 	if err != nil {
 		return err
 	}

@@ -1210,6 +1210,10 @@ FROM FullTree WHERE RegSID=? AND `
 			return nil
 		}
 
+		if attr.internals.neverSerialize {
+			return nil
+		}
+
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
 				info.AddHeader("xRegistry-"+key+"-"+name,

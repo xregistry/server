@@ -71,6 +71,7 @@ type AttrInternals struct {
 	types           string // show only for these eTypes, ""==all
 	dontStore       bool   // don't store this prop in the DB
 	alwaysSerialize bool   // even if nil
+	neverSerialize  bool   // hidden attr
 	httpHeader      string // custom HTTP header name, not xRegistry-xxx
 	xrefrequired    bool   // required in meta even when xref is set
 
@@ -207,6 +208,10 @@ func (attrs Attributes) MarshalJSON() ([]byte, error) {
 				// We need to exclude "model" because we don't want to show the
 				// end user "model" as a valid attribute in the model.
 				if name == "model" || name == "capabilities" {
+					continue
+				}
+
+				if attr.internals.neverSerialize {
 					continue
 				}
 

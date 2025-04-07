@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 
 	"github.com/xregistry/server/registry"
@@ -100,7 +101,7 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	Debug("Request: %s %s", verb, url)
 	if len(body) != 0 {
 		Debug("Request Body:\n%s", string(body))
-		Debug("^--")
+		Debug("--------------------")
 	}
 
 	res, err := client.Do(req)
@@ -129,7 +130,7 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	Debug("Response: %d", httpRes.Code)
 	if len(body) != 0 {
 		Debug("Response Body:\n%s", string(body))
-		Debug("^--")
+		Debug("--------------------")
 	}
 
 	return httpRes, err
@@ -372,4 +373,73 @@ func Humanize(xid string, object any) string {
 
 func HumanizeRegistry(regObj any) string {
 	return "Registry:"
+}
+
+func XRIndent(buf []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(buf))
+	res := bytes.Buffer{}
+
+	indent := ""
+	// extra := ""
+	var next any
+	var nextErr error
+	var nextStr string
+	var token any
+	var err error
+
+	for {
+		if registry.IsNil(next) {
+			token, err = dec.Token()
+		} else {
+			token, err = next, nextErr
+		}
+		next, nextErr = dec.Token()
+		nextType := reflect.ValueOf(next).Type().String()
+		nextStr, _ = next.(string)
+
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		tokenVal := reflect.ValueOf(token)
+		tokenType := tokenVal.Type().String()
+		tokenStr, _ := token.(string)
+
+		switch tokenType {
+		case "json.Delim":
+			switch tokenStr {
+			case "{":
+				res.WriteString(indent + tokenStr)
+				if nextStr != "{" {
+					res.WriteString("\n")
+					indent += "  "
+				}
+			case "}":
+				indent = indent[:len(indent)-2]
+				res.WriteString("\n" + indent + tokenStr)
+			case "[":
+				res.WriteString(indent + tokenStr)
+				if nextStr != "]" {
+					res.WriteString("\n")
+					indent += "  "
+				}
+			case "]":
+				indent = indent[:len(indent)-2]
+				res.WriteString("\n" + indent + tokenStr)
+			default:
+				panic(tokenStr)
+			}
+
+		case "string", "float64", "<nil>":
+			res.WriteString(tokenStr)
+			if nextType != "json.Delim" {
+				res.WriteString(",\n" + indent)
+			}
+		}
+	}
+
+	return res.Bytes(), nil
 }

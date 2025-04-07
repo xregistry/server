@@ -92,6 +92,7 @@ dirs/d1/files/f1/meta: epoch, -> 1
 dirs/d1/files/f1/meta: fileid, -> f1
 dirs/d1/files/f1/meta: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/meta: readonly, -> false
+dirs/d1/files/f1/versions/v1: ancestor, -> v1
 dirs/d1/files/f1/versions/v1: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/versions/v1: epoch, -> 1
 dirs/d1/files/f1/versions/v1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
