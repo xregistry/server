@@ -1,8 +1,9 @@
 package main
 
 import (
-	// "encoding/json"
-	// "fmt"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
 	// "text/tabwriter"
 	"os"
 
@@ -46,22 +47,108 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		args = []string{"/"}
 	}
 
-	for _, xidStr := range args {
-		suffix := ""
-		xid := xrlib.ParseXID(xidStr)
-		if xid.Type == xrlib.ENTITY_RESOURCE || xid.Type == xrlib.ENTITY_VERSION {
-			suffix = "$details"
+	downloadXIDFn := func(xid *xrlib.XID) error {
+		loc := xid.String()
+		if xid.Resource != "" && xid.IsEntity {
+			loc += "$details"
 		}
-		suffix += "?inline"
 
-		res, err := reg.HttpDo("GET", xid.String()+suffix, nil)
-		Error(err)
+		file := dir
+		switch xid.Type {
+		case xrlib.ENTITY_REGISTRY:
+			file += "/index.html"
 
-		Error(writeToDisk(reg, xid, dir, string(res.Body)))
+		case xrlib.ENTITY_GROUP_TYPE:
+			fallthrough
+		case xrlib.ENTITY_RESOURCE_TYPE:
+			fallthrough
+		case xrlib.ENTITY_VERSION_TYPE:
+			file += fmt.Sprintf("%s/index.html", xid.String())
+
+		case xrlib.ENTITY_GROUP:
+			fallthrough
+		case xrlib.ENTITY_RESOURCE:
+			fallthrough
+		case xrlib.ENTITY_META:
+			fallthrough
+		case xrlib.ENTITY_VERSION:
+			file += fmt.Sprintf("%s", xid.String())
+
+		}
+
+		DownloadToFile(reg, xid.String(), file)
+
+		if xid.Resource != "" && xid.IsEntity {
+			file += "$details"
+			DownloadToFile(reg, xid.String()+"$details", file+"$details")
+		}
+
+		return nil
 	}
 
+	for _, xidStr := range args {
+		xid := xrlib.ParseXID(xidStr)
+		Error(traverseFromXID(reg, xid, dir, downloadXIDFn))
+	}
+
+	file := dir
+	DownloadToFile(reg, "/model", file+"/model")
+	DownloadToFile(reg, "/capabilities", file+"/capabilities")
 }
 
-func writeToDisk(reg *xrlib.Registry, xid *xrlib.XID, dir string, data string) error {
+func DownloadToFile(reg *xrlib.Registry, path string, file string) {
+	Verbose("Downloading %q to %q", path, file)
+	res, err := reg.HttpDo("GET", path, nil)
+	Error(err)
+
+	Error(os.MkdirAll(filepath.Dir(file), 0600))
+	Error(os.WriteFile(file, res.Body, 0600))
+}
+
+type traverseFunc func(xid *xrlib.XID) error
+
+func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traverseFunc) error {
+	switch xid.Type {
+	case xrlib.ENTITY_REGISTRY:
+		fn(xid)
+		for _, gm := range reg.Model.Groups {
+			nextXID := xrlib.ParseXID(xid.String() + "/" + gm.Plural)
+			traverseFromXID(reg, nextXID, root, fn)
+		}
+
+	case xrlib.ENTITY_GROUP_TYPE:
+		fallthrough
+	case xrlib.ENTITY_RESOURCE_TYPE:
+		fallthrough
+	case xrlib.ENTITY_VERSION_TYPE:
+		fn(xid)
+		res, err := reg.HttpDo("GET", xid.String(), nil)
+		Error(err)
+		tmp := map[string]any{}
+		Error(json.Unmarshal([]byte(res.Body), &tmp))
+		for key, _ := range tmp {
+			nextXID := xrlib.ParseXID(xid.String() + "/" + key)
+			traverseFromXID(reg, nextXID, root, fn)
+		}
+
+	case xrlib.ENTITY_GROUP:
+		fn(xid)
+		gm := reg.Model.Groups[xid.Group]
+		for _, rm := range gm.Resources {
+			nextXID := xrlib.ParseXID(xid.String() + "/" + rm.Plural)
+			traverseFromXID(reg, nextXID, root, fn)
+		}
+
+	case xrlib.ENTITY_RESOURCE:
+		fn(xid)
+
+	case xrlib.ENTITY_META:
+		fn(xid)
+
+	case xrlib.ENTITY_VERSION:
+		fn(xid)
+
+	}
+
 	return nil
 }

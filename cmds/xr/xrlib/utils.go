@@ -205,7 +205,6 @@ func ArrayContains(strs []string, needle string) bool {
 }
 
 type XID struct {
-	str        string
 	Type       int
 	IsEntity   bool
 	Group      string
@@ -214,6 +213,8 @@ type XID struct {
 	ResourceID string
 	Version    string // always "versions" if "/versions" was present
 	VersionID  string
+
+	ShowDetails bool
 }
 
 const (
@@ -224,9 +225,9 @@ const (
 	ENTITY_VERSION
 	ENTITY_MODEL
 
-	ENTITY_GROUPTYPE
-	ENTITY_RESOURCETYPE
-	ENTITY_VERSIONTYPE
+	ENTITY_GROUP_TYPE
+	ENTITY_RESOURCE_TYPE
+	ENTITY_VERSION_TYPE
 )
 
 func ParseXID(xidStr string) *XID {
@@ -238,7 +239,6 @@ func ParseXID(xidStr string) *XID {
 	}
 
 	xid := &XID{
-		str:      xidStr,
 		Type:     ENTITY_REGISTRY,
 		IsEntity: true,
 	}
@@ -246,7 +246,7 @@ func ParseXID(xidStr string) *XID {
 	if len(parts) > 0 {
 		xid.Group = parts[0]
 		if xid.Group != "" {
-			xid.Type = ENTITY_GROUPTYPE
+			xid.Type = ENTITY_GROUP_TYPE
 			xid.IsEntity = false
 		}
 		if len(parts) > 1 {
@@ -258,7 +258,7 @@ func ParseXID(xidStr string) *XID {
 			if len(parts) > 2 {
 				xid.Resource = parts[2]
 				if xid.Resource != "" {
-					xid.Type = ENTITY_RESOURCETYPE
+					xid.Type = ENTITY_RESOURCE_TYPE
 					xid.IsEntity = false
 				}
 				if len(parts) > 3 {
@@ -270,7 +270,7 @@ func ParseXID(xidStr string) *XID {
 					if len(parts) > 4 {
 						xid.Version = parts[4]
 						if xid.Version != "" {
-							xid.Type = ENTITY_VERSIONTYPE
+							xid.Type = ENTITY_VERSION_TYPE
 							xid.IsEntity = false
 						}
 						if len(parts) > 5 {
@@ -345,7 +345,35 @@ func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
 }
 
 func (xid *XID) String() string {
-	return xid.str
+	str := "/"
+
+	if xid.Group != "" {
+		str += xid.Group
+		if xid.GroupID != "" {
+			str += "/" + xid.GroupID
+			if xid.Resource != "" {
+				str += "/" + xid.Resource
+				if xid.ResourceID != "" {
+					str += "/" + xid.ResourceID
+					if xid.Version != "" {
+						str += "/" + xid.Version
+						if xid.VersionID != "" {
+							str += "/" + xid.VersionID
+							if xid.ShowDetails {
+								str += "$details"
+							}
+						}
+					} else {
+						if xid.ShowDetails {
+							str += "$details"
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return str
 }
 
 func PrettyPrint(object any, prefix string, indent string) string {
@@ -359,11 +387,11 @@ func Humanize(xid string, object any) string {
 	switch xidParts.Type {
 	case ENTITY_REGISTRY:
 		str = HumanizeRegistry(object)
-	case ENTITY_GROUPTYPE:
+	case ENTITY_GROUP_TYPE:
 	case ENTITY_GROUP:
-	case ENTITY_RESOURCETYPE:
+	case ENTITY_RESOURCE_TYPE:
 	case ENTITY_RESOURCE:
-	case ENTITY_VERSIONTYPE:
+	case ENTITY_VERSION_TYPE:
 	case ENTITY_VERSION:
 	default:
 		panic(fmt.Sprintf("Unknown xid type: %v", xidParts.Type))
