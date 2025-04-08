@@ -1560,6 +1560,10 @@ func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, error) {
 // spec defined version of it. There's only so much that we allow the
 // user to customize
 func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
+	if userAttr.Name == "" {
+		userAttr.Name = specAttr.Name
+	}
+
 	// Just blindly ignore any updates made to "model"
 	if userAttr.Name == "model" {
 		*userAttr = *specAttr
@@ -1569,11 +1573,11 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
 	if specAttr.Required {
 		if userAttr.Required == false {
 			return fmt.Errorf(`"model.%s" must have its "required" `+
-				`attribute set to "true"`, userAttr.Name)
+				`attribute set to "true"`, specAttr.Name)
 		}
 		if specAttr.ReadOnly && !userAttr.ReadOnly {
 			return fmt.Errorf(`"model.%s" must have its "readonly" `+
-				`attribute set to "true"`, userAttr.Name)
+				`attribute set to "true"`, specAttr.Name)
 		}
 	}
 
@@ -1676,7 +1680,10 @@ func (gm *GroupModel) Verify(gmName string) error {
 		return err
 	}
 
-	if gm.Plural != gmName {
+	if gm.Plural == "" {
+		// Allow auto-populate
+		gm.Plural = gmName
+	} else if gm.Plural != gmName {
 		return fmt.Errorf("Group %q must have a `plural` value of %q, not %q",
 			gmName, gmName, gm.Plural)
 	}
@@ -1790,9 +1797,9 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	}
 
 	if rm.Plural == "" {
-		return fmt.Errorf("Resource %q is missing a \"name\" value", rmName)
-	}
-	if rm.Plural != rmName {
+		// Allow auto-populate
+		rm.Plural = rmName
+	} else if rm.Plural != rmName {
 		return fmt.Errorf("Resource %q must have a 'plural' value of %q, "+
 			"not %q", rmName, rmName, rm.Plural)
 	}
@@ -1870,6 +1877,13 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	}
 
 	if err := attrs.Verify("strict", ld); err != nil {
+		return err
+	}
+	// Notice that 'attrs' only exists for the purpose of making sure we check
+	// for duplicate names that might conflict with the RESOURCExxx attrs.
+	// This will also check the user-provided attrs at the same time.
+
+	if err := rm.MetaAttributes.Verify("strict", ld); err != nil {
 		return err
 	}
 
@@ -2282,6 +2296,10 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 			}
 		}
 		path := ld.Path.P(name)
+		if attr.Name == "" {
+			// auto-populate
+			attr.Name = name
+		}
 		if name != attr.Name { // missing Name: field?
 			return fmt.Errorf("%q must have a \"name\" set to %q", path.UI(),
 				name)
@@ -2363,6 +2381,11 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 			if !IsOfType(val, attr.Type) {
 				return fmt.Errorf("%q \"default\" value must be of type %q",
 					path.UI(), attr.Type)
+			}
+
+			if attr.Required == false {
+				return fmt.Errorf("%q must have \"require\" set to "+
+					"\"true\" since a default value is defined", path.UI())
 			}
 		}
 

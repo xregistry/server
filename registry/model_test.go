@@ -102,9 +102,6 @@ func TestModelVerifyRegAttr(t *testing.T) {
 
 	tests := []Test{
 		{"empty attrs", Model{Attributes: Attributes{}}, ""},
-		{"err - missing name", Model{
-			Attributes: Attributes{"myint": {}},
-		}, `"model.myint" must have a "name" set to "myint"`},
 		{
 			"err - wrong name", Model{
 				Attributes: Attributes{"myint": {Name: "bad"}},

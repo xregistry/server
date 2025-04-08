@@ -183,6 +183,13 @@ func TestRegistryDefaultFields(t *testing.T) {
 	xCheckErr(t, err, `"model.defstring" "default" value must be of type "string"`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
+		Name:    "defstring",
+		Type:    registry.STRING,
+		Default: "abc",
+	})
+	xCheckErr(t, err, `"model.defstring" must have "require" set to "true" since a default value is defined`)
+
+	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "defstring",
 		Type:     registry.OBJECT,
 		Required: true,

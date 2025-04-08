@@ -1,11 +1,9 @@
 { 
   "groups": {
     "dirs": {
-      "plural": "dirs",
       "singular": "dir",
       "resources": {
         "files": {
-          "plural": "files",
           "singular": "file"
         } 
       }
