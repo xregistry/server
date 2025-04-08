@@ -74,7 +74,6 @@ TODOs:
   - by making it mutable and changings it's meta-model
 - test cap.maxversions & creating resource type that violate it
 - test cap.sticky & creating resource type that violate it
-- verify that attrs with default values require "serverrequired" to be true
 - test default values - incuding within objects
 - add tests for immutable attributes - in particular extensions
 - see if we can add RESOURCEid to Versions so we don't need special logic
