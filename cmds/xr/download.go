@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-	// "text/tabwriter"
+	// "net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	// log "github.com/duglin/dlog"
-	"github.com/xregistry/server/cmds/xr/xrlib"
-	// "github.com/xregistry/server/registry"
 	"github.com/spf13/cobra"
+	"github.com/xregistry/server/cmds/xr/xrlib"
+	"github.com/xregistry/server/registry"
 )
 
 func addDownloadCmd(parent *cobra.Command) {
@@ -20,6 +21,10 @@ func addDownloadCmd(parent *cobra.Command) {
 		Run:     downloadFunc,
 		GroupID: "Entities",
 	}
+	downloadCmd.Flags().StringP("url", "u", "",
+		"Host/path to Update xRegistry paths")
+	downloadCmd.Flags().StringP("index", "i", "index.html",
+		"Directory index file name")
 
 	parent.AddCommand(downloadCmd)
 }
@@ -29,12 +34,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
-
 	if len(args) == 0 {
 		Error("Missing the DIR argument")
 	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
 
 	dir := args[0]
 	stat, err := os.Stat(dir)
@@ -47,62 +52,243 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		args = []string{"/"}
 	}
 
+	indexFile, _ := cmd.Flags().GetString("index")
+	host, _ := cmd.Flags().GetString("url")
+	if host != "" {
+		if host[len(host)-1] != '/' {
+			host += "/"
+		}
+	}
+
 	downloadXIDFn := func(xid *xrlib.XID) error {
 		loc := xid.String()
 		if xid.Resource != "" && xid.IsEntity {
 			loc += "$details"
 		}
 
+		obj := map[string]json.RawMessage{}
+		plurals := []string{}
+
 		file := dir
 		switch xid.Type {
 		case xrlib.ENTITY_REGISTRY:
-			file += "/index.html"
+			fn := file + "/" + indexFile
+			data, _ := Download(reg, xid.String())
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				obj["self"] = []byte(fmt.Sprintf("%q", host))
+				for _, gm := range reg.Model.Groups {
+					obj[gm.Plural+"url"] =
+						[]byte(fmt.Sprintf("%q", host+gm.Plural))
+				}
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			}
+			Write(fn, data)
 
 		case xrlib.ENTITY_GROUP_TYPE:
+			for _, rm := range reg.Model.Groups[xid.Group].Resources {
+				plurals = append(plurals, rm.Plural)
+			}
 			fallthrough
 		case xrlib.ENTITY_RESOURCE_TYPE:
+			if xid.Type == xrlib.ENTITY_RESOURCE_TYPE {
+				plurals = append(plurals, "versions")
+			}
 			fallthrough
 		case xrlib.ENTITY_VERSION_TYPE:
-			file += fmt.Sprintf("%s/index.html", xid.String())
+			fn := file + xid.String() + "/" + indexFile
+			data, _ := Download(reg, xid.String())
+			Error(err)
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				for k, d2 := range obj {
+					tmp := map[string]json.RawMessage{}
+					Error(json.Unmarshal(d2, &tmp))
+					self := host + xid.String()[1:] + "/" + k
+					tmp["self"] = []byte(fmt.Sprintf("%q", self))
+					for _, p := range plurals {
+						pURL := fmt.Sprintf("%s/%s", self, p)
+						tmp[p+"url"] = []byte(fmt.Sprintf("%q", pURL))
+					}
+					b, err := json.Marshal(tmp)
+					Error(err)
+					obj[k] = b
+				}
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			}
+			Write(fn, data)
 
 		case xrlib.ENTITY_GROUP:
-			fallthrough
+			fn := file + xid.String() + "/" + indexFile
+			data, _ := Download(reg, xid.String())
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				self := host + xid.String()[1:]
+				obj["self"] = []byte(fmt.Sprintf("%q", self))
+				for _, rm := range reg.Model.Groups[xid.Group].Resources {
+					p := fmt.Sprintf(`"%s/%s"`, self, rm.Plural)
+					obj[rm.Plural+"url"] = []byte(p)
+				}
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			}
+			Write(fn, data)
+
 		case xrlib.ENTITY_RESOURCE:
-			fallthrough
+			fn := file + xid.String() + "$details"
+			data, _ := Download(reg, xid.String()+"$details")
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				self := host + xid.String()[1:]
+				obj["self"] = []byte(fmt.Sprintf("%q", self))
+				obj["versionsurl"] = []byte(`"` + self + "/versions" + `"`)
+				obj["metaurl"] = []byte(`"` + self + "/meta" + `"`)
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			} else {
+				Error(json.Unmarshal(data, &obj))
+				data, err = json.MarshalIndent(obj, "", "  ")
+			}
+			Write(fn, data)
+
+			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
+			if rm.HasDocument != nil && *(rm.HasDocument) {
+				fn = file + xid.String() + "/" + indexFile
+				data, hdr := Download(reg, xid.String())
+				Write(fn, data)
+
+				self := host + xid.String()[1:]
+				hdr["xregistry-self"] = self
+				hdr["xregistry-versionsurl"] = self + "/versions"
+				hdr["xregistry-metaurl"] = self + "/meta"
+				if hdr["content-location"] != "" {
+					cl := self + "/versions/" + hdr["xregistry-versionid"]
+					hdr["content-location"] = cl
+				}
+
+				fn = file + xid.String() + ".hdr"
+				str := ""
+				for _, k := range registry.SortedKeys(hdr) {
+					// Assume just one value per header
+					str += fmt.Sprintf("%s=%s\n", k, hdr[k])
+				}
+				Verbose("  Wrote headers to: %q", fn)
+				Write(fn, []byte(str))
+			} else {
+				fn := file + xid.String() + "/" + indexFile
+				Write(fn, data)
+			}
+
 		case xrlib.ENTITY_META:
-			fallthrough
+			fn := file + xid.String()
+			data, _ := Download(reg, xid.String())
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				self := host + xid.String()[1:]
+				obj["self"] = []byte(fmt.Sprintf("%q", self))
+				verid := ""
+				Error(json.Unmarshal(obj["defaultversionid"], &verid))
+				ver := fmt.Sprintf(`"%s/versions/%s"`, self[:len(self)-5],
+					verid)
+				obj["defaultversionurl"] = []byte(ver)
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			} else {
+				Error(json.Unmarshal(data, &obj))
+				data, err = json.MarshalIndent(obj, "", "  ")
+			}
+			Write(fn, data)
+
 		case xrlib.ENTITY_VERSION:
-			file += fmt.Sprintf("%s", xid.String())
+			fn := file + xid.String() + "$details"
+			data, _ := Download(reg, xid.String()+"$details")
+			if host != "" {
+				Error(json.Unmarshal(data, &obj))
+				self := host + xid.String()[1:]
+				obj["self"] = []byte(fmt.Sprintf("%q", self))
+				data, err = json.MarshalIndent(obj, "", "  ")
+				Error(err)
+			} else {
+				Error(json.Unmarshal(data, &obj))
+				data, err = json.MarshalIndent(obj, "", "  ")
+			}
+			Write(fn, data)
 
-		}
+			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
+			if rm.HasDocument != nil && *(rm.HasDocument) {
+				fn = file + xid.String() + "/" + indexFile
+				data, hdr := Download(reg, xid.String())
+				Write(fn, data)
 
-		DownloadToFile(reg, xid.String(), file)
+				self := host + xid.String()[1:]
+				hdr["xregistry-self"] = self
+				if hdr["content-location"] != "" {
+					hdr["content-location"] = self
+				}
 
-		if xid.Resource != "" && xid.IsEntity {
-			file += "$details"
-			DownloadToFile(reg, xid.String()+"$details", file+"$details")
+				fn = file + xid.String() + ".hdr"
+				str := ""
+				for _, k := range registry.SortedKeys(hdr) {
+					// Assume just one value per header
+					str += fmt.Sprintf("%s=%s\n", k, hdr[k])
+				}
+				Verbose("  Wrote headers to: %q", fn)
+				Write(fn, []byte(str))
+			} else {
+				fn := file + xid.String() + "/" + indexFile
+				Write(fn, data)
+			}
+
 		}
 
 		return nil
 	}
 
 	for _, xidStr := range args {
-		xid := xrlib.ParseXID(xidStr)
+		xid, err := xrlib.ParseXID(xidStr)
+		Error(err)
 		Error(traverseFromXID(reg, xid, dir, downloadXIDFn))
 	}
 
-	file := dir
-	DownloadToFile(reg, "/model", file+"/model")
-	DownloadToFile(reg, "/capabilities", file+"/capabilities")
+	data, _ := Download(reg, "/model")
+	Write(dir+"/model", data)
+	data, _ = Download(reg, "/capabilities")
+	Write(dir+"/capabilities", data)
 }
 
-func DownloadToFile(reg *xrlib.Registry, path string, file string) {
-	Verbose("Downloading %q to %q", path, file)
+// Body, Headers
+func Download(reg *xrlib.Registry, path string) ([]byte, map[string]string) {
 	res, err := reg.HttpDo("GET", path, nil)
 	Error(err)
 
-	Error(os.MkdirAll(filepath.Dir(file), 0600))
-	Error(os.WriteFile(file, res.Body, 0600))
+	headers := (map[string]string)(nil)
+	// Only save if we have xRegistry headers, but also save special headers
+	if res.Header.Get("xregistry-self") != "" {
+		headers = map[string]string{}
+		saveHeaders := map[string]bool{
+			"content-type":        true,
+			"content-disposition": true,
+			"content-length":      true,
+			"content-location":    true,
+		}
+		for k, _ := range res.Header {
+			k = strings.ToLower(k)
+			if strings.HasPrefix(k, "xregistry-") || saveHeaders[k] {
+				// Assume just one value per header
+				headers[k] = res.Header.Get(k)
+			}
+		}
+	}
+
+	return res.Body, headers
+}
+
+func Write(file string, data []byte) {
+	Verbose("Writing: %s", file)
+	Error(os.MkdirAll(filepath.Dir(file), 0774))
+	Error(os.WriteFile(file, data, 0664))
 }
 
 type traverseFunc func(xid *xrlib.XID) error
@@ -112,7 +298,8 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 	case xrlib.ENTITY_REGISTRY:
 		fn(xid)
 		for _, gm := range reg.Model.Groups {
-			nextXID := xrlib.ParseXID(xid.String() + "/" + gm.Plural)
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + gm.Plural)
+			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
 
@@ -127,7 +314,8 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		tmp := map[string]any{}
 		Error(json.Unmarshal([]byte(res.Body), &tmp))
 		for key, _ := range tmp {
-			nextXID := xrlib.ParseXID(xid.String() + "/" + key)
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + key)
+			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
 
@@ -135,12 +323,19 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		fn(xid)
 		gm := reg.Model.Groups[xid.Group]
 		for _, rm := range gm.Resources {
-			nextXID := xrlib.ParseXID(xid.String() + "/" + rm.Plural)
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rm.Plural)
+			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
 
 	case xrlib.ENTITY_RESOURCE:
 		fn(xid)
+		nextXID, err := xrlib.ParseXID(xid.String() + "/meta")
+		Error(err)
+		traverseFromXID(reg, nextXID, root, fn)
+		nextXID, err = xrlib.ParseXID(xid.String() + "/versions")
+		Error(err)
+		traverseFromXID(reg, nextXID, root, fn)
 
 	case xrlib.ENTITY_META:
 		fn(xid)

@@ -37,7 +37,8 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
-	xid := xrlib.ParseXID(xidStr)
+	xid, err := xrlib.ParseXID(xidStr)
+	Error(err)
 	suffix := ""
 
 	if xid.Type == xrlib.ENTITY_RESOURCE {

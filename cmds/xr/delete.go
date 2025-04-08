@@ -42,7 +42,8 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 	objects := map[string]json.RawMessage{}
 
 	// For now only look at the first one
-	XID := xrlib.ParseXID(args[0])
+	XID, err := xrlib.ParseXID(args[0])
+	Error(err)
 
 	if len(data) > 0 {
 		if len(args) > 1 {

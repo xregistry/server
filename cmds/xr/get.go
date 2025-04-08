@@ -47,7 +47,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	xid := args[0]
 	object := any(nil)
-	XID := xrlib.ParseXID(xid)
+	XID, err := xrlib.ParseXID(xid)
+	Error(err)
 	resIsJSON := true
 	suffix := ""
 

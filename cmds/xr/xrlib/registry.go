@@ -291,7 +291,10 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
 }
 
 func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, error) {
-	xid := ParseXID(xidStr)
+	xid, err := ParseXID(xidStr)
+	if err != nil {
+		return nil, err
+	}
 	if xid.Resource == "" {
 		return nil, nil
 	}

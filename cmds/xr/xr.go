@@ -57,6 +57,7 @@ func Error(obj any, args ...any) {
 		fmtStr = strings.TrimSpace(fmtStr) + "\n"
 		fmt.Fprintf(os.Stderr, fmtStr, args...)
 	}
+	// registry.ShowStack()
 	os.Exit(1)
 }
 

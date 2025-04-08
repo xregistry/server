@@ -85,7 +85,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	xidStr := args[0]
 	// object := any(nil)
-	xid := xrlib.ParseXID(xidStr)
+	xid, err := xrlib.ParseXID(xidStr)
+	Error(err)
 	dataIsMeta := true
 	suffix := ""
 

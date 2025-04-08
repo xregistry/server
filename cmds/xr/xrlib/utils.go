@@ -80,8 +80,9 @@ func EnvString(name string, def string) string {
 }
 
 type HttpResponse struct {
-	Code int
-	Body []byte
+	Code   int
+	Body   []byte
+	Header http.Header
 }
 
 // statusCode, body
@@ -124,8 +125,9 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	}
 
 	httpRes := &HttpResponse{
-		Code: res.StatusCode,
-		Body: body,
+		Code:   res.StatusCode,
+		Body:   body,
+		Header: res.Header,
 	}
 
 	Debug("Response: %d", httpRes.Code)
@@ -213,8 +215,6 @@ type XID struct {
 	ResourceID string
 	Version    string // always "versions" if "/versions" was present
 	VersionID  string
-
-	ShowDetails bool
 }
 
 const (
@@ -230,9 +230,9 @@ const (
 	ENTITY_VERSION_TYPE
 )
 
-func ParseXID(xidStr string) *XID {
+func ParseXID(xidStr string) (*XID, error) {
 	xidStr = strings.TrimLeft(xidStr, "/")
-	parts := strings.SplitN(xidStr, "/", 6)
+	parts := strings.Split(xidStr, "/")
 
 	if xidStr == "" {
 		xidStr = "/"
@@ -269,23 +269,36 @@ func ParseXID(xidStr string) *XID {
 					}
 					if len(parts) > 4 {
 						xid.Version = parts[4]
-						if xid.Version != "" {
+						if xid.Version == "versions" {
 							xid.Type = ENTITY_VERSION_TYPE
 							xid.IsEntity = false
-						}
-						if len(parts) > 5 {
-							xid.VersionID = parts[5]
-							if xid.VersionID != "" {
-								xid.Type = ENTITY_VERSION
-								xid.IsEntity = true
+
+							if len(parts) > 5 {
+								xid.VersionID = parts[5]
+								if xid.VersionID != "" {
+									xid.Type = ENTITY_VERSION
+									xid.IsEntity = true
+								}
 							}
+							if len(parts) > 6 {
+								return nil, fmt.Errorf("XID is too long")
+							}
+						} else if xid.Version == "meta" {
+							xid.Type = ENTITY_META
+							xid.IsEntity = false
+							if len(parts) > 5 {
+								return nil, fmt.Errorf("XID is too long")
+							}
+						} else {
+							return nil, fmt.Errorf("XID is too long")
 						}
+
 					}
 				}
 			}
 		}
 	}
-	return xid
+	return xid, nil
 }
 
 func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
@@ -359,13 +372,6 @@ func (xid *XID) String() string {
 						str += "/" + xid.Version
 						if xid.VersionID != "" {
 							str += "/" + xid.VersionID
-							if xid.ShowDetails {
-								str += "$details"
-							}
-						}
-					} else {
-						if xid.ShowDetails {
-							str += "$details"
 						}
 					}
 				}
@@ -382,7 +388,10 @@ func PrettyPrint(object any, prefix string, indent string) string {
 
 func Humanize(xid string, object any) string {
 	str := ""
-	xidParts := ParseXID(xid)
+	xidParts, err := ParseXID(xid)
+	if err != nil {
+		panic(err.Error())
+	}
 
 	switch xidParts.Type {
 	case ENTITY_REGISTRY:
