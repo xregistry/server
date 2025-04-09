@@ -25,7 +25,8 @@ var md = goldmark.New(
 		extension.GFM,
 		&anchor.Extender{
 			// Texter: anchor.Text("🔗"),
-			Texter: anchor.Text("☍"),
+			Texter:   anchor.Text("☍"),
+			Position: anchor.Before, // or anchor.After
 		},
 	),
 	goldmark.WithParserOptions(
