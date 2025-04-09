@@ -128,6 +128,7 @@ func main() {
 	addDeleteCmd(xrCmd)
 	addImportCmd(xrCmd)
 	addDownloadCmd(xrCmd)
+	addServeCmd(xrCmd)
 
 	if err := xrCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)

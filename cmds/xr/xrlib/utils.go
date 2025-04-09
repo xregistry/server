@@ -88,10 +88,10 @@ type HttpResponse struct {
 // statusCode, body
 // Add headers (in and out) later
 func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}}
+	client := &http.Client{}
+	// CheckRedirect: func(req *http.Request, via []*http.Request) error {
+	// return http.ErrUseLastResponse
+	// }}
 
 	bodyReader := bytes.NewReader(body)
 

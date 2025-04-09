@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	// "net/http"
@@ -12,6 +13,28 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	"github.com/xregistry/server/registry"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	ghtml "github.com/yuin/goldmark/renderer/html"
+	"go.abhg.dev/goldmark/anchor"
+)
+
+var md = goldmark.New(
+	goldmark.WithExtensions(
+		extension.GFM,
+		&anchor.Extender{
+			// Texter: anchor.Text("🔗"),
+			Texter: anchor.Text("☍"),
+		},
+	),
+	goldmark.WithParserOptions(
+		parser.WithAutoHeadingID(),
+	),
+	goldmark.WithRendererOptions(
+		// html.WithHardWraps(),
+		ghtml.WithUnsafe(),
+	),
 )
 
 func addDownloadCmd(parent *cobra.Command) {
@@ -25,6 +48,8 @@ func addDownloadCmd(parent *cobra.Command) {
 		"Host/path to Update xRegistry paths")
 	downloadCmd.Flags().StringP("index", "i", "index.html",
 		"Directory index file name")
+	downloadCmd.Flags().BoolP("md2html", "m", false,
+		"Generate HTML files for MD files")
 
 	parent.AddCommand(downloadCmd)
 }
@@ -52,6 +77,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		args = []string{"/"}
 	}
 
+	md2html, _ := cmd.Flags().GetBool("md2html")
 	indexFile, _ := cmd.Flags().GetString("index")
 	host, _ := cmd.Flags().GetString("url")
 	if host != "" {
@@ -61,18 +87,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}
 
 	downloadXIDFn := func(xid *xrlib.XID) error {
-		loc := xid.String()
-		if xid.Resource != "" && xid.IsEntity {
-			loc += "$details"
-		}
-
 		obj := map[string]json.RawMessage{}
 		plurals := []string{}
 
 		file := dir
 		switch xid.Type {
 		case xrlib.ENTITY_REGISTRY:
-			fn := file + "/" + indexFile
 			data, _ := Download(reg, xid.String())
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -84,7 +104,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
 			}
+			fn := file + "/" + indexFile
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case xrlib.ENTITY_GROUP_TYPE:
 			for _, rm := range reg.Model.Groups[xid.Group].Resources {
@@ -97,7 +119,6 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 			fallthrough
 		case xrlib.ENTITY_VERSION_TYPE:
-			fn := file + xid.String() + "/" + indexFile
 			data, _ := Download(reg, xid.String())
 			Error(err)
 			if host != "" {
@@ -118,10 +139,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
 			}
+			fn := file + xid.String() + "/" + indexFile
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case xrlib.ENTITY_GROUP:
-			fn := file + xid.String() + "/" + indexFile
 			data, _ := Download(reg, xid.String())
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -134,10 +156,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
 			}
+			fn := file + xid.String() + "/" + indexFile
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case xrlib.ENTITY_RESOURCE:
-			fn := file + xid.String() + "$details"
 			data, _ := Download(reg, xid.String()+"$details")
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -151,7 +174,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(json.Unmarshal(data, &obj))
 				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+			fn := file + xid.String() + "$details"
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
 			if rm.HasDocument != nil && *(rm.HasDocument) {
@@ -172,17 +197,24 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				str := ""
 				for _, k := range registry.SortedKeys(hdr) {
 					// Assume just one value per header
-					str += fmt.Sprintf("%s=%s\n", k, hdr[k])
+					str += fmt.Sprintf("%s:%s\n", k, hdr[k])
 				}
-				Verbose("  Wrote headers to: %q", fn)
 				Write(fn, []byte(str))
+
+				fn = file + xid.String()
+				if md2html && strings.HasSuffix(fn, ".md") {
+					fn = fn[:len(fn)-2] + "html"
+					html := bytes.Buffer{}
+					md.Convert(data, &html)
+					Error(os.WriteFile(fn, html.Bytes(), 0644))
+				}
 			} else {
 				fn := file + xid.String() + "/" + indexFile
 				Write(fn, data)
+				Write(fn+".hdr", []byte("content-type: application/json"))
 			}
 
 		case xrlib.ENTITY_META:
-			fn := file + xid.String()
 			data, _ := Download(reg, xid.String())
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -199,10 +231,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(json.Unmarshal(data, &obj))
 				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+			fn := file + xid.String()
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case xrlib.ENTITY_VERSION:
-			fn := file + xid.String() + "$details"
 			data, _ := Download(reg, xid.String()+"$details")
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -214,7 +247,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(json.Unmarshal(data, &obj))
 				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+			fn := file + xid.String() + "$details"
 			Write(fn, data)
+			Write(fn+".hdr", []byte("content-type: application/json"))
 
 			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
 			if rm.HasDocument != nil && *(rm.HasDocument) {
@@ -232,13 +267,21 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				str := ""
 				for _, k := range registry.SortedKeys(hdr) {
 					// Assume just one value per header
-					str += fmt.Sprintf("%s=%s\n", k, hdr[k])
+					str += fmt.Sprintf("%s:%s\n", k, hdr[k])
 				}
-				Verbose("  Wrote headers to: %q", fn)
 				Write(fn, []byte(str))
+
+				fn = file + xid.String()
+				if md2html && strings.HasSuffix(fn, ".md") {
+					fn = fn[:len(fn)-2] + "html"
+					html := bytes.Buffer{}
+					md.Convert(data, &html)
+					Error(os.WriteFile(fn, html.Bytes(), 0644))
+				}
 			} else {
 				fn := file + xid.String() + "/" + indexFile
 				Write(fn, data)
+				Write(fn+".hdr", []byte("content-type: application/json"))
 			}
 
 		}
@@ -254,8 +297,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 	data, _ := Download(reg, "/model")
 	Write(dir+"/model", data)
+	Write(dir+"/model.hdr", []byte("content-type: application/json"))
 	data, _ = Download(reg, "/capabilities")
 	Write(dir+"/capabilities", data)
+	Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
 }
 
 // Body, Headers
@@ -288,7 +333,7 @@ func Download(reg *xrlib.Registry, path string) ([]byte, map[string]string) {
 func Write(file string, data []byte) {
 	Verbose("Writing: %s", file)
 	Error(os.MkdirAll(filepath.Dir(file), 0774))
-	Error(os.WriteFile(file, data, 0664))
+	Error(os.WriteFile(file, data, 0644))
 }
 
 type traverseFunc func(xid *xrlib.XID) error
