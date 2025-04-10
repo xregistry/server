@@ -127,25 +127,28 @@ func (e *Entity) ShowStack() {
 	}
 }
 
-func (e *Entity) Touch() {
+func (e *Entity) Touch() bool {
 	log.VPrintf(3, "Touch: %s/%s", e.Singular, e.UID)
 
 	// See if it's already been modified (and saved) this Tx, if so exit
 	if e.ModSet && e.EpochSet {
-		return
+		return false
 	}
 
 	e.EnsureNewObject()
+	return true
 }
 
-func (e *Entity) EnsureNewObject() {
+func (e *Entity) EnsureNewObject() bool {
 	if e.NewObject == nil {
 		if e.Object == nil {
 			e.SetNewObject(map[string]any{})
 		} else {
 			e.SetNewObject(maps.Clone(e.Object))
 		}
+		return true
 	}
+	return false
 }
 
 func (e *Entity) Get(path string) any {

@@ -52,9 +52,10 @@ func (g *Group) Delete() error {
 			"resources are not allowed")
 	}
 
-	g.Registry.Touch()
-	if err = g.Registry.ValidateAndSave(); err != nil {
-		return err
+	if g.Registry.Touch() {
+		if err = g.Registry.ValidateAndSave(); err != nil {
+			return err
+		}
 	}
 
 	err = DoOne(g.tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)

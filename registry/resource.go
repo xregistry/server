@@ -234,12 +234,12 @@ func (r *Resource) SetSaveDefault(name string, val any) error {
 	return v.SetSave(name, val)
 }
 
-func (r *Resource) Touch() {
+func (r *Resource) Touch() bool {
 	meta, err := r.FindMeta(false)
 	if err != nil {
 		panic(err.Error())
 	}
-	meta.Touch()
+	return meta.Touch()
 }
 
 func (r *Resource) FindMeta(anyCase bool) (*Meta, error) {
@@ -880,6 +880,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 		if err = v.JustSet("versionid", id); err != nil {
 			return nil, false, err
 		}
+
+		// Touch owning Resource to bump its epoch abd modifiedat timestamp
+		if r.Touch() {
+			if err = r.ValidateAndSave(); err != nil {
+				return nil, false, err
+			}
+		}
 	}
 
 	// Apply properties
@@ -994,12 +1001,6 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 		if err = r.EnsureLatest(); err != nil {
 			return nil, false, err
 		}
-	}
-
-	// If we created a new Version then make sure the Resource's (meta's) epoch
-	// and TS are updated
-	if isNew {
-		r.Touch()
 	}
 
 	// If we can only have one Version, then set the one we just created
@@ -1292,9 +1293,10 @@ func (r *Resource) Delete() error {
 		return err
 	}
 
-	r.Group.Touch()
-	if err = r.Group.ValidateAndSave(); err != nil {
-		return err
+	if r.Group.Touch() {
+		if err = r.Group.ValidateAndSave(); err != nil {
+			return err
+		}
 	}
 
 	err = DoOne(r.tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)

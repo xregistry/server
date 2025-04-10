@@ -37,13 +37,15 @@ func (v *Version) Delete() error {
 // "defaultversionid" manipulation.
 // Used when xref on the Resource is set and we need to clear existing vers
 func (v *Version) JustDelete() error {
-	v.Resource.Touch()
 	meta, err := v.Resource.FindMeta(false)
 	if err != nil {
 		panic(err.Error())
 	}
-	if err := meta.ValidateAndSave(); err != nil {
-		return err
+
+	if v.Resource.Touch() {
+		if err := meta.ValidateAndSave(); err != nil {
+			return err
+		}
 	}
 
 	if meta.Get("readonly") == true {
