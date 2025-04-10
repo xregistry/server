@@ -144,6 +144,8 @@ func (r *Resource) IsXref() bool {
 	meta, err := r.FindMeta(false)
 	Must(err)
 
+	PanicIf(meta == nil, "%s: meta is gone", r.UID)
+
 	return !IsNil(meta.Get("xref"))
 }
 
@@ -306,7 +308,7 @@ func (r *Resource) GetDefault() (*Version, error) {
 }
 
 func (r *Resource) GetNewest() (*Version, error) {
-	vers, err := r.GetOrderedVersions()
+	vers, err := r.GetOrderedVersionIDs()
 	Must(err)
 
 	if len(vers) > 0 {
@@ -324,7 +326,7 @@ func (r *Resource) EnsureLatest() error {
 		return nil
 	}
 
-	vers, err := r.GetOrderedVersions()
+	vers, err := r.GetOrderedVersionIDs()
 	Must(err)
 	PanicIf(len(vers) == 0, "No versions")
 
@@ -1037,9 +1039,10 @@ func (r *Resource) AddVersionWithObject(id string, obj Object) (*Version, error)
 }
 
 type VersionAncestor struct {
-	VID      string
-	Ancestor string
-	Pos      string // 0-root, 1-middle, 2-leaf
+	VID       string
+	Ancestor  string
+	CreatedAt string
+	Pos       string // 0-root, 1-middle, 2-leaf
 }
 
 // Get the list of Version IDs for this resource.
@@ -1051,10 +1054,11 @@ type VersionAncestor struct {
 // - newest (lowest) createdat timestamp first
 // If more than one share the same timestamp, then it's sorted as:
 // - lowest alphabetically (case sensitive) first
-func (r *Resource) GetOrderedVersions() ([]*VersionAncestor, error) {
+func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, error) {
 	results, err := Query(r.tx, `
-            SELECT VersionUID, Ancestor, Pos FROM VersionAncestors
-			WHERE RegistrySID=? AND ResourceSID=?
+            SELECT VersionUID, Ancestor, Pos, Time FROM VersionAncestors
+			WHERE RegistrySID=? AND ResourceSID=? AND
+			  Ancestor<>'$SET_ME$'
 			ORDER BY Pos ASC, Time ASC, VersionUID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -1070,9 +1074,10 @@ func (r *Resource) GetOrderedVersions() ([]*VersionAncestor, error) {
 			break
 		}
 		vers = append(vers, &VersionAncestor{
-			VID:      NotNilString(row[0]),
-			Ancestor: NotNilString(row[1]),
-			Pos:      NotNilString(row[2]),
+			VID:       NotNilString(row[0]),
+			Ancestor:  NotNilString(row[1]),
+			Pos:       NotNilString(row[2]),
+			CreatedAt: NotNilString(row[3]),
 		})
 	}
 
@@ -1127,17 +1132,23 @@ func (r *Resource) GetRootVersionIDs() ([]string, error) {
 	return vIDs, nil
 }
 
-func (r *Resource) GetDangingVersions() ([]*VersionAncestor, error) {
+// Return all versions whose 'ancestor' is $SET_ME$ or points to a missing
+// version (which include pointing to null).
+// Note that the results is ordered so that we can process the ones with
+// a missing Ancestor in oldest->newest order
+func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, error) {
 	// Find all versions that point to non-existing versions
 	results, err := Query(r.tx, `
-            SELECT v1.UID, v1.Ancestor FROM Versions AS v1
+            SELECT v1.UID, v1.Ancestor, v1.CreatedAt FROM Versions AS v1
 			WHERE v1.RegistrySID=? AND
 			      v1.ResourceSID=? AND
-			      v1.UID<>v1.Ancestor AND
-			      NOT EXIST(SELECT 1 FROM Versions AS v2
-				            WHERE v2.RegistrySID=v1.ResistrySID AND
-							      v2.ResourceSID=v1.ResourceSID AND
-							      v2.UID=v1.Ancestor)`,
+                  (v1.Ancestor='$SET_ME$' OR (
+			          v1.UID<>v1.Ancestor AND
+			          NOT EXISTS(SELECT 1 FROM Versions AS v2
+				                WHERE v2.RegistrySID=v1.RegistrySID AND
+							          v2.ResourceSID=v1.ResourceSID AND
+							          v2.UID=v1.Ancestor)))
+			ORDER BY CreatedAt ASC, UID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1152,9 +1163,10 @@ func (r *Resource) GetDangingVersions() ([]*VersionAncestor, error) {
 			break
 		}
 		vers = append(vers, &VersionAncestor{
-			VID:      NotNilString(row[0]),
-			Ancestor: NotNilString(row[1]),
-			Pos:      "n/a",
+			VID:       NotNilString(row[0]),
+			Ancestor:  NotNilString(row[1]),
+			CreatedAt: NotNilString(row[2]),
+			Pos:       "n/a",
 		})
 	}
 
@@ -1201,6 +1213,31 @@ func (r *Resource) GetNumberOfVersions() (int, error) {
 	return NotNilInt(row[0]), nil
 }
 
+func (r *Resource) HasCircularAncestors() ([]string, error) {
+	// v.RegistrySID,v.ResourceSID,v.UID
+	// Get the list of Version IDs that are part of circular ancestor refs
+	results, err := Query(r.tx, `
+			SELECT UID FROM VersionCircles
+			WHERE RegistrySID=? AND ResourceSID=?`,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error getting circular Versions: %s", err)
+	}
+
+	vIDs := ([]string)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vIDs = append(vIDs, NotNilString(row[0]))
+	}
+
+	return vIDs, nil
+}
+
 func (r *Resource) EnsureMaxVersions() error {
 	rm := r.GetResourceModel()
 	if rm.MaxVersions == 0 {
@@ -1208,7 +1245,7 @@ func (r *Resource) EnsureMaxVersions() error {
 		return nil
 	}
 
-	vers, err := r.GetOrderedVersions()
+	vers, err := r.GetOrderedVersionIDs()
 	if err != nil {
 		return err
 	}
@@ -1256,6 +1293,9 @@ func (r *Resource) Delete() error {
 	}
 
 	r.Group.Touch()
+	if err = r.Group.ValidateAndSave(); err != nil {
+		return err
+	}
 
 	err = DoOne(r.tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
 	if err != nil {
@@ -1307,4 +1347,122 @@ func (r *Resource) GetVersions() ([]*Version, error) {
 
 func (r *Resource) GetHasDocument() bool {
 	return r.GetResourceModel().GetHasDocument()
+}
+
+func ValidateResources(tx *Tx) error {
+	// TODO CHECK FOR TOO MANY ROOTS
+	// TODO check to make sure a client doesn't use $SET_ME$ as ancestor
+
+	// If there's Resource that was touched in this transaction in such a
+	// way to as twiddle with the versions collection or any version's
+	// ancestor attribute, then there are a series of checks and possibly
+	// updates that we need to do before we generate the result
+	for _, e := range tx.Cache {
+		// VerifyVerisons should be 'true' if this Resource is a candidate
+		if e.Type != ENTITY_RESOURCE { // || e.VerifyVersions == false {
+			continue
+		}
+		r, ok := (e.Self).(*Resource)
+		PanicIf(!ok, "Entity isn't a Resource: %v", ToJSON(e))
+
+		if r.IsXref() {
+			continue
+		}
+
+		log.Printf("Verifying Resource: %s", r.UID)
+
+		// Problematic versions are ones
+		vas, err := r.GetProblematicVersions()
+		if err != nil {
+			return err
+		}
+
+		danglingList := ""
+		newestVerID := ""
+		// Loop over the problem vesions, checking/fixing each.
+		// Note that we're processing them from oldest to newest so that
+		// if we need to assign them a parent/ancestor, they'll be ordered
+		// correctly.
+		log.Printf("Problem VAS: %v", ToJSON(vas))
+		for _, va := range vas {
+			// If Ancestor is set then it must point to a non-existing version
+			if va.Ancestor != "$SET_ME$" {
+				if len(danglingList) > 0 {
+					danglingList += ", "
+				}
+				danglingList += fmt.Sprintf("%s(%s)", va.VID, va.Ancestor)
+				continue
+			}
+
+			// If Ancestor is "$SET ME$" then assign it to the newest Ver
+			log.Printf("SET_ME: %s (%s)", va.VID, va.Ancestor)
+			if newestVerID == "" {
+				// First time thru, grab the Resource's newest versionID.
+				// Didn't need to get all attributes, just it's ID
+				VIDs, err := r.GetOrderedVersionIDs()
+				if err != nil {
+					return err
+				}
+
+				log.Printf("OrderedVersions: %d", len(VIDs))
+				if len(VIDs) > 0 {
+					log.Printf("OrderedVersions")
+					for _, vv := range VIDs {
+						log.Printf("   %s -> %s/%s/%s", vv.VID,
+							vv.Ancestor, vv.Pos, vv.CreatedAt)
+					}
+					av := VIDs[len(VIDs)-1]
+
+					// If there is no existing latest then make the first
+					// one the latest
+					if av.Ancestor == "$SET_ME$" {
+						newestVerID = va.VID
+					} else {
+						newestVerID = av.VID
+					}
+				} else {
+					// If this is the only version then point to itself
+					newestVerID = va.VID
+				}
+			}
+			v, err := r.FindVersion(va.VID, false)
+			if err != nil {
+				return err
+			}
+			PanicIf(v == nil, "Didn't find version %q", va.VID)
+			if v.EpochSet == false {
+				log.Printf("EpochSet is false, so bumping epoch/timestamp")
+				ShowStack()
+				panic("probably bad")
+			}
+			v.SetSave("ancestor", newestVerID)
+			log.Printf("Set %s.ancestor=%s", v.UID, newestVerID)
+			newestVerID = v.UID
+		}
+
+		if len(danglingList) != 0 {
+			return fmt.Errorf("The operation resulting in the following " +
+				"Versions pointing to non-existing Versions: " + danglingList)
+		}
+
+		vIDs, err := r.HasCircularAncestors()
+		if err != nil {
+			return err
+		}
+		log.Printf("Circ: %s", ToJSON(vIDs))
+		if len(vIDs) > 0 {
+			list := ""
+			for i, vID := range vIDs {
+				if i > 0 {
+					list += ", "
+				}
+				list += vID
+			}
+			return fmt.Errorf("The %s (%s) has the following versions "+
+				"that form a circular list of ancestors: %s",
+				r.Singular, r.UID, list)
+		}
+	}
+
+	return nil
 }

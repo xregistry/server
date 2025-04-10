@@ -1400,6 +1400,10 @@ var OrderedSpecProps = []*Attribute{
 					v, ok := e.NewObject["versionid"]
 					PanicIf(!ok, "Missing versionid")
 					e.NewObject["ancestor"] = v
+					// Just assign a placeholder to get past validation.
+					// ValidateResources() should fix this before we commit
+					// the tx
+					// e.NewObject["ancestor"] = "$SET_ME$"
 				}
 				return nil
 			},

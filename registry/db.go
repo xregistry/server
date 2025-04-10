@@ -212,6 +212,10 @@ func (tx *Tx) NewTx() error {
 	return nil
 }
 
+func (tx *Tx) EraseCache() {
+	tx.Cache = map[string]*Entity{}
+}
+
 func (tx *Tx) AddToCache(e *Entity) {
 	PanicIf(IsNil(e.Self), "Self is nil, %s/%s", e.Singular, e.UID)
 	tx.Cache[e.Registry.UID+"/"+e.Path] = e
@@ -230,6 +234,31 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 		panic(e.Path + " is dirty")
 	}
 	delete(tx.Cache, e.Registry.UID+"/"+e.Path)
+}
+
+func (tx *Tx) Validate(info *RequestInfo) error {
+	/*
+		if info != nil {
+			log.Printf("--- %s %s", info.OriginalRequest.Method, info.OriginalPath)
+		} else {
+			log.Printf("---")
+		}
+	*/
+
+	// Make sure we've saved everything in the cache before we generate
+	// the results. If the stack isn't shown, enable it in entity.SetNewObject
+	PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
+
+	/*
+		if err := ValidateResources(tx); err != nil {
+			return err
+		}
+
+		// Check again just to be sure ValidateResources didn't mess up
+		PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
+	*/
+
+	return nil
 }
 
 func (tx *Tx) IsCacheDirty() bool {
@@ -275,14 +304,17 @@ func (tx *Tx) SaveCommitRefresh() error {
 		return err
 	}
 
+	if err := tx.Validate(nil); err != nil {
+		return err
+	}
 	if err := tx.Commit(); err != nil {
 		return err
 	}
 
 	/*
 		// Reload all cached entities so the tests don't need to do it themselves
-		log.Printf("cache size: %d", len(savedCache))
-		for _, e := range savedCache {
+		log.Printf("cache size: %d", len(tx.Cache))
+		for _, e := range tx.Cache {
 			log.Printf("  Refresh: %s/%s", e.Singular, e.UID)
 			Must(e.Refresh())
 		}
@@ -295,6 +327,11 @@ func (tx *Tx) SaveAllAndCommit() error {
 	if err := tx.WriteCache(true); err != nil {
 		return err
 	}
+
+	if err := tx.Validate(nil); err != nil {
+		return err
+	}
+
 	return tx.Commit()
 }
 

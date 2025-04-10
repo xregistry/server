@@ -2603,12 +2603,20 @@ func TestHTTPRegGroups(t *testing.T) {
 }
 `})
 
+	reg.Refresh()
+	regEpoch := reg.Get("epoch")
+	regTime := reg.Get("modifiedat")
+
 	xCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs",
 		Method:  "DELETE",
 		Code:    204,
 		ResBody: "*",
 	})
+
+	reg.Refresh()
+	xCheck(t, regEpoch != reg.Get("epoch"), "regEpoch should be 1")
+	xCheck(t, regTime != reg.Get("createdat"), "regEpoch should be 1")
 
 	// Epoch bumped
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -4956,6 +4964,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	regModified = reg.GetAsString("modifiedat")
 
 	f1, _ := d1.AddResource("files", "f1", "v1")
+	f2, _ := d1.AddResource("files", "f2", "v1")
 	xNoErr(t, reg.SaveAllAndCommit())
 	reg.Refresh()
 	d1.Refresh()
@@ -5088,9 +5097,49 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             }
           },
           "versionscount": 2
+        },
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "YYYY-MM-DDTHH:MM:03Z",
+          "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "YYYY-MM-DDTHH:MM:03Z",
+            "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+            "readonly": false,
+            "compatibility": "none",
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "YYYY-MM-DDTHH:MM:03Z",
+              "modifiedat": "YYYY-MM-DDTHH:MM:03Z"
+            }
+          },
+          "versionscount": 1
         }
       },
-      "filescount": 1
+      "filescount": 2
     }
   },
   "dirscount": 1
@@ -5135,6 +5184,20 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 3)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
+	xCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
+
+	d1Modified = d1.GetAsString("modifiedat")
+
+	f2.Delete()
+	reg.Refresh()
+	d1.Refresh()
+
+	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+
+	xCheckEqual(t, "", d1.GetAsInt("epoch"), 4)
 	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
 	xCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
 

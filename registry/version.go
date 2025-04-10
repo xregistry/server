@@ -38,15 +38,21 @@ func (v *Version) Delete() error {
 // Used when xref on the Resource is set and we need to clear existing vers
 func (v *Version) JustDelete() error {
 	v.Resource.Touch()
+	meta, err := v.Resource.FindMeta(false)
+	if err != nil {
+		panic(err.Error())
+	}
+	if err := meta.ValidateAndSave(); err != nil {
+		return err
+	}
 
-	meta, _ := v.Resource.FindMeta(false)
 	if meta.Get("readonly") == true {
 		return fmt.Errorf("Delete operations on read-only " +
 			"resources are not allowed")
 	}
 
 	// Zero is ok if it's already been deleted
-	err := DoZeroOne(v.tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
+	err = DoZeroOne(v.tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
 	if err != nil {
 		return fmt.Errorf("Error deleting Version %q: %s", v.UID, err)
 	}

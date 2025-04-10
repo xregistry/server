@@ -136,7 +136,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		// These should only return an error if they didn't already
 		// send a response back to the client.
-		switch strings.ToUpper(r.Method) {
+		switch r.Method {
 		case "GET":
 			err = HTTPGet(info)
 		case "PUT":
@@ -1368,6 +1368,11 @@ func HTTPGet(info *RequestInfo) error {
 func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	what string, filters [][]*FilterExpr) error {
 
+	// Make sure everything is ok before we send back the results
+	if err := info.tx.Validate(info); err != nil {
+		return err
+	}
+
 	// resPaths is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
 	// need to be returned - e.g. POST /schemagroup where the response will
@@ -1391,11 +1396,6 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	}
 
 	start := time.Now()
-
-	// TODO comment this out at some point... maybe
-	// Make sure we've saved everything in the cache before we generate
-	// the results. If the stack isn't shown, enable it in entity.SetNewObject
-	PanicIf(info.tx.IsCacheDirty(), "Unwritten stuff in cache")
 
 	defer func() {
 		if log.GetVerbose() > 3 {
@@ -1561,7 +1561,7 @@ func init() {
 }
 
 func HTTPPutPost(info *RequestInfo) error {
-	method := strings.ToUpper(info.OriginalRequest.Method)
+	method := info.OriginalRequest.Method
 	isNew := false
 	paths := ([]string)(nil)
 	what := "Entity"
@@ -2205,6 +2205,11 @@ func HTTPPutPost(info *RequestInfo) error {
 		return err
 	}
 
+	// Make sure everything is ok before we send back the results
+	if err := info.tx.Validate(info); err != nil {
+		return err
+	}
+
 	originalLen := numParts
 
 	// Need to setup info stuff in case we call HTTPGetContent
@@ -2425,7 +2430,11 @@ func HTTPDelete(info *RequestInfo) error {
 
 	if len(info.Parts) == 1 {
 		// DELETE /GROUPs
-		return HTTPDeleteGroups(info)
+		err = HTTPDeleteGroups(info)
+		if err != nil {
+			return err
+		}
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID...
@@ -2451,6 +2460,10 @@ func HTTPDelete(info *RequestInfo) error {
 			return err
 		}
 
+		if err = info.tx.Validate(info); err != nil {
+			return err
+		}
+
 		info.StatusCode = http.StatusNoContent
 		return nil
 	}
@@ -2464,7 +2477,11 @@ func HTTPDelete(info *RequestInfo) error {
 
 	if len(info.Parts) == 3 {
 		// DELETE /GROUPs/gID/RESOURCEs
-		return HTTPDeleteResources(info)
+		err = HTTPDeleteResources(info)
+		if err != nil {
+			return err
+		}
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
@@ -2499,6 +2516,10 @@ func HTTPDelete(info *RequestInfo) error {
 			return err
 		}
 
+		if err = info.tx.Validate(info); err != nil {
+			return err
+		}
+
 		info.StatusCode = http.StatusNoContent
 		return nil
 	}
@@ -2515,7 +2536,12 @@ func HTTPDelete(info *RequestInfo) error {
 
 	if len(info.Parts) == 5 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/versions
-		return HTTPDeleteVersions(info)
+		err = HTTPDeleteVersions(info)
+		if err != nil {
+			return err
+		}
+
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
@@ -2540,6 +2566,10 @@ func HTTPDelete(info *RequestInfo) error {
 		nextDefault := info.GetFlag("setdefaultversionid")
 		err = version.DeleteSetNextVersion(nextDefault)
 		if err != nil {
+			return err
+		}
+
+		if err = info.tx.Validate(info); err != nil {
 			return err
 		}
 

@@ -53,6 +53,9 @@ func (g *Group) Delete() error {
 	}
 
 	g.Registry.Touch()
+	if err = g.Registry.ValidateAndSave(); err != nil {
+		return err
+	}
 
 	err = DoOne(g.tx, `DELETE FROM "Groups" WHERE SID=?`, g.DbSID)
 	if err != nil {

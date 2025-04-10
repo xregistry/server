@@ -19,7 +19,7 @@ export XR_SPEC      ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT   ?= $(shell git rev-list -1 HEAD)
 export BUILDFLAGS   := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
 
-TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u)
+TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v save)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)

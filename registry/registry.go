@@ -229,7 +229,7 @@ func (reg *Registry) Delete() error {
 	if err != nil {
 		return err
 	}
-	reg.tx.RemoveFromCache(&reg.Entity)
+	reg.tx.EraseCache()
 	return nil
 }
 
