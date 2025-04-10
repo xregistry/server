@@ -2750,26 +2750,6 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		return err
 	}
 
-	// No list provided so get list of Versions so we can delete them all
-	// TODO: optimize this to just delete it all in one shot
-	if list == nil {
-		list = EpochEntryMap{}
-		results, err := Query(info.tx, `
-			SELECT UID
-			FROM Entities
-			WHERE RegSID=? AND Abstract=?`,
-			info.Registry.DbSID,
-			NewPPP(info.GroupType).P(info.ResourceType).P("versions").Abstract())
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error getting the list: %s", err)
-		}
-		for row := results.NextRow(); row != nil; row = results.NextRow() {
-			list[NotNilString(row[0])] = EpochEntry{}
-		}
-		defer results.Close()
-	}
-
 	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
 	if err != nil {
 		info.StatusCode = http.StatusBadRequest
@@ -2781,6 +2761,19 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		info.StatusCode = http.StatusBadRequest
 		return fmt.Errorf(`Error getting Resource %q: %s`,
 			info.ResourceUID, err)
+	}
+
+	// No list provided so get list of Versions so we can delete them all
+	// TODO: optimize this to just delete it all in one shot
+	if list == nil {
+		list = EpochEntryMap{}
+		vIDs, err := resource.GetVersionIDs()
+		if err != nil {
+			return err
+		}
+		for _, vID := range vIDs {
+			list[vID] = EpochEntry{}
+		}
 	}
 
 	// Delete each Version, checking epoch first if provided

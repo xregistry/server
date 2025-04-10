@@ -1079,6 +1079,30 @@ func (r *Resource) GetOrderedVersions() ([]*VersionAncestor, error) {
 	return vers, nil
 }
 
+func (r *Resource) GetVersionIDs() ([]string, error) {
+	// Find all version IDs for this Resource
+	results, err := Query(r.tx, `
+            SELECT UID FROM Versions
+			WHERE RegistrySID=? AND ResourceSID=?`,
+		r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("Error getting Versions: %s", err)
+	}
+
+	vIDs := ([]string)(nil)
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		vIDs = append(vIDs, NotNilString(row[0]))
+	}
+
+	return vIDs, nil
+}
+
 func (r *Resource) GetRootVersionIDs() ([]string, error) {
 	// Find all versions whose Ancestor = its vID
 	results, err := Query(r.tx, `
@@ -1088,7 +1112,7 @@ func (r *Resource) GetRootVersionIDs() ([]string, error) {
 	defer results.Close()
 
 	if err != nil {
-		return nil, fmt.Errorf("Error counting Versions: %s", err)
+		return nil, fmt.Errorf("Error getting Versions: %s", err)
 	}
 
 	vIDs := ([]string)(nil)
@@ -1118,7 +1142,7 @@ func (r *Resource) GetDangingVersions() ([]*VersionAncestor, error) {
 	defer results.Close()
 
 	if err != nil {
-		return nil, fmt.Errorf("Error counting Versions: %s", err)
+		return nil, fmt.Errorf("Error getting Versions: %s", err)
 	}
 
 	vers := ([]*VersionAncestor)(nil)
@@ -1138,7 +1162,7 @@ func (r *Resource) GetDangingVersions() ([]*VersionAncestor, error) {
 }
 
 func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, error) {
-	// Find all versions that point to non-existing versions
+	// Find all versions that point 'parentVID'
 	results, err := Query(r.tx, `
 			SELECT UID FROM Versions
 			WHERE RegistrySID=? AND ResourceSID=? AND Ancestor=?`,
@@ -1146,7 +1170,7 @@ func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, error) {
 	defer results.Close()
 
 	if err != nil {
-		return nil, fmt.Errorf("Error counting Versions: %s", err)
+		return nil, fmt.Errorf("Error getting Versions: %s", err)
 	}
 
 	vIDs := ([]string)(nil)
