@@ -2371,37 +2371,6 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 	return nil
 }
 
-func HTTPSetDefaultVersionID(info *RequestInfo) error {
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf("Error finding group(%s): %s", info.GroupUID, err)
-	}
-	if group == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Group %q not found", info.GroupUID)
-	}
-
-	resource, err := group.FindResource(info.ResourceType, info.ResourceUID, false)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf("Error finding resource(%s): %s",
-			info.ResourceUID, err)
-	}
-	if resource == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Resource %q not found", info.ResourceUID)
-	}
-
-	err = ProcessSetDefaultVersionIDFlag(info, resource, nil)
-	if err != nil {
-		return err
-	}
-
-	resPaths := map[string][]string{"": []string{resource.Path}}
-	return SerializeQuery(info, resPaths, "Entity", info.Filters)
-}
-
 func HTTPDelete(info *RequestInfo) error {
 	// DELETE /...
 	if len(info.Parts) == 0 {
