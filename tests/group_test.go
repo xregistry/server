@@ -21,6 +21,11 @@ func TestCreateGroup(t *testing.T) {
 	dt, err := reg.AddGroup("dirs", "d1")
 	xCheck(t, dt == nil && err != nil, "Dup should fail")
 
+	d2, isNew, err := reg.UpsertGroup("dirs", "d1")
+	xCheck(t, d2 != nil && err == nil, "Update should have worked")
+	xCheck(t, isNew == false, "Should not be new")
+	xCheck(t, d2 == d1, "Should be the same")
+
 	f1, err := d1.AddResource("files", "f1", "v1")
 	xNoErr(t, err)
 	ft, err := d1.AddResource("files", "f1", "v1")
@@ -29,7 +34,7 @@ func TestCreateGroup(t *testing.T) {
 	xCheck(t, ft == nil && err != nil, "Dup files should have failed - 2")
 
 	f1.AddVersion("v2")
-	d2, _ := reg.AddGroup("dirs", "d2")
+	d2, _ = reg.AddGroup("dirs", "d2")
 	f2, _ := d2.AddResource("files", "f2", "v1")
 	f2.AddVersion("v1.1")
 

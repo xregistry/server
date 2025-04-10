@@ -40,6 +40,7 @@ type Entity struct {
 	GroupModel     *GroupModel    `json:"-"` // gModel if it's not a Registry
 	ResourceModel  *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
 	VerifyVersions bool           `json:"-"` // If Res, check versions?
+	LatestVersion  string         `json:"-"` // If Res (vID)
 
 	// Debugging
 	NewObjectStack []string `json:"-"` // stack when NewObj created via Ensure
@@ -107,7 +108,7 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	e.NewObject = newObj
 
 	// Enable the next line when we need to debug when NewObject was created
-	e.NewObjectStack = GetStack()
+	// e.NewObjectStack = GetStack()
 
 	// And then use e.ShowStack() to dump it
 

@@ -980,6 +980,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 
 	// Make sure we always have an ID
 	if IsNil(v.NewObject["versionid"]) {
+		v.EnsureNewObject()
 		v.NewObject["versionid"] = id
 	}
 

@@ -24,7 +24,12 @@ func TestCreateVersion(t *testing.T) {
 	xCheck(t, v2 != nil, "Creating v2 failed")
 
 	vt, err := f1.AddVersion("v2")
-	xCheck(t, vt == nil && err != nil, "Dup v2 should have faile")
+	xCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
+
+	vt, isNew, err := f1.UpsertVersion("v2")
+	xCheck(t, vt != nil && err == nil, "Dup v2 should have worked")
+	xCheck(t, isNew == false, "Should not be new")
+	xCheck(t, vt == v2, "Should be the same")
 
 	l, err := f1.GetDefault()
 	xNoErr(t, err)

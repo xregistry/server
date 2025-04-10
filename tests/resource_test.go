@@ -28,6 +28,11 @@ func TestCreateResource(t *testing.T) {
 	vt, err := f1.AddVersion("v2")
 	xCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
 
+	vt, isNew, err := f1.UpsertVersion("v2")
+	xCheck(t, vt != nil && err == nil, "Update v2 should have worked")
+	xCheck(t, isNew == false, "Update v2 should have not been new")
+	xCheck(t, v2 == vt, "Should not be a new version")
+
 	d2, err := reg.AddGroup("dirs", "d2")
 	xNoErr(t, err)
 	xCheck(t, d2 != nil && err == nil, "Creating d2 failed")

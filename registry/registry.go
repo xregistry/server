@@ -12,8 +12,8 @@ import (
 
 type Registry struct {
 	Entity
-	Capabilities *Capabilities
-	Model        *Model
+	Capabilities *Capabilities `json"-"`
+	Model        *Model        `json:"-"`
 }
 
 var DefaultRegDbSID string
@@ -475,6 +475,10 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool) (*Group, error) {
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
+
+	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+		return g, nil
+	}
 
 	ent, err := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase)
 	if err != nil {

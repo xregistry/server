@@ -66,6 +66,10 @@ func (g *Group) FindResource(rType string, id string, anyCase bool) (*Resource, 
 	log.VPrintf(3, ">Enter: FindResource(%s,%s,%v)", rType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindResource")
 
+	if r := g.tx.GetResource(g, rType, id); r != nil {
+		return r, nil
+	}
+
 	ent, err := RawEntityFromPath(g.tx, g.Registry.DbSID,
 		g.Plural+"/"+g.UID+"/"+rType+"/"+id, anyCase)
 	if err != nil {
