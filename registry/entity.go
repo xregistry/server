@@ -37,10 +37,8 @@ type Entity struct {
 	Self     any    `json:"-"` // ptr to typed Entity (e.g. *Group)
 
 	// Save these values in memory so we only need to get them once
-	GroupModel     *GroupModel    `json:"-"` // gModel if it's not a Registry
-	ResourceModel  *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
-	VerifyVersions bool           `json:"-"` // If Res, check versions?
-	LatestVersion  string         `json:"-"` // If Res (vID)
+	GroupModel    *GroupModel    `json:"-"` // gModel if it's not a Registry
+	ResourceModel *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
 
 	// Debugging
 	NewObjectStack []string `json:"-"` // stack when NewObj created via Ensure

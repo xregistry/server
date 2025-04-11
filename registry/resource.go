@@ -272,6 +272,10 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, error) {
 	log.VPrintf(3, ">Enter: FindVersion(%s,%v)", id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindVersion")
 
+	if id == "" { // just incase
+		return nil, nil
+	}
+
 	if v := r.tx.GetVersion(r, id); v != nil {
 		return v, nil
 	}
@@ -299,22 +303,25 @@ func (r *Resource) GetDefault() (*Version, error) {
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	val := meta.GetAsString("defaultversionid")
-	if val == "" {
-		return nil, nil
-		// panic("No default is set")
-	}
-
 	return r.FindVersion(val, false)
 }
 
-func (r *Resource) GetNewest() (*Version, error) {
+func (r *Resource) GetNewestVersionID() (string, error) {
 	vers, err := r.GetOrderedVersionIDs()
 	Must(err)
 
 	if len(vers) > 0 {
-		return r.FindVersion(vers[len(vers)-1].VID, false)
+		return vers[len(vers)-1].VID, nil
 	}
-	return nil, nil
+	return "", nil
+}
+
+func (r *Resource) GetNewest() (*Version, error) {
+	vid, err := r.GetNewestVersionID()
+	if err != nil {
+		return nil, err
+	}
+	return r.FindVersion(vid, false)
 }
 
 func (r *Resource) EnsureLatest() error {
@@ -604,7 +611,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 				if numVers == 0 {
 					// UpsertVersion might twiddle defVer, so save/reset it.
 					// TODO I don't like this. I'd prefer if we add a flag
-					// to the call to UpsertV to tell it NOT to muck with the
+					// on the call to UpsertV to tell it NOT to muck with the
 					// defaultversion stuff
 					defVer := meta.Get("defaultversionid")
 					_, _, err := r.UpsertVersionWithObject("", nil, ADD_ADD)
@@ -686,7 +693,10 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 
 		// Only validate if we processed the version info since if we didn't
 		// process the version info then it means we're not done setting up
-		// the meta stuff yet
+		// the meta stuff yet.
+		// We may not need this since ProcessVersionInfo will validate/save
+		// too, but if PVI returns w/o calling save() then we should make sure
+		// it is called
 		if err = meta.ValidateAndSave(); err != nil {
 			return nil, false, err
 		}
@@ -985,7 +995,8 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 		}
 	}
 
-	_, touchedTS := v.NewObject["createdat"]
+	// _, touchedTS := v.NewObject["createdat"]
+	// if touchedTS -> call EnsureLatest
 
 	// Make sure we always have an ID
 	if IsNil(v.NewObject["versionid"]) {
@@ -997,36 +1008,40 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 		return nil, false, err
 	}
 
-	if touchedTS {
-		if err = r.EnsureLatest(); err != nil {
-			return nil, false, err
-		}
+	// If there are no more versions to be processed for this Resource in
+	// this transaction, go ahead and clean-up the versions wrt the latest
+	// and ancestor pointers
+	if err = r.CompleteUpsertVersions(); err != nil {
+		return nil, false, err
 	}
 
-	// If we can only have one Version, then set the one we just created
-	// as the default.
-	// Also set it if we're not sticky w.r.t. default version
-	if rm.MaxVersions == 1 || (isNew && meta.Get("defaultversionsticky") != true) {
-		err = meta.SetSave("defaultversionid", v.UID)
-		if err != nil {
-			return nil, false, err
-		}
+	return v, isNew, nil
+}
+
+func (r *Resource) CompleteUpsertVersions() error {
+	if err := r.EnsureLatest(); err != nil {
+		return err
 	}
 
 	// If we've reached the maximum # of Versions, then delete oldest
-	if err = r.EnsureMaxVersions(); err != nil {
-		return nil, false, err
+	if err := r.EnsureMaxVersions(); err != nil {
+		return err
+	}
+
+	meta, err := r.FindMeta(false)
+	if err != nil {
+		return err
 	}
 
 	// Only validate meta if there's a defaultversionid. Assume that
 	// if it's missing then we're in the middle of recreating things
 	if meta.GetAsString("defaultversionid") != "" {
 		if err = meta.ValidateAndSave(); err != nil {
-			return nil, false, err
+			return err
 		}
 	}
 
-	return v, isNew, nil
+	return nil
 }
 
 func (r *Resource) AddVersion(id string) (*Version, error) {
@@ -1246,12 +1261,12 @@ func (r *Resource) EnsureMaxVersions() error {
 		return nil
 	}
 
-	vers, err := r.GetOrderedVersionIDs()
+	verIDs, err := r.GetOrderedVersionIDs()
 	if err != nil {
 		return err
 	}
 
-	count := len(vers)
+	count := len(verIDs)
 	PanicIf(count == 0, "Query can't be empty")
 
 	tmp := r.Get("defaultversionid")
@@ -1263,16 +1278,18 @@ func (r *Resource) EnsureMaxVersions() error {
 	// as "default" since that one is special
 	for count > rm.MaxVersions {
 		// Skip the "default" Version
-		if vers[0].VID != defaultID {
-			err = DoOne(r.tx, `DELETE FROM Versions
-					WHERE ResourceSID=? AND UID=?`, r.DbSID, vers[0].VID)
+		if verIDs[0].VID != defaultID {
+			v, err := r.FindVersion(verIDs[0].VID, false)
 			if err != nil {
-				return fmt.Errorf("Error deleting Version %q: %s",
-					vers[0].VID, err)
+				return err
+			}
+			err = v.DeleteSetNextVersion("")
+			if err != nil {
+				return fmt.Errorf("Error deleting Version %q: %s", v.UID, err)
 			}
 			count--
 		}
-		vers = vers[1:]
+		verIDs = verIDs[1:]
 	}
 	return nil
 }
