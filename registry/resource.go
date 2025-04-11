@@ -808,6 +808,26 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 			fmt.Errorf(`Can't update "versions" if "xref" is set`)
 	}
 
+	// Do some quick checks on the incoming obj
+	if obj != nil {
+		// We check for ancestor stuff here instead of in the checkFn
+		// so that we allow for ANCESTOR_TBD by the system w/o allowing the
+		// user to use it
+		val, ok := obj["ancestor"]
+		if ok {
+			valStr, ok := val.(string)
+			if !ok {
+				return nil, false,
+					fmt.Errorf(`"ancestor" value must be a string, not %T`, val)
+			}
+			if err = IsValidID(valStr); err != nil {
+				return nil, false,
+					fmt.Errorf(`Invalid "ancestor" value (%s): %s`,
+						valStr, err)
+			}
+		}
+	}
+
 	var v *Version
 	gm, rm := r.GetModels()
 
@@ -1082,7 +1102,7 @@ func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, error) {
 	results, err := Query(r.tx, `
             SELECT VersionUID, Ancestor, Pos, Time FROM VersionAncestors
 			WHERE RegistrySID=? AND ResourceSID=? AND
-			  Ancestor<>'$TBD'
+			  Ancestor<>'`+ANCESTOR_TBD+`'
 			ORDER BY Pos ASC, Time ASC, VersionUID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -1156,7 +1176,7 @@ func (r *Resource) GetRootVersionIDs() ([]string, error) {
 	return vIDs, nil
 }
 
-// Return all versions whose 'ancestor' is $TBD or points to a missing
+// Return all versions whose 'ancestor' is ANCESTOR_TBD or points to a missing
 // version (which include pointing to null).
 // Note that the results is ordered so that we can process the ones with
 // a missing Ancestor in oldest->newest order
@@ -1166,7 +1186,7 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, error) {
             SELECT v1.UID, v1.Ancestor, v1.CreatedAt FROM Versions AS v1
 			WHERE v1.RegistrySID=? AND
 			      v1.ResourceSID=? AND
-                  (v1.Ancestor='$TBD' OR (
+                  (v1.Ancestor='`+ANCESTOR_TBD+`' OR (
 			          v1.UID<>v1.Ancestor AND
 			          NOT EXISTS(SELECT 1 FROM Versions AS v2
 				                WHERE v2.RegistrySID=v1.RegistrySID AND
@@ -1378,7 +1398,6 @@ func (r *Resource) GetHasDocument() bool {
 
 func ValidateResources(tx *Tx) error {
 	// TODO CHECK FOR TOO MANY ROOTS
-	// TODO check to make sure a client doesn't use $TBD as ancestor
 
 	// If there's Resource that was touched in this transaction in such a
 	// way to as twiddle with the versions collection or any version's
@@ -1413,7 +1432,7 @@ func ValidateResources(tx *Tx) error {
 		log.Printf("Problem VAS: %v", ToJSON(vas))
 		for _, va := range vas {
 			// If Ancestor is set then it must point to a non-existing version
-			if va.Ancestor != "$TBD" {
+			if va.Ancestor != ANCESTOR_TBD {
 				if len(danglingList) > 0 {
 					danglingList += ", "
 				}
@@ -1421,7 +1440,7 @@ func ValidateResources(tx *Tx) error {
 				continue
 			}
 
-			// If Ancestor is "$TBD" then assign it to the newest Ver
+			// If Ancestor is ANCESTOR_TBD then assign it to the newest Ver
 			log.Printf("TBD: %s (%s)", va.VID, va.Ancestor)
 			if newestVerID == "" {
 				// First time thru, grab the Resource's newest versionID.
@@ -1442,7 +1461,7 @@ func ValidateResources(tx *Tx) error {
 
 					// If there is no existing latest then make the first
 					// one the latest
-					if av.Ancestor == "$TBD" {
+					if av.Ancestor == ANCESTOR_TBD {
 						newestVerID = va.VID
 					} else {
 						newestVerID = av.VID
