@@ -1960,7 +1960,7 @@ func HTTPPutPost(info *RequestInfo) error {
 			version, err = resource.GetDefault()
 		} else {
 			version, isNew, err = resource.UpsertVersionWithObject(propsID,
-				IncomingObj, ADD_UPSERT)
+				IncomingObj, ADD_UPSERT, false)
 		}
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
@@ -2116,8 +2116,11 @@ func HTTPPutPost(info *RequestInfo) error {
 		if method == "PATCH" {
 			addType = ADD_PATCH
 		}
+		count := 0
 		for id, obj := range objMap {
-			v, _, err := resource.UpsertVersionWithObject(id, obj, addType)
+			count++
+			v, _, err := resource.UpsertVersionWithObject(id, obj, addType,
+				count != len(objMap))
 			if err != nil {
 				info.StatusCode = http.StatusBadRequest
 				return err
@@ -2175,7 +2178,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		if version == nil {
 			// We have a Resource, so add a new Version based on IncomingObj
 			version, isNew, err = resource.UpsertVersionWithObject(versionUID,
-				IncomingObj, ADD_UPSERT)
+				IncomingObj, ADD_UPSERT, false)
 		} else if !isNew {
 			if propsID != "" && propsID != version.UID {
 				info.StatusCode = http.StatusBadRequest
@@ -2189,7 +2192,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				addType = ADD_PATCH
 			}
 			version, _, err = resource.UpsertVersionWithObject(version.UID,
-				IncomingObj, addType)
+				IncomingObj, addType, false)
 		}
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest

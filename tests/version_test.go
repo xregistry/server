@@ -701,7 +701,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	reg.Rollback()
 	reg.Refresh()
 
-	v1, _, err := f1.UpsertVersionWithObject("v2", registry.Object{"req": "test"}, registry.ADD_ADD)
+	v1, _, err := f1.UpsertVersionWithObject("v2", registry.Object{"req": "test"}, registry.ADD_ADD, false)
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 

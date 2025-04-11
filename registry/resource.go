@@ -614,7 +614,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 					// on the call to UpsertV to tell it NOT to muck with the
 					// defaultversion stuff
 					defVer := meta.Get("defaultversionid")
-					_, _, err := r.UpsertVersionWithObject("", nil, ADD_ADD)
+					_, _, err := r.UpsertVersion("")
 					if err != nil {
 						return nil, false, err
 					}
@@ -781,12 +781,14 @@ func (r *Resource) ProcessVersionInfo() error {
 }
 
 func (r *Resource) UpsertVersion(id string) (*Version, bool, error) {
-	return r.UpsertVersionWithObject(id, nil, ADD_UPSERT)
+	return r.UpsertVersionWithObject(id, nil, ADD_UPSERT, false)
 }
 
 // *Version, isNew, error
-func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddType) (*Version, bool, error) {
-	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v)", id, addType)
+func (r *Resource) UpsertVersionWithObject(id string, obj Object,
+	addType AddType, more bool) (*Version, bool, error) {
+
+	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", id, addType, more)
 	defer log.VPrintf(3, "<Exit: UpsertVersion")
 
 	if err := CheckAttrs(obj); err != nil {
@@ -1011,13 +1013,19 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object, addType AddTyp
 	// If there are no more versions to be processed for this Resource in
 	// this transaction, go ahead and clean-up the versions wrt the latest
 	// and ancestor pointers
-	if err = r.CompleteUpsertVersions(); err != nil {
-		return nil, false, err
+	if !more {
+		if err = r.CompleteUpsertVersions(); err != nil {
+			return nil, false, err
+		}
 	}
 
 	return v, isNew, nil
 }
 
+// This is called after all of the calls to UpsertVersionWithObject are
+// done in the case where we're uploading more than one version within the
+// same tx. The "more" flag on the call to Upsert will tell us whether to
+// call this func or not (more=false -> call it)
 func (r *Resource) CompleteUpsertVersions() error {
 	if err := r.EnsureLatest(); err != nil {
 		return err
@@ -1045,12 +1053,12 @@ func (r *Resource) CompleteUpsertVersions() error {
 }
 
 func (r *Resource) AddVersion(id string) (*Version, error) {
-	v, _, err := r.UpsertVersionWithObject(id, nil, ADD_ADD)
+	v, _, err := r.UpsertVersionWithObject(id, nil, ADD_ADD, false)
 	return v, err
 }
 
 func (r *Resource) AddVersionWithObject(id string, obj Object) (*Version, error) {
-	v, _, err := r.UpsertVersionWithObject(id, obj, ADD_ADD)
+	v, _, err := r.UpsertVersionWithObject(id, obj, ADD_ADD, false)
 	return v, err
 }
 

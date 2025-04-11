@@ -336,7 +336,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		plural := "versions"
 		singular := "version"
 
+		count := 0
 		for verID, val := range versions {
+			count++
 			verObj, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
@@ -344,7 +346,8 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 						"appear to be of type %q", verID, plural, singular)
 			}
 
-			_, _, err := r.UpsertVersionWithObject(verID, verObj, addType)
+			_, _, err := r.UpsertVersionWithObject(verID, verObj, addType,
+				count != len(versions))
 			if err != nil {
 				return nil, false, err
 			}
@@ -440,14 +443,14 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	if vID != "" {
 		if _, ok := versions[defVerID]; !ok {
 			RemoveResourceAttributes(rModel.Singular, obj)
-			_, _, err := r.UpsertVersionWithObject(vID, obj, addType)
+			_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
 			if err != nil {
 				return nil, false, err
 			}
 		}
 	} else {
 		RemoveResourceAttributes(rModel.Singular, obj)
-		_, _, err := r.UpsertVersionWithObject(vID, obj, addType)
+		_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
 		if err != nil {
 			return nil, false, err
 		}
