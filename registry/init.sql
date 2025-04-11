@@ -612,10 +612,13 @@ SELECT
     v.UID AS VersionUID,
     v.Ancestor AS Ancestor,
     v.CreatedAt AS Time,
-    IF (v.UID=v.Ancestor, '0-root',
-        IF(EXISTS(SELECT 1 FROM Versions AS v2 WHERE
-                  v2.ResourceSID=v.ResourceSID AND v2.Ancestor=v.UID),
-           '1-middle', '2-leaf')) AS Pos
+    CASE
+        WHEN v.UID=v.Ancestor THEN '0-root'
+        WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                    v2.ResourceSID=v.ResourceSID AND v2.Ancestor=v.UID)
+             THEN '1-middle'
+        ELSE '2-leaf'
+    END AS Pos
 FROM Versions AS v ;
 
 # Find all Versions that are part of circular references (circles)

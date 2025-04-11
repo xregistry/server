@@ -1404,7 +1404,7 @@ var OrderedSpecProps = []*Attribute{
 					// Just assign a placeholder to get past validation.
 					// ValidateResources() should fix this before we commit
 					// the tx
-					// e.NewObject["ancestor"] = "$SET_ME$"
+					// e.NewObject["ancestor"] = "$TBD"
 				}
 				return nil
 			},

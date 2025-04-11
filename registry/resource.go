@@ -1074,7 +1074,7 @@ func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, error) {
 	results, err := Query(r.tx, `
             SELECT VersionUID, Ancestor, Pos, Time FROM VersionAncestors
 			WHERE RegistrySID=? AND ResourceSID=? AND
-			  Ancestor<>'$SET_ME$'
+			  Ancestor<>'$TBD'
 			ORDER BY Pos ASC, Time ASC, VersionUID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -1148,7 +1148,7 @@ func (r *Resource) GetRootVersionIDs() ([]string, error) {
 	return vIDs, nil
 }
 
-// Return all versions whose 'ancestor' is $SET_ME$ or points to a missing
+// Return all versions whose 'ancestor' is $TBD or points to a missing
 // version (which include pointing to null).
 // Note that the results is ordered so that we can process the ones with
 // a missing Ancestor in oldest->newest order
@@ -1158,7 +1158,7 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, error) {
             SELECT v1.UID, v1.Ancestor, v1.CreatedAt FROM Versions AS v1
 			WHERE v1.RegistrySID=? AND
 			      v1.ResourceSID=? AND
-                  (v1.Ancestor='$SET_ME$' OR (
+                  (v1.Ancestor='$TBD' OR (
 			          v1.UID<>v1.Ancestor AND
 			          NOT EXISTS(SELECT 1 FROM Versions AS v2
 				                WHERE v2.RegistrySID=v1.RegistrySID AND
@@ -1370,7 +1370,7 @@ func (r *Resource) GetHasDocument() bool {
 
 func ValidateResources(tx *Tx) error {
 	// TODO CHECK FOR TOO MANY ROOTS
-	// TODO check to make sure a client doesn't use $SET_ME$ as ancestor
+	// TODO check to make sure a client doesn't use $TBD as ancestor
 
 	// If there's Resource that was touched in this transaction in such a
 	// way to as twiddle with the versions collection or any version's
@@ -1405,7 +1405,7 @@ func ValidateResources(tx *Tx) error {
 		log.Printf("Problem VAS: %v", ToJSON(vas))
 		for _, va := range vas {
 			// If Ancestor is set then it must point to a non-existing version
-			if va.Ancestor != "$SET_ME$" {
+			if va.Ancestor != "$TBD" {
 				if len(danglingList) > 0 {
 					danglingList += ", "
 				}
@@ -1413,8 +1413,8 @@ func ValidateResources(tx *Tx) error {
 				continue
 			}
 
-			// If Ancestor is "$SET ME$" then assign it to the newest Ver
-			log.Printf("SET_ME: %s (%s)", va.VID, va.Ancestor)
+			// If Ancestor is "$TBD" then assign it to the newest Ver
+			log.Printf("TBD: %s (%s)", va.VID, va.Ancestor)
 			if newestVerID == "" {
 				// First time thru, grab the Resource's newest versionID.
 				// Didn't need to get all attributes, just it's ID
@@ -1434,7 +1434,7 @@ func ValidateResources(tx *Tx) error {
 
 					// If there is no existing latest then make the first
 					// one the latest
-					if av.Ancestor == "$SET_ME$" {
+					if av.Ancestor == "$TBD" {
 						newestVerID = va.VID
 					} else {
 						newestVerID = av.VID
