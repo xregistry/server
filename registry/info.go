@@ -11,7 +11,7 @@ import (
 type RequestInfo struct {
 	tx               *Tx
 	Registry         *Registry
-	BaseURL          string
+	BaseURL          string // host+path to root of registry
 	OriginalPath     string
 	OriginalRequest  *http.Request       `json:"-"`
 	OriginalResponse http.ResponseWriter `json:"-"`
@@ -214,6 +214,9 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		BaseURL:          "http://" + r.Host,
 
 		extras: map[string]any{},
+	}
+	if r.TLS != nil {
+		info.BaseURL = "https" + info.BaseURL[4:]
 	}
 
 	PanicIf(info.Registry == nil, "No default registry")
