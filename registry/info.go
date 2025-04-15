@@ -216,9 +216,12 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		extras: map[string]any{},
 	}
 
-	log.Printf("Headers: %v", ToJSON(r.Header))
 	if r.TLS != nil {
 		info.BaseURL = "https" + info.BaseURL[4:]
+	} else if tmp := r.Header.Get("Referer"); tmp != "" {
+		if strings.HasPrefix(tmp, "https:") {
+			info.BaseURL = "https" + info.BaseURL[4:]
+		}
 	}
 
 	PanicIf(info.Registry == nil, "No default registry")
