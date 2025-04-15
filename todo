@@ -68,6 +68,10 @@ TODOs:
   - verify TestHTTPNestedResources epoch values are correct
   - verify TestMetaCombos epoch values are correct
   - stuff in TestXrefRevert
+  - make sure if we set defaultversionid=XX w/o sticky, and XX isn't latest,
+    then we need to flag it as an error. Maybe clear it on Set() if not 
+	provided by a user (and sticky=false), and then at the end if null 
+	calc it, if not null if defVer!=calc value->error??
 - support PATCH on capabilities /cap and "cap" attr
 - bump registry.epoch when capabilities change
 - make meta.readonly a non-readonly attribute if the client is an admin
@@ -82,12 +86,10 @@ TODOs:
 - allow any model change, verify entities
 - make sure that maxversions=0 when we only support 1 means sitcky must be false
 - require "none" to be in "compats" enum
-- stop defaulting the body to {}
 - group/resource type names must be unique across plural and singular
 - support PATCH on collections - fix testcase TestHTTPMissingBody
 - test PATCH on collections - in particular versions
 - verify readonly attrs are ignored on writes, but readonly resources generate an error
-- ancestor
 - add tests for POST / and POST /GROUPS/gID with filters and inlining
 - compat/compatauth
 - use spec define error message
@@ -99,3 +101,5 @@ TODOs:
 	- trying to mimize the code someone may need to write to create custom impl
 - add xr support to download as individual files
 - add tests for model "description", "modelversion" and "compatwith"
+- ancestor
+- FindXIDResource -> FindResourceByXID

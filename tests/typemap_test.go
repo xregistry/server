@@ -31,6 +31,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -48,6 +49,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "filebase64": "Zm9v",
 
@@ -67,6 +69,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": "foo",
 
@@ -87,6 +90,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": "foo",
 
@@ -106,6 +110,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": "foo",
 
@@ -125,6 +130,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "filebase64": "Zm9v",
 
@@ -146,6 +152,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": "foo",
 
@@ -166,6 +173,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -183,6 +191,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": "{\"foo\":\"bar\"}",
 
@@ -202,6 +211,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "file": {
     "foo": "bar"
@@ -223,6 +233,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "bad/bad",
   "filebase64": "eyJmb28iOiJiYXIifQ==",
 
@@ -243,6 +254,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -259,6 +271,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "filebase64": "Zm9vImJhcg==",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -280,6 +293,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -297,6 +311,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "application/json",
   "filebase64": "Zm9vImJhcg==",
 
@@ -316,6 +331,7 @@ func TestTypeMap(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
+  "ancestor": "1",
   "contenttype": "application/json",
   "file": "foo\"bar",
 

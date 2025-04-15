@@ -55,6 +55,7 @@ func TestCreateResource(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",

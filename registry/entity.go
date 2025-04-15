@@ -1390,21 +1390,20 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: AttrInternals{
-			types:          StrTypes(ENTITY_VERSION),
-			dontStore:      false,
-			neverSerialize: true,
-			getFn:          nil,
-			checkFn:        nil,
+			types:     StrTypes(ENTITY_VERSION),
+			dontStore: false,
+			getFn:     nil,
+			checkFn:   nil,
 			updateFn: func(e *Entity) error {
 				_, ok := e.NewObject["ancestor"]
+				PanicIf(!ok, "Missing versionid")
 				if !ok {
-					v, ok := e.NewObject["versionid"]
+					_, ok := e.NewObject["versionid"]
 					PanicIf(!ok, "Missing versionid")
-					e.NewObject["ancestor"] = v
 					// Just assign a placeholder to get past validation.
-					// ValidateResources() should fix this before we commit
+					// CheckAncestors() should fix this before we commit
 					// the tx
-					// e.NewObject["ancestor"] = ANCESTOR_TBD
+					e.NewObject["ancestor"] = ANCESTOR_TBD
 				}
 				return nil
 			},

@@ -108,6 +108,7 @@ func TestTimestampRegistry(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -134,7 +135,8 @@ func TestTimestampRegistry(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 1
@@ -292,7 +294,8 @@ func TestTimestampRegistry(t *testing.T) {
   "epoch": 1,
   "isdefault": true,
   "createdat": "1970-01-02T03:04:05Z",
-  "modifiedat": "2000-05-04T03:02:01Z"
+  "modifiedat": "2000-05-04T03:02:01Z",
+  "ancestor": "v99"
 }
 `,
 	})

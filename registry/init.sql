@@ -82,6 +82,7 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
     SetVersionId      BOOL,
     SetDefaultSticky  BOOL,
     HasDocument       BOOL,
+    SingleVersionRoot BOOL,
     TypeMap           JSON,
     MetaAttributes    JSON,
 
@@ -233,7 +234,7 @@ CREATE TABLE Versions (
     ResourceProxyURL    VARCHAR(255),
     ResourceContentSID  VARCHAR(64),
 
-    Ancestor            VARCHAR(65),            # Generated
+    Ancestor            VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
     CreatedAt           VARCHAR(255),           # Generated (for ancestor stuff
 
     PRIMARY KEY (SID),
@@ -600,7 +601,7 @@ JOIN Entities as e ON (e.eSID=p.EntitySID)
 ORDER by Path ;
 
 # Find all of the versions of a resource. Users of this should order
-# the teulst: ORDER BY Pos ASC, Time ASC, VersionUID ASC
+# the results: ORDER BY Pos ASC, Time ASC, VersionUID ASC
 # to get oldest first, newest last.
 # Pos (postion) makes sure roots are first, leaves are last.
 # For similar rows, order by createdat timestamps and then versionIDs
@@ -643,11 +644,7 @@ WITH RECURSIVE cte (RegistrySID,ResourceSID,UID) AS
 )
 # And finally, return all Version UID that are NOT in cte (these are circular)
 SELECT v.RegistrySID, v.ResourceSID, v.UID FROM Versions AS v
-WHERE v.ResourceSID IN
-    (SELECT ResourceSID FROM cte WHERE cte.RegistrySID=v.RegistrySID) AND
-    v.UID NOT IN (
-        SELECT cte.UID FROM cte
-         WHERE cte.RegistrySID=v.RegistrySID AND
-               cte.ResourceSID=v.ResourceSID
-    );
-
+WHERE NOT EXISTS(SELECT 1 FROM cte
+                 WHERE cte.RegistrySID=v.RegistrySID AND
+                       cte.ResourceSID=v.ResourceSID AND
+                       cte.UID=v.UID);

@@ -92,6 +92,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -118,7 +119,8 @@ func TestInlineBasic(t *testing.T) {
               "epoch": 1,
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             },
             "v2": {
               "fileid": "f1",
@@ -128,7 +130,8 @@ func TestInlineBasic(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 2
@@ -155,6 +158,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
           "meta": {
@@ -181,7 +185,8 @@ func TestInlineBasic(t *testing.T) {
               "epoch": 1,
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             },
             "v1.1": {
               "fileid": "f2",
@@ -191,7 +196,8 @@ func TestInlineBasic(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 2
@@ -222,6 +228,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs2/d2/files/f2/meta",
           "meta": {
@@ -248,7 +255,8 @@ func TestInlineBasic(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 1
@@ -673,6 +681,7 @@ func TestInlineResource(t *testing.T) {
 			`"defaultversionsticky"`,
 			`"createdat"`,
 			`"modifiedat"`,
+			`"ancestor"`,
 			`"versionsurl"`,
 			`"dirsurl"`,
 		}
@@ -734,6 +743,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -765,6 +775,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
+              "ancestor": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -812,6 +823,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -843,6 +855,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
+              "ancestor": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -890,6 +903,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -921,6 +935,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
+              "ancestor": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -968,6 +983,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -982,6 +998,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
+              "ancestor": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -1019,6 +1036,7 @@ func TestInlineWildcards(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:02Z",
+        "ancestor": "v1",
         "contenttype": "application/json",
 
         "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1033,6 +1051,7 @@ func TestInlineWildcards(t *testing.T) {
             "isdefault": true,
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:02Z",
+            "ancestor": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1068,6 +1087,7 @@ func TestInlineWildcards(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:02Z",
+        "ancestor": "v1",
         "contenttype": "application/json",
         "file": {
           "hello": "world"
@@ -1099,6 +1119,7 @@ func TestInlineWildcards(t *testing.T) {
             "isdefault": true,
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:02Z",
+            "ancestor": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1133,6 +1154,7 @@ func TestInlineWildcards(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
+      "ancestor": "v1",
       "contenttype": "application/json",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1147,6 +1169,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -1180,6 +1203,7 @@ func TestInlineWildcards(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
+      "ancestor": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1211,6 +1235,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
+          "ancestor": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"

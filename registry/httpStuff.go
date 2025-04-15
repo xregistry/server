@@ -2057,32 +2057,30 @@ func HTTPPutPost(info *RequestInfo) error {
 			}
 
 			vID := info.GetFlag("setdefaultversionid")
-			if vID == "" || vID == "request" {
-				if vID == "request" && len(objMap) > 1 {
-					info.StatusCode = http.StatusBadRequest
-					return fmt.Errorf("?setdefaultversionid can not be " +
-						"'request'")
-				}
-				// Just randomly grab one Verison and make it the default
-				// one for now
-				for k, _ := range objMap {
-					vID = k
-					break
-				}
-			}
-
 			if vID == "null" {
 				info.StatusCode = http.StatusBadRequest
 				return fmt.Errorf("?setdefaultversionid can not be 'null'")
 			}
 
-			if IncomingObj, _ = objMap[vID]; IncomingObj == nil {
-				info.StatusCode = http.StatusBadRequest
-				return fmt.Errorf("Version %q not found", vID)
+			if vID == "request" {
+				if vID == "request" && len(objMap) > 1 {
+					info.StatusCode = http.StatusBadRequest
+					return fmt.Errorf("?setdefaultversionid can not be " +
+						"'request'")
+				}
 			}
 
-			resource, err = group.AddResourceWithObject(info.ResourceType,
-				resourceUID, vID, IncomingObj, true)
+			tmpObj := map[string]any{
+				"versions": (map[string]any)(IncomingObj),
+			}
+
+			addType := ADD_UPSERT
+			if method == "PATCH" {
+				addType = ADD_PATCH
+			}
+
+			resource, _, err = group.UpsertResourceWithObject(info.ResourceType,
+				resourceUID, "", tmpObj, addType, false)
 
 			if err != nil {
 				info.StatusCode = http.StatusBadRequest
@@ -2095,8 +2093,12 @@ func HTTPPutPost(info *RequestInfo) error {
 
 			// Remove the newly created default version from objMap so we
 			// won't process it again, but add it to the reuslts collection
-			paths = append(paths, v.Path)
-			delete(objMap, vID)
+			for id, _ := range objMap {
+				paths = append(paths, strings.Join(
+					[]string{info.GroupType, info.GroupUID, info.ResourceType,
+						info.ResourceUID, "versions", id},
+					"/"))
+			}
 		} else {
 			if resource.IsXref() {
 				return fmt.Errorf(`Can't update "versions" if "xref" is set`)
@@ -2109,33 +2111,27 @@ func HTTPPutPost(info *RequestInfo) error {
 				return fmt.Errorf("Write operations on read-only " +
 					"resources are not allowed")
 			}
-		}
 
-		// Process the remaining versions
-		addType := ADD_UPSERT
-		if method == "PATCH" {
-			addType = ADD_PATCH
-		}
-		count := 0
-		for id, obj := range objMap {
-			count++
-			v, _, err := resource.UpsertVersionWithObject(id, obj, addType,
-				count != len(objMap))
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			// Process the versions
+			addType := ADD_UPSERT
+			if method == "PATCH" {
+				addType = ADD_PATCH
 			}
+			count := 0
+			for id, obj := range objMap {
+				count++
+				v, _, err := resource.UpsertVersionWithObject(id, obj, addType,
+					count != len(objMap))
+				if err != nil {
+					info.StatusCode = http.StatusBadRequest
+					return err
+				}
 
-			paths = append(paths, v.Path)
+				paths = append(paths, v.Path)
+			}
 		}
 
 		err = ProcessSetDefaultVersionIDFlag(info, resource, thisVersion)
-		if err != nil {
-			return err
-		}
-
-		// Make sure the latest version is chosen appropriately
-		err = resource.EnsureLatest()
 		if err != nil {
 			return err
 		}
@@ -2778,7 +2774,12 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		}
 	}
 
-	// Delete each Version, checking epoch first if provided
+	// Before we delete each one, make sure the epoch value is ok.
+	// We can't check and delete at the same time before deleting one
+	// might update a future one's ancestor value which will also change
+	// its epoch value - which will make the epoch check fail.
+	// However, we can save the Versions for the next loop.
+	vers := []*Version{}
 	for id, entry := range list {
 		version, err := resource.FindVersion(id, false)
 		if err != nil {
@@ -2789,7 +2790,9 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 			// Silently ignore the 404
 			continue
 		}
+		vers = append(vers, version)
 
+		// check epoch
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
@@ -2802,6 +2805,8 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 			}
 		}
 
+		// For safety make sure the Resource's ID on the version (if there)
+		// matches
 		singular := version.Singular + "id"
 		if tmp, ok := entry[singular]; ok && tmp != version.Get(singular) {
 			info.StatusCode = http.StatusBadRequest
@@ -2809,6 +2814,10 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 				singular, id, version.Get(singular), tmp)
 		}
 
+	}
+
+	// Now we can actually delete each one
+	for _, version := range vers {
 		err = version.DeleteSetNextVersion(nextDefault)
 		if err != nil {
 			return err

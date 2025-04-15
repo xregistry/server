@@ -141,6 +141,7 @@ func TestResourceContents(t *testing.T) {
   "description": "hi",
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
+  "ancestor": "v3",
   "fileurl": "http://example.com"
 }
 `)

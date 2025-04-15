@@ -142,19 +142,20 @@ type ResourceModel struct {
 	SID        string      `json:"-"`
 	GroupModel *GroupModel `json:"-"`
 
-	Plural           string            `json:"plural"`
-	Singular         string            `json:"singular"`
-	Description      string            `json:"description,omitempty"`
-	MaxVersions      int               `json:"maxversions"`             // do not include omitempty
-	SetVersionId     *bool             `json:"setversionid"`            // do not include omitempty
-	SetDefaultSticky *bool             `json:"setdefaultversionsticky"` // do not include omitempty
-	HasDocument      *bool             `json:"hasdocument"`             // do not include omitempty
-	TypeMap          map[string]string `json:"typemap,omitempty"`
-	ModelVersion     string            `json:"modelversion,omitempty"`
-	CompatibleWith   string            `json:"compatiblewith,omitempty"`
-	Labels           map[string]string `json:"labels,omitempty"`
-	Attributes       Attributes        `json:"attributes,omitempty"`
-	MetaAttributes   Attributes        `json:"metaattributes,omitempty"`
+	Plural            string            `json:"plural"`
+	Singular          string            `json:"singular"`
+	Description       string            `json:"description,omitempty"`
+	MaxVersions       int               `json:"maxversions"`             // do not include omitempty
+	SetVersionId      *bool             `json:"setversionid"`            // do not include omitempty
+	SetDefaultSticky  *bool             `json:"setdefaultversionsticky"` // do not include omitempty
+	HasDocument       *bool             `json:"hasdocument"`             // do not include omitempty
+	SingleVersionRoot *bool             `json:"singleversionroot"`       // do not include omitempty
+	TypeMap           map[string]string `json:"typemap,omitempty"`
+	ModelVersion      string            `json:"modelversion,omitempty"`
+	CompatibleWith    string            `json:"compatiblewith,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Attributes        Attributes        `json:"attributes,omitempty"`
+	MetaAttributes    Attributes        `json:"metaattributes,omitempty"`
 }
 
 // To be picky, let's Marshal the list of attributes with Spec defined ones
@@ -261,6 +262,7 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) error {
 	r.SetVersionId = PtrBool(SETVERSIONID)
 	r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
 	r.HasDocument = PtrBool(HASDOCUMENT)
+	r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 
 	type tmpResourceModel ResourceModel
 	return Unmarshal(data, (*tmpResourceModel)(r))
@@ -735,7 +737,7 @@ func LoadModel(reg *Registry) *Model {
             SID, RegistrySID, ParentSID, Plural, Singular, Attributes,
 			MaxVersions, SetVersionId, SetDefaultSticky, HasDocument,
 			TypeMap, Labels, MetaAttributes, ModelVersion, CompatibleWith,
-			Description
+			Description, SingleVersionRoot
         FROM ModelEntities
         WHERE RegistrySID=?
         ORDER BY ParentSID ASC`, reg.DbSID)
@@ -797,15 +799,16 @@ func LoadModel(reg *Registry) *Model {
 					Description: NotNilString(row[15]),
 					Attributes:  attrs,
 
-					MaxVersions:      NotNilIntDef(row[6], MAXVERSIONS),
-					SetVersionId:     PtrBool(NotNilBoolDef(row[7], SETVERSIONID)),
-					SetDefaultSticky: PtrBool(NotNilBoolDef(row[8], SETDEFAULTSTICKY)),
-					HasDocument:      PtrBool(NotNilBoolDef(row[9], HASDOCUMENT)),
-					TypeMap:          typemap,
-					ModelVersion:     NotNilString(row[13]),
-					CompatibleWith:   NotNilString(row[14]),
-					Labels:           labels,
-					MetaAttributes:   metaAttrs,
+					MaxVersions:       NotNilIntDef(row[6], MAXVERSIONS),
+					SetVersionId:      PtrBool(NotNilBoolDef(row[7], SETVERSIONID)),
+					SetDefaultSticky:  PtrBool(NotNilBoolDef(row[8], SETDEFAULTSTICKY)),
+					HasDocument:       PtrBool(NotNilBoolDef(row[9], HASDOCUMENT)),
+					SingleVersionRoot: PtrBool(NotNilBoolDef(row[16], SINGLEVERSIONROOT)),
+					TypeMap:           typemap,
+					ModelVersion:      NotNilString(row[13]),
+					CompatibleWith:    NotNilString(row[14]),
+					Labels:            labels,
+					MetaAttributes:    metaAttrs,
 				}
 
 				r.Attributes.SetSpecPropsFields(r.Singular)
@@ -897,15 +900,16 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 			oldRM := oldGM.Resources[newRM.Plural]
 			if oldRM == nil {
 				oldRM, err = oldGM.AddResourceModelFull(&ResourceModel{
-					Plural:           newRM.Plural,
-					Singular:         newRM.Singular,
-					Description:      newRM.Description,
-					MaxVersions:      newRM.MaxVersions,
-					SetVersionId:     newRM.SetVersionId,
-					SetDefaultSticky: newRM.SetDefaultSticky,
-					HasDocument:      newRM.HasDocument,
-					ModelVersion:     newRM.ModelVersion,
-					CompatibleWith:   newRM.CompatibleWith,
+					Plural:            newRM.Plural,
+					Singular:          newRM.Singular,
+					Description:       newRM.Description,
+					MaxVersions:       newRM.MaxVersions,
+					SetVersionId:      newRM.SetVersionId,
+					SetDefaultSticky:  newRM.SetDefaultSticky,
+					HasDocument:       newRM.HasDocument,
+					SingleVersionRoot: newRM.SingleVersionRoot,
+					ModelVersion:      newRM.ModelVersion,
+					CompatibleWith:    newRM.CompatibleWith,
 				})
 				if err != nil {
 					log.VPrintf(4, "Err: %s", err)
@@ -919,6 +923,7 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 				oldRM.SetVersionId = newRM.SetVersionId
 				oldRM.SetDefaultSticky = newRM.SetDefaultSticky
 				oldRM.HasDocument = newRM.HasDocument
+				oldRM.SingleVersionRoot = newRM.SingleVersionRoot
 				oldRM.ModelVersion = newRM.ModelVersion
 				oldRM.CompatibleWith = newRM.CompatibleWith
 			}
@@ -1067,12 +1072,13 @@ func (gm *GroupModel) DelAttribute(name string) error {
 
 func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, error) {
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:           plural,
-		Singular:         singular,
-		MaxVersions:      MAXVERSIONS,
-		SetVersionId:     PtrBool(SETVERSIONID),
-		SetDefaultSticky: PtrBool(SETDEFAULTSTICKY),
-		HasDocument:      PtrBool(HASDOCUMENT),
+		Plural:            plural,
+		Singular:          singular,
+		MaxVersions:       MAXVERSIONS,
+		SetVersionId:      PtrBool(SETVERSIONID),
+		SetDefaultSticky:  PtrBool(SETDEFAULTSTICKY),
+		HasDocument:       PtrBool(HASDOCUMENT),
+		SingleVersionRoot: PtrBool(SINGLEVERSIONROOT),
 	})
 }
 
@@ -1137,11 +1143,11 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 		INSERT INTO ModelEntities(
 			SID, RegistrySID, ParentSID, Plural, Singular, MaxVersions,
 			SetVersionId, SetDefaultSticky, HasDocument, TypeMap, Labels,
-			ModelVersion, CompatibleWith, Description)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			ModelVersion, CompatibleWith, Description, SingleVersionRoot)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		rm.SID, gm.Model.Registry.DbSID, gm.SID, rm.Plural, rm.Singular, rm.MaxVersions,
 		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		rm.ModelVersion, rm.CompatibleWith, rm.Description)
+		rm.ModelVersion, rm.CompatibleWith, rm.Description, rm.GetSingleVersionRoot())
 	if err != nil {
 		log.Printf("Error inserting resourceModel(%s): %s", rm.Plural, err)
 		return nil, err
@@ -1196,15 +1202,31 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 }
 
 func (rm *ResourceModel) GetSetVersionId() bool {
-	return rm.SetVersionId == nil || *rm.SetVersionId == true
+	if rm.SetVersionId == nil {
+		return SETVERSIONID
+	}
+	return *rm.SetVersionId
 }
 
 func (rm *ResourceModel) GetSetDefaultSticky() bool {
-	return rm.SetDefaultSticky == nil || *rm.SetDefaultSticky == true
+	if rm.SetDefaultSticky == nil {
+		return SETDEFAULTSTICKY
+	}
+	return *rm.SetDefaultSticky
 }
 
 func (rm *ResourceModel) GetHasDocument() bool {
-	return rm.HasDocument == nil || *rm.HasDocument == true
+	if rm.HasDocument == nil {
+		return SINGLEVERSIONROOT
+	}
+	return *rm.HasDocument
+}
+
+func (rm *ResourceModel) GetSingleVersionRoot() bool {
+	if rm.SingleVersionRoot == nil {
+		return SINGLEVERSIONROOT
+	}
+	return *rm.SingleVersionRoot
 }
 
 func (rm *ResourceModel) Delete() error {
@@ -1243,23 +1265,27 @@ func (rm *ResourceModel) Save() error {
 			ParentSID, Plural, Singular, MaxVersions,
 			Attributes,
 			SetVersionId, SetDefaultSticky, HasDocument, TypeMap,
-			Labels, MetaAttributes,ModelVersion,CompatibleWith, Description)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			Labels, MetaAttributes,ModelVersion,CompatibleWith, Description,
+			SingleVersionRoot)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE
             ParentSID=?, Plural=?, Singular=?,
 			Attributes=?,
             MaxVersions=?, SetVersionId=?, SetDefaultSticky=?, HasDocument=?, TypeMap=?, Labels=?,
-			MetaAttributes=?, ModelVersion=?, CompatibleWith=?, Description=?`,
+			MetaAttributes=?, ModelVersion=?, CompatibleWith=?, Description=?,
+			SingleVersionRoot=?`,
 		rm.SID, rm.GroupModel.Model.Registry.DbSID,
 		rm.GroupModel.SID, rm.Plural, rm.Singular, rm.MaxVersions,
 		attrs,
 		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
 		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description,
+		rm.GetSingleVersionRoot(),
 
 		rm.GroupModel.SID, rm.Plural, rm.Singular,
 		attrs,
 		rm.MaxVersions, rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description)
+		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description,
+		rm.GetSingleVersionRoot())
 	if err != nil {
 		log.Printf("Error updating resourceModel(%s): %s", rm.Plural, err)
 		return err
@@ -1922,6 +1948,7 @@ func (rm *ResourceModel) VerifyData() error {
 	}
 
 	// First, let's make sure each Resource doesn't have too many Versions
+	// or has too many root versions
 
 	group := (*Group)(nil)
 	resource := (*Resource)(nil)
@@ -1934,9 +1961,14 @@ func (rm *ResourceModel) VerifyData() error {
 			resource = &Resource{Entity: *e, Group: group}
 			resource.Self = resource
 
+			if err = resource.EnsureSingleVersionRoot(); err != nil {
+				return err
+			}
+
 			if err = resource.EnsureMaxVersions(); err != nil {
 				return err
 			}
+
 			resource.tx.AddResource(resource)
 		}
 	}

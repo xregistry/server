@@ -16,6 +16,7 @@ const MAXVERSIONS = 0
 const SETVERSIONID = true
 const SETDEFAULTSTICKY = true
 const HASDOCUMENT = true
+const SINGLEVERSIONROOT = false
 const READONLY = false
 
 // Attribute types

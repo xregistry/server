@@ -23,7 +23,8 @@ func TestDBRows(t *testing.T) {
   "epoch": 1,
   "isdefault": true,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z"
+  "modifiedat": "2025-01-01T12:00:01Z",
+  "ancestor": "v1"
 }
 `)
 

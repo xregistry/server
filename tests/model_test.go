@@ -742,6 +742,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -808,6 +809,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -966,6 +972,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1032,6 +1039,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -1260,6 +1272,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1326,6 +1339,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -1613,6 +1631,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1679,6 +1698,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -1967,6 +1991,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2033,6 +2058,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -2260,6 +2290,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2326,6 +2357,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -2434,12 +2470,13 @@ func TestResourceModelCreate(t *testing.T) {
 				Singular: "dir",
 				Resources: map[string]*registry.ResourceModel{
 					"files": &registry.ResourceModel{
-						Plural:           "files",
-						Singular:         "file",
-						MaxVersions:      6,
-						SetVersionId:     registry.PtrBool(false),
-						SetDefaultSticky: registry.PtrBool(false),
-						HasDocument:      registry.PtrBool(false),
+						Plural:            "files",
+						Singular:          "file",
+						MaxVersions:       6,
+						SetVersionId:      registry.PtrBool(false),
+						SetDefaultSticky:  registry.PtrBool(false),
+						HasDocument:       registry.PtrBool(false),
+						SingleVersionRoot: registry.PtrBool(false),
 					},
 				},
 			},
@@ -2583,6 +2620,7 @@ func TestResourceModelCreate(t *testing.T) {
           "setversionid": false,
           "setdefaultversionsticky": false,
           "hasdocument": false,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2649,6 +2687,11 @@ func TestResourceModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -2910,6 +2953,7 @@ func TestResourceModelCreate(t *testing.T) {
             "setversionid": false,
             "setdefaultversionsticky": false,
             "hasdocument": false,
+            "singleversionroot": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -2976,6 +3020,11 @@ func TestResourceModelCreate(t *testing.T) {
               "modifiedat": {
                 "name": "modifiedat",
                 "type": "timestamp",
+                "required": true
+              },
+              "ancestor": {
+                "name": "ancestor",
+                "type": "string",
                 "required": true
               },
               "contenttype": {
@@ -3091,6 +3140,7 @@ func TestResourceModelCreate(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
           "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -3111,12 +3161,13 @@ func TestResourceModelCreate(t *testing.T) {
 				Singular: "dir",
 				Resources: map[string]*registry.ResourceModel{
 					"files2": &registry.ResourceModel{
-						Plural:           "files2",
-						Singular:         "file",
-						MaxVersions:      6,
-						SetVersionId:     registry.PtrBool(false),
-						SetDefaultSticky: registry.PtrBool(false),
-						HasDocument:      registry.PtrBool(false),
+						Plural:            "files2",
+						Singular:          "file",
+						MaxVersions:       6,
+						SetVersionId:      registry.PtrBool(false),
+						SetDefaultSticky:  registry.PtrBool(false),
+						HasDocument:       registry.PtrBool(false),
+						SingleVersionRoot: registry.PtrBool(false),
 					},
 				},
 			},
@@ -3265,6 +3316,7 @@ func TestResourceModelCreate(t *testing.T) {
             "setversionid": false,
             "setdefaultversionsticky": false,
             "hasdocument": false,
+            "singleversionroot": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -3331,6 +3383,11 @@ func TestResourceModelCreate(t *testing.T) {
               "modifiedat": {
                 "name": "modifiedat",
                 "type": "timestamp",
+                "required": true
+              },
+              "ancestor": {
+                "name": "ancestor",
+                "type": "string",
                 "required": true
               },
               "contenttype": {
@@ -3912,6 +3969,7 @@ func TestMultModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "rm1id": {
               "name": "rm1id",
@@ -3978,6 +4036,11 @@ func TestMultModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -4074,6 +4137,7 @@ func TestMultModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": false,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "rm2id": {
               "name": "rm2id",
@@ -4140,6 +4204,11 @@ func TestMultModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -4298,6 +4367,7 @@ func TestMultModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "rm1id": {
               "name": "rm1id",
@@ -4364,6 +4434,11 @@ func TestMultModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -4460,6 +4535,7 @@ func TestMultModelCreate(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "rm2id": {
               "name": "rm2id",
@@ -4526,6 +4602,11 @@ func TestMultModelCreate(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -4805,6 +4886,7 @@ func TestMultModel2Create(t *testing.T) {
             "setversionid": true,
             "setdefaultversionsticky": false,
             "hasdocument": true,
+            "singleversionroot": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -4871,6 +4953,11 @@ func TestMultModel2Create(t *testing.T) {
               "modifiedat": {
                 "name": "modifiedat",
                 "type": "timestamp",
+                "required": true
+              },
+              "ancestor": {
+                "name": "ancestor",
+                "type": "string",
                 "required": true
               },
               "contenttype": {
@@ -5029,6 +5116,7 @@ func TestMultModel2Create(t *testing.T) {
             "setversionid": false,
             "setdefaultversionsticky": true,
             "hasdocument": true,
+            "singleversionroot": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -5095,6 +5183,11 @@ func TestMultModel2Create(t *testing.T) {
               "modifiedat": {
                 "name": "modifiedat",
                 "type": "timestamp",
+                "required": true
+              },
+              "ancestor": {
+                "name": "ancestor",
+                "type": "string",
                 "required": true
               },
               "contenttype": {
@@ -5210,6 +5303,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs1/d1/files/f1/meta",
           "meta": {
@@ -5236,7 +5330,8 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": 1,
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             },
             "v2": {
               "fileid": "f1",
@@ -5246,7 +5341,8 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 2
@@ -5273,6 +5369,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs1/d2/files/f2/meta",
           "meta": {
@@ -5299,7 +5396,8 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": 1,
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             },
             "v1.1": {
               "fileid": "f2",
@@ -5309,7 +5407,8 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 2
@@ -5340,6 +5439,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestor": "v1",
 
           "metaurl": "http://localhost:8181/dirs2/d2/files/f2/meta",
           "meta": {
@@ -5366,7 +5466,8 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": 1,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z"
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestor": "v1"
             }
           },
           "versionscount": 1
@@ -5559,6 +5660,7 @@ func TestModelLabels(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "labels": {
             "r-label": "r-value"
           },
@@ -5628,6 +5730,11 @@ func TestModelLabels(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -5865,6 +5972,7 @@ func TestModelLabels(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "rmid": {
               "name": "rmid",
@@ -5931,6 +6039,11 @@ func TestModelLabels(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -6184,6 +6297,7 @@ func TestModelLabels(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "labels": {
             "r-label": "r-value"
           },
@@ -6253,6 +6367,11 @@ func TestModelLabels(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -6879,6 +6998,7 @@ func TestUseSpecAttrs(t *testing.T) {
             "setversionid": true,
             "setdefaultversionsticky": true,
             "hasdocument": false,
+            "singleversionroot": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -6945,6 +7065,11 @@ func TestUseSpecAttrs(t *testing.T) {
               "modifiedat": {
                 "name": "modifiedat",
                 "type": "timestamp",
+                "required": true
+              },
+              "ancestor": {
+                "name": "ancestor",
+                "type": "string",
                 "required": true
               },
               "contenttype": {
@@ -7341,6 +7466,7 @@ func TestUseSpecAttrs(t *testing.T) {
           "isdefault": true,
           "createdat": "YYYY-MM-DDTHH:MM:02Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+          "ancestor": "v1",
           "obj": {
             "ancestor": 8,
             "capabilities": 12,
@@ -7432,6 +7558,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:02Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+              "ancestor": "v1",
               "obj": {
                 "ancestor": 8,
                 "capabilities": 12,
@@ -7641,6 +7768,7 @@ func TestModelCompatibleWith(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "modelversion": "3.2",
           "attributes": {
             "dataid": {
@@ -7708,6 +7836,11 @@ func TestModelCompatibleWith(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -7804,6 +7937,7 @@ func TestModelCompatibleWith(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "modelversion": "3.1",
           "compatiblewith": "some-url2",
           "attributes": {
@@ -7872,6 +8006,11 @@ func TestModelCompatibleWith(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -7968,6 +8107,7 @@ func TestModelCompatibleWith(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "compatiblewith": "some-url3",
           "attributes": {
             "fooid": {
@@ -8035,6 +8175,11 @@ func TestModelCompatibleWith(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -8291,6 +8436,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "sample_resourceid": {
               "name": "sample_resourceid",
@@ -8359,6 +8505,11 @@ func TestModelIncludes(t *testing.T) {
               "name": "modifiedat",
               "type": "timestamp",
               "readonly": true,
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -8614,6 +8765,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -8680,6 +8832,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -8838,6 +8995,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "formatid": {
               "name": "formatid",
@@ -8904,6 +9062,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -9201,6 +9364,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -9267,6 +9431,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -9425,6 +9594,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "formatid": {
               "name": "formatid",
@@ -9491,6 +9661,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -9725,6 +9900,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -9791,6 +9967,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -9949,6 +10130,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "formatid": {
               "name": "formatid",
@@ -10015,6 +10197,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -10249,6 +10436,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -10315,6 +10503,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -10473,6 +10666,7 @@ func TestModelIncludes(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "formatid": {
               "name": "formatid",
@@ -10539,6 +10733,11 @@ func TestModelIncludes(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {
@@ -10833,6 +11032,7 @@ func TestModelMissingFields(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -10899,6 +11099,11 @@ func TestModelMissingFields(t *testing.T) {
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
               "required": true
             },
             "contenttype": {

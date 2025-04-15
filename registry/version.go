@@ -74,6 +74,21 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) error {
 		return fmt.Errorf("Can't set defaultversionid to Version being deleted")
 	}
 
+	vers, err := v.Resource.GetChildVersionIDs(v.UID)
+	if err != nil {
+		return fmt.Errorf("Error getting version's (%s) children: %s",
+			v.UID, err)
+	}
+
+	// Before we delete it, make all versions that point to this one "roots"
+	for _, vid := range vers {
+		childVersion, err := v.Resource.FindVersion(vid, false)
+		if err != nil {
+			return fmt.Errorf("Error finding version %q: %s", vid, err)
+		}
+		childVersion.SetSave("ancestor", childVersion.UID)
+	}
+
 	// delete it!
 	if err := v.JustDelete(); err != nil {
 		return err
@@ -100,6 +115,7 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) error {
 	// If they explicitly told us to unset the default version or we're
 	// deleting the current default w/o a new vID being given, then unstick it
 	if (nextVersionID == "" && mustChange) || nextVersionID == "null" {
+		// Find the next default version
 		v.Resource.SetDefault(nil)
 	} else if nextVersionID != "" {
 		nextVersion, err = v.Resource.FindVersion(nextVersionID, false)
