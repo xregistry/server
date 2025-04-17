@@ -365,7 +365,7 @@ func (tx *Tx) Commit() error {
 }
 
 func (tx *Tx) Rollback() error {
-	if tx.tx == nil {
+	if tx == nil || tx.tx == nil {
 		return nil
 	}
 	err := tx.tx.Rollback()

@@ -54,11 +54,11 @@ Useful Makefile targets:
 - make clean        : erase all build artifacts, stop mysql. Basically, reset
 - make server       : build the server
 - make cmds         : build the exes (server and CLIs)
-- make image        : build the all Docker images
-- make push         : push the Docker images to DockerHub
-- make mysql        : just start mysql as a Docker container
+- make image        : build the all container images
+- make push         : push the container images to a container registry
+- make mysql        : just start mysql as a container container
 - make mysql-client : run the mysql client, for testing
-- make testdev      : build a dev docker image, and build/test/run everything
+- make testdev      : build dev container image, and build/test/run everything
                       to make sure the minimal dev install requirements
                       haven't changed
 ```

@@ -127,12 +127,19 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				for k, d2 := range obj {
 					tmp := map[string]json.RawMessage{}
 					Error(json.Unmarshal(d2, &tmp))
+
 					self := host + xid.String()[1:] + "/" + k
 					tmp["self"] = []byte(fmt.Sprintf("%q", self))
+
+					if _, ok := tmp["metaurl"]; ok {
+						tmp["metaurl"] = []byte(fmt.Sprintf("\"%s/meta\"", self))
+					}
+
 					for _, p := range plurals {
 						pURL := fmt.Sprintf("%s/%s", self, p)
 						tmp[p+"url"] = []byte(fmt.Sprintf("%q", pURL))
 					}
+
 					b, err := json.Marshal(tmp)
 					Error(err)
 					obj[k] = b

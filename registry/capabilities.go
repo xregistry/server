@@ -43,7 +43,7 @@ type Offered struct {
 }
 
 var AllowableFlags = ArrayToLower([]string{
-	"doc", "epoch", "filter", "inline",
+	"collections", "doc", "epoch", "filter", "inline",
 	"nodefaultversionid", "nodefaultversionsticky",
 	"noepoch", "noreadonly", "offered",
 	"schema", "setdefaultversionid", "specversion"})

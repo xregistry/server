@@ -250,16 +250,31 @@ func HTMLify(r *http.Request, buf []byte) []byte {
 }
 
 // HTML, # of expands
-func RegHTMLify(r *http.Request, buf []byte) ([]byte, int) {
-	str := fmt.Sprintf(`"(https?://[^?"\n]*)(\??)([^"\n]*)"`)
-	re := regexp.MustCompile(str)
-	repl := fmt.Sprintf(`"<a href='$1?ui&$3'>$1$2$3</a>"`)
-
+func RegHTMLify(buf []byte, proxyHost, targetHost string) ([]byte, int) {
 	// Escape < and >
 	buf = []byte(strings.ReplaceAll(string(buf), "<", "&lt;"))
 	buf = []byte(strings.ReplaceAll(string(buf), ">", "&gt;"))
 
+	str := fmt.Sprintf(`"(https?://[^?"\n]*)(\??)([^"\n]*)"`)
+	re := regexp.MustCompile(str)
+	repl := fmt.Sprintf(`"<a href='$1?ui&$3'>$1$2$3</a>"`)
 	buf = re.ReplaceAll(buf, []byte(repl))
+
+	if targetHost != "" {
+		matchHost := targetHost
+
+		// Allow for http or https in the output
+		if strings.HasPrefix(matchHost, "http") {
+			_, matchHost, _ = strings.Cut(matchHost, "://")
+		}
+		matchHost = `https?://` + matchHost
+
+		str := fmt.Sprintf(`<a href='%s([^?']*)\?ui`, matchHost)
+		re := regexp.MustCompile(str)
+		repl := fmt.Sprintf(`<a href='%s/proxy?host=%s&path=$1`,
+			proxyHost, targetHost)
+		buf = re.ReplaceAll(buf, []byte(repl))
+	}
 
 	res := new(bytes.Buffer)
 
@@ -1024,4 +1039,22 @@ func PrettyPrint(object any, prefix string, indent string) string {
 	// objType := reflect.ValueOf(object).Type().String()
 	buf, _ := json.MarshalIndent(object, prefix, indent)
 	return string(buf)
+}
+
+func DownloadURL(urlPath string) ([]byte, error) {
+	res, err := http.Get(urlPath)
+	if err == nil {
+		data, err := io.ReadAll(res.Body)
+		res.Body.Close()
+
+		if err == nil {
+			if res.StatusCode/100 != 2 {
+				err = fmt.Errorf("%d %s: %s",
+					res.StatusCode, res.Status, string(data))
+			} else {
+				return data, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("Error retieving %q: %s", urlPath, err)
 }

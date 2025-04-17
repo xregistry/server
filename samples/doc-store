@@ -19,7 +19,7 @@ xr model update -d @$XREG_REPO/core/samples/doc-store-model.json
 # Point to our locally running xReg server
 XR_SERVER=localhost:8080
 
-xr create /dirs/mydocs/files/todo-list -d "All caught up!"
+xr create dirs/mydocs/files/todo-list -d "All caught up!"
 
 echo "
 Team members:
@@ -28,7 +28,7 @@ Team members:
 - Sam
 - Mary
 - Casey
-" | xr create /dirs/workdocs/files/team -d @-
+" | xr create dirs/workdocs/files/team -d @-
 
 # Then go to: http://localhost:8080?ui to explore
 # Use: docker rm -f xreg

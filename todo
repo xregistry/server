@@ -103,3 +103,7 @@ TODOs:
 - add tests for model "description", "modelversion" and "compatwith"
 - ancestor
 - FindXIDResource -> FindResourceByXID
+- add support for deprecated
+- support ?collections - add to capabilities
+- add docs for persistent DB/volume
+- add docs for auth via proxy

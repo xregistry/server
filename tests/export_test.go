@@ -39,6 +39,7 @@ func TestExportBasic(t *testing.T) {
 
   "capabilities": {
     "flags": [
+      "collections",
       "doc",
       "epoch",
       "filter",
@@ -575,6 +576,7 @@ func TestExportBasic(t *testing.T) {
 
   "capabilities": {
     "flags": [
+      "collections",
       "doc",
       "epoch",
       "filter",

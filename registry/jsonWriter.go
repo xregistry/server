@@ -102,6 +102,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 	baseURL := ""
 
 	inlineCollection := jw.info.ShouldInline(jw.Entity.Abstract)
+
 	if jw.info.DoDocView() && inlineCollection {
 		// remove GET's base path
 		path := path.Dir(jw.Entity.Path)
@@ -258,9 +259,15 @@ func (jw *JsonWriter) WriteEntity() error {
 		return nil
 	}
 
-	err := jw.Entity.SerializeProps(jw.info, jsonIt)
-	if err != nil {
-		panic(err)
+	var err error
+
+	// Skip serializing the root entity's attributes if ?collections is set
+	// AND we're on the root entity of the response
+	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.Path {
+		err := jw.Entity.SerializeProps(jw.info, jsonIt)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// Now show all of the nested collections

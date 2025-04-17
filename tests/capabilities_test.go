@@ -16,6 +16,7 @@ func TestCapabilitySimple(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "flags": [
+    "collections",
     "doc",
     "epoch",
     "filter",
@@ -57,6 +58,7 @@ func TestCapabilitySimple(t *testing.T) {
 
   "capabilities": {
     "flags": [
+      "collections",
       "doc",
       "epoch",
       "filter",
@@ -256,6 +258,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "flags": [
+    "collections",
     "doc",
     "epoch",
     "filter",
@@ -384,7 +387,7 @@ func TestCapabilityPath(t *testing.T) {
 	// Testing setting everything to the default
 	xHTTP(t, reg, "PUT", "/capabilities", `{
   "flags": [
-    "doc", "epoch", "filter", "inline", "nodefaultversionid",
+    "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
 	"setdefaultversionid", "specversion"
   ],
@@ -397,6 +400,7 @@ func TestCapabilityPath(t *testing.T) {
 }`, 200,
 		`{
   "flags": [
+    "collections",
     "doc",
     "epoch",
     "filter",
@@ -429,6 +433,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "flags": [
+    "collections",
     "doc",
     "epoch",
     "filter",
@@ -636,7 +641,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// inline still disabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "flags": [
-    "doc", "epoch", "filter", "inline", "nodefaultversionid",
+    "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
 	"setdefaultversionid", "specversion"
   ],
@@ -660,6 +665,7 @@ func TestCapabilityAttr(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "flags": [
+    "collections",
     "doc",
     "epoch",
     "filter",
@@ -761,7 +767,7 @@ func TestCapabilityAttr(t *testing.T) {
 
 }
 
-// "doc", "epoch", "filter", "inline",
+// "collections", "doc", "epoch", "filter", "inline",
 // "nodefaultversionid", "nodefaultversionsticky",
 // "noepoch", "noreadonly", "offered", "schema", "setdefaultversionid",
 // "specversion"})
@@ -892,6 +898,7 @@ func TestCapabilityOffered(t *testing.T) {
       "type": "string"
     },
     "enum": [
+      "collections",
       "doc",
       "epoch",
       "filter",

@@ -11,14 +11,14 @@ import (
 type RequestInfo struct {
 	tx               *Tx
 	Registry         *Registry
-	BaseURL          string // host+path to root of registry
-	OriginalPath     string
+	BaseURL          string              // host+path to root of registry
+	OriginalPath     string              // /GROUPs/gID...?inline...
 	OriginalRequest  *http.Request       `json:"-"`
 	OriginalResponse http.ResponseWriter `json:"-"`
-	RootPath         string              // rootPath or "" for registry itself
-	Parts            []string
-	Root             string // path into the Registry of the request
-	Abstract         string
+	RootPath         string              // "", "model", "export", ...
+	Parts            []string            // Split /GROUPS/gID of OriginalPath
+	Root             string              // GROUPS/gID/..
+	Abstract         string              // /GROUPS/RESOUCES (no IDs)
 	GroupType        string
 	GroupUID         string
 	GroupModel       *GroupModel
@@ -36,13 +36,16 @@ type RequestInfo struct {
 	SentStatus bool
 	HTTPWriter HTTPWriter `json:"-"`
 
+	ProxyHost string
+	ProxyPath string
+
 	// extra stuff if we ever need to pass around data while processing
 	extras map[string]any
 }
 
 var explicitInlines = []string{"capabilities", "model"}
 var nonModelInlines = append([]string{"*"}, explicitInlines...)
-var rootPaths = []string{"capabilities", "model", "export"}
+var rootPaths = []string{"capabilities", "model", "export", "proxy"}
 
 type Inline struct {
 	Path    string    // value from ?inline query param
@@ -203,6 +206,7 @@ type FilterExpr struct {
 }
 
 func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, error) {
+
 	path := strings.Trim(r.URL.Path, " /")
 	info := &RequestInfo{
 		tx: tx,
@@ -210,7 +214,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		OriginalPath:     path,
 		OriginalRequest:  r,
 		OriginalResponse: w,
-		Registry:         GetDefaultReg(tx),
+		Registry:         nil, // GetDefaultReg(tx),
 		BaseURL:          "http://" + r.Host,
 
 		extras: map[string]any{},
@@ -224,10 +228,10 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		}
 	}
 
-	PanicIf(info.Registry == nil, "No default registry")
-
-	if info.Registry != nil && tx.Registry == nil {
-		tx.Registry = info.Registry
+	// See which registry to use and twiddle some stuff in info if needed
+	err := info.ParseRegistryURL()
+	if err != nil {
+		return info, err
 	}
 
 	info.HTTPWriter = DefaultHTTPWriter(info)
@@ -237,7 +241,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	}
 
 	if tmp := r.Header.Get("xRegistry~User"); tmp != "" {
-		tx.User = tmp
+		info.tx.User = tmp
 	}
 
 	// Notice boolean flags end up with "" as a value
@@ -250,47 +254,12 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		}
 	}
 
-	err := info.ParseRequestURL()
+	// Parse the incoming URL and setup more stuff in info, like Groups...
+	err = info.ParseRequestURL()
 	if err != nil {
 		return info, err
 	}
 
-	tx.IgnoreEpoch = info.HasFlag("noepoch")
-	tx.IgnoreDefaultVersionSticky = info.HasFlag("nodefaultversionsticky")
-	tx.IgnoreDefaultVersionID = info.HasFlag("nodefaultversionid")
-
-	if info.HasFlag("inline") {
-		// OLD: Only pick up inlining values if we're doing a GET, not write ops
-		// if  strings.EqualFold(r.Method, "GET")
-		for _, value := range info.GetFlagValues("inline") {
-			for _, p := range strings.Split(value, ",") {
-				if p == "" || p == "*" {
-					p = "*"
-				} else {
-					// if we're not at the root then we need to twiddle
-					// the inline path to add the HTTP Path as a prefix
-					if info.Abstract != "" {
-						// want: p = info.Abstract + "." + p  in UI format
-						absPP, err := PropPathFromPath(info.Abstract)
-						if err != nil {
-							return info, err
-						}
-						pPP, err := PropPathFromUI(p)
-						if err != nil {
-							return info, err
-						}
-						p = absPP.Append(pPP).UI()
-					}
-				}
-				if err := info.AddInline(p); err != nil {
-					return info, err
-				}
-			}
-		}
-	}
-
-	// if  strings.EqualFold(r.Method, "GET")
-	err = info.ParseFilters()
 	return info, err
 }
 
@@ -397,17 +366,18 @@ func SplitProp(reg *Registry, path string) (string, string) {
 	return abs.Abstract(), pp.DB()
 }
 
-func (info *RequestInfo) ParseRequestURL() error {
+// This will extract the "reg-xxx" part of the URL if there and choose the
+// appropriate Registry to use. It'll update info's BaseURL based on reg-
+// This will populate some initial stuff in the "info" struct too, like
+// Registry.
+func (info *RequestInfo) ParseRegistryURL() error {
 	path := strings.Trim(info.OriginalPath, " /")
-	info.Parts = strings.Split(path, "/")
-	if len(info.Parts) == 1 && info.Parts[0] == "" {
-		info.Parts = []string{}
-	}
 
-	if len(info.Parts) > 0 && strings.HasPrefix(info.Parts[0], "reg-") {
-		info.BaseURL += "/" + info.Parts[0]
-		name := info.Parts[0][4:]
-		info.Parts = info.Parts[1:] // shift
+	if len(path) > 0 && strings.HasPrefix(path, "reg-") {
+		regName, rest, _ := strings.Cut(path, "/")
+		info.BaseURL += "/" + regName
+		info.OriginalPath = rest
+		name := regName[4:] // remove leading "reg-"
 
 		reg, err := FindRegistry(info.tx, name)
 		if reg == nil {
@@ -417,9 +387,82 @@ func (info *RequestInfo) ParseRequestURL() error {
 			}
 			return fmt.Errorf("Can't find registry %q%s", name, extra)
 		}
-		info.tx.Rollback() // Not sure why
-		info.tx.Registry = reg
 		info.Registry = reg
+		info.tx.Registry = reg
+	} else {
+		info.Registry = GetDefaultReg(info.tx)
+		info.tx.Registry = info.Registry
+	}
+	return nil
+}
+
+func (info *RequestInfo) ParseRequestURL() error {
+	log.VPrintf(4, "ParseRequestURL:\n%s", ToJSON(info))
+
+	if err := info.ParseRequestPath(); err != nil {
+		return err
+	}
+
+	// Some of these have to come after we parse the path so that the
+	// group/resource info is setup - for verification
+
+	// Let's do some query parameter stuff.
+	// It's ok for tx to be nil, but only when we're doing a read operation
+	if info.tx != nil {
+		info.tx.IgnoreEpoch = info.HasFlag("noepoch")
+		info.tx.IgnoreDefaultVersionSticky = info.HasFlag("nodefaultversionsticky")
+		info.tx.IgnoreDefaultVersionID = info.HasFlag("nodefaultversionid")
+	}
+
+	if info.HasFlag("inline") {
+		for _, value := range info.GetFlagValues("inline") {
+			for _, p := range strings.Split(value, ",") {
+				if p == "" || p == "*" {
+					p = "*"
+				} else {
+					// if we're not at the root then we need to twiddle
+					// the inline path to add the HTTP Path as a prefix
+					if info.Abstract != "" {
+						// want: p = info.Abstract + "." + p  in UI format
+						absPP, err := PropPathFromPath(info.Abstract)
+						if err != nil {
+							return err
+						}
+						pPP, err := PropPathFromUI(p)
+						if err != nil {
+							return err
+						}
+						p = absPP.Append(pPP).UI()
+					}
+				}
+				if err := info.AddInline(p); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Do some error checking on "collections"
+	if info.HasFlag("collections") {
+		if !(info.GroupType == "" ||
+			(info.GroupUID != "" && info.ResourceType == "")) {
+			return fmt.Errorf("?collections is only allow on the " +
+				"Registry or Group instance level")
+		}
+		// Force inline=* to be on
+		info.AddInline("*")
+	}
+
+	return info.ParseFilters()
+}
+
+func (info *RequestInfo) ParseRequestPath() error {
+	// Now process the URL path
+	path := strings.Trim(info.OriginalPath, " /")
+	info.Parts = strings.Split(path, "/")
+
+	if len(info.Parts) == 1 && info.Parts[0] == "" {
+		info.Parts = []string{}
 	}
 
 	if len(info.Parts) == 0 {

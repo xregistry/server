@@ -35,6 +35,7 @@ func GetDefaultReg(tx *Tx) *Registry {
 	if reg != nil {
 		tx.Registry = reg
 	}
+	PanicIf(reg == nil, "No default registry")
 
 	return reg
 }
@@ -131,6 +132,8 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 			Abstract: "",
 		},
 	}
+
+	reg.tx = tx
 	reg.Self = reg
 	reg.Entity.Registry = reg
 	reg.Capabilities = DefaultCapabilities
@@ -140,9 +143,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 	}
 
 	tx.Registry = reg
-	reg.tx = tx
-
-	reg.tx.AddRegistry(reg)
+	tx.AddRegistry(reg)
 
 	err = reg.Model.Verify()
 	if err != nil {
@@ -250,14 +251,12 @@ func FindRegistryBySID(tx *Tx, sid string) (*Registry, error) {
 	}
 
 	reg := &Registry{Entity: *ent}
-	reg.Self = reg
-	if tx.Registry == nil {
-		tx.Registry = reg
-	}
-	reg.Entity.Registry = reg
 	reg.tx = tx
+	reg.Self = reg
+	reg.Entity.Registry = reg
 
-	reg.tx.AddRegistry(reg)
+	tx.Registry = reg
+	tx.AddRegistry(reg)
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -1005,4 +1004,29 @@ func (r *Registry) FindXIDMeta(xid string) (*Meta, error) {
 		return nil, err
 	}
 	return resource.FindMeta(false)
+}
+
+func LoadRemoteRegistry(host string) (*Registry, error) {
+	reg := &Registry{}
+
+	// Download model
+	data, err := DownloadURL(host + "/model")
+	if err == nil {
+		err = Unmarshal(data, &reg.Model)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Error getting model (%s/model): %s", host, err)
+	}
+
+	// Download capabilities
+	data, err = DownloadURL(host + "/capabilities")
+	if err == nil {
+		reg.Capabilities, err = ParseCapabilitiesJSON(data)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Error getting capabilities "+
+			"(%s/capabilities): %s", host, err)
+	}
+
+	return reg, nil
 }
