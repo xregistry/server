@@ -448,6 +448,7 @@ func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*Gr
 	}
 	rm, err := gm.AddResourceModelSimple(rPlural, rSingular)
 	if err != nil {
+		gm.Delete()
 		return nil, nil, err
 	}
 	return gm, rm, nil

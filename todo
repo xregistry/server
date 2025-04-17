@@ -104,6 +104,6 @@ TODOs:
 - ancestor
 - FindXIDResource -> FindResourceByXID
 - add support for deprecated
-- support ?collections - add to capabilities
+- finish /proxy stuff - lots of bad urls on html
 - add docs for persistent DB/volume
 - add docs for auth via proxy

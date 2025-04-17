@@ -8467,3 +8467,154 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 		xCheckEqual(t, test.body, string(data), test.msg+"\n")
 	}
 }
+
+func TestHTTPCollectionsFlag(t *testing.T) {
+	reg := NewRegistry("TestHTTPCollectionsFlag")
+	defer PassDeleteReg(t, reg)
+
+	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
+	xNoErr(t, err)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", "", 201, "*")
+
+	// Test the 2 valid cases
+	xHTTP(t, reg, "GET", "?collections", "", 200, `{
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "YYYY-MM-DDTHH:MM:01Z",
+          "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+          "ancestor": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "YYYY-MM-DDTHH:MM:01Z",
+            "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+            "readonly": false,
+            "compatibility": "none",
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f1",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+              "xid": "/dirs/d1/files/f1/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "YYYY-MM-DDTHH:MM:01Z",
+              "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+              "ancestor": "v1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 1
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1?collections", "", 200, `{
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "files": {
+    "f1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1$details",
+      "xid": "/dirs/d1/files/f1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "ancestor": "v1",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "meta": {
+        "fileid": "f1",
+        "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+        "xid": "/dirs/d1/files/f1/meta",
+        "epoch": 1,
+        "createdat": "YYYY-MM-DDTHH:MM:01Z",
+        "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+        "readonly": false,
+        "compatibility": "none",
+
+        "defaultversionid": "v1",
+        "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+        "defaultversionsticky": false
+      },
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versions": {
+        "v1": {
+          "fileid": "f1",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+          "xid": "/dirs/d1/files/f1/versions/v1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "YYYY-MM-DDTHH:MM:01Z",
+          "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+          "ancestor": "v1"
+        }
+      },
+      "versionscount": 1
+    }
+  },
+  "filescount": 1
+}
+`)
+
+	// And now the errors
+	xHTTP(t, reg, "GET", "/dirs?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?collections", "", 400,
+		"?collections is only allow on the Registry or Group instance level\n")
+
+	xHTTP(t, reg, "GET", "/dirsx?collections", "", 404,
+		"Unknown Group type: dirsx\n")
+	xHTTP(t, reg, "GET", "/dirs/d1x?collections", "", 404,
+		"Not found\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/filesx?collections", "", 404,
+		"Unknown Resource type: filesx\n")
+}
