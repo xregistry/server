@@ -617,7 +617,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(err)
 
 	// Schemas
-	g, err = reg.AddGroupWithObject("schemagroups", "g1", registry.Object{
+	g, err = reg.AddGroupWithObject("schemagroups", "sg1", registry.Object{
 		"format": "text",
 	})
 	ErrFatalf(err)
