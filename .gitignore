@@ -7,8 +7,8 @@
 /.cmds
 /.test
 /.utest
-/.image
-/.testimage
+/.images
+/.testimages
 /.spec
 /.push
 

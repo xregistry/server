@@ -2,6 +2,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/duglin/dlog v0.0.0-20231117185220-2f50b3ce612d h1:uBF3EJeh1fsAmmJtWMOIkETo67Wv9mxRGCjLr8F0kBA=
 github.com/duglin/dlog v0.0.0-20231117185220-2f50b3ce612d/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
+github.com/duglin/dlog v0.0.0-20250418184414-99fd290332d9 h1:HjeSoN/odGn4TrYNBF37mNi8vbfAFACWsQdhj6DIeoU=
+github.com/duglin/dlog v0.0.0-20250418184414-99fd290332d9/go.mod h1:mjcUJ8I4w649acz/QrZEKDBLxU1OnlVhYPMOR5g0naU=
 github.com/go-sql-driver/mysql v1.7.1 h1:lUIinVbN1DY0xBg0eMOzmmtGoHwWBbvnWubQUrtU8EI=
 github.com/go-sql-driver/mysql v1.7.1/go.mod h1:OXbVy3sEdcQ2Doequ6Z5BW6fXNQTmx+9S1MCJN5yJMI=
 github.com/gomarkdown/markdown v0.0.0-20250311123330-531bef5e742b h1:EY/KpStFl60qA17CptGXhwfZ+k1sFNJIUNR8DdbcuUk=

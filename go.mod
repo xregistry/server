@@ -5,7 +5,7 @@ go 1.23
 toolchain go1.23.2
 
 require (
-	github.com/duglin/dlog v0.0.0-20231117185220-2f50b3ce612d
+	github.com/duglin/dlog v0.0.0-20250418184414-99fd290332d9
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.0
 	github.com/spf13/cobra v1.9.1

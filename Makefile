@@ -1,4 +1,4 @@
-all: mysql cmds test image run
+all: mysql cmds test images run
 
 MAKEFLAGS  += --no-print-directory
 
@@ -42,7 +42,7 @@ utest: .utest
 	@echo
 	@touch .utest
 
-test: .test .testimage
+test: .test .testimages
 .test: export TESTING=1
 .test: .cmds */*test.go
 	@make mysql waitformysql
@@ -77,8 +77,8 @@ xrconform: cmds/xrconform/* registry/*
 	@echo "# Building xrconform (compliance checker)"
 	go build $(BUILDFLAGS) -o $@ cmds/xrconform/*.go
 
-image: .image
-.image: xr xrserver misc/waitformysql \
+images: .images
+.images: xr xrserver misc/waitformysql \
 		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
 		misc/start
 	@echo
@@ -98,23 +98,23 @@ endif
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
 		--no-cache .
 	@rm -rf .spec
-	@touch .image
+	@touch .images
 
-testimage: .testimage
-.testimage: .image
+testimages: .testimages
+.testimages: .images
 	@echo
 	@echo "# Verifying the images"
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
-		$(XRSERVER_IMAGE) --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(XRSERVER_IMAGE) --recreatedb --samples --verify
-	@touch .testimage
+		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
+	@touch .testimages
 
 push: .push
-.push: .image
+.push: .images
 	docker push $(XR_IMAGE)
 	docker push $(XRSERVER_IMAGE)
 	docker push $(XRSERVER_IMAGE)-all
@@ -130,14 +130,14 @@ notest run local: mysql cmds waitformysql
 	@echo "# Starting xrserver from scratch"
 	./xrserver run -v --recreatedb --samples $(VERIFY)
 
-docker-all: image
+docker-all: images
 	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -v --recreatedb --samples
 
 large:
 	# Run the xrserver with a ton of data
 	@XR_LOAD_LARGE=1 make run
 
-docker: mysql image waitformysql
+docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
 	docker run -ti --network host $(XRSERVER_IMAGE) -v --recreatedb \
@@ -179,7 +179,7 @@ k3d: misc/mysql.yaml
 		do echo -n . ; sleep 1 ; done ; \
 		kubectl apply -f misc/mysql.yaml )
 
-k3dserver: k3d image
+k3dserver: k3d images
 	-kubectl delete -f misc/deploy.yaml 2> /dev/null
 	k3d image import $(XRSERVER_IMAGE) -c xreg
 	kubectl apply -f misc/deploy.yaml
@@ -217,7 +217,7 @@ clean:
 	@echo "# Cleaning"
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xr xrconform
-	@rm -f .test .image .push
+	@rm -f .test .images .push
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1
