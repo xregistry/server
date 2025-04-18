@@ -2,14 +2,14 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    run: xreg-server
-  name: xreg-server
+    run: xrserver
+  name: xrserver
 spec:
   containers:
-  - image: ghcr.io/xregistry/xreg-server
+  - image: ghcr.io/xregistry/xrserver
     imagePullPolicy: Never
-    name: xreg-server
-    command: [ "/server" ]
+    name: xrserver
+    command: [ "/xrserver" ]
     args: [ "--recreate" ]
     ports:
     - containerPort: 8080
@@ -25,7 +25,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: xreg-server
+  name: xrserver
 spec:
   ports:
   - nodePort: 32000
@@ -33,7 +33,7 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    run: xreg-server
+    run: xrserver
   sessionAffinity: None
   type: NodePort
 

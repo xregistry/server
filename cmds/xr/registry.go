@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	"github.com/xregistry/server/registry"
@@ -243,7 +244,7 @@ func registryPutFunc(cmd *cobra.Command, args []string) {
 
 		_, err := xrlib.HttpDo("PUT", url, buf)
 
-		if VerboseFlag || err != nil {
+		if log.GetVerbose() > 0 || err != nil {
 			Verbose(err)
 		}
 

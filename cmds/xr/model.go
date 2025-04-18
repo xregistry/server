@@ -15,7 +15,7 @@ import (
 func addModelCmd(parent *cobra.Command) {
 	modelCmd := &cobra.Command{
 		Use:     "model",
-		Short:   "model commands",
+		Short:   "Manage a regsitry's model",
 		GroupID: "Admin",
 	}
 
@@ -25,7 +25,7 @@ func addModelCmd(parent *cobra.Command) {
 		Run:   modelNormalizeFunc,
 	}
 	modelNormalizeCmd.Flags().StringP("data", "d", "",
-		"Data (json),@FILE,@URL,-")
+		"Data(json), @FILE, @URL, @-")
 	modelCmd.AddCommand(modelNormalizeCmd)
 
 	modelVerifyCmd := &cobra.Command{
@@ -33,7 +33,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Parse and verify xRegistry model document",
 		Run:   modelVerifyFunc,
 	}
-	modelVerifyCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	modelVerifyCmd.Flags().StringP("data", "d", "",
+		"Data(json), @FILE, @URL, @-")
 	modelCmd.AddCommand(modelVerifyCmd)
 
 	modelUpdateCmd := &cobra.Command{
@@ -41,7 +42,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Update the registry's model",
 		Run:   modelUpdateFunc,
 	}
-	modelUpdateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	modelUpdateCmd.Flags().StringP("data", "d", "",
+		"Data(json), @FILE, @URL, @-")
 	modelCmd.AddCommand(modelUpdateCmd)
 
 	modelGetCmd := &cobra.Command{
@@ -315,19 +317,23 @@ func PrintAttributes(prefix string, attrs registry.Attributes,
 
 		if count == 0 {
 			fmt.Fprintln(ntw, "")
-			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tEDIT\tDEFAULT")
+			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
 		}
 		count++
 		typ := attr.Type
 		if typ == registry.MAP {
 			typ = fmt.Sprintf("%s(%s)", typ, attr.Item.Type)
 		}
-		req := xrlib.YesNo(attr.Required)
-		ro := xrlib.YesNo(attr.ReadOnly)
-		immut := xrlib.YesNo(!attr.Immutable)
+		req := xrlib.YesDash(attr.Required)
+		ro := xrlib.YesDash(attr.ReadOnly)
+		immut := xrlib.YesDash(!attr.Immutable)
 		def := ""
 		if !registry.IsNil(attr.Default) {
-			def = fmt.Sprintf("%v", attr.Default)
+			if attr.Type == registry.STRING {
+				def = fmt.Sprintf("%q", attr.Default)
+			} else {
+				def = fmt.Sprintf("%v", attr.Default)
+			}
 		}
 		fmt.Fprintf(ntw, "%s\t%s\t%s\t%s\t%s\t%s\n", aName, typ,
 			req, ro, immut, def)

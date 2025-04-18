@@ -11,11 +11,11 @@ import (
 func addImportCmd(parent *cobra.Command) {
 	importCmd := &cobra.Command{
 		Use:     "import [ XID ]",
-		Short:   "Import data into the registry",
+		Short:   "Import entities into the registry",
 		Run:     importFunc,
 		GroupID: "Entities",
 	}
-	importCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	importCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 
 	parent.AddCommand(importCmd)
 }

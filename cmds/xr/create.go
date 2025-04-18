@@ -19,7 +19,7 @@ func addCreateCmd(parent *cobra.Command) {
 		GroupID: "Entities",
 	}
 	createCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	createCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	createCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 	createCmd.Flags().BoolP("patch", "p", false,
 		"Only 'update' specified attributes when -f is applied")
 	createCmd.Flags().BoolP("force", "f", false,
@@ -37,7 +37,7 @@ func addUpsertCmd(parent *cobra.Command) {
 		Hidden:  true,
 	}
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	upsertCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	upsertCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 	upsertCmd.Flags().BoolP("patch", "p", false,
 		"Only update specified attributes")
 
@@ -52,7 +52,7 @@ func addUpdateCmd(parent *cobra.Command) {
 		GroupID: "Entities",
 	}
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
-	updateCmd.Flags().StringP("data", "d", "", "Data (json),@FILE,@URL,-")
+	updateCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 	updateCmd.Flags().BoolP("patch", "p", false,
 		"Only update specified attributes")
 	updateCmd.Flags().BoolP("force", "f", false,

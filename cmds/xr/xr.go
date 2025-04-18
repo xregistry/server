@@ -5,15 +5,15 @@ import (
 	"os"
 	"strings"
 
-	// log "github.com/duglin/dlog"
+	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	"github.com/xregistry/server/registry"
 )
 
 var GitComit string
-var VerboseFlag = xrlib.EnvBool("XR_VERBOSE", false)
-var DebugFlag = xrlib.EnvBool("XR_DEBUG", false)
+var VerboseCount = 0
+
 var Server = "" // Will grab DefaultServer after we add the --server flag
 var DefaultServer = xrlib.EnvString("XR_SERVER", "")
 
@@ -62,7 +62,8 @@ func Error(obj any, args ...any) {
 }
 
 func Verbose(args ...any) {
-	if !VerboseFlag || len(args) == 0 || registry.IsNil(args[0]) {
+	// if !VerboseFlag || len(args) == 0 || registry.IsNil(args[0]) {
+	if log.GetVerbose() == 0 || len(args) == 0 || registry.IsNil(args[0]) {
 		return
 	}
 
@@ -89,44 +90,52 @@ func main() {
 				Server = "http://" + strings.TrimLeft(Server, "/")
 			}
 
-			xrlib.DebugFlag = DebugFlag
+			log.SetVerbose(VerboseCount)
 		},
 	}
 	xrCmd.CompletionOptions.HiddenDefaultCmd = true
-	xrCmd.PersistentFlags().BoolVarP(&VerboseFlag, "verbose", "v", false,
-		"Be chatty")
-	xrCmd.PersistentFlags().BoolVarP(&DebugFlag, "debug", "x", false,
-		"Show HTTP traffic")
+	xrCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
+		"Be chatty``")
 	xrCmd.PersistentFlags().StringVarP(&Server, "server", "s", "",
-		"Server URL")
+		"xRegistry server URL")
+	xrCmd.PersistentFlags().BoolP("help", "h", false, "Help for xr")
 
 	xrCmd.AddGroup(
 		&cobra.Group{"Entities", "Data Management:"},
 		&cobra.Group{"Admin", "Admin:"})
+
+	xrCmd.SetUsageTemplate(strings.ReplaceAll(xrCmd.UsageTemplate(),
+		"\"help\"", "\"hide-me\""))
+
+	// just so 'help' is in a group and Hidden is adhered to
 	xrCmd.SetHelpCommand(&cobra.Command{
-		Use:    "help [command]",
-		Short:  "Help about any command",
-		Hidden: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			if err := cmd.Parent().Help(); err != nil {
-				fmt.Println(err)
-			}
-		},
+		Use:     "help [command]",
+		Short:   "Help about any command",
+		Hidden:  true,
+		GroupID: "Admin",
+		/*
+			Run: func(cmd *cobra.Command, args []string) {
+				if err := cmd.Parent().Help(); err != nil {
+					fmt.Println(err)
+				}
+			},
+		*/
 	})
 
 	// Set Server after we add the --server flag so we don't show the
 	// default value in the help text
 	Server = DefaultServer
 
+	addCreateCmd(xrCmd)
+	addDeleteCmd(xrCmd)
+	addGetCmd(xrCmd)
+	// addGroupCmd(xrCmd)
+	addImportCmd(xrCmd)
 	addModelCmd(xrCmd)
 	// addRegistryCmd(xrCmd)
-	// addGroupCmd(xrCmd)
-	addGetCmd(xrCmd)
-	addCreateCmd(xrCmd)
-	addUpsertCmd(xrCmd)
 	addUpdateCmd(xrCmd)
-	addDeleteCmd(xrCmd)
-	addImportCmd(xrCmd)
+	addUpsertCmd(xrCmd)
+
 	addDownloadCmd(xrCmd)
 	addServeCmd(xrCmd)
 

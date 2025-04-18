@@ -11,19 +11,20 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	log "github.com/duglin/dlog"
 	"github.com/xregistry/server/registry"
 )
 
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
-var DebugFlag = EnvBool("XR_DEBUG", false)
+// var DebugFlag = EnvBool("XR_DEBUG", false)
 var Server = EnvString("XR_SERVER", "")
 
 func Debug(args ...any) {
-	if !DebugFlag || len(args) == 0 || registry.IsNil(args[0]) {
+	// if !DebugFlag || len(args) == 0 || registry.IsNil(args[0]) {
+	if log.GetVerbose() < 2 || len(args) == 0 || registry.IsNil(args[0]) {
 		return
 	}
-	// VerboseFlag = true
-	// Verbose(args)
+
 	fmtStr := ""
 	ok := false
 
@@ -38,10 +39,14 @@ func Debug(args ...any) {
 	}
 
 	str := fmt.Sprintf(fmtStr, args[1:]...)
-	fmt.Fprint(os.Stderr, str)
-	if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {
-		fmt.Fprint(os.Stderr, "\n")
-	}
+
+	log.VPrintf(2, str)
+	/*
+		fmt.Fprint(os.Stderr, str)
+		if str[len(str)-1] != '\n' && str[len(str)-1] != '\r' {
+			fmt.Fprint(os.Stderr, "\n")
+		}
+	*/
 }
 
 /*
@@ -519,8 +524,16 @@ func NewIndentTabWriter(indent string, output io.Writer, minwidth, tabwidth,
 }
 
 func YesNo(v bool) string {
+	return BoolStr(v, "y", "n")
+}
+
+func YesDash(v bool) string {
+	return BoolStr(v, "y", "-")
+}
+
+func BoolStr(v bool, yes string, no string) string {
 	if v {
-		return "y"
+		return yes
 	}
-	return "n"
+	return no
 }

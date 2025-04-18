@@ -83,7 +83,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 
 		reg, err = registry.NewRegistry(nil, "APIs-Guru")
 		ErrFatalf(err, "Error creating new registry: %s", err)
-		// log.VPrintf(3, "New registry:\n%#v", reg)
+		// Verbose( "New registry:\n%#v", reg)
 		defer reg.Rollback()
 
 		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
@@ -91,12 +91,12 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		ErrFatalf(reg.SetSave("description", "xRegistry view of github.com/APIs-guru/openapi-directory"))
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 		ErrFatalf(reg.Refresh())
-		// log.VPrintf(3, "New registry:\n%#v", reg)
+		// Verbose( "New registry:\n%#v", reg)
 
 		// TODO Support "model" being part of the Registry struct above
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	g, err := reg.Model.AddGroupModel("apiproviders", "apiprovider")
 	ErrFatalf(err)
 	r, err := g.AddResourceModel("apis", "api", 2, true, true, true)
@@ -271,7 +271,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("arrmap[1].key1", "arrmapk1-value"))
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	ErrFatalf(err)
 	rm, err := gm.AddResourceModel("files", "file", 2, true, true, true)
@@ -344,7 +344,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := registry.FindModelFile("endpoint/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
@@ -413,7 +413,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := registry.FindModelFile("message/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
@@ -446,7 +446,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := registry.FindModelFile("schema/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
@@ -480,7 +480,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
@@ -511,8 +511,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(reg.Model.Verify())
 	reg.Commit()
 	dur := time.Now().Sub(start).Round(time.Second)
-	log.VPrintf(1, "Done loading registry: %s (time: %s)", reg.UID, dur)
-	log.VPrintf(1, "Dirs: %d  Files: %d  Versions: %d", dirs, files, vers)
+	Verbose("Done loading registry: %s (time: %s)", reg.UID, dur)
+	Verbose("Dirs: %d  Files: %d  Versions: %d", dirs, files, vers)
 	return reg
 }
 
@@ -536,7 +536,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	gm, _ := reg.Model.AddGroupModel("documents", "document")
 	gm.AddResourceModel("formats", "format", 0, true, true, true)
 
@@ -589,7 +589,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		reg.SetSave("documentation", "https://github.com/xregistry/server")
 	}
 
-	log.VPrintf(1, "Loading: /reg-%s", reg.UID)
+	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := registry.FindModelFile("cloudevents/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)

@@ -25,7 +25,7 @@ LABEL org.opencontainers.image.source https://github.com/xregistry/server
 COPY --from=0 /etc/ssl/certs/ca-certificates.crt \
 	/etc/ssl/certs/ca-certificates.crt
 
-COPY --from=0 /go/src/server /server
+COPY --from=0 /go/src/xrserver /xrserver
 COPY --from=0 /go/src/xr /xr
 COPY misc/repo.tar /misc/repo.tar
 

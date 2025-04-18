@@ -8,7 +8,7 @@ require (
 	github.com/duglin/dlog v0.0.0-20231117185220-2f50b3ce612d
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.0
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.9.1
 )
 
 require (
@@ -16,7 +16,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/russross/blackfriday v1.6.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
 	go.abhg.dev/goldmark/anchor v0.2.0 // indirect
 )

@@ -3,21 +3,21 @@ all: mysql cmds test image run
 MAKEFLAGS  += --no-print-directory
 
 # Notes:
-# export VERBOSE=[0-9]
+# export XR_VERBOSE=[0-9]
 # Override these env vars as needed:
-export GIT_ORG      ?= xregistry
-export GIT_REPO     ?= $(shell basename `git rev-parse --show-toplevel`)
+export GIT_ORG        ?= xregistry
+export GIT_REPO       ?= $(shell basename `git rev-parse --show-toplevel`)
 # DOCKERHUB must end with /, if it's set at all
-export DOCKERHUB    ?=
-export DBHOST       ?= 127.0.0.1
-export DBPORT       ?= 3306
-export DBUSER       ?= root
-export DBPASSWORD   ?= password
-export XR_IMAGE     ?= $(DOCKERHUB)xreg-xr
-export SERVER_IMAGE ?= $(DOCKERHUB)xreg-server
-export XR_SPEC      ?= $(HOME)/go/src/github.com/xregistry/spec
-export GIT_COMMIT   ?= $(shell git rev-list -1 HEAD)
-export BUILDFLAGS   := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
+export DOCKERHUB      ?=
+export DBHOST         ?= 127.0.0.1
+export DBPORT         ?= 3306
+export DBUSER         ?= root
+export DBPASSWORD     ?= password
+export XR_IMAGE       ?= $(DOCKERHUB)xr
+export XRSERVER_IMAGE ?= $(DOCKERHUB)xrserver
+export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
+export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
+export BUILDFLAGS     := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v save)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
@@ -25,7 +25,7 @@ UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirnam
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
-.cmds: server xr xrconform
+.cmds: xrserver xr xrconform
 	@touch .cmds
 
 qtest: .test
@@ -62,10 +62,10 @@ test: .test .testimage
 unittest:
 	go test -failfast ./registry
 
-server: cmds/server/* registry/*
+xrserver: cmds/xrserver/* registry/*
 	@echo
-	@echo "# Building server"
-	go build $(BUILDFLAGS) -o $@ cmds/server/*.go
+	@echo "# Building xrserver"
+	go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
 
 xr: cmds/xr/* registry/*
 	@echo
@@ -78,8 +78,8 @@ xrconform: cmds/xrconform/* registry/*
 	go build $(BUILDFLAGS) -o $@ cmds/xrconform/*.go
 
 image: .image
-.image: xr server misc/waitformysql \
-		misc/Dockerfile-xr misc/Dockerfile-server misc/Dockerfile-all \
+.image: xr xrserver misc/waitformysql \
+		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
 		misc/start
 	@echo
 	@echo "# Building the container images"
@@ -92,10 +92,10 @@ ifdef XR_SPEC
 endif
 	@misc/errOutput docker build -f misc/Dockerfile-xr \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XR_IMAGE) --no-cache .
-	@misc/errOutput docker build -f misc/Dockerfile-server \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(SERVER_IMAGE) --no-cache .
+	@misc/errOutput docker build -f misc/Dockerfile-xrserver \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE) --no-cache .
 	@misc/errOutput docker build -f misc/Dockerfile-all \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(SERVER_IMAGE)-all \
+		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
 		--no-cache .
 	@rm -rf .spec
 	@touch .image
@@ -107,40 +107,41 @@ testimage: .testimage
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
-		$(SERVER_IMAGE) --recreate --verify
+		$(XRSERVER_IMAGE) --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(SERVER_IMAGE) --recreate --verify
+		$(XRSERVER_IMAGE) --recreatedb --samples --verify
 	@touch .testimage
 
 push: .push
 .push: .image
 	docker push $(XR_IMAGE)
-	docker push $(SERVER_IMAGE)
-	docker push $(SERVER_IMAGE)-all
+	docker push $(XRSERVER_IMAGE)
+	docker push $(XRSERVER_IMAGE)-all
 	@touch .push
 
 start: mysql cmds waitformysql
 	@echo
-	@echo "# Starting server"
-	./server $(VERIFY)
+	@echo "# Starting xrserver"
+	./xrserver run -v $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
-	@echo "# Starting server from scratch"
-	./server --recreate $(VERIFY)
+	@echo "# Starting xrserver from scratch"
+	./xrserver run -v --recreatedb --samples $(VERIFY)
 
 docker-all: image
-	docker run -ti -p 8080:8080 $(SERVER_IMAGE)-all --recreate
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -v --recreatedb --samples
 
 large:
-	# Run the server with a ton of data
+	# Run the xrserver with a ton of data
 	@XR_LOAD_LARGE=1 make run
 
 docker: mysql image waitformysql
 	@echo
-	@echo "# Starting server in Docker from scratch"
-	docker run -ti --network host $(SERVER_IMAGE) --recreate $(VERIFY)
+	@echo "# Starting xrserver in Docker from scratch"
+	docker run -ti --network host $(XRSERVER_IMAGE) -v --recreatedb \
+		--samples $(VERIFY)
 
 mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
@@ -180,11 +181,11 @@ k3d: misc/mysql.yaml
 
 k3dserver: k3d image
 	-kubectl delete -f misc/deploy.yaml 2> /dev/null
-	k3d image import $(SERVER_IMAGE) -c xreg
+	k3d image import $(XRSERVER_IMAGE) -c xreg
 	kubectl apply -f misc/deploy.yaml
-	sleep 2 ; kubectl logs -f xreg-server
+	sleep 2 ; kubectl logs -f xrserver
 
-prof: server
+prof: xrserver
 	@# May need to install: apt-get install graphviz
 	NO_DELETE_REGISTRY=1 \
 		go test -cpuprofile cpu.prof -memprofile mem.prof -bench . \
@@ -206,7 +207,7 @@ testdev: devimage
 	@echo "# Make sure mysql isn't running"
 	-docker rm -f mysql > /dev/null 2>&1
 	@echo
-	@echo "## Build, test and run the server all within the dev image"
+	@echo "## Build, test and run the xrserver all within the dev image"
 	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
 		-e VERIFY=--verify --network host $(DOCKERHUB)xreg-dev make clean all
 	@echo "## Done! Exit the dev image testing"
@@ -215,7 +216,7 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cpu.prof mem.prof
-	@rm -f server xr xrconform
+	@rm -f xrserver xr xrconform
 	@rm -f .test .image .push
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1

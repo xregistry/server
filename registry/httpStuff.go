@@ -92,7 +92,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer log.SetVerbose(saveVerbose)
 	}
 
-	log.VPrintf(2, "%s %s", r.Method, r.URL)
+	log.VPrintf(1, "%s %s", r.Method, r.URL)
 
 	if r.URL.Path == "/proxy" {
 		err := HTTPProxy(w, r)

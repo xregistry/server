@@ -14,7 +14,7 @@ To run the official image (with an embedded mysql DB):
 ```
 # You need to have Docker installed
 
-docker run -ti -p 8080:8080 ghcr.io/xregistry/xreg-server-all
+docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 ```
 
 Please see the simple [doc-store](samples/doc-store) script to see how

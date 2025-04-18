@@ -848,7 +848,7 @@ var firstTime = true
 
 func OpenDB(name string) error {
 	if firstTime {
-		log.VPrintf(1, "DB: %s:%s", DBHOST, DBPORT)
+		log.VPrintf(3, "Open DB: %s:%s", DBHOST, DBPORT)
 		firstTime = false
 	}
 

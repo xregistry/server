@@ -30,9 +30,9 @@ func addGroupCmd(parent *cobra.Command) {
 		Run:                   groupCreateFunc,
 		DisableFlagsInUseLine: true,
 	}
-	groupCreateCmd.Flags().StringP("import", "i", "", "Map of data (json)")
+	groupCreateCmd.Flags().StringP("import", "i", "", "Map of data(json)")
 	groupCreateCmd.Flags().StringP("data", "d", "",
-		"Group data (json),@FILE,@URL,-")
+		"Data (json), @FILE, @URL, @-")
 	groupCreateCmd.Flags().StringP("file", "f", "",
 		"filename for Group data (json), \"-\" for stdin")
 	groupCmd.AddCommand(groupCreateCmd)
