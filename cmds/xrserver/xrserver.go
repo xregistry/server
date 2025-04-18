@@ -166,23 +166,8 @@ func runFunc(cmd *cobra.Command, args []string) {
 	err := registry.OpenDB(DBName)
 	ErrStop(err, "Can't connect to db(%s): %s", DBName, err)
 
-	reg, err := registry.FindRegistry(nil, RegistryName)
-	ErrStop(err, "Error findng registry(%s): %s", RegistryName, err)
-
-	if reg == nil {
-		if val, _ := cmd.Flags().GetBool("createreg"); !val {
-			Stop("Can't find registry: %s", RegistryName)
-		}
-
-		Verbose("Creating xReg: %s", RegistryName)
-		reg, err = registry.NewRegistry(nil, RegistryName)
-		if err == nil {
-			err = reg.Commit()
-		}
-
-		ErrStop(err, "Error creating new registry(%s): %s", RegistryName, err)
-	}
-
+	// Load samples before we look for the default reg because if the default
+	// on points to sample, but it's not there, it might try to create it
 	if val, _ := cmd.Flags().GetBool("samples"); val {
 		paths := os.Getenv("XR_MODEL_PATH")
 		os.Setenv("XR_MODEL_PATH", ".:"+paths+
@@ -200,6 +185,24 @@ func runFunc(cmd *cobra.Command, args []string) {
 			go LoadLargeSample(nil)
 		}
 	}
+
+	reg, err := registry.FindRegistry(nil, RegistryName)
+	ErrStop(err, "Error findng registry(%s): %s", RegistryName, err)
+
+	if reg == nil {
+		if val, _ := cmd.Flags().GetBool("createreg"); !val {
+			Stop("Can't find registry: %s", RegistryName)
+		}
+
+		Verbose("Creating xReg: %s", RegistryName)
+		reg, err = registry.NewRegistry(nil, RegistryName)
+		if err == nil {
+			err = reg.Commit()
+		}
+
+		ErrStop(err, "Error creating new registry(%s): %s", RegistryName, err)
+	}
+
 	Verbose("Default(/): reg-%s", reg.UID)
 
 	if reg == nil {
