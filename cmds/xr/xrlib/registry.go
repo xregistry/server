@@ -330,6 +330,15 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, err
 	return rm, nil
 }
 
+func (reg *Registry) DownloadObject(path string) (map[string]any, error) {
+	urlPath, err := reg.URLWithPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return DownloadObject(urlPath.String())
+}
+
 func (rm *ResourceModel) HasDoc() bool {
 	return rm != nil && rm.HasDocument != nil && *(rm.HasDocument) == true
 }

@@ -117,6 +117,7 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	}
 
 	body, err = io.ReadAll(res.Body)
+	res.Body.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -212,8 +213,10 @@ func ArrayContains(strs []string, needle string) bool {
 }
 
 type XID struct {
-	Type       int
+	Type       int // one of ENTITY_XXX constants below
 	IsEntity   bool
+	HasDetails bool
+
 	Group      string
 	GroupID    string
 	Resource   string
@@ -236,7 +239,14 @@ const (
 )
 
 func ParseXID(xidStr string) (*XID, error) {
+	hasDetails := false
 	xidStr = strings.TrimLeft(xidStr, "/")
+
+	if strings.HasSuffix(xidStr, "$details") {
+		hasDetails = true
+		xidStr = xidStr[:len(xidStr)-8]
+	}
+
 	parts := strings.Split(xidStr, "/")
 
 	if xidStr == "" {
@@ -244,8 +254,9 @@ func ParseXID(xidStr string) (*XID, error) {
 	}
 
 	xid := &XID{
-		Type:     ENTITY_REGISTRY,
-		IsEntity: true,
+		Type:       ENTITY_REGISTRY,
+		IsEntity:   true,
+		HasDetails: hasDetails,
 	}
 
 	if len(parts) > 0 {
@@ -382,6 +393,10 @@ func (xid *XID) String() string {
 				}
 			}
 		}
+	}
+
+	if xid.HasDetails {
+		str += "$details"
 	}
 
 	return str
@@ -536,4 +551,19 @@ func BoolStr(v bool, yes string, no string) string {
 		return yes
 	}
 	return no
+}
+
+func DownloadObject(urlPath string) (map[string]any, error) {
+	res, err := HttpDo("GET", urlPath, nil)
+	if err != nil {
+		return nil, err
+	}
+	if res.Code != 200 {
+		return nil, fmt.Errorf("Error downloading %q: %s %s", urlPath,
+			res.Code, res.Body)
+	}
+
+	object := map[string]any(nil)
+	err = json.Unmarshal(res.Body, &object)
+	return object, err
 }

@@ -8,11 +8,13 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func createDBCmd() *cobra.Command {
+func addDBCmd(parent *cobra.Command) *cobra.Command {
 	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Manage mysql databases",
 	}
+
+	parent.AddCommand(dbCmd)
 
 	createCmd := &cobra.Command{
 		Use:   "create NAME",

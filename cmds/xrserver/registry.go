@@ -11,11 +11,12 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func createRegistryCmd() *cobra.Command {
+func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 	registryCmd := &cobra.Command{
 		Use:   "registry",
 		Short: "Manage xRegistries",
 	}
+	parent.AddCommand(registryCmd)
 
 	createCmd := &cobra.Command{
 		Use:   "create ID...",

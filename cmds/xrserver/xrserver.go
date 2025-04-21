@@ -108,8 +108,9 @@ func setupCmds() *cobra.Command {
 	runCmd.Flags().BoolP("createreg", "", false, "Create registry if missing")
 
 	serverCmd.AddCommand(runCmd)
-	serverCmd.AddCommand(createDBCmd())
-	serverCmd.AddCommand(createRegistryCmd())
+
+	addDBCmd(serverCmd)
+	addRegistryCmd(serverCmd)
 
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		log.SetVerbose(VerboseCount)

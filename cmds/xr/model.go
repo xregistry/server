@@ -18,44 +18,40 @@ func addModelCmd(parent *cobra.Command) {
 		Short:   "Manage a regsitry's model",
 		GroupID: "Admin",
 	}
+	parent.AddCommand(modelCmd)
 
-	modelNormalizeCmd := &cobra.Command{
+	normalizeCmd := &cobra.Command{
 		Use:   "normalize [ - | FILE | -d ]",
-		Short: "Parse and resolve includes in an xRegistry model document",
+		Short: "Parse and resolve 'includes' in an xRegistry model document",
 		Run:   modelNormalizeFunc,
 	}
-	modelNormalizeCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-")
-	modelCmd.AddCommand(modelNormalizeCmd)
+	normalizeCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	modelCmd.AddCommand(normalizeCmd)
 
-	modelVerifyCmd := &cobra.Command{
+	verifyCmd := &cobra.Command{
 		Use:   "verify [ - | FILE | -d ]",
 		Short: "Parse and verify xRegistry model document",
 		Run:   modelVerifyFunc,
 	}
-	modelVerifyCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-")
-	modelCmd.AddCommand(modelVerifyCmd)
+	verifyCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	modelCmd.AddCommand(verifyCmd)
 
-	modelUpdateCmd := &cobra.Command{
-		Use:   "update",
+	updateCmd := &cobra.Command{
+		Use:   "update [ - | FILE | -d ]",
 		Short: "Update the registry's model",
 		Run:   modelUpdateFunc,
 	}
-	modelUpdateCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-")
-	modelCmd.AddCommand(modelUpdateCmd)
+	updateCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	modelCmd.AddCommand(updateCmd)
 
-	modelGetCmd := &cobra.Command{
+	getCmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get the registry's model",
 		Run:   modelGetFunc,
 	}
-	modelGetCmd.Flags().BoolP("all", "a", false, "Show all data")
-	modelGetCmd.Flags().StringP("output", "o", "table", "output: table, json")
-	modelCmd.AddCommand(modelGetCmd)
-
-	parent.AddCommand(modelCmd)
+	getCmd.Flags().BoolP("all", "a", false, "Show all data")
+	getCmd.Flags().StringP("output", "o", "table", "output: table, json")
+	modelCmd.AddCommand(getCmd)
 }
 
 func modelNormalizeFunc(cmd *cobra.Command, args []string) {
@@ -63,7 +59,7 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	var buf []byte
 
 	if len(args) > 0 && cmd.Flags().Changed("data") {
-		Error("Can't specify an arg and the -d flag")
+		Error("Can't specify a FILE and the -d flag")
 	}
 
 	fileName := ""
@@ -98,7 +94,11 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	var err error
 
 	if len(args) > 0 && cmd.Flags().Changed("data") {
-		Error("Can't specify an arg and the -d flag")
+		Error("Can't specify a FILE and the -d flag")
+	}
+
+	if len(args) > 1 {
+		Error("Only one FILE is allowed to be specified")
 	}
 
 	fileName := ""
@@ -152,6 +152,14 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
+	if len(args) > 0 && cmd.Flags().Changed("data") {
+		Error("Can't specify a FILE and the -d flag")
+	}
+
+	if len(args) > 1 {
+		Error("Only one FILE is allowed to be specified")
+	}
+
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
@@ -183,7 +191,6 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 
 	_, err = reg.HttpDo("PUT", "/model", []byte(buf))
 	Error(err)
-
 	Verbose("Model updated")
 }
 
