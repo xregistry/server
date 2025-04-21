@@ -51,6 +51,8 @@ func addDownloadCmd(parent *cobra.Command) {
 		"Directory index file name")
 	downloadCmd.Flags().BoolP("md2html", "m", false,
 		"Generate HTML files for MD files")
+	downloadCmd.Flags().BoolP("capabilities", "c", false,
+		"Modify capabilities for static site")
 
 	parent.AddCommand(downloadCmd)
 }
@@ -81,6 +83,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	md2html, _ := cmd.Flags().GetBool("md2html")
 	indexFile, _ := cmd.Flags().GetString("index")
 	host, _ := cmd.Flags().GetString("url")
+	modCap, _ := cmd.Flags().GetBool("capabilities")
 	if host != "" {
 		if host[len(host)-1] != '/' {
 			host += "/"
@@ -306,7 +309,17 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	data, _ := Download(reg, "/model")
 	Write(dir+"/model", data)
 	Write(dir+"/model.hdr", []byte("content-type: application/json"))
+
 	data, _ = Download(reg, "/capabilities")
+	if modCap {
+		caps, err := registry.ParseCapabilitiesJSON(data)
+		Error(err)
+		caps.Flags = nil
+		caps.Mutable = nil
+		caps.Pagination = false
+		data, _ = json.MarshalIndent(caps, "", "  ")
+	}
+
 	Write(dir+"/capabilities", data)
 	Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
 }
