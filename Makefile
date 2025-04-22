@@ -48,7 +48,7 @@ test: .test .testimages
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
-	@! grep -P '\t' registry/init.sql || (echo "Remove tabs in init.db";exit 1)
+	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
 	@go clean -testcache
 	@echo "go test -failfast $(TESTDIRS)"
 	@for s in $(TESTDIRS); do if ! go test -failfast $$s; then exit 1; fi; done
@@ -110,7 +110,7 @@ testimages: .testimages
 		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) -v --recreatedb --samples --verify
 	@touch .testimages
 
 push: .push
@@ -123,12 +123,12 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver run -v $(VERIFY)
+	./xrserver -vv $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver run -v --recreatedb --samples $(VERIFY)
+	./xrserver -vv --recreatedb --samples $(VERIFY)
 
 docker-all: images
 	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -v --recreatedb --samples
@@ -140,7 +140,7 @@ large:
 docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
-	docker run -ti --network host $(XRSERVER_IMAGE) -v --recreatedb \
+	docker run -ti --network host $(XRSERVER_IMAGE) -vv --recreatedb \
 		--samples $(VERIFY)
 
 mysql:
@@ -210,7 +210,7 @@ testdev: devimage
 	@echo "## Build, test and run the xrserver all within the dev image"
 	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
 		-e VERIFY=--verify --network host $(DOCKERHUB)xreg-dev make clean all
-	@echo "## Done! Exit the dev image testing"
+	@echo "## Done testing the dev image"
 
 clean:
 	@echo

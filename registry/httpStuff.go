@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	// "net/url"
+	"net/url"
 	// "os"
 	"reflect"
 	"sort"
@@ -321,17 +321,49 @@ func (pw *PageWriter) Done() {
 	pw.OldWriter.Done()
 }
 
+func BuildURL(info *RequestInfo, path string) string {
+	if info.ProxyHost == "" {
+		if path != "" && path[0] != '/' {
+			path = "/" + path
+		}
+		return info.BaseURL + path + "?ui"
+	}
+	return fmt.Sprintf("/proxy?host=%s&path=%s",
+		info.ProxyHost, url.QueryEscape(path))
+}
+
+func BuildURLNoUI(info *RequestInfo, path string) string {
+	if info.ProxyHost == "" {
+		if path != "" && path[0] != '/' {
+			path = "/" + path
+		}
+		return info.BaseURL + path
+	}
+	return fmt.Sprintf("/proxy?host=%s&path=%s",
+		info.ProxyHost, path)
+}
+
 func GenerateUI(info *RequestInfo, data []byte) []byte {
 	list := ""
 	regs := GetRegistryNames()
 	sort.Strings(regs)
 	regs = append([]string{"Default"}, regs...)
+	if info.ProxyHost != "" {
+		regs = append(regs, "Proxy: "+info.ProxyHost[:10])
+	}
+	regs = append(regs, "Proxy ...")
 
+	selectedRegistry := ""
 	for _, name := range regs {
 		checked := ""
-		if name == "Default" && !strings.Contains(info.BaseURL, "/reg-") {
+		if strings.HasPrefix(name, "Proxy: ") && info.ProxyHost != "" {
+			selectedRegistry = name
+			checked = " selected"
+		} else if name == "Default" && !strings.Contains(info.BaseURL, "/reg-") && info.ProxyHost == "" {
+			selectedRegistry = name
 			checked = " selected"
 		} else if strings.Contains(info.BaseURL, "/reg-"+name) {
+			selectedRegistry = name
 			checked = " selected"
 		}
 		list += fmt.Sprintf("\n      <option%s>%s</option>", checked, name)
@@ -360,41 +392,46 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			name = "<b>" + name + "</b>"
 		}
 
-		roots += fmt.Sprintf("  <li class=myli><a href=\"%s?ui\">%s</a>",
-			info.BaseURL+"/"+r.u, name)
+		roots += fmt.Sprintf("  <li class=myli><a href=\"%s\">%s</a>",
+			BuildURL(info, r.u), name)
 
 		if r.u == "capabilities" {
-			roots += "&nbsp;&nbsp;("
-			if info.HasFlag("offered") {
-				roots += "<b>"
+			if info.FlagEnabled("offered") {
+				roots += "&nbsp;&nbsp;("
+				if info.HasFlag("offered") {
+					roots += "<b>"
+				}
+				roots += fmt.Sprintf("<a href=\"%s?offered\">offered</a>",
+					BuildURL(info, r.u))
+				if info.HasFlag("offered") {
+					roots += "</b>"
+				}
+				roots += ")"
 			}
-			roots += fmt.Sprintf("<a href=\"%s?ui&offered\">offered</a>",
-				info.BaseURL+"/"+r.u)
-			if info.HasFlag("offered") {
-				roots += "</b>"
-			}
-			roots += ")"
 		}
 
 		roots += "</li>\n"
 	}
 
 	if info.RootPath == "" {
-		checked := ""
-		if info.DoDocView() {
-			checked = " checked"
-		}
-		options += "    <div class=docview>\n" +
-			"      <input id=docview type='checkbox'" + checked + "/>doc view\n" +
-			"    </div>\n"
+		if info.FlagEnabled("doc") {
+			checked := ""
+			if info.DoDocView() {
+				checked = " checked"
+			}
+			options +=
+				"    <div class=docview>\n" +
+					"      <input id=docview type='checkbox'" + checked + "/>doc view\n" +
+					"    </div>\n"
 
-		if options != "" { // Wrapper if any
-			options = "<b>Options:</b>\n\n" + options +
-				"\n    <hr style=\"width: 95%%\">\n"
+			if options != "" { // Wrapper if any
+				options = "<b>Options:</b>\n\n" + options +
+					"\n    <hr style=\"width: 95%%\">\n"
+			}
 		}
 	}
 
-	if info.RootPath == "" || info.RootPath == "export" {
+	if info.FlagEnabled("filter") && (info.RootPath == "" || info.RootPath == "export") {
 		prefix := MustPropPathFromPath(info.Abstract).UI()
 		if prefix != "" {
 			prefix += string(UX_IN)
@@ -433,7 +470,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			info.IsInlineSet(NewPPP("*").DB()))
 	}
 
-	if info.RootPath == "" || info.RootPath == "export" {
+	if info.FlagEnabled("inline") && (info.RootPath == "" || info.RootPath == "export") {
 		inlineCount := 0
 		checked := ""
 
@@ -543,11 +580,12 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		}
 	}
 
-	tmp := info.BaseURL
-	urlPath := fmt.Sprintf(`<a href="%s?ui">%s</a>`, tmp, tmp)
-	for _, p := range info.Parts {
+	tmp := BuildURL(info, "")
+	urlPath := fmt.Sprintf(`<a href="%s">%s</a>`, tmp, info.BaseURL)
+	for i, p := range info.Parts {
+		tmp := BuildURL(info, strings.Join(info.Parts[:i], "/"))
 		tmp += "/" + p
-		urlPath += fmt.Sprintf(`/<a href="%s?ui">%s</a>`, tmp, p)
+		urlPath += fmt.Sprintf(`/<a href="%s">%s</a>`, tmp, p)
 	}
 
 	detailsSwitch := "false"
@@ -557,11 +595,14 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		if info.ShowDetails {
 			detailsSwitch = "true"
 			detailsText = "Show document"
-			urlPath += fmt.Sprintf(`$<a href="%s$details?ui">details</a>`, tmp)
+
+			tmp := BuildURL(info, strings.Join(info.Parts, "/")+"$details")
+			urlPath += fmt.Sprintf(`<a href="%s">$details</a>`, tmp)
 		} else {
 			detailsSwitch = "false"
 			detailsText = "Show details"
 		}
+
 		if info.ResourceUID != "" && info.What == "Entity" &&
 			(len(info.Parts) != 5 || info.Parts[4] != "meta") {
 			detailsButton = fmt.Sprintf(`<center>
@@ -584,6 +625,13 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
     </fieldset>`
 	}
 
+	addUI := "ui"
+	AMP := "&"
+	if info.ProxyHost != "" {
+		addUI = ""
+		AMP = url.QueryEscape(AMP)
+	}
+
 	output, expands := RegHTMLify(data, ".", info.ProxyHost)
 
 	autoExpand := ""
@@ -595,7 +643,7 @@ toggleExp(null, false);
 `
 	}
 
-	html := fmt.Sprintf(`<html>
+	html := `<html>
 <style>
   a:visited {
     color: black ;
@@ -608,7 +656,7 @@ toggleExp(null, false);
     flex-direction: row ;
     flex-wrap: nowrap ;
     justify-content: flex-start ;
-    height: 100%% ;
+    height: 100% ;
     margin: 0 ;
   }
   #left {
@@ -625,7 +673,7 @@ toggleExp(null, false);
     flex-direction: column ;
     flex-wrap: nowrap ;
     justify-content: flex-start ;
-    width: 100%% ;
+    width: 100% ;
     overflow: auto ;
   }
   #url {
@@ -664,9 +712,9 @@ toggleExp(null, false);
 
   #githubLogo {
     position: fixed ;
-	left: 0 ;
-	bottom: 0 ;
-	cursor: pointer ;
+    left: 0 ;
+    bottom: 0 ;
+    cursor: pointer ;
     font-family: courier ;
     font-size: 10 ;
     display: inline-flex ;
@@ -731,15 +779,15 @@ toggleExp(null, false);
 
   textarea {
     margin-bottom: 10px ;
-    min-width: 99%% ;
-    max-width: 95%% ;
+    min-width: 99% ;
+    max-width: 95% ;
   }
   #filters {
     display: block ;
     min-height: 8em ;
     font-size: 12px ;
     font-family: courier ;
-    width: 100%%
+    width: 100%
   }
   select {
     background: #407d16 ;
@@ -788,7 +836,7 @@ toggleExp(null, false);
   }
 
   .line {
-    width: 90%% ;
+    width: 90% ;
     border-bottom: 1px solid black ;
     margin: 3 0 3 20 ;
   }
@@ -890,26 +938,36 @@ toggleExp(null, false);
         </defs>
       </svg><b>egistry:</b>
     </a>
-    <select onchange="changeRegistry(value)">`+list+`    </select>
+    <select id=regList onchange="changeRegistry(value)">` + list + `    </select>
   </div>
   <div id=options>
-`+roots+`
+` + roots + `
   <div id=buttonList>
-    `+applyBtn+`
-    `+detailsButton+`
+    ` + applyBtn + `
+    ` + detailsButton + `
   </div>
   </div> <!-- options -->
 </div>  <!-- left -->
 
 <script>
 
-var detailsSwitch = `+detailsSwitch+`;
+var detailsSwitch = ` + detailsSwitch + `;
 
 function changeRegistry(name) {
   var loc = ""
 
   if (name == "Default") loc = "/?ui"
-  else loc = "/reg-" + name + "?ui"
+  else if (name == "Proxy ...") {
+    proxy = prompt("xRegistry host URL")
+    if (proxy != null) {
+      if ( !proxy.startsWith("http") ) proxy = "http://" + proxy ;
+      loc = "/proxy?host=" + proxy ;
+    } else {
+      document.getElementById('regList').value = "` + selectedRegistry + `";
+      return false ;
+    }
+  } else loc = "/reg-" + name + "?ui"
+
 
   window.location = loc
 }
@@ -917,25 +975,28 @@ function changeRegistry(name) {
 function opensrc(loc) {
   if (loc == null) loc = "https://xregistry.io"
   else if (loc == "commit") {
-    loc = "https://github.com/xregistry/server/tree/`+GitCommit+`"
+    loc = "https://github.com/xregistry/server/tree/` + GitCommit + `"
   }
   window.open( loc )
 }
 
 function apply() {
-  var loc = "`+info.BaseURL+`/`+strings.Join(info.Parts, "/")+`"
+  var loc = "` + BuildURLNoUI(info, "") + `/` + strings.Join(info.Parts, "/") + `"
 
   if (detailsSwitch) loc += "$details"
-  loc += "?ui"
+  loc += "?` + addUI + `"
 
   ex = document.getElementById("docview")
-  if (ex != null && ex.checked) loc += "&doc"
+  if (ex != null && ex.checked) loc += "` + AMP + `doc"
 
-  var filters = document.getElementById("filters").value
-  var lines = filters.split("\n")
-  for (var i = 0 ; i < lines.length ; i++ ) {
-    if (lines[i] != "") {
-      loc += "&filter=" + lines[i]
+  var elem = document.getElementById("filters")
+  if (elem != null) {
+    var filters = elem.value
+    var lines = filters.split("\n")
+    for (var i = 0 ; i < lines.length ; i++ ) {
+      if (lines[i] != "") {
+        loc += "` + AMP + `filter=" + lines[i]
+      }
     }
   }
 
@@ -943,7 +1004,7 @@ function apply() {
     var box = document.getElementById("inline"+i)
     if (box == null) { break }
     if (box.checked) {
-      loc += "&inline=" + box.value
+      loc += "` + AMP + `inline=" + box.value
     }
   }
 
@@ -955,7 +1016,7 @@ function toggleExp(elem, exp) {
     elem = document.getElementById("expAll")
     exp = (elem.show == true)
     elem.show = !exp
-    elem.innerHTML = (exp ? '`+HTML_MIN+`' : '`+HTML_EXP+`')
+    elem.innerHTML = (exp ? '` + HTML_MIN + `' : '` + HTML_EXP + `')
     for ( var i = 1 ;; i++ ) {
       elem = document.getElementById("s"+i)
       if ( !elem ) return false
@@ -967,7 +1028,7 @@ function toggleExp(elem, exp) {
   var block = document.getElementById(id+'block')
   if ( exp === undefined ) exp = (block.style.display == "none")
 
-  elem.innerHTML = (exp ? "`+HTML_EXP+`" : "`+HTML_MIN+`")
+  elem.innerHTML = (exp ? "` + HTML_EXP + `" : "` + HTML_MIN + `")
 
   block.style.display = (exp?"inline":"none")
   document.getElementById(id+'dots').style.display = (exp?"none":"inline")
@@ -996,22 +1057,27 @@ function dokeydown(event) {
     </form>
     -->
   <div id=urlPath>
-  <b>Path:</b> `+urlPath+`
+    <b>Path:</b> ` + urlPath + `
   </div>
-  <div id=myOutput tabindex=0 onkeydown=dokeydown(event)><div class=expandAll>
-    <span id=expAll class=expandBtn title="Collapse/Expand all" onclick=toggleExp(null,false)>`+HTML_MIN+`</span>
-  </div><div id='text'>%s</div></div> <!-- myOutput -->
+  <div id=myOutput tabindex=0 onkeydown=dokeydown(event)
+    ><div class=expandAll>
+      <span id=expAll class=expandBtn title="Collapse/Expand all" onclick=toggleExp(null,false)>` + HTML_MIN + `</span>
+    </div
+    ><div id='text'
+>` + string(output) + `
+    </div> <!-- text -->
+  </div> <!-- myOutput -->
 </div> <!-- right -->
 
 <div id="githubLogo">
 <svg height="20" aria-hidden="true" viewBox="0 0 24 24" width="20" onclick="opensrc('commit')">
-  <title>Open commit: `+GitCommit+`</title>
+  <title>Open commit: ` + GitCommit + `</title>
   <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z"></path>
-</svg>`+GitCommit[:5]+`
+</svg>` + GitCommit[:5] + `
 </div>
-%s
+` + autoExpand + `
 </html>
-`, output, autoExpand)
+`
 
 	return []byte(html)
 }
@@ -3054,6 +3120,8 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 		data = []byte(err.Error())
 	}
 
+	log.VPrintf(4, "Download: %s%s", host, path)
+
 	if data == nil {
 		data, err = DownloadURL(host + path)
 		if err != nil {
@@ -3061,9 +3129,17 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
+	log.VPrintf(4, "Data:\n%s", string(data))
+
+	r.URL, err = url.Parse(path)
+	r.RequestURI = path
+	if err != nil {
+		data = []byte(err.Error())
+	}
+
 	info := &RequestInfo{
-		OriginalPath:    path,
-		OriginalRequest: r, // not sure this is the best option
+		OriginalPath:    r.URL.Path, // path,
+		OriginalRequest: r,          // not sure this is the best option
 		Registry:        reg,
 		BaseURL:         host,
 		ProxyHost:       host,

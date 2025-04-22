@@ -1044,17 +1044,18 @@ func PrettyPrint(object any, prefix string, indent string) string {
 func DownloadURL(urlPath string) ([]byte, error) {
 	res, err := http.Get(urlPath)
 	if err == nil {
-		data, err := io.ReadAll(res.Body)
+		var data []byte
+		data, err = io.ReadAll(res.Body)
 		res.Body.Close()
 
 		if err == nil {
 			if res.StatusCode/100 != 2 {
-				err = fmt.Errorf("%d %s: %s",
-					res.StatusCode, res.Status, string(data))
+				err = fmt.Errorf("%s:\n%s", res.Status, string(data))
 			} else {
 				return data, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("Error retieving %q: %s", urlPath, err)
+
+	return nil, fmt.Errorf("Error retrieving %q: %s", urlPath, err)
 }

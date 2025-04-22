@@ -244,16 +244,6 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		info.tx.User = tmp
 	}
 
-	// Notice boolean flags end up with "" as a value
-	info.Flags = map[string]string{}
-	params := info.OriginalRequest.URL.Query()
-	for _, flag := range AllowableFlags {
-		val, ok := params[flag]
-		if ok {
-			info.Flags[flag] = val[0]
-		}
-	}
-
 	// Parse the incoming URL and setup more stuff in info, like Groups...
 	err = info.ParseRequestURL()
 	if err != nil {
@@ -398,6 +388,17 @@ func (info *RequestInfo) ParseRegistryURL() error {
 
 func (info *RequestInfo) ParseRequestURL() error {
 	log.VPrintf(4, "ParseRequestURL:\n%s", ToJSON(info))
+	log.VPrintf(4, "Req: %#v", info.OriginalRequest.URL)
+
+	// Notice boolean flags end up with "" as a value
+	info.Flags = map[string]string{}
+	params := info.OriginalRequest.URL.Query()
+	for _, flag := range AllowableFlags {
+		val, ok := params[flag]
+		if ok {
+			info.Flags[flag] = val[0]
+		}
+	}
 
 	if err := info.ParseRequestPath(); err != nil {
 		return err
@@ -458,6 +459,8 @@ func (info *RequestInfo) ParseRequestURL() error {
 
 func (info *RequestInfo) ParseRequestPath() error {
 	// Now process the URL path
+	log.VPrintf(4, "ParseRequestPath: %q", info.OriginalPath)
+
 	path := strings.Trim(info.OriginalPath, " /")
 	info.Parts = strings.Split(path, "/")
 
@@ -617,25 +620,38 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 // Get query parameter value
 func (info *RequestInfo) GetFlag(name string) string {
-	if !info.Registry.Capabilities.FlagEnabled(name) {
+	if info.Registry == nil || info.Registry.Capabilities == nil ||
+		!info.Registry.Capabilities.FlagEnabled(name) {
 		return ""
 	}
 	return info.Flags[name]
 }
 
 func (info *RequestInfo) GetFlagValues(name string) []string {
-	if !info.Registry.Capabilities.FlagEnabled(name) {
+	if info.Registry == nil || info.Registry.Capabilities == nil ||
+		!info.Registry.Capabilities.FlagEnabled(name) {
 		return nil
 	}
 	return info.OriginalRequest.URL.Query()[name]
 }
 
 func (info *RequestInfo) HasFlag(name string) bool {
-	if !info.Registry.Capabilities.FlagEnabled(name) {
+	if info.Registry == nil || info.Registry.Capabilities == nil ||
+		!info.Registry.Capabilities.FlagEnabled(name) {
+
 		return false
 	}
 	_, ok := info.Flags[name]
 	return ok
+}
+
+func (info *RequestInfo) FlagEnabled(name string) bool {
+	if info.Registry == nil || info.Registry.Capabilities == nil ||
+		!info.Registry.Capabilities.FlagEnabled(name) {
+
+		return false
+	}
+	return true
 }
 
 func (info *RequestInfo) DoDocView() bool {

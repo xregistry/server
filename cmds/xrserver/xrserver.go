@@ -87,17 +87,22 @@ func setupCmds() *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "xrserver",
 		Short: "xRegistry server",
-		// Run:   runFunc,  // if we add this, add all of runCmd's flags
-
+		Run:   runFunc, // if we add this, add all of runCmd's flags
 	}
+	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
+	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
+	serverCmd.Flags().IntVarP(&Port, "port", "p", Port, "Listen port")
+	serverCmd.Flags().StringVarP(&DBName, "db", "", DBName, "DB name")
+	serverCmd.Flags().BoolP("recreatedb", "", false, "Recreate the DB")
+	serverCmd.Flags().BoolP("createreg", "", false, "Create registry if missing")
 
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
-		"Be chatty``")
+		"Be chatty - can specify multiple (-v=0 to turn off)``")
 
 	runCmd := &cobra.Command{
 		Use:   "run [default-registry-name]",
-		Short: "Run server",
+		Short: "Run server (the default command)",
 		Run:   runFunc,
 	}
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
@@ -118,7 +123,7 @@ func setupCmds() *cobra.Command {
 		registry.GitCommit = GitCommit
 	}
 
-	serverCmd.PersistentFlags().BoolP("help", "h", false, "Help for xrserver")
+	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
 	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
 

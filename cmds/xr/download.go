@@ -306,22 +306,45 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Error(traverseFromXID(reg, xid, dir, downloadXIDFn))
 	}
 
-	data, _ := Download(reg, "/model")
-	Write(dir+"/model", data)
-	Write(dir+"/model.hdr", []byte("content-type: application/json"))
-
-	data, _ = Download(reg, "/capabilities")
-	if modCap {
-		caps, err := registry.ParseCapabilitiesJSON(data)
-		Error(err)
-		caps.Flags = nil
-		caps.Mutable = nil
-		caps.Pagination = false
-		data, _ = json.MarshalIndent(caps, "", "  ")
+	data, _ := Download(reg, "/export")
+	if len(data) > 0 {
+		// If the user wants the "capabilities" to be modified for a static
+		// web site then we need to update them in the /export output too
+		if modCap {
+			tmpData := map[string]json.RawMessage(nil)
+			Error(json.Unmarshal(data, &tmpData))
+			caps, err := registry.ParseCapabilitiesJSON(tmpData["capabilities"])
+			Error(err)
+			caps.Flags = nil
+			caps.Mutable = nil
+			caps.Pagination = false
+			tmpData["capabilities"], _ = json.Marshal(caps)
+			data, _ = json.MarshalIndent(tmpData, "", "  ")
+		}
+		Write(dir+"/export", data)
+		Write(dir+"/export.hdr", []byte("content-type: application/json"))
 	}
 
-	Write(dir+"/capabilities", data)
-	Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
+	data, _ = Download(reg, "/model")
+	if len(data) > 0 {
+		Write(dir+"/model", data)
+		Write(dir+"/model.hdr", []byte("content-type: application/json"))
+	}
+
+	data, _ = Download(reg, "/capabilities")
+	if len(data) > 0 {
+		if modCap {
+			caps, err := registry.ParseCapabilitiesJSON(data)
+			Error(err)
+			caps.Flags = nil
+			caps.Mutable = nil
+			caps.Pagination = false
+			data, _ = json.MarshalIndent(caps, "", "  ")
+		}
+
+		Write(dir+"/capabilities", data)
+		Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
+	}
 }
 
 // Body, Headers

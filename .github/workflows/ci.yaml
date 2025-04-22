@@ -29,5 +29,8 @@ jobs:
 
       - env:
           SOAPHUB_SSH_KEY: ${{ secrets.SOAPHUB_SSH_KEY }}
+        # Setup each host such that the SSH KEY can only run one command.
+        # In .ssh/authorized_keys prefix it with: command="..."
+        # e.g. command="/../restart" ssh-sra AAA...
         run: misc/restart SOAPHUB_SSH_KEY ubuntu@soaphub.org
 
