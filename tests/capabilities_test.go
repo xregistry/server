@@ -99,6 +99,8 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "empty",
 			Cap:  `{}`,
 			Exp: `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/1.0-rc1"
@@ -114,6 +116,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "full mutable",
 			Cap:  `{"mutable":["entities","model","capabilities"]}`,
 			Exp: `{
+  "flags": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -134,6 +137,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "dup mutable",
 			Cap:  `{"mutable":["entities","model","entities","capabilities"]}`,
 			Exp: `{
+  "flags": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -154,6 +158,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "star mutable",
 			Cap:  `{"mutable":["*"]}`,
 			Exp: `{
+  "flags": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -174,6 +179,8 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "mutable empty",
 			Cap:  `{"mutable":[]}`,
 			Exp: `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/` + registry.SPECVERSION + `"
@@ -297,6 +304,8 @@ func TestCapabilityPath(t *testing.T) {
 	// Try to clear it all - some can't be totally erased
 	xHTTP(t, reg, "PUT", "/capabilities", `{}`, 200,
 		`{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -322,6 +331,8 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -344,6 +355,8 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": null
 }`, 200,
 		`{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -357,6 +370,8 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -453,6 +468,8 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/capabilities", `{
 }`, 200,
 		`{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -466,6 +483,8 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -482,6 +501,8 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/capabilities", `{
 	"schemas": ["xregistry-json"]
 }`, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -500,6 +521,8 @@ func TestCapabilityPath(t *testing.T) {
 	"shortself": false,
     "sticky": false
 }`, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -562,6 +585,8 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
+    "flags": [],
+    "mutable": [],
     "pagination": false,
     "schemas": [
       "xregistry-json/`+registry.SPECVERSION+`"
@@ -598,6 +623,8 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -672,6 +699,8 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to minimal
 	// inline still enabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": ["xregistry-json"],
   "shortself": false,
@@ -688,6 +717,8 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
+    "flags": [],
+    "mutable": [],
     "pagination": false,
     "schemas": [
       "xregistry-json/`+registry.SPECVERSION+`"
@@ -702,6 +733,8 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "flags": [],
+  "mutable": [],
   "pagination": false,
   "schemas": [
     "xregistry-json/`+registry.SPECVERSION+`"
@@ -747,6 +780,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	xHTTP(t, reg, "PUT", "/capabilities", `{"mutable":["*"]}`, 200, `{
+  "flags": [],
   "mutable": [
     "capabilities",
     "entities",
