@@ -10,12 +10,12 @@ import (
 )
 
 type Capabilities struct {
-	Flags        []string `json:"flags"`
-	Mutable      []string `json:"mutable"`
+	Flags        []string `json:"flags,omitempty"`
+	Mutable      []string `json:"mutable,omitempty"`
 	Pagination   bool     `json:"pagination"`
-	Schemas      []string `json:"schemas"`
+	Schemas      []string `json:"schemas,omitempty"`
 	ShortSelf    bool     `json:"shortself"`
-	SpecVersions []string `json:"specversions"`
+	SpecVersions []string `json:"specversions,omitempty"`
 	Sticky       *bool    `json:"sticky"`
 }
 
