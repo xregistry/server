@@ -605,10 +605,14 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 
 		if info.ResourceUID != "" && info.What == "Entity" &&
 			(len(info.Parts) != 5 || info.Parts[4] != "meta") {
-			detailsButton = fmt.Sprintf(`<center>
+			if info.ResourceModel.GetHasDocument() {
+				detailsButton = fmt.Sprintf(`<center>
       <button id=details onclick='detailsSwitch=!detailsSwitch ; apply()'>%s</button>
     </center>
 `, detailsText)
+			} else {
+				detailsButton = fmt.Sprintf("<br><center>No documents defined<br>for %q</center>", info.ResourceType)
+			}
 		}
 	}
 
