@@ -21,19 +21,19 @@ func addModelCmd(parent *cobra.Command) {
 	parent.AddCommand(modelCmd)
 
 	normalizeCmd := &cobra.Command{
-		Use:   "normalize [ - | FILE | -d ]",
+		Use:   "normalize [ - | FILE ]",
 		Short: "Parse and resolve 'includes' in an xRegistry model document",
 		Run:   modelNormalizeFunc,
 	}
-	normalizeCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	// normalizeCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 	modelCmd.AddCommand(normalizeCmd)
 
 	verifyCmd := &cobra.Command{
-		Use:   "verify [ - | FILE | -d ]",
-		Short: "Parse and verify xRegistry model document",
+		Use:   "verify [ - | FILE ... ]",
+		Short: "Parse and verify xRegistry model documents",
 		Run:   modelVerifyFunc,
 	}
-	verifyCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	// verifyCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
 	modelCmd.AddCommand(verifyCmd)
 
 	updateCmd := &cobra.Command{
@@ -58,28 +58,21 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	var err error
 	var buf []byte
 
-	if len(args) > 0 && cmd.Flags().Changed("data") {
-		Error("Can't specify a FILE and the -d flag")
+	// if len(args) > 0 && cmd.Flags().Changed("data") {
+	// Error("Can't specify a FILE and the -d flag")
+	// }
+
+	if len(args) > 1 {
+		Error("Only one FILE is allowed to be specified")
 	}
 
-	fileName := ""
-	if len(args) > 0 {
-		fileName = args[0]
-	} else {
-		data, _ := cmd.Flags().GetString("data")
-		if len(data) > 0 {
-			if data[0] == '@' {
-				fileName = data[1:]
-			} else {
-				buf = []byte(data)
-			}
-		}
+	if len(args) == 0 {
+		args = []string{"-"}
 	}
 
-	if len(buf) == 0 {
-		buf, err = xrlib.ReadFile(fileName)
-		Error(err)
-	}
+	fileName := args[0]
+	buf, err = xrlib.ReadFile(fileName)
+	Error(err)
 
 	buf, err = registry.ProcessIncludes(fileName, buf, true)
 	Error(err)
@@ -93,55 +86,47 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	var buf []byte
 	var err error
 
-	if len(args) > 0 && cmd.Flags().Changed("data") {
-		Error("Can't specify a FILE and the -d flag")
+	if len(args) == 0 {
+		args = []string{"-"}
 	}
 
-	if len(args) > 1 {
-		Error("Only one FILE is allowed to be specified")
-	}
-
-	fileName := ""
-	if len(args) > 0 {
-		fileName = args[0]
-	} else {
-		data, _ := cmd.Flags().GetString("data")
-		if len(data) > 0 {
-			if data[0] == '@' {
-				fileName = data[1:]
-			} else {
-				buf = []byte(data)
-			}
+	for _, fileName := range args {
+		prefix := ""
+		if len(args) > 1 {
+			prefix = fileName + ": "
 		}
-	}
 
-	if len(buf) == 0 {
 		buf, err = xrlib.ReadFile(fileName)
-		Error(err)
+		if err == nil {
+			err = VerifyModel(fileName, buf)
+		}
+		if err != nil {
+			Error(err, "%s%s", prefix, err)
+		}
+
+		Verbose("%sModel verified", prefix)
 	}
-
-	buf, err = registry.ProcessIncludes(fileName, buf, true)
-	Error(err)
-
-	VerifyModel("", buf)
-	Verbose("Model verified")
 }
 
-func VerifyModel(fileName string, buf []byte) {
+func VerifyModel(fileName string, buf []byte) error {
 	buf, err := registry.ProcessIncludes(fileName, buf, true)
 	if err != nil {
-		Error("%s%s", fileName, err)
+		return err
+		// Error("%s%s", fileName, err)
 	}
 
 	model := &registry.Model{}
 
 	if err := registry.Unmarshal(buf, model); err != nil {
-		Error("%s%s", fileName, err)
+		return err
+		//Error("%s%s", fileName, err)
 	}
 
 	if err := model.Verify(); err != nil {
-		Error("%s%s", fileName, err)
+		return err
+		// Error("%s%s", fileName, err)
 	}
+	return nil
 }
 
 func modelUpdateFunc(cmd *cobra.Command, args []string) {

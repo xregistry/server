@@ -98,7 +98,7 @@ func main() {
 		"Be chatty``")
 	xrCmd.PersistentFlags().StringVarP(&Server, "server", "s", "",
 		"xRegistry server URL")
-	xrCmd.PersistentFlags().BoolP("help", "h", false, "Help for xr")
+	xrCmd.PersistentFlags().BoolP("help", "?", false, "Help for xr")
 
 	xrCmd.AddGroup(
 		&cobra.Group{"Entities", "Data Management:"},
