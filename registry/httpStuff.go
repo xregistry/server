@@ -92,7 +92,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer log.SetVerbose(saveVerbose)
 	}
 
-	log.VPrintf(1, "%s %s", r.Method, r.URL)
+	log.VPrintf(2, "%s %s", r.Method, r.URL)
 
 	if r.URL.Path == "/proxy" {
 		err := HTTPProxy(w, r)
@@ -388,6 +388,11 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 
 	for _, r := range rootList {
 		name := r.name
+
+		if !info.APIEnabled("/" + name) {
+			continue
+		}
+
 		if info.RootPath == r.u && !info.HasFlag("offered") {
 			name = "<b>" + name + "</b>"
 		}
@@ -1423,14 +1428,26 @@ func HTTPGet(info *RequestInfo) error {
 	info.Root = strings.Trim(info.Root, "/")
 
 	if info.RootPath == "model" {
+		if !info.APIEnabled("/model") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
 		return HTTPGETModel(info)
 	}
 
 	if info.RootPath == "capabilities" {
+		if !info.APIEnabled("/capabilities") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
 		return HTTPGETCapabilities(info)
 	}
 
 	if info.RootPath == "export" {
+		if !info.APIEnabled("/export") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
 		return SerializeQuery(info, nil, "Registry", info.Filters)
 	}
 
@@ -1665,11 +1682,19 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	// Capabilities has its own special func
 	if info.RootPath == "capabilities" {
+		if !info.APIEnabled("/capabilities") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
 		return HTTPPUTCapabilities(info)
 	}
 
 	// The model has its own special func
 	if info.RootPath == "model" {
+		if !info.APIEnabled("/model") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
 		return HTTPPUTModel(info)
 	}
 
@@ -2350,17 +2375,18 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 
 	cap, err := ParseCapabilitiesJSON(reqBody)
 	if err != nil {
-		info.StatusCode = http.StatusBadRequest
 		return err
 	}
 
 	err = cap.Validate()
 	if err != nil {
-		info.StatusCode = http.StatusBadRequest
 		return err
 	}
 
-	info.Registry.SetSave("#capabilities", ToJSON(cap))
+	if err = info.Registry.SetSave("#capabilities", ToJSON(cap)); err != nil {
+		info.StatusCode = http.StatusInternalServerError
+		return err
+	}
 
 	return HTTPGETCapabilities(info)
 }

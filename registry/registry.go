@@ -424,6 +424,30 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 
 	reg.SetNewObject(obj)
 
+	// Need to do it here instead of under the checkFn because doing it
+	// in checkfn causes a circular reference that golang doesn't like
+	val, ok := reg.NewObject["model"]
+	if ok && !IsNil(val) {
+		valStr := []byte(ToJSON(val))
+		// Don't allow local files to be included (e.g. ../foo)
+		data, err := ProcessIncludes("", valStr, false)
+		if err != nil {
+			return err
+		}
+
+		model := Model{}
+		err = Unmarshal(data, &model)
+		if err != nil {
+			return err
+		}
+
+		err = reg.Model.ApplyNewModel(&model)
+		if err != nil {
+			return err
+		}
+		delete(reg.NewObject, "model")
+	}
+
 	// Make sure we always have an ID
 	if IsNil(reg.NewObject["registryid"]) {
 		reg.EnsureNewObject()

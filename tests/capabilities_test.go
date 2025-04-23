@@ -15,6 +15,11 @@ func TestCapabilitySimple(t *testing.T) {
 		"\"capabilities/foo\" not found\n")
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model"
+  ],
   "flags": [
     "collections",
     "doc",
@@ -57,6 +62,11 @@ func TestCapabilitySimple(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
   "capabilities": {
+    "apis": [
+      "/capabilities",
+      "/export",
+      "/model"
+    ],
     "flags": [
       "collections",
       "doc",
@@ -99,6 +109,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "empty",
 			Cap:  `{}`,
 			Exp: `{
+  "apis": [],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -116,6 +127,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "full mutable",
 			Cap:  `{"mutable":["entities","model","capabilities"]}`,
 			Exp: `{
+  "apis": [],
   "flags": [],
   "mutable": [
     "capabilities",
@@ -137,6 +149,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "dup mutable",
 			Cap:  `{"mutable":["entities","model","entities","capabilities"]}`,
 			Exp: `{
+  "apis": [],
   "flags": [],
   "mutable": [
     "capabilities",
@@ -158,6 +171,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "star mutable",
 			Cap:  `{"mutable":["*"]}`,
 			Exp: `{
+  "apis": [],
   "flags": [],
   "mutable": [
     "capabilities",
@@ -179,6 +193,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "mutable empty",
 			Cap:  `{"mutable":[]}`,
 			Exp: `{
+  "apis": [],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -257,6 +272,11 @@ func TestCapabilityPath(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model"
+  ],
   "flags": [
     "collections",
     "doc",
@@ -302,9 +322,12 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	// Try to clear it all - some can't be totally erased
-	xHTTP(t, reg, "PUT", "/capabilities", `{}`, 200,
+	xHTTP(t, reg, "PUT", "/capabilities", `{"flags":["inline"]}`, 200,
 		`{
-  "flags": [],
+  "apis": [],
+  "flags": [
+    "inline"
+  ],
   "mutable": [],
   "pagination": false,
   "schemas": [
@@ -318,19 +341,56 @@ func TestCapabilityPath(t *testing.T) {
 }
 `)
 
+	// Make sure it's turned off, but turn it on for the rest of the
+	// tests
+	xHTTP(t, reg, "GET", "/capabilities", ``, 404, `Not found
+`)
+
+	xHTTP(t, reg, "PUT", "/?inline=capabilities",
+		`{"capabilities":{"apis":["/capabilities"]}}`, 200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestCapabilityPath",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "apis": [
+      "/capabilities"
+    ],
+    "flags": [],
+    "mutable": [],
+    "pagination": false,
+    "schemas": [
+      "xregistry-json/1.0-rc1"
+    ],
+    "shortself": false,
+    "specversions": [
+      "1.0-rc1"
+    ],
+    "sticky": true
+  }
+}
+`)
+
 	// Make sure the Registry epoch changed
 	xHTTP(t, reg, "GET", "/", ``, 200, `{
   "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -347,6 +407,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Setting to nulls
 	xHTTP(t, reg, "PUT", "/capabilities", `{
+  "apis": ["/capabilities"],
   "flags": null,
   "mutable": null,
   "pagination": null,
@@ -355,6 +416,9 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": null
 }`, 200,
 		`{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -370,6 +434,9 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -386,6 +453,9 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Testing setting everything to the default
 	xHTTP(t, reg, "PUT", "/capabilities", `{
+  "apis": [
+    "/capabilities", "/export", "/model"
+  ],
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
@@ -399,6 +469,11 @@ func TestCapabilityPath(t *testing.T) {
   "sticky": true
 }`, 200,
 		`{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model"
+  ],
   "flags": [
     "collections",
     "doc",
@@ -432,6 +507,11 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model"
+  ],
   "flags": [
     "collections",
     "doc",
@@ -465,9 +545,11 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	// Setting to minimal
-	xHTTP(t, reg, "PUT", "/capabilities", `{
-}`, 200,
-		`{
+	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/capabilities"]}`,
+		200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -483,6 +565,9 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -499,8 +584,12 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Test schemas
 	xHTTP(t, reg, "PUT", "/capabilities", `{
+    "apis":["/capabilities"],
 	"schemas": ["xregistry-json"]
 }`, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -517,10 +606,14 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Test some bools
 	xHTTP(t, reg, "PUT", "/capabilities", `{
+    "apis":["/capabilities"],
 	"pagination": false,
 	"shortself": false,
     "sticky": false
 }`, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -574,8 +667,8 @@ func TestCapabilityAttr(t *testing.T) {
 
 	// Try to clear it all - some can't be totally erased.
 	// Notice epoch value changed
-	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {} }`, 200,
-		`{
+	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{
+      "capabilities": {"apis":["/capabilities"]} }`, 200, `{
   "specversion": "`+registry.SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
@@ -585,6 +678,9 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
+    "apis": [
+      "/capabilities"
+    ],
     "flags": [],
     "mutable": [],
     "pagination": false,
@@ -603,6 +699,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to nulls
 	// notice ?inline is still disabled!
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
+  "apis": ["/capabilities"],
   "flags": null,
   "mutable": null,
   "pagination": null,
@@ -623,6 +720,9 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -640,6 +740,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Testing setting everything to the default
 	// inline still disabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
+  "apis": ["/export", "/model", "/capabilities"],
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
@@ -664,6 +765,11 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model"
+  ],
   "flags": [
     "collections",
     "doc",
@@ -699,6 +805,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to minimal
 	// inline still enabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
+  "apis":["/capabilities"],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -717,6 +824,9 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
+    "apis": [
+      "/capabilities"
+    ],
     "flags": [],
     "mutable": [],
     "pagination": false,
@@ -733,6 +843,9 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "apis": [
+    "/capabilities"
+  ],
   "flags": [],
   "mutable": [],
   "pagination": false,
@@ -779,7 +892,12 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	xHTTP(t, reg, "PUT", "/capabilities", `{"mutable":["*"]}`, 200, `{
+	xHTTP(t, reg, "PUT", "/capabilities", `{
+      "apis":["/capabilities","/model"],"mutable":["*"]}`, 200, `{
+  "apis": [
+    "/capabilities",
+    "/model"
+  ],
   "flags": [],
   "mutable": [
     "capabilities",
@@ -892,6 +1010,17 @@ func TestCapabilityOffered(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	xHTTP(t, reg, "GET", "/capabilities?offered", ``, 200, `{
+  "apis": {
+    "type": "array",
+    "item": {
+      "type": "string"
+    },
+    "enum": [
+      "/capabilities",
+      "/export",
+      "/model"
+    ]
+  },
   "flags": {
     "type": "array",
     "item": {
@@ -954,4 +1083,163 @@ func TestCapabilityOffered(t *testing.T) {
   }
 }
 `)
+}
+
+func TestCapabilityAPIs(t *testing.T) {
+	reg := NewRegistry("TestCapabilityAPIs")
+	defer PassDeleteReg(t, reg)
+
+	// Try to clear it all
+	xHTTP(t, reg, "PUT", "/capabilities", `{}`, 200,
+		`{
+  "apis": [],
+  "flags": [],
+  "mutable": [],
+  "pagination": false,
+  "schemas": [
+    "xregistry-json/`+registry.SPECVERSION+`"
+  ],
+  "shortself": false,
+  "specversions": [
+    "`+registry.SPECVERSION+`"
+  ],
+  "sticky": true
+}
+`)
+
+	xHTTP(t, reg, "GET", "/capabilities", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/export", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/model", ``, 404, "Not found\n")
+
+	// Open /capabilities back up
+	xHTTP(t, reg, "PUT", "/?inline=capabilities",
+		`{"capabilities":{"apis":["/capabilities"]}}`, 200, `*`)
+
+	xHTTP(t, reg, "PUT", "/capabilities", `{
+      "apis":["/capabilities","/export"]}`, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export"
+  ],
+  "flags": [],
+  "mutable": [],
+  "pagination": false,
+  "schemas": [
+    "xregistry-json/`+registry.SPECVERSION+`"
+  ],
+  "shortself": false,
+  "specversions": [
+    "`+registry.SPECVERSION+`"
+  ],
+  "sticky": true
+}
+`)
+
+	xHTTP(t, reg, "GET", "/capabilities", ``, 200, "*")
+	xHTTP(t, reg, "GET", "/export", ``, 200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestCapabilityAPIs",
+  "self": "#/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "apis": [
+      "/capabilities",
+      "/export"
+    ],
+    "flags": [],
+    "mutable": [],
+    "pagination": false,
+    "schemas": [
+      "xregistry-json/1.0-rc1"
+    ],
+    "shortself": false,
+    "specversions": [
+      "1.0-rc1"
+    ],
+    "sticky": true
+  },
+  "model": {
+    "attributes": {
+      "specversion": {
+        "name": "specversion",
+        "type": "string",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "registryid": {
+        "name": "registryid",
+        "type": "string",
+        "immutable": true,
+        "required": true
+      },
+      "self": {
+        "name": "self",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "xid": {
+        "name": "xid",
+        "type": "xid",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "epoch": {
+        "name": "epoch",
+        "type": "uinteger",
+        "required": true
+      },
+      "name": {
+        "name": "name",
+        "type": "string"
+      },
+      "description": {
+        "name": "description",
+        "type": "string"
+      },
+      "documentation": {
+        "name": "documentation",
+        "type": "url"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
+      },
+      "createdat": {
+        "name": "createdat",
+        "type": "timestamp",
+        "required": true
+      },
+      "modifiedat": {
+        "name": "modifiedat",
+        "type": "timestamp",
+        "required": true
+      }
+    }
+  }
+}
+`)
+	xHTTP(t, reg, "GET", "/model", ``, 404, "Not found\n")
+
+	// Some errors
+	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/foo"]}`, 400,
+		`Unknown "apis" value: "/foo"
+`)
+	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["foo"]}`, 400,
+		`Unknown "apis" value: "foo"
+`)
+	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["export"]}`, 400,
+		`Unknown "apis" value: "export"
+`)
+
 }

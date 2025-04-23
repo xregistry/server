@@ -38,6 +38,11 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
+    "apis": [
+      "/capabilities",
+      "/export",
+      "/model"
+    ],
     "flags": [
       "collections",
       "doc",
@@ -575,6 +580,11 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
+    "apis": [
+      "/capabilities",
+      "/export",
+      "/model"
+    ],
     "flags": [
       "collections",
       "doc",

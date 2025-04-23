@@ -107,3 +107,5 @@ TODOs:
 - finish /proxy stuff - lots of bad urls on html
 - add docs for persistent DB/volume
 - add docs for auth via proxy
+- add support for setting capabilities.mutable to null and make sure things
+  aren't editable - like capabilities, model, entities

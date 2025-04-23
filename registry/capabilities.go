@@ -10,13 +10,14 @@ import (
 )
 
 type Capabilities struct {
-	Flags        []string `json:"flags"`
-	Mutable      []string `json:"mutable"`
-	Pagination   bool     `json:"pagination"`
-	Schemas      []string `json:"schemas"`
-	ShortSelf    bool     `json:"shortself"`
-	SpecVersions []string `json:"specversions"`
-	Sticky       *bool    `json:"sticky"`
+	APIs         []string `json:"apis"`         // must not have omitempty
+	Flags        []string `json:"flags"`        // must not have omitempty
+	Mutable      []string `json:"mutable"`      // must not have omitempty
+	Pagination   bool     `json:"pagination"`   // must not have omitempty
+	Schemas      []string `json:"schemas"`      // must not have omitempty
+	ShortSelf    bool     `json:"shortself"`    // must not have omitempty
+	SpecVersions []string `json:"specversions"` // must not have omitempty
+	Sticky       *bool    `json:"sticky"`       // must not have omitempty
 }
 
 type OfferedCapability struct {
@@ -33,6 +34,7 @@ type OfferedItem struct {
 }
 
 type Offered struct {
+	APIs         OfferedCapability `json:"apis,omitempty"`
 	Flags        OfferedCapability `json:"flags,omitempty"`
 	Mutable      OfferedCapability `json:"mutable,omitempty"`
 	Pagination   OfferedCapability `json:"pagination,omitempty"`
@@ -41,6 +43,9 @@ type Offered struct {
 	SpecVersions OfferedCapability `json:"specversions,omitempty"`
 	Sticky       OfferedCapability `json:"sticky,omitempty"`
 }
+
+var AllowableAPIs = ArrayToLower([]string{
+	"/capabilities", "/export", "/model"})
 
 var AllowableFlags = ArrayToLower([]string{
 	"collections", "doc", "epoch", "filter", "inline",
@@ -56,6 +61,7 @@ var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc1", SPECVERSION})
 
 var DefaultCapabilities = &Capabilities{
+	APIs:         AllowableAPIs,
 	Flags:        AllowableFlags,
 	Mutable:      AllowableMutable,
 	Pagination:   false,
@@ -66,6 +72,7 @@ var DefaultCapabilities = &Capabilities{
 }
 
 func init() {
+	sort.Strings(AllowableAPIs)
 	sort.Strings(AllowableFlags)
 	sort.Strings(AllowableMutable)
 	sort.Strings(AllowableSchemas)
@@ -86,6 +93,13 @@ func String2AnySlice(strs []string) []any {
 
 func GetOffered() *Offered {
 	offered := &Offered{
+		APIs: OfferedCapability{
+			Type: "array",
+			Item: &OfferedItem{
+				Type: "string",
+			},
+			Enum: String2AnySlice(AllowableAPIs),
+		},
 		Flags: OfferedCapability{
 			Type: "array",
 			Item: &OfferedItem{
@@ -189,6 +203,11 @@ func (c *Capabilities) Validate() error {
 		c.SpecVersions = []string{SPECVERSION}
 	}
 
+	c.APIs, err = CleanArray(c.APIs, AllowableAPIs, "apis")
+	if err != nil {
+		return err
+	}
+
 	c.Flags, err = CleanArray(c.Flags, AllowableFlags, "flags")
 	if err != nil {
 		return err
@@ -245,6 +264,10 @@ func ParseCapabilitiesJSON(buf []byte) (*Capabilities, error) {
 		return nil, err
 	}
 	return &cap, nil
+}
+
+func (c *Capabilities) APIEnabled(str string) bool {
+	return ArrayContainsAnyCase(c.APIs, str)
 }
 
 func (c *Capabilities) FlagEnabled(str string) bool {

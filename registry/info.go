@@ -654,6 +654,15 @@ func (info *RequestInfo) FlagEnabled(name string) bool {
 	return true
 }
 
+func (info *RequestInfo) APIEnabled(name string) bool {
+	if info.Registry == nil || info.Registry.Capabilities == nil ||
+		!info.Registry.Capabilities.APIEnabled(name) {
+
+		return false
+	}
+	return true
+}
+
 func (info *RequestInfo) DoDocView() bool {
 	return info.HasFlag("doc") || info.RootPath == "export"
 }

@@ -1728,7 +1728,7 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:     "model",
 		Type:     OBJECT,
-		ReadOnly: true,
+		ReadOnly: false,
 		Attributes: Attributes{
 			"*": &Attribute{
 				Name: "*",
