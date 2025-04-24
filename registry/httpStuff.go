@@ -389,7 +389,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	for _, r := range rootList {
 		name := r.name
 
-		if !info.APIEnabled("/" + name) {
+		if r.u != "" && !info.APIEnabled("/"+r.u) {
 			continue
 		}
 
@@ -3154,6 +3154,14 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 
 	if data == nil {
 		data, err = DownloadURL(host + path)
+		if err != nil {
+			// See if we can be tricky and load the index.html file ourselves
+			var err2 error
+			data, err2 = DownloadURL(host + path + "/index.html")
+			if err2 == nil {
+				err = nil
+			}
+		}
 		if err != nil {
 			data = []byte(err.Error())
 		}
