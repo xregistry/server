@@ -206,12 +206,6 @@ func (attrs Attributes) MarshalJSON() ([]byte, error) {
 				tmpAttr := *attr
 				attr = &tmpAttr
 
-				// We need to exclude "model" because we don't want to show the
-				// end user "model" as a valid attribute in the model.
-				if name == "model" || name == "capabilities" {
-					continue
-				}
-
 				if attr.internals.neverSerialize {
 					continue
 				}
@@ -1592,7 +1586,7 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
 	}
 
 	// Just blindly ignore any updates made to "model"
-	if userAttr.Name == "model" {
+	if userAttr.Name == "model" || userAttr.Name == "capabilities" {
 		*userAttr = *specAttr
 		return nil
 	}
@@ -1639,6 +1633,7 @@ func (m *Model) Verify() error {
 
 		if specProp.Name == "id" {
 			specProp = specProp.Clone("registryid")
+			specProp.ReadOnly = true // Just registryid is "readonly"
 		} else {
 			specProp = specProp.Clone("")
 		}
@@ -1848,19 +1843,22 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	}
 
 	for _, specProp := range OrderedSpecProps {
-		if specProp.Name[0] == '$' {
+		name := specProp.Name
+
+		if name[0] == '$' {
 			continue
 		}
 
-		if specProp.Name == "id" {
-			specProp = specProp.Clone(rm.Singular + "id")
+		if name == "id" {
+			name = rm.Singular + "id"
+			specProp = specProp.Clone(name)
 		}
 
-		if specProp.InType(ENTITY_VERSION) {
-			modelAttr, ok := rm.Attributes[specProp.Name]
+		if specProp.InType(ENTITY_VERSION) { // || specProp.InType(ENTITY_RESOURCE) {
+			modelAttr, ok := rm.Attributes[name]
 			if !ok {
 				// Missing in model, so add it
-				rm.Attributes[specProp.Name] = specProp
+				rm.Attributes[name] = specProp
 			} else {
 				// It's there but make sure it's not changed in a bad way
 				if err := EnsureAttrOK(modelAttr, specProp); err != nil {
@@ -1870,10 +1868,10 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		}
 
 		if specProp.InType(ENTITY_META) {
-			modelAttr, ok := rm.MetaAttributes[specProp.Name]
+			modelAttr, ok := rm.MetaAttributes[name]
 			if !ok {
 				// Missing in model, so add it
-				rm.MetaAttributes[specProp.Name] = specProp
+				rm.MetaAttributes[name] = specProp
 			} else {
 				// It's there but make sure it's not changed in a bad way
 				if err := EnsureAttrOK(modelAttr, specProp); err != nil {
@@ -1881,10 +1879,6 @@ func (rm *ResourceModel) Verify(rmName string) error {
 				}
 			}
 		}
-
-		// Note that ENTITY_RESOURCE shouldn't ever really happen, and if it
-		// does, we're making the assumption that it's a prop we can ignore,
-		// like "metaurl"
 	}
 
 	ld := &LevelData{
@@ -1895,13 +1889,21 @@ func (rm *ResourceModel) Verify(rmName string) error {
 
 	// Make a copy so we can add the RESOURCExxx attributes, if it has a doc
 	attrs := maps.Clone(rm.Attributes)
+	// attrs := rm.Attributes
 	if rm.GetHasDocument() == true {
 		// DUG TODO see if there's a better way to do this
 		attrs[rm.Singular] = &Attribute{Name: rm.Singular, Type: ANY}
-		attrs[rm.Singular+"url"] = &Attribute{Name: rm.Singular + "url", Type: URL}
-		attrs[rm.Singular+"proxyurl"] = &Attribute{Name: rm.Singular + "proxyurl", Type: URL}
-		// attrs[rm.Singular+"base64"] = &Attribute{Name: rm.Singular + "base64", Type: STRING}
+		attrs[rm.Singular+"url"] = &Attribute{Type: URL}
+		attrs[rm.Singular+"proxyurl"] = &Attribute{Type: URL}
+		// attrs[rm.Singular+"base64"] = &Attribute{Type: STRING}
 	}
+
+	// Now add the COLLECTIONS attributes("versions")
+	/*
+		attrs["versionsurl"] = &Attribute{Type: URL}
+		attrs["versionscount"] = &Attribute{Type: UINTEGER}
+		attrs["versions"] = &Attribute{Type: MAP, Item: &Item{Type: OBJECT}}
+	*/
 
 	if err := attrs.Verify("strict", ld); err != nil {
 		return err

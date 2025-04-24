@@ -109,3 +109,4 @@ TODOs:
 - add docs for auth via proxy
 - add support for setting capabilities.mutable to null and make sure things
   aren't editable - like capabilities, model, entities
+- add all attributes to the model, including model/caps/COLLETIONS/RESOURCE/..

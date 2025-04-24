@@ -686,7 +686,7 @@ SELECT
   RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
 FROM FullTree WHERE RegSID=?` // and DocView=true
 
-	// Exclude generated attributes/entityes if 'doc view' is turned on.
+	// Exclude generated attributes/entities if 'doc view' is turned on.
 	// Meaning, only grab Props that have 'DocView' set to 'true'. These
 	// should be (mainly) just the ones we set explicitly.
 	if docView {

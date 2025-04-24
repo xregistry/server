@@ -67,12 +67,12 @@ func TestHTTPModel(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -93,6 +93,7 @@ func TestHTTPModel(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -123,6 +124,26 @@ func TestHTTPModel(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     }
   }
@@ -146,12 +167,12 @@ func TestHTTPModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -172,6 +193,7 @@ func TestHTTPModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -202,6 +224,26 @@ func TestHTTPModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   }
 }
@@ -224,12 +266,12 @@ func TestHTTPModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -250,6 +292,7 @@ func TestHTTPModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -280,6 +323,26 @@ func TestHTTPModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   }
 }
@@ -314,12 +377,12 @@ func TestHTTPModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -340,6 +403,7 @@ func TestHTTPModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -370,6 +434,26 @@ func TestHTTPModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -400,6 +484,7 @@ func TestHTTPModel(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -471,6 +556,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -547,6 +633,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -562,6 +649,7 @@ func TestHTTPModel(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -581,6 +669,41 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -595,7 +718,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -641,12 +763,12 @@ func TestHTTPModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -667,6 +789,7 @@ func TestHTTPModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -697,6 +820,26 @@ func TestHTTPModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -727,6 +870,7 @@ func TestHTTPModel(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -798,6 +942,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -874,6 +1019,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -889,6 +1035,7 @@ func TestHTTPModel(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -908,6 +1055,41 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -922,7 +1104,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -970,12 +1151,12 @@ func TestHTTPModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -996,6 +1177,7 @@ func TestHTTPModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -1030,6 +1212,26 @@ func TestHTTPModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -1060,6 +1262,7 @@ func TestHTTPModel(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1131,6 +1334,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -1207,6 +1411,7 @@ func TestHTTPModel(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -1222,6 +1427,7 @@ func TestHTTPModel(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -1241,6 +1447,41 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -1255,7 +1496,6 @@ func TestHTTPModel(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -5589,6 +5829,7 @@ func TestHTTPCompatility(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
   "readonly": false,
   "compatibility": "backward",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -5606,6 +5847,7 @@ func TestHTTPCompatility(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
   "readonly": false,
   "compatibility": "mine",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",

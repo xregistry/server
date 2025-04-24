@@ -334,12 +334,12 @@ func TestHTTPModelSchema(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -360,6 +360,7 @@ func TestHTTPModelSchema(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -390,6 +391,26 @@ func TestHTTPModelSchema(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   }
 }
@@ -401,12 +422,12 @@ func TestHTTPModelSchema(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -427,6 +448,7 @@ func TestHTTPModelSchema(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -457,6 +479,26 @@ func TestHTTPModelSchema(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   }
 }

@@ -18,12 +18,12 @@ func TestNoModel(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -44,6 +44,7 @@ func TestNoModel(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -74,6 +75,26 @@ func TestNoModel(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   }
 }
@@ -94,12 +115,12 @@ func TestNoModel(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -120,6 +141,7 @@ func TestNoModel(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -150,6 +172,26 @@ func TestNoModel(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     }
   }
@@ -172,12 +214,12 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -198,6 +240,7 @@ func TestGroupModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -228,6 +271,26 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -258,6 +321,7 @@ func TestGroupModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -301,12 +365,12 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -327,6 +391,7 @@ func TestGroupModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -357,6 +422,26 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -387,6 +472,7 @@ func TestGroupModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -430,12 +516,12 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -456,6 +542,7 @@ func TestGroupModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -486,6 +573,26 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -516,6 +623,7 @@ func TestGroupModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -616,12 +724,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -642,6 +750,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -672,6 +781,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -702,6 +831,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -773,6 +903,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -849,6 +980,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -864,6 +996,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -883,6 +1016,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -897,7 +1065,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -932,6 +1099,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1003,6 +1171,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -1079,6 +1248,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -1094,6 +1264,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -1113,6 +1284,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -1127,7 +1333,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -1146,12 +1351,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -1172,6 +1377,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -1202,6 +1408,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -1232,6 +1458,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1303,6 +1530,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -1379,6 +1607,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -1394,6 +1623,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -1413,6 +1643,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -1427,7 +1692,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -1462,6 +1726,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1505,12 +1770,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -1531,6 +1796,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -1561,6 +1827,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -1591,6 +1877,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1662,6 +1949,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -1738,6 +2026,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -1753,6 +2042,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -1772,6 +2062,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -1786,7 +2111,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -1821,6 +2145,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -1865,12 +2190,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -1891,6 +2216,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -1921,6 +2247,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -1951,6 +2297,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -2022,6 +2369,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -2098,6 +2446,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -2113,6 +2462,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -2132,6 +2482,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -2146,7 +2531,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -2164,12 +2548,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -2190,6 +2574,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -2220,6 +2605,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -2250,6 +2655,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -2321,6 +2727,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -2397,6 +2804,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -2412,6 +2820,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -2431,6 +2840,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -2445,7 +2889,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -2490,12 +2933,12 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -2516,6 +2959,7 @@ func TestResourceModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -2546,6 +2990,26 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     },
     "mystr": {
       "name": "mystr",
@@ -2580,6 +3044,7 @@ func TestResourceModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -2651,6 +3116,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -2727,6 +3193,7 @@ func TestResourceModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -2742,6 +3209,7 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -2761,6 +3229,41 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -2775,7 +3278,6 @@ func TestResourceModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -2823,12 +3325,12 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -2849,6 +3351,7 @@ func TestResourceModelCreate(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -2879,6 +3382,26 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       },
       "mystr": {
         "name": "mystr",
@@ -2913,6 +3436,7 @@ func TestResourceModelCreate(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -2984,6 +3508,7 @@ func TestResourceModelCreate(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "name": {
@@ -3060,6 +3585,7 @@ func TestResourceModelCreate(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "createdat": {
@@ -3075,6 +3601,7 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": {
                 "name": "readonly",
                 "type": "boolean",
+                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -3094,6 +3621,41 @@ func TestResourceModelCreate(t *testing.T) {
                 "required": true,
                 "default": "none"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
+              "deprecated": {
+                "name": "deprecated",
+                "type": "object",
+                "attributes": {
+                  "alternative": {
+                    "name": "alternative",
+                    "type": "url"
+                  },
+                  "docs": {
+                    "name": "docs",
+                    "type": "url"
+                  },
+                  "effective": {
+                    "name": "effective",
+                    "type": "timestamp"
+                  },
+                  "removal": {
+                    "name": "removal",
+                    "type": "timestamp"
+                  },
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              },
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
@@ -3108,7 +3670,6 @@ func TestResourceModelCreate(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
-                "readonly": true,
                 "required": true,
                 "default": false
               }
@@ -3190,12 +3751,12 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -3216,6 +3777,7 @@ func TestResourceModelCreate(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -3246,6 +3808,26 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     },
     "groups": {
@@ -3276,6 +3858,7 @@ func TestResourceModelCreate(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -3347,6 +3930,7 @@ func TestResourceModelCreate(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "name": {
@@ -3423,6 +4007,7 @@ func TestResourceModelCreate(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "createdat": {
@@ -3438,6 +4023,7 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": {
                 "name": "readonly",
                 "type": "boolean",
+                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -3457,6 +4043,41 @@ func TestResourceModelCreate(t *testing.T) {
                 "required": true,
                 "default": "none"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
+              "deprecated": {
+                "name": "deprecated",
+                "type": "object",
+                "attributes": {
+                  "alternative": {
+                    "name": "alternative",
+                    "type": "url"
+                  },
+                  "docs": {
+                    "name": "docs",
+                    "type": "url"
+                  },
+                  "effective": {
+                    "name": "effective",
+                    "type": "timestamp"
+                  },
+                  "removal": {
+                    "name": "removal",
+                    "type": "timestamp"
+                  },
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              },
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
@@ -3471,7 +4092,6 @@ func TestResourceModelCreate(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
-                "readonly": true,
                 "required": true,
                 "default": false
               }
@@ -3525,12 +4145,12 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -3551,6 +4171,7 @@ func TestResourceModelCreate(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -3581,6 +4202,26 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     },
     "groups": {
@@ -3611,6 +4252,7 @@ func TestResourceModelCreate(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -3686,12 +4328,12 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -3712,6 +4354,7 @@ func TestResourceModelCreate(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -3742,6 +4385,26 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     },
     "groups": {
@@ -3772,6 +4435,7 @@ func TestResourceModelCreate(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -3843,12 +4507,12 @@ func TestMultModelCreate(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -3869,6 +4533,7 @@ func TestMultModelCreate(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -3899,6 +4564,26 @@ func TestMultModelCreate(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -3929,6 +4614,7 @@ func TestMultModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -4000,6 +4686,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -4076,6 +4763,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -4091,6 +4779,7 @@ func TestMultModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -4110,6 +4799,41 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -4124,7 +4848,6 @@ func TestMultModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -4168,6 +4891,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -4244,6 +4968,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -4259,6 +4984,7 @@ func TestMultModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -4278,6 +5004,41 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -4292,7 +5053,6 @@ func TestMultModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -4327,6 +5087,7 @@ func TestMultModelCreate(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -4398,6 +5159,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -4474,6 +5236,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -4489,6 +5252,7 @@ func TestMultModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -4508,6 +5272,41 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -4522,7 +5321,6 @@ func TestMultModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -4566,6 +5364,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -4642,6 +5441,7 @@ func TestMultModelCreate(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -4657,6 +5457,7 @@ func TestMultModelCreate(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -4676,6 +5477,41 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -4690,7 +5526,6 @@ func TestMultModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -4760,12 +5595,12 @@ func TestMultModel2Create(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -4786,6 +5621,7 @@ func TestMultModel2Create(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -4816,6 +5652,26 @@ func TestMultModel2Create(t *testing.T) {
         "name": "modifiedat",
         "type": "timestamp",
         "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       }
     },
     "groups": {
@@ -4846,6 +5702,7 @@ func TestMultModel2Create(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -4917,6 +5774,7 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "name": {
@@ -4993,6 +5851,7 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "createdat": {
@@ -5008,6 +5867,7 @@ func TestMultModel2Create(t *testing.T) {
               "readonly": {
                 "name": "readonly",
                 "type": "boolean",
+                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -5027,6 +5887,41 @@ func TestMultModel2Create(t *testing.T) {
                 "required": true,
                 "default": "none"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
+              "deprecated": {
+                "name": "deprecated",
+                "type": "object",
+                "attributes": {
+                  "alternative": {
+                    "name": "alternative",
+                    "type": "url"
+                  },
+                  "docs": {
+                    "name": "docs",
+                    "type": "url"
+                  },
+                  "effective": {
+                    "name": "effective",
+                    "type": "timestamp"
+                  },
+                  "removal": {
+                    "name": "removal",
+                    "type": "timestamp"
+                  },
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              },
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
@@ -5041,7 +5936,6 @@ func TestMultModel2Create(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
-                "readonly": true,
                 "required": true,
                 "default": false
               }
@@ -5076,6 +5970,7 @@ func TestMultModel2Create(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -5147,6 +6042,7 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "name": {
@@ -5223,6 +6119,7 @@ func TestMultModel2Create(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "createdat": {
@@ -5238,6 +6135,7 @@ func TestMultModel2Create(t *testing.T) {
               "readonly": {
                 "name": "readonly",
                 "type": "boolean",
+                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -5257,6 +6155,41 @@ func TestMultModel2Create(t *testing.T) {
                 "required": true,
                 "default": "none"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
+              "deprecated": {
+                "name": "deprecated",
+                "type": "object",
+                "attributes": {
+                  "alternative": {
+                    "name": "alternative",
+                    "type": "url"
+                  },
+                  "docs": {
+                    "name": "docs",
+                    "type": "url"
+                  },
+                  "effective": {
+                    "name": "effective",
+                    "type": "timestamp"
+                  },
+                  "removal": {
+                    "name": "removal",
+                    "type": "timestamp"
+                  },
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              },
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
@@ -5271,7 +6204,6 @@ func TestMultModel2Create(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
-                "readonly": true,
                 "required": true,
                 "default": false
               }
@@ -5531,12 +6463,12 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -5557,6 +6489,7 @@ func TestModelLabels(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -5587,6 +6520,26 @@ func TestModelLabels(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -5620,6 +6573,7 @@ func TestModelLabels(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -5694,6 +6648,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -5770,6 +6725,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -5785,6 +6741,7 @@ func TestModelLabels(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -5804,6 +6761,41 @@ func TestModelLabels(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -5818,7 +6810,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -5846,12 +6837,12 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -5872,6 +6863,7 @@ func TestModelLabels(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -5902,6 +6894,26 @@ func TestModelLabels(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -5932,6 +6944,7 @@ func TestModelLabels(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -6003,6 +7016,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -6079,6 +7093,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -6094,6 +7109,7 @@ func TestModelLabels(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -6113,6 +7129,41 @@ func TestModelLabels(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -6127,7 +7178,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -6168,12 +7218,12 @@ func TestModelLabels(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -6194,6 +7244,7 @@ func TestModelLabels(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -6224,6 +7275,26 @@ func TestModelLabels(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -6257,6 +7328,7 @@ func TestModelLabels(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -6331,6 +7403,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -6407,6 +7480,7 @@ func TestModelLabels(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -6422,6 +7496,7 @@ func TestModelLabels(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -6441,6 +7516,41 @@ func TestModelLabels(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -6455,7 +7565,6 @@ func TestModelLabels(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -6622,11 +7731,13 @@ func TestUseSpecAttrs(t *testing.T) {
     "ancestor": 8,
     "capabilities": 12,
     "compatibility": 13,
+    "compatibilityauthority": 22,
     "contenttype": 11,
     "createdat": 9,
     "defaultversionid": 16,
     "defaultversionsticky": 20,
     "defaultversionurl": 17,
+    "deprecated": 10,
     "description": 11,
     "documentation": 13,
     "epoch": "5-epoch",
@@ -6652,12 +7763,12 @@ func TestUseSpecAttrs(t *testing.T) {
         "name": "specversion",
         "type": "string",
         "readonly": true,
-        "immutable": true,
         "required": true
       },
       "registryid": {
         "name": "registryid",
         "type": "string",
+        "readonly": true,
         "immutable": true,
         "required": true
       },
@@ -6678,6 +7789,7 @@ func TestUseSpecAttrs(t *testing.T) {
       "epoch": {
         "name": "epoch",
         "type": "uinteger",
+        "readonly": true,
         "required": true
       },
       "name": {
@@ -6709,6 +7821,26 @@ func TestUseSpecAttrs(t *testing.T) {
         "type": "timestamp",
         "required": true
       },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
       "obj": {
         "name": "obj",
         "type": "object",
@@ -6723,6 +7855,10 @@ func TestUseSpecAttrs(t *testing.T) {
           },
           "compatibility": {
             "name": "compatibility",
+            "type": "integer"
+          },
+          "compatibilityauthority": {
+            "name": "compatibilityauthority",
             "type": "integer"
           },
           "contenttype": {
@@ -6743,6 +7879,10 @@ func TestUseSpecAttrs(t *testing.T) {
           },
           "defaultversionurl": {
             "name": "defaultversionurl",
+            "type": "integer"
+          },
+          "deprecated": {
+            "name": "deprecated",
             "type": "integer"
           },
           "description": {
@@ -6844,6 +7984,7 @@ func TestUseSpecAttrs(t *testing.T) {
           "epoch": {
             "name": "epoch",
             "type": "uinteger",
+            "readonly": true,
             "required": true
           },
           "name": {
@@ -6891,6 +8032,10 @@ func TestUseSpecAttrs(t *testing.T) {
                 "name": "compatibility",
                 "type": "integer"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "integer"
+              },
               "contenttype": {
                 "name": "contenttype",
                 "type": "integer"
@@ -6909,6 +8054,10 @@ func TestUseSpecAttrs(t *testing.T) {
               },
               "defaultversionurl": {
                 "name": "defaultversionurl",
+                "type": "integer"
+              },
+              "deprecated": {
+                "name": "deprecated",
                 "type": "integer"
               },
               "description": {
@@ -7029,6 +8178,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "name": {
@@ -7092,6 +8242,10 @@ func TestUseSpecAttrs(t *testing.T) {
                     "name": "compatibility",
                     "type": "integer"
                   },
+                  "compatibilityauthority": {
+                    "name": "compatibilityauthority",
+                    "type": "integer"
+                  },
                   "contenttype": {
                     "name": "contenttype",
                     "type": "integer"
@@ -7110,6 +8264,10 @@ func TestUseSpecAttrs(t *testing.T) {
                   },
                   "defaultversionurl": {
                     "name": "defaultversionurl",
+                    "type": "integer"
+                  },
+                  "deprecated": {
+                    "name": "deprecated",
                     "type": "integer"
                   },
                   "description": {
@@ -7231,6 +8389,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "epoch": {
                 "name": "epoch",
                 "type": "uinteger",
+                "readonly": true,
                 "required": true
               },
               "createdat": {
@@ -7246,6 +8405,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "readonly": {
                 "name": "readonly",
                 "type": "boolean",
+                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -7265,6 +8425,41 @@ func TestUseSpecAttrs(t *testing.T) {
                 "required": true,
                 "default": "none"
               },
+              "compatibilityauthority": {
+                "name": "compatibilityauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
+              "deprecated": {
+                "name": "deprecated",
+                "type": "object",
+                "attributes": {
+                  "alternative": {
+                    "name": "alternative",
+                    "type": "url"
+                  },
+                  "docs": {
+                    "name": "docs",
+                    "type": "url"
+                  },
+                  "effective": {
+                    "name": "effective",
+                    "type": "timestamp"
+                  },
+                  "removal": {
+                    "name": "removal",
+                    "type": "timestamp"
+                  },
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              },
               "defaultversionid": {
                 "name": "defaultversionid",
                 "type": "string",
@@ -7279,7 +8474,6 @@ func TestUseSpecAttrs(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
-                "readonly": true,
                 "required": true,
                 "default": false
               },
@@ -7297,6 +8491,10 @@ func TestUseSpecAttrs(t *testing.T) {
                   },
                   "compatibility": {
                     "name": "compatibility",
+                    "type": "integer"
+                  },
+                  "compatibilityauthority": {
+                    "name": "compatibilityauthority",
                     "type": "integer"
                   },
                   "contenttype": {
@@ -7317,6 +8515,10 @@ func TestUseSpecAttrs(t *testing.T) {
                   },
                   "defaultversionurl": {
                     "name": "defaultversionurl",
+                    "type": "integer"
+                  },
+                  "deprecated": {
+                    "name": "deprecated",
                     "type": "integer"
                   },
                   "description": {
@@ -7429,11 +8631,13 @@ func TestUseSpecAttrs(t *testing.T) {
         "ancestor": 8,
         "capabilities": 12,
         "compatibility": 13,
+        "compatibilityauthority": 22,
         "contenttype": 11,
         "createdat": 9,
         "defaultversionid": 16,
         "defaultversionsticky": 20,
         "defaultversionurl": 17,
+        "deprecated": 10,
         "description": 11,
         "dirid": 5,
         "documentation": 13,
@@ -7471,11 +8675,13 @@ func TestUseSpecAttrs(t *testing.T) {
             "ancestor": 8,
             "capabilities": 12,
             "compatibility": 13,
+            "compatibilityauthority": 22,
             "contenttype": 11,
             "createdat": 9,
             "defaultversionid": 16,
             "defaultversionsticky": 20,
             "defaultversionurl": 17,
+            "deprecated": 10,
             "description": 11,
             "dirid": 5,
             "documentation": 13,
@@ -7514,11 +8720,13 @@ func TestUseSpecAttrs(t *testing.T) {
               "ancestor": 8,
               "capabilities": 12,
               "compatibility": 13,
+              "compatibilityauthority": 22,
               "contenttype": 11,
               "createdat": 9,
               "defaultversionid": 16,
               "defaultversionsticky": 20,
               "defaultversionurl": 17,
+              "deprecated": 10,
               "description": 11,
               "dirid": 5,
               "documentation": 13,
@@ -7563,11 +8771,13 @@ func TestUseSpecAttrs(t *testing.T) {
                 "ancestor": 8,
                 "capabilities": 12,
                 "compatibility": 13,
+                "compatibilityauthority": 22,
                 "contenttype": 11,
                 "createdat": 9,
                 "defaultversionid": 16,
                 "defaultversionsticky": 20,
                 "defaultversionurl": 17,
+                "deprecated": 10,
                 "description": 11,
                 "dirid": 5,
                 "documentation": 13,
@@ -7640,12 +8850,12 @@ func TestModelCompatibleWith(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -7666,6 +8876,7 @@ func TestModelCompatibleWith(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -7696,6 +8907,26 @@ func TestModelCompatibleWith(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -7728,6 +8959,7 @@ func TestModelCompatibleWith(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -7800,6 +9032,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -7876,6 +9109,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -7891,6 +9125,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -7910,6 +9145,41 @@ func TestModelCompatibleWith(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -7924,7 +9194,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -7970,6 +9239,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -8046,6 +9316,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -8061,6 +9332,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -8080,6 +9352,41 @@ func TestModelCompatibleWith(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -8094,7 +9401,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -8139,6 +9445,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -8215,6 +9522,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -8230,6 +9538,7 @@ func TestModelCompatibleWith(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -8249,6 +9558,41 @@ func TestModelCompatibleWith(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -8263,7 +9607,6 @@ func TestModelCompatibleWith(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -8290,12 +9633,13 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
-      "required": true
+      "required": true,
+      "default": "1.0-rc1"
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -8316,6 +9660,7 @@ func TestModelIncludes(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -8340,20 +9685,58 @@ func TestModelIncludes(t *testing.T) {
     "createdat": {
       "name": "createdat",
       "type": "timestamp",
-      "readonly": true,
       "required": true
     },
     "modifiedat": {
       "name": "modifiedat",
       "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "sample_groups": {
+      "name": "sample_groups",
+      "type": "map",
+      "item": {
+        "type": "object"
+      }
+    },
+    "sample_groupscount": {
+      "name": "sample_groupscount",
+      "type": "uinteger",
       "readonly": true,
       "required": true
     },
-    "id": {
-      "name": "id",
-      "type": "string",
+    "sample_groupsurl": {
+      "name": "sample_groupsurl",
+      "type": "url",
+      "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     }
   },
   "groups": {
@@ -8384,11 +9767,19 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
           "name": "name",
           "type": "string"
+        },
+        "isdefault": {
+          "name": "isdefault",
+          "type": "boolean",
+          "readonly": true,
+          "required": true,
+          "default": false
         },
         "description": {
           "name": "description",
@@ -8408,24 +9799,53 @@ func TestModelIncludes(t *testing.T) {
         "createdat": {
           "name": "createdat",
           "type": "timestamp",
-          "readonly": true,
           "required": true
         },
         "modifiedat": {
           "name": "modifiedat",
           "type": "timestamp",
+          "required": true
+        },
+        "metaurl": {
+          "name": "metaurl",
+          "type": "url",
+          "required": true
+        },
+        "meta": {
+          "name": "meta",
+          "type": "object"
+        },
+        "sample_resource": {
+          "name": "sample_resource",
+          "type": "any"
+        },
+        "sample_resourcebase64": {
+          "name": "sample_resourcebase64",
+          "type": "string"
+        },
+        "sample_resources": {
+          "name": "sample_resources",
+          "type": "map",
+          "item": {
+            "type": "object"
+          }
+        },
+        "sample_resourcescount": {
+          "name": "sample_resourcescount",
+          "type": "uinteger",
           "readonly": true,
           "required": true
         },
-        "id": {
-          "name": "id",
-          "type": "string",
+        "sample_resourcesurl": {
+          "name": "sample_resourcesurl",
+          "type": "url",
+          "readonly": true,
           "immutable": true,
           "required": true
         },
-        "origin": {
-          "name": "origin",
-          "type": "uri"
+        "sample_resourceurl": {
+          "name": "sample_resourceurl",
+          "type": "url"
         }
       },
       "resources": {
@@ -8467,6 +9887,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -8498,13 +9919,11 @@ func TestModelIncludes(t *testing.T) {
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
-              "readonly": true,
               "required": true
             },
             "modifiedat": {
               "name": "modifiedat",
               "type": "timestamp",
-              "readonly": true,
               "required": true
             },
             "ancestor": {
@@ -8516,29 +9935,31 @@ func TestModelIncludes(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
-            "defaultversionid": {
-              "name": "defaultversionid",
-              "type": "string",
-              "readonly": true
-            },
-            "defaultversionurl": {
-              "name": "defaultversionurl",
+            "shortself": {
+              "name": "shortself",
               "type": "url",
-              "readonly": true
+              "readonly": true,
+              "immutable": true
             },
-            "default": {
-              "name": "default",
-              "type": "boolean"
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object"
+              }
             },
-            "id": {
-              "name": "id",
-              "type": "string",
-              "immutable": true,
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
               "required": true
             },
-            "origin": {
-              "name": "origin",
-              "type": "uri"
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             }
           },
           "metaattributes": {
@@ -8569,6 +9990,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -8584,6 +10006,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -8599,9 +10022,42 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
               "required": true,
               "default": "none"
+            },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ]
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             },
             "defaultversionid": {
               "name": "defaultversionid",
@@ -8617,9 +10073,15 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             }
           }
         }
@@ -8639,12 +10101,12 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -8665,6 +10127,7 @@ func TestModelIncludes(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -8695,6 +10158,26 @@ func TestModelIncludes(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -8725,6 +10208,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -8796,6 +10280,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -8872,6 +10357,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -8887,6 +10373,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -8906,6 +10393,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -8920,7 +10442,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -8955,6 +10476,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -9026,6 +10548,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -9102,6 +10625,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -9117,6 +10641,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -9136,6 +10661,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -9150,7 +10710,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -9238,12 +10797,12 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -9264,6 +10823,7 @@ func TestModelIncludes(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -9294,6 +10854,26 @@ func TestModelIncludes(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -9324,6 +10904,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -9395,6 +10976,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -9471,6 +11053,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -9486,6 +11069,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -9505,6 +11089,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -9519,7 +11138,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -9554,6 +11172,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -9625,6 +11244,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -9701,6 +11321,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -9716,6 +11337,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -9735,6 +11357,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -9749,7 +11406,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -9774,12 +11430,12 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -9800,6 +11456,7 @@ func TestModelIncludes(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -9830,6 +11487,26 @@ func TestModelIncludes(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -9860,6 +11537,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -9931,6 +11609,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -10007,6 +11686,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -10022,6 +11702,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -10041,6 +11722,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -10055,7 +11771,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -10090,6 +11805,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -10161,6 +11877,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -10237,6 +11954,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -10252,6 +11970,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -10271,6 +11990,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -10285,7 +12039,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -10310,12 +12063,12 @@ func TestModelIncludes(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -10336,6 +12089,7 @@ func TestModelIncludes(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -10366,6 +12120,26 @@ func TestModelIncludes(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -10396,6 +12170,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -10467,6 +12242,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -10543,6 +12319,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -10558,6 +12335,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -10577,6 +12355,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -10591,7 +12404,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -10626,6 +12438,7 @@ func TestModelIncludes(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -10697,6 +12510,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -10773,6 +12587,7 @@ func TestModelIncludes(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -10788,6 +12603,7 @@ func TestModelIncludes(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -10807,6 +12623,41 @@ func TestModelIncludes(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -10821,7 +12672,6 @@ func TestModelIncludes(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             }
@@ -10845,7 +12695,6 @@ func TestModelMissingFields(t *testing.T) {
     "specversion": {
 	  "type": "string",
 	  "readonly": true,
-      "immutable": true,
 	  "required": true
     },
     "regext": {
@@ -10898,12 +12747,12 @@ func TestModelMissingFields(t *testing.T) {
       "name": "specversion",
       "type": "string",
       "readonly": true,
-      "immutable": true,
       "required": true
     },
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "readonly": true,
       "immutable": true,
       "required": true
     },
@@ -10924,6 +12773,7 @@ func TestModelMissingFields(t *testing.T) {
     "epoch": {
       "name": "epoch",
       "type": "uinteger",
+      "readonly": true,
       "required": true
     },
     "name": {
@@ -10954,6 +12804,26 @@ func TestModelMissingFields(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     },
     "regext": {
       "name": "regext",
@@ -10988,6 +12858,7 @@ func TestModelMissingFields(t *testing.T) {
         "epoch": {
           "name": "epoch",
           "type": "uinteger",
+          "readonly": true,
           "required": true
         },
         "name": {
@@ -11063,6 +12934,7 @@ func TestModelMissingFields(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "name": {
@@ -11143,6 +13015,7 @@ func TestModelMissingFields(t *testing.T) {
             "epoch": {
               "name": "epoch",
               "type": "uinteger",
+              "readonly": true,
               "required": true
             },
             "createdat": {
@@ -11158,6 +13031,7 @@ func TestModelMissingFields(t *testing.T) {
             "readonly": {
               "name": "readonly",
               "type": "boolean",
+              "readonly": true,
               "required": true,
               "default": false
             },
@@ -11177,6 +13051,41 @@ func TestModelMissingFields(t *testing.T) {
               "required": true,
               "default": "none"
             },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -11191,7 +13100,6 @@ func TestModelMissingFields(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
-              "readonly": true,
               "required": true,
               "default": false
             },

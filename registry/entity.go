@@ -873,15 +873,14 @@ func StrTypes(types ...int) string {
 // This allows for us to choose the order and define custom logic per prop
 var OrderedSpecProps = []*Attribute{
 	{
-		Name:      "specversion",
-		Type:      STRING,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
+		Name:     "specversion",
+		Type:     STRING,
+		ReadOnly: true,
+		Required: true,
 
 		internals: AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: false,
+			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
 				return SPECVERSION
 			},
@@ -903,7 +902,6 @@ var OrderedSpecProps = []*Attribute{
 
 		internals: AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
-			dontStore:    false,
 			xrefrequired: true,
 			getFn:        nil,
 			checkFn: func(e *Entity) error {
@@ -968,9 +966,8 @@ var OrderedSpecProps = []*Attribute{
 		Required:  true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
+			types: StrTypes(ENTITY_VERSION),
+			getFn: nil,
 			checkFn: func(e *Entity) error {
 				oldID := any(e.UID)
 				newID := any(e.NewObject["versionid"])
@@ -1058,7 +1055,6 @@ var OrderedSpecProps = []*Attribute{
 			Type:           URL,
 			ReadOnly:       true,
 			Immutable: true,
-			Required: true,
 
 			internals: AttrInternals{
 				types:     "",
@@ -1126,12 +1122,12 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:     "epoch",
 		Type:     UINTEGER,
+		ReadOnly: true,
 		Required: true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
+			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			getFn: nil,
 			checkFn: func(e *Entity) error {
 				// If we explicitly setEpoch via internal API then don't check
 				if e.EpochSet {
@@ -1202,11 +1198,10 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1234,11 +1229,10 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1246,11 +1240,10 @@ var OrderedSpecProps = []*Attribute{
 		Type: URL,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1261,11 +1254,10 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1274,10 +1266,9 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			getFn:   nil,
+			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["createdat"] = nil
@@ -1318,10 +1309,9 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			getFn:   nil,
+			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["modifiedat"] = nil
@@ -1356,15 +1346,15 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:     "readonly",
 		Type:     BOOLEAN,
+		ReadOnly: true,
 		Required: true,
 		Default:  false,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_META),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_META),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1377,11 +1367,63 @@ var OrderedSpecProps = []*Attribute{
 		Default:  "none",
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_META),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_META),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
+		},
+	},
+	{
+		Name:   "compatibilityauthority",
+		Type:   STRING,
+		Enum:   []any{"external", "server"},
+		Strict: PtrBool(false),
+
+		internals: AttrInternals{
+			types:   StrTypes(ENTITY_META),
+			getFn:   nil,
+			checkFn: nil,
+			updateFn: func(e *Entity) error {
+				if !IsNil(e.NewObject["xref"]) {
+					return nil
+				}
+				compat, _ := e.NewObject["compatibility"]
+				isDefault := (compat == SpecProps["compatibility"].Default)
+				if IsNil(compat) || isDefault {
+					delete(e.NewObject, "compatibilityauthority")
+				} else {
+					e.NewObject["compatibilityauthority"] = "external"
+				}
+				return nil
+			},
+		},
+	},
+	{
+		Name: "deprecated",
+		Type: OBJECT,
+		Attributes: Attributes{
+			"effective": &Attribute{
+				Type: TIMESTAMP,
+			},
+			"removal": &Attribute{
+				Type: TIMESTAMP,
+			},
+			"alternative": &Attribute{
+				Type: URL,
+			},
+			"docs": &Attribute{
+				Type: URL,
+			},
+			"*": &Attribute{
+				Type: ANY,
+			},
+		},
+
+		internals: AttrInternals{
+			types:    StrTypes(ENTITY_META),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1390,10 +1432,9 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_VERSION),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
+			types:   StrTypes(ENTITY_VERSION),
+			getFn:   nil,
+			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				_, ok := e.NewObject["ancestor"]
 				PanicIf(!ok, "Missing versionid")
@@ -1415,7 +1456,6 @@ var OrderedSpecProps = []*Attribute{
 
 		internals: AttrInternals{
 			types:      StrTypes(ENTITY_VERSION),
-			dontStore:  false,
 			httpHeader: "Content-Type",
 			getFn:      nil,
 			checkFn:    nil,
@@ -1506,7 +1546,7 @@ var OrderedSpecProps = []*Attribute{
 
 		internals: AttrInternals{
 			types:     StrTypes(ENTITY_RESOURCE),
-			dontStore: false,
+			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
 				base := ""
 				path := e.Path
@@ -1537,6 +1577,21 @@ var OrderedSpecProps = []*Attribute{
 			updateFn: nil,
 		},
 	},
+	/*
+		{
+			Name: "meta",
+			Type: OBJECT,
+			Attributes: Attributes{
+				"*": &Attribute{
+					Name: "*",
+					Type: ANY,
+				},
+			},
+			internals: AttrInternals{
+				types: StrTypes(ENTITY_RESOURCE),
+			},
+		},
+	*/
 	{
 		Name: "$space",
 		internals: AttrInternals{
@@ -1544,19 +1599,15 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "defaultversionid",
-		Type: STRING,
-		// ReadOnly: true,
+		Name:     "defaultversionid",
+		Type:     STRING,
 		Required: true,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_META),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
+			types:   StrTypes(ENTITY_META),
+			getFn:   nil,
+			checkFn: nil,
 			updateFn: func(e *Entity) error {
-				// TODO really should call Resource.EnsureLatest here
-
 				// Make sure it has a value, if not copy from existing
 				xRef := e.NewObject["xref"]
 				PanicIf(xRef == "", "xref is ''")
@@ -1584,7 +1635,7 @@ var OrderedSpecProps = []*Attribute{
 
 		internals: AttrInternals{
 			types:     StrTypes(ENTITY_META),
-			dontStore: false,
+			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
 				val := e.Object["defaultversionid"]
 				if IsNil(val) {
@@ -1646,16 +1697,14 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:     "defaultversionsticky",
 		Type:     BOOLEAN,
-		ReadOnly: true,
 		Required: true,
 		Default:  false,
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_META),
-			dontStore: false,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn:  nil,
+			types:    StrTypes(ENTITY_META),
+			getFn:    nil,
+			checkFn:  nil,
+			updateFn: nil,
 		},
 	},
 	{
@@ -1665,9 +1714,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "capabilities",
-		Type:     OBJECT, // This ensures the client sent a map
-		ReadOnly: false,
+		Name: "capabilities",
+		Type: OBJECT, // This ensures the client sent a map
 		Attributes: Attributes{
 			"*": &Attribute{
 				Name: "*",
@@ -1726,9 +1774,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "model",
-		Type:     OBJECT,
-		ReadOnly: false,
+		Name: "model",
+		Type: OBJECT,
 		Attributes: Attributes{
 			"*": &Attribute{
 				Name: "*",
@@ -1737,8 +1784,7 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: false,
+			types: StrTypes(ENTITY_REGISTRY),
 			getFn: func(e *Entity, info *RequestInfo) any {
 				// Need to explicitly ask for "model", ?inline=* won't
 				// do it
@@ -2430,8 +2476,10 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				}
 			}
 
-			// Skip read-only attrs
-			if attr.ReadOnly {
+			// Skip 'dontStore' attrs
+			if attr.internals.dontStore {
+				// TODO find a way to allow an admin to set the
+				// meta.ReadOnly flag itself
 				delete(objKeys, key) // Remove from to-process list
 				continue
 			}
