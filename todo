@@ -86,7 +86,6 @@ TODOs:
 - allow any model change, verify entities
 - make sure that maxversions=0 when we only support 1 means sitcky must be false
 - require "none" to be in "compats" enum
-- group/resource type names must be unique across plural and singular
 - support PATCH on collections - fix testcase TestHTTPMissingBody
 - test PATCH on collections - in particular versions
 - verify readonly attrs are ignored on writes, but readonly resources generate an error

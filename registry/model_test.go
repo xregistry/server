@@ -52,15 +52,73 @@ func TestModelVerifySimple(t *testing.T) {
 		{"reg 1 group -4 ", Model{
 			Groups: map[string]*GroupModel{"@": {}},
 		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+		{"reg 1 group -4.5 ", Model{
+			Groups: map[string]*GroupModel{"a": {}},
+		}, `Group "a" is missing a "singular" value`},
 		{"reg 1 group -5 ", Model{
 			Groups: map[string]*GroupModel{"_a": {Plural: "_a", Singular: "a"}},
 		}, ``},
+		{"reg 1 group -5.5 ", Model{
+			Groups: map[string]*GroupModel{"_a": {Singular: "a"}},
+		}, ``},
+		{"reg 1 group -5.6 ", Model{
+			Groups: map[string]*GroupModel{"a": {Singular: "a"}},
+		}, `Group "a" has same value for "plural" and "singular"`},
 		{"reg 1 group -6 ", Model{
 			Groups: map[string]*GroupModel{"a234567890123456789012345678901234567890123456789012345678": {Plural: "a234567890123456789012345678901234567890123456789012345678", Singular: "a"}},
 		}, ``},
 		{"reg 1 group -7 ", Model{
 			Groups: map[string]*GroupModel{"a2345678901234567890123456789012345678901234567890123456789": {}},
 		}, `Invalid model type name "a2345678901234567890123456789012345678901234567890123456789", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+
+		{"reg 1 res 1  ", Model{
+			Groups: map[string]*GroupModel{
+				"gs": {
+					Singular: "g",
+					Resources: map[string]*ResourceModel{
+						"rs": {},
+					},
+				},
+			},
+		}, `Resource "rs" is missing a "singular" value`},
+		{"reg 1 res 2  ", Model{
+			Groups: map[string]*GroupModel{
+				"gs": {
+					Singular: "g",
+					Resources: map[string]*ResourceModel{
+						"@": {},
+					},
+				},
+			},
+		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+		{"reg 1 res 3  ", Model{
+			Groups: map[string]*GroupModel{
+				"gs": {
+					Singular: "g",
+					Resources: map[string]*ResourceModel{
+						"rs": {Singular: "rs"},
+					},
+				},
+			},
+		}, `Resource "rs" has same value for "plural" and "singular"`},
+
+		{"reg 1 res 4  ", Model{
+			Groups: map[string]*GroupModel{
+				"gs": {
+					Singular: "g",
+					Resources: map[string]*ResourceModel{
+						"rs": {Singular: "r"},
+						"r":  {Singular: "rsx"},
+					},
+				},
+			},
+		}, `Resource "rs" has a "singular" value (r) that matches another Resource's "plural" value`},
+		{"reg 1 group 8  ", Model{
+			Groups: map[string]*GroupModel{
+				"gs": {Singular: "g"},
+				"g":  {Singular: "gsx"},
+			},
+		}, `Group "gs" has a "singular" value (g) that matches another Group's "plural" value`},
 	}
 
 	for _, test := range tests {

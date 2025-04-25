@@ -1344,6 +1344,101 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "$extensions",
+		internals: AttrInternals{
+			types: StrTypes(ENTITY_REGISTRY),
+		},
+	},
+	{
+		Name: "capabilities",
+		Type: OBJECT, // This ensures the client sent a map
+		Attributes: Attributes{
+			"*": &Attribute{
+				Name: "*",
+				Type: ANY,
+			},
+		},
+
+		internals: AttrInternals{
+			types:     StrTypes(ENTITY_REGISTRY),
+			dontStore: true,
+			getFn: func(e *Entity, info *RequestInfo) any {
+				// Need to explicitly ask for "capabilities", ?inline=* won't
+				// do it
+				if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
+					capStr := e.GetAsString("#capabilities")
+					if capStr == "" {
+						return e.Registry.Capabilities
+					}
+
+					cap, err := ParseCapabilitiesJSON([]byte(capStr))
+					Must(err)
+					return cap
+				}
+				return nil
+			},
+			checkFn: func(e *Entity) error {
+				// Yes it's weird to store it in #capabilities but
+				// it's actually easier to do it this way. Trying to covert
+				// map[string]any <-> Capabilities  is really annoying
+				val := e.NewObject["capabilities"]
+				if !IsNil(val) {
+					// If speed is ever a concern here, just save the raw
+					// json from the input stream instead from http processing
+					valStr := ToJSON(val)
+
+					cap, err := ParseCapabilitiesJSON([]byte(valStr))
+					if err != nil {
+						return err
+					}
+
+					if err = cap.Validate(); err != nil {
+						return err
+					}
+
+					valStr = ToJSON(cap)
+
+					e.NewObject["#capabilities"] = valStr
+					delete(e.NewObject, "capabilities")
+					e.Registry.Capabilities = cap
+				}
+				return nil
+			},
+			updateFn: func(e *Entity) error {
+				return nil
+			},
+		},
+	},
+	{
+		Name: "model",
+		Type: OBJECT,
+		Attributes: Attributes{
+			"*": &Attribute{
+				Name: "*",
+				Type: ANY,
+			},
+		},
+
+		internals: AttrInternals{
+			types: StrTypes(ENTITY_REGISTRY),
+			getFn: func(e *Entity, info *RequestInfo) any {
+				// Need to explicitly ask for "model", ?inline=* won't
+				// do it
+				if info != nil && info.ShouldInline(NewPPP("model").DB()) {
+					model := info.Registry.Model
+					if model == nil {
+						model = &Model{}
+					}
+					httpModel := model // ModelToHTTPModel(model)
+					return httpModel
+				}
+				return nil
+			},
+			checkFn:  nil,
+			updateFn: nil,
+		},
+	},
+	{
 		Name:     "readonly",
 		Type:     BOOLEAN,
 		ReadOnly: true,
@@ -1465,7 +1560,7 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name: "$extensions",
 		internals: AttrInternals{
-			types: "",
+			types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
 		},
 	},
 	{
@@ -1713,95 +1808,14 @@ var OrderedSpecProps = []*Attribute{
 			types: "",
 		},
 	},
-	{
-		Name: "capabilities",
-		Type: OBJECT, // This ensures the client sent a map
-		Attributes: Attributes{
-			"*": &Attribute{
-				Name: "*",
-				Type: ANY,
+	/*
+		{
+			Name: "$COLLECTIONS",
+			internals: AttrInternals{
+				types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
 			},
 		},
-
-		internals: AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
-				// Need to explicitly ask for "capabilities", ?inline=* won't
-				// do it
-				if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
-					capStr := e.GetAsString("#capabilities")
-					if capStr == "" {
-						return e.Registry.Capabilities
-					}
-
-					cap, err := ParseCapabilitiesJSON([]byte(capStr))
-					Must(err)
-					return cap
-				}
-				return nil
-			},
-			checkFn: func(e *Entity) error {
-				// Yes it's weird to store it in #capabilities but
-				// it's actually easier to do it this way. Trying to covert
-				// map[string]any <-> Capabilities  is really annoying
-				val := e.NewObject["capabilities"]
-				if !IsNil(val) {
-					// If speed is ever a concern here, just save the raw
-					// json from the input stream instead from http processing
-					valStr := ToJSON(val)
-
-					cap, err := ParseCapabilitiesJSON([]byte(valStr))
-					if err != nil {
-						return err
-					}
-
-					if err = cap.Validate(); err != nil {
-						return err
-					}
-
-					valStr = ToJSON(cap)
-
-					e.NewObject["#capabilities"] = valStr
-					delete(e.NewObject, "capabilities")
-					e.Registry.Capabilities = cap
-				}
-				return nil
-			},
-			updateFn: func(e *Entity) error {
-				return nil
-			},
-		},
-	},
-	{
-		Name: "model",
-		Type: OBJECT,
-		Attributes: Attributes{
-			"*": &Attribute{
-				Name: "*",
-				Type: ANY,
-			},
-		},
-
-		internals: AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY),
-			getFn: func(e *Entity, info *RequestInfo) any {
-				// Need to explicitly ask for "model", ?inline=* won't
-				// do it
-				if info != nil && info.ShouldInline(NewPPP("model").DB()) {
-					model := info.Registry.Model
-					if model == nil {
-						model = &Model{}
-					}
-					httpModel := model // ModelToHTTPModel(model)
-					return httpModel
-				}
-				return nil
-			},
-			checkFn:  nil,
-			updateFn: nil,
-		},
-	},
+	*/
 }
 
 var SpecProps = map[string]*Attribute{}
@@ -1870,28 +1884,30 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		}
 
 		if prop.Name == "$extensions" {
-			for _, objKey := range SortedKeys(daObj) {
-				attrKey := objKey
-				if attrKey == e.Singular+"id" {
-					attrKey = "id"
-				}
+			if prop.InType(e.Type) {
+				for _, objKey := range SortedKeys(daObj) {
+					attrKey := objKey
+					if attrKey == e.Singular+"id" {
+						attrKey = "id"
+					}
 
-				// Skip spec defined properties, assume we'll add them later
-				if SpecProps[attrKey] != nil {
-					continue
-				}
+					// Skip spec defined properties, assume we'll add them later
+					if SpecProps[attrKey] != nil {
+						continue
+					}
 
-				val, _ := daObj[objKey]
-				attr := attrs[attrKey]
-				delete(daObj, objKey)
-				if attr == nil {
-					attr = attrs["*"]
-					PanicIf(attrKey[0] != '#' && attr == nil,
-						"Can't find attr for %q", attrKey)
-				}
+					val, _ := daObj[objKey]
+					attr := attrs[attrKey]
+					delete(daObj, objKey)
+					if attr == nil {
+						attr = attrs["*"]
+						PanicIf(attrKey[0] != '#' && attr == nil,
+							"Can't find attr for %q", attrKey)
+					}
 
-				if err := fn(e, info, objKey, val, attr); err != nil {
-					return err
+					if err := fn(e, info, objKey, val, attr); err != nil {
+						return err
+					}
 				}
 			}
 			continue
@@ -2402,7 +2418,7 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 					if e.Type == ENTITY_VERSION {
 						key = "versionid"
 					} else {
-						key = tmp.Description + "id"
+						key = tmp.internals.singular + "id"
 					}
 				}
 			}

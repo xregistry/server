@@ -16,6 +16,9 @@ var DBName = "registry"
 var RegistryName = "xRegistry"
 var Port = 8080
 var VerboseCount = 2
+var DontCreate = false
+var RecreateDB = false
+var RecreateReg = false
 
 func ErrStop(err error, args ...any) {
 	ErrStopTx(err, nil, args...)
@@ -85,7 +88,7 @@ func Verbose(args ...any) {
 
 func setupCmds() *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:   "xrserver",
+		Use:   "xrserver [default-registry-name]",
 		Short: "xRegistry server",
 		Run:   runFunc, // if we add this, add all of runCmd's flags
 	}
@@ -93,8 +96,12 @@ func setupCmds() *cobra.Command {
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
 	serverCmd.Flags().IntVarP(&Port, "port", "p", Port, "Listen port")
 	serverCmd.Flags().StringVarP(&DBName, "db", "", DBName, "DB name")
-	serverCmd.Flags().BoolP("recreatedb", "", false, "Recreate the DB")
-	serverCmd.Flags().BoolP("createreg", "", false, "Create registry if missing")
+	serverCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
+		"Recreate the DB")
+	serverCmd.Flags().BoolVarP(&RecreateReg, "recreatereg", "", RecreateReg,
+		"Recreate registry")
+	serverCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
+		"Don't create DB/reg if missing")
 
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
@@ -109,8 +116,12 @@ func setupCmds() *cobra.Command {
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
 	runCmd.Flags().IntVarP(&Port, "port", "p", Port, "Listen port")
 	runCmd.Flags().StringVarP(&DBName, "db", "", DBName, "DB name")
-	runCmd.Flags().BoolP("recreatedb", "", false, "Recreate the DB")
-	runCmd.Flags().BoolP("createreg", "", false, "Create registry if missing")
+	runCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
+		"Recreate the DB")
+	runCmd.Flags().BoolVarP(&RecreateReg, "recreatereg", "", RecreateReg,
+		"Recreate registry")
+	runCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
+		"Don't create DB/reg if missing")
 
 	serverCmd.AddCommand(runCmd)
 
@@ -152,7 +163,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		RegistryName = args[0]
 	}
 
-	if val, _ := cmd.Flags().GetBool("recreatedb"); val {
+	if RecreateDB {
 		if registry.DBExists(DBName) {
 			Verbose("Deleting DB: %s", DBName)
 			err := registry.DeleteDB(DBName)
@@ -160,10 +171,10 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 
 		// Force us to create the default registry, otherwise we'll die
-		cmd.Flags().Set("createreg", "true")
+		// cmd.Flags().Set("createreg", "true")
 	}
 
-	if !registry.DBExists(DBName) {
+	if !registry.DBExists(DBName) && (!DontCreate || RecreateDB) {
 		Verbose("Creating DB: %s", DBName)
 		err := registry.CreateDB(DBName)
 		ErrStop(err, "Error creating DB(%s): %s", DBName, err)
@@ -173,7 +184,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	ErrStop(err, "Can't connect to db(%s): %s", DBName, err)
 
 	// Load samples before we look for the default reg because if the default
-	// on points to sample, but it's not there, it might try to create it
+	// one points to sample, but it's not there, it might try to create it
 	if val, _ := cmd.Flags().GetBool("samples"); val {
 		paths := os.Getenv("XR_MODEL_PATH")
 		os.Setenv("XR_MODEL_PATH", ".:"+paths+
@@ -195,11 +206,15 @@ func runFunc(cmd *cobra.Command, args []string) {
 	reg, err := registry.FindRegistry(nil, RegistryName)
 	ErrStop(err, "Error findng registry(%s): %s", RegistryName, err)
 
-	if reg == nil {
-		if val, _ := cmd.Flags().GetBool("createreg"); !val {
-			Stop("Can't find registry: %s", RegistryName)
+	if reg != nil {
+		if RecreateReg {
+			Verbose("Deleting xReg: %s", RegistryName)
+			ErrStop(reg.Delete())
+			reg = nil // force a create below
 		}
+	}
 
+	if reg == nil && (!DontCreate || RecreateReg) {
 		Verbose("Creating xReg: %s", RegistryName)
 		reg, err = registry.NewRegistry(nil, RegistryName)
 		if err == nil {

@@ -60,6 +60,8 @@ type Model struct {
 	Labels     map[string]string      `json:"labels,omitempty"`
 	Attributes Attributes             `json:"attributes,omitempty"`
 	Groups     map[string]*GroupModel `json:"groups,omitempty"` // Plural
+
+	attrsOrdered []*Attribute
 }
 
 type Attributes map[string]*Attribute // AttrName->Attr
@@ -78,6 +80,10 @@ type AttrInternals struct {
 	getFn    func(*Entity, *RequestInfo) any // return prop's value
 	checkFn  func(*Entity) error             // validate incoming prop
 	updateFn func(*Entity) error             // prep prop for saving to DB
+
+	// Used by $singular and $order
+	singular     string
+	orderedProps []*Attribute
 }
 
 // Do not include "omitempty" on any attribute that has a default value that
@@ -136,6 +142,8 @@ type GroupModel struct {
 	Attributes     Attributes        `json:"attributes,omitempty"`
 
 	Resources map[string]*ResourceModel `json:"resources,omitempty"` // Plural
+
+	attrsOrdered []*Attribute
 }
 
 type ResourceModel struct {
@@ -156,6 +164,10 @@ type ResourceModel struct {
 	Labels            map[string]string `json:"labels,omitempty"`
 	Attributes        Attributes        `json:"attributes,omitempty"`
 	MetaAttributes    Attributes        `json:"metaattributes,omitempty"`
+
+	attrsOrdered        []*Attribute
+	metaAttrsOrdered    []*Attribute
+	versionAttrsOrdered []*Attribute
 }
 
 // To be picky, let's Marshal the list of attributes with Spec defined ones
@@ -171,10 +183,16 @@ func (attrs Attributes) MarshalJSON() ([]byte, error) {
 	// attribute "$singular" holds the singular name of the entity.
 	// Couldn't find a better way to pass this info all the way down.
 	singular := ""
+	orderedProps := []*Attribute(nil)
 	eType := -1
 	if attr, ok := attrsCopy["$singular"]; ok {
-		singular = attr.Description
+		singular = attr.internals.singular
 		delete(attrsCopy, "$singular")
+
+		attr, _ := attrsCopy["$order"]
+		orderedProps = attr.internals.orderedProps
+		delete(attrsCopy, "$order")
+		PanicIf(orderedProps == nil, "No, you're out of order!")
 	}
 	// end of hack
 
@@ -272,33 +290,71 @@ func (m *Model) SetPointers() {
 	}
 }
 
+func (m *Model) GetAttrsOrdered() []*Attribute {
+	if m.attrsOrdered == nil {
+		m.attrsOrdered = OrderedSpecProps
+		/*
+			m.attrsOrdered = []*Attribute{}
+			for _, attr := range OrderedSpecProps {
+				if attr.InType(ENTITY_REGISTRY) {
+					attr = attr.Clone()
+
+					m.attrsOrdered = append(m.attrsOrdered, attr)
+					// specProp = specProp.Clone("registryid")
+				}
+			}
+		*/
+	}
+	return m.attrsOrdered
+}
+
 // Total hack. Need a way to pass in the Singular and eType info from the
 // model down into the serialization routines.
 func (m *Model) SetSingular() {
 	m.Attributes["$singular"] = &Attribute{
-		Name:        "$singular",
-		Type:        STRING,
-		Description: "registry",
+		Name:      "$singular",
+		Type:      STRING,
+		internals: AttrInternals{singular: "registry"},
+	}
+	m.Attributes["$order"] = &Attribute{
+		Name:      "$order",
+		Type:      STRING,
+		internals: AttrInternals{orderedProps: m.GetAttrsOrdered()},
 	}
 
 	for _, gm := range m.Groups {
 		gm.Attributes["$singular"] = &Attribute{
-			Name:        "$singular",
-			Type:        STRING,
-			Description: gm.Singular,
+			Name:      "$singular",
+			Type:      STRING,
+			internals: AttrInternals{singular: gm.Singular},
+		}
+		gm.Attributes["$order"] = &Attribute{
+			Name:      "$order",
+			Type:      STRING,
+			internals: AttrInternals{orderedProps: gm.GetAttrsOrdered()},
 		}
 
 		for _, rm := range gm.Resources {
 			rm.Attributes["$singular"] = &Attribute{
-				Name:        "$singular",
-				Type:        STRING,
-				Description: rm.Singular,
+				Name:      "$singular",
+				Type:      STRING,
+				internals: AttrInternals{singular: rm.Singular},
+			}
+			rm.Attributes["$order"] = &Attribute{
+				Name:      "$order",
+				Type:      STRING,
+				internals: AttrInternals{orderedProps: rm.GetAttrsOrdered()},
 			}
 
 			rm.MetaAttributes["$singular"] = &Attribute{
-				Name:        "$singular",
-				Type:        STRING,
-				Description: rm.Singular,
+				Name:      "$singular",
+				Type:      STRING,
+				internals: AttrInternals{singular: rm.Singular},
+			}
+			rm.MetaAttributes["$order"] = &Attribute{
+				Name:      "$order",
+				Type:      STRING,
+				internals: AttrInternals{orderedProps: rm.GetMetaAttrsOrdered()},
 			}
 		}
 	}
@@ -306,10 +362,13 @@ func (m *Model) SetSingular() {
 
 func (m *Model) UnsetSingular() {
 	delete(m.Attributes, "$singular")
+	delete(m.Attributes, "$order")
 	for _, gm := range m.Groups {
 		delete(gm.Attributes, "$singular")
+		delete(gm.Attributes, "$order")
 		for _, rm := range gm.Resources {
 			delete(rm.Attributes, "$singular")
+			delete(rm.Attributes, "$order")
 		}
 	}
 }
@@ -938,6 +997,18 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	return nil
 }
 
+func (gm *GroupModel) GetAttrsOrdered() []*Attribute {
+	if gm.attrsOrdered == nil {
+		gm.attrsOrdered = []*Attribute{}
+		for _, attr := range OrderedSpecProps {
+			if attr.InType(ENTITY_GROUP) {
+				gm.attrsOrdered = append(gm.attrsOrdered, attr)
+			}
+		}
+	}
+	return gm.attrsOrdered
+}
+
 func (gm *GroupModel) Delete() error {
 	log.VPrintf(3, ">Enter: Delete.GroupModel: %s", gm.Plural)
 	defer log.VPrintf(3, "<Exit: Delete.GroupModel")
@@ -1194,6 +1265,42 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 		return err
 	}
 	return nil
+}
+
+func (rm *ResourceModel) GetAttrsOrdered() []*Attribute {
+	if rm.attrsOrdered == nil {
+		rm.attrsOrdered = []*Attribute{}
+		for _, attr := range OrderedSpecProps {
+			if attr.InType(ENTITY_RESOURCE) {
+				rm.attrsOrdered = append(rm.attrsOrdered, attr)
+			}
+		}
+	}
+	return rm.attrsOrdered
+}
+
+func (rm *ResourceModel) GetMetaAttrsOrdered() []*Attribute {
+	if rm.metaAttrsOrdered == nil {
+		rm.metaAttrsOrdered = []*Attribute{}
+		for _, attr := range OrderedSpecProps {
+			if attr.InType(ENTITY_RESOURCE) {
+				rm.metaAttrsOrdered = append(rm.metaAttrsOrdered, attr)
+			}
+		}
+	}
+	return rm.metaAttrsOrdered
+}
+
+func (rm *ResourceModel) GetVersionsAttrsOrdered() []*Attribute {
+	if rm.versionAttrsOrdered == nil {
+		rm.versionAttrsOrdered = []*Attribute{}
+		for _, attr := range OrderedSpecProps {
+			if attr.InType(ENTITY_RESOURCE) {
+				rm.versionAttrsOrdered = append(rm.versionAttrsOrdered, attr)
+			}
+		}
+	}
+	return rm.versionAttrsOrdered
 }
 
 func (rm *ResourceModel) GetSetVersionId() bool {
@@ -1611,6 +1718,21 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
 }
 
 func (m *Model) Verify() error {
+	// TODO: Verify that the Registry data is model compliant
+
+	// Check Groups first so that if the Group name isn't valid we'll
+	// flag that instead of an invalid GROUPScount attribute name
+	for gmName, gm := range m.Groups {
+		if gm == nil {
+			return fmt.Errorf("GroupModel %q can't be empty", gmName)
+		}
+		gm.Model = m
+		// PanicIf(m.Registry.Model == nil, "nil")
+		if err := gm.Verify(gmName); err != nil {
+			return err
+		}
+	}
+
 	// First, make sure we have the xRegistry core/spec defined attributes
 	// in the list and they're not changed in an inappropriate way.
 	// This just checks the Registry.Attributes. Groups and Resources will
@@ -1626,6 +1748,31 @@ func (m *Model) Verify() error {
 		if !specProp.InType(ENTITY_REGISTRY) {
 			continue
 		}
+
+		/*
+			if specProp.Name == "$COLLECTIONS" {
+				for plural, _ := range m.Groups {
+					m.Attributes[plural+"url"] = &Attribute{
+						Type:      URL,
+						ReadOnly:  true,
+						Immutable: true,
+						// Required:  true,
+						internals: AttrInternals{dontStore: true},
+					}
+					m.Attributes[plural+"count"] = &Attribute{
+						Type:     UINTEGER,
+						ReadOnly: true,
+						// Required:  true,
+						internals: AttrInternals{dontStore: true},
+					}
+					m.Attributes[plural] = &Attribute{
+						Type:      MAP,
+						Item:      &Item{Type: OBJECT},
+						internals: AttrInternals{dontStore: true},
+					}
+				}
+			}
+		*/
 
 		if specProp.Name[0] == '$' {
 			continue
@@ -1659,19 +1806,6 @@ func (m *Model) Verify() error {
 	}
 	if err := m.Attributes.Verify("strict", ld); err != nil {
 		return err
-	}
-
-	// TODO: Verify that the Registry data is model compliant
-
-	for gmName, gm := range m.Groups {
-		if gm == nil {
-			return fmt.Errorf("GroupModel %q can't be empty", gmName)
-		}
-		gm.Model = m
-		// PanicIf(m.Registry.Model == nil, "nil")
-		if err := gm.Verify(gmName); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -1710,8 +1844,35 @@ func (gm *GroupModel) Verify(gmName string) error {
 			gmName, gmName, gm.Plural)
 	}
 
+	if gm.Singular == "" {
+		return fmt.Errorf(`Group %q is missing a "singular" value`, gmName)
+	}
+
+	if gm.Singular == gm.Plural {
+		return fmt.Errorf(`Group %q has same value for "plural" `+
+			`and "singular"`, gmName)
+	}
+
+	if gm.Model.Groups[gm.Singular] != nil {
+		return fmt.Errorf(`Group %q has a "singular" value (%s) that `+
+			`matches another Group's "plural" value`, gmName, gm.Singular)
+	}
+
 	if err := IsValidModelName(gm.Singular); err != nil {
 		return err
+	}
+
+	// TODO: verify the Groups data are model compliant
+
+	// Verify the Resources to catch invalid Resource names early
+	for rmName, rm := range gm.Resources {
+		if rm == nil {
+			return fmt.Errorf("Resource %q can't be empty", rmName)
+		}
+		rm.GroupModel = gm
+		if err := rm.Verify(rmName); err != nil {
+			return err
+		}
 	}
 
 	// Make sure we have the xRegistry core/spec defined attributes
@@ -1723,6 +1884,31 @@ func (gm *GroupModel) Verify(gmName string) error {
 	}
 
 	for _, specProp := range OrderedSpecProps {
+		/*
+			if specProp.Name == "$COLLECTIONS" {
+				for plural, _ := range gm.Resources {
+					gm.Attributes[plural+"url"] = &Attribute{
+						Type:      URL,
+						ReadOnly:  true,
+						Immutable: true,
+						// Required:  true,
+						internals: AttrInternals{dontStore: true},
+					}
+					gm.Attributes[plural+"count"] = &Attribute{
+						Type:     UINTEGER,
+						ReadOnly: true,
+						// Required:  true,
+						internals: AttrInternals{dontStore: true},
+					}
+					gm.Attributes[plural] = &Attribute{
+						Type:      MAP,
+						Item:      &Item{Type: OBJECT},
+						internals: AttrInternals{dontStore: true},
+					}
+				}
+			}
+		*/
+
 		if specProp.Name[0] == '$' {
 			continue
 		}
@@ -1758,18 +1944,6 @@ func (gm *GroupModel) Verify(gmName string) error {
 	}
 	if err := gm.Attributes.Verify("strict", ld); err != nil {
 		return err
-	}
-
-	// TODO: verify the Groups data are model compliant
-
-	for rmName, rm := range gm.Resources {
-		if rm == nil {
-			return fmt.Errorf("Resource %q can't be empty", rmName)
-		}
-		rm.GroupModel = gm
-		if err := rm.Verify(rmName); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -1826,6 +2000,24 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			"not %q", rmName, rmName, rm.Plural)
 	}
 
+	if rm.Singular == "" {
+		return fmt.Errorf(`Resource %q is missing a "singular" value`, rmName)
+	}
+
+	if rm.Singular == rm.Plural {
+		return fmt.Errorf(`Resource %q has same value for "plural" `+
+			`and "singular"`, rmName)
+	}
+
+	if rm.GroupModel.Resources[rm.Singular] != nil {
+		return fmt.Errorf(`Resource %q has a "singular" value (%s) that `+
+			`matches another Resource's "plural" value`, rmName, rm.Singular)
+	}
+
+	if err := IsValidModelName(rm.Singular); err != nil {
+		return err
+	}
+
 	if rm.MaxVersions < 0 {
 		return fmt.Errorf("Resource %q must have a 'maxversions' value >= 0",
 			rmName)
@@ -1844,6 +2036,40 @@ func (rm *ResourceModel) Verify(rmName string) error {
 
 	for _, specProp := range OrderedSpecProps {
 		name := specProp.Name
+
+		/* TODO ADD BACK IN?
+		if rm.GetHasDocument() == true {
+			if strings.HasPrefix(name, "$RESOURCE") {
+				name = rm.Singular + name[9:]
+				specProp = specProp.Clone(name)
+			}
+		}
+		*/
+		// TODO ADD BACK IN - END
+
+		/*
+			if name == "$COLLECTIONS" {
+				// Now add the COLLECTIONS attributes("versions")
+				rm.Attributes["versionsurl"] = &Attribute{
+					Type:      URL,
+					ReadOnly:  true,
+					Immutable: true,
+					// Required:  true,
+					internals: AttrInternals{dontStore: true},
+				}
+				rm.Attributes["versionscount"] = &Attribute{
+					Type:     UINTEGER,
+					ReadOnly: true,
+					// Required:  true,
+					internals: AttrInternals{dontStore: true},
+				}
+				rm.Attributes["versions"] = &Attribute{
+					Type:      MAP,
+					Item:      &Item{Type: OBJECT},
+					internals: AttrInternals{dontStore: true},
+				}
+			}
+		*/
 
 		if name[0] == '$' {
 			continue
@@ -1887,6 +2113,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		Path:      NewPPP("resources").P(rm.Plural),
 	}
 
+	// TODO REMOVE START
 	// Make a copy so we can add the RESOURCExxx attributes, if it has a doc
 	attrs := maps.Clone(rm.Attributes)
 	// attrs := rm.Attributes
@@ -1906,18 +2133,17 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	*/
 
 	if err := attrs.Verify("strict", ld); err != nil {
+		// TODO REMOVE END
+		// if err := rm.Attributes.Verify("strict", ld); err != nil {
 		return err
 	}
-	// Notice that 'attrs' only exists for the purpose of making sure we check
-	// for duplicate names that might conflict with the RESOURCExxx attrs.
-	// This will also check the user-provided attrs at the same time.
 
 	if err := rm.MetaAttributes.Verify("strict", ld); err != nil {
 		return err
 	}
 
 	// TODO: verify the Resources data are model compliant
-	// Only do this if we have a Regsitry. It assumes that if we have
+	// Only do this if we have a Registry. It assumes that if we have
 	// no Registry then we're not connected to a backend and there's no data
 	// to verify
 	if rm.GroupModel.Model.Registry != nil {

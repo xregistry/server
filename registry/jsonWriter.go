@@ -27,6 +27,8 @@ type JsonWriter struct {
 
 	// we sometimes need to force an entity to be next, LIFO order
 	cachedEntities [](*Entity)
+
+	didCapModelSpace bool
 }
 
 func NewJsonWriter(info *RequestInfo, results *Result) *JsonWriter {
@@ -227,6 +229,19 @@ func (jw *JsonWriter) WriteEntity() error {
 		log.VPrintf(4, "jsonIt: %q", key)
 		if key == "$space" {
 			addSpace = true
+			return nil
+		}
+
+		// Can't figure out how to do this via the props table
+		if key == "capabilities" || key == "model" {
+			if !jw.didCapModelSpace {
+				addSpace = true
+				jw.didCapModelSpace = true
+			}
+		}
+
+		// TODO see if we should skip all $ props
+		if key == "$COLLECTIONS" {
 			return nil
 		}
 
