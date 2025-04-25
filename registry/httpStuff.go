@@ -349,14 +349,18 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	sort.Strings(regs)
 	regs = append([]string{"Default"}, regs...)
 	if info.ProxyHost != "" {
-		regs = append(regs, "Proxy: "+info.ProxyHost[:10])
+		_, tmp, _ := strings.Cut(info.ProxyHost, "://")
+		if tmp == "" {
+			tmp = info.ProxyHost
+		}
+		regs = append(regs, tmp[:17])
 	}
 	regs = append(regs, "Proxy ...")
 
 	selectedRegistry := ""
 	for _, name := range regs {
 		checked := ""
-		if strings.HasPrefix(name, "Proxy: ") && info.ProxyHost != "" {
+		if info.ProxyHost != "" && strings.Contains(info.ProxyHost, name) {
 			selectedRegistry = name
 			checked = " selected"
 		} else if name == "Default" && !strings.Contains(info.BaseURL, "/reg-") && info.ProxyHost == "" {
@@ -406,7 +410,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 				if info.HasFlag("offered") {
 					roots += "<b>"
 				}
-				roots += fmt.Sprintf("<a href=\"%s?offered\">offered</a>",
+				roots += fmt.Sprintf("<a href=\"%s&offered\">offered</a>",
 					BuildURL(info, r.u))
 				if info.HasFlag("offered") {
 					roots += "</b>"
