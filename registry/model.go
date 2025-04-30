@@ -61,7 +61,8 @@ type Model struct {
 	Attributes Attributes             `json:"attributes,omitempty"`
 	Groups     map[string]*GroupModel `json:"groups,omitempty"` // Plural
 
-	attrsOrdered []*Attribute
+	propsOrdered []*Attribute
+	propsMap     map[string]*Attribute
 }
 
 type Attributes map[string]*Attribute // AttrName->Attr
@@ -82,8 +83,7 @@ type AttrInternals struct {
 	updateFn func(*Entity) error             // prep prop for saving to DB
 
 	// Used by $singular and $order
-	singular     string
-	orderedProps []*Attribute
+	singular string // Owning Model's singular name
 }
 
 // Do not include "omitempty" on any attribute that has a default value that
@@ -143,7 +143,8 @@ type GroupModel struct {
 
 	Resources map[string]*ResourceModel `json:"resources,omitempty"` // Plural
 
-	attrsOrdered []*Attribute
+	propsOrdered []*Attribute
+	propsMap     map[string]*Attribute
 }
 
 type ResourceModel struct {
@@ -165,111 +166,40 @@ type ResourceModel struct {
 	Attributes        Attributes        `json:"attributes,omitempty"`
 	MetaAttributes    Attributes        `json:"metaattributes,omitempty"`
 
-	attrsOrdered        []*Attribute
-	metaAttrsOrdered    []*Attribute
-	versionAttrsOrdered []*Attribute
+	propsOrdered        []*Attribute
+	propsMap            map[string]*Attribute
+	metaPropsOrdered    []*Attribute
+	metaPropsMap        map[string]*Attribute
+	versionPropsOrdered []*Attribute
+	versionPropsMap     map[string]*Attribute
 }
 
-// To be picky, let's Marshal the list of attributes with Spec defined ones
-// first, and then the extensions in alphabetical order.
-// This is used when serializing the model for end user consumption
-
 func (attrs Attributes) MarshalJSON() ([]byte, error) {
+	// Just alphabetize the list (which go already does) BUT put "*" last
+	list := SortedKeys(attrs)
+	if len(list) > 0 && list[0] == "*" {
+		list = append(list[1:], list[0])
+	}
+
 	buf := bytes.Buffer{}
-	attrsCopy := maps.Clone(attrs) // Copy so we can delete keys
-	count := 0
-
-	// Hack!
-	// attribute "$singular" holds the singular name of the entity.
-	// Couldn't find a better way to pass this info all the way down.
-	singular := ""
-	orderedProps := []*Attribute(nil)
-	eType := -1
-	if attr, ok := attrsCopy["$singular"]; ok {
-		singular = attr.internals.singular
-		delete(attrsCopy, "$singular")
-
-		attr, _ := attrsCopy["$order"]
-		orderedProps = attr.internals.orderedProps
-		delete(attrsCopy, "$order")
-		PanicIf(orderedProps == nil, "No, you're out of order!")
-	}
-	// end of hack
-
-	buf.WriteString("{")
-
-	// Only order (or tweak things) if we're at the top level, which
-	// we know because $singular was set - not within an extension (sub-object)
-	if singular != "" {
-		for _, specProp := range OrderedSpecProps {
-			if specProp.Name[0] == '$' {
-				continue
-			}
-
-			if eType >= 0 && !specProp.InType(eType) {
-				// log.Printf("Skipping: %s  L: %d", specProp.Name, eType)
-				// continue
-			}
-
-			name := specProp.Name
-			if name == "id" {
-				if singular != "" {
-					name = singular + name
-				}
-			}
-
-			if attr, ok := attrsCopy[name]; ok {
-				delete(attrsCopy, name)
-
-				tmpAttr := *attr
-				attr = &tmpAttr
-
-				if attr.internals.neverSerialize {
-					continue
-				}
-
-				if count > 0 {
-					buf.WriteRune(',')
-				}
-				buf.WriteString(`"` + name + `": `)
-				tmpBuf, err := json.Marshal(attr)
-				if err != nil {
-					return nil, err
-				}
-				buf.Write(tmpBuf)
-				count++
-			}
+	buf.WriteRune('{')
+	for i, k := range list {
+		if i > 0 {
+			buf.WriteString(`,"`)
+		} else {
+			buf.WriteRune('"')
 		}
+		buf.WriteString(k)
+		buf.WriteString(`":`)
+		b, _ := json.Marshal(attrs[k])
+		buf.Write(b)
 	}
-
-	keys := SortedKeys(attrsCopy)
-
-	// Make sure "*" is last, it just looks nicer that way
-	if len(keys) > 1 && keys[0] == "*" {
-		keys = append(keys[1:], keys[0])
-	}
-
-	for _, name := range keys {
-		if count > 0 {
-			buf.WriteRune(',')
-		}
-		attr := attrsCopy[name]
-		buf.WriteString(`"` + name + `": `)
-		tmpBuf, err := json.Marshal(attr)
-		if err != nil {
-			return nil, err
-		}
-		buf.Write(tmpBuf)
-		// delete(attrsCopy, name)
-		count++
-	}
-
-	buf.WriteString("}")
+	buf.WriteRune('}')
 	return buf.Bytes(), nil
 }
 
 func (r *ResourceModel) UnmarshalJSON(data []byte) error {
-	// Set the default values
+	// Set the default values before we unmarshal
 	r.MaxVersions = MAXVERSIONS
 	r.SetVersionId = PtrBool(SETVERSIONID)
 	r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
@@ -290,87 +220,25 @@ func (m *Model) SetPointers() {
 	}
 }
 
-func (m *Model) GetAttrsOrdered() []*Attribute {
-	if m.attrsOrdered == nil {
-		m.attrsOrdered = OrderedSpecProps
-		/*
-			m.attrsOrdered = []*Attribute{}
-			for _, attr := range OrderedSpecProps {
-				if attr.InType(ENTITY_REGISTRY) {
-					attr = attr.Clone()
+func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if m.propsOrdered == nil {
+		m.propsOrdered = []*Attribute{}
+		m.propsMap = map[string]*Attribute{}
 
-					m.attrsOrdered = append(m.attrsOrdered, attr)
-					// specProp = specProp.Clone("registryid")
+		for _, prop := range OrderedSpecProps {
+			if prop.InType(ENTITY_REGISTRY) {
+				if prop.Name == "id" {
+					prop = prop.Clone("registryid")
+					prop.ReadOnly = true
+					PanicIf(prop.internals.checkFn == nil, "bad clone")
 				}
-			}
-		*/
-	}
-	return m.attrsOrdered
-}
 
-// Total hack. Need a way to pass in the Singular and eType info from the
-// model down into the serialization routines.
-func (m *Model) SetSingular() {
-	m.Attributes["$singular"] = &Attribute{
-		Name:      "$singular",
-		Type:      STRING,
-		internals: AttrInternals{singular: "registry"},
-	}
-	m.Attributes["$order"] = &Attribute{
-		Name:      "$order",
-		Type:      STRING,
-		internals: AttrInternals{orderedProps: m.GetAttrsOrdered()},
-	}
-
-	for _, gm := range m.Groups {
-		gm.Attributes["$singular"] = &Attribute{
-			Name:      "$singular",
-			Type:      STRING,
-			internals: AttrInternals{singular: gm.Singular},
-		}
-		gm.Attributes["$order"] = &Attribute{
-			Name:      "$order",
-			Type:      STRING,
-			internals: AttrInternals{orderedProps: gm.GetAttrsOrdered()},
-		}
-
-		for _, rm := range gm.Resources {
-			rm.Attributes["$singular"] = &Attribute{
-				Name:      "$singular",
-				Type:      STRING,
-				internals: AttrInternals{singular: rm.Singular},
-			}
-			rm.Attributes["$order"] = &Attribute{
-				Name:      "$order",
-				Type:      STRING,
-				internals: AttrInternals{orderedProps: rm.GetAttrsOrdered()},
-			}
-
-			rm.MetaAttributes["$singular"] = &Attribute{
-				Name:      "$singular",
-				Type:      STRING,
-				internals: AttrInternals{singular: rm.Singular},
-			}
-			rm.MetaAttributes["$order"] = &Attribute{
-				Name:      "$order",
-				Type:      STRING,
-				internals: AttrInternals{orderedProps: rm.GetMetaAttrsOrdered()},
+				m.propsOrdered = append(m.propsOrdered, prop)
+				m.propsMap[prop.Name] = prop
 			}
 		}
 	}
-}
-
-func (m *Model) UnsetSingular() {
-	delete(m.Attributes, "$singular")
-	delete(m.Attributes, "$order")
-	for _, gm := range m.Groups {
-		delete(gm.Attributes, "$singular")
-		delete(gm.Attributes, "$order")
-		for _, rm := range gm.Resources {
-			delete(rm.Attributes, "$singular")
-			delete(rm.Attributes, "$order")
-		}
-	}
+	return m.propsOrdered, m.propsMap
 }
 
 // VerifyAndSave() should be called by automatically but there may be
@@ -985,8 +853,12 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 			oldRM.TypeMap = newRM.TypeMap
 			oldRM.Labels = newRM.Labels
 			oldRM.MetaAttributes = newRM.MetaAttributes
+			oldRM.ClearPropsOrdered()
 		}
 	}
+
+	newM.Registry = m.Registry
+	// newM.Registry.Model = newM
 
 	if err := m.VerifyAndSave(); err != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -997,16 +869,23 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	return nil
 }
 
-func (gm *GroupModel) GetAttrsOrdered() []*Attribute {
-	if gm.attrsOrdered == nil {
-		gm.attrsOrdered = []*Attribute{}
-		for _, attr := range OrderedSpecProps {
-			if attr.InType(ENTITY_GROUP) {
-				gm.attrsOrdered = append(gm.attrsOrdered, attr)
+func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if gm.propsOrdered == nil {
+		gm.propsOrdered = []*Attribute{}
+		gm.propsMap = map[string]*Attribute{}
+
+		for _, prop := range OrderedSpecProps {
+			if prop.InType(ENTITY_GROUP) {
+				if prop.Name == "id" {
+					prop = prop.Clone(gm.Singular + "id")
+					PanicIf(prop.internals.checkFn == nil, "bad clone")
+				}
+				gm.propsOrdered = append(gm.propsOrdered, prop)
+				gm.propsMap[prop.Name] = prop
 			}
 		}
 	}
-	return gm.attrsOrdered
+	return gm.propsOrdered, gm.propsMap
 }
 
 func (gm *GroupModel) Delete() error {
@@ -1267,40 +1146,71 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 	return nil
 }
 
-func (rm *ResourceModel) GetAttrsOrdered() []*Attribute {
-	if rm.attrsOrdered == nil {
-		rm.attrsOrdered = []*Attribute{}
-		for _, attr := range OrderedSpecProps {
-			if attr.InType(ENTITY_RESOURCE) {
-				rm.attrsOrdered = append(rm.attrsOrdered, attr)
-			}
-		}
-	}
-	return rm.attrsOrdered
+func (rm *ResourceModel) ClearPropsOrdered() {
+	rm.propsOrdered = nil
+	rm.propsMap = nil
+	rm.metaPropsOrdered = nil
+	rm.metaPropsOrdered = nil
+	rm.versionPropsOrdered = nil
+	rm.versionPropsOrdered = nil
 }
 
-func (rm *ResourceModel) GetMetaAttrsOrdered() []*Attribute {
-	if rm.metaAttrsOrdered == nil {
-		rm.metaAttrsOrdered = []*Attribute{}
-		for _, attr := range OrderedSpecProps {
-			if attr.InType(ENTITY_RESOURCE) {
-				rm.metaAttrsOrdered = append(rm.metaAttrsOrdered, attr)
+func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.propsOrdered == nil {
+		rm.propsOrdered = []*Attribute{}
+		rm.propsMap = map[string]*Attribute{}
+		rm.metaPropsOrdered = []*Attribute{}
+		rm.metaPropsMap = map[string]*Attribute{}
+		rm.versionPropsOrdered = []*Attribute{}
+		rm.versionPropsMap = map[string]*Attribute{}
+
+		for _, prop := range OrderedSpecProps {
+			if prop.Name == "id" { // singular=Resource's for all 3
+				prop = prop.Clone(rm.Singular + "id")
+				PanicIf(prop.internals.checkFn == nil, "bad clone")
+			}
+
+			// this will clone all $RESOURCE attribute
+			if strings.HasPrefix(prop.Name, "$RESOURCE") {
+				if rm.GetHasDocument() {
+					name := rm.Singular + prop.Name[len("$RESOURCE"):]
+					prop = prop.Clone(name)
+				} else {
+					continue // no hasDoc so skip it
+				}
+			}
+
+			if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
+				rm.propsOrdered = append(rm.propsOrdered, prop)
+				rm.propsMap[prop.Name] = prop
+			}
+			if prop.InType(ENTITY_VERSION) {
+				rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+				rm.versionPropsMap[prop.Name] = prop
+			}
+			if prop.InType(ENTITY_META) {
+				rm.metaPropsOrdered = append(rm.metaPropsOrdered, prop)
+				rm.metaPropsMap[prop.Name] = prop
 			}
 		}
 	}
-	return rm.metaAttrsOrdered
+	return rm.propsOrdered, rm.propsMap
 }
 
-func (rm *ResourceModel) GetVersionsAttrsOrdered() []*Attribute {
-	if rm.versionAttrsOrdered == nil {
-		rm.versionAttrsOrdered = []*Attribute{}
-		for _, attr := range OrderedSpecProps {
-			if attr.InType(ENTITY_RESOURCE) {
-				rm.versionAttrsOrdered = append(rm.versionAttrsOrdered, attr)
-			}
-		}
+func (rm *ResourceModel) GetMetaPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.metaPropsOrdered == nil {
+		rm.GetPropsOrdered()
 	}
-	return rm.versionAttrsOrdered
+
+	return rm.metaPropsOrdered, rm.metaPropsMap
+}
+
+func (rm *ResourceModel) GetVersionPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.versionPropsOrdered == nil {
+		rm.GetPropsOrdered()
+	}
+
+	return rm.versionPropsOrdered, rm.versionPropsMap
 }
 
 func (rm *ResourceModel) GetSetVersionId() bool {
@@ -1740,10 +1650,10 @@ func (m *Model) Verify() error {
 
 	if m.Attributes == nil {
 		m.Attributes = Attributes{}
-
 	}
 
-	for _, specProp := range OrderedSpecProps {
+	propsOrdered, _ := m.GetPropsOrdered()
+	for _, specProp := range propsOrdered { // OrderedSpecProps {
 		// If it's not a Registry level attribute, then skip it
 		if !specProp.InType(ENTITY_REGISTRY) {
 			continue
@@ -1817,14 +1727,12 @@ func (m *Model) GetBaseAttributes() Attributes {
 
 	// Add xReg defined attributes
 	// TODO Check for conflicts
-	for _, specProp := range OrderedSpecProps {
-		if specProp.Name == "id" {
-			// Skip "id"
-			continue
-		}
-
-		if specProp.InType(ENTITY_REGISTRY) && IsNil(attrs[specProp.Name]) {
+	propsOrdered, _ := m.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].internals = specProp.internals
 		}
 	}
 
@@ -1883,7 +1791,8 @@ func (gm *GroupModel) Verify(gmName string) error {
 
 	}
 
-	for _, specProp := range OrderedSpecProps {
+	propsOrdered, _ := gm.GetPropsOrdered()
+	for _, specProp := range propsOrdered { // OrderedSpecProps {
 		/*
 			if specProp.Name == "$COLLECTIONS" {
 				for plural, _ := range gm.Resources {
@@ -1914,15 +1823,17 @@ func (gm *GroupModel) Verify(gmName string) error {
 		}
 
 		// If it's not a Group level attribute, then skip it
-		if !specProp.InType(ENTITY_GROUP) {
-			continue
-		}
+		/*
+			if !specProp.InType(ENTITY_GROUP) {
+				continue
+			}
 
-		if specProp.Name == "id" {
-			specProp = specProp.Clone(gm.Singular + "id")
-		} else {
-			specProp = specProp.Clone("")
-		}
+			if specProp.Name == "id" {
+				specProp = specProp.Clone(gm.Singular + "id")
+			} else {
+				specProp = specProp.Clone("")
+			}
+		*/
 
 		modelAttr, ok := gm.Attributes[specProp.Name]
 		if !ok {
@@ -1973,14 +1884,12 @@ func (gm *GroupModel) GetBaseAttributes() Attributes {
 
 	// Add xReg defined attributes
 	// TODO Check for conflicts
-	for _, specProp := range OrderedSpecProps {
-		if specProp.Name == "id" {
-			// Skip "id"
-			continue
-		}
-
-		if specProp.InType(ENTITY_GROUP) && IsNil(attrs[specProp.Name]) {
+	propsOrdered, _ := gm.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].internals = specProp.internals
 		}
 	}
 
@@ -2034,8 +1943,27 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		rm.MetaAttributes = Attributes{}
 	}
 
-	for _, specProp := range OrderedSpecProps {
-		name := specProp.Name
+	// Dug
+	// If the hasDoc was changed to false, remove the $RESOURCE* attrs
+	if rm.GetHasDocument() == false {
+		for _, suffix := range []string{"", "proxyurl", "url"} {
+			name := rm.Singular + suffix
+			if attr := rm.Attributes[name]; attr != nil {
+				// Only remove it if it was added due to hasDoc=true
+				// And we know this because 'internals' has data
+				if attr.internals.types != "" {
+					delete(rm.Attributes, name)
+					rm.ClearPropsOrdered()
+				}
+			}
+		}
+	}
+
+	propsOrdered, _ := rm.GetPropsOrdered()
+	for _, specProp := range propsOrdered { // OrderedSpecProps {
+		// if specProp.Name[0] == '$' {
+		// continue
+		// }
 
 		/* TODO ADD BACK IN?
 		if rm.GetHasDocument() == true {
@@ -2046,6 +1974,18 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		}
 		*/
 		// TODO ADD BACK IN - END
+
+		// this will clone all $RESOURCE attribute
+		/*
+			if strings.HasPrefix(specProp.Name, "$RESOURCE") {
+				if rm.GetHasDocument() {
+					name := rm.Singular + specProp.Name[len("$RESOURCE"):]
+					specProp = specProp.Clone(name)
+				} else {
+					continue // no hasDoc so skip it
+				}
+			}
+		*/
 
 		/*
 			if name == "$COLLECTIONS" {
@@ -2071,38 +2011,42 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			}
 		*/
 
-		if name[0] == '$' {
+		if specProp.Name[0] == '$' {
 			continue
 		}
 
-		if name == "id" {
-			name = rm.Singular + "id"
-			specProp = specProp.Clone(name)
-		}
+		// if name == "id" {
+		// name = rm.Singular + "id"
+		// specProp = specProp.Clone(name)
+		// }
 
-		if specProp.InType(ENTITY_VERSION) { // || specProp.InType(ENTITY_RESOURCE) {
-			modelAttr, ok := rm.Attributes[name]
-			if !ok {
-				// Missing in model, so add it
-				rm.Attributes[name] = specProp
-			} else {
-				// It's there but make sure it's not changed in a bad way
-				if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-					return err
-				}
+		// if specProp.InType(ENTITY_VERSION) { // || specProp.InType(ENTITY_RESOURCE)
+		modelAttr, ok := rm.Attributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			rm.Attributes[specProp.Name] = specProp
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
 			}
 		}
+		// }
+	}
 
-		if specProp.InType(ENTITY_META) {
-			modelAttr, ok := rm.MetaAttributes[name]
-			if !ok {
-				// Missing in model, so add it
-				rm.MetaAttributes[name] = specProp
-			} else {
-				// It's there but make sure it's not changed in a bad way
-				if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-					return err
-				}
+	propsOrdered, _ = rm.GetMetaPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+		modelAttr, ok := rm.MetaAttributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			rm.MetaAttributes[specProp.Name] = specProp
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
 			}
 		}
 	}
@@ -2240,15 +2184,20 @@ func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 
 	// Add xReg defined attributes
 	// TODO Check for conflicts
-	for _, specProp := range OrderedSpecProps {
-		if specProp.Name == "id" {
-			// Skip "id"
-			continue
-		}
+	propsOrdered, _ := rm.GetMetaPropsOrdered()
+	for _, specProp := range propsOrdered { // OrderedSpecProps {
+		// if specProp.Name == "id" {
+		// // Skip "id"
+		// continue
+		// }
 
-		if specProp.InType(ENTITY_META) && IsNil(attrs[specProp.Name]) {
+		// if specProp.InType(ENTITY_META) {
+		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].internals = specProp.internals
 		}
+		// }
 	}
 
 	return attrs
@@ -2291,33 +2240,33 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 
 	// Find all Resource level attributes (not Meta) so we can show them
 	// mixed in with the Default Version attributes - e.g. metaurl
-	for _, specProp := range OrderedSpecProps {
-		if specProp.Name == "id" {
-			// Skip "id"
-			continue
-		}
-
-		if specProp.InType(ENTITY_RESOURCE) && IsNil(attrs[specProp.Name]) {
+	propsOrdered, _ := rm.GetPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].internals = specProp.internals
 		}
 	}
 
 	// Resource has hasDoc=true, then add $RESOURCE attrs
-	if rm.GetHasDocument() {
-		attrs[rm.Singular] =
-			SpecProps["$RESOURCE"].Clone(rm.Singular)
+	/*
+		if rm.GetHasDocument() {
+			attrs[rm.Singular] =
+				SpecProps["$RESOURCE"].Clone(rm.Singular)
 
-		attrs[rm.Singular+"url"] =
-			SpecProps["$RESOURCEurl"].Clone(rm.Singular + "url")
+			attrs[rm.Singular+"url"] =
+				SpecProps["$RESOURCEurl"].Clone(rm.Singular + "url")
 
-		attrs[rm.Singular+"proxyurl"] =
-			SpecProps["$RESOURCEproxyurl"].Clone(rm.Singular + "proxyurl")
-	}
+			attrs[rm.Singular+"proxyurl"] =
+				SpecProps["$RESOURCEproxyurl"].Clone(rm.Singular + "proxyurl")
+		}
 
-	// Either way, delete the template ones since they're not used
-	delete(attrs, "$RESOURCE")
-	delete(attrs, "$RESOURCEurl")
-	delete(attrs, "$RESOURCEproxyurl")
+		// Either way, delete the template ones since they're not used
+		delete(attrs, "$RESOURCE")
+		delete(attrs, "$RESOURCEurl")
+		delete(attrs, "$RESOURCEproxyurl")
+	*/
 
 	return attrs
 }
@@ -2532,6 +2481,9 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		if name == "" { // attribute key empty?
 			return fmt.Errorf("Error processing %q: "+
 				"it has an empty attribute key", ld.Path.UI())
+		}
+		if name[0] == '$' {
+			continue
 		}
 		if ld.AttrNames[name] == true { // Dup attr name?
 			return fmt.Errorf("Duplicate attribute name (%s) at: %s", name,
@@ -2863,12 +2815,7 @@ func AbstractToSingular(reg *Registry, abs string) string {
 
 // The model serializer we use for the "xRegistry" schema format
 func Model2xRegistryJson(m *Model, format string) ([]byte, error) {
-	m.SetSingular()
-
-	buf, err := json.MarshalIndent(m, "", "  ")
-	m.UnsetSingular()
-
-	return buf, err
+	return json.MarshalIndent((*UserModel)(m), "", "  ")
 }
 
 func GetModelSerializer(format string) ModelSerializer {

@@ -527,7 +527,7 @@ UNION SELECT                    # Add Version.isdefault, which is calculated
   'boolean',                    # Type
   IF(LEFT(v.eSID,1)='-',false,true)  # DocView,Lie if it's not xref'd prop/ver
 FROM Entities AS v
-JOIN Metas AS m ON (m.ResourceSID=v.ParentSID)
+JOIN Metas AS m ON (m.ResourceSID=v.ParentSID AND v.Type='$ENTITY_VERSION')
 
 UNION SELECT                   # Add *.xid, which is calculated
   e.RegSID,

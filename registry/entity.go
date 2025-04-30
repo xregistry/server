@@ -619,12 +619,8 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 	name := pp.DB()
 
 	// Any prop with "dontStore"=true we skip
-	specPropName := pp.Top()
-	if specPropName == e.Singular+"id" {
-		specPropName = "id"
-	}
-
-	specProp, ok := SpecProps[specPropName]
+	_, propsMap := e.GetPropsOrdered()
+	specProp, ok := propsMap[pp.Top()]
 	if ok && specProp.internals.dontStore {
 		return nil
 	}
@@ -832,34 +828,6 @@ func readNextEntity(tx *Tx, results *Result) (*Entity, error) {
 	}
 
 	return entity, nil
-}
-
-func CalcSpecProps(eType int, singular string) ([]*Attribute, map[string]*Attribute) {
-	// Use eType < 0 to not check the type of the prop
-	// Use singular = "" to not twiddle any "singular" specific logic
-	resMap := map[string]*Attribute{}
-	resArr := []*Attribute{}
-
-	for _, prop := range OrderedSpecProps {
-		if eType >= 0 && !prop.InType(eType) {
-			continue
-		}
-
-		var copyProp *Attribute
-
-		// If needed, duplicate it.
-		// If Attribute is ever more than scalars we'll need to deep copy
-		if copyProp.Name == "id" {
-			tmp := *prop
-			copyProp = &tmp
-			copyProp.Name = singular + "id"
-		}
-
-		resArr = append(resArr, copyProp)
-		resMap[copyProp.Name] = copyProp
-	}
-
-	return resArr, resMap
 }
 
 func StrTypes(types ...int) string {
@@ -1430,7 +1398,7 @@ var OrderedSpecProps = []*Attribute{
 						model = &Model{}
 					}
 					httpModel := model // ModelToHTTPModel(model)
-					return httpModel
+					return (*UserModel)(httpModel)
 				}
 				return nil
 			},
@@ -1633,6 +1601,12 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "$space",
+		internals: AttrInternals{
+			types: "",
+		},
+	},
+	{
 		Name:      "metaurl",
 		Type:      URL,
 		ReadOnly:  true,
@@ -1672,21 +1646,19 @@ var OrderedSpecProps = []*Attribute{
 			updateFn: nil,
 		},
 	},
-	/*
-		{
-			Name: "meta",
-			Type: OBJECT,
-			Attributes: Attributes{
-				"*": &Attribute{
-					Name: "*",
-					Type: ANY,
-				},
-			},
-			internals: AttrInternals{
-				types: StrTypes(ENTITY_RESOURCE),
+	{
+		Name: "meta",
+		Type: OBJECT,
+		Attributes: Attributes{
+			"*": &Attribute{
+				Name: "*",
+				Type: ANY,
 			},
 		},
-	*/
+		internals: AttrInternals{
+			types: StrTypes(ENTITY_RESOURCE),
+		},
+	},
 	{
 		Name: "$space",
 		internals: AttrInternals{
@@ -1827,11 +1799,32 @@ func init() {
 	}
 }
 
+func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	switch e.Type {
+	case ENTITY_REGISTRY:
+		return e.Registry.Model.GetPropsOrdered()
+	case ENTITY_GROUP:
+		gm, _ := e.GetModels()
+		return gm.GetPropsOrdered()
+	case ENTITY_RESOURCE:
+		_, rm := e.GetModels()
+		return rm.GetPropsOrdered()
+	case ENTITY_META:
+		_, rm := e.GetModels()
+		return rm.GetMetaPropsOrdered()
+	case ENTITY_VERSION:
+		_, rm := e.GetModels()
+		return rm.GetVersionPropsOrdered()
+	default:
+		panic("What?")
+	}
+}
+
 // This is used to serialize an Entity regardless of the format.
 // This will:
 //   - Use AddCalcProps() to fill in any missing props (eg Entity's getFn())
 //   - Call that passed-in 'fn' to serialize each prop but in the right order
-//     as defined by OrderedSpecProps
+//     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(info *RequestInfo,
 	fn func(*Entity, *RequestInfo, string, any, *Attribute) error) error {
 	log.VPrintf(3, ">Enter: SerializeProps(%s/%s)", e.Abstract, e.UID)
@@ -1855,26 +1848,17 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		hasDoc = rm.GetHasDocument()
 	}
 
-	// Do spec defined props first, in order
-	// TODO we really should filter the OrderSpecProps based on
-	// the level and whether hasDoc is true or not
-	for _, prop := range OrderedSpecProps {
+	propsOrdered, propsMap := e.GetPropsOrdered()
+
+	// Loop over the defined props - extensions are done under the "if...$ext"
+	for _, prop := range propsOrdered {
 		name := prop.Name
-		if name == "id" {
-			if e.Type != ENTITY_VERSION && e.Type != ENTITY_META {
-				// versionid has it's own special entry
-				name = e.Singular + "id"
-			} else {
-				// for versions, id=RESOURCEid
-				name = resourceSingular + "id"
-			}
-		}
 
 		if hasDoc && strings.HasPrefix(name, "$RESOURCE") {
 			name = resourceSingular + name[9:]
 		}
 
-		log.VPrintf(4, "Ser prop: %q", name)
+		log.VPrintf(4, "Ser prop(%s): %q", e.Path, name)
 
 		attr, ok := attrs[name]
 		if !ok {
@@ -1886,24 +1870,20 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		if prop.Name == "$extensions" {
 			if prop.InType(e.Type) {
 				for _, objKey := range SortedKeys(daObj) {
-					attrKey := objKey
-					if attrKey == e.Singular+"id" {
-						attrKey = "id"
-					}
-
-					// Skip spec defined properties, assume we'll add them later
-					if SpecProps[attrKey] != nil {
+					// Skip spec defined properties
+					if propsMap[objKey] != nil {
 						continue
 					}
 
 					val, _ := daObj[objKey]
-					attr := attrs[attrKey]
+					attr := attrs[objKey]
 					delete(daObj, objKey)
 					if attr == nil {
 						attr = attrs["*"]
-						PanicIf(attrKey[0] != '#' && attr == nil,
-							"Can't find attr for %q", attrKey)
+						PanicIf(objKey[0] != '#' && attr == nil,
+							"Can't find attr for (%s) %q", e.Path, objKey)
 					}
+					// log.Printf("Ser*ext(%s): %q", e.Path, objKey)
 
 					if err := fn(e, info, objKey, val, attr); err != nil {
 						return err
@@ -1925,23 +1905,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		if val, ok := daObj[name]; ok {
 			log.VPrintf(4, "  val: %v", val)
 			if !IsNil(val) {
-				cleanup := false
-				var m *Model
-
-				t := reflect.ValueOf(val).Type()
-				if t.Kind() == reflect.Pointer &&
-					t.Elem().String() == "registry.Model" {
-
-					m, ok = val.(*Model)
-					PanicIf(!ok, "Not a model")
-					m.SetSingular()
-					cleanup = true
-				}
-
 				err := fn(e, info, name, val, attr)
-				if cleanup {
-					m.UnsetSingular()
-				}
 				if err != nil {
 					return err
 				}
@@ -1953,23 +1917,25 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 	}
 
 	// Now do all other props (extensions) alphabetically
-	for _, objKey := range SortedKeys(daObj) {
-		attrKey := objKey
-		if attrKey == e.Singular+"id" {
-			attrKey = "id"
-		}
-		val, _ := daObj[objKey]
-		attr := attrs[attrKey]
-		if attr == nil {
-			attr = attrs["*"]
-			PanicIf(attrKey[0] != '#' && attr == nil,
-				"Can't find attr for %q", attrKey)
-		}
+	/*
+		for _, objKey := range SortedKeys(daObj) {
+			attrKey := objKey
+			if attrKey == e.Singular+"id" {
+				attrKey = "id"
+			}
+			val, _ := daObj[objKey]
+			attr := attrs[attrKey]
+			if attr == nil {
+				attr = attrs["*"]
+				PanicIf(attrKey[0] != '#' && attr == nil,
+					"Can't find attr for %q", attrKey)
+			}
 
-		if err := fn(e, info, objKey, val, attr); err != nil {
-			return err
+			if err := fn(e, info, objKey, val, attr); err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	return nil
 }
@@ -2101,22 +2067,18 @@ func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
 	mat := maps.Clone(e.Object)
 
 	// Regardless of the type of entity, set the generated properties
-	for _, prop := range OrderedSpecProps {
-		// Only generate props that are for this eType, and have a Fn
-		if prop.internals.getFn == nil || !prop.InType(e.Type) {
-			continue
-		}
+	propsOrdered, _ := e.GetPropsOrdered()
 
-		name := prop.Name
-		if name == "id" {
-			name = e.Singular + "id"
-		}
-
-		// Only generate/set the value if it's not already set
-		if _, ok := mat[name]; !ok {
-			if val := prop.internals.getFn(e, info); !IsNil(val) {
-				// Only write it if we have a value
-				mat[name] = val
+	for _, prop := range propsOrdered {
+		// Only generate props that have a Fn
+		if prop.internals.getFn != nil {
+			// Only generate/set the value if it's not already set
+			if _, ok := mat[prop.Name]; !ok {
+				if val := prop.internals.getFn(e, info); !IsNil(val) {
+					// Only write it if we have a value
+					// log.Printf("Added calc prop: %q", prop.Name)
+					mat[prop.Name] = val
+				}
 			}
 		}
 	}

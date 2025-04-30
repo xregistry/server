@@ -1253,6 +1253,7 @@ func TestXrefDocs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestor": "1",
+
   "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -1271,6 +1272,7 @@ func TestXrefDocs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestor": "1",
+
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
   "filebase64": "aGVsbG8tUHJveHkK",
 
@@ -1414,6 +1416,7 @@ func TestXrefDocs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestor": "1",
+
   "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -1443,6 +1446,7 @@ func TestXrefDocs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "ancestor": "1",
+
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
   "filebase64": "aGVsbG8tUHJveHkK",
 

@@ -603,6 +603,35 @@ func TestHTTPModel(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -989,6 +1018,23 @@ func TestHTTPModel(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -1381,6 +1427,35 @@ func TestHTTPModel(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -4416,6 +4491,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v2",
+
   "fileurl": "http://localhost:8282/EMPTY-URL",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1-proxy/meta",
@@ -4687,6 +4763,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v1",
+
   "fileurl": "http://localhost:8282/EMPTY-URL"
 }
 `,
@@ -4712,6 +4789,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v2",
+
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
 }
 `,
@@ -4789,6 +4867,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v1",
+
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
 }
 `,
@@ -4814,6 +4893,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v2",
+
   "fileurl": "http://localhost:8282/EMPTY-URL"
 }
 `,
@@ -4866,6 +4946,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v1",
+
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
 }
 `,
@@ -4891,6 +4972,7 @@ func TestHTTPVersions(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestor": "v1",
+
   "fileurl": "http://localhost:8282/EMPTY-URL"
 }
 `,

@@ -950,6 +950,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -1218,6 +1247,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -1577,6 +1635,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -1996,6 +2083,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -2416,6 +2532,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -2774,6 +2919,35 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -2991,6 +3165,10 @@ func TestResourceModelCreate(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
+    "mystr": {
+      "name": "mystr",
+      "type": "string"
+    },
     "capabilities": {
       "name": "capabilities",
       "type": "object",
@@ -3010,10 +3188,6 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
-    },
-    "mystr": {
-      "name": "mystr",
-      "type": "string"
     }
   },
   "groups": {
@@ -3163,6 +3337,23 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -3383,6 +3574,10 @@ func TestResourceModelCreate(t *testing.T) {
         "type": "timestamp",
         "required": true
       },
+      "mystr": {
+        "name": "mystr",
+        "type": "string"
+      },
       "capabilities": {
         "name": "capabilities",
         "type": "object",
@@ -3402,10 +3597,6 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "any"
           }
         }
-      },
-      "mystr": {
-        "name": "mystr",
-        "type": "string"
       }
     },
     "groups": {
@@ -3555,6 +3746,23 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {
@@ -3977,6 +4185,23 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {
@@ -4733,6 +4958,35 @@ func TestMultModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rm1url": {
+              "name": "rm1url",
+              "type": "url"
+            },
+            "rm1proxyurl": {
+              "name": "rm1proxyurl",
+              "type": "url"
+            },
+            "rm1": {
+              "name": "rm1",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -4938,6 +5192,35 @@ func TestMultModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rm2url": {
+              "name": "rm2url",
+              "type": "url"
+            },
+            "rm2proxyurl": {
+              "name": "rm2proxyurl",
+              "type": "url"
+            },
+            "rm2": {
+              "name": "rm2",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -5206,6 +5489,35 @@ func TestMultModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rm1url": {
+              "name": "rm1url",
+              "type": "url"
+            },
+            "rm1proxyurl": {
+              "name": "rm1proxyurl",
+              "type": "url"
+            },
+            "rm1": {
+              "name": "rm1",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -5411,6 +5723,35 @@ func TestMultModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rm2url": {
+              "name": "rm2url",
+              "type": "url"
+            },
+            "rm2proxyurl": {
+              "name": "rm2proxyurl",
+              "type": "url"
+            },
+            "rm2": {
+              "name": "rm2",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -5821,6 +6162,35 @@ func TestMultModel2Create(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "fileurl": {
+                "name": "fileurl",
+                "type": "url"
+              },
+              "fileproxyurl": {
+                "name": "fileproxyurl",
+                "type": "url"
+              },
+              "file": {
+                "name": "file",
+                "type": "any"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {
@@ -6089,6 +6459,35 @@ func TestMultModel2Create(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "fileurl": {
+                "name": "fileurl",
+                "type": "url"
+              },
+              "fileproxyurl": {
+                "name": "fileproxyurl",
+                "type": "url"
+              },
+              "file": {
+                "name": "file",
+                "type": "any"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {
@@ -6695,6 +7094,35 @@ func TestModelLabels(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rmurl": {
+              "name": "rmurl",
+              "type": "url"
+            },
+            "rmproxyurl": {
+              "name": "rmproxyurl",
+              "type": "url"
+            },
+            "rm": {
+              "name": "rm",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -7063,6 +7491,35 @@ func TestModelLabels(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "rmurl": {
+              "name": "rmurl",
+              "type": "url"
+            },
+            "rmproxyurl": {
+              "name": "rmproxyurl",
+              "type": "url"
+            },
+            "rm": {
+              "name": "rm",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -7450,6 +7907,35 @@ func TestModelLabels(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -7744,6 +8230,7 @@ func TestUseSpecAttrs(t *testing.T) {
     "id": 2,
     "isdefault": 9,
     "labels": 6,
+    "meta": 4,
     "metaurl": 7,
     "model": 5,
     "modifiedat": 10,
@@ -7821,26 +8308,6 @@ func TestUseSpecAttrs(t *testing.T) {
         "type": "timestamp",
         "required": true
       },
-      "capabilities": {
-        "name": "capabilities",
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      },
-      "model": {
-        "name": "model",
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      },
       "obj": {
         "name": "obj",
         "type": "object",
@@ -7909,6 +8376,10 @@ func TestUseSpecAttrs(t *testing.T) {
             "name": "labels",
             "type": "integer"
           },
+          "meta": {
+            "name": "meta",
+            "type": "integer"
+          },
           "metaurl": {
             "name": "metaurl",
             "type": "integer"
@@ -7952,6 +8423,26 @@ func TestUseSpecAttrs(t *testing.T) {
           "xref": {
             "name": "xref",
             "type": "integer"
+          }
+        }
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
           }
         }
       }
@@ -8090,6 +8581,10 @@ func TestUseSpecAttrs(t *testing.T) {
               },
               "labels": {
                 "name": "labels",
+                "type": "integer"
+              },
+              "meta": {
+                "name": "meta",
                 "type": "integer"
               },
               "metaurl": {
@@ -8314,6 +8809,10 @@ func TestUseSpecAttrs(t *testing.T) {
                     "name": "labels",
                     "type": "integer"
                   },
+                  "meta": {
+                    "name": "meta",
+                    "type": "integer"
+                  },
                   "metaurl": {
                     "name": "metaurl",
                     "type": "integer"
@@ -8357,6 +8856,23 @@ func TestUseSpecAttrs(t *testing.T) {
                   "xref": {
                     "name": "xref",
                     "type": "integer"
+                  }
+                }
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
                   }
                 }
               }
@@ -8460,23 +8976,6 @@ func TestUseSpecAttrs(t *testing.T) {
                   }
                 }
               },
-              "defaultversionid": {
-                "name": "defaultversionid",
-                "type": "string",
-                "required": true
-              },
-              "defaultversionurl": {
-                "name": "defaultversionurl",
-                "type": "url",
-                "readonly": true,
-                "required": true
-              },
-              "defaultversionsticky": {
-                "name": "defaultversionsticky",
-                "type": "boolean",
-                "required": true,
-                "default": false
-              },
               "obj": {
                 "name": "obj",
                 "type": "object",
@@ -8565,6 +9064,10 @@ func TestUseSpecAttrs(t *testing.T) {
                     "name": "labels",
                     "type": "integer"
                   },
+                  "meta": {
+                    "name": "meta",
+                    "type": "integer"
+                  },
                   "metaurl": {
                     "name": "metaurl",
                     "type": "integer"
@@ -8610,6 +9113,23 @@ func TestUseSpecAttrs(t *testing.T) {
                     "type": "integer"
                   }
                 }
+              },
+              "defaultversionid": {
+                "name": "defaultversionid",
+                "type": "string",
+                "required": true
+              },
+              "defaultversionurl": {
+                "name": "defaultversionurl",
+                "type": "url",
+                "readonly": true,
+                "required": true
+              },
+              "defaultversionsticky": {
+                "name": "defaultversionsticky",
+                "type": "boolean",
+                "required": true,
+                "default": false
               }
             }
           }
@@ -8646,6 +9166,7 @@ func TestUseSpecAttrs(t *testing.T) {
         "id": 2,
         "isdefault": 9,
         "labels": 6,
+        "meta": 4,
         "metaurl": 7,
         "model": 5,
         "modifiedat": 10,
@@ -8693,6 +9214,7 @@ func TestUseSpecAttrs(t *testing.T) {
             "id": 2,
             "isdefault": 9,
             "labels": 6,
+            "meta": 4,
             "metaurl": 7,
             "model": 5,
             "modifiedat": 10,
@@ -8738,6 +9260,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "id": 2,
               "isdefault": 9,
               "labels": 6,
+              "meta": 4,
               "metaurl": 7,
               "model": 5,
               "modifiedat": 10,
@@ -8789,6 +9312,7 @@ func TestUseSpecAttrs(t *testing.T) {
                 "id": 2,
                 "isdefault": 9,
                 "labels": 6,
+                "meta": 4,
                 "metaurl": 7,
                 "model": 5,
                 "modifiedat": 10,
@@ -9079,6 +9603,35 @@ func TestModelCompatibleWith(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "dataurl": {
+              "name": "dataurl",
+              "type": "url"
+            },
+            "dataproxyurl": {
+              "name": "dataproxyurl",
+              "type": "url"
+            },
+            "data": {
+              "name": "data",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -9286,6 +9839,35 @@ func TestModelCompatibleWith(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -9492,6 +10074,35 @@ func TestModelCompatibleWith(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "foourl": {
+              "name": "foourl",
+              "type": "url"
+            },
+            "fooproxyurl": {
+              "name": "fooproxyurl",
+              "type": "url"
+            },
+            "foo": {
+              "name": "foo",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -9692,26 +10303,6 @@ func TestModelIncludes(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
     "sample_groups": {
       "name": "sample_groups",
       "type": "map",
@@ -9737,6 +10328,26 @@ func TestModelIncludes(t *testing.T) {
       "type": "url",
       "readonly": true,
       "immutable": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     }
   },
   "groups": {
@@ -9774,13 +10385,6 @@ func TestModelIncludes(t *testing.T) {
           "name": "name",
           "type": "string"
         },
-        "isdefault": {
-          "name": "isdefault",
-          "type": "boolean",
-          "readonly": true,
-          "required": true,
-          "default": false
-        },
         "description": {
           "name": "description",
           "type": "string"
@@ -9806,14 +10410,21 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
-        "metaurl": {
-          "name": "metaurl",
-          "type": "url",
-          "required": true
+        "isdefault": {
+          "name": "isdefault",
+          "type": "boolean",
+          "readonly": true,
+          "required": true,
+          "default": false
         },
         "meta": {
           "name": "meta",
           "type": "object"
+        },
+        "metaurl": {
+          "name": "metaurl",
+          "type": "url",
+          "required": true
         },
         "sample_resource": {
           "name": "sample_resource",
@@ -9960,6 +10571,35 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "sample_resourceurl": {
+              "name": "sample_resourceurl",
+              "type": "url"
+            },
+            "sample_resourceproxyurl": {
+              "name": "sample_resourceproxyurl",
+              "type": "url"
+            },
+            "sample_resource": {
+              "name": "sample_resource",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -10059,6 +10699,13 @@ func TestModelIncludes(t *testing.T) {
                 }
               }
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -10075,13 +10722,6 @@ func TestModelIncludes(t *testing.T) {
               "type": "boolean",
               "required": true,
               "default": false
-            },
-            "shortself": {
-              "name": "shortself",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
             }
           }
         }
@@ -10327,6 +10967,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -10595,6 +11264,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "formaturl": {
+              "name": "formaturl",
+              "type": "url"
+            },
+            "formatproxyurl": {
+              "name": "formatproxyurl",
+              "type": "url"
+            },
+            "format": {
+              "name": "format",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -11023,6 +11721,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -11291,6 +12018,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "formaturl": {
+              "name": "formaturl",
+              "type": "url"
+            },
+            "formatproxyurl": {
+              "name": "formatproxyurl",
+              "type": "url"
+            },
+            "format": {
+              "name": "format",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -11656,6 +12412,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -11924,6 +12709,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "formaturl": {
+              "name": "formaturl",
+              "type": "url"
+            },
+            "formatproxyurl": {
+              "name": "formatproxyurl",
+              "type": "url"
+            },
+            "format": {
+              "name": "format",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -12289,6 +13103,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -12557,6 +13400,35 @@ func TestModelIncludes(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "formaturl": {
+              "name": "formaturl",
+              "type": "url"
+            },
+            "formatproxyurl": {
+              "name": "formatproxyurl",
+              "type": "url"
+            },
+            "format": {
+              "name": "format",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -12805,6 +13677,10 @@ func TestModelMissingFields(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
+    "regext": {
+      "name": "regext",
+      "type": "string"
+    },
     "capabilities": {
       "name": "capabilities",
       "type": "object",
@@ -12824,10 +13700,6 @@ func TestModelMissingFields(t *testing.T) {
           "type": "any"
         }
       }
-    },
-    "regext": {
-      "name": "regext",
-      "type": "string"
     }
   },
   "groups": {
@@ -12985,6 +13857,35 @@ func TestModelMissingFields(t *testing.T) {
             "rext": {
               "name": "rext",
               "type": "integer"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
             }
           },
           "metaattributes": {
@@ -13086,6 +13987,10 @@ func TestModelMissingFields(t *testing.T) {
                 }
               }
             },
+            "mext": {
+              "name": "mext",
+              "type": "boolean"
+            },
             "defaultversionid": {
               "name": "defaultversionid",
               "type": "string",
@@ -13102,10 +14007,6 @@ func TestModelMissingFields(t *testing.T) {
               "type": "boolean",
               "required": true,
               "default": false
-            },
-            "mext": {
-              "name": "mext",
-              "type": "boolean"
             }
           }
         }

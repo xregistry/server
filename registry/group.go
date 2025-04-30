@@ -442,14 +442,14 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// If both Resource attrs and Version attrs are present, use the Version's
 	if vID != "" {
 		if _, ok := versions[defVerID]; !ok {
-			RemoveResourceAttributes(rModel.Singular, obj)
+			RemoveResourceAttributes(rModel, obj)
 			_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
 			if err != nil {
 				return nil, false, err
 			}
 		}
 	} else {
-		RemoveResourceAttributes(rModel.Singular, obj)
+		RemoveResourceAttributes(rModel, obj)
 		_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
 		if err != nil {
 			return nil, false, err

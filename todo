@@ -109,3 +109,7 @@ TODOs:
 - add support for setting capabilities.mutable to null and make sure things
   aren't editable - like capabilities, model, entities
 - add all attributes to the model, including model/caps/COLLETIONS/RESOURCE/..
+- test to make sure we either override or error when someone tries to define
+  an extension that looks like COLLECTION/url/count or shortself, etc..
+- test to make sure we set ancestor correctly when server assigns the version
+  ID. `ancestor=request`

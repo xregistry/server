@@ -816,8 +816,8 @@ func TestFiltersObjs(t *testing.T) {
 	attr, _ = reg.Model.AddAttrObj("regobj3")
 	attr.AddAttr("bool", registry.BOOLEAN)
 
-	reg.SetSave("regobj2", map[string]any{})
-	reg.SetSave("regobj3", map[string]any{"bool": true})
+	xNoErr(t, reg.SetSave("regobj2", map[string]any{}))
+	xNoErr(t, reg.SetSave("regobj3", map[string]any{"bool": true}))
 
 	tests := []struct {
 		Name string

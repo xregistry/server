@@ -870,26 +870,6 @@ func TestNameCharSet(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
     "obj1": {
       "name": "obj1",
       "type": "object",
@@ -916,6 +896,26 @@ func TestNameCharSet(t *testing.T) {
         "*": {
           "name": "*",
           "type": "integer"
+        }
+      }
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
         }
       }
     }

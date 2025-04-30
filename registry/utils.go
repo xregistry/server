@@ -118,6 +118,10 @@ func PtrIntDef(val *any, def int) *int {
 	return &result
 }
 
+func NotNilBoolPtr(val *bool) bool {
+	return val != nil && (*val) == true
+}
+
 func NotNilBoolDef(val *any, def bool) bool {
 	if val == nil || *val == nil {
 		return def

@@ -305,6 +305,35 @@ func TestExportBasic(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "fileurl": {
+                "name": "fileurl",
+                "type": "url"
+              },
+              "fileproxyurl": {
+                "name": "fileproxyurl",
+                "type": "url"
+              },
+              "file": {
+                "name": "file",
+                "type": "any"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {
@@ -928,6 +957,35 @@ func TestExportBasic(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "fileurl": {
+                "name": "fileurl",
+                "type": "url"
+              },
+              "fileproxyurl": {
+                "name": "fileproxyurl",
+                "type": "url"
+              },
+              "file": {
+                "name": "file",
+                "type": "any"
+              },
+              "metaurl": {
+                "name": "metaurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "meta": {
+                "name": "meta",
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
               }
             },
             "metaattributes": {

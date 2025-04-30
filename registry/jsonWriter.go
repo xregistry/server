@@ -249,7 +249,7 @@ func (jw *JsonWriter) WriteEntity() error {
 			return nil
 		}
 
-		if key[0] == '#' {
+		if key[0] == '#' || key[0] == '$' {
 			// Skip all other internal attributes
 			return nil
 		}

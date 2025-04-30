@@ -47,16 +47,11 @@ func isResourceOnly(name string) bool {
 // Remove any attributes that appear on Resources but not Versions.
 // Mainly used to prep an Obj that was directed at a Resource but will be used
 // to update a Version
-func RemoveResourceAttributes(singular string, obj map[string]any) {
-	// attrArray, _ := CalcSpecProps(-1, singular)
-
-	for _, attr := range OrderedSpecProps { // attrArray {
+func RemoveResourceAttributes(rm *ResourceModel, obj map[string]any) {
+	propsOrdered, _ := rm.GetPropsOrdered()
+	for _, attr := range propsOrdered {
 		if attr.InType(ENTITY_RESOURCE) && !attr.InType(ENTITY_VERSION) {
-			name := attr.Name
-			if name == "id" {
-				name = singular + "id"
-			}
-			delete(obj, name)
+			delete(obj, attr.Name)
 		}
 	}
 }
