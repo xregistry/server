@@ -211,6 +211,7 @@ func marshalAttrs(attrs Attributes, name string, extra string,
 						if k[0] == '$' || propsMap[k] != nil {
 							continue
 						}
+
 						attr, _ := attrs[k]
 						buf.WriteString(extra)
 						buf.WriteRune('"')

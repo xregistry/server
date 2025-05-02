@@ -122,6 +122,7 @@ func TestModelVerifySimple(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		t.Logf("test: %s", test.name)
 		err := test.model.Verify()
 		if test.err == "" && err != nil {
 			t.Fatalf("ModelVerify: %s - should have worked, got: %s",

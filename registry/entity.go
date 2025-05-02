@@ -1780,22 +1780,58 @@ var OrderedSpecProps = []*Attribute{
 			types: "",
 		},
 	},
-	/*
-		{
-			Name: "$COLLECTIONS",
-			internals: AttrInternals{
-				types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+	{
+		Name: "$COLLECTIONS", // Implicitly creates the url and count ones
+		Type: MAP,
+		Item: &Item{
+			Type: OBJECT,
+			Attributes: Attributes{
+				"*": {
+					Type: ANY,
+				},
 			},
 		},
-	*/
+		internals: AttrInternals{
+			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			dontStore: true,
+		},
+	},
 }
 
 var SpecProps = map[string]*Attribute{}
+var CollectionsURLAttr *Attribute
+var CollectionsCountAttr *Attribute
+var CollectionsAttr *Attribute
 
 func init() {
 	// Load map via lower-case version of prop name
 	for _, sp := range OrderedSpecProps {
 		SpecProps[sp.Name] = sp
+	}
+
+	CollectionsAttr = SpecProps["$COLLECTIONS"]
+
+	CollectionsURLAttr = &Attribute{
+		Name:      "$COLLECTIONSurl",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
+		Required:  true,
+		internals: AttrInternals{
+			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			dontStore: true,
+		},
+	}
+
+	CollectionsCountAttr = &Attribute{
+		Name:     "$COLLECTIONScount",
+		Type:     UINTEGER,
+		ReadOnly: true,
+		Required: true,
+		internals: AttrInternals{
+			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
+			dontStore: true,
+		},
 	}
 }
 

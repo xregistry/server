@@ -18,11 +18,6 @@
       "readonly": true,
       "required": true
     },
-    "shortself": {
-      "type": "url",
-      "immutable": true,
-      "readonly": true
-    },
     "xid": {
       "type": "xid",
       "readonly": true,
@@ -75,31 +70,35 @@
       }
     },
 
-    "sample_groupsurl": {
+    "dirsurl": {
       "type": "url",
       "immutable": true,
       "readonly": true,
       "required": true
     },
-    "sample_groupscount": {
+    "dirscount": {
       "type": "uinteger",
       "readonly": true,
       "required": true
     },
-    "sample_groups": {
+    "dirs": {
       "type": "map",
       "item": {
-        "type": "object"
+        "type": "object",
+        "attributes": {
+          "*": {
+            "type": "any"
+          }
+        }
       }
     }
   },
 
   "groups": {
-    "sample_groups": {
-      "plural": "sample_groups",
-      "singular": "sample_group",
+    "dirs": {
+      "singular": "dir",
       "attributes": {
-        "sample_groupid": {
+        "dirid": {
           "type": "string",
           "immutable": true,
           "required": true
@@ -124,12 +123,6 @@
         "name": {
           "type": "string"
         },
-        "isdefault": {
-          "type": "boolean",
-          "readonly": true,
-          "required": true,
-          "default": false
-        },
         "description": {
           "type": "string"
         },
@@ -151,48 +144,34 @@
           "required": true
         },
 
-        "sample_resource": {
-          "type": "any"
-        },
-        "sample_resourceurl": {
-          "type": "url"
-        },
-        "sample_resourcebase64": {
-          "type": "string"
-        },
-
-        "metaurl": {
-          "type": "url",
-          "required": true
-        },
-        "meta": {
-          "type": "object"
-        },
-
-        "sample_resourcesurl": {
+        "filesurl": {
            "type": "url",
            "immutable": true,
            "readonly": true,
            "required": true
         },
-        "sample_resourcescount": {
+        "filescount": {
            "type": "uinteger",
            "readonly": true,
            "required": true
         },
-        "sample_resources": {
+        "files": {
            "type": "map",
            "item": {
-             "type": "object"
+             "type": "object",
+             "attributes": {
+               "*": {
+                 "type": "any"
+               }
+             }
            }
         }
       },
       "resources": {
-        "sample_resources": {
-          "plural": "sample_resources",
-          "singular": "sample_resource",
+        "files": {
+          "singular": "file",
           "attributes": {
-            "sample_resourceid": {
+            "fileid": {
               "type": "string",
               "immutable": true,
               "required": true
@@ -207,11 +186,6 @@
               "immutable": true,
               "readonly": true,
               "required": true
-            },
-            "shortself": {
-              "type": "url",
-              "readonly": true,
-              "immutable": true
             },
             "xid": {
               "type": "xid",
@@ -271,12 +245,17 @@
             "versions": {
                "type": "map",
                "item": {
-                 "type": "object"
+                 "type": "object",
+                 "attributes": {
+                   "*": {
+                     "type": "any"
+                   }
+                 }
                }
             }
           },
           "metaattributes": {
-            "sample_resourceid": {
+            "fileid": {
               "type": "string",
               "immutable": true,
               "required": true
@@ -285,12 +264,6 @@
               "type": "url",
               "immutable": true,
               "readonly": true,
-              "required": true
-            },
-            "shortself": {
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
               "required": true
             },
             "xid": {

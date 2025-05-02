@@ -156,6 +156,32 @@ func TestExportBasic(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -217,6 +243,32 @@ func TestExportBasic(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -332,6 +384,32 @@ func TestExportBasic(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -808,6 +886,32 @@ func TestExportBasic(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -869,6 +973,32 @@ func TestExportBasic(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -984,6 +1114,32 @@ func TestExportBasic(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }

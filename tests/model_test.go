@@ -291,6 +291,32 @@ func TestGroupModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -442,6 +468,32 @@ func TestGroupModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -591,6 +643,32 @@ func TestGroupModelCreate(t *testing.T) {
         "*": {
           "name": "*",
           "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
         }
       }
     }
@@ -801,6 +879,58 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "dirs2url": {
+      "name": "dirs2url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirs2count": {
+      "name": "dirs2count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs2": {
+      "name": "dirs2",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -862,6 +992,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -977,6 +1133,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -1159,6 +1341,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -1274,6 +1482,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -1486,6 +1720,58 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "dirs2url": {
+      "name": "dirs2url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirs2count": {
+      "name": "dirs2count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs2": {
+      "name": "dirs2",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -1547,6 +1833,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -1662,6 +1974,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -1934,6 +2272,58 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "dirs2url": {
+      "name": "dirs2url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirs2count": {
+      "name": "dirs2count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs2": {
+      "name": "dirs2",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -1995,6 +2385,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -2110,6 +2526,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -2299,7 +2741,7 @@ func TestResourceModelCreate(t *testing.T) {
 }
 `)
 
-	gm2.Delete()
+	xNoErr(t, gm2.Delete())
 	xCheckGet(t, reg, "/model", `{
   "attributes": {
     "specversion": {
@@ -2383,6 +2825,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -2444,6 +2912,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -2559,6 +3053,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -2770,6 +3290,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -2831,6 +3377,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -2946,6 +3518,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -3188,6 +3786,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -3249,6 +3873,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -3352,6 +4002,32 @@ func TestResourceModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -3597,6 +4273,32 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -3658,6 +4360,32 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -3761,6 +4489,32 @@ func TestResourceModelCreate(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -4036,6 +4790,32 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -4097,6 +4877,32 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "files2url": {
+            "name": "files2url",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "files2count": {
+            "name": "files2count",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files2": {
+            "name": "files2",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -4200,6 +5006,32 @@ func TestResourceModelCreate(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -4447,6 +5279,32 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -4630,6 +5488,32 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirs2url": {
+        "name": "dirs2url",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirs2count": {
+        "name": "dirs2count",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs2": {
+        "name": "dirs2",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -4809,6 +5693,58 @@ func TestMultModelCreate(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "gms1url": {
+      "name": "gms1url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "gms1count": {
+      "name": "gms1count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "gms1": {
+      "name": "gms1",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "gms2url": {
+      "name": "gms2url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "gms2count": {
+      "name": "gms2count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "gms2": {
+      "name": "gms2",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -4870,6 +5806,58 @@ func TestMultModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "rms1url": {
+          "name": "rms1url",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rms1count": {
+          "name": "rms1count",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms1": {
+          "name": "rms1",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        },
+        "rms2url": {
+          "name": "rms2url",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rms2count": {
+          "name": "rms2count",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms2": {
+          "name": "rms2",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -4985,6 +5973,32 @@ func TestMultModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -5221,6 +6235,32 @@ func TestMultModelCreate(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
             }
           },
           "metaattributes": {
@@ -5401,6 +6441,58 @@ func TestMultModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "rms1url": {
+          "name": "rms1url",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rms1count": {
+          "name": "rms1count",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms1": {
+          "name": "rms1",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        },
+        "rms2url": {
+          "name": "rms2url",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rms2count": {
+          "name": "rms2count",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms2": {
+          "name": "rms2",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -5516,6 +6608,32 @@ func TestMultModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -5750,6 +6868,32 @@ func TestMultModelCreate(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -6013,6 +7157,58 @@ func TestMultModel2Create(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirs1url": {
+        "name": "dirs1url",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirs1count": {
+        "name": "dirs1count",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs1": {
+        "name": "dirs1",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
+      },
+      "dirs2url": {
+        "name": "dirs2url",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirs2count": {
+        "name": "dirs2count",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs2": {
+        "name": "dirs2",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -6074,6 +7270,32 @@ func TestMultModel2Create(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -6189,6 +7411,32 @@ func TestMultModel2Create(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -6371,6 +7619,32 @@ func TestMultModel2Create(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            }
           }
         },
         "resources": {
@@ -6486,6 +7760,32 @@ func TestMultModel2Create(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -6939,6 +8239,32 @@ func TestModelLabels(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "gms1url": {
+      "name": "gms1url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "gms1count": {
+      "name": "gms1count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "gms1": {
+      "name": "gms1",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -7003,6 +8329,32 @@ func TestModelLabels(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "rmsurl": {
+          "name": "rmsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rmscount": {
+          "name": "rmscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms": {
+          "name": "rms",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -7121,6 +8473,32 @@ func TestModelLabels(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -7342,6 +8720,32 @@ func TestModelLabels(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "gms1url": {
+      "name": "gms1url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "gms1count": {
+      "name": "gms1count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "gms1": {
+      "name": "gms1",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -7403,6 +8807,32 @@ func TestModelLabels(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "rmsurl": {
+          "name": "rmsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "rmscount": {
+          "name": "rmscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "rms": {
+          "name": "rms",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -7518,6 +8948,32 @@ func TestModelLabels(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -7752,6 +9208,32 @@ func TestModelLabels(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -7816,6 +9298,32 @@ func TestModelLabels(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -7934,6 +9442,32 @@ func TestModelLabels(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -8445,6 +9979,32 @@ func TestUseSpecAttrs(t *testing.T) {
             "type": "any"
           }
         }
+      },
+      "dirsurl": {
+        "name": "dirsurl",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "dirscount": {
+        "name": "dirscount",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "dirs": {
+        "name": "dirs",
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        }
       }
     },
     "groups": {
@@ -8630,6 +10190,32 @@ func TestUseSpecAttrs(t *testing.T) {
               "xref": {
                 "name": "xref",
                 "type": "integer"
+              }
+            }
+          },
+          "filesurl": {
+            "name": "filesurl",
+            "type": "url",
+            "readonly": true,
+            "immutable": true,
+            "required": true
+          },
+          "filescount": {
+            "name": "filescount",
+            "type": "uinteger",
+            "readonly": true,
+            "required": true
+          },
+          "files": {
+            "name": "files",
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
               }
             }
           }
@@ -8873,6 +10459,32 @@ func TestUseSpecAttrs(t *testing.T) {
                   "*": {
                     "name": "*",
                     "type": "any"
+                  }
+                }
+              },
+              "versionsurl": {
+                "name": "versionsurl",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "versionscount": {
+                "name": "versionscount",
+                "type": "uinteger",
+                "readonly": true,
+                "required": true
+              },
+              "versions": {
+                "name": "versions",
+                "type": "map",
+                "item": {
+                  "type": "object",
+                  "attributes": {
+                    "*": {
+                      "name": "*",
+                      "type": "any"
+                    }
                   }
                 }
               }
@@ -9451,6 +11063,32 @@ func TestModelCompatibleWith(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -9514,6 +11152,84 @@ func TestModelCompatibleWith(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "datasurl": {
+          "name": "datasurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "datascount": {
+          "name": "datascount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "datas": {
+          "name": "datas",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        },
+        "foosurl": {
+          "name": "foosurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "fooscount": {
+          "name": "fooscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "foos": {
+          "name": "foos",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -9630,6 +11346,32 @@ func TestModelCompatibleWith(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -9868,6 +11610,32 @@ func TestModelCompatibleWith(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
             }
           },
           "metaattributes": {
@@ -10103,6 +11871,32 @@ func TestModelCompatibleWith(t *testing.T) {
                   "type": "any"
                 }
               }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
             }
           },
           "metaattributes": {
@@ -10303,32 +12097,6 @@ func TestModelIncludes(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
-    "sample_groups": {
-      "name": "sample_groups",
-      "type": "map",
-      "item": {
-        "type": "object"
-      }
-    },
-    "sample_groupscount": {
-      "name": "sample_groupscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "sample_groupsurl": {
-      "name": "sample_groupsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "shortself": {
-      "name": "shortself",
-      "type": "url",
-      "readonly": true,
-      "immutable": true
-    },
     "capabilities": {
       "name": "capabilities",
       "type": "object",
@@ -10348,474 +12116,30 @@ func TestModelIncludes(t *testing.T) {
           "type": "any"
         }
       }
-    }
-  },
-  "groups": {
-    "sample_groups": {
-      "plural": "sample_groups",
-      "singular": "sample_group",
-      "attributes": {
-        "sample_groupid": {
-          "name": "sample_groupid",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        },
-        "isdefault": {
-          "name": "isdefault",
-          "type": "boolean",
-          "readonly": true,
-          "required": true,
-          "default": false
-        },
-        "meta": {
-          "name": "meta",
-          "type": "object"
-        },
-        "metaurl": {
-          "name": "metaurl",
-          "type": "url",
-          "required": true
-        },
-        "sample_resource": {
-          "name": "sample_resource",
-          "type": "any"
-        },
-        "sample_resourcebase64": {
-          "name": "sample_resourcebase64",
-          "type": "string"
-        },
-        "sample_resources": {
-          "name": "sample_resources",
-          "type": "map",
-          "item": {
-            "type": "object"
-          }
-        },
-        "sample_resourcescount": {
-          "name": "sample_resourcescount",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "sample_resourcesurl": {
-          "name": "sample_resourcesurl",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "sample_resourceurl": {
-          "name": "sample_resourceurl",
-          "type": "url"
-        }
-      },
-      "resources": {
-        "sample_resources": {
-          "plural": "sample_resources",
-          "singular": "sample_resource",
-          "maxversions": 0,
-          "setversionid": true,
-          "setdefaultversionsticky": true,
-          "hasdocument": true,
-          "singleversionroot": false,
-          "attributes": {
-            "sample_resourceid": {
-              "name": "sample_resourceid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "versionid": {
-              "name": "versionid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "name": {
-              "name": "name",
-              "type": "string"
-            },
-            "isdefault": {
-              "name": "isdefault",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "description": {
-              "name": "description",
-              "type": "string"
-            },
-            "documentation": {
-              "name": "documentation",
-              "type": "url"
-            },
-            "labels": {
-              "name": "labels",
-              "type": "map",
-              "item": {
-                "type": "string"
-              }
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "ancestor": {
-              "name": "ancestor",
-              "type": "string",
-              "required": true
-            },
-            "contenttype": {
-              "name": "contenttype",
-              "type": "string"
-            },
-            "shortself": {
-              "name": "shortself",
-              "type": "url",
-              "readonly": true,
-              "immutable": true
-            },
-            "versions": {
-              "name": "versions",
-              "type": "map",
-              "item": {
-                "type": "object"
-              }
-            },
-            "versionscount": {
-              "name": "versionscount",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "versionsurl": {
-              "name": "versionsurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "sample_resourceurl": {
-              "name": "sample_resourceurl",
-              "type": "url"
-            },
-            "sample_resourceproxyurl": {
-              "name": "sample_resourceproxyurl",
-              "type": "url"
-            },
-            "sample_resource": {
-              "name": "sample_resource",
-              "type": "any"
-            },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "meta": {
-              "name": "meta",
-              "type": "object",
-              "attributes": {
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            }
-          },
-          "metaattributes": {
-            "sample_resourceid": {
-              "name": "sample_resourceid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xref": {
-              "name": "xref",
-              "type": "url"
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "readonly": {
-              "name": "readonly",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "compatibility": {
-              "name": "compatibility",
-              "type": "string",
-              "enum": [
-                "none",
-                "backward",
-                "backward_transitive",
-                "forward",
-                "forward_transitive",
-                "full",
-                "full_transitive"
-              ],
-              "required": true,
-              "default": "none"
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ]
-            },
-            "deprecated": {
-              "name": "deprecated",
-              "type": "object",
-              "attributes": {
-                "alternative": {
-                  "name": "alternative",
-                  "type": "url"
-                },
-                "docs": {
-                  "name": "docs",
-                  "type": "url"
-                },
-                "effective": {
-                  "name": "effective",
-                  "type": "timestamp"
-                },
-                "removal": {
-                  "name": "removal",
-                  "type": "timestamp"
-                },
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            },
-            "shortself": {
-              "name": "shortself",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "defaultversionid": {
-              "name": "defaultversionid",
-              "type": "string",
-              "required": true
-            },
-            "defaultversionurl": {
-              "name": "defaultversionurl",
-              "type": "url",
-              "readonly": true,
-              "required": true
-            },
-            "defaultversionsticky": {
-              "name": "defaultversionsticky",
-              "type": "boolean",
-              "required": true,
-              "default": false
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`)
-
-	// Now a simple $include that works
-	buf, err = os.ReadFile("files/dir/model-dirs-inc-docs.json")
-	xNoErr(t, err)
-
-	xHTTP(t, reg, "PUT", "/model", string(buf), 200, `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
     },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
+    "dirsurl": {
+      "name": "dirsurl",
       "type": "url",
       "readonly": true,
       "immutable": true,
       "required": true
     },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
+    "dirscount": {
+      "name": "dirscount",
       "type": "uinteger",
       "readonly": true,
       "required": true
     },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
-      "type": "url"
-    },
-    "labels": {
-      "name": "labels",
+    "dirs": {
+      "name": "dirs",
       "type": "map",
       "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
         }
       }
     }
@@ -10879,6 +12203,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -10994,6 +12344,525 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          },
+          "metaattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xref": {
+              "name": "xref",
+              "type": "url"
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "readonly": {
+              "name": "readonly",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "compatibility": {
+              "name": "compatibility",
+              "type": "string",
+              "enum": [
+                "none",
+                "backward",
+                "backward_transitive",
+                "forward",
+                "forward_transitive",
+                "full",
+                "full_transitive"
+              ],
+              "required": true,
+              "default": "none"
+            },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ]
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "docs": {
+                  "name": "docs",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "defaultversionid": {
+              "name": "defaultversionid",
+              "type": "string",
+              "required": true
+            },
+            "defaultversionurl": {
+              "name": "defaultversionurl",
+              "type": "url",
+              "readonly": true,
+              "required": true
+            },
+            "defaultversionsticky": {
+              "name": "defaultversionsticky",
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Now a simple $include that works
+	buf, err = os.ReadFile("files/dir/model-dirs-inc-docs.json")
+	xNoErr(t, err)
+
+	xHTTP(t, reg, "PUT", "/model", string(buf), 200, `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "docsurl": {
+      "name": "docsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "docscount": {
+      "name": "docscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "docs": {
+      "name": "docs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        }
+      },
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "attributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "versionid": {
+              "name": "versionid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "name": {
+              "name": "name",
+              "type": "string"
+            },
+            "isdefault": {
+              "name": "isdefault",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "description": {
+              "name": "description",
+              "type": "string"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
+              "required": true
+            },
+            "contenttype": {
+              "name": "contenttype",
+              "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -11176,6 +13045,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "formatsurl": {
+          "name": "formatsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "formatscount": {
+          "name": "formatscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "formats": {
+          "name": "formats",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -11291,6 +13186,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -11572,6 +13493,58 @@ func TestModelIncludes(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "docsurl": {
+      "name": "docsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "docscount": {
+      "name": "docscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "docs": {
+      "name": "docs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -11633,6 +13606,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -11748,6 +13747,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -11930,6 +13955,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "formatsurl": {
+          "name": "formatsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "formatscount": {
+          "name": "formatscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "formats": {
+          "name": "formats",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -12045,6 +14096,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -12263,6 +14340,58 @@ func TestModelIncludes(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "docsurl": {
+      "name": "docsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "docscount": {
+      "name": "docscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "docs": {
+      "name": "docs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -12324,6 +14453,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -12439,6 +14594,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -12621,6 +14802,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "formatsurl": {
+          "name": "formatsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "formatscount": {
+          "name": "formatscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "formats": {
+          "name": "formats",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -12736,6 +14943,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -12954,6 +15187,58 @@ func TestModelIncludes(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "docsurl": {
+      "name": "docsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "docscount": {
+      "name": "docscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "docs": {
+      "name": "docs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -13015,6 +15300,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -13130,6 +15441,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -13312,6 +15649,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "formatsurl": {
+          "name": "formatsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "formatscount": {
+          "name": "formatscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "formats": {
+          "name": "formats",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -13427,6 +15790,32 @@ func TestModelIncludes(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }
@@ -13700,6 +16089,32 @@ func TestModelMissingFields(t *testing.T) {
           "type": "any"
         }
       }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
     }
   },
   "groups": {
@@ -13765,6 +16180,32 @@ func TestModelMissingFields(t *testing.T) {
         "gext": {
           "name": "gext",
           "type": "string"
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {
@@ -13884,6 +16325,32 @@ func TestModelMissingFields(t *testing.T) {
                 "*": {
                   "name": "*",
                   "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
                 }
               }
             }

@@ -220,6 +220,95 @@ func (m *Model) SetPointers() {
 	}
 }
 
+func (m *Model) SetSpecPropsFields() {
+	propsOrdered, _ := m.GetPropsOrdered()
+
+	for _, prop := range propsOrdered {
+		if attr, ok := m.Attributes[prop.Name]; ok {
+			attr.internals = prop.internals
+		}
+	}
+
+	for plural, gm := range m.Groups {
+		if attr, ok := m.Attributes[plural]; ok {
+			attr.internals = CollectionsAttr.internals
+		}
+		if attr, ok := m.Attributes[plural+"url"]; ok {
+			attr.internals = CollectionsURLAttr.internals
+		}
+		if attr, ok := m.Attributes[plural+"count"]; ok {
+			attr.internals = CollectionsCountAttr.internals
+		}
+
+		propsOrdered, _ := gm.GetPropsOrdered()
+		for _, prop := range propsOrdered {
+			if attr, ok := m.Attributes[prop.Name]; ok {
+				attr.internals = prop.internals
+			}
+		}
+
+		for plural, rm := range gm.Resources {
+			if attr, ok := gm.Attributes[plural]; ok {
+				attr.internals = CollectionsAttr.internals
+			}
+			if attr, ok := gm.Attributes[plural+"url"]; ok {
+				attr.internals = CollectionsURLAttr.internals
+			}
+			if attr, ok := gm.Attributes[plural+"count"]; ok {
+				attr.internals = CollectionsCountAttr.internals
+			}
+
+			if attr, ok := rm.Attributes["versions"]; ok {
+				attr.internals = CollectionsAttr.internals
+			}
+			if attr, ok := rm.Attributes["versionsurl"]; ok {
+				attr.internals = CollectionsURLAttr.internals
+			}
+			if attr, ok := rm.Attributes["versionscount"]; ok {
+				attr.internals = CollectionsCountAttr.internals
+			}
+
+			propsOrdered, _ := rm.GetPropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := gm.Attributes[prop.Name]; ok {
+					attr.internals = prop.internals
+				}
+			}
+
+			propsOrdered, _ = rm.GetMetaPropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := rm.MetaAttributes[prop.Name]; ok {
+					attr.internals = prop.internals
+				}
+			}
+
+			/*
+				propsOrdered, _ := rm.GetVersionPropsOrdered()
+				for _, prop := range propsOrdered {
+					if attr, ok := rm.VersionAttributes[prop.Name]; ok {
+						attr.internals = prop.internals
+					}
+				}
+			*/
+		}
+	}
+}
+
+func (m *Model) ClearAllPropsOrdered() {
+	m.ClearPropsOrdered()
+	for _, gm := range m.Groups {
+		gm.ClearPropsOrdered()
+		for _, rm := range gm.Resources {
+			rm.ClearPropsOrdered()
+		}
+	}
+}
+
+func (m *Model) ClearPropsOrdered() {
+	m.propsOrdered = nil
+	m.propsMap = nil
+}
+
 func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	if m.propsOrdered == nil {
 		m.propsOrdered = []*Attribute{}
@@ -231,6 +320,23 @@ func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 					prop = prop.Clone("registryid")
 					prop.ReadOnly = true
 					PanicIf(prop.internals.checkFn == nil, "bad clone")
+				}
+
+				if prop.Name == "$COLLECTIONS" {
+					for _, plural := range SortedKeys(m.Groups) {
+						prop = CollectionsURLAttr.Clone(plural + "url")
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+
+						prop = CollectionsCountAttr.Clone(plural + "count")
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+
+						prop = CollectionsAttr.Clone(plural)
+						m.propsOrdered = append(m.propsOrdered, prop)
+						m.propsMap[prop.Name] = prop
+					}
+					continue
 				}
 
 				m.propsOrdered = append(m.propsOrdered, prop)
@@ -651,7 +757,7 @@ func LoadModel(reg *Registry) *Model {
 	results.Close()
 
 	model.Attributes.SetModel(model)
-	model.Attributes.SetSpecPropsFields("registry")
+	// model.Attributes.SetSpecPropsFields("registry")
 
 	// Load Groups & Resources
 	results, err = Query(reg.tx, `
@@ -704,7 +810,7 @@ func LoadModel(reg *Registry) *Model {
 				Resources: map[string]*ResourceModel{},
 			}
 
-			g.Attributes.SetSpecPropsFields(g.Singular)
+			// g.Attributes.SetSpecPropsFields(g.Singular)
 
 			model.Groups[NotNilString(row[3])] = g
 			groups[NotNilString(row[0])] = g
@@ -733,14 +839,16 @@ func LoadModel(reg *Registry) *Model {
 					MetaAttributes:    metaAttrs,
 				}
 
-				r.Attributes.SetSpecPropsFields(r.Singular)
-				r.MetaAttributes.SetSpecPropsFields(r.Singular)
+				// r.Attributes.SetSpecPropsFields(r.Singular)
+				// r.MetaAttributes.SetSpecPropsFields(r.Singular)
 
 				g.Resources[r.Plural] = r
 			}
 		}
 	}
 	results.Close()
+
+	model.SetSpecPropsFields()
 
 	reg.Model = model
 	return model
@@ -772,6 +880,8 @@ func (m *Model) FindGroupModelBySingular(gTypeSingular string) *GroupModel {
 func (m *Model) ApplyNewModel(newM *Model) error {
 	newM.Registry = m.Registry
 
+	// newM.SetSpecPropsFields()
+
 	if err := newM.Verify(); err != nil {
 		return err
 	}
@@ -779,15 +889,21 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	var err error
 	m.Labels = newM.Labels
 	m.Attributes = newM.Attributes
+	// m.ClearPropsOrdered()
+	// m.RemoveConditionalProps()
 
 	// Find all old groups that need to be deleted
 	for gmPlural, gm := range m.Groups {
+		// gm.ClearPropsOrdered()
+		// gm.RemoveConditionalProps()
 		if newGM, ok := newM.Groups[gmPlural]; !ok {
 			if err := gm.Delete(); err != nil {
 				return err
 			}
 		} else {
 			for rmPlural, rm := range gm.Resources {
+				// rm.ClearPropsOrdered()
+				// rm.RemoveConditionalProps()
 				if _, ok := newGM.Resources[rmPlural]; !ok {
 					if err := rm.Delete(); err != nil {
 						return err
@@ -869,6 +985,11 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	return nil
 }
 
+func (gm *GroupModel) ClearPropsOrdered() {
+	gm.propsOrdered = nil
+	gm.propsMap = nil
+}
+
 func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	if gm.propsOrdered == nil {
 		gm.propsOrdered = []*Attribute{}
@@ -880,6 +1001,24 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 					prop = prop.Clone(gm.Singular + "id")
 					PanicIf(prop.internals.checkFn == nil, "bad clone")
 				}
+
+				if prop.Name == "$COLLECTIONS" {
+					for _, plural := range SortedKeys(gm.Resources) {
+						prop = CollectionsURLAttr.Clone(plural + "url")
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+
+						prop = CollectionsCountAttr.Clone(plural + "count")
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+
+						prop = CollectionsAttr.Clone(plural)
+						gm.propsOrdered = append(gm.propsOrdered, prop)
+						gm.propsMap[prop.Name] = prop
+					}
+					continue
+				}
+
 				gm.propsOrdered = append(gm.propsOrdered, prop)
 				gm.propsMap[prop.Name] = prop
 			}
@@ -900,9 +1039,10 @@ func (gm *GroupModel) Delete() error {
 		return err
 	}
 
+	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
 
-	return nil
+	return gm.Model.VerifyAndSave()
 }
 
 func (gm *GroupModel) Save() error {
@@ -1180,6 +1320,36 @@ func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute)
 				}
 			}
 
+			if prop.Name == "$COLLECTIONS" {
+				if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
+					prop = CollectionsURLAttr.Clone("versionsurl")
+					rm.propsOrdered = append(rm.propsOrdered, prop)
+					rm.propsMap[prop.Name] = prop
+					if prop.InType(ENTITY_VERSION) {
+						rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+						rm.versionPropsMap[prop.Name] = prop
+					}
+
+					prop = CollectionsCountAttr.Clone("versionscount")
+					rm.propsOrdered = append(rm.propsOrdered, prop)
+					rm.propsMap[prop.Name] = prop
+					if prop.InType(ENTITY_VERSION) {
+						rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+						rm.versionPropsMap[prop.Name] = prop
+					}
+
+					prop = CollectionsAttr.Clone("versions")
+					rm.propsOrdered = append(rm.propsOrdered, prop)
+					rm.propsMap[prop.Name] = prop
+					if prop.InType(ENTITY_VERSION) {
+						rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+						rm.versionPropsMap[prop.Name] = prop
+					}
+				}
+
+				continue
+			}
+
 			if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
 				rm.propsOrdered = append(rm.propsOrdered, prop)
 				rm.propsMap[prop.Name] = prop
@@ -1253,9 +1423,10 @@ func (rm *ResourceModel) Delete() error {
 		return err
 	}
 
+	rm.GroupModel.RemoveConditionalProps()
 	delete(rm.GroupModel.Resources, rm.Plural)
 
-	return nil
+	return rm.GroupModel.Model.VerifyAndSave()
 }
 
 func (rm *ResourceModel) Save() error {
@@ -1627,8 +1798,52 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
 	return nil
 }
 
+func RemoveCollectionProps(plural string, attrs Attributes,
+	propsOrdered []*Attribute, propsMap map[string]*Attribute) []*Attribute {
+
+	if attrs != nil {
+		delete(attrs, plural)
+		delete(attrs, plural+"count")
+		delete(attrs, plural+"url")
+	}
+
+	if propsMap != nil {
+		delete(propsMap, plural)
+		delete(propsMap, plural+"count")
+		delete(propsMap, plural+"url")
+	}
+
+	if propsOrdered != nil {
+		for i := 0; i < len(propsOrdered); i++ {
+			// Starts with "plural"
+			prop := propsOrdered[i]
+			if strings.HasPrefix(prop.Name, plural) {
+				// Grab rest of string
+				rest := prop.Name[len(plural):]
+				if rest == "" || rest == "count" || rest == "url" {
+					// Match, one of them so remove from array
+					propsOrdered = append(propsOrdered[:i],
+						propsOrdered[i+1:]...)
+					i--
+				}
+			}
+		}
+	}
+
+	return propsOrdered
+}
+
+func (m *Model) RemoveConditionalProps() {
+	for _, gm := range m.Groups {
+		m.propsOrdered = RemoveCollectionProps(gm.Plural, m.Attributes,
+			m.propsOrdered, m.propsMap)
+	}
+}
+
 func (m *Model) Verify() error {
 	// TODO: Verify that the Registry data is model compliant
+
+	m.ClearPropsOrdered()
 
 	// Check Groups first so that if the Group name isn't valid we'll
 	// flag that instead of an invalid GROUPScount attribute name
@@ -1636,7 +1851,9 @@ func (m *Model) Verify() error {
 		if gm == nil {
 			return fmt.Errorf("GroupModel %q can't be empty", gmName)
 		}
+
 		gm.Model = m
+
 		// PanicIf(m.Registry.Model == nil, "nil")
 		if err := gm.Verify(gmName); err != nil {
 			return err
@@ -1739,7 +1956,16 @@ func (m *Model) GetBaseAttributes() Attributes {
 	return attrs
 }
 
+func (gm *GroupModel) RemoveConditionalProps() {
+	for _, rm := range gm.Resources {
+		gm.propsOrdered = RemoveCollectionProps(rm.Plural, gm.Attributes,
+			gm.propsOrdered, gm.propsMap)
+	}
+}
+
 func (gm *GroupModel) Verify(gmName string) error {
+	gm.ClearPropsOrdered()
+
 	if err := IsValidModelName(gmName); err != nil {
 		return err
 	}
@@ -1777,7 +2003,9 @@ func (gm *GroupModel) Verify(gmName string) error {
 		if rm == nil {
 			return fmt.Errorf("Resource %q can't be empty", rmName)
 		}
+
 		rm.GroupModel = gm
+
 		if err := rm.Verify(rmName); err != nil {
 			return err
 		}
@@ -1896,7 +2124,33 @@ func (gm *GroupModel) GetBaseAttributes() Attributes {
 	return attrs
 }
 
+func (rm *ResourceModel) RemoveConditionalProps() {
+	rm.propsOrdered = RemoveCollectionProps("versions", rm.Attributes,
+		rm.propsOrdered, rm.propsMap)
+	rm.versionPropsOrdered = RemoveCollectionProps("versions", nil,
+		rm.versionPropsOrdered, rm.versionPropsMap)
+
+	// Only delete them if they're system added
+	if attr, ok := rm.Attributes[rm.Singular]; ok {
+		if attr.internals.types != "" {
+			delete(rm.Attributes, rm.Singular)
+		}
+	}
+	if attr, ok := rm.Attributes[rm.Singular+"url"]; ok {
+		if attr.internals.types != "" {
+			delete(rm.Attributes, rm.Singular+"url")
+		}
+	}
+	if attr, ok := rm.Attributes[rm.Singular+"proxyurl"]; ok {
+		if attr.internals.types != "" {
+			delete(rm.Attributes, rm.Singular+"proxyurl")
+		}
+	}
+}
+
 func (rm *ResourceModel) Verify(rmName string) error {
+	rm.ClearPropsOrdered()
+
 	if err := IsValidModelName(rmName); err != nil {
 		return err
 	}
@@ -1945,19 +2199,22 @@ func (rm *ResourceModel) Verify(rmName string) error {
 
 	// Dug
 	// If the hasDoc was changed to false, remove the $RESOURCE* attrs
-	if rm.GetHasDocument() == false {
-		for _, suffix := range []string{"", "proxyurl", "url"} {
-			name := rm.Singular + suffix
-			if attr := rm.Attributes[name]; attr != nil {
-				// Only remove it if it was added due to hasDoc=true
-				// And we know this because 'internals' has data
-				if attr.internals.types != "" {
-					delete(rm.Attributes, name)
-					rm.ClearPropsOrdered()
+	rm.RemoveConditionalProps()
+	/*
+		if rm.GetHasDocument() == false {
+			for _, suffix := range []string{"", "proxyurl", "url"} {
+				name := rm.Singular + suffix
+				if attr := rm.Attributes[name]; attr != nil {
+					// Only remove it if it was added due to hasDoc=true
+					// And we know this because 'internals' has data
+					if attr.internals.types != "" {
+						delete(rm.Attributes, name)
+						rm.ClearPropsOrdered()
+					}
 				}
 			}
 		}
-	}
+	*/
 
 	propsOrdered, _ := rm.GetPropsOrdered()
 	for _, specProp := range propsOrdered { // OrderedSpecProps {
