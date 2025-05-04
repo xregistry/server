@@ -99,6 +99,7 @@ func TestResourceSet(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
+	xNoErr(t, reg.SaveModel())
 
 	// /dirs/d1/f1/v1
 
@@ -166,6 +167,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	xNoErr(t, err)
 	d1, _ := reg.AddGroup("dirs", "d1")
+	xNoErr(t, reg.SaveModel())
 
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
@@ -173,14 +175,18 @@ func TestResourceMaxVersions(t *testing.T) {
 		MaxVersions: -1,
 	})
 	xCheckErr(t, err, `"maxversions"(-1) must be >= 0`)
+	// reg.LoadModel()
 
+	// gm = reg.Model.FindGroupModel(gm.Plural)
 	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
 		Singular:    "file",
 		MaxVersions: 1, // ONLY ALLOW 1 VERSION
 	})
 	xCheckErr(t, err, `'setdefaultversionsticky' must be 'false' since 'maxversions' is '1'`)
+	// reg.LoadModel()
 
+	// gm = reg.Model.FindGroupModel(gm.Plural)
 	rm, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:           "files",
 		Singular:         "file",
@@ -188,6 +194,7 @@ func TestResourceMaxVersions(t *testing.T) {
 		SetDefaultSticky: registry.PtrBool(false),
 	})
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	f1, err := d1.AddResource("files", "f1", "v1")
 	xCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
@@ -211,6 +218,7 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	err = rm.SetMaxVersions(2)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	// Create v3, but keep v2 as default
 	xNoErr(t, f1.SetDefault(v2))
@@ -240,6 +248,7 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	err = rm.SetMaxVersions(0)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	v5, err := f1.AddVersion("v5")
 	xNoErr(t, err)
@@ -263,6 +272,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	// Now set maxVer to 1 and just v5 should remain
 	err = rm.SetMaxVersions(1)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	vers, err = f1.GetVersions()
 	xNoErr(t, err)

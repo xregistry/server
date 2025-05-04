@@ -103,23 +103,61 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 }
 
 func PassDeleteReg(t *testing.T, reg *registry.Registry) {
+	tx := reg.GetTx()
+
 	if !t.Failed() {
+		if tx != nil && tx.IsOpen() {
+			if reg.Model.GetChanged() || tx.IsCacheDirty() {
+				log.Printf("Tx still open")
+				if reg.Model.GetChanged() {
+					log.Printf("AND model is changed")
+				}
+				if tx.IsCacheDirty() {
+					log.Printf("AND cache is dirty")
+					tx.DumpCache()
+				}
+				registry.DumpTXs()
+				os.Exit(1)
+			}
+		}
+
+		if reg.Model.GetChanged() {
+			// This is a show stopped
+			panic("Unsaved model outside of a tx")
+		}
+
+		if tx := reg.GetTx(); tx.IsCacheDirty() {
+			tx.DumpCache()
+			panic("Cache is dirty outside of a tx")
+		}
+
+		err := reg.SaveAllAndCommit() // should this be Rollback() ?
+		if err != nil {
+			panic(err.Error())
+		}
+
 		if os.Getenv("NO_DELETE_REGISTRY") == "" {
 			// We do this to make sure that we can support more than
 			// one registry in the DB at a time
-			reg.Delete()
-
-			/*
-				rows, err := reg.Query("select * from Props")
-				if err != nil || len(rows) != 0 {
-					fmt.Printf("Rows: %s", ToJSON(rows))
-					panic(fmt.Sprintf("Props left around: %s / %d", err, len(rows)))
-				}
-			*/
+			if err := reg.Delete(); err != nil {
+				registry.DumpTXs()
+				panic(err.Error())
+			}
 		}
 		registry.DefaultRegDbSID = ""
 	}
-	reg.SaveAllAndCommit() // should this be Rollback() ?
+
+	/*
+		err := reg.SaveAllAndCommit() // should this be Rollback() ?
+		if err != nil {
+			panic("SaveAllAndCommit: " + err.Error())
+		}
+	*/
+
+	// Close the Tx since we're done with all our work
+	if tx != nil {
+		tx.Commit()
+	}
 }
 
 func Caller() string {
@@ -189,6 +227,7 @@ func xNoErr(t *testing.T, err error) {
 
 func xCheckGet(t *testing.T, reg *registry.Registry, url string, expected string) {
 	t.Helper()
+	xNoErr(t, reg.SaveModel())
 	xNoErr(t, reg.SaveAllAndCommit())
 
 	if len(url) > 0 {
@@ -357,6 +396,7 @@ func xHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code
 
 func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	t.Helper()
+	xNoErr(t, reg.SaveModel())
 	xNoErr(t, reg.SaveAllAndCommit())
 
 	// t.Logf("Test: %s", test.Name)

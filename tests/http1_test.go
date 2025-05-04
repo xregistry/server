@@ -6046,7 +6046,8 @@ func TestHTTPEnum(t *testing.T) {
 			"one of the enum values: 1, 2, 3\n",
 	})
 
-	attr.Strict = registry.PtrBool(false)
+	attr = reg.Model.Attributes["myint"]
+	attr.SetStrict(false)
 	reg.Model.VerifyAndSave()
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -6229,6 +6230,7 @@ func TestHTTPIfValue(t *testing.T) {
 		},
 	})
 	xCheckErr(t, err, "")
+	xNoErr(t, reg.SaveModel())
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj",
@@ -6237,6 +6239,7 @@ func TestHTTPIfValue(t *testing.T) {
 	// Test empty obj and name conflict with IfValue above
 	xCheckErr(t, err,
 		`Duplicate attribute name (myobj) at: model.myint.ifvalues.10`)
+	reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj2",
@@ -6259,6 +6262,7 @@ func TestHTTPIfValue(t *testing.T) {
 		},
 	})
 	xCheckErr(t, err, "")
+	xNoErr(t, reg.SaveModel())
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "badone",
@@ -6623,6 +6627,9 @@ func TestHTTPResources(t *testing.T) {
 	})
 	xCheckErr(t, err, "Attribute name is reserved: fileproxyurl")
 
+	reg.LoadModel()
+
+	rm = rm.Refresh()
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
 		Type: registry.STRING,
@@ -6638,8 +6645,12 @@ func TestHTTPResources(t *testing.T) {
 			},
 		},
 	})
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xCheckErr(t, err, "Duplicate attribute name (file) at: resources.files.mystring.ifvalues.foo")
+	reg.LoadModel()
 
+	rm = rm.Refresh()
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
 		Type: registry.STRING,
@@ -6690,10 +6701,14 @@ func TestHTTPResources(t *testing.T) {
 			},
 		},
 	})
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xCheckErr(t, err, "Duplicate attribute name (file) at: resources.files.mystring.ifvalues.foo.xxx.ifvalues.5")
+	reg.LoadModel()
 
 	// "file" is ok this time because HasDocument=false
-	rm.HasDocument = registry.PtrBool(false)
+	rm = rm.Refresh()
+	rm.SetHasDocument(false)
 	xNoErr(t, reg.Model.VerifyAndSave())
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",

@@ -143,6 +143,10 @@ type Tx struct {
 	stack []string // Stack at time NewTX
 }
 
+func (tx *Tx) IsOpen() bool {
+	return tx.tx != nil
+}
+
 func (tx *Tx) String() string {
 	regStr := "<none>"
 	if tx.Registry != nil {
@@ -212,6 +216,13 @@ func (tx *Tx) NewTx() error {
 	return nil
 }
 
+func (tx *Tx) DumpCache() {
+	log.Printf("==== CACHE =====")
+	for _, path := range tx.Cache {
+		log.Printf("- %s", path)
+	}
+}
+
 func (tx *Tx) EraseCache() {
 	tx.Cache = map[string]*Entity{}
 }
@@ -249,7 +260,9 @@ func (tx *Tx) Validate(info *RequestInfo) error {
 	// the results. If the stack isn't shown, enable it in entity.SetNewObject
 	PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
 
-	// At one point we almost called a ValidateResources type of fund to
+	PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
+
+	// At one point we almost called a ValidateResources type of func to
 	// double check everthing is ok. We shouldn't need to, but something
 	// to think about if things get complicated
 	/*

@@ -28,7 +28,7 @@ func TestSetAttributeNames(t *testing.T) {
 		{"_123", ""},
 		{"_12_3", ""},
 		{"_123_", ""},
-		{"_123_", ""},
+		{"_123_", "Attribute \"_123_\" already exists"},
 		{"_", ""},
 		{"__", ""},
 		{"", "Invalid attribute name "},
@@ -42,14 +42,18 @@ func TestSetAttributeNames(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		t.Logf("test: %q", test.name)
 		_, err := reg.Model.AddAttr(test.name, registry.STRING)
+
 		if test.msg == "" && err != nil {
 			t.Errorf("Name: %q failed: %s", test.name, err)
 		}
 		if test.msg != "" && (err == nil || !strings.HasPrefix(err.Error(), test.msg)) {
 			t.Errorf("Name: %q should have failed: %s", test.name, err)
 		}
+
 	}
+	xNoErr(t, reg.SaveModel())
 }
 
 func TestSetResource(t *testing.T) {
@@ -58,6 +62,7 @@ func TestSetResource(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
+	xNoErr(t, reg.SaveModel())
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -96,6 +101,7 @@ func TestSetVersion(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
+	reg.SaveModel()
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -131,11 +137,9 @@ func TestSetDots(t *testing.T) {
 	reg := NewRegistry("TestSetDots")
 	defer PassDeleteReg(t, reg)
 
-	reg.SaveAllAndCommit()
-	reg.Refresh()
-
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
+	reg.SaveModel()
 
 	// check some dots in the prop names - and some labels stuff too
 	dir, _ := reg.AddGroup("dirs", "d1")
@@ -542,6 +546,7 @@ func TestSetNameUser(t *testing.T) {
 	_, err = rm.AddAttrMap("mymap", registry.NewItemType(registry.STRING))
 	xNoErr(t, err)
 
+	xNoErr(t, reg.SaveModel())
 	xNoErr(t, reg.Commit())
 
 	base := "http://localhost:8181"

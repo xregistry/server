@@ -32,6 +32,7 @@ func TestResourceContents(t *testing.T) {
 	xNoErr(t, err)
 	f1, err := d1.AddResource("files", "f1", "v1")
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	f1.SetSaveDefault("name", "file1")
 	f1.SetSaveDefault("labels.str1", "foo")

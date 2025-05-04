@@ -14,6 +14,8 @@ func TestFiltersBasic(t *testing.T) {
 	xNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
+
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
 	f.AddVersion("v2")
@@ -437,6 +439,8 @@ func TestFiltersANDOR(t *testing.T) {
 	xNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
+
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
 	f.AddVersion("v2")
@@ -450,6 +454,8 @@ func TestFiltersANDOR(t *testing.T) {
 	xNoErr(t, err)
 	_, err = gm.AddResourceModel("schemas", "schema", 0, true, true, true)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
+
 	sg, err := reg.AddGroup("schemagroups", "sg1")
 	xNoErr(t, err)
 	s, err := sg.AddResource("schemas", "s1", "v1.0")
@@ -554,6 +560,7 @@ func TestFiltersWildcards(t *testing.T) {
 	xNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
@@ -708,6 +715,7 @@ func TestFiltersOps(t *testing.T) {
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, false) // nodoc
 	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
@@ -815,6 +823,7 @@ func TestFiltersObjs(t *testing.T) {
 
 	attr, _ = reg.Model.AddAttrObj("regobj3")
 	attr.AddAttr("bool", registry.BOOLEAN)
+	xNoErr(t, reg.SaveModel())
 
 	xNoErr(t, reg.SetSave("regobj2", map[string]any{}))
 	xNoErr(t, reg.SetSave("regobj3", map[string]any{"bool": true}))

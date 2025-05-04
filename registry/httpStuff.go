@@ -71,6 +71,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			l := len(TXs)
 			if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
 				log.Printf(">End of HTTP Request")
+				log.Printf("len(TXs): %d", l)
+				log.Printf("tx.tx: %p", tx.tx)
 				DumpTXs()
 
 				log.Printf("Info: %s", ToJSON(info))
@@ -1321,7 +1323,7 @@ FROM FullTree WHERE RegSID=? AND `
 			return nil
 		}
 
-		if attr.internals.neverSerialize {
+		if attr.internals != nil && attr.internals.neverSerialize {
 			return nil
 		}
 
@@ -1338,7 +1340,7 @@ FROM FullTree WHERE RegSID=? AND `
 		}
 
 		var headerName string
-		if attr.internals.httpHeader != "" {
+		if attr.internals != nil && attr.internals.httpHeader != "" {
 			headerName = attr.internals.httpHeader
 		} else {
 			headerName = "xRegistry-" + key
@@ -1663,7 +1665,7 @@ var attrHeaders = map[string]*Attribute{}
 func init() {
 	// Load-up the attributes that have custom http header names
 	for _, attr := range OrderedSpecProps {
-		if attr.internals.httpHeader != "" {
+		if attr.internals != nil && attr.internals.httpHeader != "" {
 			attrHeaders[strings.ToLower(attr.internals.httpHeader)] = attr
 		}
 	}

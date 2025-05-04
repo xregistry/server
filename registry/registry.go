@@ -18,6 +18,10 @@ type Registry struct {
 
 var DefaultRegDbSID string
 
+func (r *Registry) GetTx() *Tx {
+	return r.tx
+}
+
 func GetDefaultReg(tx *Tx) *Registry {
 	if DefaultRegDbSID == "" {
 		panic("No registry specified")
@@ -49,6 +53,11 @@ func (r *Registry) Rollback() error {
 
 func (r *Registry) SaveAllAndCommit() error {
 	if r != nil {
+		if r.Model.GetChanged() {
+			if err := r.SaveModel(); err != nil {
+				return err
+			}
+		}
 		return r.tx.SaveAllAndCommit()
 	}
 	return nil
@@ -364,6 +373,10 @@ func (reg *Registry) LoadCapabilities() *Capabilities {
 
 func (reg *Registry) LoadModel() *Model {
 	return LoadModel(reg)
+}
+
+func (reg *Registry) SaveModel() error {
+	return reg.Model.VerifyAndSave()
 }
 
 func (reg *Registry) LoadModelFromFile(file string) error {

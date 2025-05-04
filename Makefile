@@ -1,5 +1,7 @@
 all: mysql cmds test images run
 
+cmds-all: xr-all xrserver-all
+
 MAKEFLAGS  += --no-print-directory
 
 # Notes:
@@ -17,7 +19,9 @@ export XR_IMAGE       ?= $(DOCKERHUB)xr
 export XRSERVER_IMAGE ?= $(DOCKERHUB)xrserver
 export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
-export BUILDFLAGS     := -ldflags -X=main.GitCommit=$(GIT_COMMIT)
+export BUILDFLAGS     := -ldflags '-X=main.GitCommit=$(GIT_COMMIT)'
+export STATIC         := -ldflags '-X=main.GitCommit=$(GIT_COMMIT) \
+                         -w -extldflags "-static"' -tags netgo,osusergo -a
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v save)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
@@ -67,10 +71,30 @@ xrserver: cmds/xrserver/* registry/*
 	@echo "# Building xrserver"
 	go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
 
+xrserver-all: .xrserver-all
+.xrserver-all: xrserver
+	@echo "# Building xrserver for all platforms"
+	GOOS=windows go build $(STATIC) -o xrserver.exe cmds/xr/*.go
+	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xrserver.linux.amd64 cmds/xr/*.go
+	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xrserver.linux.arm64 cmds/xr/*.go
+	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xrserver.mac.amd64 cmds/xr/*.go
+	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
+	touch .xrserver-all
+
 xr: cmds/xr/* registry/*
 	@echo
 	@echo "# Building xr (cli)"
 	go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
+
+xr-all: .xr-all
+.xr-all: xr
+	@echo "# Building xr for all platforms"
+	GOOS=windows go build $(STATIC) -o xr.exe cmds/xr/*.go
+	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xr.linux.amd64 cmds/xr/*.go
+	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xr.linux.arm64 cmds/xr/*.go
+	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xr.mac.amd64 cmds/xr/*.go
+	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xr.mac.arm64 cmds/xr/*.go
+	touch .xr-all
 
 xrconform: cmds/xrconform/* registry/*
 	@echo
@@ -216,8 +240,10 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cpu.prof mem.prof
-	@rm -f xrserver xr xrconform
-	@rm -f .test .images .push
+	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.exe
+	@rm -f xr xr.linux* xr.mac* xr.exe
+	@rm -f xrconform
+	@rm -f .test .images .push .xr-all .xrserver-all
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1

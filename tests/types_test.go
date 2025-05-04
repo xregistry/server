@@ -82,53 +82,72 @@ func TestBasicTypes(t *testing.T) {
 	rm.AddAttr("filestring1", registry.STRING)
 	rm.AddAttr("filestring2", registry.STRING)
 
+	xNoErr(t, reg.SaveModel())
+
 	/* no longer required
 	_, err = reg.Model.AddAttrXID("regptr_group", "")
 	xCheckErr(t, err, `"model.regptr_group" must have a "target" value since "type" is "xid"`)
 	*/
+
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe")
 	xCheckErr(t, err, `"model.regptr_group" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe/")
 	xCheckErr(t, err, `"model.regptr_group" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_group", " /")
 	xCheckErr(t, err, `"model.regptr_group" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_reg", "/")
 	xCheckErr(t, err, `"model.regptr_reg" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs")
 	xCheckErr(t, err, `"model.regptr_group" has an unknown Group type: "xxxs"`)
+
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs/")
 	xCheckErr(t, err, `"model.regptr_group" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_group", "/dirs")
 	xCheckErr(t, err, ``)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/?")
 	xCheckErr(t, err, `"model.regptr_res" has an unknown Resource type: "?"`)
+
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/file")
 	xCheckErr(t, err, `"model.regptr_res" has an unknown Resource type: "file"`)
+
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/files")
-	xCheckErr(t, err, ``)
+	xNoErr(t, err)
+	xNoErr(t, reg.SaveModel())
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/")
 	xCheckErr(t, err, `"model.regptr_ver" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd")
 	xCheckErr(t, err, `"model.regptr_ver" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd?")
 	xCheckErr(t, err, `"model.regptr_ver" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/versions")
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xCheckErr(t, err, ``)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?asd")
 	xCheckErr(t, err, `"model.regptr_res_ver" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?/")
 	xCheckErr(t, err, `"model.regptr_res_ver" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`)
+
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files[/versions]")
-	xCheckErr(t, err, ``)
+	xNoErr(t, err)
+
 	_, err = reg.Model.AddAttrXID("regptr_res_ver2", "/dirs/files[/versions]")
-	xCheckErr(t, err, ``)
+	xNoErr(t, err)
 
 	// Model is fully defined, so save it
-	// reg.Model.Save()
+	xNoErr(t, reg.SaveModel())
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -596,12 +615,13 @@ func TestWildcardBoolTypes(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", registry.BOOLEAN)
-	// reg.Model.Save()
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	xNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
 	xNoErr(t, err)
+	xNoErr(t, reg.Model.Save())
+
 	dir, err := reg.AddGroup("dirs", "d1")
 	xNoErr(t, err)
 	_, err = dir.AddResource("files", "f1", "v1")
@@ -628,7 +648,7 @@ func TestWildcardAnyTypes(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", registry.ANY)
-	// reg.Model.Save()
+	xNoErr(t, reg.Model.Save())
 
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
@@ -671,7 +691,7 @@ func TestWildcard2LayersTypes(t *testing.T) {
 		},
 	})
 	xCheck(t, err == nil, "")
-	// reg.Model.Save()
+	xNoErr(t, reg.Model.Save())
 
 	err = reg.SetSave("obj.map.k1", 5)
 	xCheck(t, err == nil, fmt.Sprintf("set foo.k1: %s", err))
@@ -708,7 +728,10 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
+	// xNoErr(t, err)
+	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid attribute name "attr1-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
+	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -721,7 +744,10 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
+	// xNoErr(t, err)
+	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid attribute name "attr1-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
+	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "obj1",
@@ -743,7 +769,10 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
+	// xNoErr(t, err)
+	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1.attr1.ifvalues.a1": Invalid attribute name "another-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
+	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -756,7 +785,10 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
+	// xNoErr(t, err)
+	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid map key name "attr space", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$`)
+	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -788,7 +820,7 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	xNoErr(t, err)
-	// reg.Model.Save()
+	xNoErr(t, reg.SaveModel())
 
 	err = reg.SetSave("obj1.attr1-", "a1")
 	xCheck(t, err == nil, fmt.Sprintf("set foo.attr1-: %s", err))

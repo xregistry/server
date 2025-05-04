@@ -27,6 +27,20 @@ jobs:
       - name: build, test, push
         run: make mysql test push
 
+      - name: build cmds for all platforms
+        run: make cmds-all
+
+      - name: push all cmds to a new release
+        uses: marvinpinto/action-automatic-releases@latest
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Latest dev file and build artifacts"
+          files: |
+            xr.*
+            xrserver.*
+
       - env:
           SOAPHUB_SSH_KEY: ${{ secrets.SOAPHUB_SSH_KEY }}
         # Setup each host such that the SSH KEY can only run one command.

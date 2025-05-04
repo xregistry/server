@@ -245,7 +245,7 @@ func (jw *JsonWriter) WriteEntity() error {
 			return nil
 		}
 
-		if attr != nil && attr.internals.neverSerialize {
+		if attr != nil && attr.internals != nil && attr.internals.neverSerialize {
 			return nil
 		}
 

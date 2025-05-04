@@ -1,7 +1,10 @@
-# Generated exes
+ .xrsever-all
+ # Generated exes
 /xrserver
 /xr
 /xrconform
+/xrserver.*
+/xr.*
 
 # Makefile fake targets
 /.cmds
@@ -11,6 +14,8 @@
 /.testimages
 /.spec
 /.push
+/.xr-all
+/.xrserver-all
 
 # Junk
 /hostit

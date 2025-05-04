@@ -63,6 +63,7 @@ type Model struct {
 
 	propsOrdered []*Attribute
 	propsMap     map[string]*Attribute
+	changed      bool
 }
 
 type Attributes map[string]*Attribute // AttrName->Attr
@@ -81,9 +82,6 @@ type AttrInternals struct {
 	getFn    func(*Entity, *RequestInfo) any // return prop's value
 	checkFn  func(*Entity) error             // validate incoming prop
 	updateFn func(*Entity) error             // prep prop for saving to DB
-
-	// Used by $singular and $order
-	singular string // Owning Model's singular name
 }
 
 // Do not include "omitempty" on any attribute that has a default value that
@@ -112,7 +110,7 @@ type Attribute struct {
 	// We have them here so we can have access to them in any func that
 	// gets passed the model attribute.
 	// If anything gets added below MAKE SURE to update SetSpecPropsFields too
-	internals AttrInternals
+	internals *AttrInternals
 }
 
 type Item struct { // for maps and arrays
@@ -309,6 +307,15 @@ func (m *Model) ClearPropsOrdered() {
 	m.propsMap = nil
 }
 
+func (m *Model) SetChanged(val bool) {
+	m.changed = val
+	// ShowStack()
+}
+
+func (m *Model) GetChanged() bool {
+	return m.changed
+}
+
 func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	if m.propsOrdered == nil {
 		m.propsOrdered = []*Attribute{}
@@ -369,6 +376,10 @@ func (m *Model) VerifyAndSave() error {
 }
 
 func (m *Model) Save() error {
+	if m.GetChanged() == false {
+		return nil
+	}
+
 	// Create a temporary type so that we don't use the MarshalJSON func
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want
@@ -397,6 +408,8 @@ func (m *Model) Save() error {
 			return err
 		}
 	}
+
+	m.SetChanged(false)
 
 	return nil
 }
@@ -434,20 +447,25 @@ func (m *Model) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	if m.Attributes == nil {
 		m.Attributes = Attributes{}
+	} else if _, ok := m.Attributes[attr.Name]; ok {
+		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
 	attr.Model = m
-
-	oldVal := m.Attributes[attr.Name]
 	m.Attributes[attr.Name] = attr
-
 	attr.Item.SetModel(m)
 
-	if err := m.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(m.Attributes, attr.Name, oldVal)
+	ld := &LevelData{
+		Model:     m,
+		AttrNames: map[string]bool{},
+		Path:      NewPPP("model"),
+	}
+	if err := m.Attributes.Verify("strict", ld); err != nil {
+		delete(m.Attributes, attr.Name)
 		return nil, err
 	}
+
+	m.SetChanged(true)
 
 	return attr, nil
 }
@@ -457,14 +475,10 @@ func (m *Model) DelAttribute(name string) error {
 		return nil
 	}
 
-	oldVal := m.Attributes[name]
 	delete(m.Attributes, name)
 
-	if err := m.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(m.Attributes, name, oldVal)
-		return err
-	}
+	m.SetChanged(true)
+
 	return nil
 }
 
@@ -529,32 +543,19 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 
 	m.Groups[plural] = gm
 
-	if err = m.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(m.Groups, plural, nil)
-		Must(DoOne(m.Registry.tx, `
-			DELETE FROM ModelEntities WHERE
-			SID=? AND RegistrySID=? AND ParentSID=null AND Plural=?`,
-			mSID, m.Registry.DbSID, plural))
-		return nil, err
-	}
+	m.SetChanged(true)
 
 	return gm, nil
 }
 
 func (m *Model) AddLabel(name string, value string) error {
-	oldLabels := maps.Clone(m.Labels)
-
 	if m.Labels == nil {
 		m.Labels = map[string]string{}
 	}
 	m.Labels[name] = value
 
-	if err := m.VerifyAndSave(); err != nil {
-		// Undo
-		m.Labels = oldLabels
-		return err
-	}
+	m.SetChanged(true)
+
 	return nil
 }
 
@@ -563,18 +564,13 @@ func (m *Model) RemoveLabel(name string) error {
 		return nil
 	}
 
-	oldLabels := maps.Clone(m.Labels)
-
 	delete(m.Labels, name)
 	if len(m.Labels) == 0 {
 		m.Labels = nil
 	}
 
-	if err := m.VerifyAndSave(); err != nil {
-		// Undo
-		m.Labels = oldLabels
-		return err
-	}
+	m.SetChanged(true)
+
 	return nil
 }
 
@@ -623,17 +619,11 @@ func (i *Item) SetModel(m *Model) {
 }
 
 func (i *Item) SetItem(item *Item) error {
-	oldVal := i.Item
 	i.Item = item
 	item.SetModel(i.Model)
 
-	if i.Model != nil {
-		if err := i.Model.VerifyAndSave(); err != nil {
-			// Undo
-			i.Item = oldVal
-			return err
-		}
-	}
+	i.Model.SetChanged(true)
+
 	return nil
 }
 
@@ -684,40 +674,29 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	if i.Attributes == nil {
 		i.Attributes = Attributes{}
+	} else if _, ok := i.Attributes[attr.Name]; ok {
+		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
-	oldVal := i.Attributes[attr.Name]
 	i.Attributes[attr.Name] = attr
 
 	attr.Model = i.Model
 	attr.Item.SetModel(i.Model)
 
 	if i.Model != nil {
-		if err := i.Model.VerifyAndSave(); err != nil {
-			// Undo
-			ResetMap(i.Attributes, attr.Name, oldVal)
-			return nil, err
-		}
+		i.Model.SetChanged(true)
 	}
 
 	return attr, nil
 }
 
 func (i *Item) DelAttribute(name string) error {
-	if i.Attributes == nil {
-		return nil
+	if i.Attributes != nil {
+		delete(i.Attributes, name)
 	}
 
-	oldVal := i.Attributes[name]
-	delete(i.Attributes, name)
+	i.Model.SetChanged(true)
 
-	if i.Model != nil {
-		if err := i.Model.VerifyAndSave(); err != nil {
-			// Undo
-			ResetMap(i.Attributes, name, oldVal)
-			return err
-		}
-	}
 	return nil
 }
 
@@ -856,31 +835,10 @@ func LoadModel(reg *Registry) *Model {
 
 func (m *Model) FindGroupModel(gTypePlural string) *GroupModel {
 	return m.Groups[gTypePlural]
-	/*
-		for _, gModel := range m.Groups {
-			if strings.EqualFold(gModel.Plural, gTypePlural) {
-				return gModel
-			}
-		}
-		return nil
-	*/
 }
-
-/*
-func (m *Model) FindGroupModelBySingular(gTypeSingular string) *GroupModel {
-	for _, gModel := range m.Groups {
-		if gModel.Singular == gTypeSingular {
-			return gModel
-		}
-	}
-	return nil
-}
-*/
 
 func (m *Model) ApplyNewModel(newM *Model) error {
 	newM.Registry = m.Registry
-
-	// newM.SetSpecPropsFields()
 
 	if err := newM.Verify(); err != nil {
 		return err
@@ -889,21 +847,15 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	var err error
 	m.Labels = newM.Labels
 	m.Attributes = newM.Attributes
-	// m.ClearPropsOrdered()
-	// m.RemoveConditionalProps()
 
 	// Find all old groups that need to be deleted
 	for gmPlural, gm := range m.Groups {
-		// gm.ClearPropsOrdered()
-		// gm.RemoveConditionalProps()
 		if newGM, ok := newM.Groups[gmPlural]; !ok {
 			if err := gm.Delete(); err != nil {
 				return err
 			}
 		} else {
 			for rmPlural, rm := range gm.Resources {
-				// rm.ClearPropsOrdered()
-				// rm.RemoveConditionalProps()
 				if _, ok := newGM.Resources[rmPlural]; !ok {
 					if err := rm.Delete(); err != nil {
 						return err
@@ -974,7 +926,6 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	}
 
 	newM.Registry = m.Registry
-	// newM.Registry.Model = newM
 
 	if err := m.VerifyAndSave(); err != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -1042,7 +993,9 @@ func (gm *GroupModel) Delete() error {
 	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
 
-	return gm.Model.VerifyAndSave()
+	gm.Model.SetChanged(true)
+
+	return nil
 }
 
 func (gm *GroupModel) Save() error {
@@ -1083,17 +1036,6 @@ func (gm *GroupModel) Save() error {
 	return err
 }
 
-/*
-func (gm *GroupModel) FindResourceModelBySingular(rTypeSingular string) *ResourceModel {
-	for _, rModel := range gm.Resources {
-		if rModel.Singular == rTypeSingular {
-			return rModel
-		}
-	}
-	return nil
-}
-*/
-
 func (gm *GroupModel) AddAttr(name, daType string) (*Attribute, error) {
 	return gm.AddAttribute(&Attribute{Name: name, Type: daType})
 }
@@ -1123,35 +1065,37 @@ func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	if gm.Attributes == nil {
 		gm.Attributes = Attributes{}
+	} else if _, ok := gm.Attributes[attr.Name]; ok {
+		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
-	oldVal := gm.Attributes[attr.Name]
 	gm.Attributes[attr.Name] = attr
 
 	attr.Model = gm.Model
 	attr.Item.SetModel(gm.Model)
 
-	if err := gm.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(gm.Attributes, attr.Name, oldVal)
+	ld := &LevelData{
+		Model:     gm.Model,
+		AttrNames: map[string]bool{},
+		Path:      NewPPP("groups").P(gm.Plural),
+	}
+	if err := gm.Attributes.Verify("strict", ld); err != nil {
+		delete(gm.Attributes, attr.Name)
 		return nil, err
 	}
+
+	attr.Model.SetChanged(true)
 
 	return attr, nil
 }
 
 func (gm *GroupModel) DelAttribute(name string) error {
-	if gm.Attributes == nil {
-		return nil
+	if gm.Attributes != nil {
+		delete(gm.Attributes, name)
 	}
 
-	oldVal := gm.Attributes[name]
-	delete(gm.Attributes, name)
+	gm.Model.SetChanged(true)
 
-	if err := gm.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(gm.Attributes, name, oldVal)
-	}
 	return nil
 }
 
@@ -1238,31 +1182,21 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 		return nil, err
 	}
 
-	oldVal := gm.Resources[rm.Plural]
 	gm.Resources[rm.Plural] = rm
 
-	if err = gm.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(gm.Resources, rm.Plural, oldVal)
-		return nil, err
-	}
+	rm.GroupModel.Model.SetChanged(true)
 
 	return rm, nil
 }
 
 func (gm *GroupModel) AddLabel(name string, value string) error {
-	oldLabels := maps.Clone(gm.Labels)
-
 	if gm.Labels == nil {
 		gm.Labels = map[string]string{}
 	}
 	gm.Labels[name] = value
 
-	if err := gm.Model.VerifyAndSave(); err != nil {
-		// Undo
-		gm.Labels = oldLabels
-		return err
-	}
+	gm.Model.SetChanged(true)
+
 	return nil
 }
 
@@ -1271,18 +1205,13 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 		return nil
 	}
 
-	oldLabels := maps.Clone(gm.Labels)
-
 	delete(gm.Labels, name)
 	if len(gm.Labels) == 0 {
 		gm.Labels = nil
 	}
 
-	if err := gm.Model.VerifyAndSave(); err != nil {
-		// Undo
-		gm.Labels = oldLabels
-		return err
-	}
+	gm.Model.SetChanged(true)
+
 	return nil
 }
 
@@ -1367,6 +1296,16 @@ func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute)
 	return rm.propsOrdered, rm.propsMap
 }
 
+func (rm *ResourceModel) Refresh() *ResourceModel {
+	gm := rm.GroupModel
+	gm = gm.Model.Registry.Model.Groups[gm.Plural]
+	if gm == nil {
+		return nil
+	}
+
+	return gm.Resources[rm.Plural]
+}
+
 func (rm *ResourceModel) GetMetaPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	if rm.metaPropsOrdered == nil {
 		rm.GetPropsOrdered()
@@ -1399,9 +1338,13 @@ func (rm *ResourceModel) GetSetDefaultSticky() bool {
 
 func (rm *ResourceModel) GetHasDocument() bool {
 	if rm.HasDocument == nil {
-		return SINGLEVERSIONROOT
+		return HASDOCUMENT
 	}
 	return *rm.HasDocument
+}
+
+func (rm *ResourceModel) SetHasDocument(val bool) {
+	rm.HasDocument = PtrBool(val)
 }
 
 func (rm *ResourceModel) GetSingleVersionRoot() bool {
@@ -1426,7 +1369,9 @@ func (rm *ResourceModel) Delete() error {
 	rm.GroupModel.RemoveConditionalProps()
 	delete(rm.GroupModel.Resources, rm.Plural)
 
-	return rm.GroupModel.Model.VerifyAndSave()
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
 }
 
 func (rm *ResourceModel) Save() error {
@@ -1507,17 +1452,12 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, error) {
 		rm.MetaAttributes = Attributes{}
 	}
 
-	oldVal := rm.MetaAttributes[attr.Name]
 	rm.MetaAttributes[attr.Name] = attr
 
 	attr.Model = rm.GroupModel.Model
 	attr.Item.SetModel(rm.GroupModel.Model)
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(rm.MetaAttributes, attr.Name, oldVal)
-		return nil, err
-	}
+	rm.GroupModel.Model.SetChanged(true)
 
 	return attr, nil
 }
@@ -1566,52 +1506,47 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	if rm.Attributes == nil {
 		rm.Attributes = Attributes{}
+	} else if _, ok := rm.Attributes[attr.Name]; ok {
+		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
-	oldVal := rm.Attributes[attr.Name]
 	rm.Attributes[attr.Name] = attr
 
 	attr.Model = rm.GroupModel.Model
 	attr.Item.SetModel(rm.GroupModel.Model)
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(rm.Attributes, attr.Name, oldVal)
+	ld := &LevelData{
+		Model:     rm.GroupModel.Model,
+		AttrNames: map[string]bool{},
+		Path:      NewPPP("resources").P(rm.Plural),
+	}
+	if err := rm.Attributes.Verify("strict", ld); err != nil {
+		delete(rm.Attributes, attr.Name)
 		return nil, err
 	}
+
+	rm.GroupModel.Model.SetChanged(true)
 
 	return attr, nil
 }
 
 func (rm *ResourceModel) DelMetaAttribute(name string) error {
-	if rm.MetaAttributes == nil {
-		return nil
+	if rm.MetaAttributes != nil {
+		delete(rm.MetaAttributes, name)
 	}
 
-	oldVal := rm.MetaAttributes[name]
-	delete(rm.MetaAttributes, name)
+	rm.GroupModel.Model.SetChanged(true)
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(rm.MetaAttributes, name, oldVal)
-		return err
-	}
 	return nil
 }
 
 func (rm *ResourceModel) DelAttribute(name string) error {
-	if rm.Attributes == nil {
-		return nil
+	if rm.Attributes != nil {
+		delete(rm.Attributes, name)
 	}
 
-	oldVal := rm.Attributes[name]
-	delete(rm.Attributes, name)
+	rm.GroupModel.Model.SetChanged(true)
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(rm.Attributes, name, oldVal)
-		return err
-	}
 	return nil
 }
 
@@ -1659,6 +1594,8 @@ func (attrs Attributes) AddIfValuesAttributes(obj map[string]any) {
 				attrNames = append(attrNames, newAttr.Name)
 			}
 		}
+		// Don't set changed since we don't want to save the ifvalue attrs
+		// attr.Model.SetChanged(true)
 	}
 }
 
@@ -1687,6 +1624,7 @@ func (a *Attribute) GetStrict() bool {
 }
 
 func (a *Attribute) InType(eType int) bool {
+	PanicIf(a.internals == nil, "nil")
 	return a.internals.types == "" ||
 		strings.ContainsRune(a.internals.types, rune('0'+byte(eType)))
 }
@@ -1703,6 +1641,12 @@ func (a *Attribute) SetModel(m *Model) {
 	a.Model = m
 	a.Item.SetModel(m)
 	a.IfValues.SetModel(m)
+}
+
+// TODO add more setters
+func (a *Attribute) SetStrict(val bool) {
+	a.Strict = PtrBool(val)
+	a.Model.SetChanged(true)
 }
 
 func (a *Attribute) AddAttr(name, daType string) (*Attribute, error) {
@@ -1751,17 +1695,15 @@ func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	if a.Attributes == nil {
 		a.Attributes = Attributes{}
+	} else if _, ok := a.Attributes[attr.Name]; ok {
+		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
-	oldVal := a.Attributes[attr.Name]
 	a.Attributes[attr.Name] = attr
 	attr.SetModel(a.Model)
 
-	if err := a.Model.VerifyAndSave(); err != nil {
-		// Undo
-		ResetMap(a.Attributes, attr.Name, oldVal)
-		return nil, err
-	}
+	attr.Model.SetChanged(true)
+
 	return attr, nil
 }
 
@@ -1802,6 +1744,9 @@ func RemoveCollectionProps(plural string, attrs Attributes,
 	propsOrdered []*Attribute, propsMap map[string]*Attribute) []*Attribute {
 
 	if attrs != nil {
+		if attr, ok := attrs[plural]; ok && attr.Model != nil {
+			attr.Model.SetChanged(true)
+		}
 		delete(attrs, plural)
 		delete(attrs, plural+"count")
 		delete(attrs, plural+"url")
@@ -1870,58 +1815,21 @@ func (m *Model) Verify() error {
 	}
 
 	propsOrdered, _ := m.GetPropsOrdered()
-	for _, specProp := range propsOrdered { // OrderedSpecProps {
-		// If it's not a Registry level attribute, then skip it
-		if !specProp.InType(ENTITY_REGISTRY) {
-			continue
-		}
-
-		/*
-			if specProp.Name == "$COLLECTIONS" {
-				for plural, _ := range m.Groups {
-					m.Attributes[plural+"url"] = &Attribute{
-						Type:      URL,
-						ReadOnly:  true,
-						Immutable: true,
-						// Required:  true,
-						internals: AttrInternals{dontStore: true},
-					}
-					m.Attributes[plural+"count"] = &Attribute{
-						Type:     UINTEGER,
-						ReadOnly: true,
-						// Required:  true,
-						internals: AttrInternals{dontStore: true},
-					}
-					m.Attributes[plural] = &Attribute{
-						Type:      MAP,
-						Item:      &Item{Type: OBJECT},
-						internals: AttrInternals{dontStore: true},
-					}
-				}
-			}
-		*/
-
+	for _, specProp := range propsOrdered {
 		if specProp.Name[0] == '$' {
 			continue
-		}
-
-		if specProp.Name == "id" {
-			specProp = specProp.Clone("registryid")
-			specProp.ReadOnly = true // Just registryid is "readonly"
-		} else {
-			specProp = specProp.Clone("")
 		}
 
 		modelAttr, ok := m.Attributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
 			m.Attributes[specProp.Name] = specProp
-			continue
-		}
-
-		// It's there but make sure it's not changed in a bad way
-		if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-			return err
+			m.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1973,6 +1881,7 @@ func (gm *GroupModel) Verify(gmName string) error {
 	if gm.Plural == "" {
 		// Allow auto-populate
 		gm.Plural = gmName
+		gm.Model.SetChanged(true)
 	} else if gm.Plural != gmName {
 		return fmt.Errorf("Group %q must have a `plural` value of %q, not %q",
 			gmName, gmName, gm.Plural)
@@ -2020,59 +1929,21 @@ func (gm *GroupModel) Verify(gmName string) error {
 	}
 
 	propsOrdered, _ := gm.GetPropsOrdered()
-	for _, specProp := range propsOrdered { // OrderedSpecProps {
-		/*
-			if specProp.Name == "$COLLECTIONS" {
-				for plural, _ := range gm.Resources {
-					gm.Attributes[plural+"url"] = &Attribute{
-						Type:      URL,
-						ReadOnly:  true,
-						Immutable: true,
-						// Required:  true,
-						internals: AttrInternals{dontStore: true},
-					}
-					gm.Attributes[plural+"count"] = &Attribute{
-						Type:     UINTEGER,
-						ReadOnly: true,
-						// Required:  true,
-						internals: AttrInternals{dontStore: true},
-					}
-					gm.Attributes[plural] = &Attribute{
-						Type:      MAP,
-						Item:      &Item{Type: OBJECT},
-						internals: AttrInternals{dontStore: true},
-					}
-				}
-			}
-		*/
-
+	for _, specProp := range propsOrdered {
 		if specProp.Name[0] == '$' {
 			continue
 		}
-
-		// If it's not a Group level attribute, then skip it
-		/*
-			if !specProp.InType(ENTITY_GROUP) {
-				continue
-			}
-
-			if specProp.Name == "id" {
-				specProp = specProp.Clone(gm.Singular + "id")
-			} else {
-				specProp = specProp.Clone("")
-			}
-		*/
 
 		modelAttr, ok := gm.Attributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
 			gm.Attributes[specProp.Name] = specProp
-			continue
-		}
-
-		// It's there but make sure it's not changed in a bad way
-		if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-			return err
+			gm.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -2101,7 +1972,6 @@ func (gm *GroupModel) SetModel(m *Model) {
 	gm.Attributes.SetModel(m)
 
 	for _, rm := range gm.Resources {
-		// rm.GroupModel = gm
 		rm.SetModel(m)
 	}
 }
@@ -2132,18 +2002,21 @@ func (rm *ResourceModel) RemoveConditionalProps() {
 
 	// Only delete them if they're system added
 	if attr, ok := rm.Attributes[rm.Singular]; ok {
-		if attr.internals.types != "" {
+		if attr.internals != nil {
 			delete(rm.Attributes, rm.Singular)
+			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 	if attr, ok := rm.Attributes[rm.Singular+"url"]; ok {
-		if attr.internals.types != "" {
+		if attr.internals != nil {
 			delete(rm.Attributes, rm.Singular+"url")
+			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 	if attr, ok := rm.Attributes[rm.Singular+"proxyurl"]; ok {
-		if attr.internals.types != "" {
+		if attr.internals != nil {
 			delete(rm.Attributes, rm.Singular+"proxyurl")
+			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
 }
@@ -2158,6 +2031,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	if rm.Plural == "" {
 		// Allow auto-populate
 		rm.Plural = rmName
+		rm.GroupModel.Model.SetChanged(true)
 	} else if rm.Plural != rmName {
 		return fmt.Errorf("Resource %q must have a 'plural' value of %q, "+
 			"not %q", rmName, rmName, rm.Plural)
@@ -2197,98 +2071,26 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		rm.MetaAttributes = Attributes{}
 	}
 
-	// Dug
 	// If the hasDoc was changed to false, remove the $RESOURCE* attrs
 	rm.RemoveConditionalProps()
-	/*
-		if rm.GetHasDocument() == false {
-			for _, suffix := range []string{"", "proxyurl", "url"} {
-				name := rm.Singular + suffix
-				if attr := rm.Attributes[name]; attr != nil {
-					// Only remove it if it was added due to hasDoc=true
-					// And we know this because 'internals' has data
-					if attr.internals.types != "" {
-						delete(rm.Attributes, name)
-						rm.ClearPropsOrdered()
-					}
-				}
-			}
-		}
-	*/
 
 	propsOrdered, _ := rm.GetPropsOrdered()
-	for _, specProp := range propsOrdered { // OrderedSpecProps {
-		// if specProp.Name[0] == '$' {
-		// continue
-		// }
-
-		/* TODO ADD BACK IN?
-		if rm.GetHasDocument() == true {
-			if strings.HasPrefix(name, "$RESOURCE") {
-				name = rm.Singular + name[9:]
-				specProp = specProp.Clone(name)
-			}
-		}
-		*/
-		// TODO ADD BACK IN - END
-
-		// this will clone all $RESOURCE attribute
-		/*
-			if strings.HasPrefix(specProp.Name, "$RESOURCE") {
-				if rm.GetHasDocument() {
-					name := rm.Singular + specProp.Name[len("$RESOURCE"):]
-					specProp = specProp.Clone(name)
-				} else {
-					continue // no hasDoc so skip it
-				}
-			}
-		*/
-
-		/*
-			if name == "$COLLECTIONS" {
-				// Now add the COLLECTIONS attributes("versions")
-				rm.Attributes["versionsurl"] = &Attribute{
-					Type:      URL,
-					ReadOnly:  true,
-					Immutable: true,
-					// Required:  true,
-					internals: AttrInternals{dontStore: true},
-				}
-				rm.Attributes["versionscount"] = &Attribute{
-					Type:     UINTEGER,
-					ReadOnly: true,
-					// Required:  true,
-					internals: AttrInternals{dontStore: true},
-				}
-				rm.Attributes["versions"] = &Attribute{
-					Type:      MAP,
-					Item:      &Item{Type: OBJECT},
-					internals: AttrInternals{dontStore: true},
-				}
-			}
-		*/
-
+	for _, specProp := range propsOrdered {
 		if specProp.Name[0] == '$' {
 			continue
 		}
 
-		// if name == "id" {
-		// name = rm.Singular + "id"
-		// specProp = specProp.Clone(name)
-		// }
-
-		// if specProp.InType(ENTITY_VERSION) { // || specProp.InType(ENTITY_RESOURCE)
 		modelAttr, ok := rm.Attributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
 			rm.Attributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
 			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
 				return err
 			}
 		}
-		// }
 	}
 
 	propsOrdered, _ = rm.GetMetaPropsOrdered()
@@ -2300,6 +2102,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		if !ok {
 			// Missing in model, so add it
 			rm.MetaAttributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
 			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
@@ -2314,28 +2117,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		Path:      NewPPP("resources").P(rm.Plural),
 	}
 
-	// TODO REMOVE START
-	// Make a copy so we can add the RESOURCExxx attributes, if it has a doc
-	attrs := maps.Clone(rm.Attributes)
-	// attrs := rm.Attributes
-	if rm.GetHasDocument() == true {
-		// DUG TODO see if there's a better way to do this
-		attrs[rm.Singular] = &Attribute{Name: rm.Singular, Type: ANY}
-		attrs[rm.Singular+"url"] = &Attribute{Type: URL}
-		attrs[rm.Singular+"proxyurl"] = &Attribute{Type: URL}
-		// attrs[rm.Singular+"base64"] = &Attribute{Type: STRING}
-	}
-
-	// Now add the COLLECTIONS attributes("versions")
-	/*
-		attrs["versionsurl"] = &Attribute{Type: URL}
-		attrs["versionscount"] = &Attribute{Type: UINTEGER}
-		attrs["versions"] = &Attribute{Type: MAP, Item: &Item{Type: OBJECT}}
-	*/
-
-	if err := attrs.Verify("strict", ld); err != nil {
-		// TODO REMOVE END
-		// if err := rm.Attributes.Verify("strict", ld); err != nil {
+	if err := rm.Attributes.Verify("strict", ld); err != nil {
 		return err
 	}
 
@@ -2420,12 +2202,23 @@ func (rm *ResourceModel) SetModel(m *Model) {
 
 func (rm *ResourceModel) SetMaxVersions(maxV int) error {
 	rm.MaxVersions = maxV
-	return rm.VerifyAndSave()
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
 }
 
 func (rm *ResourceModel) SetSetDefaultSticky(val bool) error {
 	rm.SetDefaultSticky = PtrBool(val)
-	return rm.VerifyAndSave()
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
+}
+
+func (rm *ResourceModel) SetSingleVersionRoot(val bool) error {
+	rm.SingleVersionRoot = PtrBool(val)
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
 }
 
 func (rm *ResourceModel) VerifyAndSave() error {
@@ -2442,19 +2235,12 @@ func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 	// Add xReg defined attributes
 	// TODO Check for conflicts
 	propsOrdered, _ := rm.GetMetaPropsOrdered()
-	for _, specProp := range propsOrdered { // OrderedSpecProps {
-		// if specProp.Name == "id" {
-		// // Skip "id"
-		// continue
-		// }
-
-		// if specProp.InType(ENTITY_META) {
+	for _, specProp := range propsOrdered {
 		if IsNil(attrs[specProp.Name]) {
 			attrs[specProp.Name] = specProp
 		} else {
 			attrs[specProp.Name].internals = specProp.internals
 		}
-		// }
 	}
 
 	return attrs
@@ -2487,13 +2273,6 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 
 	// Add xReg defined attributes
 	// TODO Check for conflicts
-	/*
-	   for _, specProp := range OrderedSpecProps {
-	       if specProp.InType(eType) {
-	           attrs[specProp.Name] = specProp
-	       }
-	   }
-	*/
 
 	// Find all Resource level attributes (not Meta) so we can show them
 	// mixed in with the Default Version attributes - e.g. metaurl
@@ -2506,31 +2285,10 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 		}
 	}
 
-	// Resource has hasDoc=true, then add $RESOURCE attrs
-	/*
-		if rm.GetHasDocument() {
-			attrs[rm.Singular] =
-				SpecProps["$RESOURCE"].Clone(rm.Singular)
-
-			attrs[rm.Singular+"url"] =
-				SpecProps["$RESOURCEurl"].Clone(rm.Singular + "url")
-
-			attrs[rm.Singular+"proxyurl"] =
-				SpecProps["$RESOURCEproxyurl"].Clone(rm.Singular + "proxyurl")
-		}
-
-		// Either way, delete the template ones since they're not used
-		delete(attrs, "$RESOURCE")
-		delete(attrs, "$RESOURCEurl")
-		delete(attrs, "$RESOURCEproxyurl")
-	*/
-
 	return attrs
 }
 
 func (rm *ResourceModel) AddTypeMap(ct string, format string) error {
-	oldMap := maps.Clone(rm.TypeMap)
-
 	if format != "binary" && format != "json" && format != "string" {
 		return fmt.Errorf("Invalid typemap format: %q", format)
 	}
@@ -2539,17 +2297,12 @@ func (rm *ResourceModel) AddTypeMap(ct string, format string) error {
 	}
 	rm.TypeMap[ct] = format
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		rm.TypeMap = oldMap
-		return err
-	}
+	rm.GroupModel.Model.SetChanged(true)
+
 	return nil
 }
 
 func (rm *ResourceModel) RemoveTypeMap(ct string) error {
-	oldMap := maps.Clone(rm.TypeMap)
-
 	if rm.TypeMap == nil {
 		return nil
 	}
@@ -2558,27 +2311,19 @@ func (rm *ResourceModel) RemoveTypeMap(ct string) error {
 		rm.TypeMap = nil
 	}
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		rm.TypeMap = oldMap
-		return err
-	}
+	rm.GroupModel.Model.SetChanged(true)
+
 	return nil
 }
 
 func (rm *ResourceModel) AddLabel(name string, value string) error {
-	oldLabels := maps.Clone(rm.Labels)
-
 	if rm.Labels == nil {
 		rm.Labels = map[string]string{}
 	}
 	rm.Labels[name] = value
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		rm.Labels = oldLabels
-		return err
-	}
+	rm.GroupModel.Model.SetChanged(true)
+
 	return nil
 }
 
@@ -2587,18 +2332,13 @@ func (rm *ResourceModel) RemoveLabel(name string) error {
 		return nil
 	}
 
-	oldLabels := maps.Clone(rm.Labels)
-
 	delete(rm.Labels, name)
 	if len(rm.Labels) == 0 {
 		rm.Labels = nil
 	}
 
-	if err := rm.GroupModel.Model.VerifyAndSave(); err != nil {
-		// Undo
-		rm.Labels = oldLabels
-		return err
-	}
+	rm.GroupModel.Model.SetChanged(true)
+
 	return nil
 }
 
@@ -2769,6 +2509,9 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		if attr.Name == "" {
 			// auto-populate
 			attr.Name = name
+			if attr.Model != nil {
+				attr.Model.SetChanged(true)
+			}
 		}
 		if name != attr.Name { // missing Name: field?
 			return fmt.Errorf("%q must have a \"name\" set to %q", path.UI(),

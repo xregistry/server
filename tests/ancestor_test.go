@@ -502,7 +502,7 @@ func TestAncestorWithSicky(t *testing.T) {
 	xCheckEqual(t, "", VAS2String(vas),
 		"(v1->v1,0)(v2->v1,1)(v3->v2,2)")
 
-	rm.MaxVersions = 2
+	rm.SetMaxVersions(2)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
 	f1, err = reg.FindXIDResource("/dirs/d1/files/f1")
@@ -629,13 +629,15 @@ func TestAncestorRoots(t *testing.T) {
 
 	xCheckEqual(t, "", VAS2String(vas), "(v2->v2,0)(v1->v1,0)")
 
-	rm.SingleVersionRoot = registry.PtrBool(false)
+	rm.SetSingleVersionRoot(false)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
 	// Trying to turn singleversionroot=true should generate an error
-	rm.SingleVersionRoot = registry.PtrBool(true)
+	rm.SetSingleVersionRoot(true)
 	err = reg.Model.VerifyAndSave()
 	xCheckErr(t, err, `"file"(f1) has too many (2) root versions`)
+	reg.LoadModel()   // reset
+	rm = rm.Refresh() // reload
 
 	// convert a root into a leaf and try again
 	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v2",
@@ -648,7 +650,7 @@ func TestAncestorRoots(t *testing.T) {
 
 	xCheckEqual(t, "", VAS2String(vas), "(v1->v1,0)(v2->v1,2)")
 
-	rm.SingleVersionRoot = registry.PtrBool(true)
+	rm.SetSingleVersionRoot(true)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
 	// make sure an add of a root fails
@@ -722,7 +724,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	xNoErr(t, err)
 	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	rm.MaxVersions = 1
+	rm.SetMaxVersions(1)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
 	// the circular ref shouldn't be an issue because we'll delete the
@@ -748,7 +750,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 
 	//  v2->v1->v3->v3
 	// Should delete v3
-	rm.MaxVersions = 2
+	rm.SetMaxVersions(2)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",

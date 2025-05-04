@@ -621,7 +621,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 	// Any prop with "dontStore"=true we skip
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.internals.dontStore {
+	if ok && specProp.internals != nil && specProp.internals.dontStore {
 		return nil
 	}
 
@@ -846,7 +846,7 @@ var OrderedSpecProps = []*Attribute{
 		ReadOnly: true,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY),
 			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
@@ -868,7 +868,7 @@ var OrderedSpecProps = []*Attribute{
 		Immutable: true,
 		Required:  true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
 			xrefrequired: true,
 			getFn:        nil,
@@ -933,7 +933,7 @@ var OrderedSpecProps = []*Attribute{
 		Immutable: true,
 		Required:  true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_VERSION),
 			getFn: nil,
 			checkFn: func(e *Entity) error {
@@ -975,7 +975,7 @@ var OrderedSpecProps = []*Attribute{
 		Immutable: true,
 		Required:  true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
 			dontStore:    true,
 			xrefrequired: true,
@@ -1024,7 +1024,7 @@ var OrderedSpecProps = []*Attribute{
 			ReadOnly:       true,
 			Immutable: true,
 
-			internals: AttrInternals{
+			internals: &AttrInternals{
 				types:     "",
 				dontStore: true,
 				xrefrequired: true,
@@ -1064,7 +1064,7 @@ var OrderedSpecProps = []*Attribute{
 		Immutable: true,
 		Required:  true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:        "",
 			dontStore:    true,
 			xrefrequired: true,
@@ -1076,7 +1076,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "xref",
 		Type: URL,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_META),
 			getFn: nil,
 			checkFn: func(e *Entity) error {
@@ -1093,7 +1093,7 @@ var OrderedSpecProps = []*Attribute{
 		ReadOnly: true,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
 			getFn: nil,
 			checkFn: func(e *Entity) error {
@@ -1165,7 +1165,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "name",
 		Type: STRING,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1179,7 +1179,7 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 		Default:  false,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_VERSION),
 			dontStore: true,
 			getFn:     nil,
@@ -1196,7 +1196,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "description",
 		Type: STRING,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1207,7 +1207,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "documentation",
 		Type: URL,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1221,7 +1221,7 @@ var OrderedSpecProps = []*Attribute{
 			Type: STRING,
 		},
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1233,7 +1233,7 @@ var OrderedSpecProps = []*Attribute{
 		Type:     TIMESTAMP,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
 			getFn:   nil,
 			checkFn: nil,
@@ -1276,7 +1276,7 @@ var OrderedSpecProps = []*Attribute{
 		Type:     TIMESTAMP,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
 			getFn:   nil,
 			checkFn: nil,
@@ -1313,7 +1313,7 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$extensions",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_REGISTRY),
 		},
 	},
@@ -1327,7 +1327,7 @@ var OrderedSpecProps = []*Attribute{
 			},
 		},
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY),
 			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
@@ -1387,7 +1387,7 @@ var OrderedSpecProps = []*Attribute{
 			},
 		},
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_REGISTRY),
 			getFn: func(e *Entity, info *RequestInfo) any {
 				// Need to explicitly ask for "model", ?inline=* won't
@@ -1413,7 +1413,7 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 		Default:  false,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_META),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1429,7 +1429,7 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 		Default:  "none",
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_META),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1442,7 +1442,7 @@ var OrderedSpecProps = []*Attribute{
 		Enum:   []any{"external", "server"},
 		Strict: PtrBool(false),
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_META),
 			getFn:   nil,
 			checkFn: nil,
@@ -1482,7 +1482,7 @@ var OrderedSpecProps = []*Attribute{
 			},
 		},
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_META),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1494,7 +1494,7 @@ var OrderedSpecProps = []*Attribute{
 		Type:     STRING,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_VERSION),
 			getFn:   nil,
 			checkFn: nil,
@@ -1517,7 +1517,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "contenttype",
 		Type: STRING,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:      StrTypes(ENTITY_VERSION),
 			httpHeader: "Content-Type",
 			getFn:      nil,
@@ -1527,13 +1527,13 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$extensions",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
 		},
 	},
 	{
 		Name: "$space",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: "",
 		},
 	},
@@ -1543,7 +1543,7 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name: "$RESOURCEurl",
 		Type: URL,
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_VERSION),
 			checkFn: RESOURCEcheckFn,
 			updateFn: func(e *Entity) error {
@@ -1561,7 +1561,7 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name: "$RESOURCEproxyurl",
 		Type: URL,
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_VERSION),
 			checkFn: RESOURCEcheckFn,
 			updateFn: func(e *Entity) error {
@@ -1580,7 +1580,7 @@ var OrderedSpecProps = []*Attribute{
 		Name: "$RESOURCE",
 		Type: ANY,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:           StrTypes(ENTITY_VERSION),
 			alwaysSerialize: true, // Will always be missing, so need this
 			checkFn:         RESOURCEcheckFn,
@@ -1602,7 +1602,7 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$space",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: "",
 		},
 	},
@@ -1613,7 +1613,7 @@ var OrderedSpecProps = []*Attribute{
 		Immutable: true,
 		Required:  true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_RESOURCE),
 			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
@@ -1655,13 +1655,13 @@ var OrderedSpecProps = []*Attribute{
 				Type: ANY,
 			},
 		},
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: StrTypes(ENTITY_RESOURCE),
 		},
 	},
 	{
 		Name: "$space",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: "",
 		},
 	},
@@ -1670,7 +1670,7 @@ var OrderedSpecProps = []*Attribute{
 		Type:     STRING,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:   StrTypes(ENTITY_META),
 			getFn:   nil,
 			checkFn: nil,
@@ -1700,7 +1700,7 @@ var OrderedSpecProps = []*Attribute{
 		ReadOnly: true,
 		Required: true,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_META),
 			dontStore: true,
 			getFn: func(e *Entity, info *RequestInfo) any {
@@ -1767,7 +1767,7 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 		Default:  false,
 
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:    StrTypes(ENTITY_META),
 			getFn:    nil,
 			checkFn:  nil,
@@ -1776,7 +1776,7 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$space",
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types: "",
 		},
 	},
@@ -1791,7 +1791,7 @@ var OrderedSpecProps = []*Attribute{
 				},
 			},
 		},
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
 			dontStore: true,
 		},
@@ -1817,7 +1817,7 @@ func init() {
 		ReadOnly:  true,
 		Immutable: true,
 		Required:  true,
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
 			dontStore: true,
 		},
@@ -1828,7 +1828,7 @@ func init() {
 		Type:     UINTEGER,
 		ReadOnly: true,
 		Required: true,
-		internals: AttrInternals{
+		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
 			dontStore: true,
 		},
@@ -1929,7 +1929,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 			continue
 		}
 
-		if name[0] == '$' || prop.internals.alwaysSerialize {
+		if name[0] == '$' || (prop.internals != nil && prop.internals.alwaysSerialize) {
 			log.VPrintf(4, "  forced serialization of %q", name)
 			if err := fn(e, info, name, nil, attr); err != nil {
 				return err
@@ -2107,7 +2107,7 @@ func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
 
 	for _, prop := range propsOrdered {
 		// Only generate props that have a Fn
-		if prop.internals.getFn != nil {
+		if prop.internals != nil && prop.internals.getFn != nil {
 			// Only generate/set the value if it's not already set
 			if _, ok := mat[prop.Name]; !ok {
 				if val := prop.internals.getFn(e, info); !IsNil(val) {
@@ -2410,17 +2410,6 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				continue
 			}
 
-			if key == "id" {
-				tmp := origAttrs["$singular"]
-				if tmp != nil {
-					if e.Type == ENTITY_VERSION {
-						key = "versionid"
-					} else {
-						key = tmp.internals.singular + "id"
-					}
-				}
-			}
-
 			val, keyPresent := newObj[key]
 
 			// A Default value is defined but there's no value, so set it
@@ -2484,14 +2473,14 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// Call the attr's checkFn if there to make sure any
 			// incoming value is ok
-			if attr.internals.checkFn != nil {
+			if attr.internals != nil && attr.internals.checkFn != nil {
 				if err := attr.internals.checkFn(e); err != nil {
 					return err
 				}
 			}
 
 			// Skip 'dontStore' attrs
-			if attr.internals.dontStore {
+			if attr.internals != nil && attr.internals.dontStore {
 				// TODO find a way to allow an admin to set the
 				// meta.ReadOnly flag itself
 				delete(objKeys, key) // Remove from to-process list
@@ -2499,7 +2488,7 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			}
 
 			// If this attr has a func to update its value, call it
-			if attr.internals.updateFn != nil {
+			if attr.internals != nil && attr.internals.updateFn != nil {
 				if err := attr.internals.updateFn(e); err != nil {
 					return err
 				}
@@ -2843,7 +2832,7 @@ func PrepUpdateEntity(e *Entity) error {
 			}
 		*/
 
-		if attr.InType(e.Type) && attr.internals.updateFn != nil {
+		if attr.InType(e.Type) && attr.internals != nil && attr.internals.updateFn != nil {
 			if err := attr.internals.updateFn(e); err != nil {
 				return err
 			}

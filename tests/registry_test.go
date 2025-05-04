@@ -218,6 +218,8 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Type: registry.OBJECT,
 	})
 	xNoErr(t, err)
+	err = reg.SaveModel()
+	xNoErr(t, err)
 
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
@@ -225,22 +227,32 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  "string",
 	})
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xCheckErr(t, err, `"model.myobj.defint" "default" value must be of type "integer"`)
+	reg.LoadModel()
 
+	obj = reg.Model.Attributes["myobj"]
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
 		Type:     registry.OBJECT,
 		Required: true,
 		Default:  "string",
 	})
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xCheckErr(t, err, `"model.myobj.defint" is not a scalar, so "default" is not allowed`)
+	reg.LoadModel()
 
+	obj = reg.Model.Attributes["myobj"]
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
 		Type:     registry.INTEGER,
 		Required: true,
 		Default:  123,
 	})
+	xNoErr(t, err)
+	err = reg.SaveModel()
 	xNoErr(t, err)
 
 	// Commit before we call Set below otherwise the Tx will be rolled back

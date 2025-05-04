@@ -12,6 +12,7 @@ RUN find . -maxdepth 1 -type f -executable -exec rm {} \;
 # Force static builds
 ENV GO_EXTLINK_ENABLED=0
 ENV CGO_ENABLED=0
+# -w removes debugging info
 ENV BUILDFLAGS -ldflags \"-w -extldflags -static\" \
 	-tags netgo -installsuffix netgo
 
