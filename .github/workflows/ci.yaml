@@ -30,16 +30,22 @@ jobs:
       - name: build cmds for all platforms
         run: make cmds-all
 
-      - name: push all cmds to a new release
-        uses: marvinpinto/action-automatic-releases@latest
+      - name: push all cmds to the 'dev' release
+        uses: ncipollo/release-action@v1
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: latest
-          prerelease: true
-          title: "Latest dev file and build artifacts"
-          files: |
+          artifacts: |
             xr.*
             xrserver.*
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          body: "Latest development build of the 'xr(server)' executables"
+          commit: master
+          draft: true
+          tag: dev
+          omitBodyDuringUpdate: true
+          prerelease: true
+          removeArtifacts: true
+          replacesArtifacts: true
 
       - env:
           SOAPHUB_SSH_KEY: ${{ secrets.SOAPHUB_SSH_KEY }}

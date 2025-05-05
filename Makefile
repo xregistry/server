@@ -74,12 +74,12 @@ xrserver: cmds/xrserver/* registry/*
 xrserver-all: .xrserver-all
 .xrserver-all: xrserver
 	@echo "# Building xrserver for all platforms"
-	GOOS=windows go build $(STATIC) -o xrserver.exe cmds/xr/*.go
+	GOOS=windows go build $(STATIC) -o xrserver.windows.exe cmds/xr/*.go
 	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xrserver.linux.amd64 cmds/xr/*.go
 	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xrserver.linux.arm64 cmds/xr/*.go
 	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xrserver.mac.amd64 cmds/xr/*.go
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
-	touch .xrserver-all
+	@touch .xrserver-all
 
 xr: cmds/xr/* registry/*
 	@echo
@@ -89,12 +89,12 @@ xr: cmds/xr/* registry/*
 xr-all: .xr-all
 .xr-all: xr
 	@echo "# Building xr for all platforms"
-	GOOS=windows go build $(STATIC) -o xr.exe cmds/xr/*.go
+	GOOS=windows go build $(STATIC) -o xr.windows.exe cmds/xr/*.go
 	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xr.linux.amd64 cmds/xr/*.go
 	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xr.linux.arm64 cmds/xr/*.go
 	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xr.mac.amd64 cmds/xr/*.go
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xr.mac.arm64 cmds/xr/*.go
-	touch .xr-all
+	@touch .xr-all
 
 xrconform: cmds/xrconform/* registry/*
 	@echo
@@ -240,8 +240,8 @@ clean:
 	@echo
 	@echo "# Cleaning"
 	@rm -f cpu.prof mem.prof
-	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.exe
-	@rm -f xr xr.linux* xr.mac* xr.exe
+	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
+	@rm -f xr xr.linux* xr.mac* xr.windows.*
 	@rm -f xrconform
 	@rm -f .test .images .push .xr-all .xrserver-all
 	@go clean -cache -testcache
