@@ -1116,8 +1116,11 @@ func GetRegistryModelInlines(m *Model) []string {
 func GetGroupModelInlines(gm *GroupModel) []string {
 	res := []string{}
 
-	for _, key := range SortedKeys(gm.Resources) {
-		rm := gm.Resources[key]
+	list := gm.GetResourceList()
+	sort.Strings(list)
+
+	for _, key := range list {
+		rm := gm.FindResourceModel(key)
 		res = append(res, rm.Plural)
 		for _, inline := range GetResourceModelInlines(rm) {
 			res = append(res, rm.Plural+"."+inline)
@@ -1892,7 +1895,7 @@ func HTTPPutPost(info *RequestInfo) error {
 
 		resPaths := map[string][]string{}
 		for rType, rAny := range objMap {
-			if info.GroupModel.Resources[rType] == nil {
+			if info.GroupModel.FindResourceModel(rType) == nil {
 				return fmt.Errorf("Unknown Resource type: %s", rType)
 			}
 
@@ -2557,8 +2560,7 @@ func HTTPDelete(info *RequestInfo) error {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs...
-	rm := gm.Resources[info.ResourceType]
-	if rm == nil {
+	if rm := gm.FindResourceModel(info.ResourceType); rm == nil {
 		info.StatusCode = http.StatusNotFound
 		return fmt.Errorf(`Resource type %q not found`, info.ResourceType)
 	}

@@ -340,7 +340,7 @@ func SplitProp(reg *Registry, path string) (string, string) {
 			abs = abs.Append(pp.First())
 			pp = pp.Next()
 
-			if rm := gm.Resources[pp.Top()]; rm != nil {
+			if rm := gm.FindResourceModel(pp.Top()); rm != nil {
 				abs = abs.Append(pp.First())
 				pp = pp.Next()
 
@@ -526,7 +526,7 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	rModel := (*ResourceModel)(nil)
 	if gModel.Resources != nil {
-		rModel = gModel.Resources[info.Parts[2]]
+		rModel = gModel.FindResourceModel(info.Parts[2])
 	}
 	if rModel == nil {
 		info.StatusCode = http.StatusNotFound

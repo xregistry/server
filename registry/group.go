@@ -119,7 +119,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	}
 
 	gModel := g.GetGroupModel()
-	rModel := gModel.Resources[rType]
+	rModel := gModel.FindResourceModel(rType)
 	if rModel == nil {
 		return nil, false, fmt.Errorf("Unknown Resource type (%s) for Group %q",
 			rType, g.Plural)

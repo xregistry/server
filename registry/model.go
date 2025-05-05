@@ -833,8 +833,17 @@ func LoadModel(reg *Registry) *Model {
 	return model
 }
 
-func (m *Model) FindGroupModel(gTypePlural string) *GroupModel {
-	return m.Groups[gTypePlural]
+func (m *Model) FindGroupModel(gType string) *GroupModel {
+	return m.Groups[gType]
+}
+
+func (m *Model) FindResourceModel(gType string, rType string) *ResourceModel {
+	gm := m.FindGroupModel(gType)
+	if gm == nil {
+		return nil
+	}
+
+	return gm.FindResourceModel(rType)
 }
 
 func (m *Model) ApplyNewModel(newM *Model) error {
@@ -1215,6 +1224,23 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 	return nil
 }
 
+func (gm *GroupModel) FindResourceModel(rType string) *ResourceModel {
+	if gm == nil {
+		return nil
+	}
+	return gm.Resources[rType]
+}
+
+func (gm *GroupModel) GetResourceList() []string {
+	list := make([]string, len(gm.Resources))
+	i := 0
+	for plural, _ := range gm.Resources {
+		list[i] = plural
+		i++
+	}
+	return list
+}
+
 func (rm *ResourceModel) ClearPropsOrdered() {
 	rm.propsOrdered = nil
 	rm.propsMap = nil
@@ -1297,13 +1323,9 @@ func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute)
 }
 
 func (rm *ResourceModel) Refresh() *ResourceModel {
+	// Weird we need to assume the current rm's info (except Reg) is bad
 	gm := rm.GroupModel
-	gm = gm.Model.Registry.Model.Groups[gm.Plural]
-	if gm == nil {
-		return nil
-	}
-
-	return gm.Resources[rm.Plural]
+	return gm.Model.Registry.Model.FindResourceModel(gm.Plural, rm.Plural)
 }
 
 func (rm *ResourceModel) GetMetaPropsOrdered() ([]*Attribute, map[string]*Attribute) {
@@ -2046,7 +2068,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			`and "singular"`, rmName)
 	}
 
-	if rm.GroupModel.Resources[rm.Singular] != nil {
+	if rm.GroupModel.FindResourceModel(rm.Singular) != nil {
 		return fmt.Errorf(`Resource %q has a "singular" value (%s) that `+
 			`matches another Resource's "plural" value`, rmName, rm.Singular)
 	}
@@ -2548,7 +2570,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 						path.UI(), parts[1])
 				}
 				if parts[2] != "" {
-					if rm := gm.Resources[parts[2]]; rm == nil {
+					if rm := gm.FindResourceModel(parts[2]); rm == nil {
 						return fmt.Errorf("%q has an unknown Resource type: %q",
 							path.UI(), parts[2])
 					}
@@ -2807,7 +2829,7 @@ func AbstractToSingular(reg *Registry, abs string) string {
 		return gm.Singular
 	}
 
-	rm := gm.Resources[absParts[1]]
+    rm := gm.FindResourceModel(absParts[1])
 	PanicIf(rm == nil, "no rm")
 	return rm.Singular
 }
@@ -2878,7 +2900,7 @@ func AbstractToModels(reg *Registry, abs string) (*GroupModel, *ResourceModel) {
 
 	rm := (*ResourceModel)(nil)
 	if len(parts) > 1 {
-		rm = gm.Resources[parts[1]]
+		rm = gm.FindResourceModel(parts[1])
 		PanicIf(rm == nil, "Cant' find Resource \"%s/%s\"", parts[0], parts[1])
 	}
 	// *GroupModel, *ResourceModel, isVersion

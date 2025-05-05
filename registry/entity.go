@@ -2901,7 +2901,7 @@ func (e *Entity) MatchXID(str string, xid string) error {
 			xid, targetParts[2])
 	}
 
-	rm := gm.Resources[targetParts[2]]
+	rm := gm.FindResourceModel(targetParts[2])
 	if rm == nil {
 		return fmt.Errorf("uses an unknown resource %q", targetParts[2])
 	}

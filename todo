@@ -111,3 +111,4 @@ TODOs:
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestor correctly when server assigns the version
   ID. `ancestor=request`
+- add RESOURCEbase64 to model
