@@ -10,12 +10,20 @@ Still a work-in-progress so check the [todo](todo) list for what's missing,
 but let us know via [issues](https://github.com/xregistry/server/issues)
 if something seems wrong.
 
-To run the official image (with an embedded mysql DB):
+To run the server (with an embedded mysql DB):
 ```
 # You need to have Docker installed
 
 docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 ```
+
+The `xr` and `xrserver` CLIs are available as:
+- a [container images](https://github.com/orgs/xregistry/packages?repo_name=server)
+- or as [stand-alone executables](https://github.com/xregistry/server/releases/tag/dev)
+  - Note that the stand-alone `xrserver` does not have any database built-in
+    so either use the `xrsever-all` container image (which has both the 
+    `xrserver` command the a MYSQL instance built-in) or run your own MYSQL
+    DB manually.
 
 Please see the simple [doc-store](samples/doc-store) script to see how
 to quickly stand-up and load an xRegistry server for experimentation.
