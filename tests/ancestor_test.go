@@ -494,7 +494,7 @@ func TestAncestorWithSicky(t *testing.T) {
 }
 `)
 
-	f1, err := reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -505,7 +505,7 @@ func TestAncestorWithSicky(t *testing.T) {
 	rm.SetMaxVersions(2)
 	xNoErr(t, reg.Model.VerifyAndSave())
 
-	f1, err = reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -532,7 +532,7 @@ func TestAncestorOrdering(t *testing.T) {
   }
 }`, 201, `*`)
 
-	f1, err := reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -622,7 +622,7 @@ func TestAncestorRoots(t *testing.T) {
   }
 }`, 201, `*`)
 
-	f1, err := reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -643,7 +643,7 @@ func TestAncestorRoots(t *testing.T) {
 	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v2",
 		`{"ancestor":"v1"}`, 200, `*`)
 
-	f1, err = reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -791,7 +791,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 }
 `)
 
-	f1, err := reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)
@@ -821,7 +821,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 }
 `)
 
-	f1, err = reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
 	xNoErr(t, err)

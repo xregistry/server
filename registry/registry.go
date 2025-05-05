@@ -984,7 +984,7 @@ func (r *Registry) FindXIDGroup(xid string) (*Group, error) {
 	return r.FindGroup(parts[0], parts[1], false)
 }
 
-func (r *Registry) FindXIDResource(xid string) (*Resource, error) {
+func (r *Registry) FindResourceByXID(xid string) (*Resource, error) {
 	parts, err := ParseXID(xid)
 	if err != nil {
 		return nil, err

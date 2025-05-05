@@ -101,9 +101,7 @@ TODOs:
 - add xr support to download as individual files
 - add tests for model "description", "modelversion" and "compatwith"
 - ancestor
-- FindXIDResource -> FindResourceByXID
 - add support for deprecated
-- finish /proxy stuff - lots of bad urls on html
 - add docs for persistent DB/volume
 - add docs for auth via proxy
 - add support for setting capabilities.mutable to null and make sure things

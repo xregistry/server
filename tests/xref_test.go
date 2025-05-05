@@ -12,7 +12,7 @@ func TestXrefBasic(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
-	f1, err := reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 
 	rows, err := reg.Query("select * from Versions where ResourceSID=?",
@@ -31,7 +31,7 @@ func TestXrefBasic(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
 
-	fx, err := reg.FindXIDResource("/dirs/d1/files/fx")
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx")
 	xNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
@@ -141,10 +141,10 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	f1, err = reg.FindXIDResource("/dirs/d1/files/f1")
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1")
 	xNoErr(t, err)
 
-	fx, err = reg.FindXIDResource("/dirs/d1/files/fx")
+	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx")
 	xNoErr(t, err)
 
 	xCheckEqual(t, "", fx.Get("description"), "testing xref")
