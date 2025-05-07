@@ -26,7 +26,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Parse and resolve 'includes' in an xRegistry model document",
 		Run:   modelNormalizeFunc,
 	}
-	// normalizeCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	// normalizeCmd.Flags().StringP("data", "d", "",
+	// "Data(json), @FILE, @URL, @-(stdin)")
 	modelCmd.AddCommand(normalizeCmd)
 
 	verifyCmd := &cobra.Command{
@@ -34,7 +35,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Parse and verify xRegistry model documents",
 		Run:   modelVerifyFunc,
 	}
-	// verifyCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	// verifyCmd.Flags().StringP("data", "d", "",
+	// "Data(json), @FILE, @URL, @-(stdin)")
 	modelCmd.AddCommand(verifyCmd)
 
 	updateCmd := &cobra.Command{
@@ -42,7 +44,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Update the registry's model",
 		Run:   modelUpdateFunc,
 	}
-	updateCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	updateCmd.Flags().StringP("data", "d", "",
+		"Data(json), @FILE, @URL, @-(stdin)")
 	modelCmd.AddCommand(updateCmd)
 
 	getCmd := &cobra.Command{

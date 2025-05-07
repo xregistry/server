@@ -15,7 +15,8 @@ func addImportCmd(parent *cobra.Command) {
 		Run:     importFunc,
 		GroupID: "Entities",
 	}
-	importCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	importCmd.Flags().StringP("data", "d", "",
+		"Data(json), @FILE, @URL, @-(stdin)")
 
 	parent.AddCommand(importCmd)
 }

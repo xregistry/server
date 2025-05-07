@@ -116,6 +116,7 @@ type Attribute struct {
 type Item struct { // for maps and arrays
 	Model       *Model     `json:"-"`
 	Type        string     `json:"type,omitempty"`
+	Target      string     `json:"target,omitempty"`
 	NameCharSet string     `json:"namecharset,omitempty"` // when 'type'=obj
 	Attributes  Attributes `json:"attributes,omitempty"`  // when 'type'=obj
 	Item        *Item      `json:"item,omitempty"`        // when 'type'=map,array

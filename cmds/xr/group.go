@@ -32,7 +32,7 @@ func addGroupCmd(parent *cobra.Command) {
 	}
 	groupCreateCmd.Flags().StringP("import", "i", "", "Map of data(json)")
 	groupCreateCmd.Flags().StringP("data", "d", "",
-		"Data (json), @FILE, @URL, @-")
+		"Data (json), @FILE, @URL, @-(stdin)")
 	groupCreateCmd.Flags().StringP("file", "f", "",
 		"filename for Group data (json), \"-\" for stdin")
 	groupCmd.AddCommand(groupCreateCmd)
@@ -78,8 +78,15 @@ func groupCreateFunc(cmd *cobra.Command, args []string) {
 
 	data, _ := cmd.Flags().GetString("data")
 	file, _ := cmd.Flags().GetString("file")
+
 	if data != "" && file != "" {
 		Error("Both --data and --file can not be used at the same time")
+	}
+
+	if len(data) > 0 && data[0] == '@' {
+		buf, err := xrlib.ReadFile(data[1:])
+		Error(err)
+		data = string(buf)
 	}
 
 	if file != "" {

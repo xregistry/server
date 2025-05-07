@@ -19,7 +19,8 @@ func addDeleteCmd(parent *cobra.Command) {
 		GroupID: "Entities",
 	}
 	deleteCmd.Flags().BoolP("force", "f", false, "Don't error if doesn't exist")
-	deleteCmd.Flags().StringP("data", "d", "", "Data(json), @FILE, @URL, @-")
+	deleteCmd.Flags().StringP("data", "d", "",
+		"Data(json), @FILE, @URL, @-(stdin)")
 
 	parent.AddCommand(deleteCmd)
 }
