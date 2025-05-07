@@ -103,6 +103,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	_, err = r.AddAttr("format", registry.STRING)
 	ErrFatalf(err)
 
+	ErrFatalf(reg.Model.VerifyAndSave())
+
 	iter := 0
 
 	for {
@@ -254,6 +256,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		_, err = reg.Model.AddAttrArray("arrmap",
 			registry.NewItemMap(registry.NewItemType(registry.STRING)))
 		ErrFatalf(err)
+		ErrFatalf(reg.Model.VerifyAndSave())
 
 		ErrFatalf(reg.SetSave("bool1", true))
 		ErrFatalf(reg.SetSave("int1", 1))
@@ -289,7 +292,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	_, err = reg.Model.AddAttrXID("resptr", "/dirs/files[/versions]")
 	ErrFatalf(err)
 
-	ErrFatalf(reg.Model.Verify())
+	ErrFatalf(reg.Model.VerifyAndSave())
 
 	g, err := reg.AddGroup("dirs", "d1")
 	ErrFatalf(err)
@@ -484,6 +487,8 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
+	ErrFatalf(reg.Model.VerifyAndSave())
+
 	maxD, maxF, maxV := 10, 150, 5
 	dirs, files, vers := 0, 0, 0
 	for dcount := 0; dcount < maxD; dcount++ {
@@ -539,6 +544,8 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	gm, _ := reg.Model.AddGroupModel("documents", "document")
 	gm.AddResourceModel("formats", "format", 0, true, true, true)
+
+	ErrFatalf(reg.Model.VerifyAndSave())
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")

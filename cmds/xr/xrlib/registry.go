@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	// log "github.com/duglin/dlog"
 	"github.com/xregistry/server/registry"
 )
 
@@ -80,12 +81,16 @@ type IfValue struct {
 }
 
 type GroupModel struct {
+	Model      *Model            `json:"-"`
 	Plural     string            `json:"plural,omitempty"`
 	Singular   string            `json:"singular,omitempty"`
 	Labels     map[string]string `json:"labels,omitempty"`
 	Attributes Attributes        `json:"attributes,omitempty"`
 
-	Resources map[string]*ResourceModel
+	XImportResources []string `json:"ximportresources,omitempty"`
+	Resources        map[string]*ResourceModel
+
+	imports map[string]*ResourceModel
 }
 
 type CollectionDefined struct {
@@ -190,6 +195,7 @@ func (reg *Registry) Refresh() error {
 			return fmt.Errorf("Unable to parse registry model: %s\n%s",
 				err, string(attrs["model"]))
 		}
+		reg.Model.SetPointers()
 	} else {
 		if err := reg.RefreshModel(); err != nil {
 			return err
@@ -221,6 +227,7 @@ func (reg *Registry) RefreshModel() error {
 		return fmt.Errorf("Unable to parse registry model: %s\n%s",
 			err, string(res.Body))
 	}
+	reg.Model.SetPointers()
 	return nil
 }
 
@@ -259,6 +266,12 @@ func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, erro
 	return HttpDo(verb, u.String(), body)
 }
 
+func (m *Model) SetPointers() {
+	for _, gm := range m.Groups {
+		gm.SetModel(m)
+	}
+}
+
 func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	for _, group := range m.Groups {
 		if group.Singular == singular {
@@ -268,12 +281,20 @@ func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	return nil
 }
 
-func (m *Model) FindGroupByPlural(plural string) *GroupModel {
+func (m *Model) FindGroupModel(plural string) *GroupModel {
 	return m.Groups[plural]
 }
 
-func (gm *GroupModel) FindResourceByPlural(plural string) *ResourceModel {
-	return gm.Resources[plural]
+func (m *Model) FindResourceModel(gType, rType string) *ResourceModel {
+	gm := m.FindGroupModel(gType)
+	if gm == nil {
+		return nil
+	}
+	return gm.FindResourceModel(rType)
+}
+
+func (gm *GroupModel) SetModel(m *Model) {
+	gm.Model = m
 }
 
 func (gm *GroupModel) FindResourceBySingular(singular string) *ResourceModel {
@@ -283,6 +304,50 @@ func (gm *GroupModel) FindResourceBySingular(singular string) *ResourceModel {
 		}
 	}
 	return nil
+}
+
+func (gm *GroupModel) GetImports() map[string]*ResourceModel {
+	if gm.imports == nil && len(gm.XImportResources) > 0 {
+		gm.imports = map[string]*ResourceModel{}
+		for _, grName := range gm.XImportResources {
+			parts := strings.Split(grName, "/")
+			r := gm.Model.FindResourceModel(parts[1], parts[2])
+			// PanicIf(r == nil, "Can't find %q", grName)
+			gm.imports[parts[2]] = r
+		}
+	}
+	return gm.imports
+}
+
+func (gm *GroupModel) FindResourceModel(rType string) *ResourceModel {
+	if gm == nil {
+		return nil
+	}
+	if rm := gm.Resources[rType]; rm != nil {
+		return rm
+	}
+
+	imps := gm.GetImports()
+	if imps != nil {
+		return imps[rType]
+	}
+	return nil
+}
+
+func (gm *GroupModel) GetResourceList() []string {
+	list := make([]string, len(gm.Resources)+len(gm.XImportResources))
+	i := 0
+	for plural, _ := range gm.Resources {
+		list[i] = plural
+		i++
+	}
+
+	imps := gm.GetImports()
+	for k, _ := range imps {
+		list[i] = k
+		i++
+	}
+	return list
 }
 
 func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
@@ -318,14 +383,14 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, err
 		return nil, nil
 	}
 
-	gm := reg.Model.Groups[xid.Group]
+	gm := reg.Model.FindGroupModel(xid.Group)
 	if gm == nil {
 		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
 	}
 
-	rm := gm.Resources[xid.Resource]
+	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
-		return nil, fmt.Errorf("Uknown resource type: %s", xid.Resource)
+		return nil, fmt.Errorf("Unknown resource type: %s", xid.Resource)
 	}
 	return rm, nil
 }

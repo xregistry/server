@@ -3386,6 +3386,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
+
 	reg.AddGroup("dirs", "dir1")
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -4000,7 +4001,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 	resBody = strings.Replace(string(body), `"epoch": 1`, `"epoch": 2`, 1)
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:        "PUT resources - echo'ing rergistry GET",
+		Name:        "PUT resources - echo'ing registry GET",
 		URL:         "/",
 		Method:      "PUT",
 		ReqHeaders:  []string{},
@@ -6601,6 +6602,8 @@ func TestHTTPResources(t *testing.T) {
 	rm, err := gm.AddResourceModelSimple("files", "file")
 	xNoErr(t, err)
 
+	xNoErr(t, reg.SaveModel())
+
 	/*
 		_, err := rm.AddAttribute(&registry.Attribute{
 			Name: "files",
@@ -6627,7 +6630,7 @@ func TestHTTPResources(t *testing.T) {
 	})
 	xCheckErr(t, err, "Attribute name is reserved: fileproxyurl")
 
-	reg.LoadModel()
+	reg.LoadModel() // shouldn't be need but just in case
 
 	rm = rm.Refresh()
 	_, err = rm.AddAttribute(&registry.Attribute{
@@ -6645,8 +6648,6 @@ func TestHTTPResources(t *testing.T) {
 			},
 		},
 	})
-	xNoErr(t, err)
-	err = reg.SaveModel()
 	xCheckErr(t, err, "Duplicate attribute name (file) at: resources.files.mystring.ifvalues.foo")
 	reg.LoadModel()
 
@@ -6701,8 +6702,6 @@ func TestHTTPResources(t *testing.T) {
 			},
 		},
 	})
-	xNoErr(t, err)
-	err = reg.SaveModel()
 	xCheckErr(t, err, "Duplicate attribute name (file) at: resources.files.mystring.ifvalues.foo.xxx.ifvalues.5")
 	reg.LoadModel()
 

@@ -408,13 +408,10 @@ func (reg *Registry) LoadModelFromFile(file string) error {
 		return fmt.Errorf("Processing %q: %s", file, err)
 	}
 
-	model := &Model{}
-
-	if err := Unmarshal(buf, model); err != nil {
+	model, err := ParseModel(buf)
+	if err != nil {
 		return fmt.Errorf("Processing %q: %s", file, err)
 	}
-
-	// TODO: Do we need to call model.SetPointers?
 
 	model.Registry = reg
 	if err := model.Verify(); err != nil {
@@ -448,13 +445,12 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 			return err
 		}
 
-		model := Model{}
-		err = Unmarshal(data, &model)
+		model, err := ParseModel(data)
 		if err != nil {
 			return err
 		}
 
-		err = reg.Model.ApplyNewModel(&model)
+		err = reg.Model.ApplyNewModel(model)
 		if err != nil {
 			return err
 		}
@@ -549,6 +545,10 @@ func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, error) 
 func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, error) {
 	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
 	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
+
+	if err := reg.SaveModel(); err != nil {
+		return nil, false, err
+	}
 
 	if err := CheckAttrs(obj); err != nil {
 		return nil, false, err

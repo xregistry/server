@@ -51,6 +51,7 @@ END ;
 CREATE TABLE Models (
     RegistrySID VARCHAR(64) NOT NULL,
 
+    Model       JSON,               # Full model, not just Registry
     Labels      JSON,
     Attributes  JSON,               # Until we use the Attributes table
 
@@ -64,9 +65,10 @@ BEGIN
 END ;
 
 CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
-    SID               VARCHAR(64),        # my System ID
+    SID               VARCHAR(255),       # my System ID
     RegistrySID       VARCHAR(64),
     ParentSID         VARCHAR(64),        # ID of parent ModelEntity
+    Abstract          VARCHAR(255),       # /GROUPS, /GROUPS/RESOURCES
 
     # For Groups and Resources
     Plural            VARCHAR(64),
@@ -75,6 +77,7 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
     ModelVersion      VARCHAR(255),
     CompatibleWith    VARCHAR(255),
     Labels            JSON,
+    XImportResources  VARCHAR($MAX_VARCHAR),
     Attributes        JSON,               # Until we use the Attributes table
 
     # For Resources
@@ -88,6 +91,7 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
 
     PRIMARY KEY(SID),
     UNIQUE INDEX (RegistrySID, ParentSID, Plural),
+    UNIQUE INDEX (RegistrySID, Abstract),
     CONSTRAINT UC_Singular UNIQUE (RegistrySID, ParentSID, Singular)
 );
 

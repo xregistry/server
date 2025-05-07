@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
@@ -193,8 +194,8 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	res, err := reg.HttpDo("GET", "/model", nil)
 	Error(err)
 
-	model := (*registry.Model)(nil)
-	Error(registry.Unmarshal(res.Body, &model))
+	model, err := registry.ParseModel(res.Body)
+	Error(err)
 
 	if output == "json" {
 		fmt.Printf("%s\n", registry.ToJSON(model))
@@ -218,8 +219,10 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		PrintLabels(g.Labels, "  ", os.Stdout)
 		PrintAttributes("", g.Attributes, g.Singular, "  ", os.Stdout, all)
 
-		for _, rID := range registry.SortedKeys(g.Resources) {
-			r := g.Resources[rID]
+		rList := g.GetResourceList()
+		sort.Strings(rList)
+		for _, rName := range rList {
+			r := g.FindResourceModel(rName)
 
 			fmt.Println("")
 			fmt.Printf("  RESOURCE: %s/ %s\n", r.Plural, r.Singular)

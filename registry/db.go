@@ -352,6 +352,7 @@ func (tx *Tx) SaveAllAndCommit() error {
 }
 
 func (tx *Tx) Commit() error {
+	// ShowStack()
 	if tx.tx == nil {
 		return nil
 	}

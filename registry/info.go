@@ -94,7 +94,10 @@ func (info *RequestInfo) AddInline(path string) error {
 			return nil
 		}
 
-		for _, res := range group.Resources {
+		rList := group.GetResourceList()
+		for _, rName := range rList {
+			res := group.FindResourceModel(rName)
+			PanicIf(res == nil, "Not found: %s", rName)
 			// Check for wildcard available ones first
 			rPPP := gPPP.P(res.Plural)
 			vPPP := rPPP.P("versions")
@@ -524,10 +527,7 @@ func (info *RequestInfo) ParseRequestPath() error {
 			"/"+strings.Join(info.Parts[:3], "/"))
 	}
 
-	rModel := (*ResourceModel)(nil)
-	if gModel.Resources != nil {
-		rModel = gModel.FindResourceModel(info.Parts[2])
-	}
+	rModel := gModel.FindResourceModel(info.Parts[2])
 	if rModel == nil {
 		info.StatusCode = http.StatusNotFound
 		return fmt.Errorf("Unknown Resource type: %s", info.Parts[2])

@@ -89,6 +89,12 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 		buf.Write(b)
 	}
 
+	if len(ug.XImportResources) > 0 {
+		b, _ := json.Marshal(ug.XImportResources)
+		buf.WriteString(`,"ximportresources":`)
+		buf.Write(b)
+	}
+
 	propsOrdered, propsMap := ((*GroupModel)(ug)).GetPropsOrdered()
 	data, extra := marshalAttrs(ug.Attributes, "attributes", extra,
 		propsOrdered, propsMap)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -2155,10 +2156,11 @@ func (e *Entity) GetCollections() [][2]string {
 		return result
 	case ENTITY_GROUP:
 		gm, _ := e.GetModels()
-		rs := gm.Resources
-		keys := SortedKeys(rs)
+		keys := gm.GetResourceList()
+		sort.Strings(keys)
 		for _, k := range keys {
-			result = append(result, [2]string{rs[k].Plural, rs[k].Singular})
+			rm := gm.FindResourceModel(k)
+			result = append(result, [2]string{rm.Plural, rm.Singular})
 		}
 		return result
 	case ENTITY_RESOURCE:

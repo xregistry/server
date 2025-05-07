@@ -2418,13 +2418,12 @@ func HTTPPUTModel(info *RequestInfo) error {
 		return err
 	}
 
-	model := Model{}
-	err = Unmarshal(reqBody, &model)
+	model, err := ParseModel(reqBody)
 	if err != nil {
 		return err
 	}
 
-	err = info.Registry.Model.ApplyNewModel(&model)
+	err = info.Registry.Model.ApplyNewModel(model)
 	if err != nil {
 		return err
 	}

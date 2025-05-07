@@ -128,7 +128,7 @@ type IfValue struct {
 }
 
 type GroupModel struct {
-	SID   string `json:"-"`
+	SID   string `json:"sid,omitempty"`
 	Model *Model `json:"-"`
 
 	Plural         string            `json:"plural"`
@@ -139,14 +139,17 @@ type GroupModel struct {
 	Labels         map[string]string `json:"labels,omitempty"`
 	Attributes     Attributes        `json:"attributes,omitempty"`
 
-	Resources map[string]*ResourceModel `json:"resources,omitempty"` // Plural
+	// [ GROUPS/RESOURCES * ]
+	XImportResources []string                  `json:"ximportresources,omitempty"`
+	Resources        map[string]*ResourceModel `json:"resources,omitempty"` // Plural
 
 	propsOrdered []*Attribute
 	propsMap     map[string]*Attribute
+	imports      map[string]*ResourceModel
 }
 
 type ResourceModel struct {
-	SID        string      `json:"-"`
+	SID        string      `json:"sid,omitempty"`
 	GroupModel *GroupModel `json:"-"`
 
 	Plural            string            `json:"plural"`
@@ -268,7 +271,7 @@ func (m *Model) SetSpecPropsFields() {
 
 			propsOrdered, _ := rm.GetPropsOrdered()
 			for _, prop := range propsOrdered {
-				if attr, ok := gm.Attributes[prop.Name]; ok {
+				if attr, ok := rm.Attributes[prop.Name]; ok {
 					attr.internals = prop.internals
 				}
 			}
@@ -359,6 +362,10 @@ func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 // attribute's property - we should technically find a way to catch those
 // cases so code above this shouldn't need to think about it
 func (m *Model) VerifyAndSave() error {
+	if m.GetChanged() == false {
+		return nil
+	}
+
 	if err := m.Verify(); err != nil {
 		// Kind of extreme, but if there's an error revert the entire
 		// model to the last known good state. So, all of the changes
@@ -376,6 +383,7 @@ func (m *Model) VerifyAndSave() error {
 }
 
 func (m *Model) Save() error {
+	// log.Printf("In model.Save - changed: %v", m.GetChanged())
 	if m.GetChanged() == false {
 		return nil
 	}
@@ -384,28 +392,151 @@ func (m *Model) Save() error {
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want
 	// to do that when we're serializing the model for the end user.
+
+	buf, _ := json.Marshal(m)
+	modelStr := string(buf)
+
 	type tmpAttributes Attributes
-	buf, _ := json.Marshal((tmpAttributes)(m.Attributes))
+	buf, _ = json.Marshal((tmpAttributes)(m.Attributes))
 	attrs := string(buf)
 
 	buf, _ = json.Marshal(m.Labels)
 	labels := string(buf)
 
+	// log.Printf("Saving model itself")
 	err := DoZeroTwo(m.Registry.tx, `
-        INSERT INTO Models(RegistrySID, Labels, Attributes)
-        VALUES(?,?,?)
-        ON DUPLICATE KEY UPDATE Labels=?,Attributes=? `,
+        INSERT INTO Models(RegistrySID, Model, Labels, Attributes)
+        VALUES(?,?,?,?)
+        ON DUPLICATE KEY UPDATE Model=?,Labels=?,Attributes=? `,
 
-		m.Registry.DbSID, labels, attrs,
-		labels, attrs)
+		m.Registry.DbSID, modelStr, labels, attrs,
+		modelStr, labels, attrs)
 	if err != nil {
 		log.Printf("Error updating model: %s", err)
 		return err
 	}
 
+	existingModelEntities := map[string]string{} // Abstract->SID
+	results, err := Query(m.Registry.tx,
+		`SELECT SID,Abstract FROM ModelEntities WHERE RegistrySID=?`,
+		m.Registry.DbSID)
+	defer results.Close()
+	if err != nil {
+		log.Printf("Error loading model entities(%s): %s", m.Registry.UID, err)
+		return nil
+	}
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+		sid := NotNilString(row[0])
+		abs := NotNilString(row[1])
+		existingModelEntities[abs] = sid
+	}
+
+	// Remove from existingModelEntities, all MEs that are going to be kept
+	// around. Then we'll delete everything else before we re-add the keepers
+	// to ensure there isn't any conflicts.
+	// We can't just delete the entire set and re-add them because the DB
+	// will erase all instances of those types automatically when the types
+	// are deleted.
+
+	inUseAbs := map[string]bool{}
 	for _, gm := range m.Groups {
-		if err := gm.Save(); err != nil {
-			return err
+		for _, rName := range gm.XImportResources {
+			parts := strings.Split(rName, "/")
+			rAbs := "/" + gm.Plural + "/" + parts[2]
+			if _, ok := existingModelEntities[rAbs]; ok {
+				inUseAbs[rAbs] = true
+			}
+		}
+		gAbs := "/" + gm.Plural
+		if _, ok := existingModelEntities[gAbs]; ok {
+			inUseAbs[gAbs] = true
+		}
+		for _, rm := range gm.Resources {
+			rmAbs := gAbs + "/" + rm.Plural
+			if _, ok := existingModelEntities[rmAbs]; ok {
+				inUseAbs[rmAbs] = true
+			}
+		}
+	}
+
+	// Delete any model entities not found in the new model
+	for meAbs, _ := range existingModelEntities {
+		if inUseAbs[meAbs] != true {
+			// TODO if we ever think this list is long, make this faster
+			err = DoOne(m.Registry.tx, `
+                      DELETE FROM ModelEntities
+                      WHERE RegistrySID=? AND Abstract=?`,
+				m.Registry.DbSID, meAbs)
+			if err != nil {
+				log.Printf("Error deleting modelEntity(%s): %s", meAbs, err)
+				return err
+			}
+		}
+	}
+
+	// Now just add the new ones
+	for _, gm := range m.Groups {
+		gmAbs := "/" + gm.Plural
+		for _, rName := range gm.XImportResources {
+			// See if the ximported resource is alread there, if so skip it
+			parts := strings.Split(rName, "/")
+			targetRM := gm.Model.FindResourceModel(parts[1], parts[2])
+			rSID := gm.SID + "-" + targetRM.SID // parts[2]
+			rAbs := gmAbs + "/" + parts[2]
+			if _, ok := existingModelEntities[rAbs]; !ok {
+				// add the new ximported resource
+				err := Do(m.Registry.tx,
+					`INSERT INTO ModelEntities(
+                         SID, RegistrySID, ParentSID,
+                         Abstract, Plural, Singular)
+                     VALUES(?,?,?,?,?,?)`,
+					rSID, m.Registry.DbSID, gm.SID,
+					rAbs, targetRM.Plural, targetRM.Singular)
+				if err != nil {
+					log.Printf("Error inserting modelEntity(%s): %s", rSID, err)
+					return err
+				}
+			}
+		}
+
+		// If GroupModel is already in DB then skip it
+		if _, ok := existingModelEntities[gmAbs]; !ok {
+			// Add new GroupModel
+			err := Do(m.Registry.tx,
+				`INSERT INTO ModelEntities(
+                     SID, RegistrySID, ParentSID,
+                     Abstract, Plural, Singular)
+                 VALUES(?,?,?,?,?,?)`,
+				gm.SID, m.Registry.DbSID, nil,
+				gmAbs, gm.Plural, gm.Singular)
+			if err != nil {
+				log.Printf("Error inserting modelEntity(%s): %s", gm.SID, err)
+				return err
+			}
+		}
+
+		for _, rm := range gm.Resources {
+			rmAbs := gmAbs + "/" + rm.Plural
+			// If ResourceModel is already in DB then skip it
+			if _, ok := existingModelEntities[rmAbs]; !ok {
+				// Add new ResourceModel
+				err := Do(m.Registry.tx,
+					`INSERT INTO ModelEntities(
+                             SID, RegistrySID, ParentSID,
+                             Abstract, Plural, Singular)
+                         VALUES(?,?,?,?,?,?)`,
+					rm.SID, m.Registry.DbSID, gm.SID,
+					gmAbs+"/"+rm.Plural, rm.Plural, rm.Singular)
+				if err != nil {
+					log.Printf("Error inserting modelEntity(%s): %s",
+						ToJSON(rm), err)
+					return err
+				}
+			}
 		}
 	}
 
@@ -523,15 +654,6 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 	}
 
 	mSID := NewUUID()
-	err := DoOne(m.Registry.tx, `
-        INSERT INTO ModelEntities(
-            SID, RegistrySID, ParentSID, Plural, Singular, MaxVersions)
-        VALUES(?,?,?,?,?,?) `,
-		mSID, m.Registry.DbSID, nil, plural, singular, 0)
-	if err != nil {
-		log.Printf("Error inserting groupModel(%s): %s", plural, err)
-		return nil, err
-	}
 	gm := &GroupModel{
 		SID:      mSID,
 		Model:    m,
@@ -542,7 +664,6 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 	}
 
 	m.Groups[plural] = gm
-
 	m.SetChanged(true)
 
 	return gm, nil
@@ -705,16 +826,10 @@ func LoadModel(reg *Registry) *Model {
 	defer log.VPrintf(3, "<Exit: LoadModel")
 
 	PanicIf(reg == nil, "nil")
-	groups := map[string]*GroupModel{} // Model SID -> *GroupModel
-
-	model := &Model{
-		Registry: reg,
-		Groups:   map[string]*GroupModel{},
-	}
 
 	// Load Registry Labels, Attributes
 	results, err := Query(reg.tx,
-		`SELECT Labels, Attributes FROM Models WHERE RegistrySID=?`,
+		`SELECT Model, Labels, Attributes FROM Models WHERE RegistrySID=?`,
 		reg.DbSID)
 	defer results.Close()
 	if err != nil {
@@ -727,113 +842,36 @@ func LoadModel(reg *Registry) *Model {
 		return nil
 	}
 
+	modelBuf := []byte(nil)
 	if row[0] != nil {
-		Unmarshal([]byte(NotNilString(row[0])), &model.Labels)
-	}
-	if row[1] != nil {
-		Unmarshal([]byte(NotNilString(row[1])), &model.Attributes)
+		modelBuf = []byte(NotNilString(row[0]))
 	}
 	results.Close()
 
-	model.Attributes.SetModel(model)
-	// model.Attributes.SetSpecPropsFields("registry")
-
-	// Load Groups & Resources
-	results, err = Query(reg.tx, `
-        SELECT
-            SID, RegistrySID, ParentSID, Plural, Singular, Attributes,
-			MaxVersions, SetVersionId, SetDefaultSticky, HasDocument,
-			TypeMap, Labels, MetaAttributes, ModelVersion, CompatibleWith,
-			Description, SingleVersionRoot
-        FROM ModelEntities
-        WHERE RegistrySID=?
-        ORDER BY ParentSID ASC`, reg.DbSID)
-	defer results.Close()
-
+	model, err := ParseModel(modelBuf)
 	if err != nil {
-		log.Printf("Error loading model(%s): %s", reg.UID, err)
 		return nil
 	}
-
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		attrs := (Attributes)(nil)
-		metaAttrs := (Attributes)(nil)
-		if row[5] != nil {
-			Unmarshal([]byte(NotNilString(row[5])), &attrs)
-		}
-		typemap := map[string]string(nil)
-		if row[10] != nil {
-			Unmarshal([]byte(NotNilString(row[10])), &typemap)
-		}
-		labels := map[string]string(nil)
-		if row[11] != nil {
-			Unmarshal([]byte(NotNilString(row[11])), &labels)
-		}
-		if row[12] != nil {
-			Unmarshal([]byte(NotNilString(row[12])), &metaAttrs)
-		}
-
-		if *row[2] == nil { // ParentSID nil -> new Group
-			g := &GroupModel{ // Plural
-				SID:   NotNilString(row[0]), // SID
-				Model: model,
-
-				Plural:         NotNilString(row[3]), // Plural
-				Singular:       NotNilString(row[4]), // Singular
-				Description:    NotNilString(row[15]),
-				ModelVersion:   NotNilString(row[13]),
-				CompatibleWith: NotNilString(row[14]),
-				Labels:         labels,
-				Attributes:     attrs,
-
-				Resources: map[string]*ResourceModel{},
-			}
-
-			// g.Attributes.SetSpecPropsFields(g.Singular)
-
-			model.Groups[NotNilString(row[3])] = g
-			groups[NotNilString(row[0])] = g
-
-		} else { // New Resource
-			g := groups[NotNilString(row[2])] // Parent SID
-
-			if g != nil { // should always be true, but...
-				r := &ResourceModel{
-					SID:         NotNilString(row[0]),
-					GroupModel:  g,
-					Plural:      NotNilString(row[3]),
-					Singular:    NotNilString(row[4]),
-					Description: NotNilString(row[15]),
-					Attributes:  attrs,
-
-					MaxVersions:       NotNilIntDef(row[6], MAXVERSIONS),
-					SetVersionId:      PtrBool(NotNilBoolDef(row[7], SETVERSIONID)),
-					SetDefaultSticky:  PtrBool(NotNilBoolDef(row[8], SETDEFAULTSTICKY)),
-					HasDocument:       PtrBool(NotNilBoolDef(row[9], HASDOCUMENT)),
-					SingleVersionRoot: PtrBool(NotNilBoolDef(row[16], SINGLEVERSIONROOT)),
-					TypeMap:           typemap,
-					ModelVersion:      NotNilString(row[13]),
-					CompatibleWith:    NotNilString(row[14]),
-					Labels:            labels,
-					MetaAttributes:    metaAttrs,
-				}
-
-				// r.Attributes.SetSpecPropsFields(r.Singular)
-				// r.MetaAttributes.SetSpecPropsFields(r.Singular)
-
-				g.Resources[r.Plural] = r
-			}
-		}
-	}
-	results.Close()
-
-	model.SetSpecPropsFields()
+	model.Registry = reg
 
 	reg.Model = model
 	return model
 }
 
+func ParseModel(buf []byte) (*Model, error) {
+	model := Model{}
+	if err := Unmarshal(buf, &model); err != nil {
+		return nil, err
+	}
+	model.SetPointers()
+	model.SetSpecPropsFields()
+	return &model, nil
+}
+
 func (m *Model) FindGroupModel(gType string) *GroupModel {
+	if m.Groups == nil {
+		return nil
+	}
 	return m.Groups[gType]
 }
 
@@ -848,93 +886,17 @@ func (m *Model) FindResourceModel(gType string, rType string) *ResourceModel {
 
 func (m *Model) ApplyNewModel(newM *Model) error {
 	newM.Registry = m.Registry
+	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
-	if err := newM.Verify(); err != nil {
-		return err
-	}
-
-	var err error
-	m.Labels = newM.Labels
-	m.Attributes = newM.Attributes
-
-	// Find all old groups that need to be deleted
-	for gmPlural, gm := range m.Groups {
-		if newGM, ok := newM.Groups[gmPlural]; !ok {
-			if err := gm.Delete(); err != nil {
-				return err
-			}
-		} else {
-			for rmPlural, rm := range gm.Resources {
-				if _, ok := newGM.Resources[rmPlural]; !ok {
-					if err := rm.Delete(); err != nil {
-						return err
-					}
-				}
-			}
+	/*
+		if err := newM.Verify(); err != nil {
+			return err
 		}
-	}
+	*/
 
-	// Apply new stuff
-	newM.Registry = m.Registry
-	for _, newGM := range newM.Groups {
-		log.VPrintf(4, "Applying Group: %s", newGM.Plural)
-		newGM.Model = m
-		oldGM := m.Groups[newGM.Plural]
-		if oldGM == nil {
-			oldGM, err = m.AddGroupModel(newGM.Plural, newGM.Singular)
-			if err != nil {
-				return err
-			}
-		} else {
-			oldGM.Singular = newGM.Singular
-		}
-		oldGM.Description = newGM.Description
-		oldGM.ModelVersion = newGM.ModelVersion
-		oldGM.CompatibleWith = newGM.CompatibleWith
-		oldGM.Labels = newGM.Labels
-		oldGM.Attributes = newGM.Attributes
-
-		for _, newRM := range newGM.Resources {
-			log.VPrintf(4, "Applying Resource: %s", newRM.Plural)
-			oldRM := oldGM.Resources[newRM.Plural]
-			if oldRM == nil {
-				oldRM, err = oldGM.AddResourceModelFull(&ResourceModel{
-					Plural:            newRM.Plural,
-					Singular:          newRM.Singular,
-					Description:       newRM.Description,
-					MaxVersions:       newRM.MaxVersions,
-					SetVersionId:      newRM.SetVersionId,
-					SetDefaultSticky:  newRM.SetDefaultSticky,
-					HasDocument:       newRM.HasDocument,
-					SingleVersionRoot: newRM.SingleVersionRoot,
-					ModelVersion:      newRM.ModelVersion,
-					CompatibleWith:    newRM.CompatibleWith,
-				})
-				if err != nil {
-					log.VPrintf(4, "Err: %s", err)
-					return err
-				}
-
-			} else {
-				oldRM.Singular = newRM.Singular
-				oldRM.Description = newRM.Description
-				oldRM.MaxVersions = newRM.MaxVersions
-				oldRM.SetVersionId = newRM.SetVersionId
-				oldRM.SetDefaultSticky = newRM.SetDefaultSticky
-				oldRM.HasDocument = newRM.HasDocument
-				oldRM.SingleVersionRoot = newRM.SingleVersionRoot
-				oldRM.ModelVersion = newRM.ModelVersion
-				oldRM.CompatibleWith = newRM.CompatibleWith
-			}
-			oldRM.Attributes = newRM.Attributes
-			oldRM.TypeMap = newRM.TypeMap
-			oldRM.Labels = newRM.Labels
-			oldRM.MetaAttributes = newRM.MetaAttributes
-			oldRM.ClearPropsOrdered()
-		}
-	}
-
-	newM.Registry = m.Registry
+	m.Registry.Model = newM
+	m = newM
+	m.SetChanged(true)
 
 	if err := m.VerifyAndSave(); err != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -990,14 +952,6 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 func (gm *GroupModel) Delete() error {
 	log.VPrintf(3, ">Enter: Delete.GroupModel: %s", gm.Plural)
 	defer log.VPrintf(3, "<Exit: Delete.GroupModel")
-	err := DoOne(gm.Model.Registry.tx, `
-        DELETE FROM ModelEntities
-		WHERE RegistrySID=? AND SID=?`, // SID should be enough, but ok
-		gm.Model.Registry.DbSID, gm.SID)
-	if err != nil {
-		log.Printf("Error deleting groupModel(%s): %s", gm.Plural, err)
-		return err
-	}
 
 	gm.Model.RemoveConditionalProps()
 	delete(gm.Model.Groups, gm.Plural)
@@ -1005,44 +959,6 @@ func (gm *GroupModel) Delete() error {
 	gm.Model.SetChanged(true)
 
 	return nil
-}
-
-func (gm *GroupModel) Save() error {
-	// Just updates this GroupModel, not any Resources
-	// DO NOT use this to insert a new one
-
-	buf, _ := json.Marshal(gm.Labels)
-	labels := string(buf)
-
-	buf, _ = json.Marshal(gm.Attributes)
-	attrs := string(buf)
-
-	err := DoZeroTwo(gm.Model.Registry.tx, `
-        INSERT INTO ModelEntities(
-            SID, RegistrySID,
-			ParentSID, Plural, Singular, Labels, Attributes, 
-			ModelVersion, CompatibleWith, Description)
-        VALUES(?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-		    ParentSID=?,Plural=?,Singular=?,Labels=?,Attributes=?,
-			ModelVersion=?,CompatibleWith=?,Description=?
-		`,
-		gm.SID, gm.Model.Registry.DbSID,
-		nil, gm.Plural, gm.Singular, labels, attrs,
-		gm.ModelVersion, gm.CompatibleWith, gm.Description,
-		nil, gm.Plural, gm.Singular, labels, attrs,
-		gm.ModelVersion, gm.CompatibleWith, gm.Description)
-	if err != nil {
-		log.Printf("Error updating groupModel(%s): %s", gm.Plural, err)
-	}
-
-	for _, rm := range gm.Resources {
-		if err := rm.Save(); err != nil {
-			return err
-		}
-	}
-
-	return err
 }
 
 func (gm *GroupModel) AddAttr(name, daType string) (*Attribute, error) {
@@ -1171,26 +1087,6 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 	rm.SID = NewUUID()
 	rm.GroupModel = gm
 
-	buf, _ := json.Marshal(rm.TypeMap)
-	typemap := string(buf)
-
-	buf, _ = json.Marshal(rm.Labels)
-	labels := string(buf)
-
-	err := DoOne(gm.Model.Registry.tx, `
-		INSERT INTO ModelEntities(
-			SID, RegistrySID, ParentSID, Plural, Singular, MaxVersions,
-			SetVersionId, SetDefaultSticky, HasDocument, TypeMap, Labels,
-			ModelVersion, CompatibleWith, Description, SingleVersionRoot)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		rm.SID, gm.Model.Registry.DbSID, gm.SID, rm.Plural, rm.Singular, rm.MaxVersions,
-		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		rm.ModelVersion, rm.CompatibleWith, rm.Description, rm.GetSingleVersionRoot())
-	if err != nil {
-		log.Printf("Error inserting resourceModel(%s): %s", rm.Plural, err)
-		return nil, err
-	}
-
 	gm.Resources[rm.Plural] = rm
 
 	rm.GroupModel.Model.SetChanged(true)
@@ -1224,18 +1120,45 @@ func (gm *GroupModel) RemoveLabel(name string) error {
 	return nil
 }
 
+func (gm *GroupModel) GetImports() map[string]*ResourceModel {
+	if gm.imports == nil && len(gm.XImportResources) > 0 {
+		gm.imports = map[string]*ResourceModel{}
+		for _, grName := range gm.XImportResources {
+			parts := strings.Split(grName, "/")
+			r := gm.Model.FindResourceModel(parts[1], parts[2])
+			PanicIf(r == nil, "Can't find %q", grName)
+			gm.imports[parts[2]] = r
+		}
+	}
+	return gm.imports
+}
+
 func (gm *GroupModel) FindResourceModel(rType string) *ResourceModel {
 	if gm == nil {
 		return nil
 	}
-	return gm.Resources[rType]
+	if rm := gm.Resources[rType]; rm != nil {
+		return rm
+	}
+
+	imps := gm.GetImports()
+	if imps != nil {
+		return imps[rType]
+	}
+	return nil
 }
 
 func (gm *GroupModel) GetResourceList() []string {
-	list := make([]string, len(gm.Resources))
+	list := make([]string, len(gm.Resources)+len(gm.XImportResources))
 	i := 0
 	for plural, _ := range gm.Resources {
 		list[i] = plural
+		i++
+	}
+
+	imps := gm.GetImports()
+	for k, _ := range imps {
+		list[i] = k
 		i++
 	}
 	return list
@@ -1366,7 +1289,27 @@ func (rm *ResourceModel) GetHasDocument() bool {
 }
 
 func (rm *ResourceModel) SetHasDocument(val bool) {
-	rm.HasDocument = PtrBool(val)
+	if rm.GetHasDocument() != val {
+		rm.HasDocument = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) Dump(indents ...string) {
+	indent := strings.Join(indents, "")
+	log.Printf("%sRM: %s/%s", indent, rm.Plural, rm.Singular)
+	log.Printf("%s  - HasDoc: %v", indent, rm.GetHasDocument())
+	log.Printf("%s  - Attributes:", indent)
+	for _, attr := range rm.Attributes {
+		attr.Dump(indent + "  ")
+	}
+}
+
+func (attr *Attribute) Dump(indents ...string) {
+	indent := strings.Join(indents, "")
+	log.Printf("%s%s:", indent, attr.Name)
+	log.Printf("%s  - type: ", indent, attr.Type)
+	log.Printf("%s  - internal: %v", indent, attr.internals != nil)
 }
 
 func (rm *ResourceModel) GetSingleVersionRoot() bool {
@@ -1394,53 +1337,6 @@ func (rm *ResourceModel) Delete() error {
 	rm.GroupModel.Model.SetChanged(true)
 
 	return nil
-}
-
-func (rm *ResourceModel) Save() error {
-	// Just updates this GroupModel, not any Resources
-	// DO NOT use this to insert a new one
-
-	buf, _ := json.Marshal(rm.TypeMap)
-	typemap := string(buf)
-	buf, _ = json.Marshal(rm.Labels)
-	labels := string(buf)
-	buf, _ = json.Marshal(rm.Attributes)
-	attrs := string(buf)
-	buf, _ = json.Marshal(rm.MetaAttributes)
-	metaAttrs := string(buf)
-
-	err := DoZeroTwo(rm.GroupModel.Model.Registry.tx, `
-        INSERT INTO ModelEntities(
-            SID, RegistrySID,
-			ParentSID, Plural, Singular, MaxVersions,
-			Attributes,
-			SetVersionId, SetDefaultSticky, HasDocument, TypeMap,
-			Labels, MetaAttributes,ModelVersion,CompatibleWith, Description,
-			SingleVersionRoot)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-            ParentSID=?, Plural=?, Singular=?,
-			Attributes=?,
-            MaxVersions=?, SetVersionId=?, SetDefaultSticky=?, HasDocument=?, TypeMap=?, Labels=?,
-			MetaAttributes=?, ModelVersion=?, CompatibleWith=?, Description=?,
-			SingleVersionRoot=?`,
-		rm.SID, rm.GroupModel.Model.Registry.DbSID,
-		rm.GroupModel.SID, rm.Plural, rm.Singular, rm.MaxVersions,
-		attrs,
-		rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description,
-		rm.GetSingleVersionRoot(),
-
-		rm.GroupModel.SID, rm.Plural, rm.Singular,
-		attrs,
-		rm.MaxVersions, rm.GetSetVersionId(), rm.GetSetDefaultSticky(), rm.GetHasDocument(), typemap, labels,
-		metaAttrs, rm.ModelVersion, rm.CompatibleWith, rm.Description,
-		rm.GetSingleVersionRoot())
-	if err != nil {
-		log.Printf("Error updating resourceModel(%s): %s", rm.Plural, err)
-		return err
-	}
-	return err
 }
 
 func (rm *ResourceModel) AddMetaAttr(name, daType string) (*Attribute, error) {
@@ -1887,7 +1783,10 @@ func (m *Model) GetBaseAttributes() Attributes {
 }
 
 func (gm *GroupModel) RemoveConditionalProps() {
-	for _, rm := range gm.Resources {
+	rList := gm.GetResourceList()
+	for _, rName := range rList {
+		rm := gm.FindResourceModel(rName)
+		PanicIf(rm == nil, "Not found: %s", rName)
 		gm.propsOrdered = RemoveCollectionProps(rm.Plural, gm.Attributes,
 			gm.propsOrdered, gm.propsMap)
 	}
@@ -1907,6 +1806,10 @@ func (gm *GroupModel) Verify(gmName string) error {
 	} else if gm.Plural != gmName {
 		return fmt.Errorf("Group %q must have a `plural` value of %q, not %q",
 			gmName, gmName, gm.Plural)
+	}
+
+	if gm.SID == "" {
+		gm.SID = NewUUID()
 	}
 
 	if gm.Singular == "" {
@@ -1929,10 +1832,48 @@ func (gm *GroupModel) Verify(gmName string) error {
 
 	// TODO: verify the Groups data are model compliant
 
+	// Verify the "ximportresources" list, same names for later checking
+	resList := map[string]bool{}
+	for _, grName := range gm.XImportResources {
+		parts := strings.Split(grName, "/")
+		if len(parts) != 3 {
+			return fmt.Errorf("Group %q has an invalid ximportresources value "+
+				"(%s), must be of the form \"/GroupType/ResourceType\"",
+				gm.Plural, grName)
+		}
+		if parts[0] != "" {
+			return fmt.Errorf("Group %q has an invalid ximportresources value "+
+				"(%s), must start with \"/\" and be of the form "+
+				"\"/GroupType/ResourceType\"", gm.Plural, grName)
+		}
+		if parts[1] == gm.Plural {
+			return fmt.Errorf("Group %q has a bad ximportresources value "+
+				"(%s), it can't reference itself", gm.Plural, grName)
+		}
+
+		g := gm.Model.FindGroupModel(parts[1])
+		if g == nil {
+			return fmt.Errorf("Group %q references a non-existing Group in: "+
+				"%s", gm.Plural, grName)
+		}
+
+		r := g.FindResourceModel(parts[2])
+		if r == nil {
+			return fmt.Errorf("Group %q references a non-existing Resource "+
+				"in: "+"%s", gm.Plural, grName)
+		}
+		resList[r.Plural] = true
+	}
+
 	// Verify the Resources to catch invalid Resource names early
 	for rmName, rm := range gm.Resources {
 		if rm == nil {
 			return fmt.Errorf("Resource %q can't be empty", rmName)
+		}
+
+		if resList[rmName] == true {
+			return fmt.Errorf("Resource %q is a duplicate name from the "+
+				"\"ximportresources\" list", rmName)
 		}
 
 		rm.GroupModel = gm
@@ -1994,6 +1935,7 @@ func (gm *GroupModel) SetModel(m *Model) {
 	gm.Attributes.SetModel(m)
 
 	for _, rm := range gm.Resources {
+		rm.GroupModel = gm
 		rm.SetModel(m)
 	}
 }
@@ -2057,6 +1999,10 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	} else if rm.Plural != rmName {
 		return fmt.Errorf("Resource %q must have a 'plural' value of %q, "+
 			"not %q", rmName, rmName, rm.Plural)
+	}
+
+	if rm.SID == "" {
+		rm.SID = NewUUID()
 	}
 
 	if rm.Singular == "" {
@@ -2223,31 +2169,30 @@ func (rm *ResourceModel) SetModel(m *Model) {
 }
 
 func (rm *ResourceModel) SetMaxVersions(maxV int) error {
-	rm.MaxVersions = maxV
-	rm.GroupModel.Model.SetChanged(true)
+	if rm.MaxVersions != maxV {
+		rm.MaxVersions = maxV
+		rm.GroupModel.Model.SetChanged(true)
+	}
 
 	return nil
 }
 
 func (rm *ResourceModel) SetSetDefaultSticky(val bool) error {
-	rm.SetDefaultSticky = PtrBool(val)
-	rm.GroupModel.Model.SetChanged(true)
+	if rm.GetSetDefaultSticky() != val {
+		rm.SetDefaultSticky = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
 
 	return nil
 }
 
 func (rm *ResourceModel) SetSingleVersionRoot(val bool) error {
-	rm.SingleVersionRoot = PtrBool(val)
-	rm.GroupModel.Model.SetChanged(true)
+	if rm.GetSingleVersionRoot() != val {
+		rm.SingleVersionRoot = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
 
 	return nil
-}
-
-func (rm *ResourceModel) VerifyAndSave() error {
-	if err := rm.Verify(rm.Plural); err != nil {
-		return err
-	}
-	return rm.Save()
 }
 
 func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {

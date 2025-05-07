@@ -404,6 +404,10 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, addType, createVersion, processVersionInfo)
 	defer log.VPrintf(3, "<Exit: UpsertMeta")
 
+	if err := r.Registry.SaveModel(); err != nil {
+		return nil, false, err
+	}
+
 	if err := CheckAttrs(obj); err != nil {
 		return nil, false, err
 	}
@@ -784,6 +788,10 @@ func (r *Resource) UpsertVersion(id string) (*Version, bool, error) {
 // *Version, isNew, error
 func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	addType AddType, more bool) (*Version, bool, error) {
+
+	if err := r.Registry.SaveModel(); err != nil {
+		return nil, false, err
+	}
 
 	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", id, addType, more)
 	defer log.VPrintf(3, "<Exit: UpsertVersion")

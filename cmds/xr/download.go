@@ -113,8 +113,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case xrlib.ENTITY_GROUP_TYPE:
-			for _, rm := range reg.Model.Groups[xid.Group].Resources {
-				plurals = append(plurals, rm.Plural)
+			rList := reg.Model.Groups[xid.Group].GetResourceList()
+			for _, rName := range rList {
+				// for _, rm := range reg.Model.Groups[xid.Group].Resources {
+				plurals = append(plurals, rName) // rm.Plural)
 			}
 			fallthrough
 		case xrlib.ENTITY_RESOURCE_TYPE:
@@ -160,9 +162,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				for _, rm := range reg.Model.Groups[xid.Group].Resources {
-					p := fmt.Sprintf(`"%s/%s"`, self, rm.Plural)
-					obj[rm.Plural+"url"] = []byte(p)
+				rList := reg.Model.Groups[xid.Group].GetResourceList()
+				for _, rName := range rList {
+					// for _, rm := range reg.Model.Groups[xid.Group].Resources {
+					p := fmt.Sprintf(`"%s/%s"`, self, rName) // rm.Plural)
+					// obj[rm.Plural+"url"] = []byte(p)
+					obj[rName+"url"] = []byte(p)
 				}
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
@@ -189,7 +194,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
+			rm := reg.Model.FindResourceModel(xid.Group, xid.Resource)
+			// rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
 				data, hdr := Download(reg, xid.String())
@@ -262,7 +268,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-			rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
+			// rm := reg.Model.Groups[xid.Group].Resources[xid.Resource]
+			rm := reg.Model.FindResourceModel(xid.Group, xid.Resource)
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
 				data, hdr := Download(reg, xid.String())
@@ -411,8 +418,10 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 	case xrlib.ENTITY_GROUP:
 		fn(xid)
 		gm := reg.Model.Groups[xid.Group]
-		for _, rm := range gm.Resources {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rm.Plural)
+		rList := gm.GetResourceList()
+		for _, rName := range rList {
+			// for _, rm := range gm.Resources {
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rName) // rm.Plural)
 			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}

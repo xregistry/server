@@ -234,7 +234,7 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 	res := map[string]map[string]map[string]any{}
 
 	for _, plural := range args {
-		g := reg.Model.FindGroupByPlural(plural)
+		g := reg.Model.FindGroupModel(plural)
 		if g == nil {
 			Error("Uknown Group type: %s", plural)
 		}
@@ -256,10 +256,13 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 			for _, gMapKey := range gMapKeys {
 				group := gMap[gMapKey]
 
-				gm := reg.Model.FindGroupByPlural(groupKey)
+				gm := reg.Model.FindGroupModel(groupKey)
 				children := 0
-				for _, rm := range gm.Resources {
-					if cntAny, ok := group[rm.Plural+"count"]; ok {
+				rList := gm.GetResourceList()
+				for _, rName := range rList {
+					// for _, rm := range gm.Resources {
+					// if cntAny, ok := group[rm.Plural+"count"]; ok {
+					if cntAny, ok := group[rName+"count"]; ok {
 						if cnt, ok := cntAny.(float64); ok {
 							children += int(cnt)
 						}

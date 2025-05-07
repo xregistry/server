@@ -338,7 +338,9 @@ func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
 	}
 
 	rm := (*ResourceModel)(nil)
-	for _, m := range gm.Resources {
+	rList := gm.GetResourceList()
+	for _, rName := range rList {
+		m := gm.FindResourceModel(rName)
 		if m.Plural == xid.Resource || (allowSingular && m.Singular == xid.Resource) {
 			rm = m
 			break
@@ -361,14 +363,14 @@ func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
 		return nil, nil
 	}
 
-	gm := reg.Model.Groups[xid.Group]
+	gm := reg.Model.FindGroupModel(xid.Group)
 	if gm == nil {
 		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
 	}
 
-	rm := gm.Resources[xid.Resource]
+	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
-		return nil, fmt.Errorf("Uknown resource type: %s", xid.Resource)
+		return nil, fmt.Errorf("Unknown resource type: %s", xid.Resource)
 	}
 	return rm, nil
 }

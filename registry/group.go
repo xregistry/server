@@ -111,6 +111,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	log.VPrintf(3, ">Enter: UpsertResourceWithObject(%s,%s)", rType, id)
 	defer log.VPrintf(3, "<Exit: UpsertResourceWithObject")
 
+	if err := g.Registry.SaveModel(); err != nil {
+		return nil, false, err
+	}
+
 	// vID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
 
