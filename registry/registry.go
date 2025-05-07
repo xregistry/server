@@ -1049,7 +1049,7 @@ func LoadRemoteRegistry(host string) (*Registry, error) {
 	// Download model
 	data, err := DownloadURL(host + "/model")
 	if err == nil {
-		err = Unmarshal(data, &reg.Model)
+		reg.Model, err = ParseModel(data)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Error getting model (%s/model): %s", host, err)

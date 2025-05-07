@@ -355,7 +355,10 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		if tmp == "" {
 			tmp = info.ProxyHost
 		}
-		regs = append(regs, tmp[:17])
+		if len(tmp) > 17 {
+			tmp = tmp[:17]
+		}
+		regs = append(regs, tmp)
 	}
 	regs = append(regs, "Proxy ...")
 
