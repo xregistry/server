@@ -113,3 +113,4 @@ TODOs:
   ID. `ancestor=request`
 - add RESOURCEbase64 to model
 - don't allow people to change the Singular name of a groupType or resType
+- add "resourceattributes" to the model

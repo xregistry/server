@@ -1,35 +1,27 @@
 #!/bin/bash
 
 # make sure "xr" CLI is in your PATH
-# You can build it with: "make xr"
+# You can build it with: "make xr", or download it from:
+# https://github.com/xregistry/server/releases/tag/dev
 
-XREG_REPO=https://raw.githubusercontent.com/xregistry/spec/refs/heads/main
-
-# Start a new xRegistry server
+# Start a new xRegistry server, if you don't have one already running
 docker run --name xreg -dti -p 8080:8080 ghcr.io/xregistry/xreg-server-all
+
+# Point to this server
+XR_SERVER=localhost:8080
 
 # Wait for the server to be ready before we continue
 while ! xr get > /dev/null 2>&1 ; do sleep 1 ; done
 
-# Define a sample doc-store model using the sample from the xReg spec repo
-xr model update -d @$XREG_REPO/core/samples/doc-store-model.json
+# Define a model with just "dirs" (as a Group) and "files" (as a Resource)
+# Notice that for each we need to provide a Plural and Singular name
+xr model group create dirs:dir
+xr model resource create --group dirs files:file
 
 # Now upload some files into it
-
-# Point to our locally running xReg server
-XR_SERVER=localhost:8080
-
-xr create dirs/mydocs/files/todo-list -d "All caught up!"
-
-echo "
-Team members:
-- Jon
-- Lola
-- Sam
-- Mary
-- Casey
-" | xr create dirs/workdocs/files/team -d @-
+xr create dirs/mydocs/files/file1 --data "this is mydocs/file1"
+xr create dirs/mydocs/files/file2 --data "this is mydocs/file2"
+xr create dirs/yourdocs/files/cv --data "my very cool job experience info"
 
 # Then go to: http://localhost:8080?ui to explore
-# Use: docker rm -f xreg
-# to stop and delete the server
+# Or stop and delete the server: docker rm -f xreg

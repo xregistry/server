@@ -76,7 +76,11 @@ func Verbose(args ...any) {
 		fmtStr = fmt.Sprintf("%v", args[0])
 	}
 
-	fmt.Fprintf(os.Stderr, fmtStr+"\n", args[1:]...)
+	if fmtStr != "" {
+		fmtStr = strings.TrimSpace(fmtStr) + "\n"
+	}
+
+	fmt.Fprintf(os.Stderr, fmtStr, args[1:]...)
 }
 
 func main() {

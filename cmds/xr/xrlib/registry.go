@@ -87,8 +87,8 @@ type GroupModel struct {
 	Labels     map[string]string `json:"labels,omitempty"`
 	Attributes Attributes        `json:"attributes,omitempty"`
 
-	XImportResources []string `json:"ximportresources,omitempty"`
-	Resources        map[string]*ResourceModel
+	XImportResources []string                  `json:"ximportresources,omitempty"`
+	Resources        map[string]*ResourceModel `json:"resources,omitempty"`
 
 	imports map[string]*ResourceModel
 }
@@ -101,16 +101,16 @@ type CollectionDefined struct {
 }
 
 type ResourceModel struct {
-	Plural           string `json:"plural,omitempty"`
-	Singular         string `json:"singular,omitempty"`
-	MaxVersions      int
-	SetVersionId     *bool
-	SetDefaultSticky *bool
-	HasDocument      *bool
-	TypeMap          map[string]string
+	Plural           string            `json:"plural,omitempty"`
+	Singular         string            `json:"singular,omitempty"`
+	MaxVersions      int               `json:"maxversions,omitempty"`
+	SetVersionId     *bool             `json:"setversionid,omitempty"`
+	SetDefaultSticky *bool             `json:"setdefaultversionsticky,omitempty"`
+	HasDocument      *bool             `json:"hasdocument,omitempty"`
+	TypeMap          map[string]string `json:"typemap,omitempty"`
 	Labels           map[string]string `json:"labels,omitempty"`
 	Attributes       Attributes        `json:"attributes,omitempty"`
-	MetaAttributes   Attributes
+	MetaAttributes   Attributes        `json:"metaattributes,omitempty"`
 }
 
 type Group struct {

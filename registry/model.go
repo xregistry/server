@@ -654,9 +654,9 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 		}
 	}
 
-	mSID := NewUUID()
+	newSID := NewUUID()
 	gm := &GroupModel{
-		SID:      mSID,
+		SID:      newSID,
 		Model:    m,
 		Singular: singular,
 		Plural:   plural,
@@ -889,11 +889,18 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	newM.Registry = m.Registry
 	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
-	/*
-		if err := newM.Verify(); err != nil {
-			return err
+	// Copy existing SIDs into the new Model so we don't create new ones
+	for _, gm := range newM.Groups {
+		if oldGM := m.FindGroupModel(gm.Plural); oldGM != nil {
+			gm.SID = oldGM.SID
+
+			for _, rm := range gm.Resources {
+				if oldRM := gm.FindResourceModel(rm.Plural); oldRM != nil {
+					rm.SID = oldRM.SID
+				}
+			}
 		}
-	*/
+	}
 
 	m.Registry.Model = newM
 	m = newM

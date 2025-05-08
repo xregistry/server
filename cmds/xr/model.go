@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"sort"
+	"strings"
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
@@ -56,6 +58,56 @@ func addModelCmd(parent *cobra.Command) {
 	getCmd.Flags().BoolP("all", "a", false, "Show all data")
 	getCmd.Flags().StringP("output", "o", "table", "output: table, json")
 	modelCmd.AddCommand(getCmd)
+
+	// "model group" commands
+
+	modelGroupCmd := &cobra.Command{
+		Use:   "group",
+		Short: "Model Group operations",
+	}
+	modelCmd.AddCommand(modelGroupCmd)
+
+	groupCreateCmd := &cobra.Command{
+		Use:   "create PluralName:SingularName...",
+		Short: "Create a new Model Group type",
+		Run:   modelGroupCreateFunc,
+	}
+	modelGroupCmd.AddCommand(groupCreateCmd)
+
+	groupDeleteCmd := &cobra.Command{
+		Use:   "delete PluralName...",
+		Short: "Delete a Model Group type",
+		Run:   modelGroupDeleteFunc,
+	}
+	groupDeleteCmd.Flags().BoolP("force", "f", false,
+		"Ignore a \"not found\" error")
+	modelGroupCmd.AddCommand(groupDeleteCmd)
+
+	// "model resource" commands
+	modelResourceCmd := &cobra.Command{
+		Use:   "resource",
+		Short: "Model Resource operations",
+	}
+	modelCmd.AddCommand(modelResourceCmd)
+
+	resourceCreateCmd := &cobra.Command{
+		Use:   "create PluralName:SingularName...",
+		Short: "Create a new Model Resource type",
+		Run:   modelResourceCreateFunc,
+	}
+	resourceCreateCmd.Flags().StringP("group", "g", "", "Group type name")
+	modelResourceCmd.AddCommand(resourceCreateCmd)
+
+	resourceDeleteCmd := &cobra.Command{
+		Use:   "delete PluralName...",
+		Short: "Delete a Model Resource type",
+		Run:   modelResourceDeleteFunc,
+	}
+	resourceDeleteCmd.Flags().StringP("group", "g", "", "Group type name")
+	resourceDeleteCmd.Flags().BoolP("force", "f", false,
+		"Ignore a \"not found\" error")
+	modelResourceCmd.AddCommand(resourceDeleteCmd)
+
 }
 
 func modelNormalizeFunc(cmd *cobra.Command, args []string) {
@@ -137,16 +189,16 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 	var buf []byte
 	var err error
 
-	if Server == "" {
-		Error("No Server address provided. Try either -s or XR_SERVER env var")
-	}
-
 	if len(args) > 0 && cmd.Flags().Changed("data") {
 		Error("Can't specify a FILE and the -d flag")
 	}
 
 	if len(args) > 1 {
 		Error("Only one FILE is allowed to be specified")
+	}
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
@@ -338,4 +390,233 @@ func PrintAttributes(prefix string, attrs registry.Attributes,
 	}
 
 	ntw.Flush()
+}
+
+func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
+	if len(args) == 0 {
+		Error("At least one Group type name must be specified")
+	}
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model := reg.Model
+	verMsg := ""
+	for _, arg := range args {
+		parts := strings.Split(arg, ":")
+		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+			Error("Group type name must be of the form: Plural:Singular")
+		}
+
+		for _, gm := range model.Groups {
+			if parts[0] == gm.Plural {
+				Error("Plural value (%s) conflicts with an existing Group "+
+					"plural name", parts[0])
+			}
+			if parts[0] == gm.Singular {
+				Error("Plural value (%s) conflicts with an existing Group "+
+					"singular name", parts[0])
+			}
+			if parts[1] == gm.Plural {
+				Error("Singular value (%s) conflicts with an existing Group "+
+					"plural name", parts[1])
+			}
+			if parts[1] == gm.Singular {
+				Error("Singular value (%s) conflicts with an existing Group "+
+					"singular name", parts[1])
+			}
+		}
+
+		if model.Groups == nil {
+			model.Groups = map[string]*xrlib.GroupModel{}
+		}
+
+		model.Groups[parts[0]] = &xrlib.GroupModel{
+			Model:    model,
+			Plural:   parts[0],
+			Singular: parts[1],
+		}
+
+		verMsg += fmt.Sprintf("Created Group type: %s:%s\n",
+			parts[0], parts[1])
+
+	}
+
+	buf, err := json.MarshalIndent(model, "", "  ")
+	Error(err)
+	_, err = reg.HttpDo("PUT", "/model", buf)
+	Error(err)
+	Verbose(verMsg)
+}
+
+func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
+	if len(args) == 0 {
+		Error("At least one Group type name must be specified")
+	}
+
+	force, _ := cmd.Flags().GetBool("force")
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model := reg.Model
+	verMsg := ""
+	for _, arg := range args {
+		gm := model.FindGroupModel(arg)
+		if gm == nil {
+			msg := fmt.Sprintf("Group type %q does not exist", arg)
+			if !force {
+				Error(msg)
+			}
+			Verbose(msg + ", ignored")
+			continue
+		}
+
+		delete(model.Groups, arg)
+
+		// Remove the GROUPSxxx COLLECTION attributes
+		delete(model.Attributes, arg)
+		delete(model.Attributes, arg+"count")
+		delete(model.Attributes, arg+"url")
+
+		verMsg += fmt.Sprintf("Deleted Group type: %s\n", arg)
+	}
+
+	buf, err := json.MarshalIndent(model, "", "  ")
+	Error(err)
+	_, err = reg.HttpDo("PUT", "/model", buf)
+	Error(err)
+	Verbose(verMsg)
+}
+
+func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
+	if len(args) == 0 {
+		Error("At least one Resource type name must be specified")
+	}
+
+	group, _ := cmd.Flags().GetString("group")
+	if group == "" {
+		Error("A Group type name must be provided via the --group flag")
+	}
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model := reg.Model
+	gm := model.FindGroupModel(group)
+	if gm == nil {
+		Error("Group type %q does not exist", group)
+	}
+
+	verMsg := ""
+	for _, arg := range args {
+		parts := strings.Split(arg, ":")
+		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+			Error("Resource type name must be of the form: Plural:Singular")
+		}
+
+		for _, rm := range gm.Resources {
+			if parts[0] == rm.Plural {
+				Error("Plural value (%s) conflicts with an existing Resource "+
+					"plural name", parts[0])
+			}
+			if parts[0] == rm.Singular {
+				Error("Plural value (%s) conflicts with an existing Resource "+
+					"singular name", parts[0])
+			}
+			if parts[1] == rm.Plural {
+				Error("Singular value (%s) conflicts with an existing "+
+					"Resource plural name", parts[1])
+			}
+			if parts[1] == rm.Singular {
+				Error("Singular value (%s) conflicts with an existing "+
+					" Resource singular name", parts[1])
+			}
+		}
+
+		if gm.Resources == nil {
+			gm.Resources = map[string]*xrlib.ResourceModel{}
+		}
+
+		gm.Resources[parts[0]] = &xrlib.ResourceModel{
+			Plural:   parts[0],
+			Singular: parts[1],
+		}
+
+		verMsg += fmt.Sprintf("Created Resource type: %s:%s\n",
+			parts[0], parts[1])
+
+	}
+
+	buf, err := json.MarshalIndent(model, "", "  ")
+	Error(err)
+	_, err = reg.HttpDo("PUT", "/model", buf)
+	Error(err)
+	Verbose(verMsg)
+}
+
+func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
+	if len(args) == 0 {
+		Error("At least one Resource type name must be specified")
+	}
+
+	group, _ := cmd.Flags().GetString("group")
+	if group == "" {
+		Error("A Group type name must be provided via the --group flag")
+	}
+
+	force, _ := cmd.Flags().GetBool("force")
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model := reg.Model
+	gm := model.FindGroupModel(group)
+	if gm == nil {
+		Error("Group type %q does not exist", group)
+	}
+
+	verMsg := ""
+	for _, arg := range args {
+		rm := gm.FindResourceModel(arg)
+		if rm == nil {
+			msg := fmt.Sprintf("Resource type %q does not exist", arg)
+			if !force {
+				Error(msg)
+			}
+			Verbose(msg + ", ignored")
+			continue
+		}
+
+		delete(gm.Resources, arg)
+
+		// Remove the RESOURCESxxx COLLECTION attributes
+		delete(gm.Attributes, arg)
+		delete(gm.Attributes, arg+"count")
+		delete(gm.Attributes, arg+"url")
+
+		verMsg += fmt.Sprintf("Deleted Resource type: %s\n", arg)
+	}
+
+	buf, err := json.MarshalIndent(model, "", "  ")
+	Error(err)
+	_, err = reg.HttpDo("PUT", "/model", buf)
+	Error(err)
+	Verbose(verMsg)
 }
