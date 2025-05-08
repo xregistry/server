@@ -412,6 +412,10 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 			Error("Group type name must be of the form: Plural:Singular")
 		}
 
+		if parts[0] == parts[1] {
+			Error("Group Plural and Singular names must be different")
+		}
+
 		for _, gm := range model.Groups {
 			if parts[0] == gm.Plural {
 				Error("Plural value (%s) conflicts with an existing Group "+
@@ -525,6 +529,10 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		parts := strings.Split(arg, ":")
 		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
 			Error("Resource type name must be of the form: Plural:Singular")
+		}
+
+		if parts[0] == parts[1] {
+			Error("Resource Plural and Singular names must be different")
 		}
 
 		for _, rm := range gm.Resources {
