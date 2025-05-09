@@ -618,6 +618,11 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 	var err error
 	name := pp.DB()
 
+	if len(name) > MAX_PROPNAME {
+		return fmt.Errorf("Attribute paths must not exceed %d chars"+
+			"(%s)", MAX_PROPNAME, name)
+	}
+
 	// Any prop with "dontStore"=true we skip
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
@@ -683,22 +688,22 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 		switch reflect.ValueOf(val).Kind() {
 		case reflect.String:
 			if reflect.ValueOf(val).Len() > MAX_VARCHAR {
-				return fmt.Errorf("Value must be less that %d chars",
-					MAX_VARCHAR+1)
+				return fmt.Errorf("Value of %q must be less than %d chars",
+					pp.UI(), MAX_VARCHAR+1)
 			}
 		case reflect.Slice:
 			if reflect.ValueOf(val).Len() > 0 {
-				return fmt.Errorf("Can't set non-empty arrays")
+				return fmt.Errorf("Can't set non-empty arrays (%s)", pp.UI())
 			}
 			dbVal = ""
 		case reflect.Map:
 			if reflect.ValueOf(val).Len() > 0 {
-				return fmt.Errorf("Can't set non-empty maps")
+				return fmt.Errorf("Can't set non-empty maps (%s)", pp.UI())
 			}
 			dbVal = ""
 		case reflect.Struct:
 			if reflect.ValueOf(val).NumField() > 0 {
-				return fmt.Errorf("Can't set non-empty objects")
+				return fmt.Errorf("Can't set non-empty objects (%s)", pp.UI())
 			}
 			dbVal = ""
 		}

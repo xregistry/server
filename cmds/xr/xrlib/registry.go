@@ -170,48 +170,12 @@ func GetRegistry(url string) (*Registry, error) {
 }
 
 func (reg *Registry) Refresh() error {
-	// GET root and verify it's an xRegistry
-	res, err := reg.HttpDo("GET", "?inline=model,capabilities", nil)
-	if err != nil {
+	if err := reg.RefreshModel(); err != nil {
 		return err
 	}
 
-	attrs := map[string]json.RawMessage(nil)
-	if err := registry.Unmarshal(res.Body, &attrs); err != nil {
-		return fmt.Errorf("Not an xRegistry(%s), invalid response: %s",
-			reg.server, err)
-	}
-
-	specVersion := ""
-	err = json.Unmarshal(attrs["specversion"], &specVersion)
-	if err != nil || specVersion != registry.SPECVERSION {
-		return fmt.Errorf("Not an xRegistry(%s), missing 'specversion'",
-			reg.server)
-	}
-
-	// Before we process the attributes, get the model and capabilities
-	if !registry.IsNil(attrs["model"]) {
-		if err := json.Unmarshal(attrs["model"], &reg.Model); err != nil {
-			return fmt.Errorf("Unable to parse registry model: %s\n%s",
-				err, string(attrs["model"]))
-		}
-		reg.Model.SetPointers()
-	} else {
-		if err := reg.RefreshModel(); err != nil {
-			return err
-		}
-	}
-
-	if !registry.IsNil(attrs["capabilities"]) {
-		err := json.Unmarshal(attrs["capabilities"], &reg.Capabilities)
-		if err != nil {
-			return fmt.Errorf("Unable to parse registry capabilities: %s\n%s",
-				err, string(attrs["capabilities"]))
-		}
-	} else {
-		if err := reg.RefreshCapabilities(); err != nil {
-			return err
-		}
+	if err := reg.RefreshCapabilities(); err != nil {
+		return err
 	}
 
 	return nil

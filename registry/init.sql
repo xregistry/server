@@ -252,7 +252,7 @@ CREATE TABLE Props (
     RegistrySID VARCHAR(64) NOT NULL,
     EntitySID   VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
     eType       INT NOT NULL,
-    PropName    VARCHAR(64) NOT NULL,
+    PropName    VARCHAR($MAX_PROPNAME) NOT NULL,
     PropValue   VARCHAR($MAX_VARCHAR),
     PropType    CHAR(64) NOT NULL,          # string, boolean, int, ...
     DocView     BOOL NOT NULL,              # Should include during doc view?

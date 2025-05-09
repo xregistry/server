@@ -5,7 +5,8 @@ import "os"
 var TESTING = (os.Getenv("TESTING") != "")
 var GitCommit = "<n/a>"
 
-var MAX_VARCHAR = 1024
+var MAX_VARCHAR = 4096
+var MAX_PROPNAME = 255
 
 const SPECVERSION = "1.0-rc1"
 const XREGSCHEMA = "xRegistry-json"
