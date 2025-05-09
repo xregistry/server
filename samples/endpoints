@@ -13,15 +13,12 @@ XR_SERVER=localhost:8080
 # Wait for the server to be ready before we continue
 while ! xr get > /dev/null 2>&1 ; do sleep 1 ; done
 
-# Define a model with just "dirs" (as a Group) and "files" (as a Resource)
-# Notice that for each we need to provide a Plural and Singular name
-xr model group create dirs:dir
-xr model resource create --group dirs files:file
+# Define the model we want to use, in this case the "CloudEvents" model,
+# defined by the xRegistry team, which contains 3 different sub-models under
+# it (endpoints, messages, schemas)
+xr model update -d @https://raw.githubusercontent.com/xregistry/spec/refs/heads/main/cloudevents/model.json
 
-# Now upload some files into it
-xr create dirs/mydocs/files/file1 --data "this is mydocs/file1"
-xr create dirs/mydocs/files/file2 --data "this is mydocs/file2"
-xr create dirs/yourdocs/files/cv --data "my very cool job experience info"
+xr import -d @https://raw.githubusercontent.com/xregistry/spec/refs/heads/main/cloudevents/samples/scenarios/contoso-erp-jsons07.xreg.json
 
 # Then go to: http://localhost:8080?ui to explore
 # Or stop and delete the server: docker rm -f xreg

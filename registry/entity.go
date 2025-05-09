@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -1997,8 +1996,6 @@ func (e *Entity) Save() error {
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
 
-	e.RemoveCollections(newObj)
-
 	// Delete all props for this entity, we assume that NewObject
 	// contains everything we want going forward
 	err := Do(e.tx, "DELETE FROM Props WHERE EntitySID=? ", e.DbSID)
@@ -2149,15 +2146,13 @@ func (e *Entity) GetCollections() [][2]string {
 	switch e.Type {
 	case ENTITY_REGISTRY:
 		gs := e.Registry.Model.Groups
-		keys := SortedKeys(gs)
-		for _, k := range keys {
+		for _, k := range Keys(gs) {
 			result = append(result, [2]string{gs[k].Plural, gs[k].Singular})
 		}
 		return result
 	case ENTITY_GROUP:
 		gm, _ := e.GetModels()
 		keys := gm.GetResourceList()
-		sort.Strings(keys)
 		for _, k := range keys {
 			rm := gm.FindResourceModel(k)
 			result = append(result, [2]string{rm.Plural, rm.Singular})
@@ -2364,28 +2359,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 		}
 	}
 
-	// For Registry entities, get the list of possible collections
-	collections := [][2]string{}
-	if path.Len() == 0 {
-		collections = e.GetCollections()
-	}
-
-	// Don't touch what was passed in by just saving the keys and then
-	// removing the ones we don't want from it (ie. the collections ones)
-	objKeys := map[string]bool{}
-	for k, _ := range newObj {
-		// Skip collection related attributes
-		isColl := false
-		for _, coll := range collections {
-			if k == coll[0] || k == coll[0]+"count" || k == coll[0]+"url" {
-				isColl = true
-				break
-			}
-		}
-		if !isColl {
-			objKeys[k] = true
-		}
-	}
+	// Don't touch what was passed in
+	objKeys := maps.Clone(newObj)
 
 	attr := (*Attribute)(nil)
 	key := ""

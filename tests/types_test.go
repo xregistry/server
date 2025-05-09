@@ -728,10 +728,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	// xNoErr(t, err)
-	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid attribute name "attr1-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
-	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -744,10 +741,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	// xNoErr(t, err)
-	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid attribute name "attr1-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
-	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "obj1",
@@ -769,10 +763,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	// xNoErr(t, err)
-	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1.attr1.ifvalues.a1": Invalid attribute name "another-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
-	// reg.LoadModel()
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -785,10 +776,63 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	// xNoErr(t, err)
-	// err = reg.SaveModel()
 	xCheckErr(t, err, `Error processing "model.obj1": Invalid map key name "attr space", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$`)
-	// reg.LoadModel()
+
+	_, err = reg.Model.AddAttribute(&registry.Attribute{
+		Name: "astring",
+		Type: registry.STRING,
+		IfValues: registry.IfValues{
+			"a1": &registry.IfValue{
+				SiblingAttributes: registry.Attributes{
+					"bad-": &registry.Attribute{
+						Type: registry.STRING,
+					},
+				},
+			},
+		},
+	})
+	xCheckErr(t, err, `Error processing "model.astring.ifvalues.a1": Invalid attribute name "bad-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
+
+	_, err = reg.Model.AddAttribute(&registry.Attribute{
+		Name: "astring",
+		Type: registry.OBJECT,
+		Attributes: map[string]*registry.Attribute{
+			"attr1": {
+				Type: registry.STRING,
+				IfValues: registry.IfValues{
+					"a1": &registry.IfValue{
+						SiblingAttributes: registry.Attributes{
+							"bad-": &registry.Attribute{
+								Type: registry.STRING,
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	xCheckErr(t, err, `Error processing "model.astring.attr1.ifvalues.a1": Invalid attribute name "bad-", must match: ^[a-z_][a-z_0-9]{0,62}$`)
+
+	_, err = reg.Model.AddAttribute(&registry.Attribute{
+		Name:        "astring",
+		Type:        registry.OBJECT,
+		NameCharSet: "extended",
+		Attributes: map[string]*registry.Attribute{
+			"attr1": {
+				Type: registry.STRING,
+				IfValues: registry.IfValues{
+					"a1-": &registry.IfValue{
+						SiblingAttributes: registry.Attributes{
+							"good-": &registry.Attribute{
+								Type: registry.STRING,
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+	xNoErr(t, err)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -901,6 +945,27 @@ func TestNameCharSet(t *testing.T) {
       "name": "modifiedat",
       "type": "timestamp",
       "required": true
+    },
+    "astring": {
+      "name": "astring",
+      "type": "object",
+      "namecharset": "extended",
+      "attributes": {
+        "attr1": {
+          "name": "attr1",
+          "type": "string",
+          "ifValues": {
+            "a1-": {
+              "siblingattributes": {
+                "good-": {
+                  "name": "good-",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "obj1": {
       "name": "obj1",

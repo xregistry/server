@@ -463,8 +463,9 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 		reg.NewObject["registryid"] = reg.UID
 	}
 
-	colls := reg.GetCollections()
-	for _, coll := range colls {
+	// Remove/save all Registry level collections from NewObject
+	collsMaps := map[string]map[string]any{}
+	for _, coll := range reg.GetCollections() {
 		plural := coll[0]
 		singular := coll[1]
 
@@ -478,11 +479,24 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 				"map of %q", plural, plural)
 		}
 		for key, val := range collMap {
-			valObj, ok := val.(map[string]any)
+			_, ok := val.(map[string]any)
 			if !ok {
 				return fmt.Errorf("Key %q in attribute %q doesn't "+
 					"appear to be of type %q", key, plural, singular)
 			}
+		}
+
+		// Remove the Groups Collections attributes from the incoming obj
+		collsMaps[plural] = collMap
+		delete(reg.NewObject, plural)
+		delete(reg.NewObject, plural+"count")
+		delete(reg.NewObject, plural+"url")
+	}
+
+	// For each collection, upsert each entity
+	for plural, collMap := range collsMaps {
+		for key, val := range collMap {
+			valObj, _ := val.(map[string]any)
 			_, _, err := reg.UpsertGroupWithObject(plural, key, valObj,
 				addType)
 			if err != nil {
@@ -628,6 +642,38 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		g.Registry.Touch()
 	}
 
+	// Remove all Resource collections from obj before we process it
+	objColls := map[string]map[string]any{}
+	for _, coll := range g.GetCollections() {
+		plural := coll[0]
+		singular := coll[1]
+
+		collVal := obj[plural]
+		if IsNil(collVal) {
+			continue
+		}
+
+		collMap, ok := collVal.(map[string]any)
+		if !ok {
+			return nil, false,
+				fmt.Errorf("Attribute %q doesn't appear to be of a "+
+					"map of %q", plural, plural)
+		}
+		for key, val := range collMap {
+			_, ok := val.(map[string]any)
+			if !ok {
+				return nil, false,
+					fmt.Errorf("Key %q in attribute %q doesn't "+
+						"appear to be of type %q", key, plural, singular)
+			}
+		}
+
+		objColls[plural] = collMap
+		delete(obj, plural)
+		delete(obj, plural+"count")
+		delete(obj, plural+"url")
+	}
+
 	if isNew || obj != nil {
 		if obj != nil {
 			g.SetNewObject(obj)
@@ -652,28 +698,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 	}
 
-	colls := g.GetCollections()
-	for _, coll := range colls {
-		plural := coll[0]
-		singular := coll[1]
-
-		collVal := obj[plural]
-		if IsNil(collVal) {
-			continue
-		}
-		collMap, ok := collVal.(map[string]any)
-		if !ok {
-			return nil, false,
-				fmt.Errorf("Attribute %q doesn't appear to be of a "+
-					"map of %q", plural, plural)
-		}
-		for key, val := range collMap {
-			valObj, ok := val.(map[string]any)
-			if !ok {
-				return nil, false,
-					fmt.Errorf("Key %q in attribute %q doesn't "+
-						"appear to be of type %q", key, plural, singular)
-			}
+	// Now for each inlined Resource collection, upsert each Resource
+	for plural, daMap := range objColls {
+		for key, val := range daMap {
+			valObj, _ := val.(map[string]any)
 			_, _, err := g.UpsertResourceWithObject(plural, key, "",
 				valObj, addType, false)
 			if err != nil {

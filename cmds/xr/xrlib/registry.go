@@ -50,17 +50,17 @@ type Model struct {
 type Attributes map[string]*Attribute
 
 type Attribute struct {
-	Name         string `json:"name,omitempty"`
-	Type         string `json:"type,omitempty"`
-	Target       string `json:"target,omitempty"`
-	RelaxedNames bool   `json:"relaxednames,omitempty"`
-	Description  string `json:"description,omitempty"`
-	Enum         []any  `json:"enum,omitempty"`
-	Strict       bool   `json:"strict,omitempty"`
-	ReadOnly     bool   `json:"readonly,omitempty"`
-	Immutable    bool   `json:"immutable,omitempty"`
-	Required     bool   `json:"required,omitempty"`
-	Default      any    `json:"default,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Type        string `json:"type,omitempty"`
+	Target      string `json:"target,omitempty"`
+	NameCharSet string `json:"namecharset,omitempty"`
+	Description string `json:"description,omitempty"`
+	Enum        []any  `json:"enum,omitempty"`
+	Strict      bool   `json:"strict,omitempty"`
+	ReadOnly    bool   `json:"readonly,omitempty"`
+	Immutable   bool   `json:"immutable,omitempty"`
+	Required    bool   `json:"required,omitempty"`
+	Default     any    `json:"default,omitempty"`
 
 	Attributes Attributes `json:"attributes,omitempty"`
 	Item       *Item      `json:"item,omitempty"`

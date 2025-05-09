@@ -2096,11 +2096,9 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	if err := rm.Attributes.Verify("strict", ld); err != nil {
 		return err
 	}
-
 	if err := rm.MetaAttributes.Verify("strict", ld); err != nil {
 		return err
 	}
-
 	// TODO: verify the Resources data are model compliant
 	// Only do this if we have a Registry. It assumes that if we have
 	// no Registry then we're not connected to a backend and there's no data
