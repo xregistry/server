@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sort"
 	// "net/http"
 	"os"
 	"path/filepath"
@@ -140,6 +141,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 						tmp["metaurl"] = []byte(fmt.Sprintf("\"%s/meta\"", self))
 					}
 
+					sort.Strings(plurals)
 					for _, p := range plurals {
 						pURL := fmt.Sprintf("%s/%s", self, p)
 						tmp[p+"url"] = []byte(fmt.Sprintf("%q", pURL))
@@ -393,8 +395,9 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 	switch xid.Type {
 	case xrlib.ENTITY_REGISTRY:
 		fn(xid)
-		for _, gm := range reg.Model.Groups {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + gm.Plural)
+		gList := registry.SortedKeys(reg.Model.Groups)
+		for _, gName := range gList {
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + gName)
 			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
@@ -409,8 +412,9 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		Error(err)
 		tmp := map[string]any{}
 		Error(json.Unmarshal([]byte(res.Body), &tmp))
-		for key, _ := range tmp {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + key)
+		vList := registry.SortedKeys(tmp)
+		for _, vName := range vList {
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + vName)
 			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
@@ -419,9 +423,9 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		fn(xid)
 		gm := reg.Model.Groups[xid.Group]
 		rList := gm.GetResourceList()
+		sort.Strings(rList)
 		for _, rName := range rList {
-			// for _, rm := range gm.Resources {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rName) // rm.Plural)
+			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rName)
 			Error(err)
 			traverseFromXID(reg, nextXID, root, fn)
 		}
