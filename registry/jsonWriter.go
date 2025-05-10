@@ -120,25 +120,48 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural, baseURL)
 	extra = ""
 
-	saveWriter := jw.info.HTTPWriter
-	// saveExtra := extra
+	count := 0
+	var err error
 
-	// TODO optimize this to avoid the ioutil.Discard and just count the
-	// children from the result set instead
 	if !inlineCollection {
-		jw.info.HTTPWriter = DefaultDiscardWriter
-	}
+		// If we're not inlining this collection then just skip over any
+		// Entities in the result that are children, but count them so we
+		// still show the PLURALcount attribute for the collection
+		myAbstract := "-"
+		myPlural := ""
 
-	jw.Printf("%s%q: ", jw.indent, jw.Entity.Plural)
-	count, err := jw.WriteCollection()
-	if err != nil {
-		return "", err
-	}
+		for jw.Entity != nil {
+			if myAbstract == "-" {
+				myAbstract = jw.Entity.Abstract
+				myPlural = jw.Entity.Plural
+			}
 
-	if jw.info.HTTPWriter == DefaultDiscardWriter {
-		jw.info.HTTPWriter = saveWriter
-		// extra = saveExtra
+			if strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN)) {
+				// Skip descendants that are not immediate children
+				if _, err = jw.NextEntity(); err != nil {
+					return "", err
+				}
+				continue
+			}
+
+			if strings.HasPrefix(myAbstract, jw.Entity.Abstract+string(DB_IN)) ||
+				jw.Entity.Plural != myPlural {
+				// Stop on a new parent or a new sibling collection
+				break
+			}
+
+			if _, err = jw.NextEntity(); err != nil {
+				return "", err
+			}
+
+			count++
+		}
 	} else {
+		jw.Printf("%s%q: ", jw.indent, jw.Entity.Plural)
+		count, err = jw.WriteCollection()
+		if err != nil {
+			return "", err
+		}
 		extra = ",\n"
 	}
 
