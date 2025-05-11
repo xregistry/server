@@ -323,15 +323,19 @@ func xCheckEqual(t *testing.T, extra string, gotAny any, expAny any) {
 	}
 
 	if pos == len(got) {
-		t.Fatalf("%s\n"+
-			"Expected:\n%s\nGot:\n%s\nGot ended early at(%d)[%02X]:\n%q",
-			extra, exp, got, pos, exp[pos], got[pos:])
+		t.Fatalf(extra+
+			"\nExpected:\n"+exp+
+			"\nGot:\n"+got+
+			"\nGot ended early at(%d)[%02X]:\n%q",
+			pos, exp[pos], got[pos:])
 	}
 
 	if pos == len(exp) {
-		t.Fatalf("%s\n"+
-			"Expected:\n%s\nGot:\n%s\nExp ended early at(%d)[%02X]:\n%q",
-			extra, exp, got, pos, got[pos], got[pos:])
+		t.Fatalf(extra+
+			"\nExpected:\n"+exp+
+			"\nGot:\n"+got+
+			"\nExp ended early at(%d)[%02X]:\n"+got[pos:],
+			pos, got[pos])
 	}
 
 	expMax := pos + 90
@@ -392,6 +396,43 @@ func xHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code
 		ResBody:    resBody,
 		ResHeaders: []string{"*"},
 	})
+}
+
+type HTTPResult struct {
+	http.Response
+	body string
+}
+
+func xDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
+	bodyStr string) *HTTPResult {
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}
+
+	body := io.Reader(nil)
+	if bodyStr != "" {
+		body = bytes.NewReader([]byte(bodyStr))
+	}
+
+	path = strings.TrimLeft(path, "/")
+
+	req, err := http.NewRequest(method, "http://localhost:8181/"+path, body)
+	xNoErr(t, err)
+
+	doRes, err := client.Do(req)
+	xNoErr(t, err)
+
+	result := &HTTPResult{
+		Response: *doRes,
+	}
+
+	if doRes != nil {
+		tmp, _ := io.ReadAll(doRes.Body)
+		result.body = string(tmp)
+	}
+	return result
 }
 
 func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {

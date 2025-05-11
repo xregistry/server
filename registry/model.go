@@ -1134,7 +1134,14 @@ func (gm *GroupModel) GetImports() map[string]*ResourceModel {
 		for _, grName := range gm.XImportResources {
 			parts := strings.Split(grName, "/")
 			r := gm.Model.FindResourceModel(parts[1], parts[2])
-			PanicIf(r == nil, "Can't find %q", grName)
+			if r == nil {
+				// While this should technically be an error, assume that
+				// we'll flag it during the verify() work and not here since
+				// some calls to this are just looking to see if something
+				// exists in the list and we don't really care about bad
+				// refs right then.
+				continue
+			}
 			gm.imports[parts[2]] = r
 		}
 	}
@@ -1840,48 +1847,90 @@ func (gm *GroupModel) Verify(gmName string) error {
 
 	// TODO: verify the Groups data are model compliant
 
+	// Save the plurals/singulars are we go so we can quickly see when
+	// dups are specified. We don't use the values, yet... maybe one day
+	plurals := map[string]string{}   // plural->singular
+	singulars := map[string]string{} // singular->plural
+
 	// Verify the "ximportresources" list, same names for later checking
-	resList := map[string]bool{}
 	for _, grName := range gm.XImportResources {
+		// In this func be careful using the *.Plural value because some
+		// may not be filled in yet - like r.Plural.  gm.Plural as done above
+
 		parts := strings.Split(grName, "/")
 		if len(parts) != 3 {
-			return fmt.Errorf("Group %q has an invalid ximportresources value "+
-				"(%s), must be of the form \"/GroupType/ResourceType\"",
+			return fmt.Errorf("Group %q has an invalid \"ximportresources\" "+
+				"value (%s), must be of the form \"/Group/Resource\"",
 				gm.Plural, grName)
 		}
 		if parts[0] != "" {
-			return fmt.Errorf("Group %q has an invalid ximportresources value "+
-				"(%s), must start with \"/\" and be of the form "+
-				"\"/GroupType/ResourceType\"", gm.Plural, grName)
+			return fmt.Errorf("Group %q has an invalid \"ximportresources\" "+
+				"value (%s), must start with \"/\" and be of the form "+
+				"\"/Group/Resource\"", gm.Plural, grName)
 		}
 		if parts[1] == gm.Plural {
-			return fmt.Errorf("Group %q has a bad ximportresources value "+
+			return fmt.Errorf("Group %q has a bad \"ximportresources\" value "+
 				"(%s), it can't reference itself", gm.Plural, grName)
 		}
 
 		g := gm.Model.FindGroupModel(parts[1])
 		if g == nil {
-			return fmt.Errorf("Group %q references a non-existing Group in: "+
-				"%s", gm.Plural, grName)
+			return fmt.Errorf("Group %q references a non-existing "+
+				"Group %q", gm.Plural, parts[1])
 		}
 
-		r := g.FindResourceModel(parts[2])
+		// r := g.FindResourceModel(parts[2]) - don't use, don't want ximps
+		r := g.Resources[parts[2]]
 		if r == nil {
-			return fmt.Errorf("Group %q references a non-existing Resource "+
-				"in: "+"%s", gm.Plural, grName)
+			for _, imp := range g.XImportResources {
+				if strings.HasSuffix(imp, "/"+parts[2]) {
+					return fmt.Errorf("Group %q references an imported "+
+						"Resource %q, try using %q instead",
+						gm.Plural, grName, imp)
+				}
+			}
+			return fmt.Errorf("Group %q references a non-existing "+
+				"Resource %q", gm.Plural, grName)
 		}
-		resList[r.Plural] = true
+
+		if _, ok := plurals[parts[2]]; ok {
+			return fmt.Errorf("Group %q has a duplicate Resource \"plural\" "+
+				"name %q", gm.Plural, parts[2])
+		}
+
+		if _, ok := plurals[r.Singular]; ok {
+			return fmt.Errorf("Group %q has a \"singular\" Resource name "+
+				"%q that conflicts with a \"plural\" Resource name",
+				gm.Plural, parts[2])
+		}
+
+		if _, ok := singulars[r.Singular]; ok {
+			return fmt.Errorf("Group %q has a duplicate \"singular\" "+
+				"Resource name %q", gm.Plural, r.Singular)
+		}
+
+		plurals[parts[2]] = r.Singular
+		singulars[r.Singular] = parts[2]
 	}
 
 	// Verify the Resources to catch invalid Resource names early
-	for rmName, rm := range gm.Resources {
+	// Just so we always do them in order for consistent testing
+	rList := SortedKeys(gm.Resources)
+	for _, rmName := range rList {
+		rm := gm.Resources[rmName]
 		if rm == nil {
-			return fmt.Errorf("Resource %q can't be empty", rmName)
+			return fmt.Errorf("Group %q has an empty Resource %q",
+				gm.Plural, rmName)
 		}
 
-		if resList[rmName] == true {
-			return fmt.Errorf("Resource %q is a duplicate name from the "+
-				"\"ximportresources\" list", rmName)
+		if _, ok := plurals[rmName]; ok {
+			return fmt.Errorf("Group %q has a Resource %q that has a "+
+				"duplicate \"plural\" name", gm.Plural, rmName)
+		}
+
+		if _, ok := singulars[rmName]; ok {
+			return fmt.Errorf("Group %q has a Resource %q that has a "+
+				"duplicate \"singular\" name", gm.Plural, rmName)
 		}
 
 		rm.GroupModel = gm
@@ -1889,6 +1938,21 @@ func (gm *GroupModel) Verify(gmName string) error {
 		if err := rm.Verify(rmName); err != nil {
 			return err
 		}
+
+		if _, ok := plurals[rm.Singular]; ok {
+			return fmt.Errorf("Group %q has a Resource %q that has a "+
+				"\"singular\" name that conflicts with an existing "+
+				"\"plural\" name", gm.Plural, rmName)
+		}
+
+		if _, ok := singulars[rm.Singular]; ok {
+			return fmt.Errorf("Group %q has a Resource %q that has a "+
+				"duplicate \"singular\" name %q",
+				gm.Plural, rmName, rm.Singular)
+		}
+
+		plurals[rmName] = rm.Singular
+		singulars[rm.Singular] = rmName
 	}
 
 	// Make sure we have the xRegistry core/spec defined attributes
