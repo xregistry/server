@@ -54,7 +54,6 @@ TODOs:
 - add model tests for typemap - just that we can set via full model updates
 - support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
-- support ximport
 - support validating that xref points to the same resource def
 - allow $meta on hasdoc=false resources
 - Split the model.verify stuff so it doesn't verify the data unless asked to
@@ -115,3 +114,4 @@ TODOs:
 - don't allow people to change the Singular name of a groupType or resType
 - add "resourceattributes" to the model
 - add "versionmode"
+- add tests for ximport, esp. xref too
