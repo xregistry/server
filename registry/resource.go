@@ -105,13 +105,13 @@ func (r *Resource) GetXref() (string, *Resource, error) {
 	}
 
 	if xref[0] != '/' {
-		return "", nil, fmt.Errorf("'xref' (%s) must start with '/'",
+		return "", nil, fmt.Errorf("'xref' %q must start with '/'",
 			tmp.(string))
 	}
 
 	parts := strings.Split(xref, "/")
 	if len(parts) != 5 || len(parts[0]) != 0 {
-		return "", nil, fmt.Errorf("'xref' (%s) must be of the form: "+
+		return "", nil, fmt.Errorf("'xref' %q must be of the form: "+
 			"/GROUPS/gID/RESOURCES/rID", tmp.(string))
 	}
 
@@ -519,11 +519,24 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 				// Do nothing - leave it there so we can null it out later
 			} else {
 				xref, _ = xrefAny.(string)
-				xref = strings.TrimSpace(xref)
-				parts := strings.Split(xref, "/")
-				if len(parts) != 5 || len(parts[0]) != 0 {
-					return nil, false, fmt.Errorf("'xref' (%s) must be of the "+
+				parts, err := ParseXID(xref)
+				if err != nil {
+					return nil, false, err
+				}
+				if len(parts) != 4 {
+					return nil, false, fmt.Errorf("'xref' %q must be of the "+
 						"form: /GROUPS/gID/RESOURCES/rID", xref)
+				}
+				xrefAbsModel, err := XID2Abstract(xref)
+				if err != nil {
+					return nil, false, err
+				}
+				targetAbsModel := r.ResourceModel.GetOriginAbstractModel()
+				if xrefAbsModel != targetAbsModel {
+					return nil, false,
+						fmt.Errorf("'xref' %q must point to a Resource of "+
+							"type %q not %q",
+							xref, targetAbsModel, xrefAbsModel)
 				}
 			}
 		}

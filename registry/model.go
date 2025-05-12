@@ -1102,6 +1102,29 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 	return rm, nil
 }
 
+func (gm *GroupModel) AddXImportResource(absXID string) error {
+	parts, err := ParseXID(absXID)
+	if err != nil {
+		return err
+	}
+	if len(parts) != 2 {
+		return fmt.Errorf("'ximportresources' value of %q must be "+
+			"of the form: /GROUPS/RESOURCES", absXID)
+	}
+
+	for _, grName := range gm.XImportResources {
+		if grName == absXID {
+			return fmt.Errorf("'ximportresources' list already has "+
+				"an entry for %q", absXID)
+		}
+	}
+
+	gm.XImportResources = append(gm.XImportResources, absXID)
+
+	gm.Model.SetChanged(true)
+	return nil
+}
+
 func (gm *GroupModel) AddLabel(name string, value string) error {
 	if gm.Labels == nil {
 		gm.Labels = map[string]string{}
@@ -1177,6 +1200,23 @@ func (gm *GroupModel) GetResourceList() []string {
 		i++
 	}
 	return list
+}
+
+// Return the abstract type of this Resource (meaning its /Groups/Resources
+// value) but not just it's current value w/o the IDs, but instead the true
+// abstract /Groups/Resources its based on if it's here due to an ximport.
+func (rm *ResourceModel) GetOriginAbstractModel() string {
+	if len(rm.GroupModel.Resources) > 0 && rm.GroupModel.Resources[rm.Plural] != nil {
+		return "/" + rm.GroupModel.Plural + "/" + rm.Plural
+	}
+
+	for _, grName := range rm.GroupModel.XImportResources {
+		if strings.HasSuffix(grName, "/"+rm.Plural) {
+			return grName
+		}
+	}
+
+	panic("Can't find myself!")
 }
 
 func (rm *ResourceModel) ClearPropsOrdered() {

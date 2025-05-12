@@ -22,11 +22,11 @@ func TestXrefBasic(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
-		"'xref' (dirs/d1/files/f1) must be of the form: /GROUPS/gID/RESOURCES/rID\n")
+		"XID \"dirs/d1/files/f1\" must start with /\n")
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
-		`{"xref":"foo/dirs/d1/files/f1"}`, 400, // make it bad
-		"'xref' (foo/dirs/d1/files/f1) must be of the form: /GROUPS/gID/RESOURCES/rID\n")
+		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
+		"'xref' \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/gID/RESOURCES/rID\n")
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
@@ -588,6 +588,21 @@ func TestXrefErrors(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, false)
+
+	gm2, _ := reg.Model.AddGroupModel("bars", "bar")
+
+	xCheckErr(t, gm2.AddXImportResource("dirs/files"),
+		`XID "dirs/files" must start with /`)
+	xCheckErr(t, gm2.AddXImportResource("/dirs/files/versions"),
+		`'ximportresources' value of "/dirs/files/versions" must be of the form: /GROUPS/RESOURCES`)
+	xCheckErr(t, gm2.AddXImportResource("/dirs"),
+		`'ximportresources' value of "/dirs" must be of the form: /GROUPS/RESOURCES`)
+	xCheckErr(t, gm2.AddXImportResource("//files"),
+		`XID "//files" has an empty part at position 1`)
+
+	// Now a good one
+	xNoErr(t, gm2.AddXImportResource("/dirs/files"))
+
 	d, _ := reg.AddGroup("dirs", "d1")
 	_, err := d.AddResource("files", "f1", "v1")
 	xNoErr(t, err)
@@ -625,6 +640,54 @@ func TestXrefErrors(t *testing.T) {
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		"Extra attributes (modifiedat) in \"meta\" not allowed when \"xref\" is set\n")
 
+	// actually it can point to itself since we just treat it like any other
+	// time we point to a Resource that's an xref
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2/meta",
+		`{"xref":"/dirs/d1/files/f2"}`, 201, `{
+  "fileid": "f2",
+  "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+  "xid": "/dirs/d1/files/f2/meta",
+  "xref": "/dirs/d1/files/f2"
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+		`{"xref":"/bars/b1/files/f1"}`, 400,
+		`'xref' "/bars/b1/files/f1" must point to a Resource of type "/dirs/files" not "/bars/files"
+`)
+
+	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+		`{"xref":"/bars/b1/files/f2"}`, 400,
+		`'xref' "/bars/b1/files/f2" must point to a Resource of type "/dirs/files" not "/bars/files"
+`)
+
+	// ok even if target is missing
+	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+		`{"xref":"/dirs/dx/files/fx"}`, 201, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/bars/b1/files/f1/meta",
+  "xid": "/bars/b1/files/f1/meta",
+  "xref": "/dirs/dx/files/fx"
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/ff", `{}`, 201, `{
+  "fileid": "ff",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/ff",
+  "xid": "/dirs/d1/files/ff",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/ff/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/ff/versions",
+  "versionscount": 1
+}
+`)
+
 	// Works!
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx", "epoch":1}`,
@@ -634,6 +697,42 @@ func TestXrefErrors(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "xref": "/dirs/d1/files/fx"
+}
+`)
+
+	// ximport Works!
+	xHTTP(t, reg, "PUT", "/bars/b1/files/f2?inline=meta",
+		`{"meta":{"xref": "/dirs/d1/files/ff"}}`,
+		201,
+		`{
+  "fileid": "f2",
+  "versionid": "1",
+  "self": "http://localhost:8181/bars/b1/files/f2",
+  "xid": "/bars/b1/files/f2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/bars/b1/files/f2/meta",
+  "meta": {
+    "fileid": "f2",
+    "self": "http://localhost:8181/bars/b1/files/f2/meta",
+    "xid": "/bars/b1/files/f2/meta",
+    "xref": "/dirs/d1/files/ff",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/bars/b1/files/f2/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/bars/b1/files/f2/versions",
+  "versionscount": 1
 }
 `)
 }

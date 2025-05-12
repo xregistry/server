@@ -808,6 +808,9 @@ func readNextEntity(tx *Tx, results *Result) (*Entity, error) {
 				Path:     NotNilString(row[9]),
 				Abstract: NotNilString(row[10]),
 			}
+
+			entity.GroupModel, entity.ResourceModel =
+				AbstractToModels(tx.Registry, entity.Abstract)
 		} else {
 			// If the next row isn't part of the current Entity then
 			// push it back into the result set so we'll grab it the next time

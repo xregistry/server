@@ -54,8 +54,6 @@ TODOs:
 - add model tests for typemap - just that we can set via full model updates
 - support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
-- support validating that xref points to the same resource def
-     test when using ximportresources too
 - allow $meta on hasdoc=false resources
 - Split the model.verify stuff so it doesn't verify the data unless asked to
 - add support for shortself

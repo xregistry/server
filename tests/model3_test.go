@@ -187,6 +187,7 @@ func TestModelXImport(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r1", "{}", 201, "*")
 	xHTTP(t, reg, "PUT", "/g2p/g1/g2r2p/r1", "{}", 201, "*")
 
-	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r2p/r1"}`,
-		201, "*")
+	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r1p/r1"}`,
+		400, `'xref' "/g1p/g1/r1p/r1" must point to a Resource of type "/g1p/r2p" not "/g1p/r1p"
+`)
 }

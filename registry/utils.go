@@ -1007,6 +1007,8 @@ func MakeShort(buf []byte) string {
 
 // xid:  /GROUPS/gid/RESOURCES/rid/meta|versions/vid
 func ParseXID(xid string) ([]string, error) {
+	xid = strings.TrimSpace(xid)
+
 	if len(xid) == 0 {
 		return nil, fmt.Errorf("XID can't be an empty string")
 	}
@@ -1018,6 +1020,12 @@ func ParseXID(xid string) ([]string, error) {
 	parts := strings.SplitN(xid[1:], "/", 7) // one extra
 	if len(parts) > 6 {
 		return nil, fmt.Errorf("XID %q is too long", xid)
+	}
+	for i, str := range parts {
+		if str == "" {
+			return nil, fmt.Errorf("XID %q has an empty part at position %d",
+				xid, i+1)
+		}
 	}
 	return parts, nil
 }
@@ -1037,6 +1045,25 @@ func ParseXIDTemplate(xid string) ([]string, error) {
 		return nil, fmt.Errorf("XID %q is too long", xid)
 	}
 	return parts, nil
+}
+
+func XID2Abstract(xid string) (string, error) {
+	// GROUPS/gid/RESOURCES/rid/versions/vID
+	parts, err := ParseXID(xid)
+	if err != nil {
+		return "", err
+	}
+	res := "/"
+	if len(parts) > 0 {
+		res += parts[0]
+	}
+	if len(parts) > 2 {
+		res += "/" + parts[2]
+	}
+	if len(parts) > 4 {
+		res += "/" + parts[4]
+	}
+	return res, nil
 }
 
 func PrettyPrint(object any, prefix string, indent string) string {

@@ -938,20 +938,9 @@ func WildcardIt(str string) (string, bool) {
 }
 
 func (r *Registry) XID2Entity(xid string) (*Entity, error) {
-	xid = strings.TrimSpace(xid)
-	if xid == "" {
-		return nil, nil
-	}
-	if xid[0] != '/' {
-		return nil, fmt.Errorf("%q isn't an xid", xid)
-	}
-
-	if xid == "/" {
-		return &r.Entity, nil
-	}
-	parts := strings.Split(xid[1:], "/")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("%q isn't an xid", xid)
+	parts, err := ParseXID(xid)
+	if err != nil {
+		return nil, err
 	}
 
 	g, err := r.FindGroup(parts[0], parts[1], false)
