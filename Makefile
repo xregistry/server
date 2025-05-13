@@ -155,7 +155,8 @@ notest run local: mysql cmds waitformysql
 	./xrserver -vv --recreatedb --samples $(VERIFY)
 
 docker-all: images
-	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -v --recreatedb --samples
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv \
+		--recreatedb --samples
 
 large:
 	# Run the xrserver with a ton of data
@@ -164,8 +165,8 @@ large:
 docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
-	docker run -ti --network host $(XRSERVER_IMAGE) -vv --recreatedb \
-		--samples $(VERIFY)
+	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) -vv \
+		--recreatedb --samples $(VERIFY)
 
 mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \

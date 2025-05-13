@@ -130,6 +130,19 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g3p" references an imported Resource "/g2p/r1p", try using "/g1p/r1p" instead
 `)
 
+	xHTTP(t, reg, "PUT", "/model", `{
+      "groups": {
+        "g1p": {
+          "singular": "g1s",
+          "ximportresources": [ "/g1p/r1p" ],
+          "resources": {
+            "r1p": { "singular": "r1s" }
+          }
+        }
+      }
+    }`, 400, `Group "g1p" has a bad "ximportresources" value (/g1p/r1p), it can't reference its own Group
+`)
+
 }
 
 func TestModelXImport(t *testing.T) {

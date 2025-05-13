@@ -734,7 +734,8 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) error 
 	}
 
 	if propType == STRING || propType == URI || propType == URI_REFERENCE ||
-		propType == URI_TEMPLATE || propType == URL || propType == TIMESTAMP {
+		propType == URI_TEMPLATE || propType == URL || propType == TIMESTAMP ||
+		propType == XID || propType == XIDTYPE {
 		return ObjectSetProp(e.Object, pp, *val)
 	} else if propType == BOOLEAN {
 		// Technically the "1" check shouldn't be needed, but just in case
@@ -2721,6 +2722,82 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 			err := e.MatchXID(str, attr.Target)
 			if err != nil {
 				return fmt.Errorf("Attribute %q %s", path.UI(), err.Error())
+			}
+		}
+
+		parts, err := ParseXID(str)
+		if err != nil {
+			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, %s",
+				path.UI(), str, err)
+		}
+
+		if len(parts) > 6 || (len(parts) > 5 && parts[4] == "meta") {
+			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, "+
+				"it must be in the form of: "+
+				"/[GROUPS[/gID[/RESOURCES[/gID[/versions[/vid]]]]]]",
+				path.UI(), str)
+		}
+
+		if len(parts) > 0 {
+			gm := e.Registry.Model.FindGroupModel(parts[0])
+			if gm == nil {
+				return fmt.Errorf("Attribute %q (%s) references an unknown "+
+					"GroupModel %q", path.UI(), str, parts[0])
+			}
+
+			if len(parts) > 2 {
+				rm := gm.FindResourceModel(parts[2])
+				if rm == nil {
+					return fmt.Errorf("Attribute %q (%s) references an "+
+						"unknown ResourceModel %q", path.UI(), str, parts[2])
+				}
+			}
+
+			if len(parts) > 4 {
+				if parts[4] != "versions" && parts[4] != "meta" {
+					return fmt.Errorf("Attribute %q (%s) references an "+
+						"unknown entity %q", path.UI(), str, parts[4])
+				}
+			}
+		}
+
+	case XIDTYPE:
+		if valKind != reflect.String {
+			return fmt.Errorf("Attribute %q must be an xidtype", path.UI())
+		}
+		str := val.(string)
+
+		parts, err := ParseXID(str)
+		if err != nil {
+			return fmt.Errorf("Attribute %q isn't a valid xidtype, %s",
+				path.UI(), err)
+		}
+		if len(parts) < 1 || len(parts) > 3 {
+			return fmt.Errorf("Attribute %q isn't a valid xidtype, it "+
+				"must be of the form \"/[GROUPS[/RESOURCES[(/versions|/meta)]]]\"",
+				path.UI())
+		}
+
+		if len(parts) > 0 {
+			gm := e.Registry.Model.FindGroupModel(parts[0])
+			if gm == nil {
+				return fmt.Errorf("Attribute %q (%s) references an unknown "+
+					"GroupModel %q", path.UI(), str, parts[0])
+			}
+
+			if len(parts) > 1 {
+				rm := gm.FindResourceModel(parts[1])
+				if rm == nil {
+					return fmt.Errorf("Attribute %q (%s) references an "+
+						"unknown ResourceModel %q", path.UI(), str, parts[1])
+				}
+			}
+
+			if len(parts) > 2 {
+				if parts[2] != "versions" && parts[2] != "meta" {
+					return fmt.Errorf("Attribute %q (%s) references an "+
+						"unknown entity %q", path.UI(), str, parts[2])
+				}
 			}
 		}
 	case STRING:

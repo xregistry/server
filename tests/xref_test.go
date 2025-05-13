@@ -22,7 +22,7 @@ func TestXrefBasic(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
-		"XID \"dirs/d1/files/f1\" must start with /\n")
+		"'xref' \"dirs/d1/files/f1\" must start with /\n")
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
@@ -592,13 +592,13 @@ func TestXrefErrors(t *testing.T) {
 	gm2, _ := reg.Model.AddGroupModel("bars", "bar")
 
 	xCheckErr(t, gm2.AddXImportResource("dirs/files"),
-		`XID "dirs/files" must start with /`)
+		`'ximportresources' value "dirs/files" must start with /`)
 	xCheckErr(t, gm2.AddXImportResource("/dirs/files/versions"),
 		`'ximportresources' value of "/dirs/files/versions" must be of the form: /GROUPS/RESOURCES`)
 	xCheckErr(t, gm2.AddXImportResource("/dirs"),
 		`'ximportresources' value of "/dirs" must be of the form: /GROUPS/RESOURCES`)
 	xCheckErr(t, gm2.AddXImportResource("//files"),
-		`XID "//files" has an empty part at position 1`)
+		`'ximportresources' value "//files" has an empty part at position 1`)
 
 	// Now a good one
 	xNoErr(t, gm2.AddXImportResource("/dirs/files"))

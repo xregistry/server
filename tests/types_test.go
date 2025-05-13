@@ -82,6 +82,12 @@ func TestBasicTypes(t *testing.T) {
 	rm.AddAttr("filestring1", registry.STRING)
 	rm.AddAttr("filestring2", registry.STRING)
 
+	rm.AddAttr("xid1", registry.XID)
+	rm.AddAttr("xid2", registry.XID)
+	rm.AddAttr("xid3", registry.XID)
+	rm.AddAttr("xidtype1", registry.XIDTYPE)
+	rm.AddAttr("xidtype2", registry.XIDTYPE)
+
 	xNoErr(t, reg.SaveModel())
 
 	/* no longer required
@@ -356,6 +362,36 @@ func TestBasicTypes(t *testing.T) {
 			{"filedec2", -345.5, nil, ""},
 			{"filedec3", 346.0, nil, ""},
 			{"filedec4", 0.0, nil, ""},
+
+			{"xid1", "", nil, `Attribute "xid1" () isn't a valid xid, can't be an empty string`},
+			{"xid1", "//", nil, `Attribute "xid1" (//) isn't a valid xid, "//" has an empty part at position 1`},
+			{"xid1", "/dirs/d1/files/f1/versions/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/versions/v1/xxx) isn't a valid xid, "/dirs/d1/files/f1/versions/v1/xxx" is too long`},
+			{"xid1", "/DIRS", nil, `Attribute "xid1" (/DIRS) references an unknown GroupModel "DIRS"`},
+			{"xid1", "/DIRS/d1", nil, `Attribute "xid1" (/DIRS/d1) references an unknown GroupModel "DIRS"`},
+			{"xid1", "/dirs/d1/FILES", nil, `Attribute "xid1" (/dirs/d1/FILES) references an unknown ResourceModel "FILES"`},
+			{"xid1", "/dirs/d1/FILES/f1", nil, `Attribute "xid1" (/dirs/d1/FILES/f1) references an unknown ResourceModel "FILES"`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS) references an unknown entity "VERSIONS"`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1) references an unknown entity "VERSIONS"`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1/xxx) isn't a valid xid, "/dirs/d1/files/f1/VERSIONS/v1/xxx" is too long`},
+			{"xid1", "/dirs/d1/files/f1/META", nil, `Attribute "xid1" (/dirs/d1/files/f1/META) references an unknown entity "META"`},
+			{"xid1", "/dirs/d1/files/f1/META/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/META/xxx) references an unknown entity "META"`},
+			{"xid1", "/dirs/d1/files/f1/meta/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/meta/xxx) isn't a valid xid, it must be in the form of: /[GROUPS[/gID[/RESOURCES[/gID[/versions[/vid]]]]]]`},
+			{"xid1", "/dirs/d1/files/f1/meta", nil, ""},
+			{"xid2", "/dirs/d1/files/f1/versions", nil, ""},
+			{"xid3", "/dirs/d1/files/f1/versions/v1", nil, ""},
+
+			{"xidtype1", "", nil, `Attribute "xidtype1" isn't a valid xidtype, can't be an empty string`},
+			{"xidtype1", "//", nil, `Attribute "xidtype1" isn't a valid xidtype, "//" has an empty part at position 1`},
+			{"xidtype1", "/dirs/files/versions/xxx", nil, `Attribute "xidtype1" isn't a valid xidtype, it must be of the form "/[GROUPS[/RESOURCES[(/versions|/meta)]]]"`},
+			{"xidtype1", "/DIRS", nil, `Attribute "xidtype1" (/DIRS) references an unknown GroupModel "DIRS"`},
+			{"xidtype1", "/DIRS/FILES", nil, `Attribute "xidtype1" (/DIRS/FILES) references an unknown GroupModel "DIRS"`},
+			{"xidtype1", "/dirs/FILES/xxx", nil, `Attribute "xidtype1" (/dirs/FILES/xxx) references an unknown ResourceModel "FILES"`},
+			{"xidtype1", "/dirs/files/xxx", nil, `Attribute "xidtype1" (/dirs/files/xxx) references an unknown entity "xxx"`},
+			{"xidtype1", "/dirs/files/meta/xxx", nil, `Attribute "xidtype1" isn't a valid xidtype, it must be of the form "/[GROUPS[/RESOURCES[(/versions|/meta)]]]"`},
+			{"xidtype1", "/dirs/files/META", nil, `Attribute "xidtype1" (/dirs/files/META) references an unknown entity "META"`},
+			{"xidtype1", "/dirs/files/VERSIONS", nil, `Attribute "xidtype1" (/dirs/files/VERSIONS) references an unknown entity "VERSIONS"`},
+			{"xidtype1", "/dirs/files/meta", nil, ``},
+			{"xidtype2", "/dirs/files/versions", nil, ``},
 		}},
 		Test{ver, []Prop{
 			{"versionid", 66, nil, `Attribute "versionid" must be a string`},
@@ -385,15 +421,16 @@ func TestBasicTypes(t *testing.T) {
 		setter := test.Entity
 
 		for _, prop := range test.Props {
-			t.Logf("Test: %s  val:%v", prop.Name, prop.Value)
 			// Note that for Resources this will set them on the default Version
 			err := setter.SetSave(prop.Name, prop.Value)
 			if err != nil && err.Error() != prop.ErrMsg {
+				t.Logf("Test: %s  val:%v", prop.Name, prop.Value)
 				t.Errorf("Error calling set (%q=%v):\nExp: %s\nGot: %s",
 					prop.Name, prop.Value, prop.ErrMsg, err)
 				return // stop fast
 			}
 			if err == nil && prop.ErrMsg != "" {
+				t.Logf("Test: %s  val:%v", prop.Name, prop.Value)
 				t.Errorf("Setting (%q=%v) was supposed to fail:\nExp: %s",
 					prop.Name, prop.Value, prop.ErrMsg)
 				return // stop fast
@@ -416,6 +453,7 @@ func TestBasicTypes(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, expected) {
 				// if got != expected {
+				t.Logf("%s  val: %v", prop.Name, prop.Value)
 				t.Errorf("%T) %s: got %v(%T), expected %v(%T)\n",
 					test.Entity, prop.Name, got, got, prop.Value, prop.Value)
 				return // stop fast
@@ -524,7 +562,7 @@ func TestBasicTypes(t *testing.T) {
           "versionid": "v1",
           "self": "http://localhost:8181/dirs/d1/files/f1$details",
           "xid": "/dirs/d1/files/f1",
-          "epoch": 3,
+          "epoch": 5,
           "isdefault": true,
           "createdat": "2024-01-01T12:00:04Z",
           "modifiedat": "2024-01-01T12:00:02Z",
@@ -540,6 +578,11 @@ func TestBasicTypes(t *testing.T) {
           "fileint3": 0,
           "filestring1": "str4",
           "filestring2": "",
+          "xid1": "/dirs/d1/files/f1/meta",
+          "xid2": "/dirs/d1/files/f1/versions",
+          "xid3": "/dirs/d1/files/f1/versions/v1",
+          "xidtype1": "/dirs/files/meta",
+          "xidtype2": "/dirs/files/versions",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -563,7 +606,7 @@ func TestBasicTypes(t *testing.T) {
               "versionid": "v1",
               "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
               "xid": "/dirs/d1/files/f1/versions/v1",
-              "epoch": 3,
+              "epoch": 5,
               "isdefault": true,
               "createdat": "2024-01-01T12:00:04Z",
               "modifiedat": "2024-01-01T12:00:02Z",
@@ -578,7 +621,12 @@ func TestBasicTypes(t *testing.T) {
               "fileint2": -456,
               "fileint3": 0,
               "filestring1": "str4",
-              "filestring2": ""
+              "filestring2": "",
+              "xid1": "/dirs/d1/files/f1/meta",
+              "xid2": "/dirs/d1/files/f1/versions",
+              "xid3": "/dirs/d1/files/f1/versions/v1",
+              "xidtype1": "/dirs/files/meta",
+              "xidtype2": "/dirs/files/versions"
             }
           },
           "versionscount": 1

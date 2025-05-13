@@ -1006,43 +1006,33 @@ func MakeShort(buf []byte) string {
 }
 
 // xid:  /GROUPS/gid/RESOURCES/rid/meta|versions/vid
+// returns nil if just "/"
+// else []string of parts
 func ParseXID(xid string) ([]string, error) {
 	xid = strings.TrimSpace(xid)
 
 	if len(xid) == 0 {
-		return nil, fmt.Errorf("XID can't be an empty string")
+		return nil, fmt.Errorf("can't be an empty string")
 	}
 
 	if xid[0] != '/' {
-		return nil, fmt.Errorf("XID %q must start with /", xid)
+		return nil, fmt.Errorf("%q must start with /", xid)
 	}
 
 	parts := strings.SplitN(xid[1:], "/", 7) // one extra
 	if len(parts) > 6 {
-		return nil, fmt.Errorf("XID %q is too long", xid)
+		return nil, fmt.Errorf("%q is too long", xid)
 	}
+
+	if len(parts) == 1 && parts[0] == "" {
+		return []string{}, nil
+	}
+
 	for i, str := range parts {
 		if str == "" {
-			return nil, fmt.Errorf("XID %q has an empty part at position %d",
+			return nil, fmt.Errorf("%q has an empty part at position %d",
 				xid, i+1)
 		}
-	}
-	return parts, nil
-}
-
-// xid:  /GROUPS/RESOURCES[/versions]
-func ParseXIDTemplate(xid string) ([]string, error) {
-	if len(xid) == 0 {
-		return nil, fmt.Errorf("XID can't be an empty string")
-	}
-
-	if xid[0] != '/' {
-		return nil, fmt.Errorf("XID %q must start with /", xid)
-	}
-
-	parts := strings.SplitN(xid[1:], "/", 4) // one extra
-	if len(parts) > 3 {
-		return nil, fmt.Errorf("XID %q is too long", xid)
 	}
 	return parts, nil
 }

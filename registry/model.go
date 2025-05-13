@@ -1105,11 +1105,16 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 func (gm *GroupModel) AddXImportResource(absXID string) error {
 	parts, err := ParseXID(absXID)
 	if err != nil {
-		return err
+		return fmt.Errorf("'ximportresources' value %s", err)
 	}
 	if len(parts) != 2 {
 		return fmt.Errorf("'ximportresources' value of %q must be "+
 			"of the form: /GROUPS/RESOURCES", absXID)
+	}
+
+	if parts[0] == gm.Plural {
+		return fmt.Errorf("'ximportresources' value of %q is not allowed to "+
+			"reference its own GroupModel %q", absXID, gm.Plural)
 	}
 
 	for _, grName := range gm.XImportResources {
@@ -1582,7 +1587,7 @@ func IsScalar(daType string) bool {
 		daType == STRING || daType == TIMESTAMP || daType == UINTEGER ||
 		daType == URI || daType == URI_REFERENCE || daType == URI_TEMPLATE ||
 		daType == URL ||
-		daType == XID
+		daType == XID || daType == XIDTYPE
 }
 
 // Is some string variant
@@ -1910,7 +1915,7 @@ func (gm *GroupModel) Verify(gmName string) error {
 		}
 		if parts[1] == gm.Plural {
 			return fmt.Errorf("Group %q has a bad \"ximportresources\" value "+
-				"(%s), it can't reference itself", gm.Plural, grName)
+				"(%s), it can't reference its own Group", gm.Plural, grName)
 		}
 
 		g := gm.Model.FindGroupModel(parts[1])
@@ -2597,7 +2602,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		if attr.Type == "" {
 			return fmt.Errorf("%q is missing a \"type\"", path.UI())
 		}
-		if DefinedTypes[attr.Type] != true { // valie Type: field?
+		if DefinedTypes[attr.Type] != true { // valid Type: field?
 			return fmt.Errorf("%q has an invalid type: %s", path.UI(),
 				attr.Type)
 		}
@@ -2818,10 +2823,10 @@ var DefinedTypes = map[string]bool{
 	ANY:     true,
 	BOOLEAN: true,
 	DECIMAL: true, INTEGER: true, UINTEGER: true,
-	ARRAY:     true,
-	MAP:       true,
-	OBJECT:    true,
-	XID:       true,
+	ARRAY:  true,
+	MAP:    true,
+	OBJECT: true,
+	XID:    true, XIDTYPE: true,
 	STRING:    true,
 	TIMESTAMP: true,
 	URI:       true, URI_REFERENCE: true, URI_TEMPLATE: true, URL: true}

@@ -521,7 +521,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 				xref, _ = xrefAny.(string)
 				parts, err := ParseXID(xref)
 				if err != nil {
-					return nil, false, err
+					return nil, false, fmt.Errorf("'xref' %s", err)
 				}
 				if len(parts) != 4 {
 					return nil, false, fmt.Errorf("'xref' %q must be of the "+
