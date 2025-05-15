@@ -264,8 +264,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		m.Self = m
 
 		err = DoOne(r.tx, `
-        INSERT INTO Resources(SID, UID, RegistrySID, GroupSID, ModelSID, Path, Abstract)
-        SELECT ?,?,?,?,SID,?,?
+        INSERT INTO Resources(SID, UID, RegistrySID, GroupSID, ModelSID,
+            Path, Abstract, Plural, Singular)
+        SELECT ?,?,?,?,SID,?,?,?,?
         FROM ModelEntities
         WHERE RegistrySID=?
           AND ParentSID IN (
@@ -276,18 +277,19 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
             AND Plural=?`,
 			r.DbSID, r.UID, g.Registry.DbSID, g.DbSID,
 			g.Plural+"/"+g.UID+"/"+rType+"/"+r.UID, g.Plural+string(DB_IN)+rType,
-			g.Registry.DbSID,
-			g.Registry.DbSID, g.Plural,
+			r.Plural, r.Singular,
+
+			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
 			rType)
 		if err != nil {
 			return nil, false, fmt.Errorf("Error adding Resource: %s", err)
 		}
 
 		err = DoOne(r.tx, `
-        INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path, Abstract)
-        SELECT ?,?,?,?,?`,
+        INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path, Abstract, Plural, Singular)
+        SELECT ?,?,?,?,?,?,?`,
 			m.DbSID, g.Registry.DbSID, r.DbSID,
-			m.Path, m.Abstract)
+			m.Path, m.Abstract, r.Plural, r.Singular)
 		if err != nil {
 			return nil, false, fmt.Errorf("Error adding Meta: %s", err)
 		}

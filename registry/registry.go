@@ -620,11 +620,13 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		g.tx.AddGroup(g)
 
 		err = DoOne(reg.tx, `
-			INSERT INTO "Groups"(SID,RegistrySID,UID,ModelSID,Path,Abstract)
-			SELECT ?,?,?,SID,?,?
+			INSERT INTO "Groups"(SID,RegistrySID,UID,ModelSID,Path,Abstract,
+                Plural, Singular)
+			SELECT ?,?,?,SID,?,?,?,?
 			FROM ModelEntities
 			WHERE RegistrySID=? AND Plural=? AND ParentSID IS NULL`,
 			g.DbSID, g.Registry.DbSID, g.UID, g.Path, g.Abstract,
+			g.Plural, g.Singular,
 			g.Registry.DbSID, g.Plural)
 
 		if err != nil {

@@ -163,6 +163,8 @@ CREATE TABLE "Groups" (
     ModelSID        VARCHAR(64) NOT NULL,
     Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    Plural          VARCHAR(64) NOT NULL,
+    Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
     INDEX(RegistrySID, UID),
@@ -184,6 +186,8 @@ CREATE TABLE Resources (
     ModelSID        VARCHAR(64) NOT NULL,
     Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    Plural          VARCHAR(64) NOT NULL,
+    Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
     UNIQUE INDEX(RegistrySID,SID),
@@ -207,8 +211,11 @@ CREATE TABLE Metas (
     ResourceSID     VARCHAR(64) NOT NULL,   # System ID
     Path            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract        VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+    Plural          VARCHAR(64) NOT NULL,
+    Singular        VARCHAR(64) NOT NULL,
 
     xRefSID         VARCHAR(64),           # Generated
+    defaultVID      VARCHAR(64),           # Generated
 
     PRIMARY KEY (SID),
     UNIQUE INDEX(RegistrySID,SID),
@@ -294,6 +301,10 @@ BEGIN
           UPDATE Metas AS m SET xRefSID=@rSID
             WHERE m.SID=NEW.EntitySID $$
         END IF $$
+        IF (NEW.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NEW.PropValue
+            WHERE m.SID=NEW.EntitySID $$
+        END IF $$
     END IF $$
 END ;
 
@@ -305,43 +316,12 @@ BEGIN
           UPDATE Metas SET xRefSID=NULL
           WHERE SID=OLD.EntitySID $$
         END IF $$
+        IF (OLD.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NULL
+            WHERE m.SID=OLD.EntitySID $$
+        END IF $$
     END IF $$
 END ;
-
-CREATE VIEW xRefSrc2TgtResources AS
-SELECT
-    sR.RegistrySID,
-    sR.SID AS SourceSID,
-    sR.Path AS SourcePath,
-    sR.Abstract AS SourceAbstract,
-    mE.Singular AS Singular,
-    sM.xRefSID AS TargetSID
-FROM Resources AS sR
-JOIN Metas AS sM ON (sM.RegistrySID=sR.RegistrySID AND sM.ResourceSID=sR.SID)
-JOIN ModelEntities AS mE ON (mE.SID=sR.ModelSID)
-WHERE sM.xRefSID IS NOT NULL ;
-# The IS NOT NULL at the end really speeds things up
-# Check to see if putting xRefSID on the Resource is faster than being on meta
-
-CREATE VIEW xRefVersions AS
-SELECT
-    CONCAT('-', xR.SourceSID, '-', V.SID) AS SID,
-    V.UID,
-    xR.RegistrySID AS RegistrySID,
-    xR.SourceSID AS ResourceSID,
-    CONCAT(xR.SourcePath, '/versions/', V.UID) AS Path,
-    CONCAT(xR.SourceAbstract, ',versions') AS Abstract,
-    V.Counter,
-    V.ResourceURL,
-    V.ResourceProxyURL,
-    V.ResourceContentSID
-FROM xRefSrc2TgtResources AS xR
-JOIN Versions AS V ON (V.ResourceSID=xR.TargetSID);
-
-# This is Versions table + xref'd Versions
-CREATE VIEW EffectiveVersions AS
-SELECT SID,UID,RegistrySID,ResourceSID,Path,Abstract,Counter,ResourceURL,ResourceProxyURL,ResourceContentSID FROM Versions
-UNION SELECT * FROM xRefVersions ;
 
 CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
@@ -366,28 +346,26 @@ FROM Registries AS r
 UNION SELECT                            # Gather Groups
     g.RegistrySID AS RegSID,
     $ENTITY_GROUP AS Type,
-    mE.Plural AS Plural,
-    mE.Singular AS Singular,
+    g.Plural AS Plural,
+    g.Singular AS Singular,
     g.RegistrySID AS ParentSID,
     g.SID AS eSID,
     g.UID AS UID,
     g.Abstract,
     g.Path
 FROM "Groups" AS g
-JOIN ModelEntities AS mE ON (mE.SID=g.ModelSID)
 
 UNION SELECT                    # Add Resources
-    mE.RegistrySID AS RegSID,
+    r.RegistrySID AS RegSID,
     $ENTITY_RESOURCE AS Type,
-    mE.Plural AS Plural,
-    mE.Singular AS Singular,
+    r.Plural AS Plural,
+    r.Singular AS Singular,
     r.GroupSID AS ParentSID,
     r.SID AS eSID,
     r.UID AS UID,
     r.Abstract,
     r.Path
 FROM Resources AS r
-JOIN ModelEntities AS mE ON (mE.SID=r.ModelSID)
 
 UNION SELECT                    # Add Metas
     metas.RegistrySID AS RegSID,
@@ -401,7 +379,7 @@ UNION SELECT                    # Add Metas
     metas.Path
 FROM Metas AS metas
 
-UNION SELECT                    # Add Versions (including xref'd versions)
+UNION SELECT                    # Add Versions for non-xref Resources
     v.RegistrySID AS RegSID,
     $ENTITY_VERSION AS Type,
     'versions' AS Plural,
@@ -411,60 +389,22 @@ UNION SELECT                    # Add Versions (including xref'd versions)
     v.UID AS UID,
     v.Abstract,
     v.Path
-FROM EffectiveVersions AS v ;
+FROM Versions AS v
 
-# Calculate the raw Props that need to be duplicated due to xRefs.
-# This assumes other calculated props (like isDefault) will be done later
-CREATE VIEW xRefProps AS
-SELECT
-    xR.RegistrySID,
-    Ms.SID AS EntitySID,
-    P.PropName,
-    P.PropValue,
-    P.PropType,
-    false                         # DocView
-FROM xRefSrc2TgtResources AS xR
-JOIN Metas AS Ms ON (Ms.ResourceSID=xR.SourceSID)
-JOIN Metas AS Mt ON (Mt.ResourceSID=xR.TargetSID)
-JOIN Props AS P ON (P.EntitySID=Mt.SID AND
-       P.PropName NOT IN ('xref$DB_IN',CONCAT(xR.Singular,'id$DB_IN')))
-
-/*
-SELECT                            # Iterate over the xRef Resources
-    xR.RegistrySID,
-    xR.SourceSID AS EntitySID,
-    P.PropName,
-    P.PropValue,
-    P.PropType
-FROM xRefSrc2TgtResources AS xR
-JOIN Props AS P ON (              # Grab the Target Resource's attributes
-    P.EntitySID=xR.TargetSID AND
-    P.PropName<>CONCAT(xR.Singular,'id$DB_IN') AND
-    P.PropName<>'xref$DB_IN'
-)
-*/
-
-UNION SELECT                      # Find all Version attributes (not meta)
-    xR.RegistrySID,
-    CONCAT('-', xR.SourceSID, '-', P.EntitySID),
-    P.PropName,
-    P.PropValue,
-    P.PropType,
-    false                         # DocView
-FROM xRefSrc2TgtResources AS xR
-JOIN Props AS P ON (
-    P.EntitySID IN (
-        SELECT eSID FROM Entities WHERE ParentSID=xR.TargetSID AND
-                                        Type=$ENTITY_VERSION
-    ) AND
-    P.PropName<>'xref$DB_IN'
-)
-;
-
-# This is the Props table + xref'd props (for Resource and Versions)
-CREATE VIEW EffectiveProps AS
-SELECT RegistrySID, EntitySID, PropName, PropValue, PropType, DocView FROM Props
-UNION SELECT * FROM xRefProps ;
+UNION SELECT                    # Add Versions for xref Resources
+    v.RegistrySID AS RegSID,
+    $ENTITY_VERSION AS Type,
+    'versions' AS Plural,
+    'version' AS Singular,
+    m.ResourceSID AS ParentSID,
+    CONCAT('-', m.ResourceSID, '-', v.SID) AS eSID,
+    v.UID AS UID,
+    CONCAT(sR.Abstract, ',versions') AS Abstract,
+    CONCAT(sR.Path, '/versions/', v.UID) AS Path
+FROM Metas AS m
+JOIN Versions AS v ON (v.ResourceSID=m.xRefSID)
+JOIN Resources AS sR ON (sR.SID=m.ResourceSID)
+WHERE m.xRefSID IS NOT NULL ;
 
 CREATE TABLE ResourceContents (
     VersionSID      VARCHAR(255),
@@ -475,33 +415,34 @@ CREATE TABLE ResourceContents (
 
 # This pulls-in or creates all props in Resources due to default Ver processing
 CREATE VIEW DefaultProps AS
-SELECT
+SELECT                            # Get default prop for non-xref resources
     p.RegistrySID,
     m.ResourceSID AS EntitySID,
     p.PropName,
     p.PropValue,
     p.PropType,
     false                          # DocView
-FROM EffectiveProps AS p
-JOIN EffectiveVersions AS v ON (p.EntitySID=v.SID)
-JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
-JOIN EffectiveProps AS p1 ON (p1.EntitySID=m.SID)
-WHERE p1.PropName='defaultVersionId$DB_IN' AND v.UID=p1.PropValue
+FROM Metas AS m
+JOIN Versions AS v
+  ON (m.ResourceSID=v.ResourceSID AND v.UID=m.defaultVID)
+JOIN Props AS p ON (p.EntitySID=v.SID)
+WHERE m.xRefSID IS NULL
 
-/*
-SELECT
-    m.RegistrySID,
+UNION SELECT                       # Get default prop for xref resources
+    p.RegistrySID,
     m.ResourceSID AS EntitySID,
     p.PropName,
     p.PropValue,
-    p.PropType
-FROM Metas m
-JOIN EffectiveProps AS dvp ON (dvp.EntitySID=m.SID AND
-     dvp.PropName='defaultVersionId,')
-JOIN EffectiveVersions AS v ON (m.ResourceSID=v.ResourceSID
-     AND v.UID=dvp.PropValue)
-JOIN EffectiveProps AS p ON (p.EntitySID=v.SID)
-*/
+    p.PropType,
+    false                          # DocView
+FROM Metas AS m
+JOIN Versions AS v
+  ON (
+    m.xRefSID=v.ResourceSID AND
+        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
+  )
+JOIN Props AS p ON (p.EntitySID=v.SID)
+WHERE m.xRefSID IS NOT NULL
 
 UNION SELECT                    # Add Resource.isdefault, always 'true'
     m.RegistrySID,
@@ -513,21 +454,55 @@ UNION SELECT                    # Add Resource.isdefault, always 'true'
 FROM Metas AS m ;
 
 CREATE VIEW AllProps AS
-SELECT * FROM EffectiveProps
+SELECT                          # Base props
+    RegistrySID,
+    EntitySID,
+    PropName,
+    PropValue,
+    PropType,
+    DocView
+FROM Props
+
+UNION SELECT                    # Add Props for xRef resources
+    mS.RegistrySID AS RegistrySID,
+    mS.SID AS EntitySID,
+    p.PropName AS PropName,
+    p.PropValue AS PropValue,
+    p.PropType AS PropType,
+    false AS DocView
+FROM Metas AS mS
+JOIN Metas AS mT ON (mT.ResourceSID=mS.xRefSID)
+JOIN Props AS p ON (p.EntitySID=mT.SID AND
+       p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')))
+WHERE mS.xRefSID IS NOT NULL
+
+UNION SELECT                   # Add Version props for xRef resources
+    mS.RegistrySID AS RegistrySID,
+    CONCAT('-', mS.ResourceSID, '-', p.EntitySID) AS EntitySID,
+    p.PropName AS PropName,
+    p.PropValue AS PropValue,
+    p.PropType AS PropType,
+    false AS DocView
+FROM Metas as mS
+JOIN Props as p ON (p.EntitySID IN (
+       SELECT eSID FROM Entities WHERE ParentSID=mS.xRefSID AND
+                                       Type=$ENTITY_VERSION
+     ) AND p.PropName<>'xref$DB_IN')
+WHERE mS.xRefSID IS NOT NULL
+
 UNION SELECT * FROM DefaultProps
 
 UNION SELECT                    # Add Version.isdefault, which is calculated
   v.RegSID,
   v.eSID,
   'isdefault$DB_IN',
-  IF( EXISTS(
-        SELECT 1 FROM EffectiveProps AS p
-        WHERE p.EntitySID=m.SID AND
-              p.PropName='defaultversionid$DB_IN' AND
-              p.PropValue=v.UID
+  IF(
+      (m.defaultVID IS NOT NULL AND v.UID=m.defaultVID) OR
+      (m.defaultVID IS NULL AND m.xRefSID IS NOT NULL AND
+        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
       ),
-      'true',
-      'false'),
+      'true', 'false'
+    ),
   'boolean',                    # Type
   IF(LEFT(v.eSID,1)='-',false,true)  # DocView,Lie if it's not xref'd prop/ver
 FROM Entities AS v
@@ -545,25 +520,13 @@ FROM Entities AS e
 UNION SELECT                   # Add in Version.RESOURCEid, which is calculated
   v.RegSID,
   v.eSID,
-  CONCAT(mE.Singular, 'id$DB_IN'),
+  CONCAT(r.Singular, 'id$DB_IN'),
   r.UID,
   'string',
   IF(LEFT(v.eSID,1)='-',false,true)  # Lie if it's not an xref'd prop/ver
 FROM Entities AS v
 JOIN Resources AS r ON (r.SID=v.ParentSID)
-JOIN ModelEntities AS mE ON (mE.SID=r.ModelSID)
 WHERE v.Type=$ENTITY_VERSION;
-
-CREATE VIEW xRefResources AS
-SELECT
-    xR.SourceSID AS SID,
-    R.UID,
-    R.GroupSID,
-    R.ModelSID,
-    R.Path,
-    R.Abstract
-FROM xRefSrc2TgtResources AS xR
-JOIN Resources AS R ON (R.SID=xR.SourceSID) ;
 
 CREATE VIEW FullTree AS
 SELECT

@@ -113,3 +113,9 @@ TODOs:
 - don't allow people to change the Singular name of a groupType or resType
 - add "resourceattributes" to the model
 - add "versionmode"
+- test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaing it
+  can point to a resource or a version
+- support <, <=, >, >=, <>, !=
+  - make sure * can't be used when using <, >... just =, <> and !=
+  - case insensitive compares
+- support modelsource

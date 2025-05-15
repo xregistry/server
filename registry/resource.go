@@ -564,10 +564,11 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 		meta.Self = meta
 
 		err = DoOne(r.tx, `
-        INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path, Abstract)
-        SELECT ?,?,?,?,?`,
+        INSERT INTO Metas(SID, RegistrySID, ResourceSID,
+            Path, Abstract, Plural, Singular)
+        SELECT ?,?,?,?,?,?`,
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
-			meta.Path, meta.Abstract)
+			meta.Path, meta.Abstract, r.Plural, r.Singular)
 		if err != nil {
 			return nil, false, fmt.Errorf("Error adding Meta: %s", err)
 		}
