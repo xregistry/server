@@ -239,11 +239,6 @@ CREATE TABLE Versions (
     ResourceSID         VARCHAR(64) NOT NULL,   # System ID
     Path                VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-    Counter             SERIAL,                 # Counter, auto-increments
-
-    ResourceURL         VARCHAR(255),
-    ResourceProxyURL    VARCHAR(255),
-    ResourceContentSID  VARCHAR(64),
 
     Ancestor            VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
     CreatedAt           VARCHAR(255),           # Generated (for ancestor stuff

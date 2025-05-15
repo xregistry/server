@@ -264,8 +264,11 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		m.Self = m
 
 		err = DoOne(r.tx, `
-        INSERT INTO Resources(SID, UID, RegistrySID, GroupSID, ModelSID,
-            Path, Abstract, Plural, Singular)
+        INSERT INTO Resources(
+            SID, UID, RegistrySID,
+            GroupSID, ModelSID,
+            Path, Abstract,
+            Plural, Singular)
         SELECT ?,?,?,?,SID,?,?,?,?
         FROM ModelEntities
         WHERE RegistrySID=?
@@ -275,12 +278,17 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
             AND ParentSID IS NULL
             AND Plural=?)
             AND Plural=?`,
-			r.DbSID, r.UID, g.Registry.DbSID, g.DbSID,
-			g.Plural+"/"+g.UID+"/"+rType+"/"+r.UID, g.Plural+string(DB_IN)+rType,
+
+			r.DbSID, r.UID, g.Registry.DbSID,
+			g.DbSID, /* , ModelSID */
+			r.Path, r.Abstract,
 			r.Plural, r.Singular,
 
 			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
 			rType)
+		// When we delete entities due to their model def being deleted
+		// then I think we can use rModel.SID in the above sql stmt
+		// instead of the sub-query
 		if err != nil {
 			return nil, false, fmt.Errorf("Error adding Resource: %s", err)
 		}
