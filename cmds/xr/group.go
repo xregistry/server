@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -118,7 +119,8 @@ func groupCreateFunc(cmd *cobra.Command, args []string) {
 		if !found {
 			if defaultPlural == "" {
 				defaultSingular = singular
-				g := reg.Model.FindGroupBySingular(singular)
+				g, err := reg.FindGroupModelBySingular(singular)
+				Error(err)
 				if g == nil {
 					Error("Unknown group type: %s", singular)
 				}
@@ -129,7 +131,8 @@ func groupCreateFunc(cmd *cobra.Command, args []string) {
 			gID = singular
 			singular = defaultSingular
 		} else {
-			g := reg.Model.FindGroupBySingular(singular)
+			g, err := reg.FindGroupModelBySingular(singular)
+			Error(err)
 			if g == nil {
 				Error("Unknown group type: %s", singular)
 			}
@@ -188,7 +191,9 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	keys := registry.SortedKeys(reg.Model.Groups)
+	keys, err := reg.ListGroupModels()
+	Error(err)
+	sort.Strings(keys)
 
 	output, _ := cmd.Flags().GetString("output")
 	switch output {
@@ -196,7 +201,8 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
 		fmt.Fprintln(tw, "PLURAL\tSINGULAR\tURL")
 		for _, key := range keys {
-			g := reg.Model.Groups[key]
+			g, err := reg.FindGroupModel(key)
+			Error(err)
 			url, err := reg.URLWithPath(g.Plural)
 			Error(err)
 			fmt.Fprintf(tw, "%s\t%s\t%s\n", g.Plural, g.Singular, url.String())
@@ -210,7 +216,8 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 		}
 		res := []out{}
 		for _, key := range keys {
-			g := reg.Model.Groups[key]
+			g, err := reg.FindGroupModel(key)
+			Error(err)
 			url, err := reg.URLWithPath(g.Plural)
 			Error(err)
 			res = append(res, out{g.Plural, g.Singular, url.String()})
@@ -234,14 +241,18 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	if len(args) == 0 {
-		args = append(args, registry.SortedKeys(reg.Model.Groups)...)
+		keys, err := reg.ListGroupModels()
+		Error(err)
+		sort.Strings(keys)
+		args = append(args, keys...)
 	}
 
 	// GroupType / GroupID / GroupAttrName / AttrValue(any)
 	res := map[string]map[string]map[string]any{}
 
 	for _, plural := range args {
-		g := reg.Model.FindGroupModel(plural)
+		g, err := reg.FindGroupModel(plural)
+		Error(err)
 		if g == nil {
 			Error("Uknown Group type: %s", plural)
 		}
@@ -263,7 +274,8 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 			for _, gMapKey := range gMapKeys {
 				group := gMap[gMapKey]
 
-				gm := reg.Model.FindGroupModel(groupKey)
+				gm, err := reg.FindGroupModel(groupKey)
+				Error(err)
 				children := 0
 				rList := gm.GetResourceList()
 				for _, rName := range rList {
@@ -299,84 +311,86 @@ func groupDeleteFunc(cmd *cobra.Command, args []string) {
 	}
 
 	/*
-		all, _ := cmd.Flags().GetBool("all")
+				all, _ := cmd.Flags().GetBool("all")
 
-		reg, err := xrlib.GetRegistry(Server)
-		Error(err)
+				reg, err := xrlib.GetRegistry(Server)
+				Error(err)
 
-		defaultPlural := ""
-		defaultSingular := ""
-		type Item struct {
-			Plural   string
-			Singular string
-			ID       string
-		}
-		items := []Item{}
+				defaultPlural := ""
+				defaultSingular := ""
+				type Item struct {
+					Plural   string
+					Singular string
+					ID       string
+				}
+				items := []Item{}
 
-		for _, arg := range args {
-			plural := ""
-			singular, gID, found := strings.Cut(arg, "/")
-			if !found {
-				if defaultPlural == "" {
-					defaultSingular = singular
-					g := reg.Model.FindGroupBySingular(singular)
-					if g == nil {
-						Error("Unknown group type: %s", singular)
+				for _, arg := range args {
+					plural := ""
+					singular, gID, found := strings.Cut(arg, "/")
+					if !found {
+						if defaultPlural == "" {
+							defaultSingular = singular
+							g, err := reg.FindGroupModelBySingular(singular)
+		                    Error(err)
+							if g == nil {
+								Error("Unknown group type: %s", singular)
+							}
+							defaultPlural = g.Plural
+							continue
+						}
+						plural = defaultPlural
+						gID = singular
+						singular = defaultSingular
+					} else {
+						g, err := reg.FindGroupModelBySingular(singular)
+	                    Error(err)
+						if g == nil {
+							Error("Unknown group type: %s", singular)
+						}
+						plural = g.Plural
 					}
-					defaultPlural = g.Plural
-					continue
+					items = append(items, Item{plural, singular, gID})
 				}
-				plural = defaultPlural
-				gID = singular
-				singular = defaultSingular
-			} else {
-				g := reg.Model.FindGroupBySingular(singular)
-				if g == nil {
-					Error("Unknown group type: %s", singular)
+
+				if len(items) == 0 && defaultPlural != "" {
+					if dataMap == nil {
+						Error("If no IDs are provided then you must provide data")
+					}
+
+					val, ok := dataMap[defaultSingular+"id"]
+					if !ok {
+						Error("No IDs were provided and the data doesn't have %q",
+							defaultSingular+"id")
+					}
+
+					gID, err := xrlib.AnyToString(val)
+					if err != nil {
+						Error(fmt.Sprintf("Value of attribute %q in JSON isn't a "+
+							"string: %v", defaultSingular+"id", val))
+					}
+
+					items = []Item{Item{defaultPlural, defaultSingular, gID}}
 				}
-				plural = g.Plural
-			}
-			items = append(items, Item{plural, singular, gID})
-		}
 
-		if len(items) == 0 && defaultPlural != "" {
-			if dataMap == nil {
-				Error("If no IDs are provided then you must provide data")
-			}
-
-			val, ok := dataMap[defaultSingular+"id"]
-			if !ok {
-				Error("No IDs were provided and the data doesn't have %q",
-					defaultSingular+"id")
-			}
-
-			gID, err := xrlib.AnyToString(val)
-			if err != nil {
-				Error(fmt.Sprintf("Value of attribute %q in JSON isn't a "+
-					"string: %v", defaultSingular+"id", val))
-			}
-
-			items = []Item{Item{defaultPlural, defaultSingular, gID}}
-		}
-
-		// If any exist don't create any
-		for _, item := range items {
-			_, err := reg.HttpDo("GET", item.Plural+"/"+item.ID, nil)
-			if err == nil {
-				Error("Group %q (type: %s) already exists", item.ID, item.Singular)
-			}
-		}
-
-		for _, item := range items {
-			_, err = reg.HttpDo("PUT", item.Plural+"/"+item.ID, []byte(data))
-			if err != nil {
-				tmp := err.Error()
-				if len(args) > 1 {
-					tmp = item.ID + ": " + tmp
+				// If any exist don't create any
+				for _, item := range items {
+					_, err := reg.HttpDo("GET", item.Plural+"/"+item.ID, nil)
+					if err == nil {
+						Error("Group %q (type: %s) already exists", item.ID, item.Singular)
+					}
 				}
-				Error(tmp)
-			}
-			Verbose("Group %s (type: %s) created", item.ID, item.Singular)
-		}
+
+				for _, item := range items {
+					_, err = reg.HttpDo("PUT", item.Plural+"/"+item.ID, []byte(data))
+					if err != nil {
+						tmp := err.Error()
+						if len(args) > 1 {
+							tmp = item.ID + ": " + tmp
+						}
+						Error(tmp)
+					}
+					Verbose("Group %s (type: %s) created", item.ID, item.Singular)
+				}
 	*/
 }

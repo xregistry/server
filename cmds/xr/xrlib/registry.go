@@ -146,7 +146,14 @@ type Entity struct {
 	abstract string
 }
 
+var Registries = map[string]*Registry{}
+
 func GetRegistry(url string) (*Registry, error) {
+	reg := Registries[url]
+	if reg != nil {
+		return reg, nil
+	}
+
 	url = strings.TrimSpace(url)
 	if url == "" {
 		return nil, fmt.Errorf("No Server address provided")
@@ -156,7 +163,7 @@ func GetRegistry(url string) (*Registry, error) {
 		url = "http://" + strings.TrimLeft(url, "/")
 	}
 
-	reg := &Registry{
+	reg = &Registry{
 		Entity: Entity{
 			daType:   registry.ENTITY_REGISTRY,
 			path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
@@ -166,7 +173,9 @@ func GetRegistry(url string) (*Registry, error) {
 	}
 	reg.Entity.registry = reg
 
-	return reg, reg.Refresh()
+	Registries[url] = reg
+
+	return reg, nil
 }
 
 func (reg *Registry) Refresh() error {
@@ -214,12 +223,70 @@ func (reg *Registry) ToString() string {
 		for k, v := range reg.attributes {
 			tmp[k] = v
 		}
-		tmp["model"] = reg.Model
-		tmp["capabilities"] = reg.Capabilities
+		tmp["model"], _ = reg.GetModel()
+		tmp["capabilities"], _ = reg.GetCapabilities()
 	*/
 
 	buf, _ := json.MarshalIndent(reg, "", "  ")
 	return string(buf)
+}
+
+func (reg *Registry) GetModel() (*Model, error) {
+	if reg.Model == nil {
+		err := reg.RefreshModel()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return reg.Model, nil
+}
+
+func (reg *Registry) GetCapabilities() (*Capabilities, error) {
+	if reg.Capabilities == nil {
+		err := reg.RefreshCapabilities()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return reg.Capabilities, nil
+}
+
+func (reg *Registry) FindGroupModel(gPlural string) (*GroupModel, error) {
+	model, err := reg.GetModel()
+	if err != nil {
+		return nil, err
+	}
+	return model.FindGroupModel(gPlural), nil
+}
+
+func (reg *Registry) FindGroupModelBySingular(gSingular string) (*GroupModel, error) {
+	model, err := reg.GetModel()
+	if err != nil {
+		return nil, err
+	}
+	return model.FindGroupBySingular(gSingular), nil
+}
+
+func (reg *Registry) ListGroupModels() ([]string, error) {
+	model, err := reg.GetModel()
+	if err != nil {
+		return nil, err
+	}
+
+	res := []string(nil)
+	for _, gm := range model.Groups {
+		res = append(res, gm.Plural)
+	}
+
+	return res, nil
+}
+
+func (reg *Registry) FindResourceModel(gPlural, rPlural string) (*ResourceModel, error) {
+	model, err := reg.GetModel()
+	if err != nil {
+		return nil, err
+	}
+	return model.FindResourceModel(gPlural, rPlural), nil
 }
 
 func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, error) {
@@ -347,7 +414,10 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, err
 		return nil, nil
 	}
 
-	gm := reg.Model.FindGroupModel(xid.Group)
+	gm, err := reg.FindGroupModel(xid.Group)
+	if err != nil {
+		return nil, err
+	}
 	if gm == nil {
 		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
 	}

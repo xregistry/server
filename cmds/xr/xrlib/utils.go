@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -323,7 +324,16 @@ func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
 	}
 
 	gm := (*GroupModel)(nil)
-	for _, m := range reg.Model.Groups {
+	gList, err := reg.ListGroupModels()
+	if err != nil {
+		return err
+	}
+	sort.Strings(gList)
+	for _, plural := range gList {
+		m, err := reg.FindGroupModel(plural)
+		if err != nil {
+			return err
+		}
 		if m.Plural == xid.Group || (allowSingular && m.Singular == xid.Group) {
 			gm = m
 			break
@@ -363,7 +373,10 @@ func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
 		return nil, nil
 	}
 
-	gm := reg.Model.FindGroupModel(xid.Group)
+	gm, err := reg.FindGroupModel(xid.Group)
+	if err != nil {
+		return nil, err
+	}
 	if gm == nil {
 		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
 	}

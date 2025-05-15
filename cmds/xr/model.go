@@ -404,7 +404,8 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model := reg.Model
+	model, err := reg.GetModel()
+	Error(err)
 	verMsg := ""
 	for _, arg := range args {
 		parts := strings.Split(arg, ":")
@@ -471,7 +472,8 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model := reg.Model
+	model, err := reg.GetModel()
+	Error(err)
 	verMsg := ""
 	for _, arg := range args {
 		gm := model.FindGroupModel(arg)
@@ -518,7 +520,8 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model := reg.Model
+	model, err := reg.GetModel()
+	Error(err)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
 		Error("Group type %q does not exist", group)
@@ -594,7 +597,8 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model := reg.Model
+	model, err := reg.GetModel()
+	Error(err)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
 		Error("Group type %q does not exist", group)

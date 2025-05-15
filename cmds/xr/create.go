@@ -24,7 +24,7 @@ func addCreateCmd(parent *cobra.Command) {
 	createCmd.Flags().BoolP("patch", "p", false,
 		"Only 'update' specified attributes when -f is applied")
 	createCmd.Flags().BoolP("force", "f", false,
-		"Force an 'update' if entities already exist")
+		"Force an 'update' if entity already exist, skip pre-flight checks")
 
 	parent.AddCommand(createCmd)
 }
@@ -42,6 +42,8 @@ func addUpsertCmd(parent *cobra.Command) {
 		"Data(json), @FILE, @URL, @-(stdin)")
 	upsertCmd.Flags().BoolP("patch", "p", false,
 		"Only update specified attributes")
+	upsertCmd.Flags().BoolP("force", "f", false,
+		"Skip pre-flight checks")
 
 	parent.AddCommand(upsertCmd)
 }
@@ -59,7 +61,7 @@ func addUpdateCmd(parent *cobra.Command) {
 	updateCmd.Flags().BoolP("patch", "p", false,
 		"Only update specified attributes")
 	updateCmd.Flags().BoolP("force", "f", false,
-		"Force a 'create' if entities don't exist")
+		"Force a 'create' if entity doesnt exist, skip pre-flight checks")
 
 	parent.AddCommand(updateCmd)
 }
@@ -90,24 +92,14 @@ func createFunc(cmd *cobra.Command, args []string) {
 	// object := any(nil)
 	xid, err := xrlib.ParseXID(xidStr)
 	Error(err)
-	dataIsMeta := true
 	suffix := ""
 
-	rm, err := xid.GetResourceModelFrom(reg)
-	Error(err)
+	// rm, err := xid.GetResourceModelFrom(reg)
+	// Error(err)
 
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	patch, _ := cmd.Flags().GetBool("patch")
 	force, _ := cmd.Flags().GetBool("force")
-
-	// If we have doc + ../rID or ../vID then...
-	if xid.ResourceID != "" && rm.HasDoc() {
-		if isMetadata {
-			suffix = "$details"
-		} else {
-			dataIsMeta = false
-		}
-	}
 
 	data, _ := cmd.Flags().GetString("data")
 	if len(data) > 0 && data[0] == '@' {
@@ -116,7 +108,19 @@ func createFunc(cmd *cobra.Command, args []string) {
 		data = string(buf)
 	}
 
-	Error(xid.ValidateTypes(reg, false))
+	// If we have doc + ../rID or ../vID then...
+	if xid.ResourceID != "" && isMetadata {
+		suffix = "$details"
+
+		// If not uploading a domain doc then make sure data has something
+		if len(data) == 0 {
+			data = `{}`
+		}
+	}
+
+	if !force {
+		Error(xid.ValidateTypes(reg, false))
+	}
 
 	objects := (map[string]json.RawMessage)(nil)
 	IDs := ""
@@ -133,11 +137,6 @@ func createFunc(cmd *cobra.Command, args []string) {
 			}
 		}
 		IDs = xid.String()
-
-		// If not uploading a domain doc then make sure data has something
-		if dataIsMeta && len(data) == 0 {
-			data = `{}`
-		}
 	} else {
 		if len(data) == 0 {
 			Error("Missing data")
