@@ -18,6 +18,7 @@ type Registry struct {
 
 	isNew  bool
 	server string
+	config map[string]any
 }
 
 type RegistryDefined struct {
@@ -170,12 +171,17 @@ func GetRegistry(url string) (*Registry, error) {
 			abstract: "", // [GROUPS[/RESOURCES[/versions]]]
 		},
 		server: url,
+		config: map[string]any{},
 	}
 	reg.Entity.registry = reg
 
 	Registries[url] = reg
 
 	return reg, nil
+}
+
+func (reg *Registry) GetURL() string {
+	return reg.server
 }
 
 func (reg *Registry) Refresh() error {
@@ -440,4 +446,59 @@ func (reg *Registry) DownloadObject(path string) (map[string]any, error) {
 
 func (rm *ResourceModel) HasDoc() bool {
 	return rm != nil && rm.HasDocument != nil && *(rm.HasDocument) == true
+}
+
+func (reg *Registry) SetConfig(name string, value any) {
+	name = strings.TrimSpace(name)
+	if value == nil {
+		delete(reg.config, name)
+	} else {
+		reg.config[name] = value
+	}
+}
+
+func (reg *Registry) GetConfig(name string) any {
+	return reg.config[name]
+}
+
+func (reg *Registry) GetConfigAsString(name string) string {
+	val := reg.config[name]
+
+	if registry.IsNil(val) {
+		return ""
+	}
+
+	if str, ok := val.(string); ok {
+		return str
+	}
+
+	return ""
+}
+
+func (reg *Registry) LoadConfigFromFile(file string) error {
+	buf, err := ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	return reg.LoadConfigFromString(string(buf))
+}
+
+// Buffer syntax:
+// prop: value
+// # comment
+func (reg *Registry) LoadConfigFromString(buffer string) error {
+	lines := strings.Split(buffer, "/n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] == '#' {
+			continue
+		}
+		name, value, _ := strings.Cut(line, ":")
+		if name == "" {
+			return fmt.Errorf("Error in config data - no name: %q", line)
+		}
+		reg.SetConfig(name, value)
+	}
+	return nil
 }
