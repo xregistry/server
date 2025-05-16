@@ -23,13 +23,13 @@ export BUILDFLAGS     := -ldflags '-X=main.GitCommit=$(GIT_COMMIT)'
 export STATIC         := -ldflags '-X=main.GitCommit=$(GIT_COMMIT) \
                          -w -extldflags "-static"' -tags netgo,osusergo -a
 
-TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v save)
+TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
-.cmds: xrserver xr xrconform
+.cmds: xrserver xr
 	@touch .cmds
 
 qtest: .test
@@ -95,11 +95,6 @@ xr-all: .xr-all
 	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xr.mac.amd64 cmds/xr/*.go
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xr.mac.arm64 cmds/xr/*.go
 	@touch .xr-all
-
-xrconform: cmds/xrconform/* registry/*
-	@echo
-	@echo "# Building xrconform (compliance checker)"
-	go build $(BUILDFLAGS) -o $@ cmds/xrconform/*.go
 
 images: .images
 .images: xr xrserver misc/waitformysql \
@@ -243,7 +238,6 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f xrconform
 	@rm -f .test .images .push .xr-all .xrserver-all
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1

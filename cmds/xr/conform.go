@@ -164,7 +164,7 @@ func (xr *XRegistry) LoadConfig(path string) error {
 // # comment
 func (xr *XRegistry) LoadConfigFromFile(filename string) error {
 	if filename == "" {
-		filename = "xrconform.config"
+		filename = "xr.config"
 	}
 	buf, err := os.ReadFile(filename)
 	if err != nil {

@@ -1,11 +1,10 @@
 # Generated exes
 /xrserver
 /xr
-/xrconform
 /xrserver.*
 /xr.*
 
-# Makefile fake targets
+# Makefile semi-targets
 /.cmds
 /.test
 /.utest
