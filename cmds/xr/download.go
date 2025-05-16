@@ -52,6 +52,12 @@ func addDownloadCmd(parent *cobra.Command) {
 		"Directory index file name")
 	downloadCmd.Flags().BoolP("md2html", "m", false,
 		"Generate HTML files for MD files")
+	downloadCmd.Flags().StringP("md2html-css-link", "", "",
+		"CSS stylesheet 'link' to include in md2html files")
+	downloadCmd.Flags().StringP("md2html-header", "", "",
+		"HTML to include in <head> of md2html files  (data,@FILE,@URL,@-)")
+	downloadCmd.Flags().StringP("md2html-html", "", "",
+		"HTML to include after <head> in md2html files  (data,@FILE,@URL,@-)")
 	downloadCmd.Flags().BoolP("capabilities", "c", false,
 		"Modify capabilities for static site")
 
@@ -82,6 +88,26 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}
 
 	md2html, _ := cmd.Flags().GetBool("md2html")
+	md2htmlLink, _ := cmd.Flags().GetString("md2html-css-link")
+	md2htmlHeader, _ := cmd.Flags().GetString("md2html-header")
+	md2htmlHTML, _ := cmd.Flags().GetString("md2html-html")
+
+	if md2htmlHeader != "" {
+		if md2htmlHeader[0] == '@' {
+			buf, err := xrlib.ReadFile(md2htmlHeader[1:])
+			Error(err)
+			md2htmlHeader = string(buf)
+		}
+	}
+
+	if md2htmlHTML != "" {
+		if md2htmlHTML[0] == '@' {
+			buf, err := xrlib.ReadFile(md2htmlHTML[1:])
+			Error(err)
+			md2htmlHTML = string(buf)
+		}
+	}
+
 	indexFile, _ := cmd.Flags().GetString("index")
 	host, _ := cmd.Flags().GetString("url")
 	modCap, _ := cmd.Flags().GetBool("capabilities")
@@ -210,28 +236,58 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, hdr := Download(reg, xid.String())
 				Write(fn, data)
 
-				self := host + xid.String()[1:]
-				hdr["xregistry-self"] = self
-				hdr["xregistry-versionsurl"] = self + "/versions"
-				hdr["xregistry-metaurl"] = self + "/meta"
-				if hdr["content-location"] != "" {
-					cl := self + "/versions/" + hdr["xregistry-versionid"]
-					hdr["content-location"] = cl
-				}
+				if hdr != nil {
+					self := host + xid.String()[1:]
+					hdr["xregistry-self"] = self
+					hdr["xregistry-versionsurl"] = self + "/versions"
+					hdr["xregistry-metaurl"] = self + "/meta"
+					if hdr["content-location"] != "" {
+						cl := self + "/versions/" + hdr["xregistry-versionid"]
+						hdr["content-location"] = cl
+					}
 
-				fn = file + xid.String() + ".hdr"
-				str := ""
-				for _, k := range registry.SortedKeys(hdr) {
-					// Assume just one value per header
-					str += fmt.Sprintf("%s:%s\n", k, hdr[k])
+					fn = file + xid.String() + ".hdr"
+					str := ""
+					for _, k := range registry.SortedKeys(hdr) {
+						// Assume just one value per header
+						str += fmt.Sprintf("%s:%s\n", k, hdr[k])
+					}
+					Write(fn, []byte(str))
 				}
-				Write(fn, []byte(str))
 
 				fn = file + xid.String()
 				if md2html && strings.HasSuffix(fn, ".md") {
 					fn = fn[:len(fn)-2] + "html"
 					html := bytes.Buffer{}
+
+					html.Write([]byte("<html>\n"))
+
+					// Header, if needed
+					header := ""
+					if md2htmlLink != "" {
+						header += `<link rel="stylesheet" href="` +
+							md2htmlLink + `">` + "\n"
+					}
+					if md2htmlHeader != "" {
+						header += md2htmlHeader + "\n"
+					}
+					if header != "" {
+						html.Write([]byte("<head>\n" + header + "</head>\n"))
+					}
+
+					// Custom HTML after <head>
+					if md2htmlHTML != "" {
+						html.Write([]byte(md2htmlHTML))
+						if md2htmlHTML[len(md2htmlHTML)-1] != '\n' {
+							html.Write([]byte("\n"))
+						}
+					}
+
+					// Do the actual conversion from md->html
 					md.Convert(data, &html)
+
+					html.Write([]byte("\n</html>\n"))
+
 					Error(os.WriteFile(fn, html.Bytes(), 0644))
 				}
 			} else {
@@ -284,19 +340,21 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, hdr := Download(reg, xid.String())
 				Write(fn, data)
 
-				self := host + xid.String()[1:]
-				hdr["xregistry-self"] = self
-				if hdr["content-location"] != "" {
-					hdr["content-location"] = self
-				}
+				if hdr != nil {
+					self := host + xid.String()[1:]
+					hdr["xregistry-self"] = self
+					if hdr["content-location"] != "" {
+						hdr["content-location"] = self
+					}
 
-				fn = file + xid.String() + ".hdr"
-				str := ""
-				for _, k := range registry.SortedKeys(hdr) {
-					// Assume just one value per header
-					str += fmt.Sprintf("%s:%s\n", k, hdr[k])
+					fn = file + xid.String() + ".hdr"
+					str := ""
+					for _, k := range registry.SortedKeys(hdr) {
+						// Assume just one value per header
+						str += fmt.Sprintf("%s:%s\n", k, hdr[k])
+					}
+					Write(fn, []byte(str))
 				}
-				Write(fn, []byte(str))
 
 				fn = file + xid.String()
 				if md2html && strings.HasSuffix(fn, ".md") {
