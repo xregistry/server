@@ -7,6 +7,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
+	// "github.com/spf13/pflag"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	"github.com/xregistry/server/registry"
 )
@@ -83,10 +84,101 @@ func Verbose(args ...any) {
 	fmt.Fprintf(os.Stderr, fmtStr, args[1:]...)
 }
 
+func mainFunc(cmd *cobra.Command, args []string) {
+	helpAll, _ := cmd.Flags().GetBool("help-all")
+	if helpAll == false {
+		cmd.Help()
+	} else {
+		fmt.Printf("%s", showAllHelp(cmd, ""))
+	}
+}
+
+func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {
+	str := fmt.Sprintf(fmtStr, args...)
+	buf.WriteString(str)
+}
+
+func wrap(str string, col int, indent string) string {
+	res := ""
+
+	for chop := col; chop > 0; chop-- {
+		if chop >= len(str) || str[chop] == ' ' || chop == 1 {
+			if chop >= len(str) {
+				chop = len(str)
+			} else if str[chop] != ' ' {
+				chop = col
+			}
+			if res != "" {
+				res += "\n" + indent
+			}
+			res += strings.TrimRight(str[:chop], " ")
+			str = strings.TrimLeft(str[chop:], " ")
+			if len(str) == 0 {
+				break
+			}
+			chop = col + 1 - len(indent)
+		}
+	}
+	return res
+}
+
+func showAllHelp(cmd *cobra.Command, indent string) string {
+	res := &strings.Builder{}
+
+	childCmdStr := ""
+	if len(cmd.Commands()) > 0 {
+		childCmdStr = " [command]"
+	}
+	summary := cmd.Short
+	if summary != "" {
+		summary = "# " + summary
+	}
+
+	parents := ""
+	for p := cmd.Parent(); p != nil; p = p.Parent() {
+		parents = p.Name() + " " + parents
+	}
+
+	usages := cmd.Flags().FlagUsagesWrapped(80 - len(indent))
+
+	// only show this command it if has flags or is runnable
+	if len(usages) != 0 || cmd.Runnable() {
+		line := fmt.Sprintf("%s%s%s", parents, cmd.Use, childCmdStr)
+		if cmd.Parent() != nil {
+			BufPrintf(res, "\n")
+		}
+		BufPrintf(res, "%s\n", line)
+		BufPrintf(res, "  %s\n", wrap(summary, 78, "  # "))
+
+		if cmd.Parent() == nil {
+			BufPrintf(res, "  # Global flags:\n")
+		}
+	}
+
+	if len(usages) > 0 {
+		for _, line := range strings.Split(usages, "\n") {
+			if len(line) == 0 {
+				continue
+			}
+			BufPrintf(res, "%s%s\n", indent, line)
+		}
+	}
+
+	for _, cmd := range cmd.Commands() {
+		if cmd.Hidden {
+			continue
+		}
+		BufPrintf(res, showAllHelp(cmd, indent)) // indent+"  "))
+	}
+
+	return res.String()
+}
+
 func main() {
 	xrCmd := &cobra.Command{
 		Use:   "xr",
 		Short: "xRegistry CLI",
+		Run:   mainFunc,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Just make sure Server starts with some variant of "http"
@@ -125,6 +217,8 @@ func main() {
 			},
 		*/
 	})
+
+	xrCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
 	// Set Server after we add the --server flag so we don't show the
 	// default value in the help text

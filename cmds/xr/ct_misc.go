@@ -7,7 +7,7 @@ import (
 
 func TestSniffTest(td *TD) {
 	reg := td.Props["xreg"].(*xrlib.Registry)
-	td.Log("Server URL: %s", reg.GetURL())
+	td.Log("Server URL: %s", reg.GetServerURL())
 
 	res, err := reg.HttpDo("GET", "", nil)
 	td.NoErrorStop(err, "'GET /' should have worked: %s", err)

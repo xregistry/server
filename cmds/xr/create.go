@@ -24,7 +24,7 @@ func addCreateCmd(parent *cobra.Command) {
 	createCmd.Flags().BoolP("patch", "p", false,
 		"Only 'update' specified attributes when -f is applied")
 	createCmd.Flags().BoolP("force", "f", false,
-		"Force an 'update' if entity already exist, skip pre-flight checks")
+		"Force an 'update' if already exist, skip pre-flight checks")
 
 	parent.AddCommand(createCmd)
 }
@@ -61,7 +61,7 @@ func addUpdateCmd(parent *cobra.Command) {
 	updateCmd.Flags().BoolP("patch", "p", false,
 		"Only update specified attributes")
 	updateCmd.Flags().BoolP("force", "f", false,
-		"Force a 'create' if entity doesnt exist, skip pre-flight checks")
+		"Force a 'create' if doesnt exist, skip pre-flight checks")
 
 	parent.AddCommand(updateCmd)
 }

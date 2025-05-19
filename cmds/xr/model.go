@@ -68,14 +68,14 @@ func addModelCmd(parent *cobra.Command) {
 	modelCmd.AddCommand(modelGroupCmd)
 
 	groupCreateCmd := &cobra.Command{
-		Use:   "create PluralName:SingularName...",
+		Use:   "create PLURAL:SINGULAR...",
 		Short: "Create a new Model Group type",
 		Run:   modelGroupCreateFunc,
 	}
 	modelGroupCmd.AddCommand(groupCreateCmd)
 
 	groupDeleteCmd := &cobra.Command{
-		Use:   "delete PluralName...",
+		Use:   "delete PLURAL...",
 		Short: "Delete a Model Group type",
 		Run:   modelGroupDeleteFunc,
 	}
@@ -91,7 +91,7 @@ func addModelCmd(parent *cobra.Command) {
 	modelCmd.AddCommand(modelResourceCmd)
 
 	resourceCreateCmd := &cobra.Command{
-		Use:   "create PluralName:SingularName...",
+		Use:   "create PLURAL:SINGULAR...",
 		Short: "Create a new Model Resource type",
 		Run:   modelResourceCreateFunc,
 	}
@@ -99,7 +99,7 @@ func addModelCmd(parent *cobra.Command) {
 	modelResourceCmd.AddCommand(resourceCreateCmd)
 
 	resourceDeleteCmd := &cobra.Command{
-		Use:   "delete PluralName...",
+		Use:   "delete PLURAL...",
 		Short: "Delete a Model Resource type",
 		Run:   modelResourceDeleteFunc,
 	}
@@ -410,29 +410,29 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	for _, arg := range args {
 		parts := strings.Split(arg, ":")
 		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			Error("Group type name must be of the form: Plural:Singular")
+			Error("Group type name must be of the form: PLURAL:SINGULAR")
 		}
 
 		if parts[0] == parts[1] {
-			Error("Group Plural and Singular names must be different")
+			Error("Group PLURAL and SINGULAR names must be different")
 		}
 
 		for _, gm := range model.Groups {
 			if parts[0] == gm.Plural {
-				Error("Plural value (%s) conflicts with an existing Group "+
-					"plural name", parts[0])
+				Error("PLURAL value (%s) conflicts with an existing Group "+
+					"PLURAL name", parts[0])
 			}
 			if parts[0] == gm.Singular {
-				Error("Plural value (%s) conflicts with an existing Group "+
-					"singular name", parts[0])
+				Error("PLURAL value (%s) conflicts with an existing Group "+
+					"SINGULAR name", parts[0])
 			}
 			if parts[1] == gm.Plural {
-				Error("Singular value (%s) conflicts with an existing Group "+
-					"plural name", parts[1])
+				Error("SINGULAR value (%s) conflicts with an existing Group "+
+					"PLURAL name", parts[1])
 			}
 			if parts[1] == gm.Singular {
-				Error("Singular value (%s) conflicts with an existing Group "+
-					"singular name", parts[1])
+				Error("SINGULAR value (%s) conflicts with an existing Group "+
+					"SINGULAR name", parts[1])
 			}
 		}
 
@@ -531,29 +531,29 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	for _, arg := range args {
 		parts := strings.Split(arg, ":")
 		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			Error("Resource type name must be of the form: Plural:Singular")
+			Error("Resource type name must be of the form: PLURAL:SINGULAR")
 		}
 
 		if parts[0] == parts[1] {
-			Error("Resource Plural and Singular names must be different")
+			Error("Resource PLURAL and SINGULAR names must be different")
 		}
 
 		for _, rm := range gm.Resources {
 			if parts[0] == rm.Plural {
-				Error("Plural value (%s) conflicts with an existing Resource "+
-					"plural name", parts[0])
+				Error("PLURAL value (%s) conflicts with an existing Resource "+
+					"PLURAL name", parts[0])
 			}
 			if parts[0] == rm.Singular {
-				Error("Plural value (%s) conflicts with an existing Resource "+
-					"singular name", parts[0])
+				Error("PLURAL value (%s) conflicts with an existing Resource "+
+					"SINGULAR name", parts[0])
 			}
 			if parts[1] == rm.Plural {
-				Error("Singular value (%s) conflicts with an existing "+
-					"Resource plural name", parts[1])
+				Error("SINGULAR value (%s) conflicts with an existing "+
+					"Resource PLURAL name", parts[1])
 			}
 			if parts[1] == rm.Singular {
-				Error("Singular value (%s) conflicts with an existing "+
-					" Resource singular name", parts[1])
+				Error("SINGULAR value (%s) conflicts with an existing "+
+					" Resource SINGULAR name", parts[1])
 			}
 		}
 

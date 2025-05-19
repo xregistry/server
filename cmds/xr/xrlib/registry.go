@@ -180,7 +180,7 @@ func GetRegistry(url string) (*Registry, error) {
 	return reg, nil
 }
 
-func (reg *Registry) GetURL() string {
+func (reg *Registry) GetServerURL() string {
 	return reg.server
 }
 
