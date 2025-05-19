@@ -29,7 +29,7 @@ UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirnam
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
-.cmds: xrserver xr
+.cmds: xrserver xr README.md
 	@touch .cmds
 
 qtest: .test
@@ -85,6 +85,22 @@ xr: cmds/xr/* registry/*
 	@echo
 	@echo "# Building xr (cli)"
 	go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
+
+README.md: xr xrserver
+	@echo
+	@echo "# Regenerating the help text for the README"
+	@(echo '```bash' && xr --help-all && echo '```') | \
+	awk '/<!-- XR HELP START -->/{p=1; print; next} \
+	  /<!-- XR HELP END -->/{p=0; \
+	  while((getline line < "/dev/stdin") > 0) \
+	    print line; print; next} !p&&p!=1{print}' README.md > tmpREADME.md
+	@mv tmpREADME.md README.md
+	@(echo '```bash' && xrserver --help-all && echo '```') | \
+	awk '/<!-- XRSERVER HELP START -->/{p=1; print; next} \
+	  /<!-- XRSERVER HELP END -->/{p=0; \
+	  while((getline line < "/dev/stdin") > 0) \
+	    print line; print; next} !p&&p!=1{print}' README.md > tmpREADME.md
+	@mv tmpREADME.md README.md
 
 xr-all: .xr-all
 .xr-all: xr
