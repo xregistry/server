@@ -89,13 +89,13 @@ xr: cmds/xr/* registry/*
 README.md: xr xrserver
 	@echo
 	@echo "# Regenerating the help text for the README"
-	@(echo '```bash' && xr --help-all && echo '```') | \
+	@(echo '```bash' && ./xr --help-all && echo '```') | \
 	awk '/<!-- XR HELP START -->/{p=1; print; next} \
 	  /<!-- XR HELP END -->/{p=0; \
 	  while((getline line < "/dev/stdin") > 0) \
 	    print line; print; next} !p&&p!=1{print}' README.md > tmpREADME.md
 	@mv tmpREADME.md README.md
-	@(echo '```bash' && xrserver --help-all && echo '```') | \
+	@(echo '```bash' && ./xrserver --help-all && echo '```') | \
 	awk '/<!-- XRSERVER HELP START -->/{p=1; print; next} \
 	  /<!-- XRSERVER HELP END -->/{p=0; \
 	  while((getline line < "/dev/stdin") > 0) \
