@@ -26,8 +26,8 @@ docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 ### Installation Options
 
 The xRegistry tools are available as:
-- **Container images**: [`ghcr.io/xregistry/xrserver-all`](https://github.com/orgs/xregistry/packages?repo_name=server)
-- **Standalone executables**: [GitHub Releases](https://github.com/xregistry/server/releases/tag/dev)
+- **Container images**: [`https://github.com/orgs/xregistry/packages`](https://github.com/orgs/xregistry/packages)
+- **Standalone executables**: [GitHub 'dev' Release](https://github.com/xregistry/server/releases/tag/dev)
   - Note: The standalone `xrserver` requires an external MySQL database
 
 ### Try the Sample
@@ -168,14 +168,19 @@ xr update [ XID ]
 ```bash
 # Create a new endpoint group
 xr create /endpoints/test1 -d '{"name": "Test Endpoint"}'
+
 # Get all endpoints
-xr get /endpoints -o human
+x
+r get /endpoints -o human
 # Update an entity
 xr update /endpoints/test1 -d '{"description": "Updated description"}'
+
 # Delete an entity
 xr delete /endpoints/test1
+
 # Import registry contents from a file
 xr import / -d @myregistry.json
+
 # Download a registry to static files
 xr download ./export-dir
 ```
@@ -243,10 +248,13 @@ xrserver run [default-registry-name]
 ```bash
 # Start server on port 8080 and load sample data
 xrserver run --samples
+
 # Drop & recreate the database, then run the server
 xrserver run --recreatedb
+
 # Create a new registry named "myregistry"
 xrserver registry create myregistry
+
 # List all registries
 xrserver registry list
 ```
@@ -260,7 +268,7 @@ See `misc/Dockefile-dev` for the minimal dependencies required.
 | Target              | Description |
 | ------------------- | ----------- |
 | `make`              | Alias for `make all` |
-| 'make all`          | Build all, run test and start server (reset DB) |
+| `make all`          | Build all, run test and start server (reset DB) |
 | `make run`          | Build and start server (no tests, reset DB) |
 | `make start`        | Build and start seerver (no tests, keep DB) |
 | `make test`         | Build all + run tests only |
