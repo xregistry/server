@@ -105,3 +105,13 @@ dirs/d1/files/fx/meta: fileid, -> fx
 dirs/d1/files/fx/meta: xref, -> /dirs/d1/files/f1
 `)
 }
+
+func TestCORS(t *testing.T) {
+	reg := NewRegistry("TestCORS")
+	defer PassDeleteReg(t, reg)
+
+	res := xDoHTTP(t, reg, "GET", "/?ui", "")
+	xCheckEqual(t, "status code", res.StatusCode, 200)
+	xCheckEqual(t, "cors header", res.Header.Get("Access-Control-Allow-Origin"), "*")
+	xCheckEqual(t, "cors header", res.Header.Get("Access-Control-Allow-Methods"), "GET")
+}

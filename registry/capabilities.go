@@ -51,7 +51,7 @@ var AllowableFlags = ArrayToLower([]string{
 	"collections", "doc", "epoch", "filter", "inline",
 	"nodefaultversionid", "nodefaultversionsticky",
 	"noepoch", "noreadonly", "offered",
-	"schema", "setdefaultversionid", "specversion"})
+	"schema", "setdefaultversionid", "sort", "specversion"})
 
 var AllowableMutable = ArrayToLower([]string{
 	"capabilities", "entities", "model"})
@@ -60,9 +60,15 @@ var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc1", SPECVERSION})
 
+var SupportedFlags = ArrayToLower([]string{
+	"collections", "doc", "epoch", "filter", "inline",
+	"nodefaultversionid", "nodefaultversionsticky",
+	"noepoch", "noreadonly", "offered",
+	"schema", "setdefaultversionid", "specversion"}) // no "sort"
+
 var DefaultCapabilities = &Capabilities{
 	APIs:         AllowableAPIs,
-	Flags:        AllowableFlags,
+	Flags:        SupportedFlags,
 	Mutable:      AllowableMutable,
 	Pagination:   false,
 	Schemas:      AllowableSchemas,
@@ -105,7 +111,7 @@ func GetOffered() *Offered {
 			Item: &OfferedItem{
 				Type: "string",
 			},
-			Enum: String2AnySlice(AllowableFlags),
+			Enum: String2AnySlice(SupportedFlags),
 		},
 		Mutable: OfferedCapability{
 			Type: "string",

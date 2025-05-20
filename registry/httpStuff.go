@@ -302,6 +302,12 @@ func (pw *PageWriter) AddHeader(name, value string) {
 
 func (pw *PageWriter) Done() {
 	pw.AddHeader("Content-Type", "text/html")
+	pw.AddHeader("Access-Control-Allow-Origin", "*")
+	pw.AddHeader("Access-Control-Allow-Methods", "GET")
+
+	for k, v := range *pw.Headers {
+		pw.OldWriter.AddHeader(k, v)
+	}
 
 	if !pw.Info.SentStatus {
 		pw.Info.SentStatus = true
@@ -309,10 +315,6 @@ func (pw *PageWriter) Done() {
 			pw.Info.StatusCode = http.StatusOK
 		}
 		pw.Info.OriginalResponse.WriteHeader(pw.Info.StatusCode)
-	}
-
-	for k, v := range *pw.Headers {
-		pw.OldWriter.AddHeader(k, v)
 	}
 
 	data := pw.Buffer.Bytes()
