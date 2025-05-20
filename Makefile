@@ -1,4 +1,4 @@
-all: mysql cmds test images run
+all: mysql cmds docs test images run
 
 cmds-all: xr-all xrserver-all
 
@@ -29,8 +29,10 @@ UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirnam
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
 cmds: .cmds
-.cmds: xrserver xr README.md
+.cmds: xrserver xr
 	@touch .cmds
+
+docs: docs/xr_help.md docs/xrserver_help.md
 
 qtest: .test
 
@@ -86,21 +88,21 @@ xr: cmds/xr/* registry/*
 	@echo "# Building xr (cli)"
 	go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
 
-README.md: xr xrserver
+docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
-	@echo "# Regenerating the help text for the README"
+	@echo "# Regenerating the help text for the docs"
 	@(echo '```bash' && ./xr --help-all && echo '```') | \
 	awk '/<!-- XR HELP START -->/{p=1; print; next} \
 	  /<!-- XR HELP END -->/{p=0; \
 	  while((getline line < "/dev/stdin") > 0) \
-	    print line; print; next} !p&&p!=1{print}' README.md > tmpREADME.md
-	@mv tmpREADME.md README.md
+	    print line; print; next} !p&&p!=1{print}' docs/xr_help.md > tmp.md
+	@mv tmp.md docs/xr_help.md
 	@(echo '```bash' && ./xrserver --help-all && echo '```') | \
 	awk '/<!-- XRSERVER HELP START -->/{p=1; print; next} \
 	  /<!-- XRSERVER HELP END -->/{p=0; \
 	  while((getline line < "/dev/stdin") > 0) \
-	    print line; print; next} !p&&p!=1{print}' README.md > tmpREADME.md
-	@mv tmpREADME.md README.md
+	    print line; print; next} !p&&p!=1{print}' docs/xrserver_help.md > tmp.md
+	@mv tmp.md docs/xrserver_help.md
 
 xr-all: .xr-all
 .xr-all: xr
@@ -113,7 +115,7 @@ xr-all: .xr-all
 	@touch .xr-all
 
 images: .images
-.images: xr xrserver misc/waitformysql \
+.images: cmds docs misc/waitformysql \
 		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
 		misc/start
 	@echo
@@ -142,10 +144,10 @@ testimages: .testimages
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
-		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) run --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(XRSERVER_IMAGE) -v --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) --recreatedb --samples --verify
 	@touch .testimages
 
 push: .push
@@ -158,15 +160,15 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver -vv $(VERIFY)
+	./xrserver $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver -vv --recreatedb --samples $(VERIFY)
+	./xrserver --recreatedb --samples $(VERIFY)
 
 docker-all: images
-	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv \
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all \
 		--recreatedb --samples
 
 large:
@@ -176,7 +178,7 @@ large:
 docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
-	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) -vv \
+	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) \
 		--recreatedb --samples $(VERIFY)
 
 mysql:
@@ -244,7 +246,7 @@ testdev: devimage
 	-docker rm -f mysql > /dev/null 2>&1
 	@echo
 	@echo "## Build, test and run the xrserver all within the dev image"
-	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
+	docker run -ti /var/run/docker.sock:/var/run/docker.sock \
 		-e VERIFY=--verify --network host $(DOCKERHUB)xreg-dev make clean all
 	@echo "## Done testing the dev image"
 

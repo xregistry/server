@@ -15,7 +15,8 @@ var GitCommit string
 var DBName = "registry"
 var RegistryName = "xRegistry"
 var Port = 8080
-var VerboseCount = 2
+var DefaultVerboseCount = 2
+var VerboseCount = DefaultVerboseCount
 var DontCreate = false
 var RecreateDB = false
 var RecreateReg = false
@@ -106,6 +107,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
 		"Be chatty - can specify multiple (-v=0 to turn off)``")
+	VerboseCount = DefaultVerboseCount // Cobra sets it to zero!
 
 	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 

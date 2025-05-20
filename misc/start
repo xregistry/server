@@ -4,22 +4,24 @@ export DBHOST=${DBHOST:-127.0.0.1}
 export DBPORT=${DBPORT:-3306}
 export DBUSER=${DBUSER:-root}
 export DBPASSWORD=${DBPASSWORD:-password}
-
 export MYSQL_ROOT_PASSWORD=${DBPASSWORD}
-
 export XR_MODEL_PATH=${XR_MODEL_PATH:-/spec}
 
-set -ex
+test "$1" = "--debug" && set -ex && shift
 
+echo "Environment variables:"
 env | grep -v PASS | sort
 
-if [[ "$1" == "--db" ]]; then
-  docker-entrypoint.sh mysqld &
+if test "$1" = "--db"; then
+  echo "Starting mysql"
+  docker-entrypoint.sh mysqld > /mysqld.out 2>&1 &
   /waitformysql
   shift
-elif [[ "$1" == "db" ]]; then
+elif test "$1" = "db"; then
+  echo "Starting mysql"
   docker-entrypoint.sh mysqld
   exit 0
 fi
 
+set -ex
 /xrserver $*
