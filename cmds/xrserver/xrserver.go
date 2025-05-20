@@ -15,7 +15,7 @@ var GitCommit string
 var DBName = "registry"
 var RegistryName = "xRegistry"
 var Port = 8080
-var DefaultVerboseCount = 2
+var DefaultVerboseCount = 0
 var VerboseCount = DefaultVerboseCount
 var DontCreate = false
 var RecreateDB = false

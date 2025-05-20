@@ -5,9 +5,8 @@
 The `xrserver` CLI boots and manages the API server and backing database:
 
 <!-- XRSERVER HELP START -->
-```yaml
+```bash
 xrserver [default-registry-name] [command]
-  # xRegistry server
   # Global flags:
       --db string     DB name (default "registry")
       --dontcreate    Don't create DB/reg if missing

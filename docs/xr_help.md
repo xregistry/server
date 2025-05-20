@@ -5,9 +5,8 @@
 The `xr` CLI lets you interact with an xRegistry server:
 
 <!-- XR HELP START -->
-```yaml
+```bash
 xr [command]
-  # xRegistry CLI
   # Global flags:
   -?, --help            Help for xr
       --help-all        Help for all commands

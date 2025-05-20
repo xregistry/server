@@ -1,8 +1,8 @@
-# Quick Start 
+# Quick Start
 
 Fastest way to get started is to have [Docker](https://www.docker.com/)
 installed, and then run the xRegistry server with an embedded MySQL database:
-  
+
 ```bash
 $ docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all --samples
 ```

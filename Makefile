@@ -144,10 +144,10 @@ testimages: .testimages
 	@make mysql waitformysql
 	@misc/errOutput docker run --network host $(XR_IMAGE)
 	@misc/errOutput docker run --network host \
-		$(XRSERVER_IMAGE) run --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
-		$(XRSERVER_IMAGE) --recreatedb --samples --verify
+		$(XRSERVER_IMAGE) -v --recreatedb --samples --verify
 	@touch .testimages
 
 push: .push
@@ -160,15 +160,15 @@ push: .push
 start: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver"
-	./xrserver $(VERIFY)
+	./xrserver -vv $(VERIFY)
 
 notest run local: mysql cmds waitformysql
 	@echo
 	@echo "# Starting xrserver from scratch"
-	./xrserver --recreatedb --samples $(VERIFY)
+	./xrserver -vv --recreatedb --samples $(VERIFY)
 
 docker-all: images
-	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all \
+	docker run -ti -p 8080:8080 $(XRSERVER_IMAGE)-all -vv \
 		--recreatedb --samples
 
 large:
@@ -178,7 +178,7 @@ large:
 docker: mysql images waitformysql
 	@echo
 	@echo "# Starting xrserver in Docker from scratch"
-	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) \
+	docker run -ti -p 8080:8080 --network host $(XRSERVER_IMAGE) -vv \
 		--recreatedb --samples $(VERIFY)
 
 mysql:
@@ -246,7 +246,7 @@ testdev: devimage
 	-docker rm -f mysql > /dev/null 2>&1
 	@echo
 	@echo "## Build, test and run the xrserver all within the dev image"
-	docker run -ti /var/run/docker.sock:/var/run/docker.sock \
+	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
 		-e VERIFY=--verify --network host $(DOCKERHUB)xreg-dev make clean all
 	@echo "## Done testing the dev image"
 
