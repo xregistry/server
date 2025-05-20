@@ -67,7 +67,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		// As of now we should never have more than one active Tx during
 		// testing
-		if TESTING {
+		if TESTING && tx != nil {
 			l := len(TXs)
 			if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
 				log.Printf(">End of HTTP Request")
