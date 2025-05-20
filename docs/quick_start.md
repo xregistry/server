@@ -52,7 +52,7 @@ $ curl localhost:8080/reg-DocStore
 ```
 
 You can also access one of the Registries via a browser-based explorer tool by
-adding the `?ui` query parameter to the URL:
+adding the `?ui` query parameter to the URL and putting it into a browser:
 
 ```bash
 http://localhost:8080?ui
@@ -61,5 +61,5 @@ http://localhost:8080/reg-DocStore?ui
 
 ## Try the Sample
 
-See the [`samples/doc-store`](samples/doc-store) script for a quick setup with
-sample data.
+See the [`samples/doc-store`](../samples/doc-store) script for a quick setup
+with sample data.
