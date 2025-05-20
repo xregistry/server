@@ -5,7 +5,7 @@
 The `xr` CLI lets you interact with an xRegistry server:
 
 <!-- XR HELP START -->
-```bash
+```yaml
 xr [command]
   # xRegistry CLI
   # Global flags:
@@ -107,15 +107,16 @@ xr update [ XID ]
 
 ## Example Commands
 
-```bash
+```yaml
 # Create a new endpoint group
 xr create /endpoints/test1 -d '{"name": "Test Endpoint"}'
 
 # Get all endpoints
-x
-r get /endpoints -o human
+xr get /endpoints -o human
+
 # Update an entity
 xr update /endpoints/test1 -d '{"description": "Updated description"}'
+xr set /endpoints/test1 description="Updated description" name="Test1"
 
 # Delete an entity
 xr delete /endpoints/test1

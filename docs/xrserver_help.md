@@ -5,7 +5,7 @@
 The `xrserver` CLI boots and manages the API server and backing database:
 
 <!-- XRSERVER HELP START -->
-```bash
+```yaml
 xrserver [default-registry-name] [command]
   # xRegistry server
   # Global flags:
@@ -61,7 +61,7 @@ xrserver run [default-registry-name]
 <!-- XRSERVER HELP END -->
 
 ## Example Commands
-```bash
+```yaml
 # Start server on port 8080 and load sample data ('run' is optional)
 xrserver --samples
 xrserver run --samples
