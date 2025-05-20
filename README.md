@@ -14,7 +14,7 @@ This project is a work-in-progress. See the [todo](todo) list for upcoming
 features or report [issues](https://github.com/xregistry/server/issues) if you
 encounter problems.
 
-### Documentation
+### Where to go from here...
 
 - [Try it online now!](http://xregistry.soaphub.org?ui)
 - [Quick Start](docs/quick_start.md) (requires Docker)
