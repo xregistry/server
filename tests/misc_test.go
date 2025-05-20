@@ -110,8 +110,41 @@ func TestCORS(t *testing.T) {
 	reg := NewRegistry("TestCORS")
 	defer PassDeleteReg(t, reg)
 
-	res := xDoHTTP(t, reg, "GET", "/?ui", "")
-	xCheckEqual(t, "status code", res.StatusCode, 200)
-	xCheckEqual(t, "cors header", res.Header.Get("Access-Control-Allow-Origin"), "*")
-	xCheckEqual(t, "cors header", res.Header.Get("Access-Control-Allow-Methods"), "GET")
+	reg.Model.AddGroupModel("dirs", "dir")
+	// xHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
+
+	type Test struct {
+		method string
+		url    string
+		body   string
+		code   int
+	}
+
+	for _, test := range []Test{
+		{"GET", "/", "", 200},
+		{"GET", "/?ui", "", 200},
+		{"GET", "/proxy?host=xregistry.io/xreg", "", 200},
+		{"GET", "/reg-TestCORS", "", 200},
+		{"DELETE", "/", "", 405},
+		{"PUT", "/dirs/d1", "{}", 201},
+		{"PUT", "/dirs/d1", "", 400},
+		{"DELETE", "/dirs/d1", "", 204},
+		{"DELETE", "/", "", 405},
+		{"POST", "/dirs", "{}", 200},
+		{"POST", "/dirs", "", 400},
+		{"PATCH", "/dirs/d1", "{}", 201},
+		{"PATCH", "/dirs/d1", "", 400},
+	} {
+		t.Logf("Test: %s %s", test.method, test.url)
+		res := xDoHTTP(t, reg, test.method, test.url, test.body)
+		t.Logf("response body: %s", res.body)
+
+		xCheckEqual(t, "status code", res.StatusCode, test.code)
+
+		xCheckEqual(t, "cors header",
+			res.Header.Get("Access-Control-Allow-Origin"), "*")
+		xCheckEqual(t, "cors header",
+			res.Header.Get("Access-Control-Allow-Methods"),
+			"GET, PATCH, POST, PUT, DELETE")
+	}
 }

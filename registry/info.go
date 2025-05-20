@@ -223,6 +223,10 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		extras: map[string]any{},
 	}
 
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods",
+		"GET, PATCH, POST, PUT, DELETE")
+
 	if r.TLS != nil {
 		info.BaseURL = "https" + info.BaseURL[4:]
 	} else if tmp := r.Header.Get("Referer"); tmp != "" {

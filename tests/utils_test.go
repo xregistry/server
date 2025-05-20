@@ -406,6 +406,9 @@ type HTTPResult struct {
 func xDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	bodyStr string) *HTTPResult {
 
+	xNoErr(t, reg.SaveModel())
+	xNoErr(t, reg.SaveAllAndCommit())
+
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse

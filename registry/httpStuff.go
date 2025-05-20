@@ -302,8 +302,6 @@ func (pw *PageWriter) AddHeader(name, value string) {
 
 func (pw *PageWriter) Done() {
 	pw.AddHeader("Content-Type", "text/html")
-	pw.AddHeader("Access-Control-Allow-Origin", "*")
-	pw.AddHeader("Access-Control-Allow-Methods", "GET")
 
 	for k, v := range *pw.Headers {
 		pw.OldWriter.AddHeader(k, v)
@@ -1430,6 +1428,7 @@ FROM FullTree WHERE RegSID=? AND `
 		*/
 		return nil
 	}
+
 	info.Write(buf.([]byte))
 
 	return nil
@@ -3202,8 +3201,12 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	html := GenerateUI(info, data)
+	w.Header().Add("Content-Type", "text/html")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods",
+		"GET, PATCH, POST, PUT, DELETE")
 
+	html := GenerateUI(info, data)
 	w.Write(html)
 
 	return nil
