@@ -1,5 +1,7 @@
 # xr (xRegistry CLI)
 
+##  `xr` Command Summary
+
 The `xr` CLI lets you interact with an xRegistry server:
 
 <!-- XR HELP START -->
@@ -103,7 +105,7 @@ xr update [ XID ]
 ```
 <!-- XR HELP END -->
 
-#### Example Commands
+## Example Commands
 
 ```bash
 # Create a new endpoint group
@@ -124,3 +126,12 @@ xr import / -d @myregistry.json
 # Download a registry to static files
 xr download ./export-dir
 ```
+
+## `xr` Command Environment Variables
+
+The following environment variables can be set in the environment in which
+the `xr` command is executed:
+
+| Env Var    | Value |
+| ---------- | ----- |
+| XR_SERVER  | Location of the xRegistry API server (default: localhost:8080) |

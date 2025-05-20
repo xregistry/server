@@ -159,7 +159,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	Verbose("GitCommit: %.10s", GitCommit)
 	Verbose("DB server: %s:%s", registry.DBHOST, registry.DBPORT)
 
-	if tmp := os.Getenv("PORT"); tmp != "" {
+	if tmp := os.Getenv("XR_PORT"); tmp != "" {
 		tmpInt, _ := strconv.Atoi(tmp)
 		if tmpInt != 0 {
 			Port = tmpInt
@@ -304,10 +304,11 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 			BufPrintf(res, "\n")
 		}
 		BufPrintf(res, "%s\n", line)
-		BufPrintf(res, "  %s\n", wrap(summary, 78, "  # "))
 
 		if cmd.Parent() == nil {
 			BufPrintf(res, "  # Global flags:\n")
+		} else {
+			BufPrintf(res, "  %s\n", wrap(summary, 78, "  # "))
 		}
 	}
 

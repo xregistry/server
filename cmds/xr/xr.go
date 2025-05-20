@@ -16,7 +16,7 @@ var GitComit string
 var VerboseCount = 0
 
 var Server = "" // Will grab DefaultServer after we add the --server flag
-var DefaultServer = xrlib.EnvString("XR_SERVER", "")
+var DefaultServer = xrlib.EnvString("XR_SERVER", "localhost:8080")
 
 func ErrStop(err error, prefix ...any) {
 	if err == nil {
@@ -148,10 +148,11 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 			BufPrintf(res, "\n")
 		}
 		BufPrintf(res, "%s\n", line)
-		BufPrintf(res, "  %s\n", wrap(summary, 78, "  # "))
 
 		if cmd.Parent() == nil {
 			BufPrintf(res, "  # Global flags:\n")
+		} else {
+			BufPrintf(res, "  %s\n", wrap(summary, 78, "  # "))
 		}
 	}
 

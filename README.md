@@ -22,5 +22,5 @@ encounter problems.
 - [`xr` Command](docs/xr_help.md)
 - [`xrserver` Command](docs/xrserver_help.md)
 - [Developers/Contributing](docs/developers.md)
-- [Community (and additional) Information](community.md)
+- [Community (and additional) Information](docs/community.md)
 

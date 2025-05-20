@@ -19,17 +19,7 @@ need to be set. I think Azure MySQL required some special rights to be set.
 
 ## Configuring `xrserver` to use an external MySQL Database
 
-WIP
-
-To configure the `xrserver` to use a non-local (127.0.0.1:3306) MySQL
-instance, set the following environment variables:
-
-| Env Var    | Value |
-| ---------- | ----- |
-| DBHOST     | Hostname, or IP address, of MySQL instance (default: 127.0.0.1) |
-| DBPORT     | Listening port number of MySQL instance (default: 3306) |
-| DBUSER     | Admin login for MySQL instance (default: root) |
-| DBPASSWORD | Admin password for MySQL instance (default: password) |
+See the [`xrserver`](xrserver_help.md) docs for details.
 
 ## Adding Authentication to an xRegistry Server
 

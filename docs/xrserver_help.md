@@ -1,4 +1,7 @@
 # xrserver (xRegistry Server)
+
+## `xrserver` Command Summary
+
 The `xrserver` CLI boots and manages the API server and backing database:
 
 <!-- XRSERVER HELP START -->
@@ -57,12 +60,14 @@ xrserver run [default-registry-name]
 ```
 <!-- XRSERVER HELP END -->
 
-#### Example Commands
+## Example Commands
 ```bash
-# Start server on port 8080 and load sample data
+# Start server on port 8080 and load sample data ('run' is optional)
+xrserver --samples
 xrserver run --samples
 
-# Drop & recreate the database, then run the server
+# Drop & recreate the database, then run the server ('run' is optional)
+xrserver --recreatedb
 xrserver run --recreatedb
 
 # Create a new registry named "myregistry"
@@ -71,3 +76,25 @@ xrserver registry create myregistry
 # List all registries
 xrserver registry list
 ```
+
+## `xrserver` Environment Variables
+
+The following environment variables can be set in the environment in which
+the `xrserver` command is executed:
+
+| Env Var    | Value |
+| ---------- | ----- |
+| XR_PORT    | Listening port of the `xrserver` API server (default: 8080) |
+| XR_MODEL_PATH | Where to find the sample's model files |
+| XR_LOAD_LARGE | If set, a very large default sample Registry will be loaded |
+| XR_VERBOSE | Chatty level - 0=none, 1=start-up info, 2=HTTP requests, 3+=debug (default: 2) |
+
+To configure the `xrserver` to use a non-local (127.0.0.1:3306) MySQL
+instance, set the following environment variables:
+
+| Env Var    | Value |
+| ---------- | ----- |
+| DBHOST     | Hostname, or IP address, of MySQL instance (default: 127.0.0.1) |
+| DBPORT     | Listening port of MySQL instance (default: 3306) |
+| DBUSER     | Admin login for MySQL instance (default: root) |
+| DBPASSWORD | Admin password for MySQL instance (default: password) |
