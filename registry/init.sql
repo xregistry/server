@@ -338,7 +338,7 @@ SELECT                          # Gather Registries
     '' AS Path
 FROM Registries AS r
 
-UNION SELECT                            # Gather Groups
+UNION ALL SELECT                        # Gather Groups
     g.RegistrySID AS RegSID,
     $ENTITY_GROUP AS Type,
     g.Plural AS Plural,
@@ -350,7 +350,7 @@ UNION SELECT                            # Gather Groups
     g.Path
 FROM "Groups" AS g
 
-UNION SELECT                    # Add Resources
+UNION ALL SELECT                # Add Resources
     r.RegistrySID AS RegSID,
     $ENTITY_RESOURCE AS Type,
     r.Plural AS Plural,
@@ -362,7 +362,7 @@ UNION SELECT                    # Add Resources
     r.Path
 FROM Resources AS r
 
-UNION SELECT                    # Add Metas
+UNION ALL SELECT                # Add Metas
     metas.RegistrySID AS RegSID,
     $ENTITY_META AS Type,
     'metas' AS Plural,
@@ -374,7 +374,7 @@ UNION SELECT                    # Add Metas
     metas.Path
 FROM Metas AS metas
 
-UNION SELECT                    # Add Versions for non-xref Resources
+UNION ALL SELECT                # Add Versions for non-xref Resources
     v.RegistrySID AS RegSID,
     $ENTITY_VERSION AS Type,
     'versions' AS Plural,
@@ -386,7 +386,7 @@ UNION SELECT                    # Add Versions for non-xref Resources
     v.Path
 FROM Versions AS v
 
-UNION SELECT                    # Add Versions for xref Resources
+UNION ALL SELECT                # Add Versions for xref Resources
     v.RegistrySID AS RegSID,
     $ENTITY_VERSION AS Type,
     'versions' AS Plural,
@@ -423,7 +423,7 @@ JOIN Versions AS v
 JOIN Props AS p ON (p.EntitySID=v.SID)
 WHERE m.xRefSID IS NULL
 
-UNION SELECT                       # Get default prop for xref resources
+UNION ALL SELECT                   # Get default prop for xref resources
     p.RegistrySID,
     m.ResourceSID AS EntitySID,
     p.PropName,
@@ -439,7 +439,7 @@ JOIN Versions AS v
 JOIN Props AS p ON (p.EntitySID=v.SID)
 WHERE m.xRefSID IS NOT NULL
 
-UNION SELECT                    # Add Resource.isdefault, always 'true'
+UNION ALL SELECT                # Add Resource.isdefault, always 'true'
     m.RegistrySID,
     m.ResourceSID,
     'isdefault$DB_IN',
@@ -458,7 +458,7 @@ SELECT                          # Base props
     DocView
 FROM Props
 
-UNION SELECT                    # Add Props for xRef resources
+UNION ALL SELECT                # Add Props for xRef resources
     mS.RegistrySID AS RegistrySID,
     mS.SID AS EntitySID,
     p.PropName AS PropName,
@@ -471,7 +471,7 @@ JOIN Props AS p ON (p.EntitySID=mT.SID AND
        p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')))
 WHERE mS.xRefSID IS NOT NULL
 
-UNION SELECT                   # Add Version props for xRef resources
+UNION ALL SELECT               # Add Version props for xRef resources
     mS.RegistrySID AS RegistrySID,
     CONCAT('-', mS.ResourceSID, '-', p.EntitySID) AS EntitySID,
     p.PropName AS PropName,
@@ -485,9 +485,9 @@ JOIN Props as p ON (p.EntitySID IN (
      ) AND p.PropName<>'xref$DB_IN')
 WHERE mS.xRefSID IS NOT NULL
 
-UNION SELECT * FROM DefaultProps
+UNION ALL SELECT * FROM DefaultProps
 
-UNION SELECT                    # Add Version.isdefault, which is calculated
+UNION ALL SELECT                # Add Version.isdefault, which is calculated
   v.RegSID,
   v.eSID,
   'isdefault$DB_IN',
@@ -503,7 +503,7 @@ UNION SELECT                    # Add Version.isdefault, which is calculated
 FROM Entities AS v
 JOIN Metas AS m ON (m.ResourceSID=v.ParentSID AND v.Type='$ENTITY_VERSION')
 
-UNION SELECT                   # Add *.xid, which is calculated
+UNION ALL SELECT               # Add *.xid, which is calculated
   e.RegSID,
   e.eSID,
   'xid$DB_IN',
@@ -512,7 +512,7 @@ UNION SELECT                   # Add *.xid, which is calculated
   IF(LEFT(e.eSID,1)='-',false,true)   # A bit of a lie for DocView mode
 FROM Entities AS e
 
-UNION SELECT                   # Add in Version.RESOURCEid, which is calculated
+UNION ALL SELECT               # Add in Version.RESOURCEid, which is calculated
   v.RegSID,
   v.eSID,
   CONCAT(r.Singular, 'id$DB_IN'),
