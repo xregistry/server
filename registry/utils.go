@@ -802,7 +802,8 @@ func IncomingObj2Map(incomingObj Object) (map[string]Object, error) {
 		if oV.Kind() != reflect.Map ||
 			oV.Type().Key().Kind() != reflect.String {
 
-			return nil, fmt.Errorf("Body must be a map of id->Entity")
+			return nil, fmt.Errorf("Body must be a map of id->Entity, near %q",
+				id)
 		}
 		newObj := Object{}
 		for _, keyVal := range oV.MapKeys() {
@@ -1079,4 +1080,18 @@ func DownloadURL(urlPath string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("Error retrieving %q: %s", urlPath, err)
+}
+
+func AddQuery(urlPath string, newQuery string) string {
+	if newQuery == "" {
+		return urlPath
+	}
+
+	base, query, _ := strings.Cut(urlPath, "?")
+	if query == "" {
+		query = "?"
+	} else {
+		query = "?" + query + "&"
+	}
+	return base + query + newQuery
 }

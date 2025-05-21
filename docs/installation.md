@@ -13,9 +13,12 @@ The xRegistry executables are available as:
 
 ## Configuring MySQL
 
-WIP - Is there anything? I think xrserver just 'does it' automagically.
-However, check to see if there are any special admin/config knobs that might
-need to be set. I think Azure MySQL required some special rights to be set.
+WIP - Is there anything w.r.t. the schema? I think xrserver just 'does it'
+automagically. However, check to see if there are any special admin/config
+knobs that might need to be set. I think Azure MySQL required some special
+rights to be set.
+
+WIP - configuring MySQL to use a volume outside of the docker container
 
 ## Configuring `xrserver` to use an external MySQL Database
 

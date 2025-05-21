@@ -18,7 +18,7 @@ Simple guidelines for PRs:
 
 Most common Makefile targets:
 
-```bash
+```yaml
 # Build, test and run; will reset the DB & sample Registries:
 make
 

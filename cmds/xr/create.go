@@ -62,6 +62,8 @@ func addUpdateCmd(parent *cobra.Command) {
 		"Only update specified attributes")
 	updateCmd.Flags().BoolP("force", "f", false,
 		"Force a 'create' if doesnt exist, skip pre-flight checks")
+	updateCmd.Flags().BoolP("noepoch", "", false,
+		"Skip 'epoch' checks")
 
 	parent.AddCommand(updateCmd)
 }
@@ -100,6 +102,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	patch, _ := cmd.Flags().GetBool("patch")
 	force, _ := cmd.Flags().GetBool("force")
+	noEpoch, _ := cmd.Flags().GetBool("noepoch")
 
 	data, _ := cmd.Flags().GetString("data")
 	if len(data) > 0 && data[0] == '@' {
@@ -170,12 +173,16 @@ func createFunc(cmd *cobra.Command, args []string) {
 		method = "PATCH"
 	}
 
-	// res := (*xrlib.HttpResponse)(nil)
+	path := xid.String()
 	if xid.IsEntity {
-		_, err = reg.HttpDo(method, xid.String()+suffix, []byte(data))
-	} else {
-		_, err = reg.HttpDo(method, xid.String(), []byte(data))
+		path += suffix
 	}
+
+	if noEpoch {
+		path = registry.AddQuery(path, "noepoch")
+	}
+
+	_, err = reg.HttpDo(method, path, []byte(data))
 
 	Error(err)
 	Verbose("Processed: %s", IDs)

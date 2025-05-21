@@ -1,0 +1,54 @@
+#!/bin/bash
+
+set -e
+
+# This will upload all openapi docs in github.com/APIs-guru/openapi-directory
+# 
+# Start xReg:      docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
+# Point to it:     set XR_SERVER=localhost:8080
+# Run this script: ./APIs-guru-openapi
+
+XR_SERVER=${XR_SERVER:-localhost:8080}
+
+# Only clone if we're not in the openapi dir and it's not in current dir
+if [[ `basename $PWD` != "openapi-directory" ]]; then
+  if ! test -d openapi-directory ; then
+    git clone https://github.com/APIs-guru/openapi-directory.git \
+      --depth 1 --single-branch
+  fi
+  cd openapi-directory
+fi
+
+# Define the model (1 group type with 1 resource type)
+xr model group create providers:provider
+xr model resource create -g providers services:service
+
+# Find all files and upload them
+find APIs -type f -print | sort | while read line ; do
+  IFS="/" read path provider service ver file extra <<< "$line"
+  # 2 variants:
+  # PROVIDER   | SERVICE  | VER | FILE
+  # google.com | composer | v1  | openapi.yaml
+  # furkot.com |            1.0 | swagger.yaml  <- inject 'core' as svc name
+
+  if [[ "$extra" != "" ]] ; then
+    echo "Error: extra stuff($extra) on: $line"
+    exit 1
+  fi
+
+  # 2nd variant, so shift vars and default "service" to "core"
+  if [[ "$file" == "" ]]; then
+    file=$ver
+    ver=$service
+    service="core"
+  fi
+
+  # Convert invalid chars into _'s
+  provider=$(echo "$provider" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+  service=$(echo "$service" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+  ver=$(echo "$ver" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+
+  # -f to skip pre-flight checks (speeds it up a bit)
+  xr create -vf providers/$provider/services/$service/versions/$ver \
+    -d "@$line"
+done

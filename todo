@@ -119,3 +119,6 @@ TODOs:
   - make sure * can't be used when using <, >... just =, <> and !=
   - case insensitive compares
 - support modelsource
+
+on PUT / process "model" immediately before we look at data
+POST / need to return better error when extra stuff is at the root

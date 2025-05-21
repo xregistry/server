@@ -3,7 +3,7 @@
 Fastest way to get started is to have [Docker](https://www.docker.com/)
 installed, and then run the xRegistry server with an embedded MySQL database:
 
-```bash
+```yaml
 $ docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all --samples
 ```
 
@@ -14,7 +14,7 @@ $ docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all --samples
 When ready, the API server will be available at: `http://localhost:8080` by
 any HTTP client, such as `curl`:
 
-```bash
+```yaml
 $ curl localhost:8080
 
 {
@@ -29,9 +29,10 @@ $ curl localhost:8080
 ```
 
 Which shows some top-level metadata about the default Registry, which is in
-this case is empty. Append one of the sample URL paths to explore another one:
+this case is empty. Append one of the sample Registry URL paths to explore
+another one:
 
-```bash
+```yaml
 $ curl localhost:8080/reg-DocStore
 
 {
@@ -54,7 +55,7 @@ $ curl localhost:8080/reg-DocStore
 You can also access one of the Registries via a browser-based explorer tool by
 adding the `?ui` query parameter to the URL and putting it into a browser:
 
-```bash
+```yaml
 http://localhost:8080?ui
 http://localhost:8080/reg-DocStore?ui
 ```

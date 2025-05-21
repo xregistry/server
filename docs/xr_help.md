@@ -5,7 +5,7 @@
 The `xr` CLI lets you interact with an xRegistry server:
 
 <!-- XR HELP START -->
-```bash
+```yaml
 xr [command]
   # Global flags:
   -?, --help            Help for xr
@@ -100,6 +100,7 @@ xr update [ XID ]
   -d, --data string   Data(json), @FILE, @URL, @-(stdin)
   -m, --details       Data is resource metadata
   -f, --force         Force a 'create' if doesnt exist, skip pre-flight checks
+      --noepoch       Skip 'epoch' checks
   -p, --patch         Only update specified attributes
 ```
 <!-- XR HELP END -->
