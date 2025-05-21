@@ -15,8 +15,7 @@ var GitCommit string
 var DBName = "registry"
 var RegistryName = "xRegistry"
 var Port = 8080
-var DefaultVerboseCount = 0
-var VerboseCount = DefaultVerboseCount
+var VerboseCount = 0 // to change, do it as definition of -v flag
 var DontCreate = false
 var RecreateDB = false
 var RecreateReg = false
@@ -89,7 +88,7 @@ func Verbose(args ...any) {
 
 func setupCmds() *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:   "xrserver [default-registry-name]",
+		Use:   "xrserver",
 		Short: "xRegistry server",
 		Run:   runFunc, // if we add this, add all of runCmd's flags
 	}
@@ -103,16 +102,17 @@ func setupCmds() *cobra.Command {
 		"Recreate registry")
 	serverCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
 		"Don't create DB/reg if missing")
+	serverCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
+		"Default Registry name")
 
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
 		"Be chatty - can specify multiple (-v=0 to turn off)``")
-	VerboseCount = DefaultVerboseCount // Cobra sets it to zero!
 
 	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
 	runCmd := &cobra.Command{
-		Use:   "run [default-registry-name]",
+		Use:   "run",
 		Short: "Run server (the default command)",
 		Run:   runFunc,
 	}
@@ -126,6 +126,8 @@ func setupCmds() *cobra.Command {
 		"Recreate registry")
 	runCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
 		"Don't create DB/reg if missing")
+	runCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
+		"Default Registry name")
 
 	serverCmd.AddCommand(runCmd)
 
@@ -167,10 +169,11 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if len(args) > 0 {
-		if len(args) > 1 {
-			Stop("Too many arguments on the command line")
-		}
-		RegistryName = args[0]
+		Stop("Too many arguments on the command line")
+	}
+
+	if RegistryName == "" {
+		Stop("Default Registry name missing, try: -r NAME")
 	}
 
 	if RecreateDB {

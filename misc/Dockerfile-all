@@ -36,4 +36,4 @@ COPY misc/waitformysql /
 COPY misc/start /
 
 ENTRYPOINT [ "/start", "--db"]
-CMD [ ]
+CMD [ "-vv" ]
