@@ -48,7 +48,11 @@ find APIs -type f -print | sort | while read line ; do
   service=$(echo "$service" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
   ver=$(echo "$ver" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
 
+  while [[ `jobs | wc -l` > 4 ]] ; do sleep .05 ; done
+
   # -f to skip pre-flight checks (speeds it up a bit)
   xr create -vf providers/$provider/services/$service/versions/$ver \
-    -d "@$line"
+    -d "@$line" &
 done
+
+wait ; sleep 1

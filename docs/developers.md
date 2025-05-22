@@ -41,7 +41,8 @@ the packages listed on the `RUN apk add` command.
 | `make all`          | Build all, run test and start server (reset DB) |
 | `make run`          | Build and start server (no tests, reset DB) |
 | `make start`        | Build and start seerver (no tests, keep DB) |
-| `make test`         | Build all + run tests only |
+| `make test`         | Build all & run all tests |
+| `make qtest`        | Build all & run just main tests |
 | `make xr`           | Build `xr` CLI only |
 | `make xrserver`     | Build `xrserver` executable only |
 | `make cmds`         | Build all executables (`xrserver` and` xr`) |

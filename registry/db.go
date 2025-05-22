@@ -727,10 +727,12 @@ func doCount(tx *Tx, cmd string, args ...interface{}) (int, error) {
 
 	result, err := ps.Exec(args...)
 	if err != nil {
-		query := SubQuery(cmd, args)
-		log.Printf("doCount:Error DB(%s)->%s\n", query, err)
-		ShowStack()
-		log.VPrintf(0, "CMD: %q args: %v", cmd, args)
+		if log.GetVerbose() > 4 {
+			query := SubQuery(cmd, args)
+			log.Printf("doCount:Error DB(%s)->%s\n", query, err)
+			ShowStack()
+			log.VPrintf(0, "CMD: %q args: %v", cmd, args)
+		}
 		return 0, err
 	}
 

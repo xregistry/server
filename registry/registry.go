@@ -578,6 +578,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		id = NewUUID()
 	}
 
+	isNew := false
+
 	g, err := reg.FindGroup(gType, id, true)
 	if err != nil {
 		return nil, false, fmt.Errorf("Error finding Group(%s) %q: %s",
@@ -589,13 +591,13 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			"with a \"%sid\" of %q, when one already exists as %q",
 			gm.Singular, id, g.UID)
 	}
+
 	if addType == ADD_ADD && g != nil {
 		return nil, false, fmt.Errorf("Group %q of type %q already exists",
 			id, gType)
 	}
 
-	isNew := (g == nil)
-	if g == nil {
+	for g == nil {
 		// Not found, so create a new one
 		g = &Group{
 			Entity: Entity{
@@ -617,8 +619,6 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		g.tx.AddGroup(g)
-
 		err = DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
@@ -630,18 +630,30 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			g.Plural, g.Singular)
 
 		if err != nil {
-			err = fmt.Errorf("Error adding Group: %s", err)
-			log.Print(err)
-			return nil, false, err
-		}
+			if !strings.Contains(err.Error(), "Duplicate entry") {
+				err = fmt.Errorf("Error adding Group: %s", err)
+				log.Print(err)
+				return nil, false, err
+			}
 
-		// Use the ID passed as an arg, not from the metadata, as the true
-		// ID. If the one in the metadata differs we'll flag it down below
-		if err = g.JustSet(g.Singular+"id", g.UID); err != nil {
-			return nil, false, err
+			// Another thread already created it
+			g, err = reg.FindGroup(gType, id, true)
+			if err != nil {
+				return nil, false,
+					fmt.Errorf("Error finding Group(%s) %q: %s",
+						gType, id, err)
+			}
+			PanicIf(g == nil, "shouldn't be nil")
+		} else {
+			// Use the ID passed as an arg, not from the metadata, as the true
+			// ID. If the one in the metadata differs we'll flag it down below
+			if err = g.JustSet(g.Singular+"id", g.UID); err != nil {
+				return nil, false, err
+			}
+			isNew = true
+			g.Registry.Touch()
+			g.tx.AddGroup(g)
 		}
-
-		g.Registry.Touch()
 	}
 
 	// Remove all Resource collections from obj before we process it

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	// "net/http"
 	"os"
 	"path/filepath"
@@ -61,6 +62,8 @@ func addDownloadCmd(parent *cobra.Command) {
 		"HTML to add after <head> in md2html files (data,@FILE,@URL,@-)")
 	downloadCmd.Flags().BoolP("capabilities", "c", false,
 		"Modify capabilities for static site")
+	downloadCmd.Flags().IntP("parallel", "p", 10,
+		"Number of items to download in parallel")
 
 	parent.AddCommand(downloadCmd)
 }
@@ -118,7 +121,22 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	downloadXIDFn := func(xid *xrlib.XID) ([]byte, error) {
+	parallel, _ := cmd.Flags().GetInt("parallel")
+	if parallel < 1 {
+		Error("--parallel must be greater than zero")
+	}
+
+	// Our download work queue
+	listCH := make(chan *xrlib.XID, parallel+1) // 1 for main loop below
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	downloadXIDFn := func(xid *xrlib.XID, wait bool) ([]byte, error) {
+		if !wait && parallel > 1 {
+			listCH <- xid
+			return nil, nil
+		}
+
 		obj := map[string]json.RawMessage{}
 		plurals := []string{}
 
@@ -381,11 +399,27 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		return data, nil
 	}
 
+	// Process the listCH work-queue in parallel, signal(wg) when all done
+	go func() {
+		for {
+			xid, ok := <-listCH
+			if xid == nil && !ok {
+				break
+			}
+			go func() {
+				_, err := downloadXIDFn(xid, true)
+				Error(err)
+			}()
+		}
+		wg.Done()
+	}()
+
 	for _, xidStr := range args {
 		xid, err := xrlib.ParseXID(xidStr)
 		Error(err)
 		Error(traverseFromXID(reg, xid, dir, downloadXIDFn))
 	}
+	close(listCH) // close work-queue
 
 	data, _ := Download(reg, "/export")
 	if len(data) > 0 {
@@ -426,6 +460,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Write(dir+"/capabilities", data)
 		Write(dir+"/capabilities.hdr", []byte("content-type: application/json"))
 	}
+
+	// Just incase the queue is still processing
+	wg.Wait()
 }
 
 // Body, Headers
@@ -461,12 +498,12 @@ func Write(file string, data []byte) {
 	Error(os.WriteFile(file, data, 0644))
 }
 
-type traverseFunc func(xid *xrlib.XID) ([]byte, error)
+type traverseFunc func(xid *xrlib.XID, wait bool) ([]byte, error)
 
 func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traverseFunc) error {
 	switch xid.Type {
 	case xrlib.ENTITY_REGISTRY:
-		fn(xid)
+		fn(xid, false)
 
 		gList, err := reg.ListGroupModels()
 		Error(err)
@@ -482,7 +519,7 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 	case xrlib.ENTITY_RESOURCE_TYPE:
 		fallthrough
 	case xrlib.ENTITY_VERSION_TYPE:
-		data, err := fn(xid)
+		data, err := fn(xid, true)
 		Error(err)
 
 		tmp := map[string]any{}
@@ -496,7 +533,7 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		}
 
 	case xrlib.ENTITY_GROUP:
-		fn(xid)
+		fn(xid, false)
 
 		gm, err := reg.FindGroupModel(xid.Group)
 		Error(err)
@@ -509,7 +546,7 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		}
 
 	case xrlib.ENTITY_RESOURCE:
-		fn(xid)
+		fn(xid, false)
 
 		nextXID, err := xrlib.ParseXID(xid.String() + "/meta")
 		Error(err)
@@ -520,10 +557,10 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		traverseFromXID(reg, nextXID, root, fn)
 
 	case xrlib.ENTITY_META:
-		fn(xid)
+		fn(xid, false)
 
 	case xrlib.ENTITY_VERSION:
-		fn(xid)
+		fn(xid, false)
 
 	}
 

@@ -213,8 +213,11 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		}
 	}
 
-	isNew := (r == nil)
+	isNew := false
+
 	if r == nil {
+		metaThere := false
+
 		// If Resource doesn't exist, go ahead and create it.
 		// This will not create any Versions yet, just the Resource
 		r = &Resource{
@@ -237,31 +240,6 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			Group: g,
 		}
 		r.Self = r
-
-		r.tx.AddResource(r)
-
-		g.Touch()
-
-		m := &Meta{
-			Entity: Entity{
-				tx: g.tx,
-
-				Registry: g.Registry,
-				DbSID:    NewUUID(),
-				Plural:   "metas",
-				Singular: "meta",
-				UID:      r.UID,
-
-				Type:     ENTITY_META,
-				Path:     r.Path + "/meta",
-				Abstract: r.Abstract + string(DB_IN) + "meta",
-
-				GroupModel:    gModel,
-				ResourceModel: rModel,
-			},
-			Resource: r,
-		}
-		m.Self = m
 
 		err = DoOne(r.tx, `
         INSERT INTO Resources(
@@ -290,35 +268,84 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
 		if err != nil {
-			return nil, false, fmt.Errorf("Error adding Resource: %s", err)
+			if !strings.Contains(err.Error(), "Duplicate entry") {
+				return nil, false, fmt.Errorf("Error adding Resource: %s", err)
+			}
+
+			// Another thread already created it
+			// So assume meta was created too by them
+			r, err = g.FindResource(rType, id, true)
+			if err != nil {
+				return nil, false,
+					fmt.Errorf("Error checking for Resource(%s) %q: %s",
+						rType, id, err)
+			}
+			PanicIf(r == nil, "Shouldn't be nil")
+			metaThere = true
+		} else {
+			isNew = true
+			r.tx.AddResource(r)
+			g.Touch()
+
+			// Use the ID passed as an arg, not from the metadata, as the true
+			// ID. If the one in the metadata differs we'll flag it down below
+			err = r.SetSaveResource(r.Singular+"id", r.UID)
+			if err != nil {
+				return nil, false, err
+			}
 		}
 
-		err = DoOne(r.tx, `
-        INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path, Abstract, Plural, Singular)
-        SELECT ?,?,?,?,?,?,?`,
-			m.DbSID, g.Registry.DbSID, r.DbSID,
-			m.Path, m.Abstract, r.Plural, r.Singular)
-		if err != nil {
-			return nil, false, fmt.Errorf("Error adding Meta: %s", err)
-		}
+		if !metaThere { // Not created by another thread (see above)
+			m, err := r.FindMeta(false)
+			PanicIf(m != nil, "Should be nil")
 
-		err = m.JustSet(r.Singular+"id", r.UID)
-		if err != nil {
-			return nil, false, err
-		}
+			m = &Meta{
+				Entity: Entity{
+					tx: g.tx,
 
-		// Use the ID passed as an arg, not from the metadata, as the true
-		// ID. If the one in the metadata differs we'll flag it down below
-		err = r.SetSaveResource(r.Singular+"id", r.UID)
-		if err != nil {
-			return nil, false, err
-		}
+					Registry: g.Registry,
+					DbSID:    NewUUID(),
+					Plural:   "metas",
+					Singular: "meta",
+					UID:      r.UID,
 
-		r.tx.AddMeta(m)
+					Type:     ENTITY_META,
+					Path:     r.Path + "/meta",
+					Abstract: r.Abstract + string(DB_IN) + "meta",
 
-		err = m.JustSet("#nextversionid", 1)
-		if err != nil {
-			return nil, false, err
+					GroupModel:    gModel,
+					ResourceModel: rModel,
+				},
+				Resource: r,
+			}
+			m.Self = m
+
+			err = DoOne(r.tx, `
+                INSERT INTO Metas(SID, RegistrySID, ResourceSID, Path,
+                            Abstract, Plural, Singular)
+                SELECT ?,?,?,?,?,?,?`,
+				m.DbSID, g.Registry.DbSID, r.DbSID,
+				m.Path, m.Abstract, r.Plural, r.Singular)
+			if err != nil {
+				if strings.Contains(err.Error(), "Duplicate entry") {
+					m, err = r.FindMeta(false)
+					PanicIf(err != nil, "Should be nil")
+					PanicIf(m == nil, "Shouldn't be nil")
+				} else {
+					return nil, false, fmt.Errorf("Error adding Meta: %s", err)
+				}
+			} else {
+				err = m.JustSet(r.Singular+"id", r.UID)
+				if err != nil {
+					return nil, false, err
+				}
+
+				r.tx.AddMeta(m)
+				err = m.JustSet("#nextversionid", 1)
+				if err != nil {
+					return nil, false, err
+				}
+			}
 		}
 	}
 
