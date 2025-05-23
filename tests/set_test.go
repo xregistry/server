@@ -72,7 +72,7 @@ func TestSetResource(t *testing.T) {
 	// Make sure setting it on the version is seen by res.Default and res
 	namePP := NewPP().P("name").UI()
 	file.SetSaveDefault(namePP, "myName")
-	ver, _ := file.FindVersion("v1", false)
+	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
 	val := ver.Get(namePP)
 	if val != "myName" {
 		t.Errorf("ver.Name is %q, should be 'myName'", val)
@@ -83,13 +83,13 @@ func TestSetResource(t *testing.T) {
 
 	// Verify that nil and "" are treated differently
 	ver.SetSave(namePP, nil)
-	ver2, _ := file.FindVersion(ver.UID, false)
+	ver2, _ := file.FindVersion(ver.UID, false, registry.FOR_WRITE)
 	xJSONCheck(t, ver2, ver)
 	val = ver.Get(namePP)
 	xCheck(t, val == nil, "Setting to nil should return nil")
 
 	ver.SetSave(namePP, "")
-	ver2, _ = file.FindVersion(ver.UID, false)
+	ver2, _ = file.FindVersion(ver.UID, false, registry.FOR_WRITE)
 	xJSONCheck(t, ver2, ver)
 	val = ver.Get(namePP)
 	xCheck(t, val == "", "Setting to '' should return ''")
@@ -105,15 +105,15 @@ func TestSetVersion(t *testing.T) {
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false)
+	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
 
 	// /dirs/d1/f1/v1
 
 	// Make sure setting it on the version is seen by res.Default and res
 	namePP := NewPP().P("name").UI()
 	ver.SetSave(namePP, "myName")
-	file, _ = dir.FindResource("files", "f1", false)
-	l, err := file.GetDefault()
+	file, _ = dir.FindResource("files", "f1", false, registry.FOR_WRITE)
+	l, err := file.GetDefault(registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, l != nil, "default is nil")
 	val := l.Get(namePP)
@@ -126,7 +126,7 @@ func TestSetVersion(t *testing.T) {
 	}
 
 	// Make sure we can also still see it from the version itself
-	ver, _ = file.FindVersion("v1", false)
+	ver, _ = file.FindVersion("v1", false, registry.FOR_WRITE)
 	val = ver.Get(namePP)
 	if val != "myName" {
 		t.Errorf("version.Name is %q, should be 'myName'", val)
@@ -146,7 +146,7 @@ func TestSetDots(t *testing.T) {
 	labels := NewPP().P("labels")
 
 	xNoErr(t, reg.SaveAllAndCommit())
-	dir.Refresh()
+	dir.Refresh(registry.FOR_WRITE)
 
 	err := dir.SetSave(labels.UI(), "xxx")
 	xCheck(t, err != nil, "labels=xxx should fail")
@@ -176,7 +176,7 @@ func TestSetDots(t *testing.T) {
 }
 `)
 
-	dir.Refresh()
+	dir.Refresh(registry.FOR_WRITE)
 
 	err = dir.SetSave("labels", nil)
 	xJSONCheck(t, err, nil)
@@ -218,71 +218,71 @@ func TestSetLabels(t *testing.T) {
 	reg := NewRegistry("TestSetLabels")
 	defer PassDeleteReg(t, reg)
 	reg.SaveAllAndCommit()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false)
+	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
 	ver2, _ := file.AddVersion("v2")
 
 	reg.SaveAllAndCommit()
-	reg.Refresh()
-	dir.Refresh()
-	file.Refresh()
-	ver.Refresh()
-	ver2.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	dir.Refresh(registry.FOR_WRITE)
+	file.Refresh(registry.FOR_WRITE)
+	ver.Refresh(registry.FOR_WRITE)
+	ver2.Refresh(registry.FOR_WRITE)
 
 	// /dirs/d1/f1/v1
 	labels := NewPP().P("labels")
 	err := reg.SetSave(labels.P("r2").UI(), "123.234")
 	xNoErr(t, err)
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	// But it's a string here because labels is a map[string]string
 	xJSONCheck(t, reg.Get(labels.P("r2").UI()), "123.234")
 	err = reg.SetSave("labels.r1", "foo")
 	xNoErr(t, err)
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, reg.Get(labels.P("r1").UI()), "foo")
 	err = reg.SetSave(labels.P("r1").UI(), nil)
 	xNoErr(t, err)
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, reg.Get(labels.P("r1").UI()), nil)
 
 	err = dir.SetSave(labels.P("d1").UI(), "bar")
 	xNoErr(t, err)
-	dir.Refresh()
+	dir.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, dir.Get(labels.P("d1").UI()), "bar")
 	// test override
 	err = dir.SetSave(labels.P("d1").UI(), "foo")
 	xNoErr(t, err)
-	dir.Refresh()
+	dir.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, dir.Get(labels.P("d1").UI()), "foo")
 	err = dir.SetSave(labels.P("d1").UI(), nil)
 	xNoErr(t, err)
-	dir.Refresh()
+	dir.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, dir.Get(labels.P("d1").UI()), nil)
 
 	err = file.SetSaveDefault(labels.P("f1").UI(), "foo")
 	xNoErr(t, err)
-	file.Refresh()
+	file.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, file.Get(labels.P("f1").UI()), "foo")
 	err = file.SetSaveDefault(labels.P("f1").UI(), nil)
 	xNoErr(t, err)
-	file.Refresh()
+	file.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, file.Get(labels.P("f1").UI()), nil)
 
 	// Set before we refresh to see if creating v2 causes issues
 	// see comment below too
 	err = ver.SetSave(labels.P("v1").UI(), "foo")
 	xNoErr(t, err)
-	ver.Refresh()
+	ver.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, ver.Get(labels.P("v1").UI()), "foo")
 	err = ver.SetSave(labels.P("v1").UI(), nil)
 	xNoErr(t, err)
-	ver.Refresh()
+	ver.Refresh(registry.FOR_WRITE)
 	xJSONCheck(t, ver.Get(labels.P("v1").UI()), nil)
 
 	dir.SetSave(labels.P("dd").UI(), "dd.foo")
@@ -293,13 +293,13 @@ func TestSetLabels(t *testing.T) {
 	file.SetSaveDefault(labels.P("dd_ff").UI(), "under")
 	file.SetSaveDefault(labels.P("dd.ff").UI(), "dot")
 
-	ver2.Refresh() // very important since ver2 is not stale
+	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
 	if err == nil || err.Error() != `Attribute "labels.vv" must be a string` {
 		t.Errorf("wrong err msg: %s", err)
 		t.FailNow()
 	}
-	// ver.Refresh() // undo the change, otherwise next Set() will fail
+	// ver.Refresh(registry.FOR_WRITE) // undo the change, otherwise next Set() will fail
 
 	// Important test
 	// We update v1(ver) after we created v2(ver2). At one point in time

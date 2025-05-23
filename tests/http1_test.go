@@ -3171,7 +3171,7 @@ func TestHTTPRegGroups(t *testing.T) {
 }
 `})
 
-	reg.Refresh()
+	reg.Refresh(registry.FOR_READ)
 	regEpoch := reg.Get("epoch")
 	regTime := reg.Get("modifiedat")
 
@@ -3182,7 +3182,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		ResBody: "*",
 	})
 
-	reg.Refresh()
+	reg.Refresh(registry.FOR_READ)
 	xCheck(t, regEpoch != reg.Get("epoch"), "regEpoch should be 1")
 	xCheck(t, regTime != reg.Get("createdat"), "regEpoch should be 1")
 
@@ -5569,7 +5569,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	regEpoch := reg.GetAsInt("epoch")
 	regCreated := reg.GetAsString("createdat")
 	regModified := reg.GetAsString("modifiedat")
@@ -5582,8 +5582,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
-	d1.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
 
 	d1Epoch := d1.GetAsInt(NewPP().P("epoch").UI())
 	d1Created := d1.GetAsString(NewPP().P("createdat").UI())
@@ -5603,11 +5603,11 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	f1, _ := d1.AddResource("files", "f1", "v1")
 	f2, _ := d1.AddResource("files", "f2", "v1")
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
-	d1.Refresh()
-	f1.Refresh()
-	v1, _ := f1.FindVersion("v1", false)
-	m1, _ := f1.FindMeta(false)
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
+	f1.Refresh(registry.FOR_WRITE)
+	v1, _ := f1.FindVersion("v1", false, registry.FOR_WRITE)
+	m1, _ := f1.FindMeta(false, registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
@@ -5636,11 +5636,11 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	v2, _ := f1.AddVersion("v2")
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
-	d1.Refresh()
-	f1.Refresh()
-	m1.Refresh()
-	v1.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
+	f1.Refresh(registry.FOR_WRITE)
+	m1.Refresh(registry.FOR_WRITE)
+	v1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
@@ -5792,11 +5792,11 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	v2.DeleteSetNextVersion("")
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
-	d1.Refresh()
-	f1.Refresh()
-	m1.Refresh()
-	v1.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
+	f1.Refresh(registry.FOR_WRITE)
+	m1.Refresh(registry.FOR_WRITE)
+	v1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
@@ -5818,8 +5818,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	v1.DeleteSetNextVersion("")
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
-	d1.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
@@ -5832,8 +5832,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	d1Modified = d1.GetAsString("modifiedat")
 
 	f2.Delete()
-	reg.Refresh()
-	d1.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
+	d1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
@@ -5845,7 +5845,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	d1.Delete()
 	xNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 3)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)

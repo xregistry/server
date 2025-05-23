@@ -2,6 +2,8 @@ package tests
 
 import (
 	"testing"
+
+	"github.com/xregistry/server/registry"
 )
 
 func TestXrefBasic(t *testing.T) {
@@ -35,7 +37,7 @@ func TestXrefBasic(t *testing.T) {
 	xNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
-	meta, _ := fx.FindMeta(false)
+	meta, _ := fx.FindMeta(false, registry.FOR_WRITE)
 	oldCreatedAt := meta.Get("#createdat")
 
 	// Make sure the Resource doesn't have any versions in the DB.
@@ -828,7 +830,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// Grab F0's timestamp so we can compare later
-	f0, err := d.FindResource("files", "f0", false)
+	f0, err := d.FindResource("files", "f0", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	f0TS := f0.Get("createdat").(string)
 	xCheck(t, f0TS > "2024", "bad ts: %s", f0TS)
@@ -870,9 +872,9 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	fx, err := d.FindResource("files", "fx", false)
+	fx, err := d.FindResource("files", "fx", false, registry.FOR_WRITE)
 	xNoErr(t, err)
-	fxMeta, err := fx.FindMeta(false)
+	fxMeta, err := fx.FindMeta(false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	fxMetaTS := fxMeta.Get("createdat").(string)
 	xCheck(t, f0TS == fxMetaTS, "Bad ts: %s/%s", f0TS, fxMetaTS)
@@ -946,8 +948,8 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1024,8 +1026,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1101,8 +1103,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1184,8 +1186,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1268,8 +1270,8 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 2
 }
 `)
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
@@ -1326,8 +1328,8 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh())
-	xNoErr(t, fx.Refresh())
+	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
 	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
 	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 

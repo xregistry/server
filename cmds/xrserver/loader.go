@@ -74,7 +74,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	reader := tar.NewReader(gzf)
 
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "APIs-Guru")
+		reg, err = registry.FindRegistry(nil, "APIs-Guru", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -90,7 +90,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		ErrFatalf(reg.SetSave("name", "APIs-guru Registry"))
 		ErrFatalf(reg.SetSave("description", "xRegistry view of github.com/APIs-guru/openapi-directory"))
 		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
-		ErrFatalf(reg.Refresh())
+		ErrFatalf(reg.Refresh(registry.FOR_READ))
 		// Verbose( "New registry:\n%#v", reg)
 
 		// TODO Support "model" being part of the Registry struct above
@@ -139,7 +139,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// org/service/version/file
 		// org/version/file
 
-		group, err := reg.FindGroup("apiproviders", parts[0], false)
+		group, err := reg.FindGroup("apiproviders", parts[0], false,
+			registry.FOR_WRITE)
 		ErrFatalf(err)
 
 		if group == nil {
@@ -151,7 +152,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		ErrFatalf(group.SetSave("modifiedat", time.Now().Format(time.RFC3339)))
 		ErrFatalf(group.SetSave("epoch", 5))
 
-		// group2 := reg.FindGroup("apiproviders", parts[0])
+		// group2 := reg.FindGroup("apiproviders", parts[0], registry.FOR_WRITE)
 		// log.Printf("Find Group:\n%s", registry.ToJSON(group2))
 
 		resName := "core"
@@ -164,7 +165,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		res, err := group.AddResource("apis", resName, "v1")
 		ErrFatalf(err)
 
-		version, err := res.FindVersion(parts[verIndex], false)
+		version, err := res.FindVersion(parts[verIndex], false,
+			registry.FOR_WRITE)
 		ErrFatalf(err)
 		if version != nil {
 			log.Fatalf("Have more than one file per version: %s\n", header.Name)
@@ -203,7 +205,8 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	var err error
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "TestRegistry")
+		reg, err = registry.FindRegistry(nil, "TestRegistry",
+			registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -330,7 +333,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	var err error
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Endpoints")
+		reg, err = registry.FindRegistry(nil, "Endpoints", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -366,7 +369,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, err := g.AddResource("messages", "created", "v1")
 	ErrFatalf(err)
-	v, err := r.FindVersion("v1", false)
+	v, err := r.FindVersion("v1", false, registry.FOR_WRITE)
 	ErrFatalf(err)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 2))
@@ -379,7 +382,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, err = g.AddResource("messages", "deleted", "v1.0")
 	ErrFatalf(err)
-	v, err = r.FindVersion("v1.0", false)
+	v, err = r.FindVersion("v1.0", false, registry.FOR_WRITE)
 	ErrFatalf(err)
 	ErrFatalf(v.SetSave("name", "blobDeleted"))
 	ErrFatalf(v.SetSave("epoch", 3))
@@ -399,7 +402,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	var err error
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Messages")
+		reg, err = registry.FindRegistry(nil, "Messages", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -432,7 +435,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	var err error
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Schemas")
+		reg, err = registry.FindRegistry(nil, "Schemas", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -466,7 +469,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	var err error
 	start := time.Now()
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Large")
+		reg, err = registry.FindRegistry(nil, "Large", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -524,7 +527,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	var err error
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "DocStore")
+		reg, err = registry.FindRegistry(nil, "DocStore", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()
@@ -579,7 +582,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	var err error
 
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "CloudEvents")
+		reg, err = registry.FindRegistry(nil, "CloudEvents", registry.FOR_WRITE)
 		ErrFatalf(err)
 		if reg != nil {
 			reg.Rollback()

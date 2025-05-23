@@ -62,30 +62,32 @@ func TestCreateGroup(t *testing.T) {
 	xCheckGet(t, reg, "/dirs/xxx/yyy", "Unknown Resource type: yyy\n")
 	xCheckGet(t, reg, "dirs/xxx/yyy", "Unknown Resource type: yyy\n")
 
-	g, err := reg.FindGroup("dirs", "d1", false)
+	g, err := reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
+	g.AccessMode = d1.AccessMode // cheat a little
 	xNoErr(t, err)
 	xJSONCheck(t, g, d1)
 
-	g, err = reg.FindGroup("xxx", "d1", false)
+	g, err = reg.FindGroup("xxx", "d1", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && g == nil, "Finding xxx/d1 should have failed")
 
-	g, err = reg.FindGroup("dirs", "xx", false)
+	g, err = reg.FindGroup("dirs", "xx", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && g == nil, "Finding dirs/xxx should have failed")
 
-	r, err := d1.FindResource("files", "f1", false)
+	r, err := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && r != nil, "Finding resource failed")
+	r.AccessMode = f1.AccessMode // minor cheat
 	xJSONCheck(t, r, f1)
 
-	r2, err := d1.FindResource("files", "xxx", false)
+	r2, err := d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && r2 == nil, "Finding files/xxx didn't work")
 
-	r2, err = d1.FindResource("xxx", "f1", false)
+	r2, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && r2 == nil, "Finding xxx/f1 didn't work")
 
 	err = d1.Delete()
 	xNoErr(t, err)
 
-	g, err = reg.FindGroup("dirs", "d1", false)
+	g, err = reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && g == nil, "Finding delete group failed")
 }
 
@@ -105,7 +107,7 @@ func TestGroupRequiredFields(t *testing.T) {
 	_, err = reg.AddGroup("dirs", "d1")
 	xCheckErr(t, err, "Required property \"req\" is missing")
 	reg.Rollback()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	g1, err := reg.AddGroupWithObject("dirs", "d1",
 		registry.Object{"req": "test"})

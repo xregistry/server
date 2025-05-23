@@ -31,7 +31,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
-				reg, err := registry.FindRegistry(tx, id)
+				reg, err := registry.FindRegistry(tx, id, registry.FOR_WRITE)
 				ErrStopTx(err, tx, "Error looking for %q: %s", id, err)
 
 				if reg != nil {
@@ -55,7 +55,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 
 	deleteCmd := &cobra.Command{
 		Use:   "delete ID...",
-		Short: "Delete one or more registry",
+		Short: "Delete one or more registries",
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) == 0 {
 				Stop("Missing registry ID arguments")
@@ -66,7 +66,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			ErrStop(err, "Error talking to the DB: %s", err)
 
 			for _, id := range args {
-				reg, err := registry.FindRegistry(tx, id)
+				reg, err := registry.FindRegistry(tx, id, registry.FOR_WRITE)
 				ErrStopTx(err, tx, "Error looking for %q: %s", id, err)
 
 				if reg == nil {
@@ -101,7 +101,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			tx, err := registry.NewTx()
 			ErrStop(err, "Error talking to the DB: %s", err)
 
-			reg, err := registry.FindRegistry(tx, args[0])
+			reg, err := registry.FindRegistry(tx, args[0], registry.FOR_READ)
 			ErrStop(err, "Error retrieving the registry: %s", err)
 
 			tx.Rollback()
@@ -142,7 +142,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			fmt.Fprintf(tw, "ID\tNAME\tCREATED\tMODIFIED\n")
 
 			for _, id := range ids {
-				reg, err := registry.FindRegistry(tx, id)
+				reg, err := registry.FindRegistry(tx, id, registry.FOR_READ)
 				ErrStop(err, "Error retrieving registry %q: %s", id, err)
 
 				t, _ := time.Parse(time.RFC3339, reg.GetAsString("createdat"))

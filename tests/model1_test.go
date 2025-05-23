@@ -4168,7 +4168,7 @@ func TestResourceModelCreate(t *testing.T) {
 
 	// Rollback since the previous "newModel" erased too much
 	xNoErr(t, reg.Rollback())
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	reg.LoadModel()
 
 	g, err := reg.AddGroup("dirs", "dir1")
@@ -7040,7 +7040,7 @@ func TestMultModel2Create(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.SaveAllAndCommit()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	gm, _ := reg.Model.AddGroupModel("dirs1", "dir1")
 	gm.AddResourceModel("files", "file", 2, true, false, true)

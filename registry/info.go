@@ -376,7 +376,7 @@ func (info *RequestInfo) ParseRegistryURL() error {
 		info.OriginalPath = rest
 		name := regName[4:] // remove leading "reg-"
 
-		reg, err := FindRegistry(info.tx, name)
+		reg, err := FindRegistry(info.tx, name, FOR_READ)
 		if reg == nil {
 			extra := ""
 			if err != nil {

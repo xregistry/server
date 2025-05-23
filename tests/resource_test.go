@@ -67,24 +67,25 @@ func TestCreateResource(t *testing.T) {
 	xCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", "Expected \"versions\" or \"meta\", got: yyy\n")
 	xCheckGet(t, reg, "dirs/d1/files/xxx/yyy", "Expected \"versions\" or \"meta\", got: yyy\n")
 
-	ft, err = d1.FindResource("files", "f1", false)
+	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, ft != nil && err == nil, "Finding f1 failed")
+	ft.AccessMode = f1.AccessMode // little cheat
 	xJSONCheck(t, ft, f1)
 
-	ft, err = d1.FindResource("files", "xxx", false)
+	ft, err = d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
 	xCheck(t, ft == nil && err == nil, "Find files/xxx should have failed")
 
-	ft, err = d1.FindResource("xxx", "xxx", false)
+	ft, err = d1.FindResource("xxx", "xxx", false, registry.FOR_WRITE)
 	xCheck(t, ft == nil && err == nil, "Find xxx/xxx should have failed")
 
-	ft, err = d1.FindResource("xxx", "f1", false)
+	ft, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
 	xCheck(t, ft == nil && err == nil, "Find xxx/f1 should have failed")
 
 	err = f1.Delete()
 	xNoErr(t, err)
 
-	ft, err = d1.FindResource("files", "f1", false)
+	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && ft == nil, "Finding delete resource failed")
 }
 
@@ -114,12 +115,12 @@ func TestResourceSet(t *testing.T) {
 	xCheck(t, f1.Entity.Get("ext1") == nil, "ext1 should be nil")
 	xCheck(t, f1.Entity.Get("ext2") == nil, "ext2 should be nil")
 
-	ft, _ := d1.FindResource("files", "f1", false)
+	ft, _ := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
 
 	xJSONCheck(t, ft, f1)
 
 	// Make sure the version was set
-	vt, _ := ft.GetDefault()
+	vt, _ := ft.GetDefault(registry.FOR_WRITE)
 	xJSONCheck(t, vt.Get("name"), "myName")
 	xJSONCheck(t, vt.Get("epoch"), 68)
 	xJSONCheck(t, vt.Get("ext1"), "someext")
@@ -146,13 +147,14 @@ func TestResourceRequiredFields(t *testing.T) {
 	_, err = group.AddResource("files", "f1", "v1")
 	xCheckErr(t, err, "Required property \"req\" is missing")
 	reg.Rollback()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
 		registry.Object{"req": "test"}, false)
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 
+	f1.Refresh(registry.FOR_WRITE)
 	err = f1.SetSaveDefault("req", nil)
 	xCheckErr(t, err, "Required property \"req\" is missing")
 
@@ -202,14 +204,14 @@ func TestResourceMaxVersions(t *testing.T) {
 	xNoErr(t, err)
 	xCheck(t, len(vers) == 1, "Should be just one version")
 
-	defaultV, err := f1.GetDefault()
+	defaultV, err := f1.GetDefault(registry.FOR_WRITE)
 	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v1",
 		"err: %q default: %s", err, ToJSON(defaultV))
 
 	// Create v2 and bump v1 out of the list
 	v2, err := f1.AddVersion("v2")
 	xCheck(t, v2 != nil && err == nil, "Creating v2 failed: %s", err)
-	defaultV, err = f1.GetDefault()
+	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q default: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
@@ -224,7 +226,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	xNoErr(t, f1.SetDefault(v2))
 	v3, err := f1.AddVersion("v3")
 	xCheck(t, v3 != nil && err == nil, "Creating v3 failed: %s", err)
-	defaultV, err = f1.GetDefault()
+	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
@@ -236,7 +238,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	// Create v4, which should bump v3 out of the list, not v2 (default)
 	v4, err := f1.AddVersion("v4")
 	xCheck(t, v4 != nil && err == nil, "Creating v4 failed: %s", err)
-	defaultV, err = f1.GetDefault()
+	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
@@ -265,7 +267,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	xNoErr(t, err)
 	xCheck(t, len(vers) == 7, "Should be 7, but is: %d", len(vers))
 	xCheck(t, len(vers) == 7, "Should be 7, but is: %s", ToJSON(vers))
-	defaultV, err = f1.GetDefault()
+	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v5",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 

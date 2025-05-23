@@ -33,7 +33,7 @@ func GetDefaultReg(tx *Tx) *Registry {
 		Must(err)
 	}
 
-	reg, err := FindRegistryBySID(tx, DefaultRegDbSID)
+	reg, err := FindRegistryBySID(tx, DefaultRegDbSID, FOR_READ)
 	Must(err)
 
 	if reg != nil {
@@ -111,7 +111,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 		id = NewUUID()
 	}
 
-	r, err := FindRegistry(tx, id)
+	r, err := FindRegistry(tx, id, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,8 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 
 	reg := &Registry{
 		Entity: Entity{
-			tx: tx,
+			tx:         tx,
+			AccessMode: FOR_WRITE,
 
 			DbSID:    dbSID,
 			Plural:   "registries",
@@ -220,14 +221,32 @@ func (reg *Registry) Get(name string) any {
 
 // Technically this should be called SetValidateSave
 func (reg *Registry) SetCommit(name string, val any) error {
+	// Normally we should never call Lock() directly, however Registry is
+	// kind of special because we rarely know if we want to "Find" the Registry
+	// for writing until later in the process. So instead of forcing the
+	// code to re-Find with FOR_WRITE, we'll just make it easy and these
+	// variants of 'update' will just lock it automatically
+	reg.Lock()
 	return reg.Entity.eSetCommit(name, val)
 }
 
 func (reg *Registry) JustSet(name string, val any) error {
+	// Normally we should never call Lock() directly, however Registry is
+	// kind of special because we rarely know if we want to "Find" the Registry
+	// for writing until later in the process. So instead of forcing the
+	// code to re-Find with FOR_WRITE, we'll just make it easy and these
+	// variants of 'update' will just lock it automatically
+	reg.Lock()
 	return reg.Entity.eJustSet(NewPPP(name), val)
 }
 
 func (reg *Registry) SetSave(name string, val any) error {
+	// Normally we should never call Lock() directly, however Registry is
+	// kind of special because we rarely know if we want to "Find" the Registry
+	// for writing until later in the process. So instead of forcing the
+	// code to re-Find with FOR_WRITE, we'll just make it easy and these
+	// variants of 'update' will just lock it automatically
+	reg.Lock()
 	return reg.Entity.eSetSave(name, val)
 }
 
@@ -235,6 +254,12 @@ func (reg *Registry) Delete() error {
 	log.VPrintf(3, ">Enter: Reg.Delete(%s)", reg.UID)
 	defer log.VPrintf(3, "<Exit: Reg.Delete")
 
+	// Normally we should never call Lock() directly, however Registry is
+	// kind of special because we rarely know if we want to "Find" the Registry
+	// for writing until later in the process. So instead of forcing the
+	// code to re-Find with FOR_WRITE, we'll just make it easy and these
+	// variants of 'update'  will just lock it automatically
+	reg.Lock()
 	err := DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
 	if err != nil {
 		return err
@@ -243,7 +268,7 @@ func (reg *Registry) Delete() error {
 	return nil
 }
 
-func FindRegistryBySID(tx *Tx, sid string) (*Registry, error) {
+func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, error) {
 	log.VPrintf(3, ">Enter: FindRegistrySID(%s)", sid)
 	defer log.VPrintf(3, "<Exit: FindRegistrySID")
 
@@ -251,7 +276,7 @@ func FindRegistryBySID(tx *Tx, sid string) (*Registry, error) {
 		return tx.Registry, nil
 	}
 
-	ent, err := RawEntityFromPath(tx, sid, "", false)
+	ent, err := RawEntityFromPath(tx, sid, "", false, accessMode)
 	if err != nil {
 		return nil, fmt.Errorf("Error finding Registry %q: %s", sid, err)
 	}
@@ -274,7 +299,7 @@ func FindRegistryBySID(tx *Tx, sid string) (*Registry, error) {
 }
 
 // BY UID
-func FindRegistry(tx *Tx, id string) (*Registry, error) {
+func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, error) {
 	log.VPrintf(3, ">Enter: FindRegistry(%s)", id)
 	defer log.VPrintf(3, "<Exit: FindRegistry")
 
@@ -326,7 +351,7 @@ func FindRegistry(tx *Tx, id string) (*Registry, error) {
 	id = NotNilString(row[0])
 	results.Close()
 
-	ent, err := RawEntityFromPath(tx, id, "", false)
+	ent, err := RawEntityFromPath(tx, id, "", false, accessMode)
 
 	if err != nil {
 		if newTx {
@@ -432,6 +457,12 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 		return err
 	}
 
+	// Normally we should never call Lock() directly, however Registry is
+	// kind of special because we rarely know if we want to "Find" the Registry
+	// for writing until later in the process. So instead of forcing the
+	// code to re-Find with FOR_WRITE, we'll just make it easy and these
+	// variants of 'update'  will just lock it automatically
+	reg.Lock()
 	reg.SetNewObject(obj)
 
 	// Need to do it here instead of under the checkFn because doing it
@@ -518,15 +549,19 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 	return reg.ValidateAndSave()
 }
 
-func (reg *Registry) FindGroup(gType string, id string, anyCase bool) (*Group, error) {
+func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, error) {
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
 
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
+		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
+			g.Lock()
+		}
 		return g, nil
 	}
 
-	ent, err := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase)
+	ent, err := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase,
+		accessMode)
 	if err != nil {
 		return nil, fmt.Errorf("Error finding Group %q(%s): %s", id, gType, err)
 	}
@@ -560,6 +595,13 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
 	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
 
+	// Need this because its parent (the registry) might not be locked, which
+	// we need because we need to change stuff in it. And we don't want all
+	// callers of this func to have to re-Find/lock the registry themselves.
+	// The registry at this point is the generic "find the registry for read"
+	// that all interactions go thru.
+	reg.Lock()
+
 	if err := reg.SaveModel(); err != nil {
 		return nil, false, err
 	}
@@ -580,7 +622,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	isNew := false
 
-	g, err := reg.FindGroup(gType, id, true)
+	g, err := reg.FindGroup(gType, id, true, FOR_WRITE)
 	if err != nil {
 		return nil, false, fmt.Errorf("Error finding Group(%s) %q: %s",
 			gType, id, err)
@@ -601,7 +643,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// Not found, so create a new one
 		g = &Group{
 			Entity: Entity{
-				tx: reg.tx,
+				tx:         reg.tx,
+				AccessMode: FOR_WRITE,
 
 				Registry: reg,
 				DbSID:    NewUUID(),
@@ -630,30 +673,19 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			g.Plural, g.Singular)
 
 		if err != nil {
-			if !strings.Contains(err.Error(), "Duplicate entry") {
-				err = fmt.Errorf("Error adding Group: %s", err)
-				log.Print(err)
-				return nil, false, err
-			}
-
-			// Another thread already created it
-			g, err = reg.FindGroup(gType, id, true)
-			if err != nil {
-				return nil, false,
-					fmt.Errorf("Error finding Group(%s) %q: %s",
-						gType, id, err)
-			}
-			PanicIf(g == nil, "shouldn't be nil")
-		} else {
-			// Use the ID passed as an arg, not from the metadata, as the true
-			// ID. If the one in the metadata differs we'll flag it down below
-			if err = g.JustSet(g.Singular+"id", g.UID); err != nil {
-				return nil, false, err
-			}
-			isNew = true
-			g.Registry.Touch()
-			g.tx.AddGroup(g)
+			err = fmt.Errorf("Error adding Group: %s", err)
+			log.Print(err)
+			return nil, false, err
 		}
+
+		// Use the ID passed as an arg, not from the metadata, as the true
+		// ID. If the one in the metadata differs we'll flag it down below
+		if err = g.JustSet(g.Singular+"id", g.UID); err != nil {
+			return nil, false, err
+		}
+		isNew = true
+		g.Registry.Touch()
+		g.tx.AddGroup(g)
 	}
 
 	// Remove all Resource collections from obj before we process it
@@ -957,7 +989,7 @@ func (r *Registry) XID2Entity(xid string) (*Entity, error) {
 		return nil, err
 	}
 
-	g, err := r.FindGroup(parts[0], parts[1], false)
+	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
@@ -972,7 +1004,7 @@ func (r *Registry) XID2Entity(xid string) (*Entity, error) {
 		return nil, fmt.Errorf("%q isn't an xid", xid)
 	}
 
-	res, err := g.FindResource(parts[2], parts[3], false)
+	res, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
@@ -988,7 +1020,7 @@ func (r *Registry) XID2Entity(xid string) (*Entity, error) {
 	if len(parts) < 6 {
 		return nil, fmt.Errorf("%q isn't an xid", xid)
 	}
-	v, err := res.FindVersion(parts[5], false)
+	v, err := res.FindVersion(parts[5], false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
@@ -1012,7 +1044,7 @@ func (r *Registry) FindXIDGroup(xid string) (*Group, error) {
 		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
 	}
 
-	return r.FindGroup(parts[0], parts[1], false)
+	return r.FindGroup(parts[0], parts[1], false, FOR_READ)
 }
 
 func (r *Registry) FindResourceByXID(xid string) (*Resource, error) {
@@ -1023,11 +1055,11 @@ func (r *Registry) FindResourceByXID(xid string) (*Resource, error) {
 	if len(parts) < 4 {
 		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false)
+	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	return g.FindResource(parts[2], parts[3], false)
+	return g.FindResource(parts[2], parts[3], false, FOR_READ)
 }
 
 func (r *Registry) FindXIDVersion(xid string) (*Version, error) {
@@ -1041,15 +1073,15 @@ func (r *Registry) FindXIDVersion(xid string) (*Version, error) {
 	if parts[4] != "versions" {
 		return nil, fmt.Errorf("XID %q is \"versions\"", xid)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false)
+	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	resource, err := g.FindResource(parts[2], parts[3], false)
+	resource, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
 	if err != nil || resource == nil {
 		return nil, err
 	}
-	return resource.FindVersion(parts[5], false)
+	return resource.FindVersion(parts[5], false, FOR_READ)
 }
 
 func (r *Registry) FindXIDMeta(xid string) (*Meta, error) {
@@ -1063,15 +1095,15 @@ func (r *Registry) FindXIDMeta(xid string) (*Meta, error) {
 	if parts[4] != "meta" {
 		return nil, fmt.Errorf("XID %q is \"meta\"", xid)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false)
+	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	resource, err := g.FindResource(parts[2], parts[3], false)
+	resource, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
 	if err != nil || resource == nil {
 		return nil, err
 	}
-	return resource.FindMeta(false)
+	return resource.FindMeta(false, FOR_READ)
 }
 
 func LoadRemoteRegistry(host string) (*Registry, error) {

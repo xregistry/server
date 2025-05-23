@@ -32,7 +32,7 @@ func TestTimestampRegistry(t *testing.T) {
 	regMod := reg.Get("modifiedat")
 	xCheckEqual(t, "", regCreate, regMod)
 	reg.SaveAllAndCommit()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	// Test to make sure modify timestamp changes, but created didn't
 	xNoErr(t, reg.SetSave("description", "my docs"))
@@ -59,7 +59,7 @@ func TestTimestampRegistry(t *testing.T) {
 	xCheck(t, ToJSON(reg.Get("modifiedat")) > ToJSON(regMod),
 		"Mod should be newer than before")
 
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	regMod = reg.Get("modifiedat")
 
 	xCheck(t, ToJSON(regMod) > ToJSON(regCreate),
@@ -213,7 +213,7 @@ func TestTimestampRegistry(t *testing.T) {
 }
 `,
 	})
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	// Shouldn't need these, but do it anyway
 	xCheckEqual(t, "", reg.Get("createdat"), "1970-01-02T03:04:05Z")
 	xCheckEqual(t, "", reg.Get("modifiedat"), "2000-05-04T03:02:01Z")
@@ -269,7 +269,7 @@ func TestTimestampRegistry(t *testing.T) {
 `,
 	})
 
-	g, err := reg.FindGroup("dirs", "d4", false)
+	g, err := reg.FindGroup("dirs", "d4", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheckEqual(t, "", g.Get("createdat"), "1970-01-02T03:04:05Z")
 	xCheckEqual(t, "", g.Get("modifiedat"), "2000-05-04T03:02:01Z")
@@ -300,11 +300,11 @@ func TestTimestampRegistry(t *testing.T) {
 `,
 	})
 
-	g, err = reg.FindGroup("dirs", "d5", false)
+	g, err = reg.FindGroup("dirs", "d5", false, registry.FOR_WRITE)
 	xNoErr(t, err)
-	r, err := g.FindResource("files", "f5", false)
+	r, err := g.FindResource("files", "f5", false, registry.FOR_WRITE)
 	xNoErr(t, err)
-	v, err := r.FindVersion("v99", false)
+	v, err := r.FindVersion("v99", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheckEqual(t, "", v.Get("createdat"), "1970-01-02T03:04:05Z")
 	xCheckEqual(t, "", v.Get("modifiedat"), "2000-05-04T03:02:01Z")
@@ -366,7 +366,7 @@ func TestTimestampParsing(t *testing.T) {
 			continue
 		}
 
-		reg.Refresh()
+		reg.Refresh(registry.FOR_WRITE)
 		xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.value)
 		xNoErr(t, reg.SaveAllAndCommit())
 	}

@@ -544,7 +544,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	d1, err := reg.FindGroup("dirs", "dir1", false)
+	d1, err := reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, d1 != nil, "d1 should not be nil")
 
@@ -3656,7 +3656,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	xNoErr(t, err)
 
 	reg.SaveAllAndCommit()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	regCre := reg.GetAsString("createdat")
 	regMod := reg.GetAsString("modifiedat")
 
@@ -3691,7 +3691,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	xCheckEqual(t, "", reg.GetAsString("createdat"), regCre)
 	xCheckNotEqual(t, "", reg.GetAsString("modifiedat"), regMod)
 
@@ -3843,7 +3843,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	g.Refresh()
+	g.Refresh(registry.FOR_WRITE)
 	xCheck(t, g.GetAsString("modifiedat") != gmod, "Should be diff")
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
@@ -3968,8 +3968,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// Test PATCHing a Resource
 	// //////////////////////////////////////////////////////
 
-	f.Refresh()
-	v, _ := f.GetDefault()
+	f.Refresh(registry.FOR_WRITE)
+	v, _ := f.GetDefault(registry.FOR_WRITE)
 	vmod := v.GetAsString("modifiedat")
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 200,
@@ -3997,7 +3997,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	v.Refresh()
+	v.Refresh(registry.FOR_WRITE)
 	xCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
@@ -4150,8 +4150,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// Test PATCHing a Version
 	// //////////////////////////////////////////////////////
 
-	f.Refresh()
-	v, _ = f.GetDefault()
+	f.Refresh(registry.FOR_WRITE)
+	v, _ = f.GetDefault(registry.FOR_WRITE)
 	vmod = v.GetAsString("modifiedat")
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 200,
@@ -4175,7 +4175,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	v.Refresh()
+	v.Refresh(registry.FOR_WRITE)
 	xCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{

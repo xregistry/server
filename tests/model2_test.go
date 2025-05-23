@@ -23,7 +23,7 @@ func TestModelLabels(t *testing.T) {
 	xNoErr(t, rm.AddLabel("r-label", "r-value"))
 
 	reg.SaveAllAndCommit()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	xCheckGet(t, reg, "/model", `{
   "labels": {
@@ -499,7 +499,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xNoErr(t, reg.Refresh())
+	xNoErr(t, reg.Refresh(registry.FOR_WRITE))
 	reg.LoadModel()
 
 	gm = reg.Model.FindGroupModel(gm.Plural)
@@ -1600,10 +1600,10 @@ func TestUseSpecAttrs(t *testing.T) {
 	r1, err := d1.AddResource("files", "f1", "v1")
 	xNoErr(t, err)
 
-	v1, err := r1.FindVersion("v1", false)
+	v1, err := r1.FindVersion("v1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 
-	meta, err := r1.FindMeta(false)
+	meta, err := r1.FindMeta(false, registry.FOR_WRITE)
 	xNoErr(t, err)
 
 	for k, v := range vals {

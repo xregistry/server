@@ -1252,7 +1252,7 @@ FROM FullTree WHERE RegSID=? AND `
 		return err
 	}
 
-	entity, err := readNextEntity(info.tx, results)
+	entity, err := readNextEntity(info.tx, results, FOR_READ)
 	log.VPrintf(3, "Entity: %#v", entity)
 	if entity == nil {
 		info.StatusCode = http.StatusNotFound
@@ -1269,7 +1269,7 @@ FROM FullTree WHERE RegSID=? AND `
 	if info.VersionUID == "" {
 		// We're on a Resource, so go find the default Version and count
 		// how many versions there are for the VersionsCount attribute
-		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
+		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
 			return fmt.Errorf("Error finding group(%s): %s", info.GroupUID, err)
@@ -1279,7 +1279,8 @@ FROM FullTree WHERE RegSID=? AND `
 			return fmt.Errorf("Group %q not found", info.GroupUID)
 		}
 
-		resource, err := group.FindResource(info.ResourceType, info.ResourceUID, false)
+		resource, err := group.FindResource(info.ResourceType,
+			info.ResourceUID, false, FOR_READ)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
 			return fmt.Errorf("Error finding resource(%s): %s",
@@ -1289,12 +1290,12 @@ FROM FullTree WHERE RegSID=? AND `
 			info.StatusCode = http.StatusNotFound
 			return fmt.Errorf("Resource %q not found", info.ResourceUID)
 		}
-		meta, err := resource.FindMeta(false)
+		meta, err := resource.FindMeta(false, FOR_READ)
 		PanicIf(err != nil, "%s", err)
 
 		vID := meta.GetAsString("defaultversionid")
 		for {
-			v, err := readNextEntity(info.tx, results)
+			v, err := readNextEntity(info.tx, results, FOR_READ)
 
 			if v != nil && v.Type == ENTITY_META {
 				// Skip the "meta" subobject, but first grab the
@@ -1573,7 +1574,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 					path := strings.Join(info.Parts[:len(info.Parts)-2], "/")
 					path += "/meta"
 					entity, err := RawEntityFromPath(info.tx,
-						info.Registry.DbSID, path, false)
+						info.Registry.DbSID, path, false, FOR_READ)
 					if err != nil {
 						return err
 					}
@@ -1600,7 +1601,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
 			entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID,
-				path, false)
+				path, false, FOR_READ)
 			if err != nil {
 				info.StatusCode = http.StatusInternalServerError
 				return fmt.Errorf("Error finding parent(%s): %s", path, err)
@@ -1998,7 +1999,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		// GROUPs/gID/RESOURCEs/rID...
 
 		resource, err = group.FindResource(info.ResourceType, resourceUID,
-			false)
+			false, FOR_READ)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
 			return fmt.Errorf("Error finding resource(%s): %s", resourceUID,
@@ -2023,7 +2024,7 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		if resource != nil {
-			// version, err = resource.GetDefault()
+			// version, err = resource.GetDefault(FOR_WRITE)
 
 			// ID needs to be the version's ID, not the Resources
 			// IncomingObj["id"] = version.UID
@@ -2041,7 +2042,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				return err
 			}
 
-			version, err = resource.GetDefault()
+			version, err = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
 			delete(IncomingObj, info.ResourceModel.Singular+"id") // ID is the Resource's delete it
@@ -2057,7 +2058,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				return err
 			}
 
-			version, err = resource.GetDefault()
+			version, err = resource.GetDefault(FOR_WRITE)
 		}
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
@@ -2083,7 +2084,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				info.StatusCode = http.StatusBadRequest
 				return err
 			}
-			version, err = resource.GetDefault()
+			version, err = resource.GetDefault(FOR_WRITE)
 		} else {
 			version, isNew, err = resource.UpsertVersionWithObject(propsID,
 				IncomingObj, ADD_UPSERT, false)
@@ -2213,7 +2214,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				return err
 			}
 
-			v, err := resource.GetDefault()
+			v, err := resource.GetDefault(FOR_WRITE)
 			Must(err)
 			thisVersion = v
 
@@ -2230,7 +2231,7 @@ func HTTPPutPost(info *RequestInfo) error {
 				return fmt.Errorf(`Can't update "versions" if "xref" is set`)
 			}
 
-			meta, err := resource.FindMeta(false)
+			meta, err := resource.FindMeta(false, FOR_WRITE)
 			PanicIf(err != nil, "No meta %q: %s", resource.UID, err)
 
 			if meta.Get("readonly") == true {
@@ -2290,7 +2291,7 @@ func HTTPPutPost(info *RequestInfo) error {
 			isNew = true
 		}
 
-		version, err = resource.FindVersion(versionUID, false)
+		version, err = resource.FindVersion(versionUID, false, FOR_WRITE)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
 			return fmt.Errorf("Error finding version(%s): %s", versionUID,
@@ -2477,7 +2478,7 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 		return resource.SetDefault(version)
 	}
 
-	version, err := resource.FindVersion(vID, false)
+	version, err := resource.FindVersion(vID, false, FOR_READ)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return fmt.Errorf("Error finding version(%s): %s", vID, err)
@@ -2532,7 +2533,7 @@ func HTTPDelete(info *RequestInfo) error {
 	}
 
 	// DELETE /GROUPs/gID...
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
+	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return fmt.Errorf(`Error finding Group %q: %s`, info.GroupUID, err)
@@ -2578,7 +2579,8 @@ func HTTPDelete(info *RequestInfo) error {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
-	resource, err := group.FindResource(info.ResourceType, info.ResourceUID, false)
+	resource, err := group.FindResource(info.ResourceType, info.ResourceUID,
+		false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return fmt.Errorf(`Error finding resource %q`, info.ResourceUID)
@@ -2588,7 +2590,7 @@ func HTTPDelete(info *RequestInfo) error {
 		return fmt.Errorf(`Resource %q not found`, info.ResourceUID)
 	}
 
-	meta, err := resource.FindMeta(false)
+	meta, err := resource.FindMeta(false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return fmt.Errorf(`Error finding resource %q: %s`,
@@ -2638,7 +2640,7 @@ func HTTPDelete(info *RequestInfo) error {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
-	version, err := resource.FindVersion(info.VersionUID, false)
+	version, err := resource.FindVersion(info.VersionUID, false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return fmt.Errorf(`Error finding version %q`, info.VersionUID)
@@ -2727,7 +2729,7 @@ func HTTPDeleteGroups(info *RequestInfo) error {
 
 	// Delete each Group, checking epoch first if provided
 	for id, entry := range list {
-		group, err := info.Registry.FindGroup(info.GroupType, id, false)
+		group, err := info.Registry.FindGroup(info.GroupType, id, false, FOR_WRITE)
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
 			return fmt.Errorf(`Error getting Group %q`, id)
@@ -2792,7 +2794,7 @@ func HTTPDeleteResources(info *RequestInfo) error {
 		defer results.Close()
 	}
 
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
+	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusBadRequest
 		return fmt.Errorf(`Error getting Group %q`, info.GroupUID)
@@ -2800,7 +2802,8 @@ func HTTPDeleteResources(info *RequestInfo) error {
 
 	// Delete each Resource, checking epoch first if provided
 	for id, entry := range list {
-		resource, err := group.FindResource(info.ResourceType, id, false)
+		resource, err := group.FindResource(info.ResourceType, id, false,
+			FOR_WRITE)
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
 			return fmt.Errorf(`Error getting Resource %q`, id)
@@ -2810,7 +2813,7 @@ func HTTPDeleteResources(info *RequestInfo) error {
 			continue
 		}
 
-		meta, err := resource.FindMeta(false)
+		meta, err := resource.FindMeta(false, FOR_WRITE)
 		if err != nil {
 			info.StatusCode = http.StatusInternalServerError
 			return fmt.Errorf(`Error finding resource %q: %s`, id, err)
@@ -2873,13 +2876,14 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		return err
 	}
 
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false)
+	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
 	if err != nil {
 		info.StatusCode = http.StatusBadRequest
 		return fmt.Errorf(`Error getting Group %q: %s`, info.GroupUID, err)
 	}
 
-	resource, err := group.FindResource(info.ResourceType, info.ResourceUID, false)
+	resource, err := group.FindResource(info.ResourceType, info.ResourceUID,
+		false, FOR_WRITE)
 	if err != nil {
 		info.StatusCode = http.StatusBadRequest
 		return fmt.Errorf(`Error getting Resource %q: %s`,
@@ -2906,7 +2910,7 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 	// However, we can save the Versions for the next loop.
 	vers := []*Version{}
 	for id, entry := range list {
-		version, err := resource.FindVersion(id, false)
+		version, err := resource.FindVersion(id, false, FOR_WRITE)
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
 			return fmt.Errorf(`Error getting Version %q: %s`, id, err)
@@ -2950,7 +2954,7 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 	}
 
 	if nextDefault != "" {
-		version, err := resource.FindVersion(nextDefault, false)
+		version, err := resource.FindVersion(nextDefault, false, FOR_READ)
 		if err != nil {
 			info.StatusCode = http.StatusBadRequest
 			return fmt.Errorf(`Error getting Version %q: %s`, nextDefault, err)

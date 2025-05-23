@@ -71,7 +71,7 @@ func TestMain(m *testing.M) {
 func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 	var err error
 
-	reg, _ := registry.FindRegistry(nil, name)
+	reg, _ := registry.FindRegistry(nil, name, registry.FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
@@ -90,7 +90,7 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 
 	/*
 		// Now find it again and start a new Tx
-		reg, err = registry.FindRegistry(nil, name)
+		reg, err = registry.FindRegistry(nil, name, registry.FOR_WRITE)
 		if err != nil {
 			panic(err.Error())
 		}

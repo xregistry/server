@@ -76,7 +76,7 @@ func (jw *JsonWriter) NextEntity() (*Entity, error) {
 	var err error
 
 	if next = jw.Pop(); next == nil {
-		next, err = readNextEntity(jw.info.tx, jw.results)
+		next, err = readNextEntity(jw.info.tx, jw.results, FOR_READ)
 	}
 	jw.Entity = next
 	return jw.Entity, err

@@ -62,7 +62,7 @@ var _ EntitySetter = &Meta{}
 func (r *Resource) Get(name string) any {
 	log.VPrintf(4, "Get: r(%s).Get(%s)", r.UID, name)
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_READ)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	xrefStr, xref, err := r.GetXref()
@@ -81,7 +81,7 @@ func (r *Resource) Get(name string) any {
 		return meta.Get(name)
 	}
 
-	v, err := r.GetDefault()
+	v, err := r.GetDefault(FOR_READ)
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +91,7 @@ func (r *Resource) Get(name string) any {
 }
 
 func (r *Resource) GetXref() (string, *Resource, error) {
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_READ)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	tmp := meta.Get("xref")
@@ -115,14 +115,14 @@ func (r *Resource) GetXref() (string, *Resource, error) {
 			"/GROUPS/gID/RESOURCES/rID", tmp.(string))
 	}
 
-	group, err := r.Registry.FindGroup(parts[1], parts[2], false)
+	group, err := r.Registry.FindGroup(parts[1], parts[2], false, FOR_READ)
 	if err != nil || IsNil(group) {
 		return "", nil, err
 	}
 	if IsNil(group) {
 		return "", nil, nil
 	}
-	res, err := group.FindResource(parts[3], parts[4], false)
+	res, err := group.FindResource(parts[3], parts[4], false, FOR_READ)
 	if err != nil || IsNil(res) {
 		return "", nil, err
 	}
@@ -136,7 +136,7 @@ func (r *Resource) GetXref() (string, *Resource, error) {
 }
 
 func (r *Resource) IsXref() bool {
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_READ)
 	Must(err)
 
 	PanicIf(meta == nil, "%s: meta is gone", r.UID)
@@ -153,7 +153,7 @@ func (m *Meta) SetCommit(name string, val any) error {
 func (r *Resource) SetCommitMeta(name string, val any) error {
 	log.VPrintf(4, "SetCommitMeta: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 	return meta.SetCommit(name, val)
 }
@@ -165,7 +165,7 @@ func (r *Resource) SetCommit(name string, val any) error {
 func (r *Resource) SetCommitDefault(name string, val any) error {
 	log.VPrintf(4, "SetCommitDefault: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	v, err := r.GetDefault()
+	v, err := r.GetDefault(FOR_WRITE)
 	PanicIf(err != nil, "%s", err)
 
 	return v.SetCommit(name, val)
@@ -178,7 +178,7 @@ func (m *Meta) JustSet(name string, val any) error {
 
 func (r *Resource) JustSetMeta(name string, val any) error {
 	log.VPrintf(4, "JustSetMeta: r(%s).Set(%s,%v)", r.UID, name, val)
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 	return meta.Entity.eJustSet(NewPPP(name), val)
 }
@@ -189,7 +189,7 @@ func (r *Resource) JustSet(name string, val any) error {
 
 func (r *Resource) JustSetDefault(name string, val any) error {
 	log.VPrintf(4, "JustSetDefault: r(%s).Set(%s,%v)", r.UID, name, val)
-	v, err := r.GetDefault()
+	v, err := r.GetDefault(FOR_WRITE)
 	PanicIf(err != nil, "%s", err)
 	return v.JustSet(name, val)
 }
@@ -202,7 +202,7 @@ func (m *Meta) SetSave(name string, val any) error {
 func (r *Resource) SetSaveMeta(name string, val any) error {
 	log.VPrintf(4, "SetSaveMeta: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "%s", err)
 	return meta.Entity.eSetSave(name, val)
 }
@@ -223,31 +223,34 @@ func (r *Resource) SetSave(name string, val any) error {
 func (r *Resource) SetSaveDefault(name string, val any) error {
 	log.VPrintf(4, "SetSaveDefault: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	v, err := r.GetDefault()
+	v, err := r.GetDefault(FOR_WRITE)
 	PanicIf(err != nil, "%s", err)
 
 	return v.SetSave(name, val)
 }
 
 func (r *Resource) Touch() bool {
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	if err != nil {
 		panic(err.Error())
 	}
 	return meta.Touch()
 }
 
-func (r *Resource) FindMeta(anyCase bool) (*Meta, error) {
+func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, error) {
 	log.VPrintf(3, ">Enter: FindMeta(%v)", anyCase)
 	defer log.VPrintf(3, "<Exit: FindMeta")
 
 	if m := r.tx.GetMeta(r); m != nil {
+		if accessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
+			m.Lock()
+		}
 		return m, nil
 	}
 
 	ent, err := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
-		anyCase)
+		anyCase, accessMode)
 	if err != nil {
 		return nil, fmt.Errorf("Error finding Meta for %q: %q", r.UID, err)
 	}
@@ -263,7 +266,7 @@ func (r *Resource) FindMeta(anyCase bool) (*Meta, error) {
 }
 
 // Maybe replace error with a panic? same for other finds??
-func (r *Resource) FindVersion(id string, anyCase bool) (*Version, error) {
+func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Version, error) {
 	log.VPrintf(3, ">Enter: FindVersion(%s,%v)", id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindVersion")
 
@@ -272,12 +275,15 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, error) {
 	}
 
 	if v := r.tx.GetVersion(r, id); v != nil {
+		if accessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
+			v.Lock()
+		}
 		return v, nil
 	}
 
 	ent, err := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
-		anyCase)
+		anyCase, accessMode)
 	if err != nil {
 		return nil, fmt.Errorf("Error finding Version %q: %s", id, err)
 	}
@@ -293,12 +299,12 @@ func (r *Resource) FindVersion(id string, anyCase bool) (*Version, error) {
 }
 
 // Maybe replace error with a panic?
-func (r *Resource) GetDefault() (*Version, error) {
-	meta, err := r.FindMeta(false)
+func (r *Resource) GetDefault(accessMode int) (*Version, error) {
+	meta, err := r.FindMeta(false, accessMode)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	val := meta.GetAsString("defaultversionid")
-	return r.FindVersion(val, false)
+	return r.FindVersion(val, false, accessMode)
 }
 
 func (r *Resource) GetNewestVersionID() (string, error) {
@@ -316,11 +322,11 @@ func (r *Resource) GetNewest() (*Version, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.FindVersion(vid, false)
+	return r.FindVersion(vid, false, FOR_READ)
 }
 
 func (r *Resource) EnsureLatest() error {
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	// If it's sticky, just exit. Nothing to check
@@ -347,7 +353,7 @@ func (r *Resource) SetDefaultID(vID string) error {
 	var err error
 
 	if vID != "" {
-		v, err = r.FindVersion(vID, false)
+		v, err = r.FindVersion(vID, false, FOR_WRITE)
 		if err != nil {
 			return err
 		}
@@ -358,7 +364,7 @@ func (r *Resource) SetDefaultID(vID string) error {
 // Only call this if you want things to be sticky (when not nil).
 // Creating a new version should do this directly
 func (r *Resource) SetDefault(newDefault *Version) error {
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	newDefaultID := ""
@@ -412,7 +418,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 		return nil, false, err
 	}
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	if meta.Get("readonly") == true {
@@ -721,7 +727,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 }
 
 func (r *Resource) ProcessVersionInfo() error {
-	m, err := r.FindMeta(false)
+	m, err := r.FindMeta(false, FOR_WRITE)
 	Must(err)
 
 	if !IsNil(m.Get("xref")) {
@@ -769,7 +775,7 @@ func (r *Resource) ProcessVersionInfo() error {
 	if defaultVersionID != "" {
 		// It's ok for defVerID to be "", it means we're in the middle of
 		// creating a new Resource but no versions are there yet
-		v, err := r.FindVersion(defaultVersionID, false)
+		v, err := r.FindVersion(defaultVersionID, false, FOR_READ)
 		Must(err)
 		if IsNil(v) {
 			return fmt.Errorf("Version %q not found", defaultVersionID)
@@ -814,7 +820,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 		return nil, false, err
 	}
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	if meta.Get("readonly") == true {
@@ -856,7 +862,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 		nextID := NotNilInt(&tmp)
 		for {
 			id = strconv.Itoa(nextID)
-			v, err = r.FindVersion(id, false)
+			v, err = r.FindVersion(id, false, FOR_WRITE)
 			if err != nil {
 				return nil, false,
 					fmt.Errorf("Error checking for Version %q: %s", id, err)
@@ -871,7 +877,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 			}
 		}
 	} else {
-		v, err = r.FindVersion(id, true)
+		v, err = r.FindVersion(id, true, FOR_WRITE)
 
 		if addType == ADD_ADD && v != nil {
 			return nil, false, fmt.Errorf("Version %q already exists", id)
@@ -895,7 +901,8 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	if v == nil {
 		v = &Version{
 			Entity: Entity{
-				tx: r.tx,
+				tx:         r.tx,
+				AccessMode: FOR_WRITE,
 
 				Registry: r.Registry,
 				DbSID:    NewUUID(),
@@ -1109,7 +1116,7 @@ func (r *Resource) CompleteUpsertVersions() error {
 		return err
 	}
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	if err != nil {
 		return err
 	}
@@ -1380,7 +1387,7 @@ func (r *Resource) EnsureMaxVersions() error {
 	for count > rm.MaxVersions {
 		// Skip the "default" Version
 		if verIDs[0].VID != defaultID {
-			v, err := r.FindVersion(verIDs[0].VID, false)
+			v, err := r.FindVersion(verIDs[0].VID, false, FOR_WRITE)
 			if err != nil {
 				return err
 			}
@@ -1399,7 +1406,7 @@ func (r *Resource) Delete() error {
 	log.VPrintf(3, ">Enter: Resource.Delete(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: Resource.Delete")
 
-	meta, err := r.FindMeta(false)
+	meta, err := r.FindMeta(false, FOR_WRITE)
 	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
 
 	if meta.Get("readonly") == true {
@@ -1447,7 +1454,7 @@ func (r *Resource) GetVersions() ([]*Version, error) {
 	list := []*Version{}
 
 	entities, err := RawEntitiesFromQuery(r.tx, r.Registry.DbSID,
-		`ParentSID=? AND Type=?`, r.DbSID, ENTITY_VERSION)
+		FOR_WRITE, `ParentSID=? AND Type=?`, r.DbSID, ENTITY_VERSION)
 	if err != nil {
 		return nil, err
 	}
@@ -1521,7 +1528,7 @@ func (r *Resource) CheckAncestors() error {
 			}
 		}
 
-		v, err := r.FindVersion(va.VID, false)
+		v, err := r.FindVersion(va.VID, false, FOR_WRITE)
 		if err != nil {
 			return err
 		}

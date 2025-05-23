@@ -80,3 +80,9 @@ const HTML_EXP = "&#9662;" // Expanded json symbol for HTML output
 const HTML_MIN = "&#9656;" // Minimized json symbol for HTML output
 
 const ANCESTOR_TBD = "$TBD"
+
+// For entity.AccessMode
+const (
+	FOR_READ = iota + 1
+	FOR_WRITE
+)

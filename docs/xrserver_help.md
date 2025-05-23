@@ -39,7 +39,7 @@ xrserver registry create ID...
   -f, --force   Ignore existing registry
 
 xrserver registry delete ID...
-  # Delete one or more registry
+  # Delete one or more registries
   -f, --force   Ignore missing registry
 
 xrserver registry get ID

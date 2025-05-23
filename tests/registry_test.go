@@ -35,7 +35,8 @@ func TestCreateRegistry(t *testing.T) {
 	}
 
 	// make sure it was really created
-	reg3, err := registry.FindRegistry(nil, "TestCreateRegistry")
+	reg3, err := registry.FindRegistry(nil, "TestCreateRegistry",
+		registry.FOR_WRITE)
 	defer reg3.Rollback()
 	xCheck(t, err == nil && reg3 != nil,
 		"Finding TestCreateRegistry should have worked")
@@ -67,7 +68,8 @@ func TestDeleteRegistry(t *testing.T) {
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 
-	reg, err = registry.FindRegistry(nil, "TestDeleteRegistry")
+	reg, err = registry.FindRegistry(nil, "TestDeleteRegistry",
+		registry.FOR_WRITE)
 	defer reg.Rollback()
 	xCheck(t, reg == nil && err == nil,
 		"Finding TestCreateRegistry found one but shouldn't")
@@ -80,14 +82,15 @@ func TestRefreshRegistry(t *testing.T) {
 	reg.Entity.Object["xxx"] = "yyy"
 	xCheck(t, reg.Get("xxx") == "yyy", "xxx should be yyy")
 
-	err := reg.Refresh()
+	err := reg.Refresh(registry.FOR_WRITE)
 	xNoErr(t, err)
 
 	xCheck(t, reg.Get("xxx") == nil, "xxx should not be there")
 }
 
 func TestFindRegistry(t *testing.T) {
-	reg, err := registry.FindRegistry(nil, "TestFindRegistry")
+	reg, err := registry.FindRegistry(nil, "TestFindRegistry",
+		registry.FOR_WRITE)
 	defer reg.Rollback()
 	xCheck(t, reg == nil && err == nil,
 		"Shouldn't have found TestFindRegistry")
@@ -97,9 +100,10 @@ func TestFindRegistry(t *testing.T) {
 	defer reg.Delete() // PassDeleteReg(t, reg)
 	xNoErr(t, err)
 
-	reg2, err := registry.FindRegistry(nil, reg.UID)
+	reg2, err := registry.FindRegistry(nil, reg.UID, registry.FOR_WRITE)
 	defer reg2.Rollback()
 	xNoErr(t, err)
+	reg2.AccessMode = reg.AccessMode
 	xJSONCheck(t, reg2, reg)
 }
 
@@ -256,7 +260,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	xNoErr(t, err)
 
 	// Commit before we call Set below otherwise the Tx will be rolled back
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	reg.Touch() // Force a validation which will set all defaults
 
 	xHTTP(t, reg, "GET", "/", "", 200, `{

@@ -17,7 +17,8 @@ type Object map[string]any
 // type Array []any
 
 type Entity struct {
-	tx *Tx
+	tx         *Tx
+	AccessMode int // FOR_READ, FOR_WRITE
 
 	Registry  *Registry `json:"-"`
 	DbSID     string    // Entity's SID
@@ -103,6 +104,7 @@ func (e *Entity) ToString() string {
 // We use this just to make sure we can set NewObjectStack when we need to
 // debug stuff
 func (e *Entity) SetNewObject(newObj map[string]any) {
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.Path)
 	e.NewObject = newObj
 
 	// Enable the next line when we need to debug when NewObject was created
@@ -133,6 +135,7 @@ func (e *Entity) Touch() bool {
 		return false
 	}
 
+	e.Lock()
 	e.EnsureNewObject()
 	return true
 }
@@ -296,7 +299,7 @@ func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
 	return NestedGetProp(obj, pp.Next(), prev.Append(pp.First()))
 }
 
-func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool) (*Entity, error) {
+func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, error) {
 	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
 	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
 
@@ -331,7 +334,7 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool) (*Entity
 		return nil, err
 	}
 
-	return readNextEntity(tx, results)
+	return readNextEntity(tx, results, accessMode)
 }
 
 func (e *Entity) Query(query string, args ...any) ([][]any, error) {
@@ -380,7 +383,7 @@ func (e *Entity) Query(query string, args ...any) ([][]any, error) {
 	return data, nil
 }
 
-func RawEntitiesFromQuery(tx *Tx, regID string, query string, args ...any) ([]*Entity, error) {
+func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, error) {
 	log.VPrintf(3, ">Enter: RawEntititiesFromQuery(%s)", query)
 	defer log.VPrintf(3, "<Exit: RawEntitiesFromQuery")
 
@@ -415,7 +418,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, query string, args ...any) ([]*E
 
 	entities := []*Entity{}
 	for {
-		e, err := readNextEntity(tx, results)
+		e, err := readNextEntity(tx, results, accessMode)
 		if err != nil {
 			return nil, err
 		}
@@ -430,13 +433,18 @@ func RawEntitiesFromQuery(tx *Tx, regID string, query string, args ...any) ([]*E
 
 // Update the entity's Object - not the other props in Entity. Similar to
 // RawEntityFromPath
-func (e *Entity) Refresh() error {
+func (e *Entity) Refresh(accessMode int) error {
 	log.VPrintf(3, ">Enter: Refresh(%s)", e.DbSID)
 	defer log.VPrintf(3, "<Exit: Refresh")
 
+	mode := ""
+	if accessMode == FOR_WRITE {
+		mode = " FOR UPDATE"
+	}
+
 	results, err := Query(e.tx, `
         SELECT PropName, PropValue, PropType
-        FROM Props WHERE EntitySID=? `, e.DbSID)
+        FROM Props WHERE EntitySID=?`+mode, e.DbSID)
 	defer results.Close()
 
 	if err != nil {
@@ -461,6 +469,13 @@ func (e *Entity) Refresh() error {
 	// Added when I added Touch() - touching parent on add/remove child
 	e.EpochSet = false
 	e.ModSet = false
+
+	if accessMode == FOR_WRITE {
+		e.AccessMode = FOR_WRITE
+	}
+	if e.AccessMode == 0 {
+		e.AccessMode = FOR_READ
+	}
 
 	e.tx.AddToCache(e)
 
@@ -499,6 +514,8 @@ func (e *Entity) eSetSave(path string, val any) error {
 func (e *Entity) eJustSet(pp *PropPath, val any) error {
 	log.VPrintf(3, ">Enter: JustSet([%d] %s.%s=%v)", e.Type, e.UID, pp.UI(), val)
 	defer log.VPrintf(3, "<Exit: JustSet")
+
+	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.Path)
 
 	// Assume no other edits are pending
 	// e.Refresh() // trying not to have this here
@@ -601,7 +618,7 @@ func (e *Entity) SetPP(pp *PropPath, val any) error {
 
 		// Not sure why setting it to nil isn't sufficient (todo)
 		// e.NewObject = nil
-		e.Refresh()
+		e.Refresh(FOR_READ)
 	}
 
 	return err
@@ -773,7 +790,7 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) error 
 }
 
 // Create a new Entity based on what's in the DB. Similar to Refresh()
-func readNextEntity(tx *Tx, results *Result) (*Entity, error) {
+func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, error) {
 	entity := (*Entity)(nil)
 
 	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
@@ -797,7 +814,8 @@ func readNextEntity(tx *Tx, results *Result) (*Entity, error) {
 
 		if entity == nil {
 			entity = &Entity{
-				tx: tx,
+				tx:         tx,
+				AccessMode: accessMode,
 
 				Registry: tx.Registry,
 				DbSID:    NotNilString(row[4]),
@@ -1985,9 +2003,24 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 	return nil
 }
 
+func (e *Entity) Lock() bool { // did we lock it?
+	log.VPrintf(3, ">Enter: Lock(%s)", e.Path)
+	defer log.VPrintf(3, "<Exit: Lock")
+
+	if e.AccessMode == FOR_WRITE {
+		// Already locked
+		return false
+	}
+	Must(e.Refresh(FOR_WRITE))
+	e.AccessMode = FOR_WRITE
+	return true
+}
+
 func (e *Entity) Save() error {
 	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: Save")
+
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.Path)
 
 	// TODO remove at some point when we're sure it's safe
 	if SpecProps["epoch"].InType(e.Type) && IsNil(e.NewObject["epoch"]) {
@@ -2301,7 +2334,7 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 	if IsNil(res) {
 		delete(daMap, pp.Top())
 	} else {
-		daMap[pp.Top()], err = res, err
+		daMap[pp.Top()] = res
 	}
 
 	return daMap, err

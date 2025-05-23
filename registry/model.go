@@ -2236,7 +2236,7 @@ func (rm *ResourceModel) VerifyData() error {
 	// The resulting list MUST be Group followed by it's Resources, repeat...
 	gAbs := NewPPP(rm.GroupModel.Plural).Abstract()
 	rAbs := NewPPP(rm.GroupModel.Plural).P(rm.Plural).Abstract()
-	entities, err := RawEntitiesFromQuery(reg.tx, reg.DbSID,
+	entities, err := RawEntitiesFromQuery(reg.tx, reg.DbSID, FOR_WRITE,
 		`Abstract=? OR Abstract=?`, gAbs, rAbs)
 	if err != nil {
 		return err

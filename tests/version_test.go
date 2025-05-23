@@ -31,7 +31,7 @@ func TestCreateVersion(t *testing.T) {
 	xCheck(t, isNew == false, "Should not be new")
 	xCheck(t, vt == v2, "Should be the same")
 
-	l, err := f1.GetDefault()
+	l, err := f1.GetDefault(registry.FOR_WRITE)
 	xNoErr(t, err)
 	xJSONCheck(t, l, v2)
 
@@ -72,12 +72,12 @@ func TestCreateVersion(t *testing.T) {
 	xCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
-	vt, err = f1.FindVersion("v2", false)
+	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, vt != nil, "Didn't find v2")
 	xJSONCheck(t, vt, v2)
 
-	vt, err = f1.FindVersion("xxx", false)
+	vt, err = f1.FindVersion("xxx", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, vt == nil, "Find version xxx should have failed")
 
@@ -86,12 +86,12 @@ func TestCreateVersion(t *testing.T) {
 	xCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
-	vt, err = f1.FindVersion("v2", false)
+	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
 	xCheck(t, err == nil && vt == nil, "Finding delete version failed")
 
 	// check that default == v1 now
 	// delete v1, check that f1 is deleted too
-	err = f1.Refresh()
+	err = f1.Refresh(registry.FOR_WRITE)
 	xNoErr(t, err)
 
 	xJSONCheck(t, f1.Get("defaultversionid"), "v1")
@@ -136,25 +136,25 @@ func TestCreateVersion(t *testing.T) {
   "versionscount": 3
 }
 `)
-	vt, err = f1.FindVersion("v2", false)
+	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	err = vt.DeleteSetNextVersion("")
 	xNoErr(t, err)
 	xJSONCheck(t, f1.Get("defaultversionid"), "v3")
 
-	vt, err = f1.FindVersion("v3", false)
+	vt, err = f1.FindVersion("v3", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, vt != nil, "Can't be nil")
 	err = vt.DeleteSetNextVersion("")
 	xNoErr(t, err)
 	xJSONCheck(t, f1.Get("defaultversionid"), "v1")
 
-	f1, err = d2.FindResource("files", "f1", false)
+	f1, err = d2.FindResource("files", "f1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xNoErr(t, f1.SetDefault(v2))
 	_, err = f1.AddVersion("v3")
 	xNoErr(t, err)
-	vt, err = f1.FindVersion("v1", false)
+	vt, err = f1.FindVersion("v1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, vt != nil, "should not be nil")
 	err = vt.DeleteSetNextVersion("")
@@ -165,7 +165,7 @@ func TestCreateVersion(t *testing.T) {
 	err = vt.DeleteSetNextVersion("v2")
 	xCheckErr(t, err, `Can't find next default Version "v2"`)
 
-	vt, err = f1.FindVersion("v1.1", false)
+	vt, err = f1.FindVersion("v1.1", false, registry.FOR_WRITE)
 	xNoErr(t, err)
 	xCheck(t, vt != nil, "should not be nil")
 
@@ -222,7 +222,7 @@ func TestDefaultVersion(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	v1, _ := f1.FindVersion("v1", false)
+	v1, _ := f1.FindVersion("v1", false, registry.FOR_WRITE)
 	v2, _ := f1.AddVersion("v2")
 
 	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
@@ -546,7 +546,7 @@ func TestDefaultVersionMaxVersions(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	f1.FindVersion("v1", false)
+	f1.FindVersion("v1", false, registry.FOR_WRITE)
 	f1.AddVersion("v2")
 	f1.AddVersion("v3")
 
@@ -717,7 +717,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	_, err = f1.AddVersion("v2")
 	xCheckErr(t, err, "Required property \"req\" is missing")
 	reg.Rollback()
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	v1, _, err := f1.UpsertVersionWithObject("v2", registry.Object{"req": "test"}, registry.ADD_ADD, false)
 	xNoErr(t, err)

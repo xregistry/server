@@ -216,7 +216,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, err := registry.FindRegistry(nil, RegistryName)
+	reg, err := registry.FindRegistry(nil, RegistryName, registry.FOR_READ)
 	ErrStop(err, "Error findng registry(%s): %s", RegistryName, err)
 
 	if reg != nil {

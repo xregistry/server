@@ -157,7 +157,7 @@ func TestBasicTypes(t *testing.T) {
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false)
+	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
 
 	dir2, _ := reg.AddGroup("dirs", "dir2")
 
@@ -436,11 +436,11 @@ func TestBasicTypes(t *testing.T) {
 				return // stop fast
 			}
 			if err != nil {
-				entity.Refresh()
+				entity.Refresh(registry.FOR_WRITE)
 			}
 		}
 
-		entity.Refresh() // and then re-get props from DB
+		entity.Refresh(registry.FOR_WRITE) // and then re-get props from DB
 
 		for _, prop := range test.Props {
 			if prop.ErrMsg != "" {
@@ -681,13 +681,13 @@ func TestWildcardBoolTypes(t *testing.T) {
 
 	err = reg.SetSave("ext1", true)
 	xCheck(t, err == nil, fmt.Sprintf("set ext1: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
 	xCheck(t, val == true, fmt.Sprintf("get ext1: %v", val))
 
 	err = reg.SetSave("ext1", false)
 	xCheck(t, err == nil, fmt.Sprintf("set ext1-2: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	xCheck(t, reg.Get("ext1") == false, fmt.Sprintf("get ext1-2: %v", val))
 }
 
@@ -701,20 +701,20 @@ func TestWildcardAnyTypes(t *testing.T) {
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
 	xCheck(t, err == nil, fmt.Sprintf("set ext1: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
 	xCheck(t, val == 5.5, fmt.Sprintf("get ext1: %v", val))
 
 	err = reg.SetSave("ext1", "foo")
 	xCheck(t, err == nil, fmt.Sprintf("set ext2: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext1")
 	xCheck(t, val == "foo", fmt.Sprintf("get ext2: %v", val))
 
 	// Make sure we add one of a different type
 	err = reg.SetSave("ext2", true)
 	xCheck(t, err == nil, fmt.Sprintf("set ext3 %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext2")
 	xCheck(t, val == true, fmt.Sprintf("get ext3: %v", val))
 }
@@ -743,18 +743,18 @@ func TestWildcard2LayersTypes(t *testing.T) {
 
 	err = reg.SetSave("obj.map.k1", 5)
 	xCheck(t, err == nil, fmt.Sprintf("set foo.k1: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("obj.map.k1")
 	xCheck(t, val == 5, fmt.Sprintf("get foo.k1: %v", val))
 
 	err = reg.SetSave("obj.map.foo.k1.k2", 5)
 	xCheck(t, err.Error() == `Attribute "obj.map.foo" must be an integer`,
 		fmt.Sprintf("set obj.map.foo.k1.k2: %s", err))
-	// reg.Refresh() // clear bad data
+	// reg.Refresh(registry.FOR_WRITE) // clear bad data
 
 	err = reg.SetSave("obj.myany.foo.k1.k2", 5)
 	xCheck(t, err == nil, fmt.Sprintf("set obj.myany.foo.k1.k2: %s", err))
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("obj.myany.foo.k1.k2")
 	xCheck(t, val == 5, fmt.Sprintf("set obj.myany.foo.k1.k2: %v", val))
 	val = reg.Get("obj.myany.bogus.k1.k2")
@@ -921,7 +921,7 @@ func TestNameCharSet(t *testing.T) {
 	err = reg.SetSave("obj1.foo-bar", 5)
 	xCheck(t, err == nil, fmt.Sprintf("set foo.foo-bar: %s", err))
 
-	reg.Refresh()
+	reg.Refresh(registry.FOR_WRITE)
 
 	val := reg.Get("obj1.attr1-")
 	xCheck(t, val == "a1", fmt.Sprintf("set obj1.attr1-: %v", val))

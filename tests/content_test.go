@@ -68,7 +68,6 @@ func TestResourceContents(t *testing.T) {
 		Headers: nil,
 	})
 
-	// f1.Refresh()
 	v2, err := f1.AddVersion("v2")
 	xNoErr(t, err)
 	v2.SetSave("file", "This is version 2")
@@ -87,7 +86,6 @@ func TestResourceContents(t *testing.T) {
 		Headers: nil,
 	})
 
-	// f1.Refresh()
 	v3, _ := f1.AddVersion("v3")
 	v3.SetSave("fileproxyurl", "http://example.com")
 
@@ -105,7 +103,6 @@ func TestResourceContents(t *testing.T) {
 		Headers: []string{"Content-Type: text/html"},
 	})
 
-	// f1.Refresh()
 	v4, _ := f1.AddVersion("v4")
 	v4.SetSave("fileurl", "http://example.com")
 
