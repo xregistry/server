@@ -37,7 +37,6 @@ docs: docs/xr_help.md docs/xrserver_help.md
 qtest: .test
 
 utest: .utest
-.utest: export TESTING=1
 .utest: .cmds */*test.go
 	@make mysql waitformysql
 	@echo
@@ -49,7 +48,6 @@ utest: .utest
 	@touch .utest
 
 test: .test .testimages
-.test: export TESTING=1
 .test: .cmds */*test.go
 	@make mysql waitformysql
 	@echo

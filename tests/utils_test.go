@@ -482,9 +482,15 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	}
 
 	xNoErr(t, err)
-	xCheck(t, res.StatusCode == test.Code,
-		fmt.Sprintf("Expected status %d, got %d\n%s",
-			test.Code, res.StatusCode, string(resBody)))
+	if test.Code < 10 {
+		xCheck(t, int(res.StatusCode/100) == test.Code,
+			fmt.Sprintf("Expected status %dxx, got %d\n%s",
+				test.Code, res.StatusCode, string(resBody)))
+	} else {
+		xCheck(t, res.StatusCode == test.Code,
+			fmt.Sprintf("Expected status %d, got %d\n%s",
+				test.Code, res.StatusCode, string(resBody)))
+	}
 
 	// t.Logf("%v\n%s", res.Header, string(resBody))
 	testHeaders := map[string]string{}

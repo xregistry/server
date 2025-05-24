@@ -1,8 +1,5 @@
 package registry
 
-import "os"
-
-var TESTING = (os.Getenv("TESTING") != "")
 var GitCommit = "<n/a>"
 
 var MAX_VARCHAR = 4096

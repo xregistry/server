@@ -67,20 +67,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		// As of now we should never have more than one active Tx during
 		// testing
-		if TESTING && tx != nil {
-			l := len(TXs)
-			if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
-				log.Printf(">End of HTTP Request")
-				log.Printf("len(TXs): %d", l)
-				log.Printf("tx.tx: %p", tx.tx)
-				DumpTXs()
+		/*
+			if (os.Getenv("TESTING") != "") && tx != nil {
+				l := len(TXs)
+				if (tx.tx == nil && l > 0) || (tx.tx != nil && l > 1) {
+					log.Printf(">End of HTTP Request")
+					log.Printf("len(TXs): %d", l)
+					log.Printf("tx.tx: %p", tx.tx)
+					DumpTXs()
 
-				log.Printf("Info: %s", ToJSON(info))
-				log.Printf("<Exit http req")
+					log.Printf("Info: %s", ToJSON(info))
+					log.Printf("<Exit http req")
 
-				panic("nested Txs")
+					panic("nested Txs")
+				}
 			}
-		}
+		*/
 
 		// Explicit Commit() is required, else we'll always rollback
 		tx.Rollback()

@@ -202,11 +202,7 @@ func (tx *Tx) NewTx() error {
 	}
 
 	tx.tx = t
-	// if TESTING {
 	tx.CreateTime = time.Now().Format(time.RFC3339Nano)
-	// } else {
-	// tx.CreateTime = time.Now().Format(time.RFC3339)
-	// }
 	tx.Cache = map[string]*Entity{}
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
