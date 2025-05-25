@@ -1,0 +1,72 @@
+#!/bin/bash
+
+set -e
+
+# This will upload all openapi docs in github.com/APIs-guru/openapi-directory
+# 
+# Start xReg:      docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
+# Point to it:     set XR_SERVER=localhost:8080
+# Run this script: ./APIs-guru-openapi
+
+XR_SERVER=${XR_SERVER:-localhost:8080}
+
+# Define the model (1 group type with 1 resource type)
+xr model group create providers:provider
+xr model resource create -g providers services:service
+
+res="{}"
+
+ORG="APIs-guru"
+REPO="openapi-directory"
+BRANCH="main"
+DIR="APIs"
+
+gh="https://api.github.com/repos/${ORG}/${REPO}/git/trees/${BRANCH}"
+raw="https://raw.githubusercontent.com/${ORG}/${REPO}/refs/heads/${BRANCH}/"
+
+rm -rf tmpjson ; mkdir tmpjson
+
+# Find all files and sort them
+echo "Getting list of files..."
+out=($(curl -sH "Accept: application/vnd.github.v3+json" ${gh}?recursive=1 | \
+  jq -r '.tree[]|select(.type=="blob")|.path' | \
+  grep APIs | sort ))
+
+i=0
+echo "Building json..."
+for line in ${out[@]}; do
+  (( i = i + 1 ))
+
+  IFS="/" read path provider service ver file extra <<< "$line"
+  # 2 variants:
+  # PROVIDER   | SERVICE  | VER | FILE
+  # google.com | composer | v1  | openapi.yaml
+  # furkot.com |            1.0 | swagger.yaml  <- inject 'core' as svc name
+
+  if [[ "$extra" != "" ]] ; then
+    echo "Error: extra stuff($extra) on: $line"
+    exit 1
+  fi
+
+  # 2nd variant, so shift vars and default "service" to "core"
+  if [[ "$file" == "" ]]; then
+    file=$ver
+    ver=$service
+    service="core"
+  fi
+
+  # Convert invalid chars into _'s
+  provider=$(echo "$provider" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+  service=$(echo "$service" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+  ver=$(echo "$ver" | sed "s/[^a-zA-Z0-9_.\-~@]/_/g")
+
+  echo "{ \"providers\": { \"$provider\": { \"services\": { \"$service\": {
+            \"versions\": { \"$ver\": { \"serviceproxyurl\": \"$raw$line\"
+              } } } } } } }" > tmpjson/json.$i
+done
+
+jq -s 'reduce .[] as $item ({}; . * $item)' tmpjson/json.* > tmpjson/all
+
+echo "Importing..."
+xr import -v -d@tmpjson/all
+rm -rf tmpjson

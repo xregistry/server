@@ -76,20 +76,36 @@ func importFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	Error(json.Unmarshal(res.Body, &obj))
+	subObj := (map[string]json.RawMessage)(nil)
 
-	keys := registry.SortedKeys(obj)
-	for _, key := range keys {
-		tmpObj := map[string]any{}
-
-		if xid.Type == xrlib.ENTITY_REGISTRY {
-			Error(json.Unmarshal(obj[key], &tmpObj))
-			tmpKeys := registry.SortedKeys(tmpObj)
-			for _, tmpKey := range tmpKeys {
-				Verbose("Imported: %s/%s", key, tmpKey)
-			}
-		} else {
-			Verbose("Imported: %s", key)
+	switch xid.Type {
+	case xrlib.ENTITY_REGISTRY:
+		for _, gType := range registry.SortedKeys(obj) {
+			group := obj[gType]
+			Error(json.Unmarshal(group, &subObj))
+			Verbose("Imported: %d %s", len(subObj), gType)
 		}
+	case xrlib.ENTITY_GROUP:
+		for _, rType := range registry.SortedKeys(obj) {
+			resource := obj[rType]
+			Error(json.Unmarshal(resource, &subObj))
+			Verbose("Imported: %d %s", len(subObj), rType)
+		}
+	case xrlib.ENTITY_RESOURCE:
+		Verbose("Imported: %d versions", len(obj))
+	case xrlib.ENTITY_META:
+		Verbose("Should have errored")
+	case xrlib.ENTITY_VERSION:
+		Verbose("Should have errored")
+	case xrlib.ENTITY_MODEL:
+		Verbose("Should have errored")
+
+	case xrlib.ENTITY_GROUP_TYPE:
+		Verbose("Imported: %d %s", len(obj), xid.Group)
+	case xrlib.ENTITY_RESOURCE_TYPE:
+		Verbose("Imported: %d %s", len(obj), xid.Resource)
+	case xrlib.ENTITY_VERSION_TYPE:
+		Verbose("Imported: %d versions", len(obj))
 	}
 
 	// TODO allow for GET output to be shown via -o and inline/doc/filter...
