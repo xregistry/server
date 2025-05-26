@@ -8,10 +8,10 @@ import (
 
 	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
-var GitCommit string
 var DBName = "registry"
 var RegistryName = "xRegistry"
 var Port = 8080
@@ -45,7 +45,7 @@ var UseLogging = false
 
 func StopTx(tx *registry.Tx, args ...any) {
 	if tx != nil {
-		registry.Must(tx.Rollback())
+		Must(tx.Rollback())
 	}
 	if len(args) > 0 {
 		fmtStr := args[0].(string)
@@ -62,7 +62,7 @@ func StopTx(tx *registry.Tx, args ...any) {
 }
 
 func Verbose(args ...any) {
-	if VerboseCount == 0 || len(args) == 0 || registry.IsNil(args[0]) {
+	if VerboseCount == 0 || len(args) == 0 || IsNil(args[0]) {
 		return
 	}
 
@@ -137,7 +137,6 @@ func setupCmds() *cobra.Command {
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		log.SetVerbose(VerboseCount)
 		registry.DB_Name = DBName
-		registry.GitCommit = GitCommit
 	}
 
 	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
@@ -157,7 +156,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	// Turn on timestamps for our Verbose and Error messages.
 	UseLogging = true
 
-	registry.PanicIf(GitCommit == "", "GitCommit isn't set")
+	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.10s", GitCommit)
 	Verbose("DB server: %s:%s", registry.DBHOST, registry.DBPORT)
 

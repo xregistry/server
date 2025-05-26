@@ -6,6 +6,7 @@ import (
 	"fmt"
 	log "github.com/duglin/dlog"
 	// "reflect"
+	. "github.com/xregistry/server/common"
 )
 
 type UserModel Model

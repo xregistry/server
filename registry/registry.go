@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 type Registry struct {
@@ -983,123 +984,135 @@ func WildcardIt(str string) (string, bool) {
 	return res.String(), wild
 }
 
-func (r *Registry) XID2Entity(xid string) (*Entity, error) {
-	parts, err := ParseXID(xid)
+func (r *Registry) XID2Entity(xidStr string) (*Entity, error) {
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
 
-	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
+	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
 	if g == nil {
-		return nil, fmt.Errorf("Cant find Group %q from xid %q", parts[0], xid)
+		return nil, fmt.Errorf("Cant find Group %q from xid %q", xid.Group,
+			xidStr)
 	}
-	if len(parts) == 2 {
+	if xid.Type == ENTITY_GROUP {
 		return &g.Entity, nil
 	}
 
-	if len(parts) < 4 {
-		return nil, fmt.Errorf("%q isn't an xid", xid)
+	if xid.IsEntity == false || xid.Type == ENTITY_META {
+		return nil, fmt.Errorf("%q isn't an xid", xidStr)
 	}
 
-	res, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
+	res, err := g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
 
 	if res == nil {
-		return nil, fmt.Errorf("Can't find Resource %q from xid %q", parts[1],
-			xid)
+		return nil, fmt.Errorf("Can't find Resource %q from xid %q",
+			xid.Resource, xidStr)
 	}
-	if len(parts) == 4 {
+	if xid.Type == ENTITY_RESOURCE {
 		return &res.Entity, nil
 	}
 
-	if len(parts) < 6 {
-		return nil, fmt.Errorf("%q isn't an xid", xid)
-	}
-	v, err := res.FindVersion(parts[5], false, FOR_READ)
+	v, err := res.FindVersion(xid.VersionID, false, FOR_READ)
 	if err != nil {
 		return nil, err
 	}
 	if v == nil {
-		return nil, fmt.Errorf("Can't find Version %q from xid %q", parts[2],
-			xid)
+		return nil, fmt.Errorf("Can't find Version %q from xid %q",
+			xid.VersionID, xidStr)
 	}
-	if len(parts) == 6 {
+	if xid.Type == ENTITY_VERSION {
 		return &v.Entity, nil
 	}
 
-	return nil, fmt.Errorf("xid %q isn't valid", xid)
+	return nil, fmt.Errorf("xid %q isn't valid", xidStr)
 }
 
-func (r *Registry) FindXIDGroup(xid string) (*Group, error) {
-	parts, err := ParseXID(xid)
+func (r *Registry) FindXIDGroup(xidStr string) (*Group, error) {
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
+	if xid.GroupID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
 	}
 
-	return r.FindGroup(parts[0], parts[1], false, FOR_READ)
+	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 }
 
-func (r *Registry) FindResourceByXID(xid string) (*Resource, error) {
-	parts, err := ParseXID(xid)
+func (r *Registry) FindResourceByXID(xidStr string) (*Resource, error) {
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
-	if len(parts) < 4 {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
+	if xid.GroupID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
+	if xid.ResourceID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
+	}
+	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	return g.FindResource(parts[2], parts[3], false, FOR_READ)
+	return g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
 }
 
-func (r *Registry) FindXIDVersion(xid string) (*Version, error) {
-	parts, err := ParseXID(xid)
+func (r *Registry) FindXIDVersion(xidStr string) (*Version, error) {
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
-	if len(parts) < 6 {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
+	if xid.GroupID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
 	}
-	if parts[4] != "versions" {
-		return nil, fmt.Errorf("XID %q is \"versions\"", xid)
+	if xid.ResourceID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
+	if xid.VersionID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"versionid\"", xidStr)
+	}
+	if xid.Version != "versions" {
+		return nil, fmt.Errorf("XID %q is \"versions\"", xidStr)
+	}
+	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	resource, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
+	resource, err := g.FindResource(xid.Resource, xid.ResourceID, false,
+		FOR_READ)
 	if err != nil || resource == nil {
 		return nil, err
 	}
-	return resource.FindVersion(parts[5], false, FOR_READ)
+	return resource.FindVersion(xid.VersionID, false, FOR_READ)
 }
 
-func (r *Registry) FindXIDMeta(xid string) (*Meta, error) {
-	parts, err := ParseXID(xid)
+func (r *Registry) FindXIDMeta(xidStr string) (*Meta, error) {
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
-	if len(parts) < 5 {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xid)
+	if xid.GroupID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
 	}
-	if parts[4] != "meta" {
-		return nil, fmt.Errorf("XID %q is \"meta\"", xid)
+	if xid.ResourceID == "" {
+		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
 	}
-	g, err := r.FindGroup(parts[0], parts[1], false, FOR_READ)
+	if xid.Version != "meta" {
+		return nil, fmt.Errorf("XID %q is \"meta\"", xidStr)
+	}
+	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if err != nil || g == nil {
 		return nil, err
 	}
-	resource, err := g.FindResource(parts[2], parts[3], false, FOR_READ)
+	resource, err := g.FindResource(xid.Resource, xid.ResourceID, false,
+		FOR_READ)
 	if err != nil || resource == nil {
 		return nil, err
 	}

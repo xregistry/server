@@ -8,7 +8,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func addCreateCmd(parent *cobra.Command) {
@@ -92,7 +92,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	xidStr := args[0]
 	// object := any(nil)
-	xid, err := xrlib.ParseXID(xidStr)
+	xid, err := ParseXid(xidStr)
 	Error(err)
 	suffix := ""
 
@@ -122,7 +122,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if !force {
-		Error(xid.ValidateTypes(reg, false))
+		Error(xrlib.ValidateTypes(xid, reg, false))
 	}
 
 	objects := (map[string]json.RawMessage)(nil)
@@ -147,7 +147,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 		Error(json.Unmarshal([]byte(data), &objects))
 
-		for i, id := range registry.SortedKeys(objects) {
+		for i, id := range SortedKeys(objects) {
 			if i != 0 {
 				IDs += ", "
 			}
@@ -179,7 +179,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if noEpoch {
-		path = registry.AddQuery(path, "noepoch")
+		path = AddQuery(path, "noepoch")
 	}
 
 	_, err = reg.HttpDo(method, path, []byte(data))

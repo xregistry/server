@@ -8,8 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 var PASS = 1
@@ -383,8 +382,8 @@ func (td *TD) Must(expr bool, args ...any) {
 
 func (td *TD) MustEqual(exp any, got any, args ...any) {
 	if !reflect.DeepEqual(exp, got) {
-		td.Log("Exp(%T): %s", exp, xrlib.ToJSON(exp))
-		td.Log("Got(%T): %s", got, xrlib.ToJSON(got))
+		td.Log("Exp(%T): %s", exp, ToJSON(exp))
+		td.Log("Got(%T): %s", got, ToJSON(got))
 		td.Fail(args...)
 		return
 	}
@@ -393,8 +392,8 @@ func (td *TD) MustEqual(exp any, got any, args ...any) {
 
 func (td *TD) MustNotEqual(exp any, got any, args ...any) {
 	if reflect.DeepEqual(exp, got) {
-		td.Log("Exp(%T): %s", exp, xrlib.ToJSON(exp))
-		td.Log("Got(%T): %s", got, xrlib.ToJSON(got))
+		td.Log("Exp(%T): %s", exp, ToJSON(exp))
+		td.Log("Got(%T): %s", got, ToJSON(got))
 		td.Fail(args...)
 		return
 	}
@@ -402,11 +401,11 @@ func (td *TD) MustNotEqual(exp any, got any, args ...any) {
 }
 
 func (td *TD) GetProp(obj map[string]any, prop string) (any, bool, error) {
-	pp, err := registry.PropPathFromUI(prop)
+	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
 	}
-	return registry.ObjectGetProp(obj, pp)
+	return ObjectGetProp(obj, pp)
 }
 
 func (td *TD) NoError(err error, args ...any) {
@@ -424,19 +423,19 @@ func (td *TD) NoErrorStop(err error, args ...any) {
 }
 
 func (td *TD) PropMustEqual(obj map[string]any, prop string, exp any) {
-	pp, err := registry.PropPathFromUI(prop)
+	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
 	}
-	res, _, err := registry.ObjectGetProp(obj, pp)
+	res, _, err := ObjectGetProp(obj, pp)
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
-	daInt, err := registry.AnyToUInt(res)
+	daInt, err := AnyToUInt(res)
 	if err == nil {
 		res = daInt
 	}
 	if !reflect.DeepEqual(exp, res) {
-		td.Log("Exp(%T): %s", exp, xrlib.ToJSON(exp))
-		td.Log("Got(%T): %s", res, xrlib.ToJSON(res))
+		td.Log("Exp(%T): %s", exp, ToJSON(exp))
+		td.Log("Got(%T): %s", res, ToJSON(res))
 		td.Fail("Wrong value for attribute %q", prop)
 		return
 	}
@@ -444,13 +443,13 @@ func (td *TD) PropMustEqual(obj map[string]any, prop string, exp any) {
 }
 
 func (td *TD) PropMustNotEqual(obj map[string]any, prop string, exp any) {
-	pp, err := registry.PropPathFromUI(prop)
+	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
 	}
-	res, _, err := registry.ObjectGetProp(obj, pp)
+	res, _, err := ObjectGetProp(obj, pp)
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
-	if registry.IsNil(res) {
+	if IsNil(res) {
 		td.Fail("Attribute %q must not be null", prop)
 		return
 	}
@@ -458,8 +457,8 @@ func (td *TD) PropMustNotEqual(obj map[string]any, prop string, exp any) {
 	// expStr := MaxString(exp, 20)
 	resStr := MaxString(res, 20)
 	if reflect.DeepEqual(exp, res) {
-		td.Log("Exp(%T): %s", exp, xrlib.ToJSON(exp))
-		td.Log("Got(%T): %s", res, xrlib.ToJSON(res))
+		td.Log("Exp(%T): %s", exp, ToJSON(exp))
+		td.Log("Got(%T): %s", res, ToJSON(res))
 		td.Fail("Wrong value for attribute %q (%s)", prop, resStr)
 		return
 	}
@@ -475,26 +474,26 @@ func MaxString(val any, maxLen int) string {
 }
 
 func (td *TD) PropMustExist(obj map[string]any, prop string) {
-	pp, err := registry.PropPathFromUI(prop)
+	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
 	}
-	res, _, err := registry.ObjectGetProp(obj, pp)
+	res, _, err := ObjectGetProp(obj, pp)
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
-	if registry.IsNil(res) {
+	if IsNil(res) {
 		td.Fail("Attribute %q must not be null", prop)
 	}
 	td.Pass("%q must exist", prop)
 }
 
 func (td *TD) PropMustNotExist(obj map[string]any, prop string) {
-	pp, err := registry.PropPathFromUI(prop)
+	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
 	}
-	res, _, err := registry.ObjectGetProp(obj, pp)
+	res, _, err := ObjectGetProp(obj, pp)
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
-	if !registry.IsNil(res) {
+	if !IsNil(res) {
 		td.Fail("Attribute %q must be null", prop)
 	}
 	td.Pass("%q must not exist", prop)
@@ -509,8 +508,8 @@ func (td *TD) Should(expr bool, args ...any) {
 
 func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 	if !reflect.DeepEqual(exp, got) {
-		td.Log("Exp: %s", xrlib.ToJSON(exp))
-		td.Log("Got: %s", xrlib.ToJSON(got))
+		td.Log("Exp: %s", ToJSON(exp))
+		td.Log("Got: %s", ToJSON(got))
 		td.Warn(args...)
 	}
 	td.Pass(args...)

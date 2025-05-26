@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -12,81 +13,81 @@ func TestBasicTypes(t *testing.T) {
 	reg := NewRegistry("TestBasicTypes")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddAttr("regbool1", registry.BOOLEAN)
-	reg.Model.AddAttr("regbool2", registry.BOOLEAN)
-	reg.Model.AddAttr("regdec1", registry.DECIMAL)
-	reg.Model.AddAttr("regdec2", registry.DECIMAL)
-	reg.Model.AddAttr("regdec3", registry.DECIMAL)
-	reg.Model.AddAttr("regdec4", registry.DECIMAL)
-	reg.Model.AddAttr("regint1", registry.INTEGER)
-	reg.Model.AddAttr("regint2", registry.INTEGER)
-	reg.Model.AddAttr("regint3", registry.INTEGER)
-	reg.Model.AddAttr("regstring1", registry.STRING)
-	reg.Model.AddAttr("regstring2", registry.STRING)
-	reg.Model.AddAttr("reguint1", registry.UINTEGER)
-	reg.Model.AddAttr("reguint2", registry.UINTEGER)
-	reg.Model.AddAttr("regtime1", registry.TIMESTAMP)
+	reg.Model.AddAttr("regbool1", BOOLEAN)
+	reg.Model.AddAttr("regbool2", BOOLEAN)
+	reg.Model.AddAttr("regdec1", DECIMAL)
+	reg.Model.AddAttr("regdec2", DECIMAL)
+	reg.Model.AddAttr("regdec3", DECIMAL)
+	reg.Model.AddAttr("regdec4", DECIMAL)
+	reg.Model.AddAttr("regint1", INTEGER)
+	reg.Model.AddAttr("regint2", INTEGER)
+	reg.Model.AddAttr("regint3", INTEGER)
+	reg.Model.AddAttr("regstring1", STRING)
+	reg.Model.AddAttr("regstring2", STRING)
+	reg.Model.AddAttr("reguint1", UINTEGER)
+	reg.Model.AddAttr("reguint2", UINTEGER)
+	reg.Model.AddAttr("regtime1", TIMESTAMP)
 
-	reg.Model.AddAttr("reganyarrayint", registry.ANY)
-	reg.Model.AddAttr("reganyarrayobj", registry.ANY)
-	reg.Model.AddAttr("reganyint", registry.ANY)
-	reg.Model.AddAttr("reganystr", registry.ANY)
-	reg.Model.AddAttr("reganyobj", registry.ANY)
+	reg.Model.AddAttr("reganyarrayint", ANY)
+	reg.Model.AddAttr("reganyarrayobj", ANY)
+	reg.Model.AddAttr("reganyint", ANY)
+	reg.Model.AddAttr("reganystr", ANY)
+	reg.Model.AddAttr("reganyobj", ANY)
 
 	reg.Model.AddAttrArray("regarrayarrayint",
-		registry.NewItemArray(registry.NewItemType(registry.INTEGER)))
+		registry.NewItemArray(registry.NewItemType(INTEGER)))
 
-	reg.Model.AddAttrArray("regarrayint", registry.NewItemType(registry.INTEGER))
-	reg.Model.AddAttrMap("regmapint", registry.NewItemType(registry.INTEGER))
-	reg.Model.AddAttrMap("regmapstring", registry.NewItemType(registry.STRING))
+	reg.Model.AddAttrArray("regarrayint", registry.NewItemType(INTEGER))
+	reg.Model.AddAttrMap("regmapint", registry.NewItemType(INTEGER))
+	reg.Model.AddAttrMap("regmapstring", registry.NewItemType(STRING))
 
 	attr, err := reg.Model.AddAttrObj("regobj")
 	xNoErr(t, err)
-	attr.AddAttr("objbool", registry.BOOLEAN)
-	attr.AddAttr("objint", registry.INTEGER)
+	attr.AddAttr("objbool", BOOLEAN)
+	attr.AddAttr("objint", INTEGER)
 	attr2, _ := attr.AddAttrObj("objobj")
-	attr2.AddAttr("ooint", registry.INTEGER)
-	attr.AddAttr("objstr", registry.STRING)
+	attr2.AddAttr("ooint", INTEGER)
+	attr.AddAttr("objstr", STRING)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddAttr("dirbool1", registry.BOOLEAN)
-	gm.AddAttr("dirbool2", registry.BOOLEAN)
-	gm.AddAttr("dirdec1", registry.DECIMAL)
-	gm.AddAttr("dirdec2", registry.DECIMAL)
-	gm.AddAttr("dirdec3", registry.DECIMAL)
-	gm.AddAttr("dirdec4", registry.DECIMAL)
-	gm.AddAttr("dirint1", registry.INTEGER)
-	gm.AddAttr("dirint2", registry.INTEGER)
-	gm.AddAttr("dirint3", registry.INTEGER)
-	gm.AddAttr("dirstring1", registry.STRING)
-	gm.AddAttr("dirstring2", registry.STRING)
+	gm.AddAttr("dirbool1", BOOLEAN)
+	gm.AddAttr("dirbool2", BOOLEAN)
+	gm.AddAttr("dirdec1", DECIMAL)
+	gm.AddAttr("dirdec2", DECIMAL)
+	gm.AddAttr("dirdec3", DECIMAL)
+	gm.AddAttr("dirdec4", DECIMAL)
+	gm.AddAttr("dirint1", INTEGER)
+	gm.AddAttr("dirint2", INTEGER)
+	gm.AddAttr("dirint3", INTEGER)
+	gm.AddAttr("dirstring1", STRING)
+	gm.AddAttr("dirstring2", STRING)
 
-	gm.AddAttr("diranyarray", registry.ANY)
-	gm.AddAttr("diranymap", registry.ANY)
-	gm.AddAttr("diranyobj", registry.ANY)
-	gm.AddAttrArray("dirarrayint", registry.NewItemType(registry.INTEGER))
-	gm.AddAttrMap("dirmapint", registry.NewItemType(registry.INTEGER))
+	gm.AddAttr("diranyarray", ANY)
+	gm.AddAttr("diranymap", ANY)
+	gm.AddAttr("diranyobj", ANY)
+	gm.AddAttrArray("dirarrayint", registry.NewItemType(INTEGER))
+	gm.AddAttrMap("dirmapint", registry.NewItemType(INTEGER))
 	attr, _ = gm.AddAttrObj("dirobj")
-	attr.AddAttr("*", registry.ANY)
+	attr.AddAttr("*", ANY)
 
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
-	rm.AddAttr("filebool1", registry.BOOLEAN)
-	rm.AddAttr("filebool2", registry.BOOLEAN)
-	rm.AddAttr("filedec1", registry.DECIMAL)
-	rm.AddAttr("filedec2", registry.DECIMAL)
-	rm.AddAttr("filedec3", registry.DECIMAL)
-	rm.AddAttr("filedec4", registry.DECIMAL)
-	rm.AddAttr("fileint1", registry.INTEGER)
-	rm.AddAttr("fileint2", registry.INTEGER)
-	rm.AddAttr("fileint3", registry.INTEGER)
-	rm.AddAttr("filestring1", registry.STRING)
-	rm.AddAttr("filestring2", registry.STRING)
+	rm.AddAttr("filebool1", BOOLEAN)
+	rm.AddAttr("filebool2", BOOLEAN)
+	rm.AddAttr("filedec1", DECIMAL)
+	rm.AddAttr("filedec2", DECIMAL)
+	rm.AddAttr("filedec3", DECIMAL)
+	rm.AddAttr("filedec4", DECIMAL)
+	rm.AddAttr("fileint1", INTEGER)
+	rm.AddAttr("fileint2", INTEGER)
+	rm.AddAttr("fileint3", INTEGER)
+	rm.AddAttr("filestring1", STRING)
+	rm.AddAttr("filestring2", STRING)
 
-	rm.AddAttr("xid1", registry.XID)
-	rm.AddAttr("xid2", registry.XID)
-	rm.AddAttr("xid3", registry.XID)
-	rm.AddAttr("xidtype1", registry.XIDTYPE)
-	rm.AddAttr("xidtype2", registry.XIDTYPE)
+	rm.AddAttr("xid1", XID)
+	rm.AddAttr("xid2", XID)
+	rm.AddAttr("xid3", XID)
+	rm.AddAttr("xidtype1", XIDTYPE)
+	rm.AddAttr("xidtype2", XIDTYPE)
 
 	xNoErr(t, reg.SaveModel())
 
@@ -365,31 +366,31 @@ func TestBasicTypes(t *testing.T) {
 
 			{"xid1", "", nil, `Attribute "xid1" () isn't a valid xid, can't be an empty string`},
 			{"xid1", "//", nil, `Attribute "xid1" (//) isn't a valid xid, "//" has an empty part at position 1`},
-			{"xid1", "/dirs/d1/files/f1/versions/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/versions/v1/xxx) isn't a valid xid, "/dirs/d1/files/f1/versions/v1/xxx" is too long`},
+			{"xid1", "/dirs/d1/files/f1/versions/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/versions/v1/xxx) isn't a valid xid, XID is too long`},
 			{"xid1", "/DIRS", nil, `Attribute "xid1" (/DIRS) references an unknown GroupModel "DIRS"`},
 			{"xid1", "/DIRS/d1", nil, `Attribute "xid1" (/DIRS/d1) references an unknown GroupModel "DIRS"`},
 			{"xid1", "/dirs/d1/FILES", nil, `Attribute "xid1" (/dirs/d1/FILES) references an unknown ResourceModel "FILES"`},
 			{"xid1", "/dirs/d1/FILES/f1", nil, `Attribute "xid1" (/dirs/d1/FILES/f1) references an unknown ResourceModel "FILES"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS) references an unknown entity "VERSIONS"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1) references an unknown entity "VERSIONS"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1/xxx) isn't a valid xid, "/dirs/d1/files/f1/VERSIONS/v1/xxx" is too long`},
-			{"xid1", "/dirs/d1/files/f1/META", nil, `Attribute "xid1" (/dirs/d1/files/f1/META) references an unknown entity "META"`},
-			{"xid1", "/dirs/d1/files/f1/META/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/META/xxx) references an unknown entity "META"`},
-			{"xid1", "/dirs/d1/files/f1/meta/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/meta/xxx) isn't a valid xid, it must be in the form of: /[GROUPS[/gID[/RESOURCES[/gID[/versions[/vid]]]]]]`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS) isn't a valid xid, references an unknown entity "VERSIONS"`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1) isn't a valid xid, references an unknown entity "VERSIONS"`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/VERSIONS/v1/xxx) isn't a valid xid, references an unknown entity "VERSIONS"`},
+			{"xid1", "/dirs/d1/files/f1/META", nil, `Attribute "xid1" (/dirs/d1/files/f1/META) isn't a valid xid, references an unknown entity "META"`},
+			{"xid1", "/dirs/d1/files/f1/META/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/META/xxx) isn't a valid xid, references an unknown entity "META"`},
+			{"xid1", "/dirs/d1/files/f1/meta/xxx", nil, `Attribute "xid1" (/dirs/d1/files/f1/meta/xxx) isn't a valid xid, XID is too long`},
 			{"xid1", "/dirs/d1/files/f1/meta", nil, ""},
 			{"xid2", "/dirs/d1/files/f1/versions", nil, ""},
 			{"xid3", "/dirs/d1/files/f1/versions/v1", nil, ""},
 
-			{"xidtype1", "", nil, `Attribute "xidtype1" isn't a valid xidtype, can't be an empty string`},
-			{"xidtype1", "//", nil, `Attribute "xidtype1" isn't a valid xidtype, "//" has an empty part at position 1`},
-			{"xidtype1", "/dirs/files/versions/xxx", nil, `Attribute "xidtype1" isn't a valid xidtype, it must be of the form "/[GROUPS[/RESOURCES[(/versions|/meta)]]]"`},
+			{"xidtype1", "", nil, `Attribute "xidtype1" () isn't a valid xidtype, can't be an empty string`},
+			{"xidtype1", "//", nil, `Attribute "xidtype1" (//) isn't a valid xidtype, "//" has an empty part at position 1`},
+			{"xidtype1", "/dirs/files/versions/xxx", nil, `Attribute "xidtype1" (/dirs/files/versions/xxx) isn't a valid xidtype, XIDType is too long`},
 			{"xidtype1", "/DIRS", nil, `Attribute "xidtype1" (/DIRS) references an unknown GroupModel "DIRS"`},
 			{"xidtype1", "/DIRS/FILES", nil, `Attribute "xidtype1" (/DIRS/FILES) references an unknown GroupModel "DIRS"`},
-			{"xidtype1", "/dirs/FILES/xxx", nil, `Attribute "xidtype1" (/dirs/FILES/xxx) references an unknown ResourceModel "FILES"`},
-			{"xidtype1", "/dirs/files/xxx", nil, `Attribute "xidtype1" (/dirs/files/xxx) references an unknown entity "xxx"`},
-			{"xidtype1", "/dirs/files/meta/xxx", nil, `Attribute "xidtype1" isn't a valid xidtype, it must be of the form "/[GROUPS[/RESOURCES[(/versions|/meta)]]]"`},
-			{"xidtype1", "/dirs/files/META", nil, `Attribute "xidtype1" (/dirs/files/META) references an unknown entity "META"`},
-			{"xidtype1", "/dirs/files/VERSIONS", nil, `Attribute "xidtype1" (/dirs/files/VERSIONS) references an unknown entity "VERSIONS"`},
+			{"xidtype1", "/dirs/FILES", nil, `Attribute "xidtype1" (/dirs/FILES) references an unknown ResourceModel "FILES"`},
+			{"xidtype1", "/dirs/files/xxx", nil, `Attribute "xidtype1" (/dirs/files/xxx) isn't a valid xidtype, references an unknown entity "xxx"`},
+			{"xidtype1", "/dirs/files/meta/xxx", nil, `Attribute "xidtype1" (/dirs/files/meta/xxx) isn't a valid xidtype, XIDType is too long`},
+			{"xidtype1", "/dirs/files/META", nil, `Attribute "xidtype1" (/dirs/files/META) isn't a valid xidtype, references an unknown entity "META"`},
+			{"xidtype1", "/dirs/files/VERSIONS", nil, `Attribute "xidtype1" (/dirs/files/VERSIONS) isn't a valid xidtype, references an unknown entity "VERSIONS"`},
 			{"xidtype1", "/dirs/files/meta", nil, ``},
 			{"xidtype2", "/dirs/files/versions", nil, ``},
 		}},
@@ -462,7 +463,7 @@ func TestBasicTypes(t *testing.T) {
 	}
 
 	xCheckGet(t, reg, "?inline", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestBasicTypes",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -662,7 +663,7 @@ func TestWildcardBoolTypes(t *testing.T) {
 	reg := NewRegistry("TestWildcardBoolTypes")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddAttr("*", registry.BOOLEAN)
+	reg.Model.AddAttr("*", BOOLEAN)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	xNoErr(t, err)
@@ -695,7 +696,7 @@ func TestWildcardAnyTypes(t *testing.T) {
 	reg := NewRegistry("TestWildcardAnyTypes")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddAttr("*", registry.ANY)
+	reg.Model.AddAttr("*", ANY)
 	xNoErr(t, reg.Model.Save())
 
 	// Make sure we can set the same attr to two different types
@@ -725,16 +726,16 @@ func TestWildcard2LayersTypes(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name: "obj",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 		Attributes: map[string]*registry.Attribute{
 			"map": {
 				Name: "map",
-				Type: registry.MAP,
-				Item: &registry.Item{Type: registry.INTEGER},
+				Type: MAP,
+				Item: &registry.Item{Type: INTEGER},
 			},
 			"*": {
 				Name: "*",
-				Type: registry.ANY,
+				Type: ANY,
 			},
 		},
 	})
@@ -768,11 +769,11 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name: "obj1",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 		Attributes: map[string]*registry.Attribute{
 			"attr1-": {
 				Name: "attr1-",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 		},
 	})
@@ -780,12 +781,12 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
-		Type:        registry.OBJECT,
+		Type:        OBJECT,
 		NameCharSet: "strict",
 		Attributes: map[string]*registry.Attribute{
 			"attr1-": {
 				Name: "attr1-",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 		},
 	})
@@ -793,17 +794,17 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "obj1",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 		Attributes: map[string]*registry.Attribute{
 			"attr1": {
 				Name: "attr1",
-				Type: registry.STRING,
+				Type: STRING,
 				IfValues: registry.IfValues{
 					"a1": &registry.IfValue{
 						SiblingAttributes: registry.Attributes{
 							"another-": &registry.Attribute{
 								Name: "another-",
-								Type: registry.STRING,
+								Type: STRING,
 							},
 						},
 					},
@@ -815,12 +816,12 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
-		Type:        registry.OBJECT,
+		Type:        OBJECT,
 		NameCharSet: "extended",
 		Attributes: map[string]*registry.Attribute{
 			"attr space": {
 				Name: "attr space",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 		},
 	})
@@ -828,12 +829,12 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "astring",
-		Type: registry.STRING,
+		Type: STRING,
 		IfValues: registry.IfValues{
 			"a1": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"bad-": &registry.Attribute{
-						Type: registry.STRING,
+						Type: STRING,
 					},
 				},
 			},
@@ -843,15 +844,15 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "astring",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 		Attributes: map[string]*registry.Attribute{
 			"attr1": {
-				Type: registry.STRING,
+				Type: STRING,
 				IfValues: registry.IfValues{
 					"a1": &registry.IfValue{
 						SiblingAttributes: registry.Attributes{
 							"bad-": &registry.Attribute{
-								Type: registry.STRING,
+								Type: STRING,
 							},
 						},
 					},
@@ -863,16 +864,16 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "astring",
-		Type:        registry.OBJECT,
+		Type:        OBJECT,
 		NameCharSet: "extended",
 		Attributes: map[string]*registry.Attribute{
 			"attr1": {
-				Type: registry.STRING,
+				Type: STRING,
 				IfValues: registry.IfValues{
 					"a1-": &registry.IfValue{
 						SiblingAttributes: registry.Attributes{
 							"good-": &registry.Attribute{
-								Type: registry.STRING,
+								Type: STRING,
 							},
 						},
 					},
@@ -884,18 +885,18 @@ func TestNameCharSet(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
-		Type:        registry.OBJECT,
+		Type:        OBJECT,
 		NameCharSet: "extended",
 		Attributes: map[string]*registry.Attribute{
 			"attr1-": {
 				Name: "attr1-",
-				Type: registry.STRING,
+				Type: STRING,
 				IfValues: registry.IfValues{
 					"a1": &registry.IfValue{
 						SiblingAttributes: registry.Attributes{
 							"another-": &registry.Attribute{
 								Name: "another-",
-								Type: registry.STRING,
+								Type: STRING,
 							},
 						},
 					},
@@ -903,11 +904,11 @@ func TestNameCharSet(t *testing.T) {
 			},
 			"attr1-id": {
 				Name: "attr1-id",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 			"*": {
 				Name: "*",
-				Type: registry.INTEGER,
+				Type: INTEGER,
 			},
 		},
 	})

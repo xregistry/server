@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestFiltersBasic(t *testing.T) {
@@ -40,7 +40,7 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "No Filter",
 			URL:  "?",
 			Exp: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -184,7 +184,7 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "Get/filter reg.labels - match",
 			URL:  "?filter=labels.reg1=1ger",
 			Exp: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -204,7 +204,7 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "Get/filter labels",
 			URL:  "?filter=dirs.files.labels.file1=1elif",
 			Exp: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -224,7 +224,7 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "Get/filter dir file.labels - match 1elif",
 			URL:  "?inline&filter=dirs.files.labels.file1=1elif",
 			Exp: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -333,7 +333,7 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "Get/filter dir file.labels - match non-empty string",
 			URL:  "?inline&filter=dirs.files.labels.file1",
 			Exp: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -819,10 +819,10 @@ func TestFiltersObjs(t *testing.T) {
 	attr, _ := reg.Model.AddAttrObj("regobj1")
 
 	attr, _ = reg.Model.AddAttrObj("regobj2")
-	attr.AddAttr("bool", registry.BOOLEAN)
+	attr.AddAttr("bool", BOOLEAN)
 
 	attr, _ = reg.Model.AddAttrObj("regobj3")
-	attr.AddAttr("bool", registry.BOOLEAN)
+	attr.AddAttr("bool", BOOLEAN)
 	xNoErr(t, reg.SaveModel())
 
 	xNoErr(t, reg.SetSave("regobj2", map[string]any{}))

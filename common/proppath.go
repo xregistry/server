@@ -1,11 +1,12 @@
-package registry
+package common
 
 import (
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
-	// log "github.com/duglin/dlog"
+
+	log "github.com/duglin/dlog"
 )
 
 type PropPath struct {
@@ -413,4 +414,156 @@ func (pp *PropPart) ToInt() int {
 
 func (pp *PropPart) IsIndex() bool {
 	return pp.Index >= 0
+}
+
+// Value, Found, Error
+func ObjectGetProp(obj any, pp *PropPath) (any, bool, error) {
+	return NestedGetProp(obj, pp, NewPP())
+}
+
+// Value, Found, Error
+func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
+	if log.GetVerbose() > 2 {
+		log.VPrintf(0, "ObjectGetProp: %q\nobj:\n%s", pp.UI(), ToJSON(obj))
+	}
+	if pp == nil || pp.Len() == 0 {
+		return obj, true, nil
+	}
+	if IsNil(obj) {
+		return nil, false,
+			fmt.Errorf("Can't traverse into nothing: %s", prev.UI())
+	}
+
+	objValue := reflect.ValueOf(obj)
+	part := pp.Parts[0]
+	if index := part.Index; index >= 0 {
+		// Is an array
+		if objValue.Kind() != reflect.Slice {
+			return nil, false,
+				fmt.Errorf("Can't index into non-array: %s", prev.UI())
+		}
+		if index < 0 || index >= objValue.Len() {
+			return nil, false,
+				fmt.Errorf("Array reference %q out of bounds: "+
+					"(max:%d-1)", prev.Append(pp.First()).UI(), objValue.Len())
+		}
+		objValue = objValue.Index(index)
+		if objValue.IsValid() {
+			obj = objValue.Interface()
+		} else {
+			panic("help") // Should never get here
+			obj = nil
+		}
+		return NestedGetProp(obj, pp.Next(), prev.Append(pp.First()))
+	}
+
+	// Is map/object
+	if objValue.Kind() != reflect.Map {
+		return nil, false, fmt.Errorf("Can't reference a non-map/object: %s",
+			prev.UI())
+	}
+	if objValue.Type().Key().Kind() != reflect.String {
+		return nil, false, fmt.Errorf("Key of %q must be a string, not %s",
+			prev.UI(), objValue.Type().Key().Kind())
+	}
+
+	objValue = objValue.MapIndex(reflect.ValueOf(pp.Top()))
+	if objValue.IsValid() {
+		obj = objValue.Interface()
+	} else {
+		if pp.Next().Len() == 0 {
+			return nil, false, nil
+		}
+		obj = nil
+	}
+	return NestedGetProp(obj, pp.Next(), prev.Append(pp.First()))
+}
+
+// Given a PropPath and a value this will add the necessary golang data
+// structures to 'obj' to materialize PropPath and set the appropriate
+// fields to 'val'
+func ObjectSetProp(obj map[string]any, pp *PropPath, val any) error {
+	log.VPrintf(4, "ObjectSetProp(%s=%v)", pp, val)
+	if pp.Len() == 0 && IsNil(val) {
+		// A bit of a special case, not 100% sure if this is ok.
+		// Treat nil val as a request to delete all properties.
+		// e.g. obj={}
+		for k, _ := range obj {
+			delete(obj, k)
+		}
+		return nil
+	}
+	PanicIf(pp.Len() == 0, "Can't be zero w/non-nil val")
+
+	_, err := MaterializeProp(obj, pp, val, nil)
+	return err
+}
+
+func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, error) {
+	log.VPrintf(4, ">Enter: MaterializeProp(%s)", pp)
+	log.VPrintf(4, "<Exit: MaterializeProp")
+
+	// current is existing value, used for adding to maps/arrays
+	if pp == nil {
+		return val, nil
+	}
+
+	var ok bool
+	var err error
+
+	if prev == nil {
+		prev = NewPP()
+	}
+
+	part := pp.Parts[0]
+	if index := part.Index; index >= 0 {
+		// Is an array
+		// TODO look for cases where Kind(val) == array too - maybe?
+		var daArray []any
+
+		if current != nil {
+			daArray, ok = current.([]any)
+			if !ok {
+				return nil, fmt.Errorf("Attribute %q isn't an array",
+					prev.Append(pp.First()).UI())
+			}
+		}
+
+		// Resize if needed
+		if diff := (1 + index - len(daArray)); diff > 0 {
+			daArray = append(daArray, make([]any, diff)...)
+		}
+
+		// Trim the end of the array if there are nil's
+		daArray[index], err = MaterializeProp(daArray[index], pp.Next(), val,
+			prev.Append(pp.First()))
+		for len(daArray) > 0 && daArray[len(daArray)-1] == nil {
+			daArray = daArray[:len(daArray)-1]
+		}
+		return daArray, err
+	}
+
+	// Is a map/object
+	// TODO look for cases where Kind(val) == obj/map too - maybe?
+
+	daMap := map[string]any{}
+	if !IsNil(current) {
+		daMap, ok = current.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("Current isn't a map: %T", current)
+		}
+	}
+
+	res, err := MaterializeProp(daMap[pp.Top()], pp.Next(), val,
+		prev.Append(pp.First()))
+	if err != nil {
+		return nil, err
+	}
+	if IsNil(res) {
+		delete(daMap, pp.Top())
+	} else {
+		daMap[pp.Top()] = res
+	}
+
+	return daMap, err
 }

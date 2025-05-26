@@ -12,6 +12,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -39,6 +40,8 @@ func addModelCmd(parent *cobra.Command) {
 	}
 	// verifyCmd.Flags().StringP("data", "d", "",
 	// "Data(json), @FILE, @URL, @-(stdin)")
+	verifyCmd.Flags().BoolP("skip-target", "", false,
+		"Skip 'target' verification for 'xid' attributes")
 	modelCmd.AddCommand(verifyCmd)
 
 	updateCmd := &cobra.Command{
@@ -130,12 +133,12 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	buf, err = xrlib.ReadFile(fileName)
 	Error(err)
 
-	buf, err = registry.ProcessIncludes(fileName, buf, true)
+	buf, err = ProcessIncludes(fileName, buf, true)
 	Error(err)
 
 	tmp := map[string]any{}
-	Error(registry.Unmarshal(buf, &tmp))
-	fmt.Printf("%s\n", registry.ToJSON(tmp))
+	Error(Unmarshal(buf, &tmp))
+	fmt.Printf("%s\n", ToJSON(tmp))
 }
 
 func modelVerifyFunc(cmd *cobra.Command, args []string) {
@@ -146,6 +149,8 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 		args = []string{"-"}
 	}
 
+	skipTarget, _ := cmd.Flags().GetBool("ignore-target")
+
 	for _, fileName := range args {
 		prefix := ""
 		if len(args) > 1 {
@@ -154,7 +159,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 
 		buf, err = xrlib.ReadFile(fileName)
 		if err == nil {
-			err = VerifyModel(fileName, buf)
+			err = VerifyModel(fileName, buf, skipTarget)
 		}
 		if err != nil {
 			Error(err, "%s%s", prefix, err)
@@ -164,8 +169,8 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	}
 }
 
-func VerifyModel(fileName string, buf []byte) error {
-	buf, err := registry.ProcessIncludes(fileName, buf, true)
+func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
+	buf, err := ProcessIncludes(fileName, buf, true)
 	if err != nil {
 		return err
 		// Error("%s%s", fileName, err)
@@ -173,12 +178,17 @@ func VerifyModel(fileName string, buf []byte) error {
 
 	model := &registry.Model{}
 
-	if err := registry.Unmarshal(buf, model); err != nil {
+	if err := Unmarshal(buf, model); err != nil {
 		return err
 		//Error("%s%s", fileName, err)
 	}
 
-	model.SetPointers()
+	if skipTarget {
+		if model.Stuff == nil {
+			model.Stuff = map[string]any{}
+		}
+		model.Stuff["skipTargetCheck"] = true
+	}
 
 	if err := model.Verify(); err != nil {
 		return err
@@ -225,7 +235,7 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error(err)
 	}
 
-	buf, err = registry.ProcessIncludes(fileName, buf, true)
+	buf, err = ProcessIncludes(fileName, buf, true)
 	Error(err)
 
 	if len(buf) == 0 {
@@ -255,7 +265,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	if output == "json" {
-		fmt.Printf("%s\n", registry.ToJSON(model))
+		fmt.Printf("%s\n", ToJSON(model))
 		return
 	}
 
@@ -263,7 +273,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	PrintLabels(model.Labels, "  ", os.Stdout)
 	PrintAttributes("", model.Attributes, "registry", "", os.Stdout, all)
 
-	for _, gID := range registry.SortedKeys(model.Groups) {
+	for _, gID := range SortedKeys(model.Groups) {
 		g := model.Groups[gID]
 
 		fmt.Println("")
@@ -328,7 +338,7 @@ func PrintNotEmpty(title, val any, w io.Writer) {
 
 func PrintLabels(labels map[string]string, indent string, w io.Writer) {
 	if len(labels) > 0 {
-		for i, k := range registry.SortedKeys(labels) {
+		for i, k := range SortedKeys(labels) {
 			v := labels[k]
 			if i == 0 {
 				fmt.Fprintf(w, "  Labels         : %s=%s\n", k, v)
@@ -345,7 +355,7 @@ func PrintAttributes(prefix string, attrs registry.Attributes,
 	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 1, ' ', 0)
 
 	// Make sure list if alphabetical, but put "*" last
-	list := registry.SortedKeys(attrs)
+	list := SortedKeys(attrs)
 	if len(list) > 0 && list[0] == "*" {
 		list = append(list[1:], list[0])
 	}
@@ -373,15 +383,15 @@ func PrintAttributes(prefix string, attrs registry.Attributes,
 		}
 		count++
 		typ := attr.Type
-		if typ == registry.MAP {
+		if typ == MAP {
 			typ = fmt.Sprintf("%s(%s)", typ, attr.Item.Type)
 		}
 		req := xrlib.YesDash(attr.Required)
 		ro := xrlib.YesDash(attr.ReadOnly)
 		immut := xrlib.YesDash(!attr.Immutable)
 		def := ""
-		if !registry.IsNil(attr.Default) {
-			if attr.Type == registry.STRING {
+		if !IsNil(attr.Default) {
+			if attr.Type == STRING {
 				def = fmt.Sprintf("%q", attr.Default)
 			} else {
 				def = fmt.Sprintf("%v", attr.Default)

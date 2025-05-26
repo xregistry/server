@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -99,7 +100,7 @@ func TestNoModel(t *testing.T) {
 `)
 
 	xCheckGet(t, reg, "?inline=model", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestNoModel",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3674,7 +3675,7 @@ func TestResourceModelCreate(t *testing.T) {
 		Attributes: registry.Attributes{
 			"mystr": &registry.Attribute{
 				Name: "mystr",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 		},
 		Groups: map[string]*registry.GroupModel{
@@ -3686,10 +3687,10 @@ func TestResourceModelCreate(t *testing.T) {
 						Plural:            "files",
 						Singular:          "file",
 						MaxVersions:       6,
-						SetVersionId:      registry.PtrBool(false),
-						SetDefaultSticky:  registry.PtrBool(false),
-						HasDocument:       registry.PtrBool(false),
-						SingleVersionRoot: registry.PtrBool(false),
+						SetVersionId:      PtrBool(false),
+						SetDefaultSticky:  PtrBool(false),
+						HasDocument:       PtrBool(false),
+						SingleVersionRoot: PtrBool(false),
 					},
 				},
 			},
@@ -4159,7 +4160,7 @@ func TestResourceModelCreate(t *testing.T) {
 		Attributes: registry.Attributes{
 			"model": &registry.Attribute{
 				Name: "model",
-				Type: registry.STRING,
+				Type: STRING,
 			},
 		},
 	}
@@ -4176,7 +4177,7 @@ func TestResourceModelCreate(t *testing.T) {
 	g.AddResource("files", "f1", "v1")
 
 	xCheckGet(t, reg, "?inline=model,dirs.files", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4685,10 +4686,10 @@ func TestResourceModelCreate(t *testing.T) {
 						Plural:            "files2",
 						Singular:          "file",
 						MaxVersions:       6,
-						SetVersionId:      registry.PtrBool(false),
-						SetDefaultSticky:  registry.PtrBool(false),
-						HasDocument:       registry.PtrBool(false),
-						SingleVersionRoot: registry.PtrBool(false),
+						SetVersionId:      PtrBool(false),
+						SetDefaultSticky:  PtrBool(false),
+						HasDocument:       PtrBool(false),
+						SingleVersionRoot: PtrBool(false),
 					},
 				},
 			},
@@ -4697,7 +4698,7 @@ func TestResourceModelCreate(t *testing.T) {
 
 	reg.Model.ApplyNewModel(newModel)
 	xCheckGet(t, reg, "?inline=model&inline=dirs", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5186,7 +5187,7 @@ func TestResourceModelCreate(t *testing.T) {
 
 	reg.Model.ApplyNewModel(newModel)
 	xCheckGet(t, reg, "?inline=model&inline=dirs", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5395,7 +5396,7 @@ func TestResourceModelCreate(t *testing.T) {
 	}
 	reg.Model.ApplyNewModel(newModel)
 	xCheckGet(t, reg, "?inline=model&inline=", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -7064,7 +7065,7 @@ func TestMultModel2Create(t *testing.T) {
 	// /dirs2/f2/f2/v1
 
 	xCheckGet(t, reg, "?inline=model&inline", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestMultModel2Create",
   "self": "http://localhost:8181/",
   "xid": "/",

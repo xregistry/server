@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestMetaSimple(t *testing.T) {
@@ -12,7 +12,7 @@ func TestMetaSimple(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) // noDoc
-	rm.AddMetaAttr("foo", registry.ANY)
+	rm.AddMetaAttr("foo", ANY)
 
 	// Simple no body create PUT
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -514,7 +514,7 @@ func TestMetaCombos(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) // noDoc
-	rm.AddMetaAttr("foo", registry.ANY)
+	rm.AddMetaAttr("foo", ANY)
 
 	// Create Resource and set the versionID
 	xCheckHTTP(t, reg, &HTTPTest{

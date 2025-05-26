@@ -9,9 +9,8 @@ import (
 
 	log "github.com/duglin/dlog"
 	_ "github.com/go-sql-driver/mysql"
+	. "github.com/xregistry/server/common"
 )
-
-type Object map[string]any
 
 // type Map map[string]any
 // type Array []any
@@ -31,7 +30,7 @@ type Entity struct {
 	// These were added just for convenience and so we can use the same
 	// struct for traversing the SQL results
 	Type     int    // ENTITY_REGISTRY(0)/GROUP(1)/RESOURCE(2)/VERSION(3)/...
-	Path     string // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
+	Path     string // [GROUPS/GID[/RESOURCES/RID[/versions/vID]]]
 	Abstract string // [GROUPS[/RESOURCES[/versions]]]
 	EpochSet bool   `json:"-"` // Has epoch changed this tx?
 	ModSet   bool   `json:"-"` // Has modifiedat changed this tx?
@@ -234,69 +233,6 @@ func (e *Entity) GetPP(pp *PropPath) any {
 
 	log.VPrintf(4, "%s(%s).Get(%s) -> %v", e.Plural, e.UID, pp.DB(), val)
 	return val
-}
-
-// Value, Found, Error
-func ObjectGetProp(obj any, pp *PropPath) (any, bool, error) {
-	return NestedGetProp(obj, pp, NewPP())
-}
-
-// Value, Found, Error
-func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
-	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "ObjectGetProp: %q\nobj:\n%s", pp.UI(), ToJSON(obj))
-	}
-	if pp == nil || pp.Len() == 0 {
-		return obj, true, nil
-	}
-	if IsNil(obj) {
-		return nil, false,
-			fmt.Errorf("Can't traverse into nothing: %s", prev.UI())
-	}
-
-	objValue := reflect.ValueOf(obj)
-	part := pp.Parts[0]
-	if index := part.Index; index >= 0 {
-		// Is an array
-		if objValue.Kind() != reflect.Slice {
-			return nil, false,
-				fmt.Errorf("Can't index into non-array: %s", prev.UI())
-		}
-		if index < 0 || index >= objValue.Len() {
-			return nil, false,
-				fmt.Errorf("Array reference %q out of bounds: "+
-					"(max:%d-1)", prev.Append(pp.First()).UI(), objValue.Len())
-		}
-		objValue = objValue.Index(index)
-		if objValue.IsValid() {
-			obj = objValue.Interface()
-		} else {
-			panic("help") // Should never get here
-			obj = nil
-		}
-		return NestedGetProp(obj, pp.Next(), prev.Append(pp.First()))
-	}
-
-	// Is map/object
-	if objValue.Kind() != reflect.Map {
-		return nil, false, fmt.Errorf("Can't reference a non-map/object: %s",
-			prev.UI())
-	}
-	if objValue.Type().Key().Kind() != reflect.String {
-		return nil, false, fmt.Errorf("Key of %q must be a string, not %s",
-			prev.UI(), objValue.Type().Key().Kind())
-	}
-
-	objValue = objValue.MapIndex(reflect.ValueOf(pp.Top()))
-	if objValue.IsValid() {
-		obj = objValue.Interface()
-	} else {
-		if pp.Next().Len() == 0 {
-			return nil, false, nil
-		}
-		obj = nil
-	}
-	return NestedGetProp(obj, pp.Next(), prev.Append(pp.First()))
 }
 
 func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, error) {
@@ -2251,95 +2187,6 @@ func (e *Entity) GetBaseAttributes() Attributes {
 	panic(fmt.Sprintf("Bad type: %v", e.Type))
 }
 
-// Given a PropPath and a value this will add the necessary golang data
-// structures to 'obj' to materialize PropPath and set the appropriate
-// fields to 'val'
-func ObjectSetProp(obj map[string]any, pp *PropPath, val any) error {
-	log.VPrintf(4, "ObjectSetProp(%s=%v)", pp, val)
-	if pp.Len() == 0 && IsNil(val) {
-		// A bit of a special case, not 100% sure if this is ok.
-		// Treat nil val as a request to delete all properties.
-		// e.g. obj={}
-		for k, _ := range obj {
-			delete(obj, k)
-		}
-		return nil
-	}
-	PanicIf(pp.Len() == 0, "Can't be zero w/non-nil val")
-
-	_, err := MaterializeProp(obj, pp, val, nil)
-	return err
-}
-
-func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, error) {
-	log.VPrintf(4, ">Enter: MaterializeProp(%s)", pp)
-	log.VPrintf(4, "<Exit: MaterializeProp")
-
-	// current is existing value, used for adding to maps/arrays
-	if pp == nil {
-		return val, nil
-	}
-
-	var ok bool
-	var err error
-
-	if prev == nil {
-		prev = NewPP()
-	}
-
-	part := pp.Parts[0]
-	if index := part.Index; index >= 0 {
-		// Is an array
-		// TODO look for cases where Kind(val) == array too - maybe?
-		var daArray []any
-
-		if current != nil {
-			daArray, ok = current.([]any)
-			if !ok {
-				return nil, fmt.Errorf("Attribute %q isn't an array",
-					prev.Append(pp.First()).UI())
-			}
-		}
-
-		// Resize if needed
-		if diff := (1 + index - len(daArray)); diff > 0 {
-			daArray = append(daArray, make([]any, diff)...)
-		}
-
-		// Trim the end of the array if there are nil's
-		daArray[index], err = MaterializeProp(daArray[index], pp.Next(), val,
-			prev.Append(pp.First()))
-		for len(daArray) > 0 && daArray[len(daArray)-1] == nil {
-			daArray = daArray[:len(daArray)-1]
-		}
-		return daArray, err
-	}
-
-	// Is a map/object
-	// TODO look for cases where Kind(val) == obj/map too - maybe?
-
-	daMap := map[string]any{}
-	if !IsNil(current) {
-		daMap, ok = current.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("Current isn't a map: %T", current)
-		}
-	}
-
-	res, err := MaterializeProp(daMap[pp.Top()], pp.Next(), val,
-		prev.Append(pp.First()))
-	if err != nil {
-		return nil, err
-	}
-	if IsNil(res) {
-		delete(daMap, pp.Top())
-	} else {
-		daMap[pp.Top()] = res
-	}
-
-	return daMap, err
-}
-
 // Doesn't fully validate in the sense that it'll assume read-only fields
 // are not worth checking since the server generated them.
 // This is mainly used for validating input from a client.
@@ -2758,38 +2605,32 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 			}
 		}
 
-		parts, err := ParseXID(str)
+		xid, err := ParseXid(str)
 		if err != nil {
 			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, %s",
 				path.UI(), str, err)
 		}
 
-		if len(parts) > 6 || (len(parts) > 5 && parts[4] == "meta") {
+		if xid.VersionID != "" && xid.Version == "meta" {
 			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, "+
 				"it must be in the form of: "+
-				"/[GROUPS[/gID[/RESOURCES[/gID[/versions[/vid]]]]]]",
+				"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
 				path.UI(), str)
 		}
 
-		if len(parts) > 0 {
-			gm := e.Registry.Model.FindGroupModel(parts[0])
+		if xid.Type != ENTITY_REGISTRY {
+			gm := e.Registry.Model.FindGroupModel(xid.Group)
 			if gm == nil {
 				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, parts[0])
+					"GroupModel %q", path.UI(), str, xid.Group)
 			}
 
-			if len(parts) > 2 {
-				rm := gm.FindResourceModel(parts[2])
+			if xid.Resource != "" {
+				rm := gm.FindResourceModel(xid.Resource)
 				if rm == nil {
 					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown ResourceModel %q", path.UI(), str, parts[2])
-				}
-			}
-
-			if len(parts) > 4 {
-				if parts[4] != "versions" && parts[4] != "meta" {
-					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown entity %q", path.UI(), str, parts[4])
+						"unknown ResourceModel %q", path.UI(), str,
+						xid.Resource)
 				}
 			}
 		}
@@ -2800,36 +2641,25 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 		}
 		str := val.(string)
 
-		parts, err := ParseXID(str)
+		xidType, err := ParseXidType(str)
 		if err != nil {
-			return fmt.Errorf("Attribute %q isn't a valid xidtype, %s",
-				path.UI(), err)
-		}
-		if len(parts) < 1 || len(parts) > 3 {
-			return fmt.Errorf("Attribute %q isn't a valid xidtype, it "+
-				"must be of the form \"/[GROUPS[/RESOURCES[(/versions|/meta)]]]\"",
-				path.UI())
+			return fmt.Errorf("Attribute %q (%s) isn't a valid xidtype, %s",
+				path.UI(), str, err)
 		}
 
-		if len(parts) > 0 {
-			gm := e.Registry.Model.FindGroupModel(parts[0])
+		if xidType.Group != "" {
+			gm := e.Registry.Model.FindGroupModel(xidType.Group)
 			if gm == nil {
 				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, parts[0])
+					"GroupModel %q", path.UI(), str, xidType.Group)
 			}
 
-			if len(parts) > 1 {
-				rm := gm.FindResourceModel(parts[1])
+			if xidType.Resource != "" {
+				rm := gm.FindResourceModel(xidType.Resource)
 				if rm == nil {
 					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown ResourceModel %q", path.UI(), str, parts[1])
-				}
-			}
-
-			if len(parts) > 2 {
-				if parts[2] != "versions" && parts[2] != "meta" {
-					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown entity %q", path.UI(), str, parts[2])
+						"unknown ResourceModel %q", path.UI(), str,
+						xidType.Resource)
 				}
 			}
 		}
@@ -2986,7 +2816,7 @@ func (e *Entity) MatchXID(str string, xid string) error {
 	}
 
 	// targetParts has RESOURCES
-	if len(strParts) < 4 { //    /GROUPS/gID/RESOURCES
+	if len(strParts) < 4 { //    /GROUPS/GID/RESOURCES
 		return fmt.Errorf("must match %q target, missing %q",
 			xid, targetParts[2])
 	}
@@ -3020,7 +2850,7 @@ func (e *Entity) MatchXID(str string, xid string) error {
 
 	if targetParts[4] != "" { // has [/versions]
 		if len(strParts) == 5 {
-			//   /GROUPS/RESOURCES[/version]  vs /GROUPS/gID/RESOURCES/rID
+			//   /GROUPS/RESOURCES[/version]  vs /GROUPS/GID/RESOURCES/RID
 			return nil
 		}
 	}

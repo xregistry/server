@@ -2,14 +2,12 @@ package tests
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	gourl "net/url"
 	"os"
 	"path"
-	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -18,6 +16,7 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -117,6 +116,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 					tx.DumpCache()
 				}
 				registry.DumpTXs()
+				ShowStack()
 				os.Exit(1)
 			}
 		}
@@ -205,17 +205,6 @@ func xCheck(t *testing.T, b bool, errStr string, args ...any) {
 	if !b {
 		t.Fatalf(errStr, args...)
 	}
-}
-
-func ToJSON(obj interface{}) string {
-	if obj != nil && reflect.TypeOf(obj).String() == "*errors.errorString" {
-		obj = obj.(error).Error()
-	}
-	buf, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("Error Marshaling: %s", err)
-	}
-	return string(buf)
 }
 
 func xNoErr(t *testing.T, err error) {
@@ -649,70 +638,4 @@ func xJSONCheck(t *testing.T, gotObj any, expObj any) {
 	got := ToJSON(gotObj)
 	exp := ToJSON(expObj)
 	xCheckEqual(t, "", got, exp)
-}
-
-func OneLine(buf []byte) []byte {
-	buf = RemoveProps(buf)
-
-	re := regexp.MustCompile(`[\r\n]*`)
-	buf = re.ReplaceAll(buf, []byte(""))
-	re = regexp.MustCompile(`([^a-zA-Z])\s+([^a-zA-Z])`)
-	buf = re.ReplaceAll(buf, []byte(`$1$2`))
-	re = regexp.MustCompile(`([^a-zA-Z])\s+([^a-zA-Z])`)
-	buf = re.ReplaceAll(buf, []byte(`$1$2`))
-
-	return buf
-}
-
-func RemoveProps(buf []byte) []byte {
-	re := regexp.MustCompile(`\n[^{}]*\n`)
-	buf = re.ReplaceAll(buf, []byte("\n"))
-
-	re = regexp.MustCompile(`\s"labels": {\s*},*`)
-	buf = re.ReplaceAll(buf, []byte(""))
-
-	re = regexp.MustCompile(`\n *\n`)
-	buf = re.ReplaceAll(buf, []byte("\n"))
-
-	re = regexp.MustCompile(`\n *}\n`)
-	buf = re.ReplaceAll(buf, []byte("}\n"))
-
-	re = regexp.MustCompile(`}[\s,]+}`)
-	buf = re.ReplaceAll(buf, []byte("}}"))
-	buf = re.ReplaceAll(buf, []byte("}}"))
-
-	return buf
-}
-
-func HTMLify(r *http.Request, buf []byte) []byte {
-	str := fmt.Sprintf(`"(https?://%s[^"\n]*?)"`, r.Host)
-	re := regexp.MustCompile(str)
-	repl := fmt.Sprintf(`"<a href="$1?%s">$1?%s</a>"`,
-		r.URL.RawQuery, r.URL.RawQuery)
-
-	return re.ReplaceAll(buf, []byte(repl))
-}
-
-func NotNilString(val any) string {
-	b := (val).([]byte)
-	return string(b)
-}
-
-func NewPP() *registry.PropPath {
-	return registry.NewPP()
-}
-
-func ShowStack() {
-	fmt.Printf("-----\n")
-	for i := 1; i < 20; i++ {
-		pc, file, line, _ := runtime.Caller(i)
-		fmt.Printf("Caller: %s:%d\n", path.Base(runtime.FuncForPC(pc).Name()), line)
-		if strings.Contains(file, "main") || strings.Contains(file, "testing") {
-			break
-		}
-	}
-}
-
-func IsNil(v any) bool {
-	return registry.IsNil(v)
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestCapabilitySimple(t *testing.T) {
@@ -42,11 +42,11 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -93,7 +93,7 @@ func TestCapabilitySimple(t *testing.T) {
     ],
     "shortself": false,
     "specversions": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   }
@@ -118,7 +118,7 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "shortself": false,
   "specversions": [
-    "` + registry.SPECVERSION + `"
+    "` + SPECVERSION + `"
   ],
   "sticky": true
 }`,
@@ -136,11 +136,11 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/` + registry.SPECVERSION + `"
+    "xregistry-json/` + SPECVERSION + `"
   ],
   "shortself": false,
   "specversions": [
-    "` + registry.SPECVERSION + `"
+    "` + SPECVERSION + `"
   ],
   "sticky": true
 }`,
@@ -158,11 +158,11 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/` + registry.SPECVERSION + `"
+    "xregistry-json/` + SPECVERSION + `"
   ],
   "shortself": false,
   "specversions": [
-    "` + registry.SPECVERSION + `"
+    "` + SPECVERSION + `"
   ],
   "sticky": true
 }`,
@@ -180,11 +180,11 @@ func TestCapabilitySimple(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/` + registry.SPECVERSION + `"
+    "xregistry-json/` + SPECVERSION + `"
   ],
   "shortself": false,
   "specversions": [
-    "` + registry.SPECVERSION + `"
+    "` + SPECVERSION + `"
   ],
   "sticky": true
 }`,
@@ -198,11 +198,11 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/` + registry.SPECVERSION + `"
+    "xregistry-json/` + SPECVERSION + `"
   ],
   "shortself": false,
   "specversions": [
-    "` + registry.SPECVERSION + `"
+    "` + SPECVERSION + `"
   ],
   "sticky": true
 }`,
@@ -236,12 +236,12 @@ func TestCapabilitySimple(t *testing.T) {
 		{
 			Name: "missing schema",
 			Cap:  `{"schemas":[]}`,
-			Exp:  `"schemas" must contain "xRegistry-json/` + registry.SPECVERSION + `"`,
+			Exp:  `"schemas" must contain "xRegistry-json/` + SPECVERSION + `"`,
 		},
 		{
 			Name: "missing specversion",
 			Cap:  `{"specversions":[]}`,
-			Exp:  `"specversions" must contain "` + registry.SPECVERSION + `"`,
+			Exp:  `"specversions" must contain "` + SPECVERSION + `"`,
 		},
 
 		{
@@ -252,7 +252,7 @@ func TestCapabilitySimple(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c, err := registry.ParseCapabilitiesJSON([]byte(test.Cap))
+		c, err := ParseCapabilitiesJSON([]byte(test.Cap))
 		if err == nil {
 			err = c.Validate()
 		}
@@ -299,11 +299,11 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -311,7 +311,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Verify current epoch value
 	xHTTP(t, reg, "GET", "/", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -331,11 +331,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -377,7 +377,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Make sure the Registry epoch changed
 	xHTTP(t, reg, "GET", "/", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -395,11 +395,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -423,11 +423,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -441,11 +441,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -463,9 +463,9 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
-  "schemas": [ "xregistry-json/`+registry.SPECVERSION+`" ],
+  "schemas": [ "xregistry-json/`+SPECVERSION+`" ],
   "shortself": false,
-  "specversions": [ "`+registry.SPECVERSION+`" ],
+  "specversions": [ "`+SPECVERSION+`" ],
   "sticky": true
 }`, 200,
 		`{
@@ -496,11 +496,11 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -534,11 +534,11 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -554,11 +554,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -572,11 +572,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -594,11 +594,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -618,11 +618,11 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": false
 }
@@ -637,12 +637,12 @@ func TestCapabilityPath(t *testing.T) {
 	// Setting some arrays to [] are an error because we can't do what they
 	// asked - which is different from "null"/absent - which means "default"
 	xHTTP(t, reg, "PUT", "/capabilities", `{ "schemas": [] }`,
-		400, `"schemas" must contain "xRegistry-json/`+registry.SPECVERSION+`"`+"\n")
+		400, `"schemas" must contain "xRegistry-json/`+SPECVERSION+`"`+"\n")
 
 	// Setting some arrays to [] are an error because we can't do what they
 	// asked - which is different from "null"/absent - which means "default"
 	xHTTP(t, reg, "PUT", "/capabilities", `{ "specversions": [] }`,
-		400, "\"specversions\" must contain \""+registry.SPECVERSION+"\"\n")
+		400, "\"specversions\" must contain \""+SPECVERSION+"\"\n")
 
 	// Unknown key
 	xHTTP(t, reg, "PUT", "/capabilities", `{ "foo": [] }`,
@@ -655,7 +655,7 @@ func TestCapabilityAttr(t *testing.T) {
 
 	// Verify epoch value
 	xHTTP(t, reg, "GET", "/", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -669,7 +669,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Notice epoch value changed
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{
       "capabilities": {"apis":["/capabilities"]} }`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -685,11 +685,11 @@ func TestCapabilityAttr(t *testing.T) {
     "mutable": [],
     "pagination": false,
     "schemas": [
-      "xregistry-json/`+registry.SPECVERSION+`"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   }
@@ -709,7 +709,7 @@ func TestCapabilityAttr(t *testing.T) {
   "sticky": null
 }}`, 200,
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -727,11 +727,11 @@ func TestCapabilityAttr(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -748,13 +748,13 @@ func TestCapabilityAttr(t *testing.T) {
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
-  "schemas": [ "xregistry-json/`+registry.SPECVERSION+`" ],
+  "schemas": [ "xregistry-json/`+SPECVERSION+`" ],
   "shortself": false,
-  "specversions": [ "`+registry.SPECVERSION+`" ],
+  "specversions": [ "`+SPECVERSION+`" ],
   "sticky": false
 }}`, 200,
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -792,11 +792,11 @@ func TestCapabilityAttr(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": false
 }
@@ -811,11 +811,11 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": false,
   "schemas": ["xregistry-json"],
   "shortself": false,
-  "specversions": ["`+registry.SPECVERSION+`"],
+  "specversions": ["`+SPECVERSION+`"],
   "sticky": true
 }}`, 200,
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -831,11 +831,11 @@ func TestCapabilityAttr(t *testing.T) {
     "mutable": [],
     "pagination": false,
     "schemas": [
-      "xregistry-json/`+registry.SPECVERSION+`"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   }
@@ -850,11 +850,11 @@ func TestCapabilityAttr(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -864,13 +864,13 @@ func TestCapabilityAttr(t *testing.T) {
 	// asked - which is different from "null"/absent - which means "default"
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"schemas": [] }}`,
-		400, "\"schemas\" must contain \"xRegistry-json/"+registry.SPECVERSION+"\"\n")
+		400, "\"schemas\" must contain \"xRegistry-json/"+SPECVERSION+"\"\n")
 
 	// Setting some arrays to [] are an error because we can't do what they
 	// asked - which is different from "null"/absent - which means "default"
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"specversions": [] }}`,
-		400, "\"specversions\" must contain \""+registry.SPECVERSION+"\"\n")
+		400, "\"specversions\" must contain \""+SPECVERSION+"\"\n")
 
 	// Unknown key
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
@@ -906,11 +906,11 @@ func TestCapabilityFlagsOff(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -1059,7 +1059,7 @@ func TestCapabilityOffered(t *testing.T) {
   "schemas": {
     "type": "string",
     "enum": [
-      "xregistry-json/`+registry.SPECVERSION+`"
+      "xregistry-json/`+SPECVERSION+`"
     ]
   },
   "shortself": {
@@ -1071,7 +1071,7 @@ func TestCapabilityOffered(t *testing.T) {
   "specversions": {
     "type": "string",
     "enum": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ]
   },
   "sticky": {
@@ -1097,11 +1097,11 @@ func TestCapabilityAPIs(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -1125,11 +1125,11 @@ func TestCapabilityAPIs(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/`+registry.SPECVERSION+`"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "`+registry.SPECVERSION+`"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }

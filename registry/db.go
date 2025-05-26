@@ -17,6 +17,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	_ "github.com/go-sql-driver/mysql"
+	. "github.com/xregistry/server/common"
 )
 
 var DB *sql.DB

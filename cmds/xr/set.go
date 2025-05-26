@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func addSetCmd(parent *cobra.Command) {
@@ -41,27 +41,27 @@ func setFunc(cmd *cobra.Command, args []string) {
 	}
 
 	output, _ := cmd.Flags().GetString("output")
-	if !xrlib.ArrayContains([]string{"human", "json"}, output) {
+	if !ArrayContains([]string{"human", "json"}, output) {
 		Error("--output must be one of 'json', 'human'")
 	}
 
-	xid := args[0]
+	xidStr := args[0]
 	object := any(nil)
-	XID, err := xrlib.ParseXID(xid)
+	xid, err := ParseXid(xidStr)
 	Error(err)
 
-	if !XID.IsEntity {
+	if !xid.IsEntity {
 		Error("XID (%s) must reference a single entity, not a collection", xid)
 	}
 
 	resIsJSON := true
 
-	rm, err := XID.GetResourceModelFrom(reg)
+	rm, err := xrlib.GetResourceModelFrom(xid, reg)
 	Error(err)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if XID.ResourceID != "" && rm.HasDoc() && XID.IsEntity {
-		XID.HasDetails = true // set even if already set via $details
+	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
+		xid.HasDetails = true // set even if already set via $details
 	}
 
 	oldData := map[string]any(nil)
@@ -122,20 +122,20 @@ func setFunc(cmd *cobra.Command, args []string) {
 				Error("Bad name in: %s", arg)
 			}
 			if oldData == nil {
-				oldData, err = reg.DownloadObject(XID.String())
+				oldData, err = reg.DownloadObject(xid.String())
 				Error(err)
 			}
 			tmpName, _, _ := strings.Cut(name, ".")
-			if tmpName != "" && registry.IsNil(dataMap[tmpName]) &&
-				!registry.IsNil(oldData[tmpName]) {
+			if tmpName != "" && IsNil(dataMap[tmpName]) &&
+				!IsNil(oldData[tmpName]) {
 
 				dataMap[tmpName] = oldData[tmpName]
 			}
 		}
 
-		pp, err := registry.PropPathFromUI(name)
+		pp, err := PropPathFromUI(name)
 		Error(err)
-		err = registry.ObjectSetProp(dataMap, pp, val)
+		err = ObjectSetProp(dataMap, pp, val)
 		Error(err)
 
 		// Not sure if this is smart or a hack but until something breaks
@@ -152,7 +152,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	Verbose("Updating %q", xid)
-	res, err := reg.HttpDo("PATCH", XID.String(), data)
+	res, err := reg.HttpDo("PATCH", xid.String(), data)
 	Error(err)
 
 	if !resIsJSON {
@@ -171,7 +171,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if output == "human" {
-		fmt.Printf("%s\n", xrlib.Humanize(xid, object))
+		fmt.Printf("%s\n", xrlib.Humanize(xid.String(), object))
 		return
 	}
 

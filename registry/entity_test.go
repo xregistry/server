@@ -2,6 +2,8 @@ package registry
 
 import (
 	"testing"
+
+	. "github.com/xregistry/server/common"
 )
 
 func TestSetProp(t *testing.T) {

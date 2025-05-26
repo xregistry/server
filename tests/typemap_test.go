@@ -1,8 +1,8 @@
 package tests
 
 import (
+	. "github.com/xregistry/server/common"
 	"testing"
-	// "github.com/xregistry/server/registry"
 )
 
 func TestTypeMap(t *testing.T) {

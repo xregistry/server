@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestExportBasic(t *testing.T) {
@@ -29,7 +29,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -65,11 +65,11 @@ func TestExportBasic(t *testing.T) {
     ],
     "pagination": false,
     "schemas": [
-      "xregistry-json/`+registry.SPECVERSION+`"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   },
@@ -633,7 +633,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -737,7 +737,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -773,11 +773,11 @@ func TestExportBasic(t *testing.T) {
     ],
     "pagination": false,
     "schemas": [
-      "xregistry-json/`+registry.SPECVERSION+`"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "`+registry.SPECVERSION+`"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   },
@@ -795,7 +795,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -1770,7 +1770,7 @@ func TestExportBasic(t *testing.T) {
 	// Notice that "meta" moved down to after the Versions collection
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -1865,7 +1865,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 
 	xCheckEqual(t, "", fullBody, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -1955,7 +1955,7 @@ func TestExportBasic(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?doc", ``, 200,
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
@@ -2156,7 +2156,7 @@ func TestExportURLs(t *testing.T) {
 	xNoErr(t, err)
 
 	xHTTP(t, reg, "GET", "/?doc", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2170,7 +2170,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2187,7 +2187,7 @@ func TestExportURLs(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1", "{}", 201, `*`)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2234,7 +2234,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2283,7 +2283,7 @@ func TestExportURLs(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, ``)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2323,7 +2323,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2377,7 +2377,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2430,7 +2430,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions,dirs.files.meta", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2590,7 +2590,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2644,7 +2644,7 @@ func TestExportURLs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
@@ -2761,7 +2761,7 @@ func TestExportURLs(t *testing.T) {
 	// One file GET of everything
 
 	xHTTP(t, reg, "GET", "/?doc&inline=*", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",

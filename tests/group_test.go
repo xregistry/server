@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	// log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -98,7 +99,7 @@ func TestGroupRequiredFields(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	_, err := gm.AddAttribute(&registry.Attribute{
 		Name:     "req",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -110,7 +111,7 @@ func TestGroupRequiredFields(t *testing.T) {
 	reg.Refresh(registry.FOR_WRITE)
 
 	g1, err := reg.AddGroupWithObject("dirs", "d1",
-		registry.Object{"req": "test"})
+		Object{"req": "test"})
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 

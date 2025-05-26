@@ -326,7 +326,7 @@ const (
 	CHILD       // .
 	DESCENDANTS // ..
 	WILDCARD    // *
-	ARRAY       // []
+	AARRAY      // []
 	NUM         // 0-9
 )
 
@@ -404,7 +404,7 @@ func TokenizeJPath(path string) ([]*Token, error) {
 	}
 	DESCENDANTS // ..
 	WILDCARD    // *
-	ARRAY       // []
+	AARRAY       // []
 	NUM         // 0-9
 
 	return tokens, nil

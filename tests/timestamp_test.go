@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -17,7 +18,7 @@ func TestTimestampRegistry(t *testing.T) {
 	// Check basic GET first
 	xCheckGet(t, reg, "/",
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -41,7 +42,7 @@ func TestTimestampRegistry(t *testing.T) {
 		Method: "GET",
 		Code:   200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -78,7 +79,7 @@ func TestTimestampRegistry(t *testing.T) {
 		Method: "GET",
 		Code:   200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -177,7 +178,7 @@ func TestTimestampRegistry(t *testing.T) {
 	   		Method: "GET",
 	   		Code:   200,
 	   		ResBody: `{
-	     "specversion": "` + registry.SPECVERSION + `",
+	     "specversion": "` + SPECVERSION + `",
 	     "registryid": "TestTimestampRegistry2",
 	     "self": "http://localhost:8181/",
 	     "epoch": 1,
@@ -200,7 +201,7 @@ func TestTimestampRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `--{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -229,7 +230,7 @@ func TestTimestampRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -317,7 +318,7 @@ func TestTimestampParsing(t *testing.T) {
 	// Check basic GET first
 	xCheckGet(t, reg, "/",
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampParsing",
   "self": "http://localhost:8181/",
   "xid": "/",

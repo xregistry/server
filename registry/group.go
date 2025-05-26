@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 type Group struct {

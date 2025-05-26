@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	. "github.com/xregistry/server/common"
 )
 
 func TestModelVerifySimple(t *testing.T) {

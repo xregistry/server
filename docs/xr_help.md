@@ -87,6 +87,7 @@ xr model update [ - | FILE | -d ]
 
 xr model verify [ - | FILE ... ]
   # Parse and verify xRegistry model documents
+      --skip-target   Skip 'target' verification for 'xid' attributes
 
 xr serve DIR
   # Run an HTTP file server for a directory

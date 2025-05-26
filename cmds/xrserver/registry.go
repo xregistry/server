@@ -8,6 +8,7 @@ import (
 
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -111,7 +112,7 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 			}
 
 			P := func(prefix string, val any) {
-				if !registry.IsNil(val) {
+				if !IsNil(val) {
 					str := fmt.Sprintf("%v", val)
 					if str != "" {
 						fmt.Printf("%s %s\n", prefix, str)

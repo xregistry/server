@@ -13,6 +13,8 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
+	"github.com/xregistry/server/common"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -31,7 +33,7 @@ func ErrFatalf(err error, args ...any) {
 		args = []any{err}
 	}
 	log.Printf(format, args...)
-	registry.ShowStack()
+	common.ShowStack()
 	os.Exit(1)
 }
 
@@ -100,7 +102,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	g, err := reg.Model.AddGroupModel("apiproviders", "apiprovider")
 	ErrFatalf(err)
 	r, err := g.AddResourceModel("apis", "api", 2, true, true, true)
-	_, err = r.AddAttr("format", registry.STRING)
+	_, err = r.AddAttr("format", STRING)
 	ErrFatalf(err)
 
 	ErrFatalf(reg.Model.VerifyAndSave())
@@ -224,40 +226,40 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 
 		ErrFatalf(reg.SetSave("labels.stage", "prod"))
 
-		_, err = reg.Model.AddAttr("bool1", registry.BOOLEAN)
+		_, err = reg.Model.AddAttr("bool1", BOOLEAN)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("int1", registry.INTEGER)
+		_, err = reg.Model.AddAttr("int1", INTEGER)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("dec1", registry.DECIMAL)
+		_, err = reg.Model.AddAttr("dec1", DECIMAL)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("str1", registry.STRING)
+		_, err = reg.Model.AddAttr("str1", STRING)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrMap("map1", registry.NewItemType(registry.STRING))
+		_, err = reg.Model.AddAttrMap("map1", registry.NewItemType(STRING))
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrArray("arr1", registry.NewItemType(registry.STRING))
+		_, err = reg.Model.AddAttrArray("arr1", registry.NewItemType(STRING))
 		ErrFatalf(err)
 
-		_, err = reg.Model.AddAttrMap("emptymap", registry.NewItemType(registry.STRING))
+		_, err = reg.Model.AddAttrMap("emptymap", registry.NewItemType(STRING))
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrArray("emptyarr", registry.NewItemType(registry.STRING))
+		_, err = reg.Model.AddAttrArray("emptyarr", registry.NewItemType(STRING))
 		ErrFatalf(err)
 		_, err = reg.Model.AddAttrObj("emptyobj")
 		ErrFatalf(err)
 		obj, err := reg.Model.AddAttrObj("modelobj")
 		ErrFatalf(err)
-		_, err = obj.AddAttr("model", registry.STRING)
+		_, err = obj.AddAttr("model", STRING)
 		ErrFatalf(err)
-		_, err = obj.AddAttr("model2", registry.STRING)
+		_, err = obj.AddAttr("model2", STRING)
 		ErrFatalf(err)
 
 		item := registry.NewItemObject()
-		_, err = item.AddAttr("inint", registry.INTEGER)
+		_, err = item.AddAttr("inint", INTEGER)
 		ErrFatalf(err)
 		_, err = reg.Model.AddAttrMap("mapobj", item)
 		ErrFatalf(err)
 
 		_, err = reg.Model.AddAttrArray("arrmap",
-			registry.NewItemMap(registry.NewItemType(registry.STRING)))
+			registry.NewItemMap(registry.NewItemType(STRING)))
 		ErrFatalf(err)
 		ErrFatalf(reg.Model.VerifyAndSave())
 
@@ -281,15 +283,15 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	ErrFatalf(err)
 	rm, err := gm.AddResourceModel("files", "file", 2, true, true, true)
-	_, err = rm.AddMetaAttr("rext", registry.STRING)
+	_, err = rm.AddMetaAttr("rext", STRING)
 	ErrFatalf(err)
-	_, err = rm.AddMetaAttr("*", registry.ANY)
+	_, err = rm.AddMetaAttr("*", ANY)
 	ErrFatalf(err)
-	_, err = rm.AddAttr("vext", registry.STRING)
+	_, err = rm.AddAttr("vext", STRING)
 	ErrFatalf(err)
 	rm, err = gm.AddResourceModel("datas", "data", 2, true, true, false)
 	ErrFatalf(err)
-	_, err = rm.AddAttr("*", registry.STRING)
+	_, err = rm.AddAttr("*", STRING)
 	ErrFatalf(err)
 
 	_, err = reg.Model.AddAttrXID("resptr", "/dirs/files[/versions]")
@@ -351,14 +353,14 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	fn, err := registry.FindModelFile("endpoint/model.json")
+	fn, err := common.FindModelFile("endpoint/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
 	ErrFatalf(err)
 
 	// End of model
 
-	g, err := reg.AddGroupWithObject("endpoints", "e1", registry.Object{
+	g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
 		"usage": "producer",
 	})
 	ErrFatalf(err)
@@ -387,7 +389,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(v.SetSave("name", "blobDeleted"))
 	ErrFatalf(v.SetSave("epoch", 3))
 
-	g, err = reg.AddGroupWithObject("endpoints", "e2", registry.Object{
+	g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
 		"usage": "consumer",
 	})
 	ErrFatalf(err)
@@ -420,7 +422,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	fn, err := registry.FindModelFile("message/model.json")
+	fn, err := common.FindModelFile("message/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
 	ErrFatalf(err)
@@ -453,7 +455,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	fn, err := registry.FindModelFile("schema/model.json")
+	fn, err := common.FindModelFile("schema/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
 	ErrFatalf(err)
@@ -600,7 +602,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	fn, err := registry.FindModelFile("cloudevents/model.json")
+	fn, err := common.FindModelFile("cloudevents/model.json")
 	ErrFatalf(err)
 	err = reg.LoadModelFromFile(fn)
 	ErrFatalf(err)
@@ -608,7 +610,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	// Endpoints
-	g, err := reg.AddGroupWithObject("endpoints", "e1", registry.Object{
+	g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
 		"usage": "producer",
 	})
 	ErrFatalf(err)
@@ -619,7 +621,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	r, err = g.AddResource("messages", "blobDeleted", "v1.0")
 	ErrFatalf(err)
 
-	g, err = reg.AddGroupWithObject("endpoints", "e2", registry.Object{
+	g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
 		"usage": "consumer",
 	})
 	ErrFatalf(err)
@@ -627,14 +629,14 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(err)
 
 	// Schemas
-	g, err = reg.AddGroupWithObject("schemagroups", "sg1", registry.Object{
+	g, err = reg.AddGroupWithObject("schemagroups", "sg1", common.Object{
 		"format": "text",
 	})
 	ErrFatalf(err)
 	r, err = g.AddResourceWithObject("schemas", "popped", "v1.0",
-		registry.Object{"format": "text"}, false)
+		common.Object{"format": "text"}, false)
 	ErrFatalf(err)
-	_, err = r.AddVersionWithObject("v2.0", registry.Object{
+	_, err = r.AddVersionWithObject("v2.0", common.Object{
 		"format": "text",
 	})
 	ErrFatalf(err)

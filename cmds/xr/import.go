@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func addImportCmd(parent *cobra.Command) {
@@ -38,19 +38,19 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
-	xid, err := xrlib.ParseXID(xidStr)
+	xid, err := ParseXid(xidStr)
 	Error(err)
 	suffix := ""
 
-	if xid.Type == xrlib.ENTITY_RESOURCE {
+	if xid.Type == ENTITY_RESOURCE {
 		Error("Using 'import' on a Resource isn't allowed. Try 'update', " +
 			"'version' or importing on its 'versions' collection")
 	}
-	if xid.Type == xrlib.ENTITY_VERSION {
+	if xid.Type == ENTITY_VERSION {
 		Error("Using 'import' on a Version isn't allowed. Try 'create' instead")
 	}
 
-	rm, err := xid.GetResourceModelFrom(reg)
+	rm, err := xrlib.GetResourceModelFrom(xid, reg)
 	Error(err)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
@@ -79,32 +79,32 @@ func importFunc(cmd *cobra.Command, args []string) {
 	subObj := (map[string]json.RawMessage)(nil)
 
 	switch xid.Type {
-	case xrlib.ENTITY_REGISTRY:
-		for _, gType := range registry.SortedKeys(obj) {
+	case ENTITY_REGISTRY:
+		for _, gType := range SortedKeys(obj) {
 			group := obj[gType]
 			Error(json.Unmarshal(group, &subObj))
 			Verbose("Imported: %d %s", len(subObj), gType)
 		}
-	case xrlib.ENTITY_GROUP:
-		for _, rType := range registry.SortedKeys(obj) {
+	case ENTITY_GROUP:
+		for _, rType := range SortedKeys(obj) {
 			resource := obj[rType]
 			Error(json.Unmarshal(resource, &subObj))
 			Verbose("Imported: %d %s", len(subObj), rType)
 		}
-	case xrlib.ENTITY_RESOURCE:
+	case ENTITY_RESOURCE:
 		Verbose("Imported: %d versions", len(obj))
-	case xrlib.ENTITY_META:
+	case ENTITY_META:
 		Verbose("Should have errored")
-	case xrlib.ENTITY_VERSION:
+	case ENTITY_VERSION:
 		Verbose("Should have errored")
-	case xrlib.ENTITY_MODEL:
+	case ENTITY_MODEL:
 		Verbose("Should have errored")
 
-	case xrlib.ENTITY_GROUP_TYPE:
+	case ENTITY_GROUP_TYPE:
 		Verbose("Imported: %d %s", len(obj), xid.Group)
-	case xrlib.ENTITY_RESOURCE_TYPE:
+	case ENTITY_RESOURCE_TYPE:
 		Verbose("Imported: %d %s", len(obj), xid.Resource)
-	case xrlib.ENTITY_VERSION_TYPE:
+	case ENTITY_VERSION_TYPE:
 		Verbose("Imported: %d versions", len(obj))
 	}
 

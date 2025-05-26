@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -1492,9 +1493,9 @@ func TestUseSpecAttrs(t *testing.T) {
 		}
 
 		v := any(len(prop.Name))
-		typ := registry.INTEGER
-		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
-			typ = registry.STRING
+		typ := INTEGER
+		if prop.Type == INTEGER || prop.Type == UINTEGER {
+			typ = STRING
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
@@ -1525,9 +1526,9 @@ func TestUseSpecAttrs(t *testing.T) {
 		}
 
 		v := any(len(prop.Name))
-		typ := registry.INTEGER
-		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
-			typ = registry.STRING
+		typ := INTEGER
+		if prop.Type == INTEGER || prop.Type == UINTEGER {
+			typ = STRING
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
@@ -1560,9 +1561,9 @@ func TestUseSpecAttrs(t *testing.T) {
 		}
 
 		v := any(len(prop.Name))
-		typ := registry.INTEGER
-		if prop.Type == registry.INTEGER || prop.Type == registry.UINTEGER {
-			typ = registry.STRING
+		typ := INTEGER
+		if prop.Type == INTEGER || prop.Type == UINTEGER {
+			typ = STRING
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)

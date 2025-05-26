@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -17,16 +18,16 @@ func TestResourceContents(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
-	rm.AddAttr("str1", registry.STRING)
-	rm.AddAttr("str2", registry.STRING)
-	rm.AddAttr("int1", registry.INTEGER)
-	rm.AddAttr("int2", registry.INTEGER)
-	rm.AddAttr("int3", registry.INTEGER)
-	rm.AddAttr("bool1", registry.BOOLEAN)
-	rm.AddAttr("bool2", registry.BOOLEAN)
-	rm.AddAttr("dec1", registry.DECIMAL)
-	rm.AddAttr("dec2", registry.DECIMAL)
-	rm.AddAttr("dec3", registry.DECIMAL)
+	rm.AddAttr("str1", STRING)
+	rm.AddAttr("str2", STRING)
+	rm.AddAttr("int1", INTEGER)
+	rm.AddAttr("int2", INTEGER)
+	rm.AddAttr("int3", INTEGER)
+	rm.AddAttr("bool1", BOOLEAN)
+	rm.AddAttr("bool2", BOOLEAN)
+	rm.AddAttr("dec1", DECIMAL)
+	rm.AddAttr("dec2", DECIMAL)
+	rm.AddAttr("dec3", DECIMAL)
 
 	d1, err := reg.AddGroup("dirs", "d1")
 	xNoErr(t, err)
@@ -52,7 +53,7 @@ func TestResourceContents(t *testing.T) {
 
 	f1.SetSaveDefault("file", "Hello there")
 
-	xCheckEqual(t, "", NotNilString(f1.Get("file")), "Hello there")
+	xCheckEqual(t, "", Any2String(f1.Get("file")), "Hello there")
 
 	CompareContentMeta(t, reg, &Test{
 		Code:    200,

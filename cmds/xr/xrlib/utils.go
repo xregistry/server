@@ -13,7 +13,7 @@ import (
 	"text/tabwriter"
 
 	log "github.com/duglin/dlog"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
@@ -21,8 +21,8 @@ import (
 var Server = EnvString("XR_SERVER", "")
 
 func Debug(args ...any) {
-	// if !DebugFlag || len(args) == 0 || registry.IsNil(args[0]) {
-	if log.GetVerbose() < 2 || len(args) == 0 || registry.IsNil(args[0]) {
+	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
+	if log.GetVerbose() < 2 || len(args) == 0 || IsNil(args[0]) {
 		return
 	}
 
@@ -52,7 +52,7 @@ func Debug(args ...any) {
 
 /*
 func Verbose(args ...any) {
-	if !VerboseFlag || len(args) == 0 || registry.IsNil(args[0]) {
+	if !VerboseFlag || len(args) == 0 || IsNil(args[0]) {
 		return
 	}
 
@@ -185,7 +185,7 @@ func ReadFile(fileName string) ([]byte, error) {
 
 func IsValidJSON(buf []byte) error {
 	tmp := map[string]any{}
-	if err := registry.Unmarshal(buf, &tmp); err != nil {
+	if err := Unmarshal(buf, &tmp); err != nil {
 		return err
 	}
 	return nil
@@ -199,126 +199,7 @@ func AnyToString(val any) (string, error) {
 	return valStr, nil
 }
 
-func ToJSON(val any) string {
-	buf, _ := json.MarshalIndent(val, "", "  ")
-	return string(buf)
-}
-
-func ArrayContains(strs []string, needle string) bool {
-	for _, s := range strs {
-		if needle == s {
-			return true
-		}
-	}
-	return false
-}
-
-type XID struct {
-	Type       int // one of ENTITY_XXX constants below
-	IsEntity   bool
-	HasDetails bool
-
-	Group      string
-	GroupID    string
-	Resource   string
-	ResourceID string
-	Version    string // always "versions" if "/versions" was present
-	VersionID  string
-}
-
-const (
-	ENTITY_REGISTRY = iota
-	ENTITY_GROUP
-	ENTITY_RESOURCE
-	ENTITY_META
-	ENTITY_VERSION
-	ENTITY_MODEL
-
-	ENTITY_GROUP_TYPE
-	ENTITY_RESOURCE_TYPE
-	ENTITY_VERSION_TYPE
-)
-
-func ParseXID(xidStr string) (*XID, error) {
-	hasDetails := false
-	xidStr = strings.TrimLeft(xidStr, "/")
-
-	if strings.HasSuffix(xidStr, "$details") {
-		hasDetails = true
-		xidStr = xidStr[:len(xidStr)-8]
-	}
-
-	parts := strings.Split(xidStr, "/")
-
-	if xidStr == "" {
-		xidStr = "/"
-	}
-
-	xid := &XID{
-		Type:       ENTITY_REGISTRY,
-		IsEntity:   true,
-		HasDetails: hasDetails,
-	}
-
-	if len(parts) > 0 {
-		xid.Group = parts[0]
-		if xid.Group != "" {
-			xid.Type = ENTITY_GROUP_TYPE
-			xid.IsEntity = false
-		}
-		if len(parts) > 1 {
-			xid.GroupID = parts[1]
-			if xid.GroupID != "" {
-				xid.Type = ENTITY_GROUP
-				xid.IsEntity = true
-			}
-			if len(parts) > 2 {
-				xid.Resource = parts[2]
-				if xid.Resource != "" {
-					xid.Type = ENTITY_RESOURCE_TYPE
-					xid.IsEntity = false
-				}
-				if len(parts) > 3 {
-					xid.ResourceID = parts[3]
-					if xid.ResourceID != "" {
-						xid.Type = ENTITY_RESOURCE
-						xid.IsEntity = true
-					}
-					if len(parts) > 4 {
-						xid.Version = parts[4]
-						if xid.Version == "versions" {
-							xid.Type = ENTITY_VERSION_TYPE
-							xid.IsEntity = false
-
-							if len(parts) > 5 {
-								xid.VersionID = parts[5]
-								if xid.VersionID != "" {
-									xid.Type = ENTITY_VERSION
-									xid.IsEntity = true
-								}
-							}
-							if len(parts) > 6 {
-								return nil, fmt.Errorf("XID is too long")
-							}
-						} else if xid.Version == "meta" {
-							xid.Type = ENTITY_META
-							xid.IsEntity = false
-							if len(parts) > 5 {
-								return nil, fmt.Errorf("XID is too long")
-							}
-						} else {
-							return nil, fmt.Errorf("XID is too long")
-						}
-
-					}
-				}
-			}
-		}
-	}
-	return xid, nil
-}
-
-func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
+func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) error {
 	if xid.Group == "" {
 		return nil
 	}
@@ -368,7 +249,7 @@ func (xid *XID) ValidateTypes(reg *Registry, allowSingular bool) error {
 	return nil
 }
 
-func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
+func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, error) {
 	if xid.Resource == "" {
 		return nil, nil
 	}
@@ -388,47 +269,19 @@ func (xid *XID) GetResourceModelFrom(reg *Registry) (*ResourceModel, error) {
 	return rm, nil
 }
 
-func (xid *XID) String() string {
-	str := "/"
-
-	if xid.Group != "" {
-		str += xid.Group
-		if xid.GroupID != "" {
-			str += "/" + xid.GroupID
-			if xid.Resource != "" {
-				str += "/" + xid.Resource
-				if xid.ResourceID != "" {
-					str += "/" + xid.ResourceID
-					if xid.Version != "" {
-						str += "/" + xid.Version
-						if xid.VersionID != "" {
-							str += "/" + xid.VersionID
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if xid.HasDetails {
-		str += "$details"
-	}
-
-	return str
-}
-
 func PrettyPrint(object any, prefix string, indent string) string {
-	return registry.PrettyPrint(object, prefix, indent)
+	buf, _ := json.MarshalIndent(object, prefix, indent)
+	return string(buf)
 }
 
-func Humanize(xid string, object any) string {
+func Humanize(xidStr string, object any) string {
 	str := ""
-	xidParts, err := ParseXID(xid)
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	switch xidParts.Type {
+	switch xid.Type {
 	case ENTITY_REGISTRY:
 		str = HumanizeRegistry(object)
 	case ENTITY_GROUP_TYPE:
@@ -438,7 +291,7 @@ func Humanize(xid string, object any) string {
 	case ENTITY_VERSION_TYPE:
 	case ENTITY_VERSION:
 	default:
-		panic(fmt.Sprintf("Unknown xid type: %v", xidParts.Type))
+		panic(fmt.Sprintf("Unknown xid type: %v", xid.Type))
 	}
 
 	return str
@@ -461,7 +314,7 @@ func XRIndent(buf []byte) ([]byte, error) {
 	var err error
 
 	for {
-		if registry.IsNil(next) {
+		if IsNil(next) {
 			token, err = dec.Token()
 		} else {
 			token, err = next, nextErr

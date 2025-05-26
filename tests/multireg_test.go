@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -28,7 +29,7 @@ func TestMultiReg(t *testing.T) {
 
 	// reg
 	xHTTP(t, reg, "GET", "/", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestMultiReg",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -43,7 +44,7 @@ func TestMultiReg(t *testing.T) {
 
 	// reg2
 	xHTTP(t, reg2, "GET", "/reg-reg2", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "reg2",
   "self": "http://localhost:8181/reg-reg2/",
   "xid": "/",

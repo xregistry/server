@@ -6,9 +6,9 @@ import (
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
-	"github.com/xregistry/server/cmds/xr/xrlib"
-	// "github.com/xregistry/server/registry"
 	"github.com/spf13/cobra"
+	"github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 )
 
 func addDeleteCmd(parent *cobra.Command) {
@@ -43,7 +43,7 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 	objects := map[string]json.RawMessage{}
 
 	// For now only look at the first one
-	XID, err := xrlib.ParseXID(args[0])
+	xid, err := ParseXid(args[0])
 	Error(err)
 
 	if len(data) > 0 {
@@ -51,7 +51,7 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 			Error("--data can not be specified when more than one XID is provided")
 		}
 
-		if XID.IsEntity {
+		if xid.IsEntity {
 			Error("--data can only be specified when referencing a collection")
 		}
 

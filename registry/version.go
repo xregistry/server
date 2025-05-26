@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 type Version struct {

@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -13,7 +14,7 @@ func TestCreateRegistry(t *testing.T) {
 	// Check basic GET first
 	xCheckGet(t, reg, "/",
 		`{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCreateRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -48,7 +49,7 @@ func TestCreateRegistry(t *testing.T) {
 	xCheck(t, reg3 != reg, "reg3 should be different from reg")
 
 	xCheckGet(t, reg, "", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCreateRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -122,7 +123,7 @@ func TestRegistryProps(t *testing.T) {
 	reg.SetSave("labels.stage", "dev")
 
 	xCheckGet(t, reg, "", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryProps",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -145,7 +146,7 @@ func TestRegistryRequiredFields(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "req",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -160,7 +161,7 @@ func TestRegistryRequiredFields(t *testing.T) {
 	xNoErr(t, reg.SetSave("description", "testing"))
 
 	xHTTP(t, reg, "GET", "/", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRequiredFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -180,7 +181,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "defstring",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 		Default:  123,
 	})
@@ -188,14 +189,14 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:    "defstring",
-		Type:    registry.STRING,
+		Type:    STRING,
 		Default: "abc",
 	})
 	xCheckErr(t, err, `"model.defstring" must have "require" set to "true" since a default value is defined`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "defstring",
-		Type:     registry.OBJECT,
+		Type:     OBJECT,
 		Required: true,
 		Default:  "hello",
 	})
@@ -203,7 +204,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "defstring",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 		Default:  map[string]any{"key": "value"},
 	})
@@ -211,7 +212,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "defstring",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 		Default:  "hello",
 	})
@@ -219,7 +220,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	obj, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 	})
 	xNoErr(t, err)
 	err = reg.SaveModel()
@@ -227,7 +228,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
-		Type:     registry.INTEGER,
+		Type:     INTEGER,
 		Required: true,
 		Default:  "string",
 	})
@@ -239,7 +240,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	obj = reg.Model.Attributes["myobj"]
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
-		Type:     registry.OBJECT,
+		Type:     OBJECT,
 		Required: true,
 		Default:  "string",
 	})
@@ -251,7 +252,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	obj = reg.Model.Attributes["myobj"]
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
-		Type:     registry.INTEGER,
+		Type:     INTEGER,
 		Required: true,
 		Default:  123,
 	})
@@ -264,7 +265,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	reg.Touch() // Force a validation which will set all defaults
 
 	xHTTP(t, reg, "GET", "/", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -276,7 +277,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PUT", "/", "{}", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -291,7 +292,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "defstring": "updated hello",
   "myobj": {}
 }`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -310,7 +311,7 @@ func TestRegistryDefaultFields(t *testing.T) {
     "defint": 666
   }
 }`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -326,7 +327,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/", `{
 }`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -340,7 +341,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/", `{
   "myobj": null
 }`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",

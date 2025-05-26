@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 var RegexpModelName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,57}$")
@@ -62,8 +63,9 @@ type Model struct {
 	Groups     map[string]*GroupModel `json:"groups,omitempty"` // Plural
 
 	propsOrdered []*Attribute
-	propsMap     map[string]*Attribute
+	propsMap     map[string]*Attribute // Attrs+calculated attrs
 	changed      bool
+	Stuff        map[string]any `json:"-"` // random stuff to pass around
 }
 
 type Attributes map[string]*Attribute // AttrName->Attr
@@ -329,6 +331,7 @@ func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 			if prop.InType(ENTITY_REGISTRY) {
 				if prop.Name == "id" {
 					prop = prop.Clone("registryid")
+					prop.SetModel(m)
 					prop.ReadOnly = true
 					PanicIf(prop.internals.checkFn == nil, "bad clone")
 				}
@@ -336,20 +339,25 @@ func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 				if prop.Name == "$COLLECTIONS" {
 					for _, plural := range SortedKeys(m.Groups) {
 						prop = CollectionsURLAttr.Clone(plural + "url")
+						prop.SetModel(m)
 						m.propsOrdered = append(m.propsOrdered, prop)
 						m.propsMap[prop.Name] = prop
 
 						prop = CollectionsCountAttr.Clone(plural + "count")
+						prop.SetModel(m)
 						m.propsOrdered = append(m.propsOrdered, prop)
 						m.propsMap[prop.Name] = prop
 
 						prop = CollectionsAttr.Clone(plural)
+						prop.SetModel(m)
 						m.propsOrdered = append(m.propsOrdered, prop)
 						m.propsMap[prop.Name] = prop
 					}
 					continue
 				}
 
+				prop = prop.Clone("")
+				prop.SetModel(m)
 				m.propsOrdered = append(m.propsOrdered, prop)
 				m.propsMap[prop.Name] = prop
 			}
@@ -864,8 +872,8 @@ func ParseModel(buf []byte) (*Model, error) {
 	if err := Unmarshal(buf, &model); err != nil {
 		return nil, err
 	}
-	model.SetPointers()
 	model.SetSpecPropsFields()
+	model.SetPointers()
 	return &model, nil
 }
 
@@ -935,22 +943,29 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 				if prop.Name == "$COLLECTIONS" {
 					for _, plural := range SortedKeys(gm.Resources) {
 						prop = CollectionsURLAttr.Clone(plural + "url")
+						prop.SetModel(gm.Model)
 						gm.propsOrdered = append(gm.propsOrdered, prop)
 						gm.propsMap[prop.Name] = prop
 
 						prop = CollectionsCountAttr.Clone(plural + "count")
+						prop.SetModel(gm.Model)
 						gm.propsOrdered = append(gm.propsOrdered, prop)
 						gm.propsMap[prop.Name] = prop
 
 						prop = CollectionsAttr.Clone(plural)
+						prop.SetModel(gm.Model)
 						gm.propsOrdered = append(gm.propsOrdered, prop)
 						gm.propsMap[prop.Name] = prop
 					}
 					continue
+				} else {
+					prop = prop.Clone("")
 				}
 
+				prop.SetModel(gm.Model)
 				gm.propsOrdered = append(gm.propsOrdered, prop)
 				gm.propsMap[prop.Name] = prop
+				prop.SetModel(gm.Model)
 			}
 		}
 	}
@@ -1103,16 +1118,16 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 }
 
 func (gm *GroupModel) AddXImportResource(absXID string) error {
-	parts, err := ParseXID(absXID)
+	xidType, err := ParseXidType(absXID)
 	if err != nil {
 		return fmt.Errorf("'ximportresources' value %s", err)
 	}
-	if len(parts) != 2 {
+	if xidType.Type != ENTITY_RESOURCE_TYPE {
 		return fmt.Errorf("'ximportresources' value of %q must be "+
 			"of the form: /GROUPS/RESOURCES", absXID)
 	}
 
-	if parts[0] == gm.Plural {
+	if xidType.Group == gm.Plural {
 		return fmt.Errorf("'ximportresources' value of %q is not allowed to "+
 			"reference its own GroupModel %q", absXID, gm.Plural)
 	}
@@ -1289,14 +1304,17 @@ func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute)
 			}
 
 			if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
+				prop = prop.Clone("")
 				rm.propsOrdered = append(rm.propsOrdered, prop)
 				rm.propsMap[prop.Name] = prop
 			}
 			if prop.InType(ENTITY_VERSION) {
+				prop = prop.Clone("")
 				rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
 				rm.versionPropsMap[prop.Name] = prop
 			}
 			if prop.InType(ENTITY_META) {
+				prop = prop.Clone("")
 				rm.metaPropsOrdered = append(rm.metaPropsOrdered, prop)
 				rm.metaPropsMap[prop.Name] = prop
 			}
@@ -1534,9 +1552,7 @@ func (attrs Attributes) SetModel(m *Model) {
 	}
 
 	for _, attr := range attrs {
-		attr.Model = m
-		attr.Item.SetModel(m)
-		attr.IfValues.SetModel(m)
+		attr.SetModel(m)
 	}
 }
 
@@ -1617,6 +1633,7 @@ func (a *Attribute) SetModel(m *Model) {
 	}
 
 	a.Model = m
+	a.Attributes.SetModel(m)
 	a.Item.SetModel(m)
 	a.IfValues.SetModel(m)
 }
@@ -1767,6 +1784,7 @@ func (m *Model) Verify() error {
 	// TODO: Verify that the Registry data is model compliant
 
 	m.ClearPropsOrdered()
+	m.SetPointers()
 
 	// Check Groups first so that if the Group name isn't valid we'll
 	// flag that instead of an invalid GROUPScount attribute name
@@ -2017,6 +2035,8 @@ func (gm *GroupModel) Verify(gmName string) error {
 		modelAttr, ok := gm.Attributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
+			specProp = specProp.Clone("")
+			specProp.SetModel(gm.Model)
 			gm.Attributes[specProp.Name] = specProp
 			gm.Model.SetChanged(true)
 		} else {
@@ -2168,6 +2188,8 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		modelAttr, ok := rm.Attributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
 			rm.Attributes[specProp.Name] = specProp
 			rm.GroupModel.Model.SetChanged(true)
 		} else {
@@ -2186,6 +2208,8 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		modelAttr, ok := rm.MetaAttributes[specProp.Name]
 		if !ok {
 			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
 			rm.MetaAttributes[specProp.Name] = specProp
 			rm.GroupModel.Model.SetChanged(true)
 		} else {
@@ -2281,6 +2305,7 @@ func (rm *ResourceModel) SetModel(m *Model) {
 	}
 
 	rm.Attributes.SetModel(m)
+	rm.MetaAttributes.SetModel(m)
 }
 
 func (rm *ResourceModel) SetMaxVersions(maxV int) error {
@@ -2614,7 +2639,11 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 					"since \"type\" is \"xid\"", path.UI())
 			}
 			*/
-			if attr.Target != "" {
+			skip := false
+			if attr.Model.Stuff != nil {
+				_, skip = attr.Model.Stuff["skipTargetCheck"]
+			}
+			if !skip && attr.Target != "" {
 				target := strings.TrimSpace(attr.Target)
 				parts := targetRE.FindStringSubmatch(target)
 				// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""

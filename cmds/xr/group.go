@@ -11,7 +11,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func addGroupCmd(parent *cobra.Command) {
@@ -98,7 +98,7 @@ func groupCreateFunc(cmd *cobra.Command, args []string) {
 
 	dataMap := map[string]any(nil)
 	if data != "" {
-		Error(registry.Unmarshal([]byte(data), &dataMap))
+		Error(Unmarshal([]byte(data), &dataMap))
 	}
 
 	reg, err := xrlib.GetRegistry(Server)
@@ -267,10 +267,10 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 	case "table":
 		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
 		fmt.Fprintln(tw, "TYPE\tNAME\tRESOURCES\tPATH")
-		groupKeys := registry.SortedKeys(res)
+		groupKeys := SortedKeys(res)
 		for _, groupKey := range groupKeys {
 			gMap := res[groupKey]
-			gMapKeys := registry.SortedKeys(gMap)
+			gMapKeys := SortedKeys(gMap)
 			for _, gMapKey := range gMapKeys {
 				group := gMap[gMapKey]
 
@@ -294,7 +294,7 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 		}
 		tw.Flush()
 	case "json":
-		fmt.Printf("%s\n", xrlib.ToJSON(res))
+		fmt.Printf("%s\n", ToJSON(res))
 	default:
 		Error("--output must be one of 'table', 'json'")
 	}
@@ -311,86 +311,86 @@ func groupDeleteFunc(cmd *cobra.Command, args []string) {
 	}
 
 	/*
-				all, _ := cmd.Flags().GetBool("all")
+					all, _ := cmd.Flags().GetBool("all")
 
-				reg, err := xrlib.GetRegistry(Server)
-				Error(err)
+					reg, err := xrlib.GetRegistry(Server)
+					Error(err)
 
-				defaultPlural := ""
-				defaultSingular := ""
-				type Item struct {
-					Plural   string
-					Singular string
-					ID       string
-				}
-				items := []Item{}
+					defaultPlural := ""
+					defaultSingular := ""
+					type Item struct {
+						Plural   string
+						Singular string
+						ID       string
+					}
+					items := []Item{}
 
-				for _, arg := range args {
-					plural := ""
-					singular, gID, found := strings.Cut(arg, "/")
-					if !found {
-						if defaultPlural == "" {
-							defaultSingular = singular
+					for _, arg := range args {
+						plural := ""
+						singular, gID, found := strings.Cut(arg, "/")
+						if !found {
+							if defaultPlural == "" {
+								defaultSingular = singular
+								g, err := reg.FindGroupModelBySingular(singular)
+			                    Error(err)
+								if g == nil {
+									Error("Unknown group type: %s", singular)
+								}
+								defaultPlural = g.Plural
+								continue
+							}
+							plural = defaultPlural
+							gID = singular
+							singular = defaultSingular
+						} else {
 							g, err := reg.FindGroupModelBySingular(singular)
 		                    Error(err)
 							if g == nil {
 								Error("Unknown group type: %s", singular)
 							}
-							defaultPlural = g.Plural
-							continue
+							plural = g.Plural
 						}
-						plural = defaultPlural
-						gID = singular
-						singular = defaultSingular
-					} else {
-						g, err := reg.FindGroupModelBySingular(singular)
-	                    Error(err)
-						if g == nil {
-							Error("Unknown group type: %s", singular)
+						items = append(items, Item{plural, singular, gID})
+					}
+
+					if len(items) == 0 && defaultPlural != "" {
+						if dataMap == nil {
+							Error("If no IDs are provided then you must provide data")
 						}
-						plural = g.Plural
-					}
-					items = append(items, Item{plural, singular, gID})
-				}
 
-				if len(items) == 0 && defaultPlural != "" {
-					if dataMap == nil {
-						Error("If no IDs are provided then you must provide data")
-					}
-
-					val, ok := dataMap[defaultSingular+"id"]
-					if !ok {
-						Error("No IDs were provided and the data doesn't have %q",
-							defaultSingular+"id")
-					}
-
-					gID, err := xrlib.AnyToString(val)
-					if err != nil {
-						Error(fmt.Sprintf("Value of attribute %q in JSON isn't a "+
-							"string: %v", defaultSingular+"id", val))
-					}
-
-					items = []Item{Item{defaultPlural, defaultSingular, gID}}
-				}
-
-				// If any exist don't create any
-				for _, item := range items {
-					_, err := reg.HttpDo("GET", item.Plural+"/"+item.ID, nil)
-					if err == nil {
-						Error("Group %q (type: %s) already exists", item.ID, item.Singular)
-					}
-				}
-
-				for _, item := range items {
-					_, err = reg.HttpDo("PUT", item.Plural+"/"+item.ID, []byte(data))
-					if err != nil {
-						tmp := err.Error()
-						if len(args) > 1 {
-							tmp = item.ID + ": " + tmp
+						val, ok := dataMap[defaultSingular+"id"]
+						if !ok {
+							Error("No IDs were provided and the data doesn't have %q",
+								defaultSingular+"id")
 						}
-						Error(tmp)
+
+						gID, err := xrlib.AnyToString(val)
+						if err != nil {
+							Error(fmt.Sprintf("Value of attribute %q in JSON isn't a "+
+								"string: %v", defaultSingular+"id", val))
+						}
+
+						items = []Item{Item{defaultPlural, defaultSingular, gID}}
 					}
-					Verbose("Group %s (type: %s) created", item.ID, item.Singular)
-				}
+
+					// If any exist don't create any
+					for _, item := range items {
+						_, err := reg.HttpDo("GET", item.Plural+"/"+item.ID, nil)
+						if err == nil {
+							Error("Group %q (type: %s) already exists", item.ID, item.Singular)
+						}
+					}
+
+					for _, item := range items {
+						_, err = reg.HttpDo("PUT", item.Plural+"/"+item.ID, []byte(data))
+						if err != nil {
+							tmp := err.Error()
+							if len(args) > 1 {
+								tmp = item.ID + ": " + tmp
+							}
+							Error(tmp)
+						}
+						Verbose("Group %s (type: %s) created", item.ID, item.Singular)
+					}
 	*/
 }

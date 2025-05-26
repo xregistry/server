@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -95,8 +96,8 @@ func TestResourceSet(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
-	rm.AddAttr("ext1", registry.STRING)
-	rm.AddAttr("ext2", registry.INTEGER)
+	rm.AddAttr("ext1", STRING)
+	rm.AddAttr("ext2", INTEGER)
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
@@ -135,7 +136,7 @@ func TestResourceRequiredFields(t *testing.T) {
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
 	_, err := rm.AddAttribute(&registry.Attribute{
 		Name:     "req",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -150,7 +151,7 @@ func TestResourceRequiredFields(t *testing.T) {
 	reg.Refresh(registry.FOR_WRITE)
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
-		registry.Object{"req": "test"}, false)
+		Object{"req": "test"}, false)
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 
@@ -193,7 +194,7 @@ func TestResourceMaxVersions(t *testing.T) {
 		Plural:           "files",
 		Singular:         "file",
 		MaxVersions:      1, // ONLY ALLOW 1 VERSION
-		SetDefaultSticky: registry.PtrBool(false),
+		SetDefaultSticky: PtrBool(false),
 	})
 	xNoErr(t, err)
 	xNoErr(t, reg.SaveModel())

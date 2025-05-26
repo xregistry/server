@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -701,7 +702,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
 	_, err := rm.AddAttribute(&registry.Attribute{
 		Name:     "req",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -710,7 +711,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	xNoErr(t, err)
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
-		registry.Object{"req": "test"}, false)
+		Object{"req": "test"}, false)
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 
@@ -719,7 +720,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	reg.Rollback()
 	reg.Refresh(registry.FOR_WRITE)
 
-	v1, _, err := f1.UpsertVersionWithObject("v2", registry.Object{"req": "test"}, registry.ADD_ADD, false)
+	v1, _, err := f1.UpsertVersionWithObject("v2", Object{"req": "test"}, registry.ADD_ADD, false)
 	xNoErr(t, err)
 	reg.SaveAllAndCommit()
 
@@ -740,12 +741,12 @@ func TestVersionOrdering(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "z5")
-	f1.AddVersionWithObject("v2", registry.Object{"ancestor": "v2"})
-	f1.AddVersionWithObject("v9", registry.Object{"ancestor": "v9"})
-	f1.AddVersionWithObject("V3", registry.Object{"ancestor": "V3"})
-	f1.AddVersionWithObject("V1", registry.Object{"ancestor": "V1"})
-	f1.AddVersionWithObject("Z1", registry.Object{"ancestor": "Z1"})
-	f1.AddVersionWithObject("v5", registry.Object{"ancestor": "v5"})
+	f1.AddVersionWithObject("v2", Object{"ancestor": "v2"})
+	f1.AddVersionWithObject("v9", Object{"ancestor": "v9"})
+	f1.AddVersionWithObject("V3", Object{"ancestor": "V3"})
+	f1.AddVersionWithObject("V1", Object{"ancestor": "V1"})
+	f1.AddVersionWithObject("Z1", Object{"ancestor": "Z1"})
+	f1.AddVersionWithObject("v5", Object{"ancestor": "v5"})
 
 	t0 := "2020-01-02T12:00:00Z"
 	t1 := "2024-01-02T12:00:00Z"

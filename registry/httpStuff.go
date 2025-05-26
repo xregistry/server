@@ -16,6 +16,7 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 type Server struct {
@@ -255,14 +256,6 @@ func (bw *BufferedWriter) Done() {
 	}
 
 	buf := bw.Buffer.Bytes()
-	/*
-		if req.URL.Query().Has("noprops") {
-			buf = RemoveProps(buf)
-		}
-		if req.URL.Query().Has("oneline") {
-			buf = OneLine(buf)
-		}
-	*/
 	if req.URL.Query().Has("html") {
 		bw.OldWriter.Write([]byte("<pre>\n"))
 		buf = HTMLify(req, buf)
@@ -1614,7 +1607,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			}
 		}
 
-		// GROUPS/gID/RESOURCES/rID/versions
+		// GROUPS/GID/RESOURCES/RID/versions
 		// Another special case .../rID/versions?doc when rID has xref
 		if jw.Entity == nil && info.DoDocView() && len(info.Parts) == 5 &&
 			info.Parts[4] == "versions" {
@@ -3002,7 +2995,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 	// len=5 is a special case where we know .../versions always has the
 	// metadata in the body so $details isn't needed, and in fact an error
 
-	// GROUPS/gID/RESOURCES/rID/meta|versions/vID
+	// GROUPS/GID/RESOURCES/RID/meta|versions/vID
 	metaInBody := (info.ShowDetails ||
 		len(info.Parts) == 3 ||
 		len(info.Parts) == 5 ||

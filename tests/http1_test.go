@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -26,7 +27,7 @@ func TestHTTPhtml(t *testing.T) {
 		ResHeaders: []string{"Content-Type:text/html"},
 		ResBody: `<pre>
 {
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPhtml",
   "self": "<a href="http://localhost:8181/?html">http://localhost:8181/?html</a>",
   "xid": "/",
@@ -53,7 +54,7 @@ func TestHTTPModel(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPModel",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1821,7 +1822,7 @@ func TestHTTPModel(t *testing.T) {
 		`Attribute "description"(testing) must be one of the enum values: one, two`+"\n")
 
 	xHTTP(t, reg, "PUT", "/", `{}`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModel",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1835,7 +1836,7 @@ func TestHTTPModel(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PUT", "/", `{"description": "two"}`, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModel",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1854,52 +1855,52 @@ func TestHTTPRegistry(t *testing.T) {
 	reg := NewRegistry("TestHTTPRegistry")
 	defer PassDeleteReg(t, reg)
 
-	_, err := reg.Model.AddAttr("myany", registry.ANY)
+	_, err := reg.Model.AddAttr("myany", ANY)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("mybool", registry.BOOLEAN)
+	_, err = reg.Model.AddAttr("mybool", BOOLEAN)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("mydec", registry.DECIMAL)
+	_, err = reg.Model.AddAttr("mydec", DECIMAL)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myint", registry.INTEGER)
+	_, err = reg.Model.AddAttr("myint", INTEGER)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("mystr", registry.STRING)
+	_, err = reg.Model.AddAttr("mystr", STRING)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("mytime", registry.TIMESTAMP)
+	_, err = reg.Model.AddAttr("mytime", TIMESTAMP)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuint", registry.UINTEGER)
+	_, err = reg.Model.AddAttr("myuint", UINTEGER)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuri", registry.URI)
+	_, err = reg.Model.AddAttr("myuri", URI)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuriref", registry.URI_REFERENCE)
+	_, err = reg.Model.AddAttr("myuriref", URI_REFERENCE)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuritemplate", registry.URI_TEMPLATE)
+	_, err = reg.Model.AddAttr("myuritemplate", URI_TEMPLATE)
 	xCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myurl", registry.URL)
+	_, err = reg.Model.AddAttr("myurl", URL)
 	xCheckErr(t, err, "")
 
 	attr, err := reg.Model.AddAttrObj("myobj1")
 	xCheckErr(t, err, "")
-	_, err = attr.AddAttr("mystr1", registry.STRING)
+	_, err = attr.AddAttr("mystr1", STRING)
 	xCheckErr(t, err, "")
-	_, err = attr.AddAttr("myint1", registry.INTEGER)
+	_, err = attr.AddAttr("myint1", INTEGER)
 	xCheckErr(t, err, "")
-	_, err = attr.AddAttr("*", registry.ANY)
+	_, err = attr.AddAttr("*", ANY)
 	xCheckErr(t, err, "")
 
 	attr, _ = reg.Model.AddAttrObj("myobj2")
-	attr.AddAttr("mystr2", registry.STRING)
+	attr.AddAttr("mystr2", STRING)
 	obj2, err := attr.AddAttrObj("myobj2_1")
 	xCheckErr(t, err, "")
-	_, err = obj2.AddAttr("*", registry.INTEGER)
+	_, err = obj2.AddAttr("*", INTEGER)
 	xCheckErr(t, err, "")
 
-	item := registry.NewItemType(registry.ANY)
+	item := registry.NewItemType(ANY)
 	attr, err = reg.Model.AddAttrArray("myarrayany", item)
 	xCheckErr(t, err, "")
 	attr, err = reg.Model.AddAttrMap("mymapany", item)
 	xCheckErr(t, err, "")
 
-	item = registry.NewItemType(registry.UINTEGER)
+	item = registry.NewItemType(UINTEGER)
 	attr, err = reg.Model.AddAttrArray("myarrayuint", item)
 	xCheckErr(t, err, "")
 	attr, err = reg.Model.AddAttrMap("mymapuint", item)
@@ -1910,7 +1911,7 @@ func TestHTTPRegistry(t *testing.T) {
 	xCheckErr(t, err, "")
 
 	item = registry.NewItemObject()
-	item.AddAttr("mapobj_int", registry.INTEGER)
+	item.AddAttr("mapobj_int", INTEGER)
 	attr, err = reg.Model.AddAttrMap("mymapobj", item)
 	xCheckErr(t, err, "")
 
@@ -1934,7 +1935,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1954,7 +1955,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1976,7 +1977,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2006,7 +2007,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "epoch": 4,
 
@@ -2049,7 +2050,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2124,7 +2125,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "epoch": 5,
 
@@ -2148,7 +2149,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2332,7 +2333,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2356,7 +2357,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2382,7 +2383,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2412,7 +2413,7 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2433,14 +2434,14 @@ func TestHTTPGroups(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddAttr("format", registry.STRING)
+	gm.AddAttr("format", STRING)
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	attr, _ := gm.AddAttrObj("myobj")
-	attr.AddAttr("foo", registry.STRING)
-	attr.AddAttr("*", registry.ANY)
+	attr.AddAttr("foo", STRING)
+	attr.AddAttr("*", ANY)
 
-	item := registry.NewItemType(registry.ANY)
+	item := registry.NewItemType(ANY)
 	attr, _ = gm.AddAttrArray("myarray", item)
 	attr, _ = gm.AddAttrMap("mymap", item)
 
@@ -5665,7 +5666,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	xCheckEqual(t, "", v2.GetAsString("modifiedat"), "--"+m1.GetAsString("modifiedat"))
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5852,7 +5853,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	xCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5887,7 +5888,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
         }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5902,7 +5903,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	})
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5990,9 +5991,9 @@ func TestHTTPEnum(t *testing.T) {
 
 	attr, _ := reg.Model.AddAttribute(&registry.Attribute{
 		Name:   "myint",
-		Type:   registry.INTEGER,
+		Type:   INTEGER,
 		Enum:   []any{1, 2, 3},
-		Strict: registry.PtrBool(true),
+		Strict: PtrBool(true),
 	})
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -6003,7 +6004,7 @@ func TestHTTPEnum(t *testing.T) {
 }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6023,7 +6024,7 @@ func TestHTTPEnum(t *testing.T) {
 }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6060,7 +6061,7 @@ func TestHTTPEnum(t *testing.T) {
 }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6081,7 +6082,7 @@ func TestHTTPEnum(t *testing.T) {
 }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6181,33 +6182,33 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myint",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 		IfValues: registry.IfValues{
 			"10": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"mystr": &registry.Attribute{
 						Name: "mystr",
-						Type: registry.STRING,
+						Type: STRING,
 					},
 					"myobj": &registry.Attribute{
 						Name: "myobj",
-						Type: registry.OBJECT,
+						Type: OBJECT,
 						Attributes: registry.Attributes{
 							"subint": &registry.Attribute{
 								Name: "subint",
-								Type: registry.INTEGER,
+								Type: INTEGER,
 							},
 							"subobj": &registry.Attribute{
 								Name: "subobj",
-								Type: registry.OBJECT,
+								Type: OBJECT,
 								Attributes: registry.Attributes{
 									"subsubint": &registry.Attribute{
 										Name: "subsubint",
-										Type: registry.INTEGER,
+										Type: INTEGER,
 									},
 									"*": &registry.Attribute{
 										Name: "*",
-										Type: registry.ANY,
+										Type: ANY,
 									},
 								},
 							},
@@ -6219,12 +6220,12 @@ func TestHTTPIfValue(t *testing.T) {
 				SiblingAttributes: registry.Attributes{
 					"mystr": &registry.Attribute{
 						Name:     "mystr",
-						Type:     registry.STRING,
+						Type:     STRING,
 						Required: true,
 					},
 					"*": &registry.Attribute{
 						Name: "*",
-						Type: registry.ANY,
+						Type: ANY,
 					},
 				},
 			},
@@ -6235,7 +6236,7 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 	})
 	// Test empty obj and name conflict with IfValue above
 	xCheckErr(t, err,
@@ -6244,17 +6245,17 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj2",
-		Type: registry.OBJECT,
+		Type: OBJECT,
 		Attributes: registry.Attributes{
 			"subint1": &registry.Attribute{
 				Name: "subint1",
-				Type: registry.INTEGER,
+				Type: INTEGER,
 				IfValues: registry.IfValues{
 					"666": &registry.IfValue{
 						SiblingAttributes: registry.Attributes{
 							"reqint": &registry.Attribute{
 								Name: "reqint",
-								Type: registry.INTEGER,
+								Type: INTEGER,
 							},
 						},
 					},
@@ -6267,7 +6268,7 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "badone",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 		IfValues: registry.IfValues{
 			"": &registry.IfValue{},
 		},
@@ -6276,7 +6277,7 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "badone",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 		IfValues: registry.IfValues{
 			"^6": &registry.IfValue{},
 		},
@@ -6292,7 +6293,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6338,7 +6339,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6381,7 +6382,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6417,7 +6418,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6451,7 +6452,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6470,19 +6471,19 @@ func TestHTTPIfValue(t *testing.T) {
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myint5",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 		IfValues: registry.IfValues{
 			"1": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"myint6": &registry.Attribute{
 						Name: "myint6",
-						Type: registry.INTEGER,
+						Type: INTEGER,
 						IfValues: registry.IfValues{
 							"2": &registry.IfValue{
 								SiblingAttributes: registry.Attributes{
 									"myint7": {
 										Name:     "myint7",
-										Type:     registry.INTEGER,
+										Type:     INTEGER,
 										Required: true,
 									},
 								},
@@ -6504,7 +6505,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6526,7 +6527,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6577,7 +6578,7 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 200,
 		ResBody: `{
-  "specversion": "` + registry.SPECVERSION + `",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPIfValues",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -6607,26 +6608,26 @@ func TestHTTPResources(t *testing.T) {
 	/*
 		_, err := rm.AddAttribute(&registry.Attribute{
 			Name: "files",
-			Type: registry.INTEGER,
+			Type: INTEGER,
 		})
 		xCheckErr(t, err, "Attribute name is reserved: files")
 	*/
 
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "file",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 	})
 	xCheckErr(t, err, "Attribute name is reserved: file")
 
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "filebase64",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 	})
 	xCheckErr(t, err, "Attribute name is reserved: filebase64")
 
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "fileproxyurl",
-		Type: registry.INTEGER,
+		Type: INTEGER,
 	})
 	xCheckErr(t, err, "Attribute name is reserved: fileproxyurl")
 
@@ -6635,13 +6636,13 @@ func TestHTTPResources(t *testing.T) {
 	rm = rm.Refresh()
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
-		Type: registry.STRING,
+		Type: STRING,
 		IfValues: registry.IfValues{
 			"foo": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"file": &registry.Attribute{
 						Name:     "file",
-						Type:     registry.INTEGER,
+						Type:     INTEGER,
 						IfValues: registry.IfValues{},
 					},
 				},
@@ -6654,19 +6655,19 @@ func TestHTTPResources(t *testing.T) {
 	rm = rm.Refresh()
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
-		Type: registry.STRING,
+		Type: STRING,
 		IfValues: registry.IfValues{
 			"foo": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"xxx": &registry.Attribute{
 						Name: "xxx",
-						Type: registry.INTEGER,
+						Type: INTEGER,
 						IfValues: registry.IfValues{
 							"5": &registry.IfValue{
 								SiblingAttributes: registry.Attributes{
 									"xxx": &registry.Attribute{
 										Name: "xxx",
-										Type: registry.STRING,
+										Type: STRING,
 									},
 								},
 							},
@@ -6680,19 +6681,19 @@ func TestHTTPResources(t *testing.T) {
 
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
-		Type: registry.STRING,
+		Type: STRING,
 		IfValues: registry.IfValues{
 			"foo": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"xxx": &registry.Attribute{
 						Name: "xxx",
-						Type: registry.INTEGER,
+						Type: INTEGER,
 						IfValues: registry.IfValues{
 							"5": &registry.IfValue{
 								SiblingAttributes: registry.Attributes{
 									"file": &registry.Attribute{
 										Name: "file",
-										Type: registry.STRING,
+										Type: STRING,
 									},
 								},
 							},
@@ -6711,27 +6712,27 @@ func TestHTTPResources(t *testing.T) {
 	xNoErr(t, reg.Model.VerifyAndSave())
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
-		Type: registry.STRING,
+		Type: STRING,
 		IfValues: registry.IfValues{
 			"foo": &registry.IfValue{
 				SiblingAttributes: registry.Attributes{
 					"file": &registry.Attribute{
 						Name: "file",
-						Type: registry.STRING,
+						Type: STRING,
 					},
 					"object": &registry.Attribute{
 						Name: "object",
-						Type: registry.OBJECT,
+						Type: OBJECT,
 						Attributes: registry.Attributes{
 							"objstr": &registry.Attribute{
 								Name: "objstr",
-								Type: registry.STRING,
+								Type: STRING,
 								IfValues: registry.IfValues{
 									"objval": {
 										SiblingAttributes: registry.Attributes{
 											"objint": &registry.Attribute{
 												Name: "objint",
-												Type: registry.INTEGER,
+												Type: INTEGER,
 											},
 										},
 									},
@@ -6915,28 +6916,28 @@ func TestHTTPNonStrings(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true /* L */, true, true)
 
-	// rm.AddAttr("myint", registry.INTEGER)
-	attr, _ := rm.AddAttr("myint", registry.INTEGER)
+	// rm.AddAttr("myint", INTEGER)
+	attr, _ := rm.AddAttr("myint", INTEGER)
 	attr.IfValues = registry.IfValues{
 		"-5": &registry.IfValue{
 			SiblingAttributes: registry.Attributes{
 				"ifext": {
 					Name: "ifext",
-					Type: registry.INTEGER,
+					Type: INTEGER,
 				},
 			},
 		},
 	}
 
-	rm.AddAttr("mydec", registry.DECIMAL)
-	rm.AddAttr("mybool", registry.BOOLEAN)
-	rm.AddAttr("myuint", registry.UINTEGER)
-	rm.AddAttr("mystr", registry.STRING)
-	rm.AddAttr("*", registry.BOOLEAN)
-	rm.AddAttrMap("mymapint", registry.NewItemType(registry.INTEGER))
-	rm.AddAttrMap("mymapdec", registry.NewItemType(registry.DECIMAL))
-	rm.AddAttrMap("mymapbool", registry.NewItemType(registry.BOOLEAN))
-	rm.AddAttrMap("mymapuint", registry.NewItemType(registry.UINTEGER))
+	rm.AddAttr("mydec", DECIMAL)
+	rm.AddAttr("mybool", BOOLEAN)
+	rm.AddAttr("myuint", UINTEGER)
+	rm.AddAttr("mystr", STRING)
+	rm.AddAttr("*", BOOLEAN)
+	rm.AddAttrMap("mymapint", registry.NewItemType(INTEGER))
+	rm.AddAttrMap("mymapdec", registry.NewItemType(DECIMAL))
+	rm.AddAttrMap("mymapbool", registry.NewItemType(BOOLEAN))
+	rm.AddAttrMap("mymapuint", registry.NewItemType(UINTEGER))
 
 	reg.AddGroup("dirs", "d1")
 
@@ -7673,7 +7674,7 @@ func TestHTTPDelete(t *testing.T) {
 	reg.AddGroup("dirs", "d3")
 	reg.AddGroup("dirs", "d4")
 
-	// DELETE /GROUPs/gID
+	// DELETE /GROUPs/GID
 	xHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -8365,7 +8366,7 @@ func TestHTTPRequiredFields(t *testing.T) {
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name:     "req1",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -8373,7 +8374,7 @@ func TestHTTPRequiredFields(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	_, err = gm.AddAttribute(&registry.Attribute{
 		Name:     "req2",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -8381,7 +8382,7 @@ func TestHTTPRequiredFields(t *testing.T) {
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name:     "req3",
-		Type:     registry.STRING,
+		Type:     STRING,
 		Required: true,
 	})
 	xNoErr(t, err)
@@ -8398,7 +8399,7 @@ func TestHTTPRequiredFields(t *testing.T) {
 	xNoErr(t, reg.SetSave("description", "testing"))
 
 	xHTTP(t, reg, "GET", "/", "", 200, `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRequiredFields",
   "self": "http://localhost:8181/",
   "xid": "/",

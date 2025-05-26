@@ -6,9 +6,9 @@ import (
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
-	"github.com/xregistry/server/cmds/xr/xrlib"
-	// "github.com/xregistry/server/registry"
 	"github.com/spf13/cobra"
+	"github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 )
 
 func addGetCmd(parent *cobra.Command) {
@@ -33,7 +33,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	output, _ := cmd.Flags().GetString("output")
-	if !xrlib.ArrayContains([]string{"human", "json"}, output) {
+	if !ArrayContains([]string{"human", "json"}, output) {
 		Error("--output must be one of 'json', 'human'")
 	}
 
@@ -45,20 +45,20 @@ func getFunc(cmd *cobra.Command, args []string) {
 		Error("Only one XID is allowed to be specified")
 	}
 
-	xid := args[0]
+	xidStr := args[0]
 	object := any(nil)
-	XID, err := xrlib.ParseXID(xid)
+	xid, err := ParseXid(xidStr)
 	Error(err)
 	resIsJSON := true
 	suffix := ""
 
-	rm, err := XID.GetResourceModelFrom(reg)
+	rm, err := xrlib.GetResourceModelFrom(xid, reg)
 	Error(err)
 
 	hasDetails, _ := cmd.Flags().GetBool("details")
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
-	if XID.ResourceID != "" && rm.HasDoc() && XID.IsEntity {
+	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
 		if hasDetails == false {
 			resIsJSON = false
 		} else {
@@ -66,7 +66,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	res, err := reg.HttpDo("GET", xid+suffix, nil)
+	res, err := reg.HttpDo("GET", xid.String()+suffix, nil)
 	Error(err)
 
 	if !resIsJSON {
@@ -85,7 +85,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if output == "human" {
-		fmt.Printf("%s\n", xrlib.Humanize(xid, object))
+		fmt.Printf("%s\n", xrlib.Humanize(xid.String(), object))
 		return
 	}
 

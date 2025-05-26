@@ -14,7 +14,8 @@ ENV GO_EXTLINK_ENABLED=0
 ENV CGO_ENABLED=0
 # -w removes debugging info
 ENV BUILDFLAGS -ldflags \
-	\"-w -extldflags -static -X=main.GitCommit=$GIT_COMMIT \" \
+	\"-w -extldflags -static \
+      -X=github.com/xregistry/server/common.GitCommit=$GIT_COMMIT \" \
 	-tags netgo -installsuffix netgo
 
 RUN make cmds

@@ -3,7 +3,7 @@ package main
 import (
 	// "fmt"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestRoot(td *TD) {
@@ -29,15 +29,15 @@ func TestRoot(td *TD) {
 	td.Log("GET / returned 200 + JSON body")
 
 	data := map[string]any{}
-	td.NoErrorStop(registry.Unmarshal(res.Body, &data))
+	td.NoErrorStop(Unmarshal(res.Body, &data))
 
-	td.PropMustEqual(data, "specversion", registry.SPECVERSION)
+	td.PropMustEqual(data, "specversion", SPECVERSION)
 	td.PropMustNotEqual(data, "registryid", "")
 	td.PropMustNotEqual(data, "self", "")
 	td.PropMustNotEqual(data, "epoch", "")
 	val, _, _ := td.GetProp(data, "epoch")
-	prop, err := registry.AnyToUInt(val)
-	td.Log("\"epoch\": (%T) %s", prop, xrlib.ToJSON(prop))
+	prop, err := AnyToUInt(val)
+	td.Log("\"epoch\": (%T) %s", prop, ToJSON(prop))
 	td.NoError(err, "Attribute %q %s(%v)", "epoch", err, val)
 	td.Must(prop >= 0, "\"epoch\" must be >= 0")
 }

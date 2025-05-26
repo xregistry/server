@@ -10,7 +10,7 @@ import (
 	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func addRegistryCmd(parent *cobra.Command) {
@@ -236,7 +236,7 @@ func registryPutFunc(cmd *cobra.Command, args []string) {
 
 		// Make sure it's value JSON
 		tmp := map[string]any{}
-		Error(registry.Unmarshal(buf, &tmp))
+		Error(Unmarshal(buf, &tmp))
 
 		// xr registry put [PATH?QUERY] [ - | FILE... ]
 

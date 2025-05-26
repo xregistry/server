@@ -15,7 +15,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -127,11 +127,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}
 
 	// Our download work queue
-	listCH := make(chan *xrlib.XID, parallel+1) // 1 for main loop below
+	listCH := make(chan *Xid, parallel+1) // 1 for main loop below
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	downloadXIDFn := func(xid *xrlib.XID, wait bool) ([]byte, error) {
+	downloadXidFn := func(xid *Xid, wait bool) ([]byte, error) {
 		if !wait && parallel > 1 {
 			listCH <- xid
 			return nil, nil
@@ -143,7 +143,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		file := dir
 		data := []byte(nil)
 		switch xid.Type {
-		case xrlib.ENTITY_REGISTRY:
+		case ENTITY_REGISTRY:
 			data, _ = Download(reg, xid.String())
 
 			Error(json.Unmarshal(data, &obj),
@@ -167,7 +167,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-		case xrlib.ENTITY_GROUP_TYPE:
+		case ENTITY_GROUP_TYPE:
 			gm, err := reg.FindGroupModel(xid.Group)
 			Error(err)
 
@@ -176,12 +176,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				plurals = append(plurals, rName) // rm.Plural)
 			}
 			fallthrough
-		case xrlib.ENTITY_RESOURCE_TYPE:
-			if xid.Type == xrlib.ENTITY_RESOURCE_TYPE {
+		case ENTITY_RESOURCE_TYPE:
+			if xid.Type == ENTITY_RESOURCE_TYPE {
 				plurals = append(plurals, "versions")
 			}
 			fallthrough
-		case xrlib.ENTITY_VERSION_TYPE:
+		case ENTITY_VERSION_TYPE:
 			data, _ = Download(reg, xid.String())
 
 			if host != "" {
@@ -215,7 +215,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-		case xrlib.ENTITY_GROUP:
+		case ENTITY_GROUP:
 			data, _ = Download(reg, xid.String())
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -236,7 +236,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-		case xrlib.ENTITY_RESOURCE:
+		case ENTITY_RESOURCE:
 			data, _ = Download(reg, xid.String()+"$details")
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -273,7 +273,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 					fn = file + xid.String() + ".hdr"
 					str := ""
-					for _, k := range registry.SortedKeys(hdr) {
+					for _, k := range SortedKeys(hdr) {
 						// Assume just one value per header
 						str += fmt.Sprintf("%s:%s\n", k, hdr[k])
 					}
@@ -321,7 +321,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Write(fn+".hdr", []byte("content-type: application/json"))
 			}
 
-		case xrlib.ENTITY_META:
+		case ENTITY_META:
 			data, _ = Download(reg, xid.String())
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -342,7 +342,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-		case xrlib.ENTITY_VERSION:
+		case ENTITY_VERSION:
 			data, _ = Download(reg, xid.String()+"$details")
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
@@ -374,7 +374,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 					fn = file + xid.String() + ".hdr"
 					str := ""
-					for _, k := range registry.SortedKeys(hdr) {
+					for _, k := range SortedKeys(hdr) {
 						// Assume just one value per header
 						str += fmt.Sprintf("%s:%s\n", k, hdr[k])
 					}
@@ -407,7 +407,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				break
 			}
 			go func() {
-				_, err := downloadXIDFn(xid, true)
+				_, err := downloadXidFn(xid, true)
 				Error(err)
 			}()
 		}
@@ -415,9 +415,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}()
 
 	for _, xidStr := range args {
-		xid, err := xrlib.ParseXID(xidStr)
+		xid, err := ParseXid(xidStr)
 		Error(err)
-		Error(traverseFromXID(reg, xid, dir, downloadXIDFn))
+		Error(traverseFromXid(reg, xid, dir, downloadXidFn))
 	}
 	close(listCH) // close work-queue
 
@@ -428,7 +428,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		if modCap {
 			tmpData := map[string]json.RawMessage(nil)
 			Error(json.Unmarshal(data, &tmpData))
-			caps, err := registry.ParseCapabilitiesJSON(tmpData["capabilities"])
+			caps, err := ParseCapabilitiesJSON(tmpData["capabilities"])
 			Error(err)
 			caps.Flags = nil
 			caps.Mutable = nil
@@ -449,7 +449,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	data, _ = Download(reg, "/capabilities")
 	if len(data) > 0 {
 		if modCap {
-			caps, err := registry.ParseCapabilitiesJSON(data)
+			caps, err := ParseCapabilitiesJSON(data)
 			Error(err)
 			caps.Flags = nil
 			caps.Mutable = nil
@@ -498,41 +498,41 @@ func Write(file string, data []byte) {
 	Error(os.WriteFile(file, data, 0644))
 }
 
-type traverseFunc func(xid *xrlib.XID, wait bool) ([]byte, error)
+type traverseFunc func(xid *Xid, wait bool) ([]byte, error)
 
-func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traverseFunc) error {
+func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc) error {
 	switch xid.Type {
-	case xrlib.ENTITY_REGISTRY:
+	case ENTITY_REGISTRY:
 		fn(xid, false)
 
 		gList, err := reg.ListGroupModels()
 		Error(err)
 		sort.Strings(gList)
 		for _, gName := range gList {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + gName)
+			nextXid, err := ParseXid(xid.String() + "/" + gName)
 			Error(err)
-			traverseFromXID(reg, nextXID, root, fn)
+			traverseFromXid(reg, nextXid, root, fn)
 		}
 
-	case xrlib.ENTITY_GROUP_TYPE:
+	case ENTITY_GROUP_TYPE:
 		fallthrough
-	case xrlib.ENTITY_RESOURCE_TYPE:
+	case ENTITY_RESOURCE_TYPE:
 		fallthrough
-	case xrlib.ENTITY_VERSION_TYPE:
+	case ENTITY_VERSION_TYPE:
 		data, err := fn(xid, true)
 		Error(err)
 
 		tmp := map[string]any{}
 		Error(json.Unmarshal([]byte(data), &tmp))
 
-		vList := registry.SortedKeys(tmp)
+		vList := SortedKeys(tmp)
 		for _, vName := range vList {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + vName)
+			nextXid, err := ParseXid(xid.String() + "/" + vName)
 			Error(err)
-			traverseFromXID(reg, nextXID, root, fn)
+			traverseFromXid(reg, nextXid, root, fn)
 		}
 
-	case xrlib.ENTITY_GROUP:
+	case ENTITY_GROUP:
 		fn(xid, false)
 
 		gm, err := reg.FindGroupModel(xid.Group)
@@ -540,26 +540,26 @@ func traverseFromXID(reg *xrlib.Registry, xid *xrlib.XID, root string, fn traver
 		rList := gm.GetResourceList()
 		sort.Strings(rList)
 		for _, rName := range rList {
-			nextXID, err := xrlib.ParseXID(xid.String() + "/" + rName)
+			nextXid, err := ParseXid(xid.String() + "/" + rName)
 			Error(err)
-			traverseFromXID(reg, nextXID, root, fn)
+			traverseFromXid(reg, nextXid, root, fn)
 		}
 
-	case xrlib.ENTITY_RESOURCE:
+	case ENTITY_RESOURCE:
 		fn(xid, false)
 
-		nextXID, err := xrlib.ParseXID(xid.String() + "/meta")
+		nextXid, err := ParseXid(xid.String() + "/meta")
 		Error(err)
-		traverseFromXID(reg, nextXID, root, fn)
+		traverseFromXid(reg, nextXid, root, fn)
 
-		nextXID, err = xrlib.ParseXID(xid.String() + "/versions")
+		nextXid, err = ParseXid(xid.String() + "/versions")
 		Error(err)
-		traverseFromXID(reg, nextXID, root, fn)
+		traverseFromXid(reg, nextXid, root, fn)
 
-	case xrlib.ENTITY_META:
+	case ENTITY_META:
 		fn(xid, false)
 
-	case xrlib.ENTITY_VERSION:
+	case ENTITY_VERSION:
 		fn(xid, false)
 
 	}

@@ -28,7 +28,7 @@ func TestXrefBasic(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
-		"'xref' \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/gID/RESOURCES/rID\n")
+		"'xref' \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID\n")
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)

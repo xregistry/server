@@ -1,4 +1,4 @@
-package registry
+package common
 
 import (
 	"encoding/json"

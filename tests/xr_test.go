@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 var RepoBase = "https://raw.githubusercontent.com/xregistry/spec/main"
@@ -34,7 +34,7 @@ func TestXRBasic(t *testing.T) {
 	for _, file := range files {
 		fn := file
 		if !strings.HasPrefix(fn, "http") {
-			fn, _ = registry.FindModelFile(file)
+			fn, _ = FindModelFile(file)
 		}
 		if fn == "" {
 			t.Errorf("Can't find %q in %q", file, paths)
@@ -114,8 +114,8 @@ Usage:
 	exp = re.ReplaceAllString(exp, "\nDATE ")
 
 	re = regexp.MustCompile(`GitCommit: [0-9a-f]*\n`)
-	lines = re.ReplaceAllString(lines, "GitCommit: xxx\n")
-	exp = re.ReplaceAllString(exp, "GitCommit: xxx\n")
+	lines = re.ReplaceAllString(lines, "GitCommit: <n/a>\n")
+	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
 
 	re = regexp.MustCompile(`DB server: .*:3306`)
 	lines = re.ReplaceAllString(lines, "DB server: xxx:3306")

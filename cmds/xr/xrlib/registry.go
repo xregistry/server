@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	// log "github.com/duglin/dlog"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 type Registry struct {
@@ -38,8 +38,6 @@ type RegistryDefined struct {
 	Extensions  map[string]any       `json:"-"`
 	Collections []*CollectionDefined `json:"-"`
 }
-
-type Capabilities map[string]any
 
 type Model struct {
 	Registry   *Registry              `json:"-"`
@@ -166,7 +164,7 @@ func GetRegistry(url string) (*Registry, error) {
 
 	reg = &Registry{
 		Entity: Entity{
-			daType:   registry.ENTITY_REGISTRY,
+			daType:   ENTITY_REGISTRY,
 			path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
 			abstract: "", // [GROUPS[/RESOURCES[/versions]]]
 		},
@@ -412,7 +410,7 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
 }
 
 func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, error) {
-	xid, err := ParseXID(xidStr)
+	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +462,7 @@ func (reg *Registry) GetConfig(name string) any {
 func (reg *Registry) GetConfigAsString(name string) string {
 	val := reg.config[name]
 
-	if registry.IsNil(val) {
+	if IsNil(val) {
 		return ""
 	}
 

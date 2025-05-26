@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	log "github.com/duglin/dlog"
+	. "github.com/xregistry/server/common"
 )
 
 type Resource struct {
@@ -99,6 +100,7 @@ func (r *Resource) GetXref() (string, *Resource, error) {
 		return "", nil, nil
 	}
 
+	// TODO parse as XID
 	xref := strings.TrimSpace(tmp.(string))
 	if xref == "" {
 		return "", nil, nil
@@ -112,7 +114,7 @@ func (r *Resource) GetXref() (string, *Resource, error) {
 	parts := strings.Split(xref, "/")
 	if len(parts) != 5 || len(parts[0]) != 0 {
 		return "", nil, fmt.Errorf("'xref' %q must be of the form: "+
-			"/GROUPS/gID/RESOURCES/rID", tmp.(string))
+			"/GROUPS/GID/RESOURCES/RID", tmp.(string))
 	}
 
 	group, err := r.Registry.FindGroup(parts[1], parts[2], false, FOR_READ)
@@ -525,15 +527,15 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 				// Do nothing - leave it there so we can null it out later
 			} else {
 				xref, _ = xrefAny.(string)
-				parts, err := ParseXID(xref)
+				xid, err := ParseXref(xref)
 				if err != nil {
 					return nil, false, fmt.Errorf("'xref' %s", err)
 				}
-				if len(parts) != 4 {
+				if xid.ResourceID == "" {
 					return nil, false, fmt.Errorf("'xref' %q must be of the "+
-						"form: /GROUPS/gID/RESOURCES/rID", xref)
+						"form: /GROUPS/GID/RESOURCES/RID", xref)
 				}
-				xrefAbsModel, err := XID2Abstract(xref)
+				xrefAbsModel, err := Xid2Abstract(xref)
 				if err != nil {
 					return nil, false, err
 				}

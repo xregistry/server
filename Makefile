@@ -19,12 +19,14 @@ export XR_IMAGE       ?= $(DOCKERHUB)xr
 export XRSERVER_IMAGE ?= $(DOCKERHUB)xrserver
 export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
-export BUILDFLAGS     := -ldflags '-X=main.GitCommit=$(GIT_COMMIT)'
-export STATIC         := -ldflags '-X=main.GitCommit=$(GIT_COMMIT) \
+export PKG            := github.com/xregistry/server
+export BUILDFLAGS     := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT)'
+export STATIC         := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT) \
                          -w -extldflags "-static"' -tags netgo,osusergo -a
+export GO_TEST        := go test $(BUILDFLAGS) -failfast
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
-UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u)
+UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 
 export XR_MODEL_PATH=.:./spec:$(XR_SPEC)
 
@@ -43,7 +45,7 @@ utest: .utest
 	@echo "# Unit Testing"
 	@go clean -testcache
 	@echo "go test -failfast $(UTESTDIRS)"
-	@for s in $(UTESTDIRS); do if ! go test -failfast $$s; then exit 1; fi; done
+	@for s in $(UTESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done
 	@echo
 	@touch .utest
 
@@ -55,18 +57,20 @@ test: .test .testimages
 	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
 	@go clean -testcache
 	@echo "go test -failfast $(TESTDIRS)"
-	@for s in $(TESTDIRS); do if ! go test -failfast $$s; then exit 1; fi; done
+	@for s in $(TESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done
 	@# go test -failfast $(TESTDIRS)
 	@echo
 	@echo "# Run again w/o deleting the Registry after each one"
 	@go clean -testcache
-	NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
+	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
+	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS)
 	@touch .test
 
 unittest:
-	go test -failfast ./registry
+	@echo go test -failfast ./registry
+	@$(GO_TEST) ./registry
 
-xrserver: cmds/xrserver/* registry/*
+xrserver: cmds/xrserver/* registry/* common/*
 	@echo
 	@echo "# Building xrserver"
 	go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
@@ -81,7 +85,7 @@ xrserver-all: .xrserver-all
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
 	@touch .xrserver-all
 
-xr: cmds/xr/* registry/*
+xr: cmds/xr/* registry/* common/*
 	@echo
 	@echo "# Building xr (cli)"
 	go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
@@ -224,7 +228,7 @@ k3dserver: k3d images
 prof: xrserver
 	@# May need to install: apt-get install graphviz
 	NO_DELETE_REGISTRY=1 \
-		go test -cpuprofile cpu.prof -memprofile mem.prof -bench . \
+		$(GO_TEST) -cpuprofile cpu.prof -memprofile mem.prof -bench . \
 		github.com/$(GIT_ORG)/$(GIT_REPO)/tests
 	@# go tool pprof -http:0.0.0.0:9999 cpu.prof
 	@go tool pprof -top -cum cpu.prof | sed -n '0,/flat/p;/xreg/p' | more

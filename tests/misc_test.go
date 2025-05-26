@@ -8,7 +8,7 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 func TestDBRows(t *testing.T) {
@@ -52,7 +52,7 @@ func TestDBRows(t *testing.T) {
 
 	strFn := func(v any) string {
 		vp := v.(*any)
-		return registry.NotNilString(vp)
+		return NotNilString(vp)
 	}
 
 	rows, err := reg.Query("SELECT e.Path,p.PropName,p.PropValue "+
@@ -283,7 +283,7 @@ func TestConcurrency(t *testing.T) {
 		} `json:"Dirs,omitempty"`
 	}
 	data := tmp{}
-	registry.Unmarshal([]byte(res.body), &data)
+	Unmarshal([]byte(res.body), &data)
 
 	t.Logf("Json: %s", ToJSON(data))
 

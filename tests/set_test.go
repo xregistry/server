@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -43,7 +44,7 @@ func TestSetAttributeNames(t *testing.T) {
 
 	for _, test := range tests {
 		t.Logf("test: %q", test.name)
-		_, err := reg.Model.AddAttr(test.name, registry.STRING)
+		_, err := reg.Model.AddAttr(test.name, STRING)
 
 		if test.msg == "" && err != nil {
 			t.Errorf("Name: %q failed: %s", test.name, err)
@@ -310,7 +311,7 @@ func TestSetLabels(t *testing.T) {
 	ver2.SetSave(labels.P("2nd").UI(), "3rd")
 
 	xCheckGet(t, reg, "?inline", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetLabels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -418,7 +419,7 @@ func TestSetLabels(t *testing.T) {
 
 	file.SetDefault(ver)
 	xCheckGet(t, reg, "?inline", `{
-  "specversion": "`+registry.SPECVERSION+`",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetLabels",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -529,21 +530,21 @@ func TestSetNameUser(t *testing.T) {
 	gm, rm, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
 	xNoErr(t, err)
 	_, err = reg.Model.AddAttrMap("mymap",
-		registry.NewItemType(registry.STRING))
+		registry.NewItemType(STRING))
 	xNoErr(t, err)
-	_, err = reg.Model.AddAttr("*", registry.ANY)
-	xNoErr(t, err)
-
-	_, err = gm.AddAttr("*", registry.ANY)
-	xNoErr(t, err)
-	_, err = gm.AddAttrMap("mymap", registry.NewItemType(registry.STRING))
+	_, err = reg.Model.AddAttr("*", ANY)
 	xNoErr(t, err)
 
-	_, err = rm.AddAttr("*", registry.ANY)
+	_, err = gm.AddAttr("*", ANY)
 	xNoErr(t, err)
-	_, err = rm.AddMetaAttr("*", registry.ANY)
+	_, err = gm.AddAttrMap("mymap", registry.NewItemType(STRING))
 	xNoErr(t, err)
-	_, err = rm.AddAttrMap("mymap", registry.NewItemType(registry.STRING))
+
+	_, err = rm.AddAttr("*", ANY)
+	xNoErr(t, err)
+	_, err = rm.AddMetaAttr("*", ANY)
+	xNoErr(t, err)
+	_, err = rm.AddAttrMap("mymap", registry.NewItemType(STRING))
 	xNoErr(t, err)
 
 	xNoErr(t, reg.SaveModel())

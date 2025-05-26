@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	// "github.com/spf13/pflag"
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
+	. "github.com/xregistry/server/common"
 )
 
 var GitComit string
@@ -31,7 +31,7 @@ func ErrStop(err error, prefix ...any) {
 }
 
 func Error(obj any, args ...any) {
-	if registry.IsNil(obj) {
+	if IsNil(obj) {
 		return
 	}
 	fmtStr, ok := obj.(string)
@@ -58,13 +58,13 @@ func Error(obj any, args ...any) {
 		fmtStr = strings.TrimSpace(fmtStr) + "\n"
 		fmt.Fprintf(os.Stderr, fmtStr, args...)
 	}
-	// registry.ShowStack()
+	// ShowStack()
 	os.Exit(1)
 }
 
 func Verbose(args ...any) {
-	// if !VerboseFlag || len(args) == 0 || registry.IsNil(args[0]) {
-	if log.GetVerbose() == 0 || len(args) == 0 || registry.IsNil(args[0]) {
+	// if !VerboseFlag || len(args) == 0 || IsNil(args[0]) {
+	if log.GetVerbose() == 0 || len(args) == 0 || IsNil(args[0]) {
 		return
 	}
 
