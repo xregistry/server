@@ -178,6 +178,8 @@ func VerifyModel(fileName string, buf []byte) error {
 		//Error("%s%s", fileName, err)
 	}
 
+	model.SetPointers()
+
 	if err := model.Verify(); err != nil {
 		return err
 		// Error("%s%s", fileName, err)
