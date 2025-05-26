@@ -1527,7 +1527,7 @@ func TestHTTPContent(t *testing.T) {
 	"file": { bad bad json }
 `,
 		Code: 400,
-		ResBody: `Syntax error at line 2: invalid character 'b' looking for beginning of object key string
+		ResBody: `path '.file': parsing object key: expected string starting with '"', got 'b' instead
 `,
 	})
 
@@ -8478,16 +8478,17 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 		body string
 		msg  string
 	}{
-		{`{1`, `Syntax error at line 1: invalid character '1' looking for beginning of object key string`},
-		{`{"}`, `Error parsing json: unexpected EOF`},
+		{`{1`, `path '': parsing object key: expected string starting with '"', got '1' instead`},
+		{`{"}`, `path '': parsing object key: unterminated string`},
 		{`{},"}`, `Syntax error at line 1: invalid character ',' looking for beginning of value; possibly near position 2`},
 		{`{}[]`, `Error parsing json: extra data possibly near position 3: [`},
 		{`{}{}`, `Error parsing json: extra data possibly near position 3: {`},
-		{`[]`, `Can't parse "array" as a(n) "map[string]interface {}" at line 1`},
+		{`[]`, `path '': expected "map", got "array"`},
 		{``, `An HTTP body must be specified`},
-		{`,`, `Syntax error at line 1: invalid character ',' looking for beginning of value`},
-		{`"`, `Error parsing json: unexpected EOF`},
-		{`1`, `Can't parse "number" as a(n) "map[string]interface {}" at line 1`},
+		{`,`, `path '': unexpected character ','`},
+		{`"`, `path '': unterminated string`},
+		{`1`, `path '': expected "map", got "number"`},
+		{`{"foo":{"bar":"asd}}`, `path '.foo.bar': unterminated string`},
 	}
 
 	for _, test := range tests {

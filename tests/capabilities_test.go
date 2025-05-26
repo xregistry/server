@@ -247,7 +247,7 @@ func TestCapabilitySimple(t *testing.T) {
 		{
 			Name: "extra key",
 			Cap:  `{"pagination": true, "bad": true}`,
-			Exp:  `Unknown capability: "bad"`,
+			Exp:  `Unknown capability: "bad" at path '.bad'`,
 		},
 	}
 
@@ -646,7 +646,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Unknown key
 	xHTTP(t, reg, "PUT", "/capabilities", `{ "foo": [] }`,
-		400, "Unknown capability: \"foo\"\n")
+		400, `Unknown capability: "foo" at path '.foo'`+"\n")
 }
 
 func TestCapabilityAttr(t *testing.T) {
@@ -875,7 +875,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Unknown key
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"foo": [] }}`,
-		400, `Unknown capability: "foo"
+		400, `Unknown capability: "foo" at path '.foo'
 `)
 
 }

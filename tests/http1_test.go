@@ -4204,7 +4204,7 @@ func TestHTTPCases(t *testing.T) {
 `)
 
 	// Version
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"vv":{"versionid":"vv}}`, 400, `Error parsing json: unexpected EOF
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"vv":{"versionid":"vv}}`, 400, `path '.vv.versionid': unterminated string
 `) // just a typo first
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details",
 		`{"vv":{"versionid":"vv"}}`, 400,
@@ -4599,7 +4599,7 @@ func TestHTTPVersions(t *testing.T) {
 		Code:        400,
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
-		ResBody: `Syntax error at line 1: invalid character 'h' in literal true (expecting 'r')
+		ResBody: `path '': invalid boolean
 `,
 	})
 

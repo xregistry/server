@@ -207,8 +207,8 @@ func (h *FSHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// Test ProcessInclues
-func TestProcessInclues(t *testing.T) {
+// Test ProcessIncludes
+func TestProcessIncludes(t *testing.T) {
 	// Setup HTTP server
 	httpPaths := map[string]string{
 		"/empty":        "",
@@ -277,7 +277,7 @@ func TestProcessInclues(t *testing.T) {
 	}
 
 	tests := []Test{
-		{"empty", "Error parsing JSON: EOF"},
+		{"empty", `Error parsing JSON: path '': unexpected end of input`},
 		{"emptyjson", "{}"},
 
 		{"onelevel", httpPaths["/onelevel"]},
@@ -430,8 +430,107 @@ func TestMakeShort(t *testing.T) {
 	for _, test := range tests {
 		res := MakeShort(test.in)
 		if res != test.exp {
-			t.Errorf("%x should map to %q, got %q", test.in, test.exp, res)
-			t.FailNow()
+			t.Fatalf("%x should map to %q, got %q", test.in, test.exp, res)
+		}
+	}
+}
+
+func TestJsonParser(t *testing.T) {
+	myAny := (any)(nil)
+
+	tests := []struct {
+		body string
+		exp  string
+		data any
+	}{
+		{
+			body: "",
+			exp:  `v must be a non-nil pointer`,
+			data: ((*any)(nil)),
+		},
+		{
+			body: "",
+			exp:  `path '': unexpected end of input`,
+			data: &myAny,
+		},
+		{
+			body: "",
+			exp:  `path '': unexpected end of input`,
+			data: &struct{}{},
+		},
+		{
+			body: "{}",
+			exp:  ``,
+			data: &struct{}{},
+		},
+		{
+			body: `{"foo":"bar"}`,
+			exp:  `unknown field "foo" at path '.foo'`,
+			data: &struct{}{},
+		},
+		{
+			body: `{"foo":"bar"}`,
+			exp:  ``,
+			data: &(struct{ Foo string }{}),
+		},
+		{
+			body: `{"foo":{"bar":5}}`,
+			exp:  ``,
+			data: &(struct{ Foo struct{ Bar int } }{}),
+		},
+		{
+			body: `{"foo":{"bar":"str"}}`,
+			exp:  `path '.foo.bar': expected "int", got "string"`,
+			data: &(struct{ Foo struct{ Bar int } }{}),
+		},
+		{
+			body: `{"Foo":{"xoo":5}}`,
+			exp:  `unknown field "xoo" at path '.Foo.xoo'`,
+			data: &(struct{ Foo struct{ Bar int } }{}),
+		},
+		{
+			body: `{"Foo":{"xoo":}}`,
+			exp:  `path '.Foo.xoo': unexpected character '}'`,
+			data: &(struct{ Foo struct{ Bar int } }{}),
+		},
+		{
+			body: `[]`,
+			exp:  ``,
+			data: &([]struct{ Foo string }{}),
+		},
+		{
+			body: `[1,2,3]`,
+			exp:  `path '[0]': expected "struct", got "number"`,
+			data: &([]struct{ Foo string }{}),
+		},
+		{
+			body: `[{"bar":5}]`,
+			exp:  `unknown field "bar" at path '[0].bar'`,
+			data: &([]struct{ Foo string }{}),
+		},
+		{
+			body: `[{"fOo":"asd"}]`,
+			exp:  ``,
+			data: &([]struct{ Foo string }{}),
+		},
+	}
+
+	for _, test := range tests {
+		err := Unmarshal([]byte(test.body), test.data)
+		if test.exp == "" {
+			if err == nil {
+				continue
+			}
+			t.Fatalf("'%s' should have worked\nGot: %s", test.body, err)
+		} else {
+			if err == nil {
+				t.Fatalf("'%s' should have failed\nExp: %s",
+					test.body, test.exp)
+			}
+			if err.Error() != test.exp {
+				t.Fatalf("'%s' should have failed\nExp: %s\nGot: %s",
+					test.body, test.exp, err)
+			}
 		}
 	}
 }

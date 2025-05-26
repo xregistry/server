@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	log "github.com/duglin/dlog"
 	"github.com/google/uuid"
@@ -396,6 +397,9 @@ func Unmarshal(buf []byte, v any) error {
 	dec := json.NewDecoder(bytes.NewReader(buf))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
+		if err2 := ValidateJSONWithPath(buf, v); err2 != nil {
+			return err2
+		}
 		msg := JsonErrorToString(buf, dec, err)
 		return errors.New(msg)
 	}
@@ -1094,4 +1098,494 @@ func AddQuery(urlPath string, newQuery string) string {
 		query = "?" + query + "&"
 	}
 	return base + query + newQuery
+}
+
+// Custom JSON parser
+
+// ONLY USE THIS TO GET BETTER ERRORS
+// Always call the normal Unmarshal func first to see if things work.
+// This will not call any custom Unmarshal funcs
+
+// ValidateJSONWithPath validates JSON data against a Go value, reporting detailed errors with paths
+// for syntax errors, type mismatches, and unknown fields. It uses a custom parser instead of encoding/json.
+// It handles struct fields without json tags by using the field name as the JSON key if exported,
+// supports case-insensitive matching for JSON keys, and reports type mismatches with the Go type as expected.
+// Error messages include "path " before the path, use a single dot for top-level paths (e.g., ".foo"),
+func ValidateJSONWithPath(data []byte, v interface{}) error {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return fmt.Errorf("v must be a non-nil pointer")
+	}
+	goType := rv.Elem().Type()
+	goValue := rv.Elem()
+
+	// Parse JSON manually
+	parser := newParser(data)
+	value, err := parser.parse()
+	if err != nil {
+		return fmt.Errorf("path '%s': %v", parser.currentPath(), err)
+	}
+
+	// Validate the parsed value against the Go type
+	return validateJSON(value, goType, goValue, "")
+}
+
+// parser holds the state for the custom JSON parser
+type parser struct {
+	data []byte
+	pos  int
+	path []string // Path stack for error reporting
+}
+
+// newParser creates a new parser for the given JSON data
+func newParser(data []byte) *parser {
+	return &parser{data: data, pos: 0, path: []string{}}
+}
+
+// currentPath returns the current path as a string
+func (p *parser) currentPath() string {
+	// if len(p.path) == 0 {
+	// return "."
+	// }
+	return strings.Join(p.path, "")
+}
+
+// pushPath adds a path component (e.g., ".field" or "[0]")
+func (p *parser) pushPath(component string) {
+	p.path = append(p.path, component)
+}
+
+// popPath removes the last path component
+func (p *parser) popPath() {
+	if len(p.path) > 0 {
+		p.path = p.path[:len(p.path)-1]
+	}
+}
+
+// parse parses the JSON data and returns the parsed value or an error
+func (p *parser) parse() (interface{}, error) {
+	p.skipWhitespace()
+	if p.pos >= len(p.data) {
+		return nil, fmt.Errorf("unexpected end of input")
+	}
+
+	switch p.data[p.pos] {
+	case '{':
+		return p.parseObject()
+	case '[':
+		return p.parseArray()
+	case '"':
+		return p.parseString()
+	case 't', 'f':
+		return p.parseBool()
+	case 'n':
+		return p.parseNull()
+	case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		return p.parseNumber()
+	default:
+		return nil, fmt.Errorf("unexpected character '%c'", p.data[p.pos])
+	}
+}
+
+// parseObject parses a JSON object
+func (p *parser) parseObject() (map[string]interface{}, error) {
+	p.pos++ // Skip '{'
+	result := make(map[string]interface{})
+	p.skipWhitespace()
+
+	if p.pos < len(p.data) && p.data[p.pos] == '}' {
+		p.pos++ // Empty object
+		return result, nil
+	}
+
+	for {
+		// Parse key
+		key, err := p.parseString()
+		if err != nil {
+			return nil, fmt.Errorf("parsing object key: %v", err)
+		}
+		keyStr, ok := key.(string)
+		if !ok {
+			return nil, fmt.Errorf("object key must be a string, got %T", key)
+		}
+		p.pushPath("." + keyStr)
+
+		// Expect ':'
+		p.skipWhitespace()
+		if p.pos >= len(p.data) || p.data[p.pos] != ':' {
+			return nil, fmt.Errorf("expected ':' after key")
+		}
+		p.pos++
+
+		// Parse value
+		value, err := p.parse()
+		if err != nil {
+			return nil, err
+		}
+		result[keyStr] = value
+		p.popPath()
+
+		// Expect ',' or '}'
+		p.skipWhitespace()
+		if p.pos >= len(p.data) {
+			return nil, fmt.Errorf("unexpected end of input in object")
+		}
+		if p.data[p.pos] == '}' {
+			p.pos++
+			return result, nil
+		}
+		if p.data[p.pos] != ',' {
+			return nil, fmt.Errorf("expected ',' or '}' after value, got '%c'", p.data[p.pos])
+		}
+		p.pos++
+		p.skipWhitespace()
+	}
+}
+
+// parseArray parses a JSON array
+func (p *parser) parseArray() ([]interface{}, error) {
+	p.pos++ // Skip '['
+	result := []interface{}{}
+	p.skipWhitespace()
+
+	if p.pos < len(p.data) && p.data[p.pos] == ']' {
+		p.pos++ // Empty array
+		return result, nil
+	}
+
+	for i := 0; ; i++ {
+		p.pushPath(fmt.Sprintf("[%d]", i))
+		value, err := p.parse()
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+		p.popPath()
+
+		p.skipWhitespace()
+		if p.pos >= len(p.data) {
+			return nil, fmt.Errorf("unexpected end of input in array")
+		}
+		if p.data[p.pos] == ']' {
+			p.pos++
+			return result, nil
+		}
+		if p.data[p.pos] != ',' {
+			return nil, fmt.Errorf("expected ',' or ']' after array element, got '%c'", p.data[p.pos])
+		}
+		p.pos++
+		p.skipWhitespace()
+	}
+}
+
+// parseString parses a JSON string
+func (p *parser) parseString() (interface{}, error) {
+	if p.pos >= len(p.data) || p.data[p.pos] != '"' {
+		return nil, fmt.Errorf("expected string starting with '\"', got '%c' instead", p.data[p.pos])
+	}
+	p.pos++
+
+	var sb strings.Builder
+	for p.pos < len(p.data) {
+		c := p.data[p.pos]
+		if c == '"' {
+			p.pos++
+			return sb.String(), nil
+		}
+		if c == '\\' {
+			p.pos++
+			if p.pos >= len(p.data) {
+				return nil, fmt.Errorf("unexpected end of input in string escape")
+			}
+			switch p.data[p.pos] {
+			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
+				sb.WriteByte(p.data[p.pos])
+				p.pos++
+			case 'u':
+				p.pos++
+				if p.pos+4 > len(p.data) {
+					return nil, fmt.Errorf("incomplete unicode escape")
+				}
+				runeVal, err := strconv.ParseInt(string(p.data[p.pos:p.pos+4]), 16, 32)
+				if err != nil {
+					return nil, fmt.Errorf("invalid unicode escape: %v", err)
+				}
+				sb.WriteRune(rune(runeVal))
+				p.pos += 4
+			default:
+				return nil, fmt.Errorf("invalid escape character '%c'", p.data[p.pos])
+			}
+		} else {
+			sb.WriteByte(c)
+			p.pos++
+		}
+	}
+	return nil, fmt.Errorf("unterminated string")
+}
+
+// parseBool parses a JSON boolean
+func (p *parser) parseBool() (interface{}, error) {
+	if p.pos+4 <= len(p.data) && string(p.data[p.pos:p.pos+4]) == "true" {
+		p.pos += 4
+		return true, nil
+	}
+	if p.pos+5 <= len(p.data) && string(p.data[p.pos:p.pos+5]) == "false" {
+		p.pos += 5
+		return false, nil
+	}
+	return nil, fmt.Errorf("invalid boolean")
+}
+
+// parseNull parses a JSON null
+func (p *parser) parseNull() (interface{}, error) {
+	if p.pos+4 <= len(p.data) && string(p.data[p.pos:p.pos+4]) == "null" {
+		p.pos += 4
+		return nil, nil
+	}
+	return nil, fmt.Errorf("invalid null")
+}
+
+// parseNumber parses a JSON number
+func (p *parser) parseNumber() (interface{}, error) {
+	start := p.pos
+	for p.pos < len(p.data) {
+		c := p.data[p.pos]
+		if !strings.ContainsAny(string(c), "0123456789.-eE+") {
+			break
+		}
+		p.pos++
+	}
+	numStr := string(p.data[start:p.pos])
+	num, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid number '%s': %v", numStr, err)
+	}
+	return num, nil
+}
+
+// skipWhitespace skips whitespace characters
+func (p *parser) skipWhitespace() {
+	for p.pos < len(p.data) && unicode.IsSpace(rune(p.data[p.pos])) {
+		p.pos++
+	}
+}
+
+// validateJSON recursively validates JSON data against a Go type, tracking the path.
+func validateJSON(jsonData interface{}, goType reflect.Type, goValue reflect.Value, path string) error {
+	// if path == "" {
+	// path = "."
+	// }
+
+	// Handle pointers
+	for goType.Kind() == reflect.Ptr {
+		if goValue.IsValid() && goValue.IsNil() {
+			// Allocate a new instance if the pointer is nil
+			goValue = reflect.New(goType.Elem())
+		}
+		goType = goType.Elem()
+		if goValue.IsValid() {
+			goValue = goValue.Elem()
+		}
+	}
+
+	// Helper function to get JSON type name for error messages
+	getJSONTypeName := func(data interface{}) string {
+		switch data.(type) {
+		case map[string]interface{}:
+			return "object"
+		case []interface{}:
+			return "array"
+		case float64:
+			return "number"
+		case string:
+			return "string"
+		case bool:
+			return "boolean"
+		case nil:
+			return "null"
+		default:
+			return fmt.Sprintf("unknown (%T)", data)
+		}
+	}
+
+	switch jsonData := jsonData.(type) {
+	case map[string]interface{}:
+		// Handle structs or maps
+		switch goType.Kind() {
+		case reflect.Struct:
+			return validateStruct(jsonData, goType, goValue, path)
+		case reflect.Map:
+			return validateMap(jsonData, goType, goValue, path)
+		default:
+			return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+		}
+
+	case []interface{}:
+		// Handle slices or arrays
+		switch goType.Kind() {
+		case reflect.Slice, reflect.Array:
+			return validateSlice(jsonData, goType, goValue, path)
+		default:
+			return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+		}
+
+	case float64:
+		// JSON numbers are parsed as float64
+		switch goType.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64:
+			return nil
+		default:
+			return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+		}
+
+	case string:
+		if goType.Kind() == reflect.String {
+			return nil
+		}
+		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+
+	case bool:
+		if goType.Kind() == reflect.Bool {
+			return nil
+		}
+		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+
+	case nil:
+		if goType.Kind() == reflect.Ptr || goType.Kind() == reflect.Interface || goType.Kind() == reflect.Slice || goType.Kind() == reflect.Map {
+			return nil
+		}
+		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+
+	default:
+		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
+	}
+}
+
+func validateStruct(jsonData map[string]interface{}, goType reflect.Type, goValue reflect.Value, path string) error {
+	// Build map of valid field names (case-sensitive) and their types
+	validFields := make(map[string]reflect.Type)
+	// Also build a case-insensitive map to detect ambiguities
+	lowerToFields := make(map[string][]string)
+	for i := 0; i < goType.NumField(); i++ {
+		field := goType.Field(i)
+		// Skip unexported fields
+		if field.Name[0] < 'A' || field.Name[0] > 'Z' {
+			continue
+		}
+		jsonTag := field.Tag.Get("json")
+		name := field.Name // Default to field name
+		if jsonTag != "" && jsonTag != "-" {
+			name = strings.Split(jsonTag, ",")[0]
+		}
+		validFields[name] = field.Type
+		// Track for case-insensitive matching
+		lowerName := strings.ToLower(name)
+		lowerToFields[lowerName] = append(lowerToFields[lowerName], name)
+	}
+
+	// Check for ambiguous field names (case-insensitive)
+	for lowerName, fields := range lowerToFields {
+		if len(fields) > 1 {
+			return fmt.Errorf("ambiguous field names %v map to the same lowercase name %q", fields, lowerName)
+		}
+	}
+
+	// Check for unknown fields (case-insensitive)
+	for key := range jsonData {
+		lowerKey := strings.ToLower(key)
+		found := false
+		for fieldName := range validFields {
+			if strings.ToLower(fieldName) == lowerKey {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unknown field %q at path '%s'", key, path+"."+key)
+		}
+	}
+
+	// Recursively validate each field
+	for key, value := range jsonData {
+		lowerKey := strings.ToLower(key)
+		var fieldType reflect.Type
+		// Find the matching field (case-insensitive)
+		for name, fType := range validFields {
+			if strings.ToLower(name) == lowerKey {
+				fieldType = fType
+				break
+			}
+		}
+		if fieldType == nil {
+			continue // Already caught as unknown
+		}
+		var fieldValue reflect.Value
+		if goValue.IsValid() {
+			for i := 0; i < goType.NumField(); i++ {
+				field := goType.Field(i)
+				name := field.Name
+				if field.Tag.Get("json") != "" && field.Tag.Get("json") != "-" {
+					name = strings.Split(field.Tag.Get("json"), ",")[0]
+				}
+				if strings.ToLower(name) == lowerKey {
+					fieldValue = goValue.Field(i)
+					break
+				}
+			}
+		}
+		if err := validateJSON(value, fieldType, fieldValue, path+"."+key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateMap(jsonData map[string]interface{}, goType reflect.Type, goValue reflect.Value, path string) error {
+	if goType.Key().Kind() != reflect.String {
+		return fmt.Errorf("map key must be string, got %q", goType.Key().Kind())
+	}
+	valueType := goType.Elem()
+	var mapValue reflect.Value
+	if goValue.IsValid() && goValue.IsNil() {
+		goValue = reflect.MakeMap(goType)
+	}
+	if goValue.IsValid() {
+		mapValue = goValue
+	}
+	for key, value := range jsonData {
+		var elemValue reflect.Value
+		if mapValue.IsValid() {
+			v := mapValue.MapIndex(reflect.ValueOf(key))
+			if v.IsValid() {
+				elemValue = v
+			}
+		}
+		if err := validateJSON(value, valueType, elemValue, fmt.Sprintf("%s[%q]", path, key)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateSlice(jsonData []interface{}, goType reflect.Type, goValue reflect.Value, path string) error {
+	elemType := goType.Elem()
+	var sliceValue reflect.Value
+	if goType.Kind() == reflect.Slice && goValue.IsValid() && goValue.IsNil() {
+		goValue = reflect.MakeSlice(goType, 0, len(jsonData))
+	}
+	if goValue.IsValid() {
+		sliceValue = goValue
+	}
+	for i, value := range jsonData {
+		var elemValue reflect.Value
+		if sliceValue.IsValid() && i < sliceValue.Len() {
+			elemValue = sliceValue.Index(i)
+		}
+		if err := validateJSON(value, elemType, elemValue, fmt.Sprintf("%s[%d]", path, i)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
