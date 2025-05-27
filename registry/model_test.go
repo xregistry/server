@@ -780,7 +780,7 @@ func TestValidChars(t *testing.T) {
 		{"-", `Invalid ID "-", must match: ` + match},
 		{"~", `Invalid ID "~", must match: ` + match},
 		{"@", `Invalid ID "@", must match: ` + match},
-		{"Z.-~_0Nb", ``},
+		{"Z.-~:_0Nb", ``},
 		{a128, ``},
 	} {
 		err := IsValidID(test.input)

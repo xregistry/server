@@ -8360,7 +8360,7 @@ func TestHTTPInvalidID(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModelSimple("files", "file")
 
-	match := `^[a-zA-Z0-9_][a-zA-Z0-9_.\-~@]{0,127}$`
+	match := `^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`
 
 	xHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
 		`Invalid ID "*", must match: `+match+"\n")

@@ -18,7 +18,7 @@ import (
 var RegexpModelName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,57}$")
 var RegexpPropName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,62}$")
 var RegexpMapKey = regexp.MustCompile("^[a-z0-9][a-z0-9_.:\\-]{0,62}$")
-var RegexpID = regexp.MustCompile("^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~@]{0,127}$")
+var RegexpID = regexp.MustCompile("^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$")
 
 type ModelSerializer func(*Model, string) ([]byte, error)
 

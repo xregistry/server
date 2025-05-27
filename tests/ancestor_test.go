@@ -97,7 +97,7 @@ func TestAncestorBasic(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": ""}`, 400,
-		`Invalid "ancestor" value (): Invalid ID "", must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~@]{0,127}$
+		`Invalid "ancestor" value (): Invalid ID "", must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$
 `)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "vx"}`, 400,
