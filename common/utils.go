@@ -822,6 +822,9 @@ func NormalizeStrTime(str string) (string, error) {
 		return "", err
 	}
 
+	t = t.UTC()
+
+	// str = t.Format("2006-01-02T15:04:05.000000000Z07:00") // trailing 0's
 	str = t.Format(time.RFC3339Nano)
 	return str, nil
 }

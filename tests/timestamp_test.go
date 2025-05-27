@@ -332,13 +332,16 @@ func TestTimestampParsing(t *testing.T) {
 		timestamp string
 		code      int
 		value     string
+		utc       string
 	}{
-		{"xxx", 400, ""},
-		{"2024-07-04T12:01:02", 200, "2024-07-04T12:01:02Z"},
-		{"2024-07-04T12:00:01Z", 200, "2024-07-04T12:00:01Z"},
-		{"2024-07-04T12:00:01+07:00", 200, "2024-07-04T12:00:01+07:00"},
-		{"2024-07-04T12:00:01-07:00", 200, "2024-07-04T12:00:01-07:00"},
-		{"2024-07-04T12:00:01", 200, "2024-07-04T12:00:01Z"},
+		{"xxx", 400, "", ""},
+		{"2024-07-04T12:01:02", 200, "2024-07-04T12:01:02Z", ""},
+		{"2024-07-04T12:00:01Z", 200, "2024-07-04T12:00:01Z", ""},
+		{"2024-07-04T12:00:01+07:00", 200, "2024-07-04T12:00:01+07:00",
+			"2024-07-04T05:00:01Z"},
+		{"2024-07-04T12:00:01-07:00", 200, "2024-07-04T12:00:01-07:00",
+			"2024-07-04T19:00:01Z"},
+		{"2024-07-04T12:00:01", 200, "2024-07-04T12:00:01Z", ""},
 	}
 
 	for _, test := range tests {
@@ -368,7 +371,11 @@ func TestTimestampParsing(t *testing.T) {
 		}
 
 		reg.Refresh(registry.FOR_WRITE)
-		xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.value)
+		if test.utc != "" {
+			xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.utc)
+		} else {
+			xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.value)
+		}
 		xNoErr(t, reg.SaveAllAndCommit())
 	}
 }
