@@ -1,5 +1,5 @@
 FROM golang:alpine
-RUN apk add make
+RUN apk add make git bash
 
 ARG GIT_COMMIT
 

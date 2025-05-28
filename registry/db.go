@@ -130,6 +130,7 @@ type Tx struct {
 	IgnoreEpoch                bool
 	IgnoreDefaultVersionSticky bool
 	IgnoreDefaultVersionID     bool
+	RequestInfo                *RequestInfo
 
 	// Cache of entities this Tx is dealing with. Things can get funky if
 	// we have more than one instance of the same entity in memory.

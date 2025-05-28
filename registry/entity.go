@@ -12,41 +12,21 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-// type Map map[string]any
-// type Array []any
-
-type Entity struct {
+type EntityExtensions struct {
 	tx         *Tx
 	AccessMode int // FOR_READ, FOR_WRITE
+}
 
-	Registry  *Registry `json:"-"`
-	DbSID     string    // Entity's SID
-	Plural    string
-	Singular  string
-	UID       string         // Entity's UID
-	Object    map[string]any `json:"-"`
-	NewObject map[string]any `json:"-"` // updated version, save() will store
-
-	// These were added just for convenience and so we can use the same
-	// struct for traversing the SQL results
-	Type     int    // ENTITY_REGISTRY(0)/GROUP(1)/RESOURCE(2)/VERSION(3)/...
-	Path     string // [GROUPS/GID[/RESOURCES/RID[/versions/vID]]]
-	Abstract string // [GROUPS[/RESOURCES[/versions]]]
-	EpochSet bool   `json:"-"` // Has epoch changed this tx?
-	ModSet   bool   `json:"-"` // Has modifiedat changed this tx?
-	Self     any    `json:"-"` // ptr to typed Entity (e.g. *Group)
-
-	// Save these values in memory so we only need to get them once
-	GroupModel    *GroupModel    `json:"-"` // gModel if it's not a Registry
-	ResourceModel *ResourceModel `json:"-"` // If Res,Ver,Meta save rmModel
-
-	// Debugging
-	NewObjectStack []string `json:"-"` // stack when NewObj created via Ensure
+func (e *Entity) GetRequestInfo() *RequestInfo {
+	tx := e.tx
+	if tx == nil {
+		return nil
+	}
+	return tx.RequestInfo
 }
 
 type EntitySetter interface {
 	Get(name string) any
-	SetCommit(name string, val any) error // Should never be used
 	JustSet(name string, val any) error
 	SetSave(name string, val any) error
 	Delete() error
@@ -418,20 +398,6 @@ func (e *Entity) Refresh(accessMode int) error {
 	return nil
 }
 
-// All in one: Set, Validate, Save to DB and Commit (or Rollback on error)
-// Should never be used because the act of committing should be done
-// by the caller once all of the changes are done. This is a holdover from
-// before we had transaction support - once we're sure, delete it
-func (e *Entity) eSetCommit(path string, val any) error {
-	log.VPrintf(3, ">Enter: SetCommit(%s=%v)", path, val)
-	defer log.VPrintf(3, "<Exit Set")
-
-	err := e.eSetSave(path, val)
-	Must(e.tx.Conditional(err))
-
-	return err
-}
-
 // Set, Validate and Save to DB but not Commit
 func (e *Entity) eSetSave(path string, val any) error {
 	log.VPrintf(3, ">Enter: SetSave(%s=%v)", path, val)
@@ -487,14 +453,15 @@ func (e *Entity) eJustSet(pp *PropPath, val any) error {
 	// set it manually. We can't do it lower down (closer to the DB funcs)
 	// because down there "xref" won't appear in NewObject when it's set to nil
 	/*
-		if e.Type == ENTITY_RESOURCE && pp.Top() == "xref" {
-			// Handles both val=nil and non-nil cases
-			err := DoOneTwo(e.tx, `UPDATE Resources SET xRef=? WHERE SID=?`,
-				val, e.DbSID)
-			if err != nil {
-				return err
-			}
-		}
+				if e.Type == ENTITY_RESOURCE && pp.Top() == "xref" {
+					// Handles both val=nil and non-nil cases
+					err := DoOneTwo(e.tx,
+		               `UPDATE Resources SET xRef=? WHERE SID=?`,
+						val, e.DbSID)
+					if err != nil {
+						return err
+					}
+				}
 	*/
 
 	if log.GetVerbose() > 2 {
@@ -750,8 +717,10 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, error) {
 
 		if entity == nil {
 			entity = &Entity{
-				tx:         tx,
-				AccessMode: accessMode,
+				EntityExtensions: EntityExtensions{
+					tx:         tx,
+					AccessMode: accessMode,
+				},
 
 				Registry: tx.Registry,
 				DbSID:    NotNilString(row[4]),
@@ -793,26 +762,14 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, error) {
 	return entity, nil
 }
 
-func StrTypes(types ...int) string {
-	res := strings.Builder{}
-	for _, eType := range types {
-		res.WriteByte('0' + byte(eType))
-	}
-	return res.String()
-}
-
-// This allows for us to choose the order and define custom logic per prop
-var OrderedSpecProps = []*Attribute{
+// This data will be merged into OrderedSpecProps during init().
+// We can't put them directly into OrderedSpecProps because the client doesn't
+// need them, or have access to the RequestInfo
+var PropsFuncs = []*Attribute{
 	{
-		Name:     "specversion",
-		Type:     STRING,
-		ReadOnly: true,
-		Required: true,
-
+		Name: "specversion",
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				return SPECVERSION
 			},
 			checkFn: func(e *Entity) error {
@@ -822,19 +779,11 @@ var OrderedSpecProps = []*Attribute{
 				}
 				return nil
 			},
-			updateFn: nil,
 		},
 	},
 	{
-		Name:      "id",
-		Type:      STRING,
-		Immutable: true,
-		Required:  true,
-
+		Name: "id",
 		internals: &AttrInternals{
-			types:        "", // Yes even ENTITY_RESOURCE
-			xrefrequired: true,
-			getFn:        nil,
 			checkFn: func(e *Entity) error {
 				singular := e.Singular
 				// PanicIf(singular == "", "singular is '' :  %v", e)
@@ -891,14 +840,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "versionid",
-		Type:      STRING,
-		Immutable: true,
-		Required:  true,
-
+		Name: "versionid",
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_VERSION),
-			getFn: nil,
 			checkFn: func(e *Entity) error {
 				oldID := any(e.UID)
 				newID := any(e.NewObject["versionid"])
@@ -932,21 +875,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "self",
-		Type:      URL,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
-
+		Name: "self",
 		internals: &AttrInternals{
-			types:        "", // Yes even ENTITY_RESOURCE
-			dontStore:    true,
-			xrefrequired: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				base := ""
 				path := e.Path
 				isAbs := false
 
+				info := e.GetRequestInfo()
 				if info != nil {
 					if info.DoDocView() {
 						// remove GET's base path
@@ -976,89 +912,51 @@ var OrderedSpecProps = []*Attribute{
 				}
 				return base + "/" + path
 			},
-			checkFn:  nil,
-			updateFn: nil,
 		},
 	},
 	/*
-		{
-			Name:           "shortself",
-			Type:           URL,
-			ReadOnly:       true,
-			Immutable: true,
+				{
+					Name:           "shortself",
+					internals: &AttrInternals{
+						getFn: func(e *Entity) any {
+							path := e.Path
+							base := ""
+		                    info := e.GetRequestInfo()
+							if info != nil {
+								base = info.BaseURL
+							}
 
-			internals: &AttrInternals{
-				types:     "",
-				dontStore: true,
-				xrefrequired: true,
-				getFn: func(e *Entity, info *RequestInfo) any {
-					path := e.Path
-					base := ""
-					if info != nil {
-						base = info.BaseURL
-					}
+							if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
+								meta := info != nil && (info.ShowDetails ||
+								info.DoDocView() ||
+								info.ResourceUID == "" || len(info.Parts) == 5)
 
-					if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
-						meta := info != nil && (info.ShowDetails ||
-						info.DoDocView() ||
-						info.ResourceUID == "" || len(info.Parts) == 5)
+								if e.GetResourceModel().GetHasDocument() == false {
+									meta = false
+								}
 
-						if e.GetResourceModel().GetHasDocument() == false {
-							meta = false
-						}
+								if meta {
+									path += "$details"
+								}
+							}
 
-						if meta {
-							path += "$details"
-						}
-					}
-
-					shortself := MD5(path)
-					return base + "/r?u=" + shortself
+							shortself := MD5(path)
+							return base + "/r?u=" + shortself
+						},
+					},
 				},
-				checkFn:  nil,
-				updateFn: nil,
-			},
-		},
 	*/
 	{
 		Name:      "xid",
-		Type:      XID,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
-
-		internals: &AttrInternals{
-			types:        "",
-			dontStore:    true,
-			xrefrequired: true,
-			getFn:        nil,
-			checkFn:      nil,
-		},
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "xref",
-		Type: URL,
-
-		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
-			getFn: nil,
-			checkFn: func(e *Entity) error {
-				return nil
-			},
-			updateFn: func(e *Entity) error {
-				return nil
-			},
-		},
+		Name:      "xref",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:     "epoch",
-		Type:     UINTEGER,
-		ReadOnly: true,
-		Required: true,
-
+		Name: "epoch",
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			getFn: nil,
 			checkFn: func(e *Entity) error {
 				// If we explicitly setEpoch via internal API then don't check
 				if e.EpochSet {
@@ -1125,81 +1023,28 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "name",
-		Type: STRING,
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "name",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:     "isdefault",
-		Type:     BOOLEAN,
-		ReadOnly: true,
-		Required: true,
-		Default:  false,
-
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_VERSION),
-			dontStore: true,
-			getFn:     nil,
-			checkFn:   nil,
-			updateFn: func(e *Entity) error {
-				// TODO if set, set defaultversionid in the resource to this
-				// guy's UID
-
-				return nil
-			},
-		},
+		Name:      "isdefault",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "description",
-		Type: STRING,
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "description",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "documentation",
-		Type: URL,
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "documentation",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "labels",
-		Type: MAP,
-		Item: &Item{
-			Type: STRING,
-		},
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "labels",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:     "createdat",
-		Type:     TIMESTAMP,
-		Required: true,
-
+		Name: "createdat",
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			getFn:   nil,
-			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["createdat"] = nil
@@ -1235,14 +1080,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "modifiedat",
-		Type:     TIMESTAMP,
-		Required: true,
-
+		Name: "modifiedat",
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
-			getFn:   nil,
-			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["modifiedat"] = nil
@@ -1275,27 +1114,16 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "$extensions",
-		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY),
-		},
+		Name:      "$extensions",
+		internals: &AttrInternals{},
 	},
 	{
 		Name: "capabilities",
-		Type: OBJECT, // This ensures the client sent a map
-		Attributes: Attributes{
-			"*": &Attribute{
-				Name: "*",
-				Type: ANY,
-			},
-		},
-
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				// Need to explicitly ask for "capabilities", ?inline=* won't
 				// do it
+				info := e.GetRequestInfo()
 				if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
 					capStr := e.GetAsString("#capabilities")
 					if capStr == "" {
@@ -1342,19 +1170,11 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "model",
-		Type: OBJECT,
-		Attributes: Attributes{
-			"*": &Attribute{
-				Name: "*",
-				Type: ANY,
-			},
-		},
-
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY),
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				// Need to explicitly ask for "model", ?inline=* won't
 				// do it
+				info := e.GetRequestInfo()
 				if info != nil && info.ShouldInline(NewPPP("model").DB()) {
 					model := info.Registry.Model
 					if model == nil {
@@ -1365,50 +1185,19 @@ var OrderedSpecProps = []*Attribute{
 				}
 				return nil
 			},
-			checkFn:  nil,
-			updateFn: nil,
 		},
 	},
 	{
-		Name:     "readonly",
-		Type:     BOOLEAN,
-		ReadOnly: true,
-		Required: true,
-		Default:  false,
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_META),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "readonly",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "compatibility",
-		Type: STRING,
-		Enum: []any{"none", "backward", "backward_transitive", "forward",
-			"forward_transitive", "full", "full_transitive"},
-		Strict:   PtrBool(false),
-		Required: true,
-		Default:  "none",
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_META),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "compatibility",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:   "compatibilityauthority",
-		Type:   STRING,
-		Enum:   []any{"external", "server"},
-		Strict: PtrBool(false),
-
+		Name: "compatibilityauthority",
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_META),
-			getFn:   nil,
-			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				if !IsNil(e.NewObject["xref"]) {
 					return nil
@@ -1425,42 +1214,12 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "deprecated",
-		Type: OBJECT,
-		Attributes: Attributes{
-			"effective": &Attribute{
-				Type: TIMESTAMP,
-			},
-			"removal": &Attribute{
-				Type: TIMESTAMP,
-			},
-			"alternative": &Attribute{
-				Type: URL,
-			},
-			"docs": &Attribute{
-				Type: URL,
-			},
-			"*": &Attribute{
-				Type: ANY,
-			},
-		},
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_META),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "deprecated",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:     "ancestor",
-		Type:     STRING,
-		Required: true,
-
+		Name: "ancestor",
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_VERSION),
-			getFn:   nil,
-			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				_, ok := e.NewObject["ancestor"]
 				PanicIf(!ok, "Missing versionid")
@@ -1477,37 +1236,23 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "contenttype",
-		Type: STRING,
-
-		internals: &AttrInternals{
-			types:      StrTypes(ENTITY_VERSION),
-			httpHeader: "Content-Type",
-			getFn:      nil,
-			checkFn:    nil,
-			updateFn:   nil,
-		},
+		Name:      "contenttype",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "$extensions",
-		internals: &AttrInternals{
-			types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),
-		},
+		Name:      "$extensions",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "$space",
-		internals: &AttrInternals{
-			types: "",
-		},
+		Name:      "$space",
+		internals: &AttrInternals{},
 	},
 	// For the $RESOURCE ones, make sure to use attr.Clone("newname")
 	// when the $RESOURCE is substituded with the Resource's singular
 	// name. Otherwise you'll be updating this shared entry.
 	{
 		Name: "$RESOURCEurl",
-		Type: URL,
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_VERSION),
 			checkFn: RESOURCEcheckFn,
 			updateFn: func(e *Entity) error {
 				singular := e.GetResourceSingular()
@@ -1523,9 +1268,7 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$RESOURCEproxyurl",
-		Type: URL,
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_VERSION),
 			checkFn: RESOURCEcheckFn,
 			updateFn: func(e *Entity) error {
 				singular := e.GetResourceSingular()
@@ -1541,12 +1284,8 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "$RESOURCE",
-		Type: ANY,
-
 		internals: &AttrInternals{
-			types:           StrTypes(ENTITY_VERSION),
-			alwaysSerialize: true, // Will always be missing, so need this
-			checkFn:         RESOURCEcheckFn,
+			checkFn: RESOURCEcheckFn,
 			updateFn: func(e *Entity) error {
 				singular := e.GetResourceSingular()
 				v, ok := e.NewObject[singular]
@@ -1564,25 +1303,17 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "$space",
-		internals: &AttrInternals{
-			types: "",
-		},
+		Name:      "$space",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:      "metaurl",
-		Type:      URL,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
-
+		Name: "metaurl",
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_RESOURCE),
-			dontStore: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				base := ""
 				path := e.Path
 
+				info := e.GetRequestInfo()
 				if info != nil {
 					inlineMeta := info.ShouldInline(e.Abstract +
 						string(DB_IN) + "meta")
@@ -1605,38 +1336,19 @@ var OrderedSpecProps = []*Attribute{
 
 				return base + path + "/meta"
 			},
-			checkFn:  nil,
-			updateFn: nil,
 		},
 	},
 	{
-		Name: "meta",
-		Type: OBJECT,
-		Attributes: Attributes{
-			"*": &Attribute{
-				Name: "*",
-				Type: ANY,
-			},
-		},
-		internals: &AttrInternals{
-			types: StrTypes(ENTITY_RESOURCE),
-		},
+		Name:      "meta",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "$space",
-		internals: &AttrInternals{
-			types: "",
-		},
+		Name:      "$space",
+		internals: &AttrInternals{},
 	},
 	{
-		Name:     "defaultversionid",
-		Type:     STRING,
-		Required: true,
-
+		Name: "defaultversionid",
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_META),
-			getFn:   nil,
-			checkFn: nil,
 			updateFn: func(e *Entity) error {
 				// Make sure it has a value, if not copy from existing
 				xRef := e.NewObject["xref"]
@@ -1658,15 +1370,9 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "defaultversionurl",
-		Type:     URL,
-		ReadOnly: true,
-		Required: true,
-
+		Name: "defaultversionurl",
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_META),
-			dontStore: true,
-			getFn: func(e *Entity, info *RequestInfo) any {
+			getFn: func(e *Entity) any {
 				val := e.Object["defaultversionid"]
 				if IsNil(val) {
 					return nil
@@ -1678,6 +1384,7 @@ var OrderedSpecProps = []*Attribute{
 				result := ""
 				isAbsURL := false
 
+				info := e.GetRequestInfo()
 				if info != nil {
 					// s/meta/versions/
 					abs := e.Abstract[:len(e.Abstract)-4] + "versions"
@@ -1720,82 +1427,20 @@ var OrderedSpecProps = []*Attribute{
 
 				return result
 			},
-			checkFn:  nil,
-			updateFn: nil,
 		},
 	},
 	{
-		Name:     "defaultversionsticky",
-		Type:     BOOLEAN,
-		Required: true,
-		Default:  false,
-
-		internals: &AttrInternals{
-			types:    StrTypes(ENTITY_META),
-			getFn:    nil,
-			checkFn:  nil,
-			updateFn: nil,
-		},
+		Name:      "defaultversionsticky",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "$space",
-		internals: &AttrInternals{
-			types: "",
-		},
+		Name:      "$space",
+		internals: &AttrInternals{},
 	},
 	{
-		Name: "$COLLECTIONS", // Implicitly creates the url and count ones
-		Type: MAP,
-		Item: &Item{
-			Type: OBJECT,
-			Attributes: Attributes{
-				"*": {
-					Type: ANY,
-				},
-			},
-		},
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-			dontStore: true,
-		},
+		Name:      "$COLLECTIONS", // Implicitly creates the url and count ones
+		internals: &AttrInternals{},
 	},
-}
-
-var SpecProps = map[string]*Attribute{}
-var CollectionsURLAttr *Attribute
-var CollectionsCountAttr *Attribute
-var CollectionsAttr *Attribute
-
-func init() {
-	// Load map via lower-case version of prop name
-	for _, sp := range OrderedSpecProps {
-		SpecProps[sp.Name] = sp
-	}
-
-	CollectionsAttr = SpecProps["$COLLECTIONS"]
-
-	CollectionsURLAttr = &Attribute{
-		Name:      "$COLLECTIONSurl",
-		Type:      URL,
-		ReadOnly:  true,
-		Immutable: true,
-		Required:  true,
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-			dontStore: true,
-		},
-	}
-
-	CollectionsCountAttr = &Attribute{
-		Name:     "$COLLECTIONScount",
-		Type:     UINTEGER,
-		ReadOnly: true,
-		Required: true,
-		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_RESOURCE),
-			dontStore: true,
-		},
-	}
 }
 
 func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
@@ -1948,7 +1593,6 @@ func (e *Entity) Lock() bool { // did we lock it?
 		return false
 	}
 	Must(e.Refresh(FOR_WRITE))
-	e.AccessMode = FOR_WRITE
 	return true
 }
 
@@ -2086,7 +1730,7 @@ func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
 		if prop.internals != nil && prop.internals.getFn != nil {
 			// Only generate/set the value if it's not already set
 			if _, ok := mat[prop.Name]; !ok {
-				if val := prop.internals.getFn(e, info); !IsNil(val) {
+				if val := prop.internals.getFn(e); !IsNil(val) {
 					// Only write it if we have a value
 					// log.Printf("Added calc prop: %q", prop.Name)
 					mat[prop.Name] = val
@@ -2723,19 +2367,6 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 	}
 
 	return nil
-}
-
-func (e *Entity) GetModels() (*GroupModel, *ResourceModel) {
-	if e.GroupModel != nil {
-		return e.GroupModel, e.ResourceModel
-	}
-
-	if e.Type == ENTITY_REGISTRY || e.Type == ENTITY_MODEL {
-		return nil, nil
-	}
-
-	e.GroupModel, e.ResourceModel = AbstractToModels(e.Registry, e.Abstract)
-	return e.GroupModel, e.ResourceModel
 }
 
 func PrepUpdateEntity(e *Entity) error {

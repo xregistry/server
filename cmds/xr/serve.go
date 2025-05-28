@@ -8,7 +8,6 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	// "github.com/xregistry/server/cmds/xr/xrlib"
-	// "github.com/xregistry/server/registry"
 )
 
 func addServeCmd(parent *cobra.Command) {

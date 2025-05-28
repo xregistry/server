@@ -8,19 +8,10 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type Group struct {
-	Entity
-	Registry *Registry
-}
-
 var _ EntitySetter = &Group{}
 
 func (g *Group) Get(name string) any {
 	return g.Entity.Get(name)
-}
-
-func (g *Group) SetCommit(name string, val any) error {
-	return g.Entity.eSetCommit(name, val)
 }
 
 func (g *Group) JustSet(name string, val any) error {
@@ -224,8 +215,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		// This will not create any Versions yet, just the Resource
 		r = &Resource{
 			Entity: Entity{
-				tx:         g.tx,
-				AccessMode: FOR_WRITE,
+				EntityExtensions: EntityExtensions{
+					tx:         g.tx,
+					AccessMode: FOR_WRITE,
+				},
 
 				Registry: g.Registry,
 				DbSID:    NewUUID(),
@@ -289,8 +282,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 		m = &Meta{
 			Entity: Entity{
-				tx:         g.tx,
-				AccessMode: FOR_WRITE,
+				EntityExtensions: EntityExtensions{
+					tx:         g.tx,
+					AccessMode: FOR_WRITE,
+				},
 
 				Registry: g.Registry,
 				DbSID:    NewUUID(),

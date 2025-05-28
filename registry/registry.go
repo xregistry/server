@@ -11,12 +11,6 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type Registry struct {
-	Entity
-	Capabilities *Capabilities `json"-"`
-	Model        *Model        `json:"-"`
-}
-
 var DefaultRegDbSID string
 
 func (r *Registry) GetTx() *Tx {
@@ -130,8 +124,10 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 
 	reg := &Registry{
 		Entity: Entity{
-			tx:         tx,
-			AccessMode: FOR_WRITE,
+			EntityExtensions: EntityExtensions{
+				tx:         tx,
+				AccessMode: FOR_WRITE,
+			},
 
 			DbSID:    dbSID,
 			Plural:   "registries",
@@ -144,7 +140,6 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 		},
 	}
 
-	reg.tx = tx
 	reg.Self = reg
 	reg.Entity.Registry = reg
 	reg.Capabilities = DefaultCapabilities
@@ -218,17 +213,6 @@ var _ EntitySetter = &Registry{}
 
 func (reg *Registry) Get(name string) any {
 	return reg.Entity.Get(name)
-}
-
-// Technically this should be called SetValidateSave
-func (reg *Registry) SetCommit(name string, val any) error {
-	// Normally we should never call Lock() directly, however Registry is
-	// kind of special because we rarely know if we want to "Find" the Registry
-	// for writing until later in the process. So instead of forcing the
-	// code to re-Find with FOR_WRITE, we'll just make it easy and these
-	// variants of 'update' will just lock it automatically
-	reg.Lock()
-	return reg.Entity.eSetCommit(name, val)
 }
 
 func (reg *Registry) JustSet(name string, val any) error {
@@ -644,8 +628,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		// Not found, so create a new one
 		g = &Group{
 			Entity: Entity{
-				tx:         reg.tx,
-				AccessMode: FOR_WRITE,
+				EntityExtensions: EntityExtensions{
+					tx:         reg.tx,
+					AccessMode: FOR_WRITE,
+				},
 
 				Registry: reg,
 				DbSID:    NewUUID(),

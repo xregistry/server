@@ -1,13 +1,19 @@
 #!/bin/bash
 
 TMP=/tmp/output$RANDOM
+trap 'rm -f $TMP' EXIT
 
-echo "$@"
-"$@" > $TMP 2>&1
-if [[ "$?" != "0" ]]; then
+if [[ "$1" == "-"* ]]; then
+    echo "${1:1}"
+    shift
+else
+    echo "$@"
+fi
+
+echo -e '$' "$@\n" > $TMP 2>&1
+
+if ! "$@" >> $TMP 2>&1; then
+    echo
 	cat $TMP
-	rm $TMP
 	exit 1
 fi
-rm $TMP
-exit 0

@@ -13,16 +13,6 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type Resource struct {
-	Entity
-	Group *Group
-}
-
-type Meta struct {
-	Entity
-	Resource *Resource
-}
-
 // These attributes are on the Resource not the Version
 // We used to use a "." as a prefix to know - may still need to at some point
 var specialResourceAttrs = map[string]bool{
@@ -144,33 +134,6 @@ func (r *Resource) IsXref() bool {
 	PanicIf(meta == nil, "%s: meta is gone", r.UID)
 
 	return !IsNil(meta.Get("xref"))
-}
-
-func (m *Meta) SetCommit(name string, val any) error {
-	log.VPrintf(4, "SetCommitMeta: m(%s).Set(%s,%v)", m.UID, name, val)
-
-	return m.Entity.eSetCommit(name, val)
-}
-
-func (r *Resource) SetCommitMeta(name string, val any) error {
-	log.VPrintf(4, "SetCommitMeta: r(%s).Set(%s,%v)", r.UID, name, val)
-
-	meta, err := r.FindMeta(false, FOR_WRITE)
-	PanicIf(err != nil, "No meta %q: %s", r.UID, err)
-	return meta.SetCommit(name, val)
-}
-
-func (r *Resource) SetCommit(name string, val any) error {
-	return r.SetCommitDefault(name, val)
-}
-
-func (r *Resource) SetCommitDefault(name string, val any) error {
-	log.VPrintf(4, "SetCommitDefault: r(%s).Set(%s,%v)", r.UID, name, val)
-
-	v, err := r.GetDefault(FOR_WRITE)
-	PanicIf(err != nil, "%s", err)
-
-	return v.SetCommit(name, val)
 }
 
 func (m *Meta) JustSet(name string, val any) error {
@@ -555,7 +518,9 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 	if meta == nil {
 		meta = &Meta{
 			Entity: Entity{
-				tx: r.tx,
+				EntityExtensions: EntityExtensions{
+					tx: r.tx,
+				},
 
 				Registry: r.Registry,
 				DbSID:    NewUUID(),
@@ -903,8 +868,10 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	if v == nil {
 		v = &Version{
 			Entity: Entity{
-				tx:         r.tx,
-				AccessMode: FOR_WRITE,
+				EntityExtensions: EntityExtensions{
+					tx:         r.tx,
+					AccessMode: FOR_WRITE,
+				},
 
 				Registry: r.Registry,
 				DbSID:    NewUUID(),

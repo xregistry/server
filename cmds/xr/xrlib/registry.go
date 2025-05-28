@@ -10,6 +10,7 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+/*
 type Registry struct {
 	Entity
 	Capabilities *Capabilities     `json:"capabilities,omitempty"`
@@ -20,6 +21,7 @@ type Registry struct {
 	server string
 	config map[string]any
 }
+*/
 
 type RegistryDefined struct {
 	SpecVersion   string            `json:"specversion,omitempty"`
@@ -39,6 +41,7 @@ type RegistryDefined struct {
 	Collections []*CollectionDefined `json:"-"`
 }
 
+/*
 type Model struct {
 	Registry   *Registry              `json:"-"`
 	Labels     map[string]string      `json:"labels,omitempty"`
@@ -91,6 +94,7 @@ type GroupModel struct {
 
 	imports map[string]*ResourceModel
 }
+*/
 
 type CollectionDefined struct {
 	Plural   string
@@ -99,6 +103,7 @@ type CollectionDefined struct {
 	Count    uint
 }
 
+/*
 type ResourceModel struct {
 	Plural           string            `json:"plural,omitempty"`
 	Singular         string            `json:"singular,omitempty"`
@@ -144,6 +149,10 @@ type Entity struct {
 	path     string
 	abstract string
 }
+*/
+
+type EntityExtensions struct {
+}
 
 var Registries = map[string]*Registry{}
 
@@ -164,14 +173,14 @@ func GetRegistry(url string) (*Registry, error) {
 
 	reg = &Registry{
 		Entity: Entity{
-			daType:   ENTITY_REGISTRY,
-			path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
-			abstract: "", // [GROUPS[/RESOURCES[/versions]]]
+			Type:     ENTITY_REGISTRY,
+			Path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
+			Abstract: "", // [GROUPS[/RESOURCES[/versions]]]
 		},
-		server: url,
-		config: map[string]any{},
+		// server: url,
+		// config: map[string]any{},
 	}
-	reg.Entity.registry = reg
+	reg.Entity.Registry = reg
 
 	Registries[url] = reg
 
@@ -179,7 +188,7 @@ func GetRegistry(url string) (*Registry, error) {
 }
 
 func (reg *Registry) GetServerURL() string {
-	return reg.server
+	return reg.GetStuffAsString("server")
 }
 
 func (reg *Registry) Refresh() error {
@@ -301,11 +310,13 @@ func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, erro
 	return HttpDo(verb, u.String(), body)
 }
 
+/*
 func (m *Model) SetPointers() {
 	for _, gm := range m.Groups {
 		gm.SetModel(m)
 	}
 }
+*/
 
 func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	for _, group := range m.Groups {
@@ -316,6 +327,7 @@ func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	return nil
 }
 
+/*
 func (m *Model) FindGroupModel(plural string) *GroupModel {
 	return m.Groups[plural]
 }
@@ -384,13 +396,14 @@ func (gm *GroupModel) GetResourceList() []string {
 	}
 	return list
 }
+*/
 
 func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
-	if !strings.HasPrefix(reg.server, "http") {
-		reg.server = "http://" + strings.TrimLeft(reg.server, "/")
+	if !strings.HasPrefix(reg.GetStuffAsString("server"), "http") {
+		reg.SetStuff("server", "http://"+strings.TrimLeft(reg.GetServerURL(), "/"))
 	}
 
-	path = strings.TrimRight(reg.server, "/") + "/" +
+	path = strings.TrimRight(reg.GetStuffAsString("server"), "/") + "/" +
 		strings.TrimLeft(path, "/")
 
 	u, err := url.Parse(path)
@@ -447,20 +460,40 @@ func (rm *ResourceModel) HasDoc() bool {
 }
 
 func (reg *Registry) SetConfig(name string, value any) {
+	val, _ := reg.GetStuff("config")
+	config := map[string]any(nil)
+	if IsNil(val) {
+		config = map[string]any{}
+	} else {
+		config = val.(map[string]any)
+	}
+
 	name = strings.TrimSpace(name)
 	if value == nil {
-		delete(reg.config, name)
+		delete(config, name)
 	} else {
-		reg.config[name] = value
+		config[name] = value
 	}
+
+	reg.SetStuff("config", config)
 }
 
 func (reg *Registry) GetConfig(name string) any {
-	return reg.config[name]
+	val, ok := reg.GetStuff("config")
+	if !ok {
+		return nil
+	}
+	config := map[string]any(nil)
+	if IsNil(val) {
+		config = map[string]any{}
+	} else {
+		config = val.(map[string]any)
+	}
+	return config[name]
 }
 
 func (reg *Registry) GetConfigAsString(name string) string {
-	val := reg.config[name]
+	val := reg.GetConfig(name)
 
 	if IsNil(val) {
 		return ""
@@ -498,5 +531,11 @@ func (reg *Registry) LoadConfigFromString(buffer string) error {
 		}
 		reg.SetConfig(name, value)
 	}
+	return nil
+}
+
+var PropsFuncs = []*Attribute{}
+
+func (rm *ResourceModel) VerifyData() error {
 	return nil
 }

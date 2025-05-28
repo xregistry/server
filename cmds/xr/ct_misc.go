@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/xregistry/server/cmds/xr/xrlib"
-	"github.com/xregistry/server/registry"
 )
 
 func TestSniffTest(td *TD) {
@@ -39,7 +38,7 @@ func TestLoadModel(td *TD) {
 	td.MustEqual(res.Code, 200, "'GET /model' MUST return 200")
 	td.MustNotEqual(res.Body, nil, "The model MUST NOT be empty")
 
-	_, err = registry.ParseModel(res.Body)
+	_, err = xrlib.ParseModel(res.Body)
 	td.MustEqual(err, nil, "Parsing model should work")
 
 	// td.Log("Model:\n%s", xrlib.ToJSON(data))

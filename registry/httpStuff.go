@@ -116,6 +116,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err = ParseRequest(tx, w, r)
+	tx.RequestInfo = info
 
 	if err != nil {
 		if info.StatusCode == 0 {

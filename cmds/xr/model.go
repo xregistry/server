@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
 )
 
 func addModelCmd(parent *cobra.Command) {
@@ -176,7 +175,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 		// Error("%s%s", fileName, err)
 	}
 
-	model := &registry.Model{}
+	model := &xrlib.Model{}
 
 	if err := Unmarshal(buf, model); err != nil {
 		return err
@@ -261,7 +260,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	res, err := reg.HttpDo("GET", "/model", nil)
 	Error(err)
 
-	model, err := registry.ParseModel(res.Body)
+	model, err := xrlib.ParseModel(res.Body)
 	Error(err)
 
 	if output == "json" {
@@ -349,7 +348,7 @@ func PrintLabels(labels map[string]string, indent string, w io.Writer) {
 	}
 }
 
-func PrintAttributes(prefix string, attrs registry.Attributes,
+func PrintAttributes(prefix string, attrs xrlib.Attributes,
 	singular string, indent string, w io.Writer, all bool) {
 
 	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 1, ' ', 0)
@@ -372,7 +371,7 @@ func PrintAttributes(prefix string, attrs registry.Attributes,
 			if singular != "" && aName == singular+"id" {
 				continue
 			}
-			if registry.SpecProps[aName] != nil {
+			if xrlib.SpecProps[aName] != nil {
 				continue
 			}
 		}

@@ -73,7 +73,11 @@ unittest:
 xrserver: cmds/xrserver/* registry/* common/*
 	@echo
 	@echo "# Building xrserver"
-	go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
+	@echo "# Copying shared files"
+	@sed "s/XXX/registry/g" common/shared_entities > registry/shared_entities.go
+	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
+	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
+		go build $(BUILDFLAGS) -o $@ cmds/xrserver/*.go
 
 xrserver-all: .xrserver-all
 .xrserver-all: xrserver
@@ -85,10 +89,14 @@ xrserver-all: .xrserver-all
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
 	@touch .xrserver-all
 
-xr: cmds/xr/* registry/* common/*
+xr: cmds/xr/* common/*
 	@echo
 	@echo "# Building xr (cli)"
-	go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
+	@echo "# Copying shared files"
+	@sed "s/XXX/xrlib/g" common/shared_entities > cmds/xr/xrlib/shared_entities.go
+	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
+	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
+		go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
 
 docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
@@ -117,7 +125,7 @@ xr-all: .xr-all
 	@touch .xr-all
 
 images: .images
-.images: cmds docs misc/waitformysql \
+.images: .cmds docs misc/waitformysql \
 		misc/Dockerfile-xr misc/Dockerfile-xrserver misc/Dockerfile-all \
 		misc/start
 	@echo
@@ -129,11 +137,14 @@ ifdef XR_SPEC
 		(echo "# Copy xReg spec files so 'docker build' gets them" && \
 		cp -r "$(XR_SPEC)/"* .spec/  )
 endif
-	@misc/errOutput docker build -f misc/Dockerfile-xr \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xr --no-cache ." \
+	    docker build -f misc/Dockerfile-xr \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XR_IMAGE) --no-cache .
-	@misc/errOutput docker build -f misc/Dockerfile-xrserver \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xrserver --no-cache ." \
+	    docker build -f misc/Dockerfile-xrserver \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE) --no-cache .
-	@misc/errOutput docker build -f misc/Dockerfile-all \
+	@misc/errOutput -"docker build -f misc/Dockerfile-all --no-cache ." \
+	    docker build -f misc/Dockerfile-all \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
 		--no-cache .
 	@rm -rf .spec
@@ -255,6 +266,7 @@ testdev: devimage
 clean:
 	@echo
 	@echo "# Cleaning"
+	@rm -f cmds/xr/xrl/shared_*.go registry/shared_.go
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*

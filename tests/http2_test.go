@@ -553,7 +553,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	xNoErr(t, err)
 	xCheck(t, f1 != nil, "f1 should not be nil")
 
-	xNoErr(t, f1.SetCommitMeta("readonly", true))
+	xNoErr(t, f1.SetSaveMeta("readonly", true))
 
 	xHTTP(t, reg, "GET", "/dirs/dir1/files?inline=meta", "", 200, `{
   "f1": {

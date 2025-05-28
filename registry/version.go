@@ -7,19 +7,10 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-type Version struct {
-	Entity
-	Resource *Resource
-}
-
 var _ EntitySetter = &Version{}
 
 func (v *Version) Get(name string) any {
 	return v.Entity.Get(name)
-}
-
-func (v *Version) SetCommit(name string, val any) error {
-	return v.Entity.eSetCommit(name, val)
 }
 
 func (v *Version) JustSet(name string, val any) error {

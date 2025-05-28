@@ -4,6 +4,10 @@
 /xrserver.*
 /xr.*
 
+# Generated source code
+/registry/shared.go
+/cmds/xr/xrlib/shared.go
+
 # Makefile semi-targets
 /.cmds
 /.test
