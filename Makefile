@@ -50,7 +50,7 @@ utest: .utest
 	@touch .utest
 
 test: .test .testimages
-.test: sharedfiles .cmds */*test.go
+.test: .sharedfiles .cmds */*test.go
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
@@ -70,16 +70,16 @@ unittest:
 	@echo go test -failfast ./registry
 	@$(GO_TEST) ./registry
 
-sharedfiles: registry/shared* cmds/xr/xrlib/shared*
-registry/shared* cmds/xr/xrlib/shared*: common/shared*
+.sharedfiles: common/shared*
 	@echo
 	@echo "# Copying shared files"
 	@sed "s/XXX/registry/g" common/shared_entities > registry/shared_entities.go
 	@sed "s/XXX/xrlib/g" common/shared_entities > cmds/xr/xrlib/shared_entities.go
 	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
 	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
+	touch .sharedfiles
 
-xrserver: sharedfiles cmds/xrserver/* registry/* common/*
+xrserver: .sharedfiles cmds/xrserver/* registry/* common/*
 	@echo
 	@echo "# Building xrserver"
 	@misc/errOutput -"go build -o $@ cmds/xrserver/*.go" \
@@ -95,7 +95,7 @@ xrserver-all: .xrserver-all
 	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
 	@touch .xrserver-all
 
-xr: sharedfiles cmds/xr/* common/*
+xr: .sharedfiles cmds/xr/* common/*
 	@echo
 	@echo "# Building xr (cli)"
 	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
@@ -273,7 +273,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .test .images .push .xr-all .xrserver-all
+	@rm -f .sharedfiles .test .images .push .xr-all .xrserver-all
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1

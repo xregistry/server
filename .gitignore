@@ -18,6 +18,7 @@
 /.push
 /.xr-all
 /.xrserver-all
+/.sharedfiles
 
 # Junk
 /hostit

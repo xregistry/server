@@ -7,9 +7,7 @@ import (
 	"net/http"
 	gourl "net/url"
 	"os"
-	"path"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -158,22 +156,6 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 	if tx != nil {
 		tx.Commit()
 	}
-}
-
-func Caller() string {
-	_, me, _, _ := runtime.Caller(0)
-
-	for depth := 1; ; depth++ {
-		_, file, line, ok := runtime.Caller(depth)
-		if !ok {
-			break
-		}
-		if file != me {
-			return fmt.Sprintf("%s:%d", path.Base(file), line)
-		}
-
-	}
-	return "unknownFile"
 }
 
 func Fail(t *testing.T, str string, args ...any) {
