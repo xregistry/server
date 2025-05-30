@@ -106,6 +106,17 @@ func TestModelLabels(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -587,6 +598,17 @@ func TestModelLabels(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -975,7 +997,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
   "labels": {
     "reg-label": "reg-value"
   },
@@ -996,6 +1018,29 @@ func TestModelLabels(t *testing.T) {
     }
   }
 }`, 200, `{
+  "labels": {
+    "reg-label": "reg-value"
+  },
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "labels": {
+        "g-label": "g-value"
+      },
+      "resources": {
+        "files": {
+          "singular": "file",
+          "labels": {
+            "r-label": "r-value"
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", ``, 200, `{
   "labels": {
     "reg-label": "reg-value"
   },
@@ -1074,6 +1119,17 @@ func TestModelLabels(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -1640,6 +1696,7 @@ func TestUseSpecAttrs(t *testing.T) {
     "meta": 4,
     "metaurl": 7,
     "model": 5,
+    "modelsource": 11,
     "modifiedat": 10,
     "name": 4,
     "readonly": 8,
@@ -1795,6 +1852,10 @@ func TestUseSpecAttrs(t *testing.T) {
             "name": "model",
             "type": "integer"
           },
+          "modelsource": {
+            "name": "modelsource",
+            "type": "integer"
+          },
           "modifiedat": {
             "name": "modifiedat",
             "type": "integer"
@@ -1845,6 +1906,17 @@ func TestUseSpecAttrs(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {
@@ -2026,6 +2098,10 @@ func TestUseSpecAttrs(t *testing.T) {
               },
               "model": {
                 "name": "model",
+                "type": "integer"
+              },
+              "modelsource": {
+                "name": "modelsource",
                 "type": "integer"
               },
               "modifiedat": {
@@ -2278,6 +2354,10 @@ func TestUseSpecAttrs(t *testing.T) {
                   },
                   "model": {
                     "name": "model",
+                    "type": "integer"
+                  },
+                  "modelsource": {
+                    "name": "modelsource",
                     "type": "integer"
                   },
                   "modifiedat": {
@@ -2561,6 +2641,10 @@ func TestUseSpecAttrs(t *testing.T) {
                     "name": "model",
                     "type": "integer"
                   },
+                  "modelsource": {
+                    "name": "modelsource",
+                    "type": "integer"
+                  },
                   "modifiedat": {
                     "name": "modifiedat",
                     "type": "integer"
@@ -2654,6 +2738,7 @@ func TestUseSpecAttrs(t *testing.T) {
         "meta": 4,
         "metaurl": 7,
         "model": 5,
+        "modelsource": 11,
         "modifiedat": 10,
         "name": 4,
         "readonly": 8,
@@ -2702,6 +2787,7 @@ func TestUseSpecAttrs(t *testing.T) {
             "meta": 4,
             "metaurl": 7,
             "model": 5,
+            "modelsource": 11,
             "modifiedat": 10,
             "name": 4,
             "readonly": 8,
@@ -2748,6 +2834,7 @@ func TestUseSpecAttrs(t *testing.T) {
               "meta": 4,
               "metaurl": 7,
               "model": 5,
+              "modelsource": 11,
               "modifiedat": 10,
               "name": 4,
               "readonly": 8,
@@ -2800,6 +2887,7 @@ func TestUseSpecAttrs(t *testing.T) {
                 "meta": 4,
                 "metaurl": 7,
                 "model": 5,
+                "modelsource": 11,
                 "modifiedat": 10,
                 "name": 4,
                 "readonly": 8,
@@ -2827,7 +2915,7 @@ func TestModelCompatibleWith(t *testing.T) {
 	reg := NewRegistry("TestModelCompatibleWith")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -2854,6 +2942,35 @@ func TestModelCompatibleWith(t *testing.T) {
     }
   }
 }`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "modelversion": "1.0",
+      "compatiblewith": "some-url1",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "modelversion": "3.1",
+          "compatiblewith": "some-url2"
+        },
+        "datas": {
+          "plural": "datas",
+          "singular": "data",
+          "modelversion": "3.2"
+        },
+        "foos": {
+          "plural": "foos",
+          "singular": "foo",
+          "compatiblewith": "some-url3"
+        }
+      }
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -2929,6 +3046,17 @@ func TestModelCompatibleWith(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -3905,7 +4033,353 @@ func TestModelIncludes(t *testing.T) {
 	buf, err := os.ReadFile("files/sample-model.json")
 	xNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/model", string(buf), 200, `{
+	xHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
+  "attributes": {
+    "specversion": {
+      "type": "string",
+      "readonly": true,
+      "required": true,
+      "default": "1.0-rc1"
+    },
+    "registryid": {
+      "type": "string",
+      "immutable": true,
+      "readonly": true,
+      "required": true
+    },
+    "self": {
+      "type": "url",
+      "immutable": true,
+      "readonly": true,
+      "required": true
+    },
+    "xid": {
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "documentation": {
+      "type": "url"
+    },
+    "labels": {
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "type": "object",
+      "attributes": {
+        "*": {
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "attributes": {
+        "*": {
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "type": "url",
+      "immutable": true,
+      "readonly": true,
+      "required": true
+    },
+    "dirscount": {
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "documentation": {
+          "type": "url"
+        },
+        "labels": {
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "type": "timestamp",
+          "required": true
+        },
+        "filesurl": {
+          "type": "url",
+          "immutable": true,
+          "readonly": true,
+          "required": true
+        },
+        "filescount": {
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "type": "any"
+              }
+            }
+          }
+        }
+      },
+      "resources": {
+        "files": {
+          "singular": "file",
+          "attributes": {
+            "fileid": {
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "versionid": {
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "type": "url",
+              "immutable": true,
+              "readonly": true,
+              "required": true
+            },
+            "xid": {
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "epoch": {
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "name": {
+              "type": "string"
+            },
+            "isdefault": {
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "description": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "url"
+            },
+            "labels": {
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "type": "timestamp",
+              "required": true
+            },
+            "contenttype": {
+              "type": "string"
+            },
+            "versionsurl": {
+              "type": "url",
+              "immutable": true,
+              "readonly": true,
+              "required": true
+            },
+            "versionscount": {
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          },
+          "metaattributes": {
+            "fileid": {
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "type": "url",
+              "immutable": true,
+              "readonly": true,
+              "required": true
+            },
+            "xid": {
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xref": {
+              "type": "url"
+            },
+            "epoch": {
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "readonly": {
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "compatibility": {
+              "type": "string",
+              "enum": [
+                "none",
+                "backward",
+                "backward_transitive",
+                "forward",
+                "forward_transitive",
+                "full",
+                "full_transitive"
+              ],
+              "required": true,
+              "default": "none"
+            },
+            "compatibilityauthority": {
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ]
+            },
+            "deprecated": {
+              "type": "object",
+              "attributes": {
+                "effective": {
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "type": "timestamp"
+                },
+                "alternative": {
+                  "type": "url"
+                },
+                "docs": {
+                  "type": "url"
+                },
+                "*": {
+                  "type": "any"
+                }
+              }
+            },
+            "defaultversionid": {
+              "type": "string",
+              "required": true
+            },
+            "defaultversionurl": {
+              "type": "url",
+              "readonly": true,
+              "required": true
+            },
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -3982,6 +4456,17 @@ func TestModelIncludes(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -4373,7 +4858,22 @@ func TestModelIncludes(t *testing.T) {
 	buf, err = os.ReadFile("files/dir/model-dirs-inc-docs.json")
 	xNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/model", string(buf), 200, `{
+	xHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "$include": "http://localhost:8282/dir/model-docs.json#groups"
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", string(buf), 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -4449,6 +4949,17 @@ func TestModelIncludes(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -5231,7 +5742,7 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/model", str, 400,
+	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		"Not allowed to access file: ../foo.json\n")
 
 	// Another bad one - using /foo
@@ -5251,7 +5762,7 @@ func TestModelIncludes(t *testing.T) {
   }
 }
 `
-	xHTTP(t, reg, "PUT", "/model", str, 400,
+	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		"Not allowed to access file: /foo.json\n")
 
 	// Another bad one - 404 url
@@ -5272,7 +5783,7 @@ func TestModelIncludes(t *testing.T) {
   }
 }
 `
-	xHTTP(t, reg, "PUT", "/model", str, 400,
+	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`Get "http://bogus.bogus.bogus.bogus.com/bogus.json": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host
 `)
 
@@ -5283,7 +5794,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/model", str, 200, `{
+	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+  "$include": "http://localhost:8282/dir/model-dirs-inc-docs.json"
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", str, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -5359,6 +5875,17 @@ func TestModelIncludes(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -6130,7 +6657,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/model", str, 200, `{
+	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+  "$include": "http://localhost:8282/dir/model-dirs-inc-docs-indirect.json"
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -6206,6 +6738,17 @@ func TestModelIncludes(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -6977,7 +7520,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/model", str, 200, `{
+	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+  "$include": "http://localhost:8282/dir/model-dirs-inc-docs-indirect2.json"
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -7053,6 +7601,17 @@ func TestModelIncludes(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -7824,7 +8383,7 @@ func TestModelMissingFields(t *testing.T) {
 	reg := NewRegistry("TestModelMissingFields")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
   "attributes": {
     "specversion": {
 	  "type": "string",
@@ -7876,6 +8435,60 @@ func TestModelMissingFields(t *testing.T) {
     }
   }
 }`, 200, `{
+  "attributes": {
+    "specversion": {
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "regext": {
+      "type": "string"
+    }
+  },
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "gext": {
+          "type": "string"
+        }
+      },
+      "resources": {
+        "files": {
+          "singular": "file",
+          "attributes": {
+            "fileid": {
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "rext": {
+              "type": "integer"
+            }
+          },
+          "metaattributes": {
+            "fileid": {
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "mext": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -7955,6 +8568,17 @@ func TestModelMissingFields(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {

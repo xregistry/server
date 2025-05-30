@@ -88,6 +88,17 @@ func TestNoModel(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -184,6 +195,17 @@ func TestNoModel(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {
@@ -284,6 +306,7 @@ func TestGroupModelCreate(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
       "attributes": {
         "*": {
           "name": "*",
@@ -291,175 +314,8 @@ func TestGroupModelCreate(t *testing.T) {
         }
       }
     },
-    "dirsurl": {
-      "name": "dirsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirscount": {
-      "name": "dirscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs": {
-      "name": "dirs",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    }
-  },
-  "groups": {
-    "dirs": {
-      "plural": "dirs",
-      "singular": "dir",
-      "attributes": {
-        "dirid": {
-          "name": "dirid",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        }
-      }
-    }
-  }
-}
-`)
-
-	xCheckGet(t, reg, "/model", `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
-    },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
-      "type": "url"
-    },
-    "labels": {
-      "name": "labels",
-      "type": "map",
-      "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -637,6 +493,205 @@ func TestGroupModelCreate(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	xCheckGet(t, reg, "/model", `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -871,6 +926,17 @@ func TestResourceModelCreate(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -1713,6 +1779,17 @@ func TestResourceModelCreate(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -2264,6 +2341,17 @@ func TestResourceModelCreate(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -2818,6 +2906,17 @@ func TestResourceModelCreate(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -3282,6 +3381,17 @@ func TestResourceModelCreate(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -3779,6 +3889,17 @@ func TestResourceModelCreate(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -4265,6 +4386,17 @@ func TestResourceModelCreate(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {
@@ -4783,6 +4915,17 @@ func TestResourceModelCreate(t *testing.T) {
       "model": {
         "name": "model",
         "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
         "attributes": {
           "*": {
             "name": "*",
@@ -5272,6 +5415,17 @@ func TestResourceModelCreate(t *testing.T) {
       "model": {
         "name": "model",
         "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
         "attributes": {
           "*": {
             "name": "*",
@@ -5481,6 +5635,17 @@ func TestResourceModelCreate(t *testing.T) {
       "model": {
         "name": "model",
         "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
         "attributes": {
           "*": {
             "name": "*",
@@ -5685,6 +5850,17 @@ func TestMultModelCreate(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -7149,6 +7325,17 @@ func TestMultModel2Create(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {

@@ -1,12 +1,12 @@
-{ 
+{
   "groups": {
     "docs": {
       "singular": "doc",
       "resources": {
         "formats": {
           "singular": "format"
-        } 
+        }
       }
-    } 
-  } 
+    }
+  }
 }

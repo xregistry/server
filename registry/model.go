@@ -263,6 +263,27 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	return nil
 }
 
+func (m *Model) ApplyNewModelFromJSON(buf []byte) error {
+	modelSource := string(buf)
+	if modelSource == "" {
+		modelSource = "{}"
+	}
+
+	// Don't allow local files to be included (e.g. ../foo)
+	buf, err := ProcessIncludes("", buf, false)
+	if err != nil {
+		return err
+	}
+
+	model, err := ParseModel(buf)
+	if err != nil {
+		return err
+	}
+	model.Source = modelSource
+
+	return m.ApplyNewModel(model)
+}
+
 func (rm *ResourceModel) VerifyData() error {
 	reg := rm.GroupModel.Model.Registry
 

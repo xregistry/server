@@ -1,13 +1,13 @@
-{ 
+{
   "groups": {
     "dirs": {
       "singular": "dir",
       "resources": {
         "files": {
           "singular": "file"
-        } 
+        }
       }
-    } ,
+    },
     "$include": "http://localhost:8282/dir/model-docs.json#groups"
-  } 
+  }
 }

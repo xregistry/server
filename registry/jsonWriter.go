@@ -258,7 +258,7 @@ func (jw *JsonWriter) WriteEntity() error {
 		}
 
 		// Can't figure out how to do this via the props table
-		if key == "capabilities" || key == "model" {
+		if key == "capabilities" || key == "model" || key == "modelsource" {
 			if !jw.didCapModelSpace {
 				addSpace = true
 				jw.didCapModelSpace = true

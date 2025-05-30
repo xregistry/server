@@ -1188,6 +1188,27 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
+		Name: "modelsource",
+		internals: &AttrInternals{
+			getFn: func(e *Entity) any {
+				// Need to explicitly ask for "modelsource", ?inline=* won't
+				// do it
+				info := e.GetRequestInfo()
+				if info != nil && info.ShouldInline(NewPPP("modelsource").DB()) {
+					model := info.Registry.Model
+					if model == nil || model.Source == "" {
+						return struct{}{}
+					}
+
+					obj, err := ParseJSONToObject([]byte(model.Source))
+					PanicIf(err != nil, "Failed: %s", err)
+					return obj
+				}
+				return nil
+			},
+		},
+	},
+	{
 		Name:      "readonly",
 		internals: &AttrInternals{},
 	},
@@ -1989,11 +2010,12 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				}
 			}
 
-			// Skip 'dontStore' attrs
+			// Skip/remove 'dontStore' attrs
 			if attr.internals != nil && attr.internals.dontStore {
 				// TODO find a way to allow an admin to set the
 				// meta.ReadOnly flag itself
 				delete(objKeys, key) // Remove from to-process list
+				delete(newObj, key)
 				continue
 			}
 

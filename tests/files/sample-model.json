@@ -145,26 +145,26 @@
         },
 
         "filesurl": {
-           "type": "url",
-           "immutable": true,
-           "readonly": true,
-           "required": true
+          "type": "url",
+          "immutable": true,
+          "readonly": true,
+          "required": true
         },
         "filescount": {
-           "type": "uinteger",
-           "readonly": true,
-           "required": true
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
         },
         "files": {
-           "type": "map",
-           "item": {
-             "type": "object",
-             "attributes": {
-               "*": {
-                 "type": "any"
-               }
-             }
-           }
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "type": "any"
+              }
+            }
+          }
         }
       },
       "resources": {

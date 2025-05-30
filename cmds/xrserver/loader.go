@@ -547,10 +547,22 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	gm, _ := reg.Model.AddGroupModel("documents", "document")
-	gm.AddResourceModel("formats", "format", 0, true, true, true)
+	// Use JSON for this model so that "modelsource" has something in it
+	ErrFatalf(reg.Model.ApplyNewModelFromJSON([]byte(`{
+      "groups": {
+        "documents": {
+          "singular": "document",
+          "resources": {
+            "formats": {
+              "singular": "format"
+            }
+          }
+        }
+      }
+    }
+    `)))
 
-	ErrFatalf(reg.Model.VerifyAndSave())
+	// ErrFatalf(reg.Model.VerifyAndSave())
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")

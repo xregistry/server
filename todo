@@ -111,14 +111,11 @@ TODOs:
   ID. `ancestor=request`
 - add RESOURCEbase64 to model
 - don't allow people to change the Singular name of a groupType or resType
-- add "resourceattributes" to the model
-- add "versionmode"
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
 - support <, <=, >, >=, <>, !=
   - make sure * can't be used when using <, >... just =, <> and !=
   - case insensitive compares
-- support modelsource
-
-on PUT / process "model" immediately before we look at data
-POST / need to return better error when extra stuff is at the root
+- support "resourceattributes" to the model
+- support "versionmode"
+- clean-up the patch/merging of capabilities

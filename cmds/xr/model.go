@@ -241,7 +241,7 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("Missing model data")
 	}
 
-	_, err = reg.HttpDo("PUT", "/model", []byte(buf))
+	_, err = reg.HttpDo("PUT", "/modelsource", []byte(buf))
 	Error(err)
 	Verbose("Model updated")
 }
@@ -415,7 +415,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model, err := reg.GetModel()
+	model, err := reg.GetModelSource()
 	Error(err)
 	verMsg := ""
 	for _, arg := range args {
@@ -464,7 +464,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/model", buf)
+	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
 	Verbose(verMsg)
 }
@@ -483,7 +483,7 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model, err := reg.GetModel()
+	model, err := reg.GetModelSource()
 	Error(err)
 	verMsg := ""
 	for _, arg := range args {
@@ -509,7 +509,7 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/model", buf)
+	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
 	Verbose(verMsg)
 }
@@ -531,7 +531,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model, err := reg.GetModel()
+	model, err := reg.GetModelSource()
 	Error(err)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
@@ -584,7 +584,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/model", buf)
+	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
 	Verbose(verMsg)
 }
@@ -608,7 +608,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model, err := reg.GetModel()
+	model, err := reg.GetModelSource()
 	Error(err)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
@@ -639,7 +639,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/model", buf)
+	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
 	Verbose(verMsg)
 }

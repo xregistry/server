@@ -139,6 +139,17 @@ func TestHTTPModel(t *testing.T) {
       "model": {
         "name": "model",
         "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
         "attributes": {
           "*": {
             "name": "*",
@@ -239,6 +250,17 @@ func TestHTTPModel(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -251,11 +273,38 @@ func TestHTTPModel(t *testing.T) {
 `,
 	})
 
-	// Create model tests
+	// Error creating - wrong endpoint
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Create empty model",
 		URL:        "/model",
 		Method:     "PUT",
+		ReqHeaders: []string{},
+		ReqBody:    `{}`,
+
+		Code:       400,
+		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
+		ResBody: `Use "/modelsource" instead of "/model"
+`,
+	})
+
+	// Create model tests
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Create empty model",
+		URL:        "/modelsource",
+		Method:     "PUT",
+		ReqHeaders: []string{},
+		ReqBody:    `{}`,
+
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "check Create empty model",
+		URL:        "/model",
+		Method:     "GET",
 		ReqHeaders: []string{},
 		ReqBody:    `{}`,
 
@@ -338,6 +387,17 @@ func TestHTTPModel(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -352,7 +412,7 @@ func TestHTTPModel(t *testing.T) {
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Create model - defaults",
-		URL:        "/model",
+		URL:        "/modelsource",
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -367,9 +427,35 @@ func TestHTTPModel(t *testing.T) {
         }
       }
     }
+
   }
 }`,
 
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file"
+        }
+      }
+    }
+  }
+}
+`,
+	})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Create model - defaults",
+		URL:        "/model",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
@@ -448,6 +534,17 @@ func TestHTTPModel(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -840,7 +937,7 @@ func TestHTTPModel(t *testing.T) {
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Create model - full",
-		URL:        "/model",
+		URL:        "/modelsource",
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -863,6 +960,35 @@ func TestHTTPModel(t *testing.T) {
   }
 }`,
 
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false
+        }
+      }
+    }
+  }
+}
+`})
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Create model - full",
+		URL:        "/model",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    ``,
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
@@ -941,6 +1067,17 @@ func TestHTTPModel(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -1321,7 +1458,7 @@ func TestHTTPModel(t *testing.T) {
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "Modify description",
-		URL:        "/model",
+		URL:        "/modelsource",
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -1345,7 +1482,41 @@ func TestHTTPModel(t *testing.T) {
     }
   }
 }`,
+		Code:       200,
+		ResHeaders: []string{"Content-Type:application/json"},
+		ResBody: `{
+  "attributes": {
+    "description": {
+      "name": "description",
+      "type": "string",
+      "enum": [
+        "one",
+        "two"
+      ]
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file"
+        }
+      }
+    }
+  }
+}
+`,
+	})
 
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Modify description",
+		URL:        "/model",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    ``,
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
@@ -1428,6 +1599,17 @@ func TestHTTPModel(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {
@@ -3342,7 +3524,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		ReqBody:    `{"name": "foo"}`,
 		Code:       400,
 		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
-		ResBody:    "Body must be a map of Group types\n",
+		ResBody:    "POST / only allows Group types to be specified. \"name\" is invalid\n",
 	})
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -3352,7 +3534,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		ReqBody:    `{"name": { "foo":{} } }`,
 		Code:       400,
 		ResHeaders: []string{"Content-Type:text/plain; charset=utf-8"},
-		ResBody:    "Unknown Group type: name\n",
+		ResBody:    "POST / only allows Group types to be specified. \"name\" is invalid\n",
 	})
 
 	// Make sure nothing changed at the registry level

@@ -60,6 +60,7 @@ func IsValidID(id string) error {
 
 type Model struct {
 	Registry   *Registry              `json:"-"`
+	Source     string                 `json:"source,omitempty"`
 	Labels     map[string]string      `json:"labels,omitempty"`
 	Attributes Attributes             `json:"attributes,omitempty"`
 	Groups     map[string]*GroupModel `json:"groups,omitempty"` // Plural
@@ -67,7 +68,7 @@ type Model struct {
 	propsOrdered []*Attribute
 	propsMap     map[string]*Attribute // Attrs+calculated attrs
 	changed      bool
-	Stuff        map[string]any // random stuff to pass around
+	Stuff        map[string]any `json:"-"` // random stuff to pass around
 }
 
 type Attributes map[string]*Attribute // AttrName->Attr

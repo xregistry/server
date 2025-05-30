@@ -267,7 +267,23 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name: "model",
+		Name:     "model",
+		Type:     OBJECT,
+		ReadOnly: true,
+		Attributes: Attributes{
+			"*": &Attribute{
+				Name: "*",
+				Type: ANY,
+			},
+		},
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_REGISTRY),
+			dontStore: true,
+		},
+	},
+	{
+		Name: "modelsource",
 		Type: OBJECT,
 		Attributes: Attributes{
 			"*": &Attribute{

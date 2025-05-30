@@ -406,6 +406,17 @@ func TestHTTPModelSchema(t *testing.T) {
     "model": {
       "name": "model",
       "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
       "attributes": {
         "*": {
           "name": "*",
@@ -493,6 +504,17 @@ func TestHTTPModelSchema(t *testing.T) {
     },
     "model": {
       "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
       "type": "object",
       "attributes": {
         "*": {

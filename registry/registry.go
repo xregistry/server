@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -452,25 +453,23 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 
 	// Need to do it here instead of under the checkFn because doing it
 	// in checkfn causes a circular reference that golang doesn't like
-	val, ok := reg.NewObject["model"]
-	if ok && !IsNil(val) {
-		valStr := []byte(ToJSON(val))
-		// Don't allow local files to be included (e.g. ../foo)
-		data, err := ProcessIncludes("", valStr, false)
+	val, ok := reg.NewObject["modelsource"]
+	if ok {
+		// Notice that "null" means erase it, not "keep it as is"
+		var rawJson []byte
+
+		if IsNil(val) {
+			rawJson = []byte("{}")
+		} else {
+			rawJson = val.(json.RawMessage)
+		}
+
+		err := reg.Model.ApplyNewModelFromJSON(rawJson)
 		if err != nil {
 			return err
 		}
 
-		model, err := ParseModel(data)
-		if err != nil {
-			return err
-		}
-
-		err = reg.Model.ApplyNewModel(model)
-		if err != nil {
-			return err
-		}
-		delete(reg.NewObject, "model")
+		delete(reg.NewObject, "modelsource")
 	}
 
 	// Make sure we always have an ID

@@ -9,7 +9,7 @@ func TestModelXImportErrors(t *testing.T) {
 	reg := NewRegistry("TestModelXImportErrors")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -23,7 +23,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g2p" has an invalid "ximportresources" value (/g1p), must be of the form "/Group/Resource"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -37,7 +37,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g2p" references a non-existing Group "gxx"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -51,7 +51,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g2p" references a non-existing Resource "/g1p/xxx"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -64,7 +64,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Resource "r1p" has same value for "plural" and "singular"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -80,7 +80,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g1p" has a Resource "r2p" that has a duplicate "singular" name "r1s"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -94,7 +94,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g2p" has a duplicate Resource "plural" name "r1p"
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -110,7 +110,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Invalid model type name "R1S", must match: ^[a-z_][a-z_0-9]{0,57}$
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -130,7 +130,7 @@ func TestModelXImportErrors(t *testing.T) {
     }`, 400, `Group "g3p" references an imported Resource "/g2p/r1p", try using "/g1p/r1p" instead
 `)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -149,7 +149,7 @@ func TestModelXImport(t *testing.T) {
 	reg := NewRegistry("TestModel")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -172,9 +172,9 @@ func TestModelXImport(t *testing.T) {
 	// Erase everything, including the model itself
 	xHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
 	xHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
-	xHTTP(t, reg, "PUT", "/model", `{}`, 200, "*")
+	xHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "*")
 
-	xHTTP(t, reg, "PUT", "/model", `{
+	xHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",

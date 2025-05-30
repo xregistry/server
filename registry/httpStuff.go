@@ -388,6 +388,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		{"", "Registry Root"},
 		{"capabilities", "Capabilities"},
 		{"model", "Model"},
+		{"modelsource", "Model Source"},
 		{"export", "Export"},
 	}
 
@@ -477,6 +478,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		defaultInlines = (len(info.Inlines) == 3 &&
 			info.IsInlineSet(NewPPP("capabilities").DB()) &&
 			info.IsInlineSet(NewPPP("model").DB()) &&
+			info.IsInlineSet(NewPPP("modelsource").DB()) &&
 			info.IsInlineSet(NewPPP("*").DB()))
 	}
 
@@ -509,6 +511,18 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			inlines += fmt.Sprintf(`
     <div class=inlines>
       <input id=inline%d type='checkbox' value='model'`+checked+`/>model
+    </div>`, inlineCount)
+			inlineCount++
+			checked = ""
+
+			// ----
+
+			if !defaultInlines && info.IsInlineSet(NewPPP("modelsource").DB()) {
+				checked = " checked"
+			}
+			inlines += fmt.Sprintf(`
+    <div class=inlines>
+      <input id=inline%d type='checkbox' value='modelsource'`+checked+`/>modelsource
     </div>`, inlineCount)
 			inlineCount++
 			checked = ""
@@ -1215,6 +1229,32 @@ func HTTPGETModel(info *RequestInfo) error {
 	return nil
 }
 
+func HTTPGETModelSource(info *RequestInfo) error {
+	if len(info.Parts) > 1 {
+		info.StatusCode = http.StatusNotFound
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+	}
+
+	model := info.Registry.Model
+	if model == nil {
+		model = &Model{}
+	}
+	modelSrc := model.Source
+	if modelSrc == "" {
+		modelSrc = "{}"
+	}
+
+	buf, err := PrettyPrintJSON([]byte(modelSrc), "", "  ")
+	if err != nil {
+		return err
+	}
+
+	info.AddHeader("Content-Type", "application/json")
+	info.Write(buf)
+	info.Write([]byte("\n"))
+	return nil
+}
+
 func HTTPGETContent(info *RequestInfo) error {
 	log.VPrintf(3, ">Enter: HTTPGetContent")
 	defer log.VPrintf(3, "<Exit: HTTPGetContent")
@@ -1445,6 +1485,14 @@ func HTTPGet(info *RequestInfo) error {
 		return HTTPGETModel(info)
 	}
 
+	if info.RootPath == "modelsource" {
+		if !info.APIEnabled("/modelsource") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
+		return HTTPGETModelSource(info)
+	}
+
 	if info.RootPath == "capabilities" {
 		if !info.APIEnabled("/capabilities") {
 			info.StatusCode = http.StatusNotFound
@@ -1523,6 +1571,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		info.AddInline("*")
 		info.AddInline("capabilities")
 		info.AddInline("model")
+		info.AddInline("modelsource")
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1699,13 +1748,17 @@ func HTTPPutPost(info *RequestInfo) error {
 		return HTTPPUTCapabilities(info)
 	}
 
-	// The model has its own special func
 	if info.RootPath == "model" {
-		if !info.APIEnabled("/model") {
+		return fmt.Errorf("Use \"/modelsource\" instead of \"/model\"")
+	}
+
+	// The model has its own special func
+	if info.RootPath == "modelsource" {
+		if !info.APIEnabled("/modelsource") {
 			info.StatusCode = http.StatusNotFound
 			return fmt.Errorf("Not found")
 		}
-		return HTTPPUTModel(info)
+		return HTTPPUTModelSource(info)
 	}
 
 	// Load-up the body
@@ -1777,6 +1830,15 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
+
+		// Error on anything but a group type
+		for key, _ := range IncomingObj {
+			if info.Registry.Model.FindGroupModel(key) == nil {
+				return fmt.Errorf("POST / only allows Group types to be "+
+					"specified. %q is invalid", key)
+			}
+		}
+
 		objMap, err := IncomingObj2Map(IncomingObj)
 		if err != nil {
 			return fmt.Errorf("Body must be a map of Group types")
@@ -1784,6 +1846,7 @@ func HTTPPutPost(info *RequestInfo) error {
 
 		resPaths := map[string][]string{}
 		for gType, gAny := range objMap {
+			// Should be caught above, but just in case
 			if info.Registry.Model.Groups[gType] == nil {
 				return fmt.Errorf("Unknown Group type: %s", gType)
 			}
@@ -2383,7 +2446,31 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 		return err
 	}
 
-	cap, err := ParseCapabilitiesJSON(reqBody)
+	cap := &Capabilities{}
+
+	method := info.OriginalRequest.Method
+	if method == "PUT" {
+		// Fall thru
+	} else if method == "PATCH" {
+		// put current capabilities into a simple map
+		tmp := map[string]any{}
+		tmpJSON, _ := json.Marshal(info.Registry.Capabilities)
+		Must(Unmarshal(tmpJSON, &tmp))
+
+		// Now override wth anything new
+		err := Unmarshal(reqBody, &tmp)
+		if err != nil {
+			return err
+		}
+
+		reqBody, _ = json.Marshal(tmp)
+	} else {
+		info.StatusCode = http.StatusMethodNotAllowed
+		return fmt.Errorf("%s not allowed on '/capabilities'",
+			info.OriginalRequest.Method)
+	}
+
+	cap, err = ParseCapabilitiesJSON(reqBody)
 	if err != nil {
 		return err
 	}
@@ -2401,10 +2488,16 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 	return HTTPGETCapabilities(info)
 }
 
-func HTTPPUTModel(info *RequestInfo) error {
+func HTTPPUTModelSource(info *RequestInfo) error {
 	if len(info.Parts) > 1 {
 		info.StatusCode = http.StatusNotFound
 		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+	}
+
+	if info.OriginalRequest.Method != "PUT" {
+		info.StatusCode = http.StatusMethodNotAllowed
+		return fmt.Errorf("%s not allowed on '/modelsource'",
+			info.OriginalRequest.Method)
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
@@ -2413,23 +2506,12 @@ func HTTPPUTModel(info *RequestInfo) error {
 		return err
 	}
 
-	// Don't allow local files to be included (e.g. ../foo)
-	reqBody, err = ProcessIncludes("", reqBody, false)
+	err = info.Registry.Model.ApplyNewModelFromJSON(reqBody)
 	if err != nil {
 		return err
 	}
 
-	model, err := ParseModel(reqBody)
-	if err != nil {
-		return err
-	}
-
-	err = info.Registry.Model.ApplyNewModel(model)
-	if err != nil {
-		return err
-	}
-
-	return HTTPGETModel(info)
+	return HTTPGETModelSource(info)
 }
 
 // Process the ?setdefaultversionid query parameter
@@ -3019,6 +3101,18 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 		err := Unmarshal(body, &IncomingObj)
 		if err != nil {
 			return nil, err
+		}
+
+		// "modelsource" is sooo special! Don't parse it into a golang type
+		// keep it as []byte so that we preserve the order of the map keys
+		if len(info.Parts) == 0 && !IsNil(IncomingObj["modelsource"]) {
+			tmpReg := struct {
+				ModelSource json.RawMessage
+			}{}
+			if err := json.Unmarshal(body, &tmpReg); err != nil {
+				return nil, err
+			}
+			IncomingObj["modelsource"] = tmpReg.ModelSource
 		}
 
 		// Delete any json schema tag in there

@@ -18,7 +18,8 @@ func TestCapabilitySimple(t *testing.T) {
   "apis": [
     "/capabilities",
     "/export",
-    "/model"
+    "/model",
+    "/modelsource"
   ],
   "flags": [
     "collections",
@@ -65,7 +66,8 @@ func TestCapabilitySimple(t *testing.T) {
     "apis": [
       "/capabilities",
       "/export",
-      "/model"
+      "/model",
+      "/modelsource"
     ],
     "flags": [
       "collections",
@@ -275,7 +277,8 @@ func TestCapabilityPath(t *testing.T) {
   "apis": [
     "/capabilities",
     "/export",
-    "/model"
+    "/model",
+    "/modelsource"
   ],
   "flags": [
     "collections",
@@ -454,7 +457,7 @@ func TestCapabilityPath(t *testing.T) {
 	// Testing setting everything to the default
 	xHTTP(t, reg, "PUT", "/capabilities", `{
   "apis": [
-    "/capabilities", "/export", "/model"
+    "/capabilities", "/export", "/model", "/modelsource"
   ],
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
@@ -472,7 +475,8 @@ func TestCapabilityPath(t *testing.T) {
   "apis": [
     "/capabilities",
     "/export",
-    "/model"
+    "/model",
+    "/modelsource"
   ],
   "flags": [
     "collections",
@@ -510,7 +514,8 @@ func TestCapabilityPath(t *testing.T) {
   "apis": [
     "/capabilities",
     "/export",
-    "/model"
+    "/model",
+    "/modelsource"
   ],
   "flags": [
     "collections",
@@ -740,7 +745,7 @@ func TestCapabilityAttr(t *testing.T) {
 	// Testing setting everything to the default
 	// inline still disabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "apis": ["/export", "/model", "/capabilities"],
+  "apis": ["/export", "/model", "/modelsource", "/capabilities"],
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
@@ -768,7 +773,8 @@ func TestCapabilityAttr(t *testing.T) {
   "apis": [
     "/capabilities",
     "/export",
-    "/model"
+    "/model",
+    "/modelsource"
   ],
   "flags": [
     "collections",
@@ -1018,7 +1024,8 @@ func TestCapabilityOffered(t *testing.T) {
     "enum": [
       "/capabilities",
       "/export",
-      "/model"
+      "/model",
+      "/modelsource"
     ]
   },
   "flags": {
@@ -1110,6 +1117,7 @@ func TestCapabilityAPIs(t *testing.T) {
 	xHTTP(t, reg, "GET", "/capabilities", ``, 404, "Not found\n")
 	xHTTP(t, reg, "GET", "/export", ``, 404, "Not found\n")
 	xHTTP(t, reg, "GET", "/model", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/modelsource", ``, 404, "Not found\n")
 
 	// Open /capabilities back up
 	xHTTP(t, reg, "PUT", "/?inline=capabilities",
@@ -1239,6 +1247,17 @@ func TestCapabilityAPIs(t *testing.T) {
       "model": {
         "name": "model",
         "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
         "attributes": {
           "*": {
             "name": "*",
@@ -1247,10 +1266,12 @@ func TestCapabilityAPIs(t *testing.T) {
         }
       }
     }
-  }
+  },
+  "modelsource": {}
 }
 `)
 	xHTTP(t, reg, "GET", "/model", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/modelsource", ``, 404, "Not found\n")
 
 	// Some errors
 	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/foo"]}`, 400,
@@ -1261,6 +1282,91 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	xHTTP(t, reg, "PUT", "/capabilities", `{"apis":["export"]}`, 400,
 		`Unknown "apis" value: "export"
+`)
+
+}
+
+func TestCapabilityPatch(t *testing.T) {
+	reg := NewRegistry("TestCapabilityPatch")
+	defer PassDeleteReg(t, reg)
+
+	// Try to clear it all
+	xHTTP(t, reg, "PATCH", "/capabilities", `{
+      "flags": ["inline"],
+      "sticky": false
+    }`, 200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model",
+    "/modelsource"
+  ],
+  "flags": [
+    "inline"
+  ],
+  "mutable": [
+    "capabilities",
+    "entities",
+    "model"
+  ],
+  "pagination": false,
+  "schemas": [
+    "xregistry-json/1.0-rc1"
+  ],
+  "shortself": false,
+  "specversions": [
+    "1.0-rc1"
+  ],
+  "sticky": false
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
+  "capabilities": {
+    "flags": [ "inline", "filter" ],
+    "sticky": true
+}
+}`, 200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestCapabilityPatch",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "apis": [],
+    "flags": [
+      "filter",
+      "inline"
+    ],
+    "mutable": [],
+    "pagination": false,
+    "schemas": [
+      "xregistry-json/1.0-rc1"
+    ],
+    "shortself": false,
+    "specversions": [
+      "1.0-rc1"
+    ],
+    "sticky": true
+  }
+}
+`)
+
+}
+
+func TestCapabilityPost(t *testing.T) {
+	reg := NewRegistry("TestCapabilityPost")
+	defer PassDeleteReg(t, reg)
+
+	// Try to clear it all
+	xHTTP(t, reg, "POST", "/capabilities", `{}`, 405,
+		"POST not allowed on '/capabilities'\n")
+	xHTTP(t, reg, "POST", "/", `{
+  "capabilities": {}
+}`, 400, `POST / only allows Group types to be specified. "capabilities" is invalid
 `)
 
 }

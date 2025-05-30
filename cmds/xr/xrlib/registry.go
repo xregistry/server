@@ -214,6 +214,20 @@ func (reg *Registry) RefreshModel() error {
 			err, string(res.Body))
 	}
 	reg.Model.SetPointers()
+
+	res, err = reg.HttpDo("GET", "/modelsource", nil)
+	if err != nil {
+		return err
+	}
+
+	srcModel := Model{}
+
+	if err := json.Unmarshal(res.Body, &srcModel); err != nil {
+		return fmt.Errorf("Unable to parse registry modelsource: %s\n%s",
+			err, string(res.Body))
+	}
+	reg.Model.Source = string(res.Body)
+
 	return nil
 }
 
@@ -252,6 +266,23 @@ func (reg *Registry) GetModel() (*Model, error) {
 		}
 	}
 	return reg.Model, nil
+}
+
+func (reg *Registry) GetModelSource() (*Model, error) {
+	if reg.Model == nil {
+		err := reg.RefreshModel()
+		if err != nil {
+			return nil, err
+		}
+	}
+	tmpModel := Model{}
+	if reg.Model.Source != "" {
+		err := Unmarshal([]byte(reg.Model.Source), &tmpModel)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &tmpModel, nil
 }
 
 func (reg *Registry) GetCapabilities() (*Capabilities, error) {

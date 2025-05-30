@@ -1436,3 +1436,19 @@ func validateSlice(jsonData []interface{}, goType reflect.Type, goValue reflect.
 	}
 	return nil
 }
+
+// Assumes it's an object - for now
+/*
+func PrettyPrintJSON(buf []byte) ([]byte, error) {
+	if buf == nil {
+		return []byte("{}"), nil
+	}
+	tmp := map[string]any{}
+	err := Unmarshal(buf, &tmp)
+	if err != nil {
+		return nil, err
+	}
+	buf, _ = json.MarshalIndent(tmp, "", "  ")
+	return buf, nil
+}
+*/

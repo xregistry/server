@@ -45,7 +45,7 @@ type Offered struct {
 }
 
 var AllowableAPIs = ArrayToLower([]string{
-	"/capabilities", "/export", "/model"})
+	"/capabilities", "/export", "/model", "/modelsource"})
 
 var AllowableFlags = ArrayToLower([]string{
 	"collections", "doc", "epoch", "filter", "inline",

@@ -24,7 +24,7 @@ func TestExportBasic(t *testing.T) {
 	code, fullBody := xGET(t, "export")
 	xCheckEqual(t, "", code, 200)
 
-	code, manualBody := xGET(t, "?doc&inline=*,capabilities,model")
+	code, manualBody := xGET(t, "?doc&inline=*,capabilities,model,modelsource")
 	xCheckEqual(t, "", code, 200)
 	xCheckEqual(t, "", fullBody, manualBody)
 
@@ -41,7 +41,8 @@ func TestExportBasic(t *testing.T) {
     "apis": [
       "/capabilities",
       "/export",
-      "/model"
+      "/model",
+      "/modelsource"
     ],
     "flags": [
       "collections",
@@ -149,6 +150,17 @@ func TestExportBasic(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {
@@ -536,6 +548,7 @@ func TestExportBasic(t *testing.T) {
       }
     }
   },
+  "modelsource": {},
 
   "dirsurl": "#/dirs",
   "dirs": {
@@ -749,7 +762,8 @@ func TestExportBasic(t *testing.T) {
     "apis": [
       "/capabilities",
       "/export",
-      "/model"
+      "/model",
+      "/modelsource"
     ],
     "flags": [
       "collections",
@@ -879,6 +893,17 @@ func TestExportBasic(t *testing.T) {
       },
       "model": {
         "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
         "type": "object",
         "attributes": {
           "*": {

@@ -44,9 +44,10 @@ type RequestInfo struct {
 	extras map[string]any
 }
 
-var explicitInlines = []string{"capabilities", "model"}
+var explicitInlines = []string{"capabilities", "model", "modelsource"}
 var nonModelInlines = append([]string{"*"}, explicitInlines...)
-var rootPaths = []string{"capabilities", "model", "export", "proxy"}
+var rootPaths = []string{"capabilities", "model", "modelsource",
+	"export", "proxy"}
 
 type Inline struct {
 	Path    string    // value from ?inline query param
@@ -498,7 +499,9 @@ func (info *RequestInfo) ParseRequestPath() error {
 	if info.Registry.Model != nil && info.Registry.Model.Groups != nil {
 		gModel = info.Registry.Model.Groups[info.Parts[0]]
 	}
-	if gModel == nil && (info.Parts[0] != "model" || len(info.Parts) > 1) {
+	if gModel == nil &&
+		(!ArrayContains(rootPaths, info.Parts[0]) || len(info.Parts) > 1) {
+
 		info.StatusCode = http.StatusNotFound
 		return fmt.Errorf("Unknown Group type: %s", info.Parts[0])
 	}
