@@ -509,7 +509,7 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 		Error(err)
 		sort.Strings(gList)
 		for _, gName := range gList {
-			nextXid, err := ParseXid(xid.String() + "/" + gName)
+			nextXid, err := xid.AddPath(gName)
 			Error(err)
 			traverseFromXid(reg, nextXid, root, fn)
 		}
@@ -527,7 +527,7 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 
 		vList := SortedKeys(tmp)
 		for _, vName := range vList {
-			nextXid, err := ParseXid(xid.String() + "/" + vName)
+			nextXid, err := xid.AddPath(vName)
 			Error(err)
 			traverseFromXid(reg, nextXid, root, fn)
 		}
@@ -540,7 +540,7 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 		rList := gm.GetResourceList()
 		sort.Strings(rList)
 		for _, rName := range rList {
-			nextXid, err := ParseXid(xid.String() + "/" + rName)
+			nextXid, err := xid.AddPath(rName)
 			Error(err)
 			traverseFromXid(reg, nextXid, root, fn)
 		}
@@ -548,11 +548,11 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 	case ENTITY_RESOURCE:
 		fn(xid, false)
 
-		nextXid, err := ParseXid(xid.String() + "/meta")
+		nextXid, err := xid.AddPath("meta")
 		Error(err)
 		traverseFromXid(reg, nextXid, root, fn)
 
-		nextXid, err = ParseXid(xid.String() + "/versions")
+		nextXid, err = xid.AddPath("versions")
 		Error(err)
 		traverseFromXid(reg, nextXid, root, fn)
 

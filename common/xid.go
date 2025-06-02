@@ -341,3 +341,16 @@ func Xid2Abstract(str string) (string, error) {
 	}
 	return xid.ToAbstract(), nil
 }
+
+func (xid *Xid) AddPath(str string) (*Xid, error) {
+	if str == "" {
+		return xid, nil
+	}
+
+	xidStr := xid.String()
+	if xidStr[len(xidStr)-1] == '/' {
+		return ParseXid(xidStr + str)
+	}
+
+	return ParseXid(xidStr + "/" + str)
+}
