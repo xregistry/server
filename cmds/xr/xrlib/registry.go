@@ -181,6 +181,7 @@ func GetRegistry(url string) (*Registry, error) {
 		// config: map[string]any{},
 	}
 	reg.Entity.Registry = reg
+	reg.SetStuff("server", url)
 
 	Registries[url] = reg
 
@@ -430,11 +431,14 @@ func (gm *GroupModel) GetResourceList() []string {
 */
 
 func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
-	if !strings.HasPrefix(reg.GetStuffAsString("server"), "http") {
-		reg.SetStuff("server", "http://"+strings.TrimLeft(reg.GetServerURL(), "/"))
+	server := reg.GetServerURL()
+	PanicIf(server == "", "stuff.server isn't set")
+
+	if !strings.HasPrefix(server, "http") {
+		reg.SetStuff("server", "http://"+strings.TrimLeft(server, "/"))
 	}
 
-	path = strings.TrimRight(reg.GetStuffAsString("server"), "/") + "/" +
+	path = strings.TrimRight(server, "/") + "/" +
 		strings.TrimLeft(path, "/")
 
 	u, err := url.Parse(path)

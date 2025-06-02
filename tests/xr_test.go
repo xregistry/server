@@ -50,15 +50,20 @@ func TestXRBasic(t *testing.T) {
 	}
 }
 
-/*
 func TestXRModel(t *testing.T) {
+	reg := NewRegistry("TestXRModel")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
 	tests := []struct {
 		Args   []string
 		Stdin  string
 		Output string
 	}{
 		{
-			Args:   []string{"update", "/model", "-d", "@files/model-dirs.json"},
+			Args: []string{"model", "update", "-d",
+				"@files/dir/model-dirs-inc-docs.json"},
 			Stdin:  "",
 			Output: "",
 		},
@@ -74,7 +79,6 @@ func TestXRModel(t *testing.T) {
 		xCheckEqual(t, "", string(out), test.Output)
 	}
 }
-*/
 
 func TestXRServerBasic(t *testing.T) {
 	cmd := exec.Command("../xrserver", "-?")

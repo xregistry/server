@@ -170,13 +170,27 @@ type ResourceModel struct {
 	ModelVersion      string            `json:"modelversion,omitempty"`
 	CompatibleWith    string            `json:"compatiblewith,omitempty"`
 	Labels            map[string]string `json:"labels,omitempty"`
-	Attributes        Attributes        `json:"attributes,omitempty"`
-	MetaAttributes    Attributes        `json:"metaattributes,omitempty"`
 
-	propsOrdered        []*Attribute
-	propsMap            map[string]*Attribute
-	metaPropsOrdered    []*Attribute
-	metaPropsMap        map[string]*Attribute
+	// "Attributes" are really Version-level Attributes
+	Attributes Attributes `json:"attributes,omitempty"`
+	// "ResourceAttributes" are Resource-only (not Version)-level attributes
+	ResourceAttributes Attributes `json:"resourceattributes,omitempty"`
+	// "MetaAttributes" are Meta-level only attributes
+	MetaAttributes Attributes `json:"metaattributes,omitempty"`
+
+	// Props are all attributes than can appear on a Resource (so Res+Ver attr)
+	propsOrdered []*Attribute
+	propsMap     map[string]*Attribute
+
+	// Resource-only attrs
+	resourcePropsOrdered []*Attribute
+	resourcePropsMap     map[string]*Attribute
+
+	// Meta-only attrs
+	metaPropsOrdered []*Attribute
+	metaPropsMap     map[string]*Attribute
+
+	// Version-only attrs
 	versionPropsOrdered []*Attribute
 	versionPropsMap     map[string]*Attribute
 }
