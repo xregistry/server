@@ -377,7 +377,7 @@ func PrintAttributes(prefix string, attrs xrlib.Attributes,
 		}
 
 		if count == 0 {
-			fmt.Fprintln(ntw, "")
+			fmt.Println("")
 			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
 		}
 		count++

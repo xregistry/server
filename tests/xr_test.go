@@ -13,12 +13,17 @@ import (
 var RepoBase = "https://raw.githubusercontent.com/xregistry/spec/main"
 
 func TestXRBasic(t *testing.T) {
+	reg := NewRegistry("TestXRBasic")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
 	cmd := exec.Command("../xr")
 	out, err := cmd.CombinedOutput()
 	xNoErr(t, err)
 	lines, _, _ := strings.Cut(string(out), ":")
 
-	// Just look for the first 3 lines
+	// Just look for the first 3 lines of 'xr' look right
 	xCheckEqual(t, "", lines, "xRegistry CLI\n\nUsage")
 
 	// Make sure we can validate the various spec owned model files
@@ -48,6 +53,93 @@ func TestXRBasic(t *testing.T) {
 		}
 		xCheckEqual(t, "", string(out), "")
 	}
+
+	// Test for no server specified
+	os.Setenv("XR_SERVER", "localhost:8181")
+	cmd = exec.Command("../xr", "get")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), `{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 1,
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "registryid": "TestXRBasic",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc1",
+  "xid": "/"
+}
+`)
+	xNoErr(t, err)
+
+	cmd = exec.Command("../xr", "model", "group", "create", "-v", "dirs:dir")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), "Created Group type: dirs:dir\n")
+	xNoErr(t, err)
+
+	cmd = exec.Command("../xr", "model", "resource", "create", "-v",
+		"-g", "dirs", "files:file")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), "Created Resource type: files:file\n")
+	xNoErr(t, err)
+
+	cmd = exec.Command("../xr", "model", "get")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), `xRegistry Model:
+
+ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+dirs        map(object) -   -  y   
+dirscount   uinteger    y   y  y   
+dirsurl     url         y   y  -   
+
+GROUP: dirs / dir
+
+  ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+  files       map(object) -   -  y   
+  filescount  uinteger    y   y  y   
+  filesurl    url         y   y  -   
+
+  RESOURCE: files/ file
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
+    ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+    file          any         -   -  y   
+    fileproxyurl  url         -   -  y   
+    fileurl       url         -   -  y   
+    versions      map(object) -   -  y   
+    versionscount uinteger    y   y  y   
+    versionsurl   url         y   y  -   
+`)
+	xNoErr(t, err)
+
+	cmd = exec.Command("../xr", "create", "/dirs/d1/files/f1/versions/v1",
+		"-vd", "hello world")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), "Created: /dirs/d1/files/f1/versions/v1\n")
+
+	cmd = exec.Command("../xr", "get", "/dirs/d1/files/f1")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), "hello world\n")
+
+	cmd = exec.Command("../xr", "get", "/dirs/d1/files/f1$details")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 }
 
 func TestXRModel(t *testing.T) {

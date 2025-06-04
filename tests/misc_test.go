@@ -287,9 +287,16 @@ func TestConcurrency(t *testing.T) {
 
 	t.Logf("Json: %s", ToJSON(data))
 
+	// May need to check for 20 here (see below)
 	xCheckEqual(t, "", data.Epoch, 21)
 	xCheckEqual(t, "", data.DirsCount, 10)
-	xCheckEqual(t, "", data.Dirs["d1"].Epoch, 21)
+
+	// can be either depending on the order in which things are created
+	if data.Dirs["d1"].Epoch != 20 && data.Dirs["d1"].Epoch != 21 {
+		t.Fatalf("data.Dirs[d1].Epoch should be 20 or 21, got: %d",
+			data.Dirs["d1"].Epoch)
+	}
+
 	xCheckEqual(t, "", data.Dirs["d1"].FilesCount, 10)
 
 	// version "1" may not exist if a PUT .../vX arrives before PUT .../f1

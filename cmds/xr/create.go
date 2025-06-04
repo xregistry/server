@@ -182,21 +182,19 @@ func createFunc(cmd *cobra.Command, args []string) {
 		path = AddQuery(path, "noepoch")
 	}
 
-	_, err = reg.HttpDo(method, path, []byte(data))
+	res, err := reg.HttpDo(method, path, []byte(data))
 
 	Error(err)
-	Verbose("Processed: %s", IDs)
-	/*
-		if res.Code == 201 || (action == "create" && !xid.IsEntity) {
-			Verbose("Created: %s", IDs)
+	// Verbose("Processed: %s", IDs)
+	if res.Code == 201 || (action == "create" && !xid.IsEntity) {
+		Verbose("Created: %s", IDs)
+	} else {
+		if patch {
+			Verbose("Patched: %s", IDs)
 		} else {
-			if patch {
-				Verbose("Patched: %s", IDs)
-			} else {
-				Verbose("Updated: %s", IDs)
-			}
+			Verbose("Updated: %s", IDs)
 		}
-	*/
+	}
 
 	// TODO allow for GET output to be shown via -o and inline/doc/filter...
 }

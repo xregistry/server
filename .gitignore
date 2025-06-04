@@ -5,8 +5,8 @@
 /xr.*
 
 # Generated source code
-/registry/shared.go
-/cmds/xr/xrlib/shared.go
+/registry/shared_*.go
+/cmds/xr/xrlib/shared_*.go
 
 # Makefile semi-targets
 /.cmds
