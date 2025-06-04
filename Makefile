@@ -17,6 +17,7 @@ export DBUSER         ?= root
 export DBPASSWORD     ?= password
 export XR_IMAGE       ?= $(DOCKERHUB)xr
 export XRSERVER_IMAGE ?= $(DOCKERHUB)xrserver
+export TAG            ?= $(shell date "+%Y%m%d-$$(git rev-parse --short HEAD)")
 export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
 export PKG            := github.com/xregistry/server
@@ -140,13 +141,13 @@ ifdef XR_SPEC
 		(echo "# Copy xReg spec files so 'docker build' gets them" && \
 		cp -r "$(XR_SPEC)/"* .spec/  )
 endif
-	@misc/errOutput -"docker build -f misc/Dockerfile-xr --no-cache ." \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xr -t $(XR_IMAGE) --no-cache ." \
 	    docker build -f misc/Dockerfile-xr \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XR_IMAGE) --no-cache .
-	@misc/errOutput -"docker build -f misc/Dockerfile-xrserver --no-cache ." \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xrserver -t $(XRSERVER_IMAGE) --no-cache ." \
 	    docker build -f misc/Dockerfile-xrserver \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE) --no-cache .
-	@misc/errOutput -"docker build -f misc/Dockerfile-all --no-cache ." \
+	@misc/errOutput -"docker build -f misc/Dockerfile-all -t $(XRSERVER_IMAGE)-all --no-cache ." \
 	    docker build -f misc/Dockerfile-all \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
 		--no-cache .
@@ -171,6 +172,13 @@ push: .push
 	docker push $(XR_IMAGE)
 	docker push $(XRSERVER_IMAGE)
 	docker push $(XRSERVER_IMAGE)-all
+	@echo "Now create a 'today' version of each image and push them"
+	docker tag $(XR_IMAGE) $(XR_IMAGE):$(TAG)
+	docker tag $(XRSERVER_IMAGE) $(XRSERVER_IMAGE):$(TAG)
+	docker tag $(XRSERVER_IMAGE)-all $(XRSERVER_IMAGE)-all:$(TAG)
+	docker push $(XR_IMAGE):$(TAG)
+	docker push $(XRSERVER_IMAGE):$(TAG)
+	docker push $(XRSERVER_IMAGE)-all:$(TAG)
 	@touch .push
 
 start: mysql cmds waitformysql
