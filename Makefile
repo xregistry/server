@@ -169,16 +169,17 @@ testimages: .testimages
 
 push: .push
 .push: .images
-	docker push $(XR_IMAGE)
-	docker push $(XRSERVER_IMAGE)
-	docker push $(XRSERVER_IMAGE)-all
-	@echo "Now create a 'today' version of each image and push them"
+	@echo "Create a 'today' version of each image and push them"
 	docker tag $(XR_IMAGE) $(XR_IMAGE):$(TAG)
 	docker tag $(XRSERVER_IMAGE) $(XRSERVER_IMAGE):$(TAG)
 	docker tag $(XRSERVER_IMAGE)-all $(XRSERVER_IMAGE)-all:$(TAG)
 	docker push $(XR_IMAGE):$(TAG)
 	docker push $(XRSERVER_IMAGE):$(TAG)
 	docker push $(XRSERVER_IMAGE)-all:$(TAG)
+	@echo "Now push 'latest' so it shows up first in the list"
+	docker push $(XR_IMAGE)
+	docker push $(XRSERVER_IMAGE)
+	docker push $(XRSERVER_IMAGE)-all
 	@touch .push
 
 start: mysql cmds waitformysql
