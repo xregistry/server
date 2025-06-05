@@ -50,10 +50,7 @@ END ;
 
 CREATE TABLE Models (
     RegistrySID VARCHAR(64) NOT NULL,
-
-    Model       JSON,               # Full model, not just Registry
-    Labels      JSON,
-    Attributes  JSON,               # Until we use the Attributes table
+    Model       JSON,                     # Full model, not just Registry
 
     PRIMARY KEY (RegistrySID)
 );
@@ -64,7 +61,7 @@ BEGIN
     DELETE FROM ModelEntities WHERE RegistrySID=OLD.RegistrySID $$
 END ;
 
-CREATE TABLE ModelEntities (        # Group or Resource (no parent=Group)
+CREATE TABLE ModelEntities (        # Group or Resource (no parentSID=Group)
     SID               VARCHAR(255),       # my System ID
     RegistrySID       VARCHAR(64),
     ParentSID         VARCHAR(64),        # ID of parent ModelEntity
@@ -100,61 +97,7 @@ FOR EACH ROW
 BEGIN
     DELETE FROM "Groups"        WHERE ModelSID=OLD.SID $$
     DELETE FROM Resources       WHERE ModelSID=OLD.SID $$
-    DELETE FROM ModelAttributes WHERE ParentSID=OLD.SID $$
 END ;
-
-# Not used yet
-CREATE TABLE ModelAttributes (
-    SID           VARCHAR(64) NOT NULL,   # my System ID
-    RegistrySID   VARCHAR(64) NOT NULL,
-    ParentSID     VARCHAR(64),            # NULL=Root. Model or IfValue SID
-    Name          VARCHAR(64) NOT NULL,
-    Type          VARCHAR(64) NOT NULL,
-    Description   VARCHAR(255),
-    Strict        BOOL NOT NULL,
-    Required      BOOL NOT NULL,
-    ItemType      VARCHAR(64),
-
-    PRIMARY KEY(RegistrySID, ParentSID, SID),
-    UNIQUE INDEX (SID),
-    CONSTRAINT UC_Name UNIQUE (RegistrySID, ParentSID, Name)
-);
-
-CREATE TRIGGER ModelAttributeTrigger BEFORE DELETE ON ModelAttributes
-FOR EACH ROW
-BEGIN
-    DELETE FROM ModelEnums    WHERE AttributeSID=OLD.SID $$
-    DELETE FROM ModelIfValues WHERE AttributeSID=OLD.SID $$
-END ;
-
-CREATE TABLE ModelEnums (
-    RegistrySID   VARCHAR(64) NOT NULL,
-    AttributeSID  VARCHAR(64) NOT NULL,
-    Value         VARCHAR(255) NOT NULL,
-
-    PRIMARY KEY(RegistrySID, AttributeSID),
-    INDEX (AttributeSID),
-    CONSTRAINT UC_Value UNIQUE (RegistrySID, AttributeSID, Value)
-);
-
-CREATE TABLE ModelIfValues (
-    SID           VARCHAR(64) NOT NULL,
-    RegistrySID   VARCHAR(64) NOT NULL,
-    AttributeSID  VARCHAR(64) NOT NULL,
-    Value         VARCHAR(255) NOT NULL,
-
-    PRIMARY KEY(RegistrySID, AttributeSID),
-    UNIQUE INDEX (SID),
-    INDEX (AttributeSID),
-    CONSTRAINT UC_Value UNIQUE (RegistrySID, AttributeSID, Value)
-);
-
-CREATE TRIGGER ModelIfValuesTrigger BEFORE DELETE ON ModelIfValues
-FOR EACH ROW
-BEGIN
-    DELETE FROM ModelAttributes    WHERE ParentSID=OLD.SID $$
-END ;
-
 
 CREATE TABLE "Groups" (
     SID             VARCHAR(64) NOT NULL,   # System ID
@@ -338,7 +281,7 @@ SELECT                          # Gather Registries
     '' AS Path
 FROM Registries AS r
 
-UNION ALL SELECT                        # Gather Groups
+UNION ALL SELECT                # Gather Groups
     g.RegistrySID AS RegSID,
     $ENTITY_GROUP AS Type,
     g.Plural AS Plural,
@@ -410,7 +353,7 @@ CREATE TABLE ResourceContents (
 
 # This pulls-in or creates all props in Resources due to default Ver processing
 CREATE VIEW DefaultProps AS
-SELECT                            # Get default prop for non-xref resources
+SELECT                             # Get default prop for non-xref resources
     p.RegistrySID,
     m.ResourceSID AS EntitySID,
     p.PropName,

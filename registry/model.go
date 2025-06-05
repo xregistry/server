@@ -47,21 +47,14 @@ func (m *Model) Save() error {
 	buf, _ := json.Marshal(m)
 	modelStr := string(buf)
 
-	type tmpAttributes Attributes
-	buf, _ = json.Marshal((tmpAttributes)(m.Attributes))
-	attrs := string(buf)
-
-	buf, _ = json.Marshal(m.Labels)
-	labels := string(buf)
-
 	// log.Printf("Saving model itself")
 	err := DoZeroTwo(m.Registry.tx, `
-        INSERT INTO Models(RegistrySID, Model, Labels, Attributes)
-        VALUES(?,?,?,?)
-        ON DUPLICATE KEY UPDATE Model=?,Labels=?,Attributes=? `,
+        INSERT INTO Models(RegistrySID, Model)
+        VALUES(?,?)
+        ON DUPLICATE KEY UPDATE Model=?`,
 
-		m.Registry.DbSID, modelStr, labels, attrs,
-		modelStr, labels, attrs)
+		m.Registry.DbSID, modelStr,
+		modelStr)
 	if err != nil {
 		log.Printf("Error updating model: %s", err)
 		return err
@@ -202,9 +195,9 @@ func LoadModel(reg *Registry) *Model {
 
 	PanicIf(reg == nil, "nil")
 
-	// Load Registry Labels, Attributes
+	// Load Registry model
 	results, err := Query(reg.tx,
-		`SELECT Model, Labels, Attributes FROM Models WHERE RegistrySID=?`,
+		`SELECT Model FROM Models WHERE RegistrySID=?`,
 		reg.DbSID)
 	defer results.Close()
 	if err != nil {
