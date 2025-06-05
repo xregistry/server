@@ -12,9 +12,20 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-var DBName = "registry"
+var defDBHost = "127.0.0.1"
+var defDBPort = 3306
+var defDBName = "registry"
+var defDBUser = "root"
+var defDBPassword = "password"
+
+var DBHost = EnvString("DBHOST", defDBHost)
+var DBPort = EnvInt("DBPORT", defDBPort)
+var DBName = EnvString("DBNAME", defDBName)
+var DBUser = EnvString("DBUSER", defDBUser)
+var DBPassword = EnvString("DBPASSWORD", defDBPassword)
+
 var RegistryName = "xRegistry"
-var Port = 8080
+var APIPort = 8080
 var VerboseCount = 0 // to change, do it as definition of -v flag
 var DontCreate = false
 var RecreateDB = false
@@ -94,7 +105,7 @@ func setupCmds() *cobra.Command {
 	}
 	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
-	serverCmd.Flags().IntVarP(&Port, "port", "p", Port, "Listen port")
+	serverCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort, "API Listen port")
 	serverCmd.Flags().StringVarP(&DBName, "db", "", DBName, "DB name")
 	serverCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
@@ -106,6 +117,14 @@ func setupCmds() *cobra.Command {
 		"Default Registry name")
 
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
+	serverCmd.PersistentFlags().StringVarP(&DBHost, "dbhost", "", defDBHost,
+		"DB host address")
+	serverCmd.PersistentFlags().IntVarP(&DBPort, "dbport", "", defDBPort,
+		"DB host port")
+	serverCmd.PersistentFlags().StringVarP(&DBUser, "dbuser", "", defDBUser,
+		"DB user")
+	serverCmd.PersistentFlags().StringVarP(&DBPassword, "dbpassword", "",
+		defDBPassword, "DB password")
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
 		"Be chatty - can specify multiple (-v=0 to turn off)``")
 
@@ -118,7 +137,7 @@ func setupCmds() *cobra.Command {
 	}
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
-	runCmd.Flags().IntVarP(&Port, "port", "p", Port, "Listen port")
+	runCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort, "API Listen port")
 	runCmd.Flags().StringVarP(&DBName, "db", "", DBName, "DB name")
 	runCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
@@ -163,7 +182,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	if tmp := os.Getenv("XR_PORT"); tmp != "" {
 		tmpInt, _ := strconv.Atoi(tmp)
 		if tmpInt != 0 {
-			Port = tmpInt
+			APIPort = tmpInt
 		}
 	}
 
@@ -248,7 +267,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	registry.DefaultRegDbSID = reg.DbSID
-	registry.NewServer(Port).Serve()
+	registry.NewServer(APIPort).Serve()
 }
 
 func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {

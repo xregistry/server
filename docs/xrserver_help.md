@@ -8,17 +8,21 @@ The `xrserver` CLI boots and manages the API server and backing database:
 ```yaml
 xrserver [command]
   # Global flags:
-      --db string         DB name (default "registry")
-      --dontcreate        Don't create DB/reg if missing
-  -?, --help              Help for commands
-      --help-all          Help for all commands
-  -p, --port int          Listen port (default 8080)
-      --recreatedb        Recreate the DB
-      --recreatereg       Recreate registry
-  -r, --registry string   Default Registry name (default "xRegistry")
-      --samples           Load sample registries
-  -v, --verbose           Be chatty - can specify multiple (-v=0 to turn off)
-      --verify            Verify loading and exit
+      --db string           DB name (default "registry")
+      --dbhost string       DB host address (default "127.0.0.1")
+      --dbpassword string   DB password (default "password")
+      --dbport int          DB host port (default 3306)
+      --dbuser string       DB user (default "root")
+      --dontcreate          Don't create DB/reg if missing
+  -?, --help                Help for commands
+      --help-all            Help for all commands
+  -p, --port int            API Listen port (default 8080)
+      --recreatedb          Recreate the DB
+      --recreatereg         Recreate registry
+  -r, --registry string     Default Registry name (default "xRegistry")
+      --samples             Load sample registries
+  -v, --verbose             Be chatty - can specify multiple (-v=0 to turn off)
+      --verify              Verify loading and exit
 
 xrserver db create NAME
   # Create a new mysql DB
@@ -52,7 +56,7 @@ xrserver run
   # Run server (the default command)
       --db string         DB name (default "registry")
       --dontcreate        Don't create DB/reg if missing
-  -p, --port int          Listen port (default 8080)
+  -p, --port int          API Listen port (default 8080)
       --recreatedb        Recreate the DB
       --recreatereg       Recreate registry
   -r, --registry string   Default Registry name (default "xRegistry")

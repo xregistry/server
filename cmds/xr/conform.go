@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 )
 
 func TestAll(td *TD) {
@@ -29,22 +30,6 @@ func TestGroups(td *TD) {
 var depthCount = 0
 var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
 var ShowLogs = EnvBool("XR_SHOWLOGS", false)
-
-func EnvBool(name string, def bool) bool {
-	val := os.Getenv(name)
-	if val != "" {
-		def = strings.EqualFold(val, "true")
-	}
-	return def
-}
-
-func EnvString(name string, def string) string {
-	val := os.Getenv(name)
-	if val != "" {
-		def = val
-	}
-	return def
-}
 
 func conformFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)

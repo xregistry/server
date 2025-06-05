@@ -8,7 +8,7 @@ import (
 	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	// "github.com/spf13/pflag"
-	"github.com/xregistry/server/cmds/xr/xrlib"
+	// "github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
@@ -16,7 +16,7 @@ var GitComit string
 var VerboseCount = 0
 
 var Server = "" // Will grab DefaultServer after we add the --server flag
-var DefaultServer = xrlib.EnvString("XR_SERVER", "localhost:8080")
+var DefaultServer = EnvString("XR_SERVER", "localhost:8080")
 
 func ErrStop(err error, prefix ...any) {
 	if err == nil {

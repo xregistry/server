@@ -145,6 +145,34 @@ func PtrBoolDef(val *any, def bool) *bool {
 	return &result
 }
 
+func EnvBool(name string, def bool) bool {
+	val := os.Getenv(name)
+	if val != "" {
+		def = strings.EqualFold(val, "true")
+	}
+	return def
+}
+
+func EnvInt(name string, def int) int {
+	val := os.Getenv(name)
+	if val != "" {
+		// Silently ignore errors for now
+		valInt, err := strconv.Atoi(val)
+		if err != nil {
+			def = valInt
+		}
+	}
+	return def
+}
+
+func EnvString(name string, def string) string {
+	val := os.Getenv(name)
+	if val != "" {
+		def = val
+	}
+	return def
+}
+
 func JSONEscape(obj interface{}) string {
 	buf, _ := json.Marshal(obj)
 	return string(buf[1 : len(buf)-1])

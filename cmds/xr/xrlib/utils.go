@@ -69,22 +69,6 @@ func Verbose(args ...any) {
 }
 */
 
-func EnvBool(name string, def bool) bool {
-	val := os.Getenv(name)
-	if val != "" {
-		def = strings.EqualFold(val, "true")
-	}
-	return def
-}
-
-func EnvString(name string, def string) string {
-	val := os.Getenv(name)
-	if val != "" {
-		def = val
-	}
-	return def
-}
-
 type HttpResponse struct {
 	Code   int
 	Body   []byte
