@@ -176,7 +176,7 @@ push: .push
 	docker push $(XR_IMAGE):$(TAG)
 	docker push $(XRSERVER_IMAGE):$(TAG)
 	docker push $(XRSERVER_IMAGE)-all:$(TAG)
-	@echo "Now push 'latest' so it shows up first in the list"
+	@echo "Now push 'latest' - not sure we actually need to do this"
 	docker push $(XR_IMAGE)
 	docker push $(XRSERVER_IMAGE)
 	docker push $(XRSERVER_IMAGE)-all

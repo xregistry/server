@@ -288,23 +288,23 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		rList := g.GetResourceList()
 		sort.Strings(rList)
 		for _, rName := range rList {
-			r := g.FindResourceModel(rName)
+			rm := g.FindResourceModel(rName)
 
 			fmt.Println("")
-			fmt.Printf("  RESOURCE: %s/ %s\n", r.Plural, r.Singular)
+			fmt.Printf("  RESOURCE: %s/ %s\n", rm.Plural, rm.Singular)
 
-			PrintNotEmpty("    Description       ", r.Description, os.Stdout)
-			PrintNotEmpty("    Max versions      ", r.MaxVersions, os.Stdout)
-			PrintNotEmpty("    Set version id    ", r.SetVersionId, os.Stdout)
-			PrintNotEmpty("    Set version sticky", r.SetDefaultSticky, os.Stdout)
-			PrintNotEmpty("    Has document      ", r.HasDocument, os.Stdout)
-			PrintNotEmpty("    Model version     ", r.ModelVersion, os.Stdout)
-			PrintNotEmpty("    Compatible with   ", r.CompatibleWith, os.Stdout)
+			PrintNotEmpty("    Description       ", rm.Description, os.Stdout)
+			PrintNotEmpty("    Max versions      ", rm.MaxVersions, os.Stdout)
+			PrintNotEmpty("    Set version id    ", rm.SetVersionId, os.Stdout)
+			PrintNotEmpty("    Set version sticky", rm.SetDefaultSticky, os.Stdout)
+			PrintNotEmpty("    Has document      ", rm.HasDocument, os.Stdout)
+			PrintNotEmpty("    Model version     ", rm.ModelVersion, os.Stdout)
+			PrintNotEmpty("    Compatible with   ", rm.CompatibleWith, os.Stdout)
 
 			PrintLabels(g.Labels, "    ", os.Stdout)
-			PrintAttributes("", r.Attributes, r.Singular, "    ", os.Stdout, all)
+			PrintAttributes("", rm.VersionAttributes, rm.Singular, "    ", os.Stdout, all)
 
-			PrintAttributes("META", r.MetaAttributes, r.Singular, "    ", os.Stdout, all)
+			PrintAttributes("META", rm.MetaAttributes, rm.Singular, "    ", os.Stdout, all)
 		}
 	}
 
