@@ -342,6 +342,28 @@ func TestModelLabels(t *testing.T) {
             "rm": {
               "name": "rm",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rmid": {
+              "name": "rmid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -828,6 +850,28 @@ func TestModelLabels(t *testing.T) {
             "rm": {
               "name": "rm",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rmid": {
+              "name": "rmid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -1356,6 +1400,28 @@ func TestModelLabels(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -2397,6 +2463,28 @@ func TestUseSpecAttrs(t *testing.T) {
                     "type": "integer"
                   }
                 }
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",
@@ -3332,6 +3420,28 @@ func TestModelCompatibleWith(t *testing.T) {
             "data": {
               "name": "data",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "dataid": {
+              "name": "dataid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -3594,6 +3704,28 @@ func TestModelCompatibleWith(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -3855,6 +3987,28 @@ func TestModelCompatibleWith(t *testing.T) {
             "foo": {
               "name": "foo",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fooid": {
+              "name": "fooid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -4687,6 +4841,28 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -5206,6 +5382,28 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -5555,6 +5753,28 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "formatid": {
+              "name": "formatid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -6132,6 +6352,28 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -6481,6 +6723,28 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "formatid": {
+              "name": "formatid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -6995,6 +7259,28 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -7344,6 +7630,28 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "formatid": {
+              "name": "formatid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -7858,6 +8166,28 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -8207,6 +8537,28 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "formatid": {
+              "name": "formatid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -8807,6 +9159,28 @@ func TestModelMissingFields(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",

@@ -526,6 +526,28 @@ func TestHTTPModelSource(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",

@@ -1183,6 +1183,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -1532,6 +1554,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -2035,6 +2079,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -2598,6 +2664,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -3136,6 +3224,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -3612,6 +3722,28 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -4107,6 +4239,28 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -4605,6 +4759,28 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",
@@ -5133,6 +5309,28 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",
@@ -6133,6 +6331,28 @@ func TestMultModelCreate(t *testing.T) {
             "rm1": {
               "name": "rm1",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rm1id": {
+              "name": "rm1id",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -6393,6 +6613,28 @@ func TestMultModelCreate(t *testing.T) {
             "rm2": {
               "name": "rm2",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rm2id": {
+              "name": "rm2id",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -6768,6 +7010,28 @@ func TestMultModelCreate(t *testing.T) {
             "rm1": {
               "name": "rm1",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rm1id": {
+              "name": "rm1id",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -7028,6 +7292,28 @@ func TestMultModelCreate(t *testing.T) {
             "rm2": {
               "name": "rm2",
               "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "rm2id": {
+              "name": "rm2id",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
             },
             "metaurl": {
               "name": "metaurl",
@@ -7582,6 +7868,28 @@ func TestMultModel2Create(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",
@@ -7931,6 +8239,28 @@ func TestMultModel2Create(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              }
+            },
+            "resourceattributes": {
+              "fileid": {
+                "name": "fileid",
+                "type": "string",
+                "immutable": true,
+                "required": true
+              },
+              "self": {
+                "name": "self",
+                "type": "url",
+                "readonly": true,
+                "immutable": true,
+                "required": true
+              },
+              "xid": {
+                "name": "xid",
+                "type": "xid",
+                "readonly": true,
+                "immutable": true,
+                "required": true
               },
               "metaurl": {
                 "name": "metaurl",

@@ -116,6 +116,5 @@ TODOs:
 - support <, <=, >, >=, <>, !=
   - make sure * can't be used when using <, >... just =, <> and !=
   - case insensitive compares
-- support "resourceattributes" to the model
 - support "versionmode"
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal

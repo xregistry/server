@@ -81,7 +81,7 @@ type AttrInternals struct {
 	dontStore       bool   // don't store this prop in the DB
 	alwaysSerialize bool   // even if nil
 	neverSerialize  bool   // hidden attr
-	httpHeader      string // custom HTTP header name, not xRegistry-xxx
+	httpHeader      string // custom HTTP header name, not xRegistry-...
 	xrefrequired    bool   // required in meta even when xref is set
 
 	getFn    func(*Entity) any   // return prop's value
@@ -172,20 +172,17 @@ type ResourceModel struct {
 	Labels            map[string]string `json:"labels,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
-	VersionAttributes Attributes `json:"attributes,omitempty"`
-	// Version-only attrs
+	VersionAttributes   Attributes `json:"attributes,omitempty"`
 	versionPropsOrdered []*Attribute
 	versionPropsMap     map[string]*Attribute
 
 	// "ResourceAttributes" are Resource-only (not Version-level) attributes
-	ResourceAttributes Attributes `json:"resourceattributes,omitempty"`
-	// Resource-only attrs
-	resourcePropsOrdered []*Attribute          // NEVER ACTUALLY USED?
-	resourcePropsMap     map[string]*Attribute // NEVER ACTUALLY USED?
+	ResourceAttributes   Attributes `json:"resourceattributes,omitempty"`
+	resourcePropsOrdered []*Attribute
+	resourcePropsMap     map[string]*Attribute
 
 	// "MetaAttributes" are Meta-level only attributes
-	MetaAttributes Attributes `json:"metaattributes,omitempty"`
-	// Meta-only attrs
+	MetaAttributes   Attributes `json:"metaattributes,omitempty"`
 	metaPropsOrdered []*Attribute
 	metaPropsMap     map[string]*Attribute
 
@@ -291,6 +288,10 @@ func (m *Model) SetSpecPropsFields() {
 		}
 
 		for plural, rm := range gm.Resources {
+			// Make sure we have our PropsOrdered lists ready to go
+			rm.GetPropsOrdered()
+
+			// Make sure our owning Group has the right $COLLECTION attrs
 			if attr, ok := gm.Attributes[plural]; ok {
 				attr.internals = CollectionsAttr.internals
 			}
@@ -301,18 +302,26 @@ func (m *Model) SetSpecPropsFields() {
 				attr.internals = CollectionsCountAttr.internals
 			}
 
-			if attr, ok := rm.VersionAttributes["versions"]; ok {
+			// Process Resource-level attributes
+			if attr, ok := rm.ResourceAttributes["versions"]; ok {
 				attr.internals = CollectionsAttr.internals
 			}
-			if attr, ok := rm.VersionAttributes["versionsurl"]; ok {
+			if attr, ok := rm.ResourceAttributes["versionsurl"]; ok {
 				attr.internals = CollectionsURLAttr.internals
 			}
-			if attr, ok := rm.VersionAttributes["versionscount"]; ok {
+			if attr, ok := rm.ResourceAttributes["versionscount"]; ok {
 				attr.internals = CollectionsCountAttr.internals
 			}
 
-			effectivePropsOrdered, _ := rm.GetPropsOrdered()
-			for _, prop := range effectivePropsOrdered {
+			propsOrdered, _ := rm.GetResourcePropsOrdered()
+			for _, prop := range propsOrdered {
+				if attr, ok := rm.ResourceAttributes[prop.Name]; ok {
+					attr.internals = prop.internals
+				}
+			}
+
+			propsOrdered, _ = rm.GetVersionPropsOrdered()
+			for _, prop := range propsOrdered {
 				if attr, ok := rm.VersionAttributes[prop.Name]; ok {
 					attr.internals = prop.internals
 				}
@@ -324,15 +333,6 @@ func (m *Model) SetSpecPropsFields() {
 					attr.internals = prop.internals
 				}
 			}
-
-			/*
-				propsOrdered, _ := rm.GetVersionPropsOrdered()
-				for _, prop := range propsOrdered {
-					if attr, ok := rm.VersionAttributes[prop.Name]; ok {
-						attr.internals = prop.internals
-					}
-				}
-			*/
 		}
 	}
 }
@@ -1037,53 +1037,60 @@ func (rm *ResourceModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute)
 		rm.effectivePropsMap = map[string]*Attribute{}
 
 		for _, prop := range OrderedSpecProps {
-			if prop.Name == "id" { // singular=Resource's for all 3
-				prop = prop.Clone(rm.Singular + "id")
-			}
+			// The order of the if-statements is important to ensure
+			// that we only try to clone the prop once (for perf reasons)
 
-			// this will clone all $RESOURCE attribute
-			if strings.HasPrefix(prop.Name, "$RESOURCE") {
-				if rm.GetHasDocument() {
-					name := rm.Singular + prop.Name[len("$RESOURCE"):]
-					prop = prop.Clone(name)
-				} else {
-					continue // no hasDoc so skip it
-				}
-			}
-
-			if prop.Name == "$COLLECTIONS" && prop.InType(ENTITY_RESOURCE) {
+			if prop.Name == "$COLLECTIONS" {
 				prop = CollectionsURLAttr.Clone("versionsurl")
 				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
 				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
 
 				prop = CollectionsCountAttr.Clone("versionscount")
 				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
 				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
 
 				prop = CollectionsAttr.Clone("versions")
 				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
 				rm.effectivePropsMap[prop.Name] = prop
+				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
+				rm.resourcePropsMap[prop.Name] = prop
 
 				continue
 			}
 
-			if prop.InType(ENTITY_VERSION) {
+			if prop.Name == "id" { // singular=Resource's for all 3
+				prop = prop.Clone(rm.Singular + "id")
+			} else if strings.HasPrefix(prop.Name, "$RESOURCE") {
+				if rm.GetHasDocument() {
+					name := rm.Singular + prop.Name[len("$RESOURCE"):]
+					prop = prop.Clone(name)
+				} else {
+					continue // hasDoc==false so skip it
+				}
+			} else {
 				prop = prop.Clone("")
-				rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
-				rm.versionPropsMap[prop.Name] = prop
 			}
+
 			if prop.InType(ENTITY_RESOURCE) {
-				prop = prop.Clone("")
 				rm.resourcePropsOrdered = append(rm.resourcePropsOrdered, prop)
 				rm.resourcePropsMap[prop.Name] = prop
 			}
+
+			if prop.InType(ENTITY_VERSION) {
+				rm.versionPropsOrdered = append(rm.versionPropsOrdered, prop)
+				rm.versionPropsMap[prop.Name] = prop
+			}
+
 			if prop.InType(ENTITY_META) {
-				prop = prop.Clone("")
 				rm.metaPropsOrdered = append(rm.metaPropsOrdered, prop)
 				rm.metaPropsMap[prop.Name] = prop
 			}
+
 			if prop.InType(ENTITY_RESOURCE) || prop.InType(ENTITY_VERSION) {
-				prop = prop.Clone("")
 				rm.effectivePropsOrdered = append(rm.effectivePropsOrdered, prop)
 				rm.effectivePropsMap[prop.Name] = prop
 			}
@@ -1096,6 +1103,14 @@ func (rm *ResourceModel) Refresh() *ResourceModel {
 	// Weird we need to assume the current rm's info (except Reg) is bad
 	gm := rm.GroupModel
 	return gm.Model.Registry.Model.FindResourceModel(gm.Plural, rm.Plural)
+}
+
+func (rm *ResourceModel) GetResourcePropsOrdered() ([]*Attribute, map[string]*Attribute) {
+	if rm.resourcePropsOrdered == nil {
+		rm.GetPropsOrdered()
+	}
+
+	return rm.resourcePropsOrdered, rm.resourcePropsMap
 }
 
 func (rm *ResourceModel) GetMetaPropsOrdered() ([]*Attribute, map[string]*Attribute) {
@@ -1164,6 +1179,47 @@ func (rm *ResourceModel) GetSingleVersionRoot() bool {
 		return SINGLEVERSIONROOT
 	}
 	return *rm.SingleVersionRoot
+}
+
+func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, error) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: daType})
+}
+
+func (rm *ResourceModel) AddResourceAttrMap(name string, item *Item) (*Attribute, error) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: MAP, Item: item})
+}
+
+func (rm *ResourceModel) AddResourceAttrObj(name string) (*Attribute, error) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: OBJECT})
+}
+
+func (rm *ResourceModel) AddResourceAttrArray(name string, item *Item) (*Attribute, error) {
+	return rm.AddResourceAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
+}
+
+func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, error) {
+	if attr == nil {
+		return nil, nil
+	}
+
+	if attr.Name != "*" {
+		if err := IsValidAttributeName(attr.Name); err != nil {
+			return nil, err
+		}
+	}
+
+	if rm.ResourceAttributes == nil {
+		rm.ResourceAttributes = Attributes{}
+	}
+
+	rm.ResourceAttributes[attr.Name] = attr
+
+	attr.Model = rm.GroupModel.Model
+	attr.Item.SetModel(rm.GroupModel.Model)
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return attr, nil
 }
 
 func (rm *ResourceModel) AddMetaAttr(name, daType string) (*Attribute, error) {
@@ -1285,6 +1341,16 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 	rm.GroupModel.Model.SetChanged(true)
 
 	return attr, nil
+}
+
+func (rm *ResourceModel) DelResourceAttribute(name string) error {
+	if rm.ResourceAttributes != nil {
+		delete(rm.ResourceAttributes, name)
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+
+	return nil
 }
 
 func (rm *ResourceModel) DelMetaAttribute(name string) error {
@@ -1937,10 +2003,37 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		rm.MetaAttributes = Attributes{}
 	}
 
-	// If the hasDoc was changed to false, remove the $RESOURCE* attrs
+	if rm.ResourceAttributes == nil {
+		rm.ResourceAttributes = Attributes{}
+	}
+
+	// Blindly remove the conditional attrs (e.g. versions*, $RESOURCE*) attrs
+	// so that if hasDoc was changed to 'false' then they won't be there.
+	// They'll be re-added later if needed
 	rm.RemoveConditionalProps()
 
-	propsOrdered, _ := rm.GetPropsOrdered()
+	propsOrdered, _ := rm.GetResourcePropsOrdered()
+	for _, specProp := range propsOrdered {
+		if specProp.Name[0] == '$' {
+			continue
+		}
+
+		modelAttr, ok := rm.ResourceAttributes[specProp.Name]
+		if !ok {
+			// Missing in model, so add it
+			specProp := specProp.Clone("")
+			specProp.SetModel(rm.GroupModel.Model)
+			rm.ResourceAttributes[specProp.Name] = specProp
+			rm.GroupModel.Model.SetChanged(true)
+		} else {
+			// It's there but make sure it's not changed in a bad way
+			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
+				return err
+			}
+		}
+	}
+
+	propsOrdered, _ = rm.GetVersionPropsOrdered()
 	for _, specProp := range propsOrdered {
 		if specProp.Name[0] == '$' {
 			continue
@@ -1987,6 +2080,9 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		Path:      NewPPP("resources").P(rm.Plural),
 	}
 
+	if err := rm.ResourceAttributes.Verify("strict", ld); err != nil {
+		return err
+	}
 	if err := rm.VersionAttributes.Verify("strict", ld); err != nil {
 		return err
 	}
@@ -2023,6 +2119,7 @@ func (rm *ResourceModel) SetModel(m *Model) {
 		rm.VersionAttributes = map[string]*Attribute{}
 	}
 
+	rm.ResourceAttributes.SetModel(m)
 	rm.VersionAttributes.SetModel(m)
 	rm.MetaAttributes.SetModel(m)
 }
@@ -2315,7 +2412,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		// Not sure why we look at SpecProp, I suspect it's because at one
 		// point in time we had non-conforming (special) names in there and
 		// we wanted to let those pass.
-		// Technically we should convert the XXXid into id but any XXXid needs
+		// Technically we should convert the ...id into id but any ...id needs
 		// to be a valid name/string so we should be ok
 		if name != "*" && SpecProps[name] == nil {
 			if namecharset == "extended" {

@@ -270,7 +270,8 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 
 	fmt.Println("xRegistry Model:")
 	PrintLabels(model.Labels, "  ", os.Stdout)
-	PrintAttributes("", model.Attributes, "registry", "", os.Stdout, all)
+	PrintAttributes(ENTITY_REGISTRY, "", model.Attributes, "registry", "",
+		os.Stdout, all)
 
 	for _, gID := range SortedKeys(model.Groups) {
 		g := model.Groups[gID]
@@ -283,7 +284,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		PrintNotEmpty("  Compatible with", g.CompatibleWith, os.Stdout)
 
 		PrintLabels(g.Labels, "  ", os.Stdout)
-		PrintAttributes("", g.Attributes, g.Singular, "  ", os.Stdout, all)
+		PrintAttributes(ENTITY_GROUP, "", g.Attributes, g.Singular, "  ", os.Stdout, all)
 
 		rList := g.GetResourceList()
 		sort.Strings(rList)
@@ -302,9 +303,13 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 			PrintNotEmpty("    Compatible with   ", rm.CompatibleWith, os.Stdout)
 
 			PrintLabels(g.Labels, "    ", os.Stdout)
-			PrintAttributes("", rm.VersionAttributes, rm.Singular, "    ", os.Stdout, all)
+			PrintAttributes(ENTITY_VERSION, "", rm.VersionAttributes,
+				rm.Singular, "    ", os.Stdout, all)
 
-			PrintAttributes("META", rm.MetaAttributes, rm.Singular, "    ", os.Stdout, all)
+			PrintAttributes(ENTITY_RESOURCE, "RESOURCE", rm.ResourceAttributes,
+				rm.Singular, "    ", os.Stdout, all)
+			PrintAttributes(ENTITY_META, "META", rm.MetaAttributes,
+				rm.Singular, "    ", os.Stdout, all)
 		}
 	}
 
@@ -348,7 +353,7 @@ func PrintLabels(labels map[string]string, indent string, w io.Writer) {
 	}
 }
 
-func PrintAttributes(prefix string, attrs xrlib.Attributes,
+func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 	singular string, indent string, w io.Writer, all bool) {
 
 	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 1, ' ', 0)
@@ -373,6 +378,12 @@ func PrintAttributes(prefix string, attrs xrlib.Attributes,
 			}
 			if xrlib.SpecProps[aName] != nil {
 				continue
+			}
+			if level == ENTITY_RESOURCE {
+				vers := []string{"versions", "versionscount", "versionsurl"}
+				if ArrayContains(vers, aName) {
+					continue
+				}
 			}
 		}
 

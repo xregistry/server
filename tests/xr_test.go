@@ -103,13 +103,103 @@ GROUP: dirs / dir
     Set version sticky: true
     Has document      : true
 
+    ATTRIBUTES:  TYPE REQ RO MUT DEFAULT
+    file         any  -   -  y   
+    fileproxyurl url  -   -  y   
+    fileurl      url  -   -  y   
+`)
+	xNoErr(t, err)
+
+	cmd = exec.Command("../xr", "model", "get", "-a")
+	out, err = cmd.CombinedOutput()
+	xCheckEqual(t, "", string(out), `xRegistry Model:
+
+ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+capabilities  object      -   -  y   
+createdat     timestamp   y   -  y   
+description   string      -   -  y   
+dirs          map(object) -   -  y   
+dirscount     uinteger    y   y  y   
+dirsurl       url         y   y  -   
+documentation url         -   -  y   
+epoch         uinteger    y   y  y   
+labels        map(string) -   -  y   
+model         object      -   y  y   
+modelsource   object      -   -  y   
+modifiedat    timestamp   y   -  y   
+name          string      -   -  y   
+registryid    string      y   y  -   
+self          url         y   y  -   
+specversion   string      y   y  y   
+xid           xid         y   y  -   
+
+GROUP: dirs / dir
+
+  ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+  createdat     timestamp   y   -  y   
+  description   string      -   -  y   
+  dirid         string      y   -  -   
+  documentation url         -   -  y   
+  epoch         uinteger    y   y  y   
+  files         map(object) -   -  y   
+  filescount    uinteger    y   y  y   
+  filesurl      url         y   y  -   
+  labels        map(string) -   -  y   
+  modifiedat    timestamp   y   -  y   
+  name          string      -   -  y   
+  self          url         y   y  -   
+  xid           xid         y   y  -   
+
+  RESOURCE: files/ file
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
     ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+    ancestor      string      y   -  y   
+    contenttype   string      -   -  y   
+    createdat     timestamp   y   -  y   
+    description   string      -   -  y   
+    documentation url         -   -  y   
+    epoch         uinteger    y   y  y   
     file          any         -   -  y   
+    fileid        string      y   -  -   
     fileproxyurl  url         -   -  y   
     fileurl       url         -   -  y   
-    versions      map(object) -   -  y   
-    versionscount uinteger    y   y  y   
-    versionsurl   url         y   y  -   
+    isdefault     boolean     y   y  y   false
+    labels        map(string) -   -  y   
+    modifiedat    timestamp   y   -  y   
+    name          string      -   -  y   
+    self          url         y   y  -   
+    versionid     string      y   -  -   
+    xid           xid         y   y  -   
+
+    RESOURCE ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+    fileid               string      y   -  -   
+    meta                 object      -   -  y   
+    metaurl              url         y   y  -   
+    self                 url         y   y  -   
+    versions             map(object) -   -  y   
+    versionscount        uinteger    y   y  y   
+    versionsurl          url         y   y  -   
+    xid                  xid         y   y  -   
+
+    META ATTRIBUTES:       TYPE      REQ RO MUT DEFAULT
+    compatibility          string    y   -  y   "none"
+    compatibilityauthority string    -   -  y   
+    createdat              timestamp y   -  y   
+    defaultversionid       string    y   -  y   
+    defaultversionsticky   boolean   y   -  y   false
+    defaultversionurl      url       y   y  y   
+    deprecated             object    -   -  y   
+    epoch                  uinteger  y   y  y   
+    fileid                 string    y   -  -   
+    modifiedat             timestamp y   -  y   
+    readonly               boolean   y   y  y   false
+    self                   url       y   y  -   
+    xid                    xid       y   y  -   
+    xref                   url       -   -  y   
 `)
 	xNoErr(t, err)
 

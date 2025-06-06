@@ -172,9 +172,14 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.Write(b)
 	}
 
-	propsOrdered, propsMap := ((*ResourceModel)(ur)).GetPropsOrdered()
+	propsOrdered, propsMap := ((*ResourceModel)(ur)).GetVersionPropsOrdered()
 	data, extra := marshalAttrs(ur.VersionAttributes, "attributes", extra,
 		propsOrdered, propsMap)
+	buf.Write(data)
+
+	propsOrdered, propsMap = ((*ResourceModel)(ur)).GetResourcePropsOrdered()
+	data, extra = marshalAttrs(ur.ResourceAttributes, "resourceattributes",
+		extra, propsOrdered, propsMap)
 	buf.Write(data)
 
 	propsOrdered, propsMap = ((*ResourceModel)(ur)).GetMetaPropsOrdered()
