@@ -316,10 +316,12 @@ func (jw *JsonWriter) WriteEntity() error {
 					}
 				}
 
-				for k, v := range daMap {
+				sortedKeys := SortedKeys(daMap)
+				for _, k := range sortedKeys {
 					if ArrayContains(keys, k) {
 						continue
 					}
+					v := daMap[k]
 					if ok {
 						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
 						extra = ",\n  " + jw.indent
