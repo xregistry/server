@@ -175,6 +175,15 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 		// Error("%s%s", fileName, err)
 	}
 
+	// All this just to remove $schema
+	tmp := map[string]any{}
+	err = Unmarshal(buf, &tmp)
+	if err != nil {
+		return err
+	}
+	delete(tmp, "$schema")
+	buf, _ = json.Marshal(tmp)
+
 	model := &xrlib.Model{}
 
 	if err := Unmarshal(buf, model); err != nil {
