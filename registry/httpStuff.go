@@ -1869,7 +1869,6 @@ func HTTPPutPost(info *RequestInfo) error {
 				// Force an empty collection to be returned
 				resPaths[gType] = []string{"!"}
 			}
-
 		}
 
 		// Special case - if req is {} then make response {}

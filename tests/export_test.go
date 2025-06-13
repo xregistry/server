@@ -121,6 +121,10 @@ func TestExportBasic(t *testing.T) {
         "name": "documentation",
         "type": "url"
       },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
       "labels": {
         "name": "labels",
         "type": "map",
@@ -239,6 +243,10 @@ func TestExportBasic(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -342,6 +350,10 @@ func TestExportBasic(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -529,8 +541,8 @@ func TestExportBasic(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {
@@ -886,6 +898,10 @@ func TestExportBasic(t *testing.T) {
         "name": "documentation",
         "type": "url"
       },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
       "labels": {
         "name": "labels",
         "type": "map",
@@ -1004,6 +1020,10 @@ func TestExportBasic(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -1107,6 +1127,10 @@ func TestExportBasic(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -1294,8 +1318,8 @@ func TestExportBasic(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {

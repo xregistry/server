@@ -217,6 +217,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "icon",
+		Type: URL,
+
+		internals: &AttrInternals{
+			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+		},
+	},
+	{
 		Name: "labels",
 		Type: MAP,
 		Item: &Item{
@@ -343,7 +351,7 @@ var OrderedSpecProps = []*Attribute{
 			"alternative": &Attribute{
 				Type: URL,
 			},
-			"docs": &Attribute{
+			"documentation": &Attribute{
 				Type: URL,
 			},
 			"*": &Attribute{

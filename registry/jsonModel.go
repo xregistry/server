@@ -23,9 +23,28 @@ func (um *UserModel) MarshalJSON() ([]byte, error) {
 	buf := bytes.Buffer{}
 
 	buf.WriteRune('{')
+
+	if um.Description != "" {
+		buf.WriteString(extra + `"description":"`)
+		buf.WriteString(um.Description)
+		buf.WriteRune('"')
+		extra = ","
+	}
+	if um.Documentation != "" {
+		buf.WriteString(extra + `"documentation":"`)
+		buf.WriteString(um.Documentation)
+		buf.WriteRune('"')
+		extra = ","
+	}
+	if um.Icon != "" {
+		buf.WriteString(extra + `"icon":"`)
+		buf.WriteString(um.Icon)
+		buf.WriteRune('"')
+		extra = ","
+	}
 	if um.Labels != nil {
 		b, _ := json.Marshal(um.Labels)
-		buf.WriteString(`"labels":`)
+		buf.WriteString(extra + `"labels":`)
 		buf.Write(b)
 		extra = ","
 	}
@@ -67,11 +86,28 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 	buf.WriteString(`","singular":"`)
 	buf.WriteString(ug.Singular)
 	buf.WriteRune('"')
+
 	if ug.Description != "" {
 		buf.WriteString(`,"description":"`)
 		buf.WriteString(ug.Description)
 		buf.WriteRune('"')
 	}
+	if ug.Documentation != "" {
+		buf.WriteString(`,"documentation":"`)
+		buf.WriteString(ug.Documentation)
+		buf.WriteRune('"')
+	}
+	if ug.Icon != "" {
+		buf.WriteString(`,"icon":"`)
+		buf.WriteString(ug.Icon)
+		buf.WriteRune('"')
+	}
+	if ug.Labels != nil {
+		b, _ := json.Marshal(ug.Labels)
+		buf.WriteString(`,"labels":`)
+		buf.Write(b)
+	}
+
 	if ug.ModelVersion != "" {
 		buf.WriteString(`,"modelversion":"`)
 		buf.WriteString(ug.ModelVersion)
@@ -84,22 +120,16 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 	}
 	extra = ","
 
-	if ug.Labels != nil {
-		b, _ := json.Marshal(ug.Labels)
-		buf.WriteString(`,"labels":`)
-		buf.Write(b)
-	}
+	propsOrdered, propsMap := ((*GroupModel)(ug)).GetPropsOrdered()
+	data, extra := marshalAttrs(ug.Attributes, "attributes", extra,
+		propsOrdered, propsMap)
+	buf.Write(data)
 
 	if len(ug.XImportResources) > 0 {
 		b, _ := json.Marshal(ug.XImportResources)
 		buf.WriteString(`,"ximportresources":`)
 		buf.Write(b)
 	}
-
-	propsOrdered, propsMap := ((*GroupModel)(ug)).GetPropsOrdered()
-	data, extra := marshalAttrs(ug.Attributes, "attributes", extra,
-		propsOrdered, propsMap)
-	buf.Write(data)
 
 	if len(ug.Resources) > 0 {
 		buf.WriteString(extra)
@@ -134,11 +164,39 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 	buf.WriteString(`","singular":"`)
 	buf.WriteString(ur.Singular)
 	buf.WriteRune('"')
+
 	if ur.Description != "" {
 		buf.WriteString(`,"description":"`)
 		buf.WriteString(ur.Description)
 		buf.WriteRune('"')
 	}
+	if ur.Documentation != "" {
+		buf.WriteString(`,"documentation":"`)
+		buf.WriteString(ur.Documentation)
+		buf.WriteRune('"')
+	}
+	if ur.Icon != "" {
+		buf.WriteString(`,"icon":"`)
+		buf.WriteString(ur.Icon)
+		buf.WriteRune('"')
+	}
+	if ur.Labels != nil {
+		b, _ := json.Marshal(ur.Labels)
+		buf.WriteString(`,"labels":`)
+		buf.Write(b)
+	}
+
+	if ur.ModelVersion != "" {
+		buf.WriteString(`,"modelversion":"`)
+		buf.WriteString(ur.ModelVersion)
+		buf.WriteRune('"')
+	}
+	if ur.CompatibleWith != "" {
+		buf.WriteString(`,"compatiblewith":"`)
+		buf.WriteString(ur.CompatibleWith)
+		buf.WriteRune('"')
+	}
+
 	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`, ur.MaxVersions))
 	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
 		NotNilBoolPtr(ur.SetVersionId)))
@@ -153,24 +211,8 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		b, _ := json.Marshal(ur.TypeMap)
 		buf.Write(b)
 	}
-	if ur.ModelVersion != "" {
-		buf.WriteString(`,"modelversion":"`)
-		buf.WriteString(ur.ModelVersion)
-		buf.WriteRune('"')
-	}
-	if ur.CompatibleWith != "" {
-		buf.WriteString(`,"compatiblewith":"`)
-		buf.WriteString(ur.CompatibleWith)
-		buf.WriteRune('"')
-	}
 
 	extra = ","
-
-	if ur.Labels != nil {
-		b, _ := json.Marshal(ur.Labels)
-		buf.WriteString(`,"labels":`)
-		buf.Write(b)
-	}
 
 	propsOrdered, propsMap := ((*ResourceModel)(ur)).GetVersionPropsOrdered()
 	data, extra := marshalAttrs(ur.VersionAttributes, "attributes", extra,

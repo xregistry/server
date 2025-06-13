@@ -258,6 +258,10 @@ func TestConcurrency(t *testing.T) {
 	})
 
 	log.SetVerbose(2) // To see server's activity
+	defer func() {
+		log.SetVerbose(0)
+	}()
+
 	t.Logf("GO!!! -----")
 	startFlag = true
 	wg.Wait()

@@ -13,23 +13,23 @@ import (
 	"strings"
 
 	// log "github.com/duglin/dlog"
+	"github.com/duglin/goldmark"
+	"github.com/duglin/goldmark/extension"
+	"github.com/duglin/goldmark/parser"
+	ghtml "github.com/duglin/goldmark/renderer/html"
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	ghtml "github.com/yuin/goldmark/renderer/html"
-	"go.abhg.dev/goldmark/anchor"
+	// "go.abhg.dev/goldmark/anchor"
 )
 
 var md = goldmark.New(
 	goldmark.WithExtensions(
 		extension.GFM,
-		&anchor.Extender{
-			// Texter: anchor.Text("🔗"),
-			Texter:   anchor.Text("☍"),
-			Position: anchor.Before, // or anchor.After
+		extension.AnchorExtender{
+			Texter: extension.Text("🔗"),
+			// Texter:   extension.Text("☍"),
+			Position: extension.After, // or extension.Before
 		},
 	),
 	goldmark.WithParserOptions(
@@ -52,6 +52,8 @@ func addDownloadCmd(parent *cobra.Command) {
 		"Host/path to Update xRegistry paths")
 	downloadCmd.Flags().StringP("index", "i", "index.html",
 		"Directory index file name")
+	downloadCmd.Flags().BoolP("md2html-no-style", "", false,
+		"Do not add default styling to html files")
 	downloadCmd.Flags().BoolP("md2html", "m", false,
 		"Generate HTML files for MD files")
 	downloadCmd.Flags().StringP("md2html-css-link", "", "",
@@ -92,6 +94,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}
 
 	md2html, _ := cmd.Flags().GetBool("md2html")
+	md2htmlNoStyle, _ := cmd.Flags().GetBool("md2html-no-style")
 	md2htmlLink, _ := cmd.Flags().GetString("md2html-css-link")
 	md2htmlHeader, _ := cmd.Flags().GetString("md2html-header")
 	md2htmlHTML, _ := cmd.Flags().GetString("md2html-html")
@@ -289,6 +292,53 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 					// Header, if needed
 					header := ""
+
+					if !md2htmlNoStyle {
+						header += "<style>\n" +
+							"  .anchor {\n" +
+							"    font-size: 12px ;\n" +
+							"    vertical-align: middle ;\n" +
+							"    text-decoration: none ;\n" +
+							"  }\n" +
+							"  body {\n" +
+							"    font-family: sans-serif ;\n" +
+							"    font-size: 16px ; \n" +
+							"    line-height: 1.5 ; \n" +
+							"    padding: 0 20 0 30 ; \n" +
+							"  }\n" +
+							"  pre {\n" +
+							"    font-size: 85% ;\n" +
+							"    background-color: #f2f2f2 ;\n" +
+							"    padding: 12px ;\n" +
+							"  }\n" +
+							"  code {\n" +
+							"    font-size: 85% ;\n" +
+							"    background-color: #f2f2f2 ;\n" +
+							"    padding: .2em .4em ;\n" +
+							"  }\n" +
+							"  pre code {\n" +
+							"    font-size: inherit ;\n" +
+							"    background-color: inherit ;\n" +
+							"    padding: 0px ;\n" +
+							"  }\n" +
+							"  table {\n" +
+							"    border: 1px solid lightgray ;\n" +
+							"    border-collapse: collapse ;\n" +
+							"    border-spacing: 0px ;\n" +
+							"    line-height: 24px ;\n" +
+							"  }\n" +
+							"  tr:nth-child(even) {\n" +
+							"    background-color: #f2f2f2 ;\n" +
+							"  }\n" +
+							"  td,th {\n" +
+							"    border: 1px solid lightgray ;\n" +
+							"    padding: 5px ;\n" +
+							"  }\n" +
+							"  td code, th code {\n" +
+							"    font-size: inherit ;\n" +
+							"  }\n" +
+							"</style>\n"
+					}
 					if md2htmlLink != "" {
 						header += `<link rel="stylesheet" href="` +
 							md2htmlLink + `">` + "\n"

@@ -1068,12 +1068,7 @@ var PropsFuncs = []*Attribute{
 					ca = e.tx.CreateTime
 				}
 
-				var err error
-				t := ""
-				if t, err = NormalizeStrTime(ca.(string)); err != nil {
-					return err
-				}
-				e.NewObject["createdat"] = t
+				e.NewObject["createdat"] = ca
 
 				return nil
 			},
@@ -1101,12 +1096,7 @@ var PropsFuncs = []*Attribute{
 					ma = e.tx.CreateTime
 				}
 
-				var err error
-				t := ""
-				if t, err = NormalizeStrTime(ma.(string)); err != nil {
-					return err
-				}
-				e.NewObject["modifiedat"] = t
+				e.NewObject["modifiedat"] = ma
 				e.ModSet = true
 
 				return nil
@@ -1970,9 +1960,15 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// the next section (checkFn) will allow for more detailed
 			// checking, like for valid values
 			if !IsNil(val) {
-				err := e.ValidateAttribute(val, attr, path.P(key))
+				err, haveReplacement, newValue := e.ValidateAttribute(val,
+					attr, path.P(key))
 				if err != nil {
 					return err
+				}
+				if haveReplacement {
+					val = newValue
+					newObj[key] = val
+					keyPresent = true
 				}
 			}
 
@@ -2097,7 +2093,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 	return nil
 }
 
-func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) error {
+// Return: error, haveReplaceValue, newValue
+func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (error, bool, any) {
 	log.VPrintf(3, ">Enter: ValidateAttribute(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateAttribute")
 
@@ -2108,13 +2105,13 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) err
 
 	if attr.Type == ANY {
 		// All good - let it thru
-		return nil
+		return nil, false, nil
 	} else if IsScalar(attr.Type) {
 		return e.ValidateScalar(val, attr, path)
 	} else if attr.Type == MAP {
-		return e.ValidateMap(val, attr.Item, path)
+		return e.ValidateMap(val, attr.Item, path), false, nil
 	} else if attr.Type == ARRAY {
-		return e.ValidateArray(val, attr.Item, path)
+		return e.ValidateArray(val, attr.Item, path), false, nil
 	} else if attr.Type == OBJECT {
 		/*
 			attrs := e.GetBaseAttributes()
@@ -2125,7 +2122,8 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) err
 			}
 		*/
 
-		return e.ValidateObject(val, attr.NameCharSet, attr.Attributes, path)
+		return e.ValidateObject(val, attr.NameCharSet, attr.Attributes, path),
+			false, nil
 	}
 
 	ShowStack()
@@ -2170,8 +2168,13 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 		if IsNil(v) {
 			continue
 		}
-		if err := e.ValidateAttribute(v, attr, path.P(keyName)); err != nil {
+		err, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+			path.P(keyName))
+		if err != nil {
 			return err
+		}
+		if haveReplacement {
+			valValue.SetMapIndex(k, reflect.ValueOf(newValue))
 		}
 	}
 
@@ -2205,39 +2208,53 @@ func (e *Entity) ValidateArray(val any, item *Item, path *PropPath) error {
 
 	for i := 0; i < valValue.Len(); i++ {
 		v := valValue.Index(i).Interface()
-		if err := e.ValidateAttribute(v, attr, path.I(i)); err != nil {
+		err, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+			path.I(i))
+		if err != nil {
 			return err
+		}
+		if haveReplacement {
+			valValue.Index(i).Set(reflect.ValueOf(newValue))
 		}
 	}
 
 	return nil
 }
 
-func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error {
+// returns: Error, haveReplacementValue, replacementValue
+func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (error, bool, any) {
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, ">Enter: ValidateScalar(%s:%s)", path, ToJSON(val))
 		defer log.VPrintf(3, "<Exit: ValidateScalar")
 	}
+
+	replace := false
+	newValue := (any)(nil)
+	var err error
 
 	valKind := reflect.ValueOf(val).Kind()
 
 	switch attr.Type {
 	case BOOLEAN:
 		if valKind != reflect.Bool {
-			return fmt.Errorf("Attribute %q must be a boolean", path.UI())
+			return fmt.Errorf("Attribute %q must be a boolean", path.UI()),
+				false, nil
 		}
 	case DECIMAL:
 		if valKind != reflect.Int && valKind != reflect.Float64 {
-			return fmt.Errorf("Attribute %q must be a decimal", path.UI())
+			return fmt.Errorf("Attribute %q must be a decimal", path.UI()),
+				false, nil
 		}
 	case INTEGER:
 		if valKind == reflect.Float64 {
 			f := val.(float64)
 			if f != float64(int(f)) {
-				return fmt.Errorf("Attribute %q must be an integer", path.UI())
+				return fmt.Errorf("Attribute %q must be an integer",
+					path.UI()), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return fmt.Errorf("Attribute %q must be an integer", path.UI())
+			return fmt.Errorf("Attribute %q must be an integer", path.UI()),
+				false, nil
 		}
 	case UINTEGER:
 		i := 0
@@ -2245,50 +2262,56 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 			f := val.(float64)
 			i = int(f)
 			if f != float64(i) {
-				return fmt.Errorf("Attribute %q must be a uinteger", path.UI())
+				return fmt.Errorf("Attribute %q must be a uinteger",
+					path.UI()), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return fmt.Errorf("Attribute %q must be a uinteger", path.UI())
+			return fmt.Errorf("Attribute %q must be a uinteger", path.UI()),
+				false, nil
 		} else {
 			i = val.(int)
 			if valKind != reflect.Int {
-				return fmt.Errorf("Attribute %q must be a uinteger", path.UI())
+				return fmt.Errorf("Attribute %q must be a uinteger",
+					path.UI()), false, nil
 			}
 		}
 		if i < 0 {
-			return fmt.Errorf("Attribute %q must be a uinteger", path.UI())
+			return fmt.Errorf("Attribute %q must be a uinteger", path.UI()),
+				false, nil
 		}
 	case XID:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be an xid", path.UI())
+			return fmt.Errorf("Attribute %q must be an xid", path.UI()),
+				false, nil
 		}
 		str := val.(string)
 
 		if attr.Target != "" {
 			err := e.MatchXID(str, attr.Target)
 			if err != nil {
-				return fmt.Errorf("Attribute %q %s", path.UI(), err.Error())
+				return fmt.Errorf("Attribute %q %s", path.UI(),
+					err.Error()), false, nil
 			}
 		}
 
 		xid, err := ParseXid(str)
 		if err != nil {
 			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, %s",
-				path.UI(), str, err)
+				path.UI(), str, err), false, nil
 		}
 
 		if xid.VersionID != "" && xid.Version == "meta" {
 			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, "+
 				"it must be in the form of: "+
 				"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
-				path.UI(), str)
+				path.UI(), str), false, nil
 		}
 
 		if xid.Type != ENTITY_REGISTRY {
 			gm := e.Registry.Model.FindGroupModel(xid.Group)
 			if gm == nil {
 				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, xid.Group)
+					"GroupModel %q", path.UI(), str, xid.Group), false, nil
 			}
 
 			if xid.Resource != "" {
@@ -2296,28 +2319,29 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 				if rm == nil {
 					return fmt.Errorf("Attribute %q (%s) references an "+
 						"unknown ResourceModel %q", path.UI(), str,
-						xid.Resource)
+						xid.Resource), false, nil
 				}
 			}
 		}
 
 	case XIDTYPE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be an xidtype", path.UI())
+			return fmt.Errorf("Attribute %q must be an xidtype", path.UI()),
+				false, nil
 		}
 		str := val.(string)
 
 		xidType, err := ParseXidType(str)
 		if err != nil {
 			return fmt.Errorf("Attribute %q (%s) isn't a valid xidtype, %s",
-				path.UI(), str, err)
+				path.UI(), str, err), false, nil
 		}
 
 		if xidType.Group != "" {
 			gm := e.Registry.Model.FindGroupModel(xidType.Group)
 			if gm == nil {
 				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, xidType.Group)
+					"GroupModel %q", path.UI(), str, xidType.Group), false, nil
 			}
 
 			if xidType.Resource != "" {
@@ -2325,41 +2349,48 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 				if rm == nil {
 					return fmt.Errorf("Attribute %q (%s) references an "+
 						"unknown ResourceModel %q", path.UI(), str,
-						xidType.Resource)
+						xidType.Resource), false, nil
 				}
 			}
 		}
 	case STRING:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a string", path.UI())
+			return fmt.Errorf("Attribute %q must be a string", path.UI()),
+				false, nil
 		}
 	case URI:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri", path.UI())
+			return fmt.Errorf("Attribute %q must be a uri", path.UI()),
+				false, nil
 		}
 	case URI_REFERENCE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri-reference", path.UI())
+			return fmt.Errorf("Attribute %q must be a uri-reference",
+				path.UI()), false, nil
 		}
 	case URI_TEMPLATE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri-template", path.UI())
+			return fmt.Errorf("Attribute %q must be a uri-template",
+				path.UI()), false, nil
 		}
 	case URL:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a url", path.UI())
+			return fmt.Errorf("Attribute %q must be a url", path.UI()),
+				false, nil
 		}
 	case TIMESTAMP:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a timestamp", path.UI())
+			return fmt.Errorf("Attribute %q must be a timestamp", path.UI()),
+				false, nil
 		}
 		str := val.(string)
 
-		_, err := ConvertStrToTime(str)
+		newValue, err = NormalizeStrTime(str)
 		if err != nil {
 			return fmt.Errorf("Attribute %q is a malformed timestamp",
-				path.UI())
+				path.UI()), false, nil
 		}
+		replace = (newValue != str)
 	default:
 		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
 	}
@@ -2384,11 +2415,11 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) error 
 				valids += fmt.Sprintf("%v", v)
 			}
 			return fmt.Errorf("Attribute %q(%v) must be one of the enum "+
-				"values: %s", path.UI(), val, valids)
+				"values: %s", path.UI(), val, valids), false, nil
 		}
 	}
 
-	return nil
+	return nil, replace, newValue
 }
 
 func PrepUpdateEntity(e *Entity) error {

@@ -293,7 +293,51 @@ func (jw *JsonWriter) WriteEntity() error {
 			addSpace = false
 		}
 
-		buf, _ := json.MarshalIndent(val, jw.indent, "  ")
+		buf := []byte(nil)
+
+		// not thrilled but gotta do it when you're picky
+		if e.Type == ENTITY_META && key == "deprecated" {
+			daMap, ok := val.(map[string]any)
+			if ok {
+				b := bytes.Buffer{}
+				b.WriteString("{")
+
+				keys := []string{"effective", "removal",
+					"alternative", "documentation"}
+
+				gotOne := false
+				extra := "\n  " + jw.indent
+				for _, k := range keys {
+					v, ok := daMap[k]
+					if ok {
+						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
+						extra = ",\n  " + jw.indent
+						gotOne = true
+					}
+				}
+
+				for k, v := range daMap {
+					if ArrayContains(keys, k) {
+						continue
+					}
+					if ok {
+						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
+						extra = ",\n  " + jw.indent
+						gotOne = true
+					}
+				}
+				if gotOne {
+					b.WriteString("\n" + jw.indent)
+				}
+
+				b.WriteString("}")
+				buf = b.Bytes()
+			}
+		}
+
+		if buf == nil {
+			buf, _ = json.MarshalIndent(val, jw.indent, "  ")
+		}
 		jw.Printf("%s\n%s%q: %s", extra, jw.indent, key, string(buf))
 		extra = ","
 		return nil

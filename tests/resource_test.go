@@ -283,3 +283,79 @@ func TestResourceMaxVersions(t *testing.T) {
 	xCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
 	xCheck(t, vers[0].Object["versionid"] == "v5", "0=v5")
 }
+
+func TestResourceDeprecated(t *testing.T) {
+	reg := NewRegistry("TestResourceDeprecated")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	xNoErr(t, err)
+	_, err = gm.AddResourceModelSimple("files", "file")
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {}
+    }  `, 201, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "createdat": "2025-06-12T15:43:53.756277894Z",
+  "modifiedat": "2025-06-12T15:43:53.756277894Z",
+  "readonly": false,
+  "compatibility": "none",
+  "deprecated": {},
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionsticky": false
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {
+        "effective": "2123-01-01T12:00:00+07:00",
+        "removal": "2000-01-01T12:01:00+07",
+        "alternative": "some-url",
+        "documentation": "another-url",
+        "dep_zzz": "zzz",
+        "dep_aaa": "foo"
+      }
+    }  `, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "2025-06-12T15:43:53.1Z",
+  "modifiedat": "2025-06-12T15:43:53.2Z",
+  "readonly": false,
+  "compatibility": "none",
+  "deprecated": {
+    "effective": "2123-01-01T12:00:00.3Z",
+    "removal": "2000-01-01T12:01:00.4Z",
+    "alternative": "some-url",
+    "documentation": "another-url",
+    "dep_aaa": "foo",
+    "dep_zzz": "zzz"
+  },
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionsticky": false
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {
+        "effective": "2123-01-01T12"
+      }
+    }  `, 400, `Attribute "deprecated.effective" is a malformed timestamp
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {
+        "effective": "2123-01-01T12:00:00",
+        "removal": "2123-01-01T12"
+      }
+    }  `, 400, `Attribute "deprecated.removal" is a malformed timestamp
+`)
+}

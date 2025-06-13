@@ -266,6 +266,10 @@ func TestHTTPModelSource(t *testing.T) {
         "name": "documentation",
         "type": "url"
       },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
       "labels": {
         "name": "labels",
         "type": "map",
@@ -384,6 +388,10 @@ func TestHTTPModelSource(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -487,6 +495,10 @@ func TestHTTPModelSource(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -674,8 +686,8 @@ func TestHTTPModelSource(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {
@@ -790,6 +802,10 @@ func TestHTTPModelSource(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {
@@ -919,6 +935,10 @@ func TestHTTPModelSource(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {

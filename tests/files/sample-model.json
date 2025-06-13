@@ -38,6 +38,9 @@
     "documentation": {
       "type": "url"
     },
+    "icon": {
+      "type": "url"
+    },
     "labels": {
       "type": "map",
       "item": {
@@ -129,6 +132,9 @@
         "documentation": {
           "type": "url"
         },
+        "icon": {
+          "type": "url"
+        },
         "labels": {
           "type": "map",
           "item": {
@@ -211,6 +217,9 @@
               "type": "string"
             },
             "documentation": {
+              "type": "url"
+            },
+            "icon": {
               "type": "url"
             },
             "labels": {
@@ -309,7 +318,7 @@
                 "alternative": {
                   "type": "url"
                 },
-                "docs": {
+                "documentation": {
                   "type": "url"
                 },
                 "*": {

@@ -217,17 +217,21 @@ func (reg *Registry) RefreshModel() error {
 	reg.Model.SetPointers()
 
 	res, err = reg.HttpDo("GET", "/modelsource", nil)
-	if err != nil {
-		return err
-	}
 
-	srcModel := Model{}
+	if res.Code != 404 {
+		// We silently ignore 404 for modelsource
+		if err != nil {
+			return err
+		}
 
-	if err := json.Unmarshal(res.Body, &srcModel); err != nil {
-		return fmt.Errorf("Unable to parse registry modelsource: %s\n%s",
-			err, string(res.Body))
+		srcModel := Model{}
+
+		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
+			return fmt.Errorf("Unable to parse registry modelsource: %s\n%s",
+				err, string(res.Body))
+		}
+		reg.Model.Source = string(res.Body)
 	}
-	reg.Model.Source = string(res.Body)
 
 	return nil
 }

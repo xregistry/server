@@ -58,6 +58,10 @@ func TestNoModel(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
     "labels": {
       "name": "labels",
       "type": "map",
@@ -164,6 +168,10 @@ func TestNoModel(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {
@@ -276,192 +284,8 @@ func TestGroupModelCreate(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
-    "labels": {
-      "name": "labels",
-      "type": "map",
-      "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "readonly": true,
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "modelsource": {
-      "name": "modelsource",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "dirsurl": {
-      "name": "dirsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirscount": {
-      "name": "dirscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs": {
-      "name": "dirs",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    }
-  },
-  "groups": {
-    "dirs": {
-      "plural": "dirs",
-      "singular": "dir",
-      "attributes": {
-        "dirid": {
-          "name": "dirid",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        }
-      }
-    }
-  }
-}
-`)
-
-	xCheckGet(t, reg, "/model", `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
-    },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -582,6 +406,10 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -650,6 +478,10 @@ func TestGroupModelCreate(t *testing.T) {
     },
     "documentation": {
       "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -768,6 +600,206 @@ func TestGroupModelCreate(t *testing.T) {
         },
         "documentation": {
           "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	xCheckGet(t, reg, "/model", `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
           "type": "url"
         },
         "labels": {
@@ -897,6 +929,10 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
     "labels": {
       "name": "labels",
       "type": "map",
@@ -1041,6 +1077,10 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -1144,6 +1184,10 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -1331,8 +1375,8 @@ func TestResourceModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -1410,6 +1454,10 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "documentation": {
           "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
           "type": "url"
         },
         "labels": {
@@ -1517,6 +1565,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "documentation",
               "type": "url"
             },
+            "icon": {
+              "name": "icon",
+              "type": "url"
+            },
             "labels": {
               "name": "labels",
               "type": "map",
@@ -1702,8 +1754,8 @@ func TestResourceModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -1793,589 +1845,8 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
-    "labels": {
-      "name": "labels",
-      "type": "map",
-      "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "readonly": true,
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "modelsource": {
-      "name": "modelsource",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "dirsurl": {
-      "name": "dirsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirscount": {
-      "name": "dirscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs": {
-      "name": "dirs",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    },
-    "dirs2url": {
-      "name": "dirs2url",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirs2count": {
-      "name": "dirs2count",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs2": {
-      "name": "dirs2",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    }
-  },
-  "groups": {
-    "dirs": {
-      "plural": "dirs",
-      "singular": "dir",
-      "attributes": {
-        "dirid": {
-          "name": "dirid",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        },
-        "filesurl": {
-          "name": "filesurl",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "filescount": {
-          "name": "filescount",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "files": {
-          "name": "files",
-          "type": "map",
-          "item": {
-            "type": "object",
-            "attributes": {
-              "*": {
-                "name": "*",
-                "type": "any"
-              }
-            }
-          }
-        }
-      },
-      "resources": {
-        "files": {
-          "plural": "files",
-          "singular": "file",
-          "maxversions": 5,
-          "setversionid": true,
-          "setdefaultversionsticky": true,
-          "hasdocument": true,
-          "singleversionroot": false,
-          "attributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "versionid": {
-              "name": "versionid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "name": {
-              "name": "name",
-              "type": "string"
-            },
-            "isdefault": {
-              "name": "isdefault",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "description": {
-              "name": "description",
-              "type": "string"
-            },
-            "documentation": {
-              "name": "documentation",
-              "type": "url"
-            },
-            "labels": {
-              "name": "labels",
-              "type": "map",
-              "item": {
-                "type": "string"
-              }
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "ancestor": {
-              "name": "ancestor",
-              "type": "string",
-              "required": true
-            },
-            "contenttype": {
-              "name": "contenttype",
-              "type": "string"
-            },
-            "fileurl": {
-              "name": "fileurl",
-              "type": "url"
-            },
-            "fileproxyurl": {
-              "name": "fileproxyurl",
-              "type": "url"
-            },
-            "file": {
-              "name": "file",
-              "type": "any"
-            }
-          },
-          "resourceattributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "meta": {
-              "name": "meta",
-              "type": "object",
-              "attributes": {
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            },
-            "versionsurl": {
-              "name": "versionsurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "versionscount": {
-              "name": "versionscount",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "versions": {
-              "name": "versions",
-              "type": "map",
-              "item": {
-                "type": "object",
-                "attributes": {
-                  "*": {
-                    "name": "*",
-                    "type": "any"
-                  }
-                }
-              }
-            }
-          },
-          "metaattributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xref": {
-              "name": "xref",
-              "type": "url"
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "readonly": {
-              "name": "readonly",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "compatibility": {
-              "name": "compatibility",
-              "type": "string",
-              "enum": [
-                "none",
-                "backward",
-                "backward_transitive",
-                "forward",
-                "forward_transitive",
-                "full",
-                "full_transitive"
-              ],
-              "strict": false,
-              "required": true,
-              "default": "none"
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
-            "deprecated": {
-              "name": "deprecated",
-              "type": "object",
-              "attributes": {
-                "alternative": {
-                  "name": "alternative",
-                  "type": "url"
-                },
-                "docs": {
-                  "name": "docs",
-                  "type": "url"
-                },
-                "effective": {
-                  "name": "effective",
-                  "type": "timestamp"
-                },
-                "removal": {
-                  "name": "removal",
-                  "type": "timestamp"
-                },
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            },
-            "defaultversionid": {
-              "name": "defaultversionid",
-              "type": "string",
-              "required": true
-            },
-            "defaultversionurl": {
-              "name": "defaultversionurl",
-              "type": "url",
-              "readonly": true,
-              "required": true
-            },
-            "defaultversionsticky": {
-              "name": "defaultversionsticky",
-              "type": "boolean",
-              "required": true,
-              "default": false
-            }
-          }
-        }
-      }
-    },
-    "dirs2": {
-      "plural": "dirs2",
-      "singular": "dir2",
-      "attributes": {
-        "dir2id": {
-          "name": "dir2id",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        }
-      }
-    }
-  }
-}
-`)
-
-	xCheckGet(t, reg, "/model", `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
-    },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -2522,6 +1993,10 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -2625,6 +2100,10 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -2812,8 +2291,8 @@ func TestResourceModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -2891,6 +2370,611 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "documentation": {
           "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	xCheckGet(t, reg, "/model", `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    },
+    "dirs2url": {
+      "name": "dirs2url",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirs2count": {
+      "name": "dirs2count",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs2": {
+      "name": "dirs2",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        }
+      },
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 5,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "attributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "versionid": {
+              "name": "versionid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "name": {
+              "name": "name",
+              "type": "string"
+            },
+            "isdefault": {
+              "name": "isdefault",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "description": {
+              "name": "description",
+              "type": "string"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
+              "type": "url"
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
+              "required": true
+            },
+            "contenttype": {
+              "name": "contenttype",
+              "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          },
+          "metaattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xref": {
+              "name": "xref",
+              "type": "url"
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "readonly": {
+              "name": "readonly",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "compatibility": {
+              "name": "compatibility",
+              "type": "string",
+              "enum": [
+                "none",
+                "backward",
+                "backward_transitive",
+                "forward",
+                "forward_transitive",
+                "full",
+                "full_transitive"
+              ],
+              "strict": false,
+              "required": true,
+              "default": "none"
+            },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "documentation": {
+                  "name": "documentation",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "defaultversionid": {
+              "name": "defaultversionid",
+              "type": "string",
+              "required": true
+            },
+            "defaultversionurl": {
+              "name": "defaultversionurl",
+              "type": "url",
+              "readonly": true,
+              "required": true
+            },
+            "defaultversionsticky": {
+              "name": "defaultversionsticky",
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "dirs2": {
+      "plural": "dirs2",
+      "singular": "dir2",
+      "attributes": {
+        "dir2id": {
+          "name": "dir2id",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
           "type": "url"
         },
         "labels": {
@@ -2964,502 +3048,8 @@ func TestResourceModelCreate(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
-    "labels": {
-      "name": "labels",
-      "type": "map",
-      "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "readonly": true,
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "modelsource": {
-      "name": "modelsource",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "dirsurl": {
-      "name": "dirsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirscount": {
-      "name": "dirscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs": {
-      "name": "dirs",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    }
-  },
-  "groups": {
-    "dirs": {
-      "plural": "dirs",
-      "singular": "dir",
-      "attributes": {
-        "dirid": {
-          "name": "dirid",
-          "type": "string",
-          "immutable": true,
-          "required": true
-        },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        },
-        "filesurl": {
-          "name": "filesurl",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "filescount": {
-          "name": "filescount",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "files": {
-          "name": "files",
-          "type": "map",
-          "item": {
-            "type": "object",
-            "attributes": {
-              "*": {
-                "name": "*",
-                "type": "any"
-              }
-            }
-          }
-        }
-      },
-      "resources": {
-        "files": {
-          "plural": "files",
-          "singular": "file",
-          "maxversions": 5,
-          "setversionid": true,
-          "setdefaultversionsticky": true,
-          "hasdocument": true,
-          "singleversionroot": false,
-          "attributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "versionid": {
-              "name": "versionid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "name": {
-              "name": "name",
-              "type": "string"
-            },
-            "isdefault": {
-              "name": "isdefault",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "description": {
-              "name": "description",
-              "type": "string"
-            },
-            "documentation": {
-              "name": "documentation",
-              "type": "url"
-            },
-            "labels": {
-              "name": "labels",
-              "type": "map",
-              "item": {
-                "type": "string"
-              }
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "ancestor": {
-              "name": "ancestor",
-              "type": "string",
-              "required": true
-            },
-            "contenttype": {
-              "name": "contenttype",
-              "type": "string"
-            },
-            "fileurl": {
-              "name": "fileurl",
-              "type": "url"
-            },
-            "fileproxyurl": {
-              "name": "fileproxyurl",
-              "type": "url"
-            },
-            "file": {
-              "name": "file",
-              "type": "any"
-            }
-          },
-          "resourceattributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "metaurl": {
-              "name": "metaurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "meta": {
-              "name": "meta",
-              "type": "object",
-              "attributes": {
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            },
-            "versionsurl": {
-              "name": "versionsurl",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "versionscount": {
-              "name": "versionscount",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "versions": {
-              "name": "versions",
-              "type": "map",
-              "item": {
-                "type": "object",
-                "attributes": {
-                  "*": {
-                    "name": "*",
-                    "type": "any"
-                  }
-                }
-              }
-            }
-          },
-          "metaattributes": {
-            "fileid": {
-              "name": "fileid",
-              "type": "string",
-              "immutable": true,
-              "required": true
-            },
-            "self": {
-              "name": "self",
-              "type": "url",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xid": {
-              "name": "xid",
-              "type": "xid",
-              "readonly": true,
-              "immutable": true,
-              "required": true
-            },
-            "xref": {
-              "name": "xref",
-              "type": "url"
-            },
-            "epoch": {
-              "name": "epoch",
-              "type": "uinteger",
-              "readonly": true,
-              "required": true
-            },
-            "createdat": {
-              "name": "createdat",
-              "type": "timestamp",
-              "required": true
-            },
-            "modifiedat": {
-              "name": "modifiedat",
-              "type": "timestamp",
-              "required": true
-            },
-            "readonly": {
-              "name": "readonly",
-              "type": "boolean",
-              "readonly": true,
-              "required": true,
-              "default": false
-            },
-            "compatibility": {
-              "name": "compatibility",
-              "type": "string",
-              "enum": [
-                "none",
-                "backward",
-                "backward_transitive",
-                "forward",
-                "forward_transitive",
-                "full",
-                "full_transitive"
-              ],
-              "strict": false,
-              "required": true,
-              "default": "none"
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
-            "deprecated": {
-              "name": "deprecated",
-              "type": "object",
-              "attributes": {
-                "alternative": {
-                  "name": "alternative",
-                  "type": "url"
-                },
-                "docs": {
-                  "name": "docs",
-                  "type": "url"
-                },
-                "effective": {
-                  "name": "effective",
-                  "type": "timestamp"
-                },
-                "removal": {
-                  "name": "removal",
-                  "type": "timestamp"
-                },
-                "*": {
-                  "name": "*",
-                  "type": "any"
-                }
-              }
-            },
-            "defaultversionid": {
-              "name": "defaultversionid",
-              "type": "string",
-              "required": true
-            },
-            "defaultversionurl": {
-              "name": "defaultversionurl",
-              "type": "url",
-              "readonly": true,
-              "required": true
-            },
-            "defaultversionsticky": {
-              "name": "defaultversionsticky",
-              "type": "boolean",
-              "required": true,
-              "default": false
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`)
-
-	xCheckGet(t, reg, "/model", `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
-    },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -3580,6 +3170,10 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -3683,6 +3277,10 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -3870,8 +3468,518 @@ func TestResourceModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "defaultversionid": {
+              "name": "defaultversionid",
+              "type": "string",
+              "required": true
+            },
+            "defaultversionurl": {
+              "name": "defaultversionurl",
+              "type": "url",
+              "readonly": true,
+              "required": true
+            },
+            "defaultversionsticky": {
+              "name": "defaultversionsticky",
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	xCheckGet(t, reg, "/model", `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        },
+        "filesurl": {
+          "name": "filesurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "filescount": {
+          "name": "filescount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "files": {
+          "name": "files",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        }
+      },
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 5,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "attributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "versionid": {
+              "name": "versionid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "name": {
+              "name": "name",
+              "type": "string"
+            },
+            "isdefault": {
+              "name": "isdefault",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "description": {
+              "name": "description",
+              "type": "string"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
+              "type": "url"
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "ancestor": {
+              "name": "ancestor",
+              "type": "string",
+              "required": true
+            },
+            "contenttype": {
+              "name": "contenttype",
+              "type": "string"
+            },
+            "fileurl": {
+              "name": "fileurl",
+              "type": "url"
+            },
+            "fileproxyurl": {
+              "name": "fileproxyurl",
+              "type": "url"
+            },
+            "file": {
+              "name": "file",
+              "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          },
+          "metaattributes": {
+            "fileid": {
+              "name": "fileid",
+              "type": "string",
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xref": {
+              "name": "xref",
+              "type": "url"
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "readonly": {
+              "name": "readonly",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "compatibility": {
+              "name": "compatibility",
+              "type": "string",
+              "enum": [
+                "none",
+                "backward",
+                "backward_transitive",
+                "forward",
+                "forward_transitive",
+                "full",
+                "full_transitive"
+              ],
+              "strict": false,
+              "required": true,
+              "default": "none"
+            },
+            "compatibilityauthority": {
+              "name": "compatibilityauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -3985,6 +4093,10 @@ func TestResourceModelCreate(t *testing.T) {
     },
     "documentation": {
       "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -4109,6 +4221,10 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -4212,6 +4328,10 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -4387,8 +4507,8 @@ func TestResourceModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -4505,6 +4625,10 @@ func TestResourceModelCreate(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {
@@ -4629,6 +4753,10 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -4732,6 +4860,10 @@ func TestResourceModelCreate(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -4907,8 +5039,8 @@ func TestResourceModelCreate(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {
@@ -5061,6 +5193,10 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "documentation",
         "type": "url"
       },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
       "labels": {
         "name": "labels",
         "type": "map",
@@ -5179,6 +5315,10 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -5282,6 +5422,10 @@ func TestResourceModelCreate(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -5457,8 +5601,8 @@ func TestResourceModelCreate(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {
@@ -5583,6 +5727,10 @@ func TestResourceModelCreate(t *testing.T) {
         "name": "documentation",
         "type": "url"
       },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
       "labels": {
         "name": "labels",
         "type": "map",
@@ -5701,6 +5849,10 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -5801,6 +5953,10 @@ func TestResourceModelCreate(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {
@@ -5921,6 +6077,10 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -6017,6 +6177,10 @@ func TestMultModelCreate(t *testing.T) {
     },
     "documentation": {
       "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
@@ -6163,6 +6327,10 @@ func TestMultModelCreate(t *testing.T) {
           "name": "documentation",
           "type": "url"
         },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
         "labels": {
           "name": "labels",
           "type": "map",
@@ -6292,6 +6460,10 @@ func TestMultModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -6479,8 +6651,8 @@ func TestMultModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -6574,6 +6746,10 @@ func TestMultModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -6761,8 +6937,8 @@ func TestMultModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -6840,6 +7016,10 @@ func TestMultModelCreate(t *testing.T) {
         },
         "documentation": {
           "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
           "type": "url"
         },
         "labels": {
@@ -6973,6 +7153,10 @@ func TestMultModelCreate(t *testing.T) {
               "name": "documentation",
               "type": "url"
             },
+            "icon": {
+              "name": "icon",
+              "type": "url"
+            },
             "labels": {
               "name": "labels",
               "type": "map",
@@ -7158,8 +7342,8 @@ func TestMultModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -7253,6 +7437,10 @@ func TestMultModelCreate(t *testing.T) {
             },
             "documentation": {
               "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
               "type": "url"
             },
             "labels": {
@@ -7440,8 +7628,8 @@ func TestMultModelCreate(t *testing.T) {
                   "name": "alternative",
                   "type": "url"
                 },
-                "docs": {
-                  "name": "docs",
+                "documentation": {
+                  "name": "documentation",
                   "type": "url"
                 },
                 "effective": {
@@ -7580,6 +7768,10 @@ func TestMultModel2Create(t *testing.T) {
       },
       "documentation": {
         "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
         "type": "url"
       },
       "labels": {
@@ -7726,6 +7918,10 @@ func TestMultModel2Create(t *testing.T) {
             "name": "documentation",
             "type": "url"
           },
+          "icon": {
+            "name": "icon",
+            "type": "url"
+          },
           "labels": {
             "name": "labels",
             "type": "map",
@@ -7829,6 +8025,10 @@ func TestMultModel2Create(t *testing.T) {
               },
               "documentation": {
                 "name": "documentation",
+                "type": "url"
+              },
+              "icon": {
+                "name": "icon",
                 "type": "url"
               },
               "labels": {
@@ -8016,8 +8216,8 @@ func TestMultModel2Create(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {
@@ -8095,6 +8295,10 @@ func TestMultModel2Create(t *testing.T) {
           },
           "documentation": {
             "name": "documentation",
+            "type": "url"
+          },
+          "icon": {
+            "name": "icon",
             "type": "url"
           },
           "labels": {
@@ -8202,6 +8406,10 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "documentation",
                 "type": "url"
               },
+              "icon": {
+                "name": "icon",
+                "type": "url"
+              },
               "labels": {
                 "name": "labels",
                 "type": "map",
@@ -8387,8 +8595,8 @@ func TestMultModel2Create(t *testing.T) {
                     "name": "alternative",
                     "type": "url"
                   },
-                  "docs": {
-                    "name": "docs",
+                  "documentation": {
+                    "name": "documentation",
                     "type": "url"
                   },
                   "effective": {

@@ -123,6 +123,7 @@ dirscount     uinteger    y   y  y
 dirsurl       url         y   y  -   
 documentation url         -   -  y   
 epoch         uinteger    y   y  y   
+icon          url         -   -  y   
 labels        map(string) -   -  y   
 model         object      -   y  y   
 modelsource   object      -   -  y   
@@ -144,6 +145,7 @@ GROUP: dirs / dir
   files         map(object) -   -  y   
   filescount    uinteger    y   y  y   
   filesurl      url         y   y  -   
+  icon          url         -   -  y   
   labels        map(string) -   -  y   
   modifiedat    timestamp   y   -  y   
   name          string      -   -  y   
@@ -167,6 +169,7 @@ GROUP: dirs / dir
     fileid        string      y   -  -   
     fileproxyurl  url         -   -  y   
     fileurl       url         -   -  y   
+    icon          url         -   -  y   
     isdefault     boolean     y   y  y   false
     labels        map(string) -   -  y   
     modifiedat    timestamp   y   -  y   

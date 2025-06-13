@@ -59,11 +59,14 @@ func IsValidID(id string) error {
 }
 
 type Model struct {
-	Registry   *Registry              `json:"-"`
-	Source     string                 `json:"source,omitempty"`
-	Labels     map[string]string      `json:"labels,omitempty"`
-	Attributes Attributes             `json:"attributes,omitempty"`
-	Groups     map[string]*GroupModel `json:"groups,omitempty"` // Plural
+	Registry      *Registry              `json:"-"`
+	Source        string                 `json:"source,omitempty"`
+	Description   string                 `json:"description,omitempty"`
+	Documentation string                 `json:"documentation,omitempty"`
+	Icon          string                 `json:"icon,omitempty"`
+	Labels        map[string]string      `json:"labels,omitempty"`
+	Attributes    Attributes             `json:"attributes,omitempty"`
+	Groups        map[string]*GroupModel `json:"groups,omitempty"` // Plural
 
 	propsOrdered []*Attribute
 	propsMap     map[string]*Attribute // Attrs+calculated attrs
@@ -140,9 +143,11 @@ type GroupModel struct {
 	Plural         string            `json:"plural"`
 	Singular       string            `json:"singular"`
 	Description    string            `json:"description,omitempty"`
+	Documentation  string            `json:"documentation,omitempty"`
+	Icon           string            `json:"icon,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
 	ModelVersion   string            `json:"modelversion,omitempty"`
 	CompatibleWith string            `json:"compatiblewith,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"`
 	Attributes     Attributes        `json:"attributes,omitempty"`
 
 	// [ GROUPS/RESOURCES * ]
@@ -158,18 +163,21 @@ type ResourceModel struct {
 	SID        string      `json:"sid,omitempty"`
 	GroupModel *GroupModel `json:"-"`
 
-	Plural            string            `json:"plural"`
-	Singular          string            `json:"singular"`
-	Description       string            `json:"description,omitempty"`
+	Plural         string            `json:"plural"`
+	Singular       string            `json:"singular"`
+	Description    string            `json:"description,omitempty"`
+	Documentation  string            `json:"documentation,omitempty"`
+	Icon           string            `json:"icon,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ModelVersion   string            `json:"modelversion,omitempty"`
+	CompatibleWith string            `json:"compatiblewith,omitempty"`
+
 	MaxVersions       int               `json:"maxversions"`             // do not include omitempty
 	SetVersionId      *bool             `json:"setversionid"`            // do not include omitempty
 	SetDefaultSticky  *bool             `json:"setdefaultversionsticky"` // do not include omitempty
 	HasDocument       *bool             `json:"hasdocument"`             // do not include omitempty
 	SingleVersionRoot *bool             `json:"singleversionroot"`       // do not include omitempty
 	TypeMap           map[string]string `json:"typemap,omitempty"`
-	ModelVersion      string            `json:"modelversion,omitempty"`
-	CompatibleWith    string            `json:"compatiblewith,omitempty"`
-	Labels            map[string]string `json:"labels,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
 	VersionAttributes   Attributes `json:"attributes,omitempty"`
@@ -192,6 +200,16 @@ type ResourceModel struct {
 }
 
 func ParseModel(buf []byte) (*Model, error) {
+	// All this just to remove $schema
+	tmp := map[string]any{}
+	err := Unmarshal(buf, &tmp)
+	if err != nil {
+		return nil, err
+	}
+	delete(tmp, "$schema")
+	buf, _ = json.Marshal(tmp)
+
+	// Now do the real work
 	model := Model{}
 	if err := Unmarshal(buf, &model); err != nil {
 		return nil, err
@@ -357,8 +375,15 @@ func (m *Model) SetChanged(val bool) {
 	// ShowStack()
 }
 
-func (m *Model) GetChanged() bool {
-	return m.changed
+func (m *Model) GetLabel(name string) *string {
+	if m.Labels == nil {
+		return nil
+	}
+	val, ok := m.Labels[name]
+	if !ok {
+		return nil
+	}
+	return &val
 }
 
 func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
@@ -528,20 +553,18 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 	return gm, nil
 }
 
-func (m *Model) AddLabel(name string, value string) error {
+func (m *Model) AddLabel(name string, value string) {
 	if m.Labels == nil {
 		m.Labels = map[string]string{}
 	}
 	m.Labels[name] = value
 
 	m.SetChanged(true)
-
-	return nil
 }
 
-func (m *Model) RemoveLabel(name string) error {
+func (m *Model) RemoveLabel(name string) {
 	if m.Labels == nil {
-		return nil
+		return
 	}
 
 	delete(m.Labels, name)
@@ -550,8 +573,37 @@ func (m *Model) RemoveLabel(name string) error {
 	}
 
 	m.SetChanged(true)
+}
 
-	return nil
+func (m *Model) GetChanged() bool {
+	return m.changed
+}
+
+func (m *Model) SetDescription(val string) {
+	m.Description = val
+	m.SetChanged(true)
+}
+
+func (m *Model) GetDescription() string {
+	return m.Description
+}
+
+func (m *Model) SetDocumentation(val string) {
+	m.Documentation = val
+	m.SetChanged(true)
+}
+
+func (m *Model) GetDocumentation() string {
+	return m.Documentation
+}
+
+func (m *Model) SetIcon(val string) {
+	m.Icon = val
+	m.SetChanged(true)
+}
+
+func (m *Model) GetIcon() string {
+	return m.Icon
 }
 
 func NewItem() *Item {
@@ -914,32 +966,6 @@ func (gm *GroupModel) AddXImportResource(absXID string) error {
 	gm.XImportResources = append(gm.XImportResources, absXID)
 
 	gm.Model.SetChanged(true)
-	return nil
-}
-
-func (gm *GroupModel) AddLabel(name string, value string) error {
-	if gm.Labels == nil {
-		gm.Labels = map[string]string{}
-	}
-	gm.Labels[name] = value
-
-	gm.Model.SetChanged(true)
-
-	return nil
-}
-
-func (gm *GroupModel) RemoveLabel(name string) error {
-	if gm.Labels == nil {
-		return nil
-	}
-
-	delete(gm.Labels, name)
-	if len(gm.Labels) == 0 {
-		gm.Labels = nil
-	}
-
-	gm.Model.SetChanged(true)
-
 	return nil
 }
 
@@ -1657,6 +1683,12 @@ func (m *Model) Verify() error {
 	}
 
 	// Now check Registry attributes for correctness
+	for key, _ := range m.Labels {
+		if err := IsValidMapKey(key); err != nil {
+			return err
+		}
+	}
+
 	ld := &LevelData{
 		Model:     m,
 		AttrNames: map[string]bool{},
@@ -1874,6 +1906,12 @@ func (gm *GroupModel) Verify(gmName string) error {
 		}
 	}
 
+	for key, _ := range gm.Labels {
+		if err := IsValidMapKey(key); err != nil {
+			return err
+		}
+	}
+
 	ld := &LevelData{
 		Model:     gm.Model,
 		AttrNames: map[string]bool{},
@@ -1902,6 +1940,73 @@ func (gm *GroupModel) SetModel(m *Model) {
 		rm.GroupModel = gm
 		rm.SetModel(m)
 	}
+}
+
+func (gm *GroupModel) SetDescription(val string) {
+	gm.Description = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetDescription() string {
+	return gm.Description
+}
+
+func (gm *GroupModel) SetDocumentation(val string) {
+	gm.Documentation = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetDocumentation() string {
+	return gm.Documentation
+}
+
+func (gm *GroupModel) SetIcon(val string) {
+	gm.Icon = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetIcon() string {
+	return gm.Icon
+}
+
+func (gm *GroupModel) AddLabel(name string, value string) {
+	if gm.Labels == nil {
+		gm.Labels = map[string]string{}
+	}
+	gm.Labels[name] = value
+
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) RemoveLabel(name string) {
+	if gm.Labels == nil {
+		return
+	}
+
+	delete(gm.Labels, name)
+	if len(gm.Labels) == 0 {
+		gm.Labels = nil
+	}
+
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) SetModelVersion(val string) {
+	gm.ModelVersion = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetModelVersion() string {
+	return gm.ModelVersion
+}
+
+func (gm *GroupModel) SetCompatibleWith(val string) {
+	gm.CompatibleWith = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetCompatibleWith() string {
+	return gm.CompatibleWith
 }
 
 func (gm *GroupModel) GetBaseAttributes() Attributes {
@@ -2074,6 +2179,12 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		}
 	}
 
+	for key, _ := range rm.Labels {
+		if err := IsValidMapKey(key); err != nil {
+			return err
+		}
+	}
+
 	ld := &LevelData{
 		Model:     rm.GroupModel.Model,
 		AttrNames: map[string]bool{},
@@ -2239,20 +2350,45 @@ func (rm *ResourceModel) RemoveTypeMap(ct string) error {
 	return nil
 }
 
-func (rm *ResourceModel) AddLabel(name string, value string) error {
+func (rm *ResourceModel) SetDescription(val string) {
+	rm.Description = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetDescription() string {
+	return rm.Description
+}
+
+func (rm *ResourceModel) SetDocumentation(val string) {
+	rm.Documentation = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetDocumentation() string {
+	return rm.Documentation
+}
+
+func (rm *ResourceModel) SetIcon(val string) {
+	rm.Icon = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetIcon() string {
+	return rm.Icon
+}
+
+func (rm *ResourceModel) AddLabel(name string, value string) {
 	if rm.Labels == nil {
 		rm.Labels = map[string]string{}
 	}
 	rm.Labels[name] = value
 
 	rm.GroupModel.Model.SetChanged(true)
-
-	return nil
 }
 
-func (rm *ResourceModel) RemoveLabel(name string) error {
+func (rm *ResourceModel) RemoveLabel(name string) {
 	if rm.Labels == nil {
-		return nil
+		return
 	}
 
 	delete(rm.Labels, name)
@@ -2261,8 +2397,24 @@ func (rm *ResourceModel) RemoveLabel(name string) error {
 	}
 
 	rm.GroupModel.Model.SetChanged(true)
+}
 
-	return nil
+func (rm *ResourceModel) SetModelVersion(val string) {
+	rm.ModelVersion = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetModelVersion() string {
+	return rm.ModelVersion
+}
+
+func (rm *ResourceModel) SetCompatibleWith(val string) {
+	rm.CompatibleWith = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetCompatibleWith() string {
+	return rm.CompatibleWith
 }
 
 // Map incoming "contentType" (ct) to its typemap value.

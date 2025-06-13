@@ -376,6 +376,10 @@ func TestHTTPModelSchema(t *testing.T) {
       "name": "documentation",
       "type": "url"
     },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
     "labels": {
       "name": "labels",
       "type": "map",
@@ -473,6 +477,10 @@ func TestHTTPModelSchema(t *testing.T) {
     },
     "documentation": {
       "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
       "type": "url"
     },
     "labels": {
