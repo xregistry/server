@@ -1227,6 +1227,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -1606,6 +1610,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -2143,6 +2151,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -2744,6 +2756,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -3320,6 +3336,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -3830,6 +3850,10 @@ func TestResourceModelCreate(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -6503,6 +6527,10 @@ func TestMultModelCreate(t *testing.T) {
             "rm1": {
               "name": "rm1",
               "type": "any"
+            },
+            "rm1base64": {
+              "name": "rm1base64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -6789,6 +6817,10 @@ func TestMultModelCreate(t *testing.T) {
             "rm2": {
               "name": "rm2",
               "type": "any"
+            },
+            "rm2base64": {
+              "name": "rm2base64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -7194,6 +7226,10 @@ func TestMultModelCreate(t *testing.T) {
             "rm1": {
               "name": "rm1",
               "type": "any"
+            },
+            "rm1base64": {
+              "name": "rm1base64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -7480,6 +7516,10 @@ func TestMultModelCreate(t *testing.T) {
             "rm2": {
               "name": "rm2",
               "type": "any"
+            },
+            "rm2base64": {
+              "name": "rm2base64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -8068,6 +8108,10 @@ func TestMultModel2Create(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              },
+              "filebase64": {
+                "name": "filebase64",
+                "type": "string"
               }
             },
             "resourceattributes": {
@@ -8447,6 +8491,10 @@ func TestMultModel2Create(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              },
+              "filebase64": {
+                "name": "filebase64",
+                "type": "string"
               }
             },
             "resourceattributes": {

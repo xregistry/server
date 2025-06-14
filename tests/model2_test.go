@@ -354,6 +354,10 @@ func TestModelLabels(t *testing.T) {
             "rm": {
               "name": "rm",
               "type": "any"
+            },
+            "rmbase64": {
+              "name": "rmbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -874,6 +878,10 @@ func TestModelLabels(t *testing.T) {
             "rm": {
               "name": "rm",
               "type": "any"
+            },
+            "rmbase64": {
+              "name": "rmbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -1436,6 +1444,10 @@ func TestModelLabels(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -3526,6 +3538,10 @@ func TestModelCompatibleWith(t *testing.T) {
             "data": {
               "name": "data",
               "type": "any"
+            },
+            "database64": {
+              "name": "database64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -3814,6 +3830,10 @@ func TestModelCompatibleWith(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -4101,6 +4121,10 @@ func TestModelCompatibleWith(t *testing.T) {
             "foo": {
               "name": "foo",
               "type": "any"
+            },
+            "foobase64": {
+              "name": "foobase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -4976,6 +5000,10 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -5529,6 +5557,10 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -5908,6 +5940,10 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            },
+            "formatbase64": {
+              "name": "formatbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -6519,6 +6555,10 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -6898,6 +6938,10 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            },
+            "formatbase64": {
+              "name": "formatbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -7446,6 +7490,10 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -7825,6 +7873,10 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            },
+            "formatbase64": {
+              "name": "formatbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -8373,6 +8425,10 @@ func TestModelIncludes(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -8752,6 +8808,10 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "any"
+            },
+            "formatbase64": {
+              "name": "formatbase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -9386,6 +9446,10 @@ func TestModelMissingFields(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {

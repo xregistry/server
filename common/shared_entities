@@ -420,6 +420,13 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "$RESOURCEbase64",
+		Type: STRING,
+		internals: &AttrInternals{
+			types: StrTypes(ENTITY_VERSION),
+		},
+	},
+	{
 		Name: "$space",
 		internals: &AttrInternals{
 			types: "",

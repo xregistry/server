@@ -109,7 +109,6 @@ TODOs:
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestor correctly when server assigns the version
   ID. `ancestor=request`
-- add RESOURCEbase64 to model
 - don't allow people to change the Singular name of a groupType or resType
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
@@ -119,5 +118,6 @@ TODOs:
 - support "versionmode"
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 - support patch / + capabilities - does patching of capabilities
-- support path / + modelsource - full replacement
+- support patch / + modelsource - full replacement
 - add test for $schema in data and in model
+- don't allow extensions in resourceattributes

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
@@ -39,12 +40,75 @@ func isResourceOnly(name string) bool {
 // Mainly used to prep an Obj that was directed at a Resource but will be used
 // to update a Version
 func RemoveResourceAttributes(rm *ResourceModel, obj map[string]any) {
-	propsOrdered, _ := rm.GetPropsOrdered()
-	for _, attr := range propsOrdered {
-		if attr.InType(ENTITY_RESOURCE) && !attr.InType(ENTITY_VERSION) {
-			delete(obj, attr.Name)
+	attrs := maps.Clone(rm.ResourceAttributes)
+	attrs.AddIfValuesAttributes(obj)
+
+	// resobj is obj with just the resource-level attrs. We do this so that
+	// when we add IfValues attributes it's just the resource-level ones.
+	// Those are the ones we want to delete
+	resObj := map[string]any{}
+
+	for attrName, _ := range attrs {
+		if rm.VersionAttributes[attrName] == nil {
+			// build verObj with just version-level attributes.
+			// Note $xxx won't work but I don't think we care about those
+			resObj[attrName] = obj[attrName]
 		}
 	}
+
+	attrs.AddIfValuesAttributes(resObj)
+
+	for attrName, _ := range attrs {
+		if rm.VersionAttributes[attrName] == nil { // Not sure we want this 'if'
+			delete(obj, attrName)
+		}
+	}
+
+	/* old stuff, but I think we need to take into account ifvalues if
+	       we ever support extensions (or ifvalues) in resourceattributes
+			propsOrdered, _ := rm.GetPropsOrdered()
+			for _, attr := range propsOrdered {
+				if attr.InType(ENTITY_RESOURCE) && !attr.InType(ENTITY_VERSION) {
+					delete(obj, attr.Name)
+				}
+			}
+	*/
+}
+
+// Not used yet but if we ever support extensions for resourceattributes
+// then we may need this
+func RemoveVersionAttributes(rm *ResourceModel, obj map[string]any) {
+	attrs := maps.Clone(rm.VersionAttributes)
+
+	// verObj is obj with just version-level attrs. We do this so that
+	// when we add IfValues attributes it's just version-level ones.
+	// Those are the ones we want to delete.
+	verObj := map[string]any{}
+
+	for attrName, _ := range rm.VersionAttributes {
+		if rm.ResourceAttributes[attrName] == nil {
+			// build verObj with just version-level attributes.
+			// Note $xxx won't work but I don't think we care about those
+			verObj[attrName] = obj[attrName]
+		}
+	}
+
+	attrs.AddIfValuesAttributes(verObj)
+
+	for attrName, _ := range attrs {
+		if rm.ResourceAttributes[attrName] == nil {
+			delete(obj, attrName)
+		}
+	}
+
+	/*
+		propsOrdered, _ := rm.GetPropsOrdered()
+		for _, attr := range propsOrdered {
+			if !attr.InType(ENTITY_RESOURCE) && attr.InType(ENTITY_VERSION) {
+				delete(obj, attr.Name)
+			}
+		}
+	*/
 }
 
 var _ EntitySetter = &Resource{}

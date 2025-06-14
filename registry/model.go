@@ -39,6 +39,11 @@ func (m *Model) Save() error {
 		return nil
 	}
 
+	if log.GetVerbose() > 4 {
+		buf, _ := json.MarshalIndent(m, "", "  ")
+		log.Printf("Saving model:\n%s", string(buf))
+	}
+
 	// Create a temporary type so that we don't use the MarshalJSON func
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want

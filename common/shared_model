@@ -1472,6 +1472,11 @@ func (a *Attribute) GetStrict() bool {
 
 func (a *Attribute) InType(eType int) bool {
 	PanicIf(a.internals == nil, "nil")
+	/*
+		if a.internals == nil {
+			return false
+		}
+	*/
 	return a.internals.types == "" ||
 		strings.ContainsRune(a.internals.types, rune('0'+byte(eType)))
 }
@@ -2040,6 +2045,12 @@ func (rm *ResourceModel) RemoveConditionalProps() {
 			rm.GroupModel.Model.SetChanged(true)
 		}
 	}
+	if attr, ok := rm.VersionAttributes[rm.Singular+"base64"]; ok {
+		if attr.internals != nil {
+			delete(rm.VersionAttributes, rm.Singular+"base64")
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
 	if attr, ok := rm.VersionAttributes[rm.Singular+"url"]; ok {
 		if attr.internals != nil {
 			delete(rm.VersionAttributes, rm.Singular+"url")
@@ -2304,6 +2315,12 @@ func RESOURCEcheckFn(e *Entity) error {
 func (rm *ResourceModel) GetBaseAttributes() Attributes {
 	attrs := Attributes{}
 	maps.Copy(attrs, rm.VersionAttributes)
+
+	/* If we ever support extensions for resourceattributes
+	for k, v := range rm.ResourceAttributes {
+		attrs[k] = v
+	}
+	*/
 
 	// Add xReg defined attributes
 	// TODO Check for conflicts

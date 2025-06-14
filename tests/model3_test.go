@@ -1102,6 +1102,10 @@ func TestModelResourceAttrs(t *testing.T) {
             "file": {
               "name": "file",
               "type": "any"
+            },
+            "filebase64": {
+              "name": "filebase64",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -1367,6 +1371,7 @@ func TestModelFullModel(t *testing.T) {
                     "type": "boolean"
                   }
                 },
+                "resourceattributes": {},
                 "metaattributes": {
                   "mext1": {
                     "type": "decimal"

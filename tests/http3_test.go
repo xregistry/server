@@ -538,6 +538,10 @@ func TestHTTPModelSource(t *testing.T) {
               "file": {
                 "name": "file",
                 "type": "any"
+              },
+              "filebase64": {
+                "name": "filebase64",
+                "type": "string"
               }
             },
             "resourceattributes": {

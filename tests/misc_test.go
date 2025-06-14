@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	log "github.com/duglin/dlog"
+	// log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
 
@@ -257,9 +257,9 @@ func TestConcurrency(t *testing.T) {
 		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v1"), "{}", 2, "*")
 	})
 
-	log.SetVerbose(2) // To see server's activity
+	// log.SetVerbose(2) // To see server's activity
 	defer func() {
-		log.SetVerbose(0)
+		// log.SetVerbose(0)
 	}()
 
 	t.Logf("GO!!! -----")

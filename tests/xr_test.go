@@ -103,10 +103,11 @@ GROUP: dirs / dir
     Set version sticky: true
     Has document      : true
 
-    ATTRIBUTES:  TYPE REQ RO MUT DEFAULT
-    file         any  -   -  y   
-    fileproxyurl url  -   -  y   
-    fileurl      url  -   -  y   
+    ATTRIBUTES:  TYPE   REQ RO MUT DEFAULT
+    file         any    -   -  y   
+    filebase64   string -   -  y   
+    fileproxyurl url    -   -  y   
+    fileurl      url    -   -  y   
 `)
 	xNoErr(t, err)
 
@@ -166,6 +167,7 @@ GROUP: dirs / dir
     documentation url         -   -  y   
     epoch         uinteger    y   y  y   
     file          any         -   -  y   
+    filebase64    string      -   -  y   
     fileid        string      y   -  -   
     fileproxyurl  url         -   -  y   
     fileurl       url         -   -  y   

@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -458,21 +459,32 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// Update the appropriate Version (vID), but only if the versionID
 	// doesn't match a Version ID from the "versions" collection (if there).
 	// If both Resource attrs and Version attrs are present, use the Version's
+	vObj := maps.Clone(obj)
+
 	if vID != "" {
 		if _, ok := versions[defVerID]; !ok {
-			RemoveResourceAttributes(rModel, obj)
-			_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
+			RemoveResourceAttributes(rModel, vObj)
+			_, _, err := r.UpsertVersionWithObject(vID, vObj, addType, false)
 			if err != nil {
 				return nil, false, err
 			}
 		}
 	} else {
-		RemoveResourceAttributes(rModel, obj)
-		_, _, err := r.UpsertVersionWithObject(vID, obj, addType, false)
+		RemoveResourceAttributes(rModel, vObj)
+		_, _, err := r.UpsertVersionWithObject(vID, vObj, addType, false)
 		if err != nil {
 			return nil, false, err
 		}
 	}
+
+	/* If we ever have extension resourceattributes
+	RemoveVersionAttributes(rModel, obj)
+	r.SetNewObject(obj)
+	err = r.SetSaveResource(r.Singular+"id", r.UID)
+	if err != nil {
+		return nil, false, err
+	}
+	*/
 
 	if err = g.ValidateAndSave(); err != nil {
 		return nil, false, err

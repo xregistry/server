@@ -1314,6 +1314,26 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
+		Name: "$RESOURCEbase64",
+		internals: &AttrInternals{
+			checkFn: RESOURCEcheckFn,
+			updateFn: func(e *Entity) error {
+				singular := e.GetResourceSingular()
+				v, ok := e.NewObject[singular]
+				if ok {
+					if !IsNil(v) {
+						e.NewObject[singular+"url"] = nil
+						e.NewObject[singular+"proxyurl"] = nil
+						e.NewObject["#contentid"] = e.DbSID
+					} else {
+						e.NewObject["#contentid"] = nil
+					}
+				}
+				return nil
+			},
+		},
+	},
+	{
 		Name:      "$space",
 		internals: &AttrInternals{},
 	},
@@ -1849,13 +1869,27 @@ func (e *Entity) GetBaseAttributes() Attributes {
 // avoid traversing the entity more than once, we will tweak things if needed.
 // For example, if a missing attribute has a Default value then we'll add it.
 func (e *Entity) Validate() error {
+	// Don't touch what was passed in
+	attrs := e.GetAttributes(e.NewObject)
+	log.VPrintf(4, "In Validate - Attrs:\n%s", ToJSON(attrs))
+
 	if e.Type == ENTITY_RESOURCE {
 		// Skip Resources // TODO DUG - would prefer to not do this
 		return nil
-	}
+		// If we ever support extensions in resourceattributes
+		/*
+				RemoveVersionAttributes(e.ResourceModel, e.NewObject)
 
-	// Don't touch what was passed in
-	attrs := e.GetAttributes(e.NewObject)
+		        // Not really correct yet.
+		        // should just use resourceattributes + ifvaluesattrs
+				for _, k := range Keys(attrs) {
+					a := attrs[k]
+					if a.InType(ENTITY_VERSION) && !a.InType(ENTITY_RESOURCE) {
+						delete(attrs, k)
+					}
+				}
+		*/
+	}
 
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, "========")
