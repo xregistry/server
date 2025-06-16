@@ -57,6 +57,7 @@ func TestExportBasic(t *testing.T) {
       "offered",
       "schema",
       "setdefaultversionid",
+      "sort",
       "specversion"
     ],
     "mutable": [
@@ -816,6 +817,7 @@ func TestExportBasic(t *testing.T) {
       "offered",
       "schema",
       "setdefaultversionid",
+      "sort",
       "specversion"
     ],
     "mutable": [

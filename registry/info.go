@@ -32,6 +32,7 @@ type RequestInfo struct {
 	Inlines          []*Inline
 	Filters          [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
 	ShowDetails      bool            //	is $details present
+	SortKey          string          // [-]AttrName  - => descending
 
 	StatusCode int
 	SentStatus bool
@@ -461,6 +462,30 @@ func (info *RequestInfo) ParseRequestURL() error {
 		}
 		// Force inline=* to be on
 		info.AddInline("*")
+	}
+
+	if info.HasFlag("sort") {
+		if info.What != "Coll" {
+			return fmt.Errorf("Can't sort on a non-collection results")
+		}
+
+		sortStr := info.GetFlag("sort")
+		name, ascDesc, _ := strings.Cut(sortStr, "=")
+		if name == "" {
+			return fmt.Errorf("Missing ?sort attribute name")
+		}
+		if ascDesc != "" && ascDesc != "asc" && ascDesc != "desc" {
+			return fmt.Errorf("Invalid ?sort order %q", ascDesc)
+		}
+		// info.SortKey = name
+		pp, err := PropPathFromUI(name)
+		if err != nil {
+			return err
+		}
+		info.SortKey = pp.DB()
+		if ascDesc == "desc" {
+			info.SortKey = "-" + info.SortKey
+		}
 	}
 
 	return info.ParseFilters()

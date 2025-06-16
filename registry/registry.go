@@ -749,34 +749,91 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	return g, isNew, nil
 }
 
-func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool) (string, []interface{}, error) {
+// sortKey = attribute name, -NAME means descending, no "-" means ascending
+func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, error) {
 	query := ""
 	args := []any{}
+
+	if sortKey != "" && what != "Coll" {
+		return "", nil, fmt.Errorf("Can't sort on a non-collection results")
+	}
+
+	ascDesc := "ASC"
+	sortJoin := ""
+	sortOrder := ""
+
+	if sortKey != "" {
+		if sortKey[0] == '-' {
+			ascDesc = "DESC"
+			sortKey = sortKey[1:]
+		}
+
+		count := strings.Count(paths[0], "/")
+		if count == 0 {
+			count = 2
+		} else if count == 2 {
+			count = 4
+		} else {
+			count = 6
+		}
+		slashCount := fmt.Sprintf("%d", count)
+
+		/*
+					sortOrder = `
+			    sj.PropValue IS NOT NULL,
+			    CASE WHEN sj.PropType IN ('integer','decimal','uinteger')
+			      THEN CAST(sj.PropValue AS DECIMAL) END ` + ascDesc + `,
+			    CASE WHEN sj.PropType NOT IN ('integer','decimal','uinteger')
+			      THEN sj.PropValue END ` + ascDesc + `,
+			`
+		*/
+
+		sortOrder = `
+    sj.PropValue IS NOT NULL ` + ascDesc + `,
+    CASE
+      WHEN sj.PropType IN ('integer','decimal','uinteger') THEN
+        IFNULL(CAST(sj.PropValue AS DECIMAL), 0)
+      WHEN sj.PropType NOT IN ('integer','decimal','uinteger') THEN
+        sj.PropValue
+      ELSE NULL
+    END ` + ascDesc + `,
+`
+
+		sortJoin = `
+  LEFT JOIN FullTree AS sj ON (
+    sj.RegSID = ft.RegSID AND
+    sj.Path = substring_index(ft.Path, '/', ` + slashCount + `) AND
+    sj.PropName = '` + sortKey + `')
+`
+	}
 
 	args = []interface{}{reg.DbSID}
 	query = `
 SELECT
-  RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
-FROM FullTree WHERE RegSID=?` // and DocView=true
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract
+  FROM FullTree AS ft` + sortJoin + `
+  WHERE ft.RegSID=?
+`
 
 	// Exclude generated attributes/entities if 'doc view' is turned on.
 	// Meaning, only grab Props that have 'DocView' set to 'true'. These
 	// should be (mainly) just the ones we set explicitly.
 	if docView {
-		query += ` AND DocView=true`
+		query += `  AND ft.DocView=true
+`
 	}
 
 	// Remove entities that are higher than the GET PATH specified
 	if what != "Registry" && len(paths) > 0 {
-		query += "\nAND ("
+		query += "  AND ("
 		for i, p := range paths {
 			if i > 0 {
 				query += " OR "
 			}
-			query += "Path=? OR Path LIKE ?"
+			query += "ft.Path=? OR ft.Path LIKE ?"
 			args = append(args, p, p+"/%")
 		}
-		query += ")"
+		query += ")\n"
 
 	}
 
@@ -943,9 +1000,10 @@ eSID IN ( -- eSID from query
   )
   SELECT DISTINCT eSID FROM cte )
 )
-ORDER BY Path ;
 `
 	}
+
+	query += `  ORDER BY ` + sortOrder + `    ft.Path ASC;`
 
 	log.VPrintf(3, "Query:\n%s\n\n", SubQuery(query, args))
 	return query, args, nil

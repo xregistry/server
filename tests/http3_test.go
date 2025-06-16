@@ -1035,3 +1035,786 @@ func TestHTTPModelSource(t *testing.T) {
 		`POST / only allows Group types to be specified. "modelsource" is invalid
 `)
 }
+
+func TestHTTPSort(t *testing.T) {
+	reg := NewRegistry("TestHTTPSort")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "mybool": { "type": "boolean" },
+          "myfloat": { "type": "decimal" },
+          "myint": { "type": "integer" },
+          "mystr": { "type": "string" },
+          "myobj": {
+            "type": "object",
+            "attributes": {
+              "*": { "type": "any" }
+            }
+          },
+          "*": { "type": "any" }
+        },
+        "resources": {
+          "files": {
+            "singular": "file",
+            "attributes": {
+              "mybool": { "type": "boolean" },
+              "myfloat": { "type": "decimal" },
+              "myint": { "type": "integer" },
+              "mystr": { "type": "string" },
+              "myobj": {
+                "type": "object",
+                "attributes": {
+                  "*": { "type": "any" }
+                }
+              },
+              "*": { "type": "any" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "name": "d1",
+      "myfloat": 3.1,
+      "myany": "a string",
+      "myobj": { "foo": "bar" },
+      "files": {
+        "f1": {
+          "name": "d1-f1",
+          "versions": {
+            "v1": { "name": "d1-f1-v1", "mybool": false },
+            "v2": { "mybool": true },
+            "v3": { "name": "d1-f1-v3", "description": "i'm d1-f1-v3" }
+          }
+        },
+        "f2": {
+          "name": "d1-f2",
+          "versions": {
+            "v2": { "name": "d1-f2-v2" },
+            "v1": { "name": "zzzzzzzz" },
+            "v3": { "name": "d1-f2-v3" }
+          }
+        }
+      }
+    },
+    "d2": {
+      "name": "d2",
+      "myfloat": 1.3,
+      "myany": 123,
+      "myobj": { "foo": "zzz" }
+    },
+    "d3": {}
+  }
+}`, 200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPSort",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 3
+}
+`)
+
+	xHTTP(t, reg, "GET", "/?sort=epoch", ``, 400,
+		"Can't sort on a non-collection results\n")
+	xHTTP(t, reg, "GET", "/dirs/d1?sort=epoch", ``, 400,
+		"Can't sort on a non-collection results\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?sort=epoch", ``, 400,
+		"Can't sort on a non-collection results\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?sort=epoch", ``, 400,
+		"Can't sort on a non-collection results\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?sort=epoch",
+		``, 400, "Can't sort on a non-collection results\n")
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
+		``, 400, "Can't sort on a non-collection results\n")
+
+	xHTTP(t, reg, "GET", "/dirs?sort=name", ``, 200, `{
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=name=desc", ``, 200, `{
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myany", ``, 200, `{
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myany=desc", ``, 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myfloat", ``, 200, `{
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myfloat=asc", ``, 200, `{
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myfloat=desc", ``, 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myobj.foo", ``, 200, `{
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=myobj.foo=desc", ``, 200, `{
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=name", ``, 200, `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1$details",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 3
+  },
+  "f2": {
+    "fileid": "f2",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f2$details",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "name": "d1-f2-v3",
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+    "versionscount": 3
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=name=desc", ``, 200, `{
+  "f2": {
+    "fileid": "f2",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f2$details",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "name": "d1-f2-v3",
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+    "versionscount": 3
+  },
+  "f1": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1$details",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 3
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=description=desc", ``, 200, `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1$details",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 3
+  },
+  "f2": {
+    "fileid": "f2",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f2$details",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "name": "d1-f2-v3",
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+    "versionscount": 3
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool", ``, 200, `{
+  "v3": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+    "xid": "/dirs/d1/files/f1/versions/v3",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2"
+  },
+  "v1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 1,
+    "name": "d1-f1-v1",
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": false
+  },
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": true
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool=desc", ``, 200, `{
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": true
+  },
+  "v1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 1,
+    "name": "d1-f1-v1",
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": false
+  },
+  "v3": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+    "xid": "/dirs/d1/files/f1/versions/v3",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2"
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=ancestor=desc", ``, 200, `{
+  "v3": {
+    "fileid": "f1",
+    "versionid": "v3",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+    "xid": "/dirs/d1/files/f1/versions/v3",
+    "epoch": 1,
+    "name": "d1-f1-v3",
+    "isdefault": true,
+    "description": "i'm d1-f1-v3",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v2"
+  },
+  "v1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 1,
+    "name": "d1-f1-v1",
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": false
+  },
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1",
+    "mybool": true
+  }
+}
+`)
+
+}

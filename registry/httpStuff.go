@@ -1588,7 +1588,10 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		// "!" is special - it means skip the query and just produce: {}
 		if len(paths) != 1 || paths[0] != "!" {
 			query, args, err := GenerateQuery(info.Registry, what, paths,
-				filters, info.DoDocView())
+				filters, info.DoDocView(), info.SortKey)
+			if err != nil {
+				return err
+			}
 			results, err = Query(info.tx, query, args...)
 			defer results.Close()
 

@@ -688,7 +688,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 			if !strings.HasSuffix(file.Name, "xreg.json") {
 				continue
 			}
-			Verbose("  - %s", file.Name)
+			// Verbose("  - %s", file.Name)
 			res, err := http.Get(file.DownloadURL)
 			ErrFatalf(err)
 			if res.StatusCode != 200 {

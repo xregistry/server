@@ -64,7 +64,7 @@ var SupportedFlags = ArrayToLower([]string{
 	"collections", "doc", "epoch", "filter", "inline",
 	"nodefaultversionid", "nodefaultversionsticky",
 	"noepoch", "noreadonly", "offered",
-	"schema", "setdefaultversionid", "specversion"}) // no "sort"
+	"schema", "setdefaultversionid", "sort", "specversion"})
 
 var DefaultCapabilities = &Capabilities{
 	APIs:         AllowableAPIs,

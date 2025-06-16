@@ -34,6 +34,7 @@ func TestCapabilitySimple(t *testing.T) {
     "offered",
     "schema",
     "setdefaultversionid",
+    "sort",
     "specversion"
   ],
   "mutable": [
@@ -82,6 +83,7 @@ func TestCapabilitySimple(t *testing.T) {
       "offered",
       "schema",
       "setdefaultversionid",
+      "sort",
       "specversion"
     ],
     "mutable": [
@@ -293,6 +295,7 @@ func TestCapabilityPath(t *testing.T) {
     "offered",
     "schema",
     "setdefaultversionid",
+    "sort",
     "specversion"
   ],
   "mutable": [
@@ -462,7 +465,7 @@ func TestCapabilityPath(t *testing.T) {
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
-	"setdefaultversionid", "specversion"
+	"setdefaultversionid", "sort", "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -491,6 +494,7 @@ func TestCapabilityPath(t *testing.T) {
     "offered",
     "schema",
     "setdefaultversionid",
+    "sort",
     "specversion"
   ],
   "mutable": [
@@ -530,6 +534,7 @@ func TestCapabilityPath(t *testing.T) {
     "offered",
     "schema",
     "setdefaultversionid",
+    "sort",
     "specversion"
   ],
   "mutable": [
@@ -749,7 +754,7 @@ func TestCapabilityAttr(t *testing.T) {
   "flags": [
     "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
     "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
-	"setdefaultversionid", "specversion"
+	"setdefaultversionid", "sort", "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -789,6 +794,7 @@ func TestCapabilityAttr(t *testing.T) {
     "offered",
     "schema",
     "setdefaultversionid",
+    "sort",
     "specversion"
   ],
   "mutable": [
@@ -889,7 +895,7 @@ func TestCapabilityAttr(t *testing.T) {
 // "collections", "doc", "epoch", "filter", "inline",
 // "nodefaultversionid", "nodefaultversionsticky",
 // "noepoch", "noreadonly", "offered", "schema", "setdefaultversionid",
-// "specversion"})
+// "sort", "specversion"})
 
 func TestCapabilityFlagsOff(t *testing.T) {
 	reg := NewRegistry("TestCapabilityFlags")
@@ -1046,6 +1052,7 @@ func TestCapabilityOffered(t *testing.T) {
       "offered",
       "schema",
       "setdefaultversionid",
+      "sort",
       "specversion"
     ]
   },
