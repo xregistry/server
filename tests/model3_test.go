@@ -1322,7 +1322,6 @@ func TestModelFullModel(t *testing.T) {
       "modelsource": {
         "description": "reg desc",
         "documentation": "reg doc",
-        "icon": "reg icon",
         "labels": {
           "reg_model_label_1": "rml1"
         },
@@ -1447,7 +1446,6 @@ func TestModelFullModel(t *testing.T) {
   "model": {
     "description": "reg desc",
     "documentation": "reg doc",
-    "icon": "reg icon",
     "labels": {
       "reg_model_label_1": "rml1"
     },

@@ -166,6 +166,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
 			}
+
 			fn := file + "/" + indexFile
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
@@ -220,6 +221,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		case ENTITY_GROUP:
 			data, _ = Download(reg, xid.String())
+
 			if host != "" {
 				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
@@ -235,30 +237,32 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				data, err = json.MarshalIndent(obj, "", "  ")
 				Error(err)
 			}
+
 			fn := file + xid.String() + "/" + indexFile
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case ENTITY_RESOURCE:
 			data, _ = Download(reg, xid.String()+"$details")
+			Error(json.Unmarshal(data, &obj))
+
 			if host != "" {
-				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
 				obj["versionsurl"] = []byte(`"` + self + "/versions" + `"`)
 				obj["metaurl"] = []byte(`"` + self + "/meta" + `"`)
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			} else {
-				Error(json.Unmarshal(data, &obj))
-				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+
+			data, err = json.MarshalIndent(obj, "", "  ")
+			Error(err)
+
 			fn := file + xid.String() + "$details"
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 			rm, err := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(err)
+
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
 				data, hdr := Download(reg, xid.String())
@@ -302,12 +306,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 							"  }\n" +
 							"  body {\n" +
 							"    font-family: sans-serif ;\n" +
-							"    font-size: 16px ; \n" +
-							"    line-height: 1.5 ; \n" +
-							"    padding: 0 20 0 30 ; \n" +
+							"    font-size: 16px ;\n" +
+							"    line-height: 1.5 ;\n" +
+							"    padding: 5% 10% 5% 10% ;\n" +
 							"  }\n" +
 							"  pre {\n" +
-							"    font-size: 85% ;\n" +
+							"    font-size: 80% ;\n" +
 							"    background-color: #f2f2f2 ;\n" +
 							"    padding: 12px ;\n" +
 							"  }\n" +
@@ -373,8 +377,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		case ENTITY_META:
 			data, _ = Download(reg, xid.String())
+			Error(json.Unmarshal(data, &obj))
+
 			if host != "" {
-				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
 				verid := ""
@@ -382,34 +387,34 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				ver := fmt.Sprintf(`"%s/versions/%s"`, self[:len(self)-5],
 					verid)
 				obj["defaultversionurl"] = []byte(ver)
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			} else {
-				Error(json.Unmarshal(data, &obj))
-				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+
+			data, err = json.MarshalIndent(obj, "", "  ")
+			Error(err)
+
 			fn := file + xid.String()
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case ENTITY_VERSION:
 			data, _ = Download(reg, xid.String()+"$details")
+			Error(json.Unmarshal(data, &obj))
+
 			if host != "" {
-				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			} else {
-				Error(json.Unmarshal(data, &obj))
-				data, err = json.MarshalIndent(obj, "", "  ")
 			}
+
+			data, err = json.MarshalIndent(obj, "", "  ")
+			Error(err)
+
 			fn := file + xid.String() + "$details"
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 			rm, err := reg.FindResourceModel(xid.Group, xid.Resource)
 			Error(err)
+
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
 				data, hdr := Download(reg, xid.String())
@@ -478,8 +483,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		if modCap {
 			tmpData := map[string]json.RawMessage(nil)
 			Error(json.Unmarshal(data, &tmpData))
+
 			caps, err := ParseCapabilitiesJSON(tmpData["capabilities"])
 			Error(err)
+
 			caps.Flags = nil
 			caps.Mutable = nil
 			caps.Pagination = false

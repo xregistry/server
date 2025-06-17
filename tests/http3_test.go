@@ -37,55 +37,6 @@ func TestHTTPMixedCase(t *testing.T) {
   }
 }`, 200, `{
   "dirs": {
-    "DiR2_.-~@DiR": {
-      "dirid": "DiR2_.-~@DiR",
-      "self": "#/dirs/DiR2_.-~@DiR",
-      "xid": "/dirs/DiR2_.-~@DiR",
-      "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-
-      "filesurl": "#/dirs/DiR2_.-~@DiR/files",
-      "files": {
-        "FiLe2_.-~@FiL": {
-          "fileid": "FiLe2_.-~@FiL",
-          "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL",
-          "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL",
-
-          "metaurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
-          "meta": {
-            "fileid": "FiLe2_.-~@FiL",
-            "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
-            "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
-            "epoch": 1,
-            "createdat": "YYYY-MM-DDTHH:MM:01Z",
-            "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-            "readonly": false,
-            "compatibility": "none",
-
-            "defaultversionid": "666",
-            "defaultversionurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
-            "defaultversionsticky": false
-          },
-          "versionsurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions",
-          "versions": {
-            "666": {
-              "fileid": "FiLe2_.-~@FiL",
-              "versionid": "666",
-              "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
-              "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
-              "epoch": 1,
-              "isdefault": true,
-              "createdat": "YYYY-MM-DDTHH:MM:01Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-              "ancestor": "666"
-            }
-          },
-          "versionscount": 1
-        }
-      },
-      "filescount": 1
-    },
     "Dir1": {
       "dirid": "Dir1",
       "self": "#/dirs/Dir1",
@@ -132,6 +83,55 @@ func TestHTTPMixedCase(t *testing.T) {
               "file": {
                 "hello": "world"
               }
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 1
+    },
+    "DiR2_.-~@DiR": {
+      "dirid": "DiR2_.-~@DiR",
+      "self": "#/dirs/DiR2_.-~@DiR",
+      "xid": "/dirs/DiR2_.-~@DiR",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+      "filesurl": "#/dirs/DiR2_.-~@DiR/files",
+      "files": {
+        "FiLe2_.-~@FiL": {
+          "fileid": "FiLe2_.-~@FiL",
+          "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL",
+          "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL",
+
+          "metaurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
+          "meta": {
+            "fileid": "FiLe2_.-~@FiL",
+            "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
+            "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/meta",
+            "epoch": 1,
+            "createdat": "YYYY-MM-DDTHH:MM:01Z",
+            "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+            "readonly": false,
+            "compatibility": "none",
+
+            "defaultversionid": "666",
+            "defaultversionurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions",
+          "versions": {
+            "666": {
+              "fileid": "FiLe2_.-~@FiL",
+              "versionid": "666",
+              "self": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
+              "xid": "/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "YYYY-MM-DDTHH:MM:01Z",
+              "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+              "ancestor": "666"
             }
           },
           "versionscount": 1
@@ -1110,7 +1110,9 @@ func TestHTTPSort(t *testing.T) {
       "myany": 123,
       "myobj": { "foo": "zzz" }
     },
-    "d3": {}
+    "d3": {
+      "name": "D1"
+    }
   }
 }`, 200, `{
   "specversion": "1.0-rc1",
@@ -1139,18 +1141,9 @@ func TestHTTPSort(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
 		``, 400, "Can't sort on a non-collection results\n")
 
+	// Notice that d3(D1) comes before d2(d2) - sort by name case insensitively
+	// Notice that d1 comes before d3 - same 'name' so sort by id (insensitive)
 	xHTTP(t, reg, "GET", "/dirs?sort=name", ``, 200, `{
-  "d3": {
-    "dirid": "d3",
-    "self": "http://localhost:8181/dirs/d3",
-    "xid": "/dirs/d3",
-    "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-
-    "filesurl": "http://localhost:8181/dirs/d3/files",
-    "filescount": 0
-  },
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1167,6 +1160,18 @@ func TestHTTPSort(t *testing.T) {
 
     "filesurl": "http://localhost:8181/dirs/d1/files",
     "filescount": 2
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "name": "D1",
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
   },
   "d2": {
     "dirid": "d2",
@@ -1228,6 +1233,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1243,6 +1249,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1326,6 +1333,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1341,6 +1349,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1390,6 +1399,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1473,6 +1483,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1488,6 +1499,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
@@ -1571,6 +1583,7 @@ func TestHTTPSort(t *testing.T) {
     "self": "http://localhost:8181/dirs/d3",
     "xid": "/dirs/d3",
     "epoch": 1,
+    "name": "D1",
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 

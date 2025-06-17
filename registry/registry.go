@@ -796,7 +796,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
       WHEN sj.PropType NOT IN ('integer','decimal','uinteger') THEN
         sj.PropValue
       ELSE NULL
-    END ` + ascDesc + `,
+    END COLLATE utf8mb4_general_ci ` + ascDesc + `,
 `
 
 		sortJoin = `
@@ -1003,7 +1003,8 @@ eSID IN ( -- eSID from query
 `
 	}
 
-	query += `  ORDER BY ` + sortOrder + `    ft.Path ASC;`
+	query += `  ORDER BY ` + sortOrder +
+		`    ft.Path COLLATE utf8mb4_general_ci ASC;`
 
 	log.VPrintf(3, "Query:\n%s\n\n", SubQuery(query, args))
 	return query, args, nil

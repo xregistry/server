@@ -63,7 +63,6 @@ type Model struct {
 	Source        string                 `json:"source,omitempty"`
 	Description   string                 `json:"description,omitempty"`
 	Documentation string                 `json:"documentation,omitempty"`
-	Icon          string                 `json:"icon,omitempty"`
 	Labels        map[string]string      `json:"labels,omitempty"`
 	Attributes    Attributes             `json:"attributes,omitempty"`
 	Groups        map[string]*GroupModel `json:"groups,omitempty"` // Plural
@@ -595,15 +594,6 @@ func (m *Model) SetDocumentation(val string) {
 
 func (m *Model) GetDocumentation() string {
 	return m.Documentation
-}
-
-func (m *Model) SetIcon(val string) {
-	m.Icon = val
-	m.SetChanged(true)
-}
-
-func (m *Model) GetIcon() string {
-	return m.Icon
 }
 
 func NewItem() *Item {

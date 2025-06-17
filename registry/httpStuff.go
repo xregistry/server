@@ -356,6 +356,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		}
 		regs = append(regs, tmp)
 	}
+	regs = append(regs, "xRegistry.io")
 	regs = append(regs, "Proxy ...")
 
 	selectedRegistry := ""
@@ -378,6 +379,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	roots := ""
 	options := ""
 	filters := ""
+	sortKey := ""
 	inlines := ""
 	apply := ""
 
@@ -440,6 +442,22 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 					"\n    <hr style=\"width: 95%%\">\n"
 			}
 		}
+	}
+
+	if info.FlagEnabled("sort") && (info.What == "Coll") {
+		checked := ""
+		val := info.GetFlag("sort")
+		val, desc, _ := strings.Cut(val, "=")
+		if desc == "desc" {
+			checked = " checked"
+		}
+		sortKey = "<div class=sortsection>\n" +
+			"  <b>Sort:</b>\n" +
+			"  <input type=text id=sortkey value='" + val + "'>\n" +
+			"  <div class=sortsectioncheckbox>\n" +
+			"    <input id=sortdesc type='checkbox'" + checked + "/>desc\n" +
+			"  </div>\n" +
+			"</div>\n"
 	}
 
 	if info.FlagEnabled("filter") && (info.RootPath == "" || info.RootPath == "export") {
@@ -641,12 +659,13 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	}
 
 	applyBtn := ""
-	if options != "" || filters != "" || inlines != "" {
+	if options != "" || filters != "" || sortKey != "" || inlines != "" {
 		applyBtn = `<fieldset>
     <legend align=center>
       <button id=applyBtn onclick='apply()'>Apply</button>
     </legend>
     ` + options + `
+    ` + sortKey + `
     ` + filters + `
     ` + inlines + `
     ` + apply + `
@@ -841,6 +860,16 @@ toggleExp(null, false);
     font-size: 13px ;
     font-family: courier ;
   }
+  .sortsection {
+    display: block ;
+    margin: 5px 0px 5px 0px ;
+    white-space: nowrap:
+  }
+  .sortsectioncheckbox {
+    font-size: 13px ;
+    font-family: courier ;
+    display: inline ;
+  }
   .inlines {
     display: flex ;
     font-size: 13px ;
@@ -985,7 +1014,9 @@ function changeRegistry(name) {
   var loc = ""
 
   if (name == "Default") loc = "/?ui"
-  else if (name == "Proxy ...") {
+  else if (name == "xRegistry.io") {
+    loc = "/proxy?host=http://xregistry.io/xreg" ;
+  } else if (name == "Proxy ...") {
     proxy = prompt("xRegistry host URL")
     if (proxy != null) {
       if ( !proxy.startsWith("http") ) proxy = "http://" + proxy ;
@@ -1016,6 +1047,15 @@ function apply() {
 
   ex = document.getElementById("docview")
   if (ex != null && ex.checked) loc += "` + AMP + `doc"
+
+  var elem = document.getElementById("sortkey")
+  if (elem != null) {
+    loc += "` + AMP + `sort=" + elem.value
+    elem = document.getElementById("sortdesc")
+    if (elem != null && elem.checked) {
+      loc += "=desc"
+    }
+  }
 
   var elem = document.getElementById("filters")
   if (elem != null) {

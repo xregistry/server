@@ -36,12 +36,6 @@ func (um *UserModel) MarshalJSON() ([]byte, error) {
 		buf.WriteRune('"')
 		extra = ","
 	}
-	if um.Icon != "" {
-		buf.WriteString(extra + `"icon":"`)
-		buf.WriteString(um.Icon)
-		buf.WriteRune('"')
-		extra = ","
-	}
 	if um.Labels != nil {
 		b, _ := json.Marshal(um.Labels)
 		buf.WriteString(extra + `"labels":`)
