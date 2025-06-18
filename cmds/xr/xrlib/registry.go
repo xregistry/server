@@ -11,18 +11,6 @@ import (
 )
 
 /*
-type Registry struct {
-	Entity
-	Capabilities *Capabilities     `json:"capabilities,omitempty"`
-	Model        *Model            `json:"model,omitempty"`
-	Groups       map[string]*Group `json:"groups,omitempty"`
-
-	isNew  bool
-	server string
-	config map[string]any
-}
-*/
-
 type RegistryDefined struct {
 	SpecVersion   string            `json:"specversion,omitempty"`
 	RegistryID    string            `json:"registryid,omitempty"`
@@ -41,113 +29,11 @@ type RegistryDefined struct {
 	Collections []*CollectionDefined `json:"-"`
 }
 
-/*
-type Model struct {
-	Registry   *Registry              `json:"-"`
-	Labels     map[string]string      `json:"labels,omitempty"`
-	Attributes Attributes             `json:"attributes,omitempty"`
-	Groups     map[string]*GroupModel `json:"groups,omitempty"`
-}
-
-type Attributes map[string]*Attribute
-
-type Attribute struct {
-	Name        string `json:"name,omitempty"`
-	Type        string `json:"type,omitempty"`
-	Target      string `json:"target,omitempty"`
-	NameCharSet string `json:"namecharset,omitempty"`
-	Description string `json:"description,omitempty"`
-	Enum        []any  `json:"enum,omitempty"`
-	Strict      bool   `json:"strict,omitempty"`
-	ReadOnly    bool   `json:"readonly,omitempty"`
-	Immutable   bool   `json:"immutable,omitempty"`
-	Required    bool   `json:"required,omitempty"`
-	Default     any    `json:"default,omitempty"`
-
-	Attributes Attributes `json:"attributes,omitempty"`
-	Item       *Item      `json:"item,omitempty"`
-	IfValues   IfValues   `json:"ifvalues,omitempty"`
-}
-
-type Item struct {
-	Type         string     `json:"type,omitempty"`
-	RelaxedNames bool       `json:"relaxednames,omitempty"`
-	Attribute    Attributes `json:"item,omitempty"`
-	Item         *Item      `json:"item,omitempty"`
-}
-
-type IfValues map[string]*IfValue
-
-type IfValue struct {
-	SiblingAttributes Attributes `json:"siblingattributes,omitempty"`
-}
-
-type GroupModel struct {
-	Model      *Model            `json:"-"`
-	Plural     string            `json:"plural,omitempty"`
-	Singular   string            `json:"singular,omitempty"`
-	Labels     map[string]string `json:"labels,omitempty"`
-	Attributes Attributes        `json:"attributes,omitempty"`
-
-	XImportResources []string                  `json:"ximportresources,omitempty"`
-	Resources        map[string]*ResourceModel `json:"resources,omitempty"`
-
-	imports map[string]*ResourceModel
-}
-*/
-
 type CollectionDefined struct {
 	Plural   string
 	Singular string
 	URL      string
 	Count    uint
-}
-
-/*
-type ResourceModel struct {
-	Plural           string            `json:"plural,omitempty"`
-	Singular         string            `json:"singular,omitempty"`
-	MaxVersions      int               `json:"maxversions,omitempty"`
-	SetVersionId     *bool             `json:"setversionid,omitempty"`
-	SetDefaultSticky *bool             `json:"setdefaultversionsticky,omitempty"`
-	HasDocument      *bool             `json:"hasdocument,omitempty"`
-	TypeMap          map[string]string `json:"typemap,omitempty"`
-	Labels           map[string]string `json:"labels,omitempty"`
-	Attributes       Attributes        `json:"attributes,omitempty"`
-	MetaAttributes   Attributes        `json:"metaattributes,omitempty"`
-}
-
-type Group struct {
-	Entity
-	registry  *Registry
-	resources map[string]*Resource
-}
-
-type Resource struct {
-	Entity
-	group    *Group
-	meta     *Meta
-	versions map[string]*Version
-}
-
-type Meta struct {
-	Entity
-	resource *Resource
-}
-
-type Version struct {
-	Entity
-	resource *Resource
-}
-
-type Entity struct {
-	registry   *Registry
-	uid        string
-	attributes map[string]any
-
-	daType   int
-	path     string
-	abstract string
 }
 */
 
@@ -346,14 +232,6 @@ func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, erro
 	return HttpDo(verb, u.String(), body)
 }
 
-/*
-func (m *Model) SetPointers() {
-	for _, gm := range m.Groups {
-		gm.SetModel(m)
-	}
-}
-*/
-
 func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	for _, group := range m.Groups {
 		if group.Singular == singular {
@@ -362,77 +240,6 @@ func (m *Model) FindGroupBySingular(singular string) *GroupModel {
 	}
 	return nil
 }
-
-/*
-func (m *Model) FindGroupModel(plural string) *GroupModel {
-	return m.Groups[plural]
-}
-
-func (m *Model) FindResourceModel(gType, rType string) *ResourceModel {
-	gm := m.FindGroupModel(gType)
-	if gm == nil {
-		return nil
-	}
-	return gm.FindResourceModel(rType)
-}
-
-func (gm *GroupModel) SetModel(m *Model) {
-	gm.Model = m
-}
-
-func (gm *GroupModel) FindResourceBySingular(singular string) *ResourceModel {
-	for _, resource := range gm.Resources {
-		if resource.Singular == singular {
-			return resource
-		}
-	}
-	return nil
-}
-
-func (gm *GroupModel) GetImports() map[string]*ResourceModel {
-	if gm.imports == nil && len(gm.XImportResources) > 0 {
-		gm.imports = map[string]*ResourceModel{}
-		for _, grName := range gm.XImportResources {
-			parts := strings.Split(grName, "/")
-			r := gm.Model.FindResourceModel(parts[1], parts[2])
-			// PanicIf(r == nil, "Can't find %q", grName)
-			gm.imports[parts[2]] = r
-		}
-	}
-	return gm.imports
-}
-
-func (gm *GroupModel) FindResourceModel(rType string) *ResourceModel {
-	if gm == nil {
-		return nil
-	}
-	if rm := gm.Resources[rType]; rm != nil {
-		return rm
-	}
-
-	imps := gm.GetImports()
-	if imps != nil {
-		return imps[rType]
-	}
-	return nil
-}
-
-func (gm *GroupModel) GetResourceList() []string {
-	list := make([]string, len(gm.Resources)+len(gm.XImportResources))
-	i := 0
-	for plural, _ := range gm.Resources {
-		list[i] = plural
-		i++
-	}
-
-	imps := gm.GetImports()
-	for k, _ := range imps {
-		list[i] = k
-		i++
-	}
-	return list
-}
-*/
 
 func (reg *Registry) URLWithPath(path string) (*url.URL, error) {
 	server := reg.GetServerURL()

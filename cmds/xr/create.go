@@ -121,6 +121,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	if xid.Type == ENTITY_GROUP && len(data) == 0 {
+		data = `{}`
+	}
+
 	if !force {
 		Error(xrlib.ValidateTypes(xid, reg, false))
 	}

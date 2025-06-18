@@ -1831,3 +1831,128 @@ func TestHTTPSort(t *testing.T) {
 `)
 
 }
+
+func TestHTTPSortArray(t *testing.T) {
+	reg := NewRegistry("TestHTTPSortArray")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ "zzz", "bbb" ] },
+    "d2": { "strs": [ "aaa", "bbb" ] }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPSortArray",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=strs[0]", "", 200, `{
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "aaa",
+      "bbb"
+    ]
+  },
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "zzz",
+      "bbb"
+    ]
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=strs[1]", "", 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "zzz",
+      "bbb"
+    ]
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "aaa",
+      "bbb"
+    ]
+  }
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs?sort=strs[0]=desc", "", 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "zzz",
+      "bbb"
+    ]
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "strs": [
+      "aaa",
+      "bbb"
+    ]
+  }
+}
+`)
+
+}

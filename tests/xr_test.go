@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"regexp"
@@ -249,16 +250,132 @@ func TestXRModel(t *testing.T) {
 		Output string
 	}{
 		{
-			Args: []string{"model", "update", "-d",
+			Args: []string{"model", "update", "-vd",
 				"@files/dir/model-dirs-inc-docs.json"},
 			Stdin:  "",
-			Output: "",
+			Output: "Model updated\n",
+		},
+		{
+			Args:   []string{"model", "group", "create", "-v", "gts:gt"},
+			Output: "Created Group type: gts:gt\n",
+		},
+		{
+			Args: []string{"model", "resource", "create",
+				"-vg", "gts", "rts:rt"},
+			Output: "Created Resource type: rts:rt\n",
+		},
+		{
+			Args: []string{"model", "resource", "create",
+				"-vg", "gt2s:gt2", "rt2s:rt2"},
+			Output: `Created Group type: gt2s:gt2
+Created Resource type: rt2s:rt2
+`,
+		},
+		{
+			Args: []string{"model", "get"},
+			Output: `xRegistry Model:
+
+ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+dirs        map(object) -   -  y   
+dirscount   uinteger    y   y  y   
+dirsurl     url         y   y  -   
+docs        map(object) -   -  y   
+docscount   uinteger    y   y  y   
+docsurl     url         y   y  -   
+gt2s        map(object) -   -  y   
+gt2scount   uinteger    y   y  y   
+gt2surl     url         y   y  -   
+gts         map(object) -   -  y   
+gtscount    uinteger    y   y  y   
+gtsurl      url         y   y  -   
+
+GROUP: dirs / dir
+
+  ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+  files       map(object) -   -  y   
+  filescount  uinteger    y   y  y   
+  filesurl    url         y   y  -   
+
+  RESOURCE: files/ file
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
+    ATTRIBUTES:  TYPE   REQ RO MUT DEFAULT
+    file         any    -   -  y   
+    filebase64   string -   -  y   
+    fileproxyurl url    -   -  y   
+    fileurl      url    -   -  y   
+
+GROUP: docs / doc
+
+  ATTRIBUTES:  TYPE        REQ RO MUT DEFAULT
+  formats      map(object) -   -  y   
+  formatscount uinteger    y   y  y   
+  formatsurl   url         y   y  -   
+
+  RESOURCE: formats/ format
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
+    ATTRIBUTES:    TYPE   REQ RO MUT DEFAULT
+    format         any    -   -  y   
+    formatbase64   string -   -  y   
+    formatproxyurl url    -   -  y   
+    formaturl      url    -   -  y   
+
+GROUP: gt2s / gt2
+
+  ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+  rt2s        map(object) -   -  y   
+  rt2scount   uinteger    y   y  y   
+  rt2surl     url         y   y  -   
+
+  RESOURCE: rt2s/ rt2
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
+    ATTRIBUTES: TYPE   REQ RO MUT DEFAULT
+    rt2         any    -   -  y   
+    rt2base64   string -   -  y   
+    rt2proxyurl url    -   -  y   
+    rt2url      url    -   -  y   
+
+GROUP: gts / gt
+
+  ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
+  rts         map(object) -   -  y   
+  rtscount    uinteger    y   y  y   
+  rtsurl      url         y   y  -   
+
+  RESOURCE: rts/ rt
+    Max versions      : 0
+    Set version id    : true
+    Set version sticky: true
+    Has document      : true
+
+    ATTRIBUTES: TYPE   REQ RO MUT DEFAULT
+    rt          any    -   -  y   
+    rtbase64    string -   -  y   
+    rtproxyurl  url    -   -  y   
+    rturl       url    -   -  y   
+`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Logf("Args: %v", test.Args)
 		cmd := exec.Command("../xr", test.Args...)
+
+		if test.Stdin != "" {
+			cmd.Stdin = bytes.NewBuffer([]byte(test.Stdin))
+		}
+
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("Output: %s\nErr: %s", string(out), err)

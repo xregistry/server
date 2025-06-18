@@ -92,9 +92,8 @@ type AttrInternals struct {
 }
 
 // Do not include "omitempty" on any attribute that has a default value that
-// doesn't match golang's default value for that type. E.g. bool defaults to
-// 'false', but Strict needs to default to 'true'. See the custome Unmarshal
-// funcs in model.go for how we set those
+// doesn't match golang's default value for that type.
+// See the custom Unmarshal funcs for how we set those
 type Attribute struct {
 	Model       *Model `json:"-"`
 	Name        string `json:"name,omitempty"`
@@ -171,11 +170,11 @@ type ResourceModel struct {
 	ModelVersion   string            `json:"modelversion,omitempty"`
 	CompatibleWith string            `json:"compatiblewith,omitempty"`
 
-	MaxVersions       int               `json:"maxversions"`             // do not include omitempty
-	SetVersionId      *bool             `json:"setversionid"`            // do not include omitempty
-	SetDefaultSticky  *bool             `json:"setdefaultversionsticky"` // do not include omitempty
-	HasDocument       *bool             `json:"hasdocument"`             // do not include omitempty
-	SingleVersionRoot *bool             `json:"singleversionroot"`       // do not include omitempty
+	MaxVersions       int               `json:"maxversions,omitempty"`
+	SetVersionId      *bool             `json:"setversionid,omitempty"`
+	SetDefaultSticky  *bool             `json:"setdefaultversionsticky,omitempty"`
+	HasDocument       *bool             `json:"hasdocument,omitempty"`
+	SingleVersionRoot *bool             `json:"singleversionroot,omitempty"`
 	TypeMap           map[string]string `json:"typemap,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)

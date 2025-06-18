@@ -97,7 +97,8 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Create a new Model Resource type",
 		Run:   modelResourceCreateFunc,
 	}
-	resourceCreateCmd.Flags().StringP("group", "g", "", "Group type name")
+	resourceCreateCmd.Flags().StringP("group", "g", "",
+		"Group type plural name (add \":SINGULAR\" to create)")
 	modelResourceCmd.AddCommand(resourceCreateCmd)
 
 	resourceDeleteCmd := &cobra.Command{
@@ -444,28 +445,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 			Error("Group type name must be of the form: PLURAL:SINGULAR")
 		}
 
-		if parts[0] == parts[1] {
-			Error("Group PLURAL and SINGULAR names must be different")
-		}
-
-		for _, gm := range model.Groups {
-			if parts[0] == gm.Plural {
-				Error("PLURAL value (%s) conflicts with an existing Group "+
-					"PLURAL name", parts[0])
-			}
-			if parts[0] == gm.Singular {
-				Error("PLURAL value (%s) conflicts with an existing Group "+
-					"SINGULAR name", parts[0])
-			}
-			if parts[1] == gm.Plural {
-				Error("SINGULAR value (%s) conflicts with an existing Group "+
-					"PLURAL name", parts[1])
-			}
-			if parts[1] == gm.Singular {
-				Error("SINGULAR value (%s) conflicts with an existing Group "+
-					"SINGULAR name", parts[1])
-			}
-		}
+		Error(ValidateNewGroup(model, parts[0], parts[1]))
 
 		if model.Groups == nil {
 			model.Groups = map[string]*xrlib.GroupModel{}
@@ -487,6 +467,32 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
 	Verbose(verMsg)
+}
+
+func ValidateNewGroup(model *xrlib.Model, plural, singular string) error {
+	if plural == singular {
+		Error("Group PLURAL and SINGULAR names must be different")
+	}
+
+	for _, gm := range model.Groups {
+		if plural == gm.Plural {
+			Error("PLURAL value (%s) conflicts with an existing Group "+
+				"PLURAL name", plural)
+		}
+		if plural == gm.Singular {
+			Error("PLURAL value (%s) conflicts with an existing Group "+
+				"SINGULAR name", plural)
+		}
+		if singular == gm.Plural {
+			Error("SINGULAR value (%s) conflicts with an existing Group "+
+				"PLURAL name", singular)
+		}
+		if singular == gm.Singular {
+			Error("SINGULAR value (%s) conflicts with an existing Group "+
+				"SINGULAR name", singular)
+		}
+	}
+	return nil
 }
 
 func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
@@ -551,11 +557,40 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
+	groupPlural, groupSingular, _ := strings.Cut(group, ":")
+
 	model, err := reg.GetModelSource()
 	Error(err)
-	gm := model.FindGroupModel(group)
+	gm := model.FindGroupModel(groupPlural)
 	if gm == nil {
-		Error("Group type %q does not exist", group)
+		if groupSingular == "" {
+			Error("Group type %q does not exist", group)
+		}
+
+		// Now create the group
+		Error(ValidateNewGroup(model, groupPlural, groupSingular))
+
+		if model.Groups == nil {
+			model.Groups = map[string]*xrlib.GroupModel{}
+		}
+
+		model.Groups[groupPlural] = &xrlib.GroupModel{
+			Model:    model,
+			Plural:   groupPlural,
+			Singular: groupSingular,
+		}
+
+		buf, err := json.MarshalIndent(model, "", "  ")
+		Error(err)
+		_, err = reg.HttpDo("PUT", "/modelsource", buf)
+		Error(err)
+		Verbose("Created Group type: %s:%s\n", groupPlural, groupSingular)
+		gm = model.FindGroupModel(groupPlural)
+	} else {
+		if groupSingular != "" && groupSingular != gm.Singular {
+			Error("Group type %q already exists with a different "+
+				"singular name: %s", gm.Singular)
+		}
 	}
 
 	verMsg := ""

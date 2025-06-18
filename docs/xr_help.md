@@ -75,7 +75,7 @@ xr model normalize [ - | FILE ]
 
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
-  -g, --group string   Group type name
+  -g, --group string   Group type plural name (add ":SINGULAR" to create)
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
