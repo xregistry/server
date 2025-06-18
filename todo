@@ -119,4 +119,3 @@ TODOs:
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 - support patch / + capabilities - does patching of capabilities
 - support patch / + modelsource - full replacement
-- add test for $schema in data and in model

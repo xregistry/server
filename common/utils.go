@@ -1480,3 +1480,29 @@ func PrettyPrintJSON(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 */
+
+func RemoveSchema(buf []byte) ([]byte, error) {
+	obj, err := ParseJSONToObject(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	ordered, ok := obj.(*OrderedMap)
+	if !ok {
+		return buf, nil
+	}
+
+	if ordered.Values["$schema"] == nil {
+		return buf, nil
+	}
+
+	delete(ordered.Values, "$schema")
+	for i, v := range ordered.Keys {
+		if v == "$schema" {
+			ordered.Keys = append(ordered.Keys[:i], ordered.Keys[i+1:]...)
+			break
+		}
+	}
+
+	return json.Marshal(ordered)
+}

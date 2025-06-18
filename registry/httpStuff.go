@@ -2488,6 +2488,11 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 		return err
 	}
 
+	reqBody, err = RemoveSchema(reqBody)
+	if err != nil {
+		return err
+	}
+
 	cap := &Capabilities{}
 
 	method := info.OriginalRequest.Method

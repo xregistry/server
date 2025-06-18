@@ -461,7 +461,12 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 		if IsNil(val) {
 			rawJson = []byte("{}")
 		} else {
+			var err error
 			rawJson = val.(json.RawMessage)
+			rawJson, err = RemoveSchema(rawJson)
+			if err != nil {
+				return err
+			}
 		}
 
 		err := reg.Model.ApplyNewModelFromJSON(rawJson)

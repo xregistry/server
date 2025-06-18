@@ -1956,3 +1956,317 @@ func TestHTTPSortArray(t *testing.T) {
 `)
 
 }
+
+func TestHTTPJsonSchema(t *testing.T) {
+	reg := NewRegistry("TestHTTPJsonSchema")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com"}`,
+		200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPJsonSchema",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com", "name": "foo"}`,
+		200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPJsonSchema",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "name": "foo",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com"}`,
+		200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPJsonSchema",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "name": "foo",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com", "name": "zoo"}`,
+		200, `{
+  "specversion": "1.0-rc1",
+  "registryid": "TestHTTPJsonSchema",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "name": "zoo",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+		200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model",
+    "/modelsource"
+  ],
+  "flags": [],
+  "mutable": [
+    "capabilities",
+    "entities",
+    "model"
+  ],
+  "pagination": false,
+  "schemas": [
+    "xregistry-json/1.0-rc1"
+  ],
+  "shortself": false,
+  "specversions": [
+    "1.0-rc1"
+  ],
+  "sticky": true
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+		200, `{
+  "apis": [
+    "/capabilities",
+    "/export",
+    "/model",
+    "/modelsource"
+  ],
+  "flags": [],
+  "mutable": [
+    "capabilities",
+    "entities",
+    "model"
+  ],
+  "pagination": false,
+  "schemas": [
+    "xregistry-json/1.0-rc1"
+  ],
+  "shortself": false,
+  "specversions": [
+    "1.0-rc1"
+  ],
+  "sticky": true
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{"$schema": "http://foo.com"}`,
+		200, `{
+  "$schema": "http://foo.com"
+}
+`)
+	xHTTP(t, reg, "PUT", "/modelsource",
+		`{"$schema": "http://foo.com", "groups": {"dirs":{"singular":"dir","resources":{"files": {"singular": "file"}}}}}`, 200, `{
+  "$schema": "http://foo.com",
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v1"}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "name": "v1",
+  "isdefault": true,
+  "createdat": "2025-06-18T16:39:53.559486601Z",
+  "modifiedat": "2025-06-18T16:39:53.559486601Z",
+  "ancestor": "v1"
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v11"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "name": "v11",
+  "isdefault": true,
+  "createdat": "2025-06-18T16:39:53.559486601Z",
+  "modifiedat": "2025-06-18T16:39:53.559486602Z",
+  "ancestor": "v1"
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"$schema": "http://foo.com", "v2": {}}`,
+		200, `{
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "v1"
+  }
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com"}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "xid": "/dirs/d1/files/f1/versions/1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "v2"
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "foo",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo2"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "name": "foo2",
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com"}`,
+		200, `{}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com", "f2":{}}`,
+		200, `{
+  "f2": {
+    "fileid": "f2",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d1/files/f2$details",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+    "versionscount": 1
+  }
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com"}`,
+		200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 2
+}
+`)
+
+	xHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d1"}`,
+		200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 4,
+  "name": "d1",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 2
+}
+`)
+
+	xHTTP(t, reg, "PATCH", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d11"}`,
+		200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 5,
+  "name": "d11",
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 2
+}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com"}`,
+		200, `{}
+`)
+
+	xHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com", "d2":{}}`,
+		200, `{
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  }
+}
+`)
+
+}
