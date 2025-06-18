@@ -120,4 +120,3 @@ TODOs:
 - support patch / + capabilities - does patching of capabilities
 - support patch / + modelsource - full replacement
 - add test for $schema in data and in model
-- don't allow extensions in resourceattributes

@@ -2138,6 +2138,19 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		}
 	}
 
+	// Make sure we don't have any extensions in ResourceAttributes
+	list := map[string]bool{}
+	for attrName, _ := range rm.ResourceAttributes {
+		specProp := rm.resourcePropsMap[attrName]
+		if specProp == nil {
+			list[attrName] = true
+		}
+	}
+	if len(list) > 0 {
+		return fmt.Errorf("Extension attributes are not allowed in "+
+			"\"resourceattributes\": %s", strings.Join(SortedKeys(list), ","))
+	}
+
 	propsOrdered, _ = rm.GetVersionPropsOrdered()
 	for _, specProp := range propsOrdered {
 		if specProp.Name[0] == '$' {

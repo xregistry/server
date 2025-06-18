@@ -2,9 +2,8 @@ package tests
 
 import (
 	"testing"
-
-	. "github.com/xregistry/server/common"
-	"github.com/xregistry/server/registry"
+	// . "github.com/xregistry/server/common"
+	// "github.com/xregistry/server/registry"
 )
 
 func TestModelXImportErrors(t *testing.T) {
@@ -207,6 +206,7 @@ func TestModelXImport(t *testing.T) {
 `)
 }
 
+/* not allowed any more
 func TestModelResourceAttrs(t *testing.T) {
 	reg := NewRegistry("TestModelResourceAttrs")
 	defer PassDeleteReg(t, reg)
@@ -1302,6 +1302,7 @@ func TestModelResourceAttrs(t *testing.T) {
 `)
 
 }
+*/
 
 func TestModelFullModel(t *testing.T) {
 	reg := NewRegistry("TestModelFullModel")
@@ -2077,4 +2078,56 @@ func TestModelFullModel(t *testing.T) {
 }
 `)
 
+}
+
+func TestModelNoResAttrExts(t *testing.T) {
+	reg := NewRegistry("TestModelNoResAttrExts")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file",
+              "resourceattributes": {
+                "xid": {
+                  "type": "xid",
+                  "required": true,
+                  "readonly": true
+                },
+                "myext": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+}`, 400, `Extension attributes are not allowed in "resourceattributes": myext
+`)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file",
+              "resourceattributes": {
+                "myext2": { "type": "string" },
+                "xid": {
+                  "type": "xid",
+                  "required": true,
+                  "readonly": true
+                },
+                "myext1": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+}`, 400, `Extension attributes are not allowed in "resourceattributes": myext1,myext2
+`)
 }
