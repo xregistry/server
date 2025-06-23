@@ -2,6 +2,8 @@ package tests
 
 import (
 	"testing"
+
+	. "github.com/xregistry/server/common"
 	// "github.com/xregistry/server/registry"
 )
 
@@ -174,7 +176,7 @@ func TestHTTPModelSource(t *testing.T) {
     }
   }
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -211,7 +213,7 @@ func TestHTTPModelSource(t *testing.T) {
     }
   }
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -753,7 +755,7 @@ func TestHTTPModelSource(t *testing.T) {
   "model": { "ignore": "me" },
   "modelsource": {}
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -886,7 +888,7 @@ func TestHTTPModelSource(t *testing.T) {
   "model": { "ignore": "me" },
   "modelsource": null
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1008,7 +1010,7 @@ func TestHTTPModelSource(t *testing.T) {
 	xHTTP(t, reg, "PATCH", "/?inline=modelsource", `{
   "modelsource": {"groups": { "foos": { "singular": "foo"}}}}
 `, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1115,7 +1117,7 @@ func TestHTTPSort(t *testing.T) {
     }
   }
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPSort",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1858,7 +1860,7 @@ func TestHTTPSortArray(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPSortArray",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1963,7 +1965,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com"}`,
 		200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1974,7 +1976,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 `)
 	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com", "name": "foo"}`,
 		200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1987,7 +1989,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 
 	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com"}`,
 		200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1999,7 +2001,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 `)
 	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com", "name": "zoo"}`,
 		200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2026,11 +2028,11 @@ func TestHTTPJsonSchema(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/1.0-rc1"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "1.0-rc1"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }
@@ -2052,11 +2054,11 @@ func TestHTTPJsonSchema(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/1.0-rc1"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "1.0-rc1"
+    "`+SPECVERSION+`"
   ],
   "sticky": true
 }

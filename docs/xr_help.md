@@ -22,11 +22,14 @@ xr conform
 
 xr create [ XID ]
   # Create a new entity in the registry
-  -d, --data string   Data(json), @FILE, @URL, @-(stdin)
-  -m, --details       Data is resource metadata
-  -f, --force         Force an 'update' if already exist, skip pre-flight
-                      checks
-  -p, --patch         Only 'update' specified attributes when -f is applied
+      --add stringArray   Add to an attribute: --add NAME[=(VALUE | "STRING")]
+  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+      --del stringArray   Delete an attribute: --del NAME
+  -m, --details           Data is resource metadata
+  -f, --force             Force an 'update' if exist, skip pre-flight checks
+  -o, --output string     Output format(json) (default "json")
+  -r, --replace           Only 'update' specified attributes when -f is applied
+      --set stringArray   Set an attribute: --set NAME[=(VALUE | "STRING")]
 
 xr delete [ XID ... ]
   # Delete an entity from the registry
@@ -59,28 +62,45 @@ xr import [ XID ]
   -d, --data string   Data(json), @FILE, @URL, @-(stdin)
 
 xr model get
-  # Get the registry's model
+  # Retrieve details about the registry's model
   -a, --all             Show all data
   -o, --output string   output: table, json (default "table")
 
 xr model group create PLURAL:SINGULAR...
   # Create a new Model Group type
+  -a, --all             Show all data
+  -o, --output string   output: none, table, json (default "none")
+  -r, --resources       Show Resource types
 
 xr model group delete PLURAL...
   # Delete a Model Group type
   -f, --force   Ignore a "not found" error
+
+xr model group get PLURAL
+  # Retrieve details about a Model Group type
+  -a, --all             Show all data
+  -o, --output string   output: table, json (default "table")
+  -r, --resources       Show Resource types
 
 xr model normalize [ - | FILE ]
   # Parse and resolve 'includes' in an xRegistry model document
 
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
-  -g, --group string   Group type plural name (add ":SINGULAR" to create)
+  -a, --all             Show all data
+  -g, --group string    Group type plural name (add ":SINGULAR" to create)
+  -o, --output string   output: none, table, json (default "none")
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
   -f, --force          Ignore a "not found" error
   -g, --group string   Group type name
+
+xr model resource get PLURAL
+  # Retrieve details about a Model Resource type
+  -a, --all             Show all data
+  -g, --group string    Group type plural name
+  -o, --output string   output: none, table, json (default "table")
 
 xr model update [ - | FILE | -d ]
   # Update the registry's model
@@ -94,18 +114,28 @@ xr serve DIR
   # Run an HTTP file server for a directory
   -a, --address string   address:port of listener (default "0.0.0.0:8080")
 
-xr set XID NAME[=(VALUE | "STRING")]
-  # Update an entity's xRegistry metadata
-  -m, --details         Show resource metadata
-  -o, --output string   Output format(json,human) (default "json")
-
 xr update [ XID ]
   # Update an entity in the registry
-  -d, --data string   Data(json), @FILE, @URL, @-(stdin)
-  -m, --details       Data is resource metadata
-  -f, --force         Force a 'create' if doesnt exist, skip pre-flight checks
-      --noepoch       Skip 'epoch' checks
-  -p, --patch         Only update specified attributes
+      --add stringArray   Add to an attribute
+  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+      --del stringArray   Delete an attribute
+  -m, --details           Data is resource metadata
+  -f, --force             Force a 'create' if missing, skip pre-flight checks
+      --noepoch           Skip 'epoch' checks
+  -o, --output string     Output format(json) (default "json")
+  -r, --replace           Only update specified attributes
+      --set stringArray   Set an attribute
+
+xr upsert [ XID ]
+  # UPdate, or inSERT as appropriate, an entity in the registry
+      --add stringArray   Add to an attribute
+  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+      --del stringArray   Delete an attribute
+  -m, --details           Data is resource metadata
+  -f, --force             Skip pre-flight checks
+  -o, --output string     Output format(json) (default "json")
+  -r, --replace           Only update specified attributes
+      --set stringArray   Set an attribute
 ```
 <!-- XR HELP END -->
 

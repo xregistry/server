@@ -200,7 +200,7 @@ func TestTimestampRegistry(t *testing.T) {
 		}`,
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
-		ResBody: `--{
+		ResBody: `--TS--{
   "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
@@ -372,9 +372,9 @@ func TestTimestampParsing(t *testing.T) {
 
 		reg.Refresh(registry.FOR_WRITE)
 		if test.utc != "" {
-			xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.utc)
+			xCheckEqual(t, "", reg.Get("modifiedat"), "--TS--"+test.utc)
 		} else {
-			xCheckEqual(t, "", reg.Get("modifiedat"), "--"+test.value)
+			xCheckEqual(t, "", reg.Get("modifiedat"), "--TS--"+test.value)
 		}
 		xNoErr(t, reg.SaveAllAndCommit())
 	}

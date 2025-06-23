@@ -101,24 +101,6 @@ func (reg *Registry) RefreshModel() error {
 			err, string(res.Body))
 	}
 	reg.Model.SetPointers()
-
-	res, err = reg.HttpDo("GET", "/modelsource", nil)
-
-	if res.Code != 404 {
-		// We silently ignore 404 for modelsource
-		if err != nil {
-			return err
-		}
-
-		srcModel := Model{}
-
-		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
-			return fmt.Errorf("Unable to parse registry modelsource: %s\n%s",
-				err, string(res.Body))
-		}
-		reg.Model.Source = string(res.Body)
-	}
-
 	return nil
 }
 
@@ -166,6 +148,13 @@ func (reg *Registry) GetModelSource() (*Model, error) {
 			return nil, err
 		}
 	}
+
+	if reg.Model.Source == "" {
+		if err := reg.RefreshModelSource(); err != nil {
+			return nil, err
+		}
+	}
+
 	tmpModel := Model{}
 	if reg.Model.Source != "" {
 		err := Unmarshal([]byte(reg.Model.Source), &tmpModel)
@@ -173,7 +162,37 @@ func (reg *Registry) GetModelSource() (*Model, error) {
 			return nil, err
 		}
 	}
+
 	return &tmpModel, nil
+}
+
+func (reg *Registry) RefreshModelSource() error {
+	if reg.Model == nil {
+		if err := reg.RefreshModel(); err != nil {
+			return err
+		}
+	}
+
+	res, err := reg.HttpDo("GET", "/modelsource", nil)
+
+	reg.Model.Source = ""
+
+	if res.Code != 404 {
+		// We silently ignore 404 for modelsource
+		if err != nil {
+			return err
+		}
+
+		srcModel := Model{}
+
+		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
+			return fmt.Errorf("Unable to parse registry modelsource: %s\n%s",
+				err, string(res.Body))
+		}
+		reg.Model.Source = string(res.Body)
+	}
+
+	return nil
 }
 
 func (reg *Registry) GetCapabilities() (*Capabilities, error) {

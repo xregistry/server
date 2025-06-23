@@ -58,7 +58,7 @@ var AllowableMutable = ArrayToLower([]string{
 
 var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 
-var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc1", SPECVERSION})
+var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
 var SupportedFlags = ArrayToLower([]string{
 	"collections", "doc", "epoch", "filter", "inline",

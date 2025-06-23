@@ -7,6 +7,7 @@ import (
 	"net/http"
 	gourl "net/url"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -278,9 +279,13 @@ func xCheckEqual(t *testing.T, extra string, gotAny any, expAny any) {
 	exp := fmt.Sprintf("%v", expAny)
 	got := fmt.Sprintf("%v", gotAny)
 
-	// expected output starting with "--" means "skip timestamp masking"
-	if len(exp) > 2 && exp[0:2] == "--" {
-		exp = exp[2:]
+	if exp == "*" {
+		return
+	}
+
+	// expected output starting with "--TS--" means "skip timestamp masking"
+	if len(exp) > 6 && exp[0:6] == "--TS--" {
+		exp = exp[6:]
 	} else {
 		got = MaskTimestamps(got)
 		exp = MaskTimestamps(exp)
@@ -620,4 +625,36 @@ func xJSONCheck(t *testing.T, gotObj any, expObj any) {
 	got := ToJSON(gotObj)
 	exp := ToJSON(expObj)
 	xCheckEqual(t, "", got, exp)
+}
+
+func xCLIServer(serverURL string) {
+	os.Setenv("XR_SERVER", serverURL)
+}
+
+func xCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
+	t.Helper()
+
+	args := strings.Split(line, " ")
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+
+	cmd := exec.Command("../xr", args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if in != "" {
+		cmd.Stdin = bytes.NewBuffer([]byte(in))
+	}
+
+	err := cmd.Run()
+
+	if err != nil && work {
+		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
+			err, stdout.String(), stderr.String())
+	} else if err == nil && !work {
+		t.Fatalf("Should have failed:\nStdout: %s\nStderr: %s",
+			stdout.String(), stderr.String())
+	}
+
+	xCheckEqual(t, "Stderr:", stderr.String(), Eerr)
+	xCheckEqual(t, "Stdout:", stdout.String(), Eout)
 }

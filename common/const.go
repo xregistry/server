@@ -2,7 +2,7 @@ package common
 
 var GitCommit = ""
 
-const SPECVERSION = "1.0-rc1"
+const SPECVERSION = "1.0-rc2"
 const XREGSCHEMA = "xRegistry-json"
 
 // Model attribute default values

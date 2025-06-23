@@ -2,7 +2,8 @@ package tests
 
 import (
 	"testing"
-	// . "github.com/xregistry/server/common"
+
+	. "github.com/xregistry/server/common"
 	// "github.com/xregistry/server/registry"
 )
 
@@ -1427,8 +1428,8 @@ func TestModelFullModel(t *testing.T) {
           }
         }
       }
-    }`, 200, `--{
-  "specversion": "1.0-rc1",
+    }`, 200, `--TS--{
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestModelFullModel",
   "self": "http://localhost:8181/",
   "xid": "/",

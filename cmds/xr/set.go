@@ -14,11 +14,17 @@ import (
 
 func addSetCmd(parent *cobra.Command) {
 	setCmd := &cobra.Command{
-		Use:     "set XID NAME[=(VALUE | \"STRING\")]",
+		Use:     "set XID [+]NAME[=(VALUE | \"STRING\")]",
 		Short:   "Update an entity's xRegistry metadata",
 		Run:     setFunc,
 		GroupID: "Entities",
 	}
+	setCmd.Long = setCmd.Short + "\n" + `
+- Use "+NAME" to add to existing complex attribute rather than replace it
+- Use "null" VALUE to delete the attribute
+- Use escaped double-quotes (e.g. \"5\") to force it to be a string
+`
+
 	setCmd.Flags().StringP("output", "o", "json", "Output format(json,human)")
 	setCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 	// Note that -m is ignored because we'll automatically add $details (or not)

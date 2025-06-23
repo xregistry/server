@@ -1808,7 +1808,7 @@ func TestUseSpecAttrs(t *testing.T) {
 	}
 
 	xHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestUseSpecAttrs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4331,7 +4331,7 @@ func TestModelIncludes(t *testing.T) {
       "type": "string",
       "readonly": true,
       "required": true,
-      "default": "1.0-rc1"
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "type": "string",
@@ -4687,7 +4687,7 @@ func TestModelIncludes(t *testing.T) {
       "type": "string",
       "readonly": true,
       "required": true,
-      "default": "1.0-rc1"
+      "default": "`+SPECVERSION+`"
     },
     "registryid": {
       "name": "registryid",

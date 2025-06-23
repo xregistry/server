@@ -232,7 +232,6 @@ func main() {
 	addImportCmd(xrCmd)
 	addModelCmd(xrCmd)
 	// addRegistryCmd(xrCmd)
-	addSetCmd(xrCmd)
 	addUpdateCmd(xrCmd)
 	addUpsertCmd(xrCmd)
 

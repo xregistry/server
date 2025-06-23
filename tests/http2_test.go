@@ -3693,8 +3693,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	// Test PATCHing the Registry
 
-	// skip timestamp masking (the "--")
-	xHTTP(t, reg, "GET", "/", ``, 200, `--{
+	// skip timestamp masking (the "--TS--")
+	xHTTP(t, reg, "GET", "/", ``, 200, `--TS--{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",

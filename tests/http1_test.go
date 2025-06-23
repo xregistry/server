@@ -3266,7 +3266,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3311,7 +3311,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3349,7 +3349,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3399,7 +3399,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3460,7 +3460,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3500,7 +3500,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3539,7 +3539,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3613,7 +3613,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3668,7 +3668,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
 		ResBody: `{
-  "specversion": "1.0-rc1",
+  "specversion": "` + SPECVERSION + `",
   "registryid": "TestHTTPRegGroups",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -5895,12 +5895,12 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	d1Modified := d1.GetAsString(NewPP().P("modifiedat").UI())
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
 	xCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
 
 	xCheckEqual(t, "", d1Epoch, 1)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+d1Created)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+d1Modified)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+d1Created)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+d1Modified)
 
 	regEpoch = reg.GetAsInt("epoch")
 	regModified = reg.GetAsString("modifiedat")
@@ -5915,26 +5915,26 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	m1, _ := f1.FindMeta(false, registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--TS--"+d1Created)
 	xCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
 
 	d1Epoch = d1.GetAsInt("epoch")
 	d1Modified = d1.GetAsString("modifiedat")
 
 	xCheckEqual(t, "", m1.GetAsInt("epoch"), 1)
-	xCheckEqual(t, "", m1.GetAsString("createdat"), "--"+d1Modified)
-	xCheckEqual(t, "", m1.GetAsString("modifiedat"), "--"+d1Modified)
+	xCheckEqual(t, "", m1.GetAsString("createdat"), "--TS--"+d1Modified)
+	xCheckEqual(t, "", m1.GetAsString("modifiedat"), "--TS--"+d1Modified)
 
 	m1Created := m1.GetAsString("createdat")
 	m1Modified := m1.GetAsString("modifiedat")
 
 	xCheckEqual(t, "", v1.GetAsInt("epoch"), 1)
-	xCheckEqual(t, "", v1.GetAsString("createdat"), "--"+d1Modified)
-	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--"+d1Modified)
+	xCheckEqual(t, "", v1.GetAsString("createdat"), "--TS--"+d1Modified)
+	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--TS--"+d1Modified)
 
 	v1Created := v1.GetAsString("createdat")
 	v1Modified := v1.GetAsString("modifiedat")
@@ -5948,26 +5948,26 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	v1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
-	xCheckEqual(t, "", d1.GetAsString("modifiedat"), "--"+d1Modified)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--TS--"+d1Created)
+	xCheckEqual(t, "", d1.GetAsString("modifiedat"), "--TS--"+d1Modified)
 
 	xCheckEqual(t, "", m1.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", m1.GetAsString("createdat"), "--"+m1Created)
+	xCheckEqual(t, "", m1.GetAsString("createdat"), "--TS--"+m1Created)
 	xCheckGreater(t, "", m1.GetAsString("modifiedat"), m1Modified)
 
 	m1Modified = m1.GetAsString("modifiedat")
 
 	xCheckEqual(t, "", v1.GetAsInt("epoch"), 1)
-	xCheckEqual(t, "", v1.GetAsString("createdat"), "--"+v1Created)
-	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--"+v1Modified)
+	xCheckEqual(t, "", v1.GetAsString("createdat"), "--TS--"+v1Created)
+	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--TS--"+v1Modified)
 
 	xCheckEqual(t, "", v2.GetAsInt("epoch"), 1)
-	xCheckEqual(t, "", v2.GetAsString("createdat"), "--"+m1.GetAsString("modifiedat"))
-	xCheckEqual(t, "", v2.GetAsString("modifiedat"), "--"+m1.GetAsString("modifiedat"))
+	xCheckEqual(t, "", v2.GetAsString("createdat"), "--TS--"+m1.GetAsString("modifiedat"))
+	xCheckEqual(t, "", v2.GetAsString("modifiedat"), "--TS--"+m1.GetAsString("modifiedat"))
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -6104,22 +6104,22 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	v1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
-	xCheckEqual(t, "", d1.GetAsString("modifiedat"), "--"+d1Modified)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--TS--"+d1Created)
+	xCheckEqual(t, "", d1.GetAsString("modifiedat"), "--TS--"+d1Modified)
 
 	xCheckEqual(t, "", m1.GetAsInt("epoch"), 3)
-	xCheckEqual(t, "", m1.GetAsString("createdat"), "--"+m1Created)
+	xCheckEqual(t, "", m1.GetAsString("createdat"), "--TS--"+m1Created)
 	xCheckGreater(t, "", m1.GetAsString("modifiedat"), m1Modified)
 
 	m1Modified = m1.GetAsString("modifiedat")
 
 	xCheckEqual(t, "", v1.GetAsInt("epoch"), 1)
-	xCheckEqual(t, "", v1.GetAsString("createdat"), "--"+v1Created)
-	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--"+v1Modified)
+	xCheckEqual(t, "", v1.GetAsString("createdat"), "--TS--"+v1Created)
+	xCheckEqual(t, "", v1.GetAsString("modifiedat"), "--TS--"+v1Modified)
 
 	v1.DeleteSetNextVersion("")
 	xNoErr(t, reg.SaveAllAndCommit())
@@ -6127,11 +6127,11 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	d1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 3)
-	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--TS--"+d1Created)
 	xCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
 
 	d1Modified = d1.GetAsString("modifiedat")
@@ -6141,11 +6141,11 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	d1.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 2)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
-	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--"+regModified)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("modifiedat"), "--TS--"+regModified)
 
 	xCheckEqual(t, "", d1.GetAsInt("epoch"), 4)
-	xCheckEqual(t, "", d1.GetAsString("createdat"), "--"+d1Created)
+	xCheckEqual(t, "", d1.GetAsString("createdat"), "--TS--"+d1Created)
 	xCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
 
 	d1.Delete()
@@ -6153,7 +6153,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	reg.Refresh(registry.FOR_WRITE)
 
 	xCheckEqual(t, "", reg.GetAsInt("epoch"), 3)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), "--"+regCreated)
+	xCheckEqual(t, "", reg.GetAsString("createdat"), "--TS--"+regCreated)
 	xCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
 
 	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{

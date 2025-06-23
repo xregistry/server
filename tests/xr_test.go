@@ -1,10 +1,8 @@
 package tests
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -17,14 +15,18 @@ func TestXRBasic(t *testing.T) {
 	reg := NewRegistry("TestXRBasic")
 	defer PassDeleteReg(t, reg)
 
-	os.Setenv("XR_SERVER", "localhost:8181")
+	os.Setenv("XR_SERVER", "")
+	xCLI(t, "get", "", "", "*", false)
+
+	os.Setenv("XR_SERVER", "http://example.com")
+	xCLI(t, "get", "", "", "*", false)
 
 	cmd := exec.Command("../xr")
 	out, err := cmd.CombinedOutput()
 	xNoErr(t, err)
 	lines, _, _ := strings.Cut(string(out), ":")
 
-	// Just look for the first 3 lines of 'xr' look right
+	// Just look for the first 3 lines of 'xr' to look right
 	xCheckEqual(t, "", lines, "xRegistry CLI\n\nUsage")
 
 	// Make sure we can validate the various spec owned model files
@@ -34,8 +36,8 @@ func TestXRBasic(t *testing.T) {
 		"message/model.json",
 		"schema/model.json",
 	}
-	paths := os.Getenv("XR_MODEL_PATH")
-	os.Setenv("XR_MODEL_PATH", paths+":files:"+RepoBase)
+	paths := os.Getenv("XR_MODEL_PATH") + ":files:" + RepoBase
+	os.Setenv("XR_MODEL_PATH", paths)
 
 	for _, file := range files {
 		fn := file
@@ -47,44 +49,31 @@ func TestXRBasic(t *testing.T) {
 			t.FailNow()
 		}
 
-		cmd = exec.Command("../xr", "model", "verify", fn)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("File: %s\nOut: %s\nErr: %s", file, string(out), err)
-		}
-		xCheckEqual(t, "", string(out), "")
+		xCLI(t, "model verify "+fn, "", "", "", true)
 	}
 
 	// Test for no server specified
-	os.Setenv("XR_SERVER", "localhost:8181")
-	cmd = exec.Command("../xr", "get")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), `{
+	xCLIServer("localhost:8181")
+
+	xCLI(t, "get", "", `{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "epoch": 1,
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "registryid": "TestXRBasic",
   "self": "http://localhost:8181/",
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "xid": "/"
 }
-`)
-	xNoErr(t, err)
+`, "", true)
 
-	cmd = exec.Command("../xr", "model", "group", "create", "-v", "dirs:dir")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), "Created Group type: dirs:dir\n")
-	xNoErr(t, err)
+	xCLI(t, "model group create -v dirs:dir", "",
+		"", "Created Group type: dirs:dir\n", true)
 
-	cmd = exec.Command("../xr", "model", "resource", "create", "-v",
-		"-g", "dirs", "files:file")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), "Created Resource type: files:file\n")
-	xNoErr(t, err)
+	xCLI(t, "model resource create -v -g dirs files:file", "",
+		"", "Created Resource type: files:file\n", true)
 
-	cmd = exec.Command("../xr", "model", "get")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), `xRegistry Model:
+	xCLI(t, "model get", "",
+		`xRegistry Model:
 
 ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
 dirs        map(object) -   -  y   
@@ -109,12 +98,10 @@ GROUP: dirs / dir
     filebase64   string -   -  y   
     fileproxyurl url    -   -  y   
     fileurl      url    -   -  y   
-`)
-	xNoErr(t, err)
+`, "", true)
 
-	cmd = exec.Command("../xr", "model", "get", "-a")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), `xRegistry Model:
+	xCLI(t, "model get -a", "",
+		`xRegistry Model:
 
 ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
 capabilities  object      -   -  y   
@@ -206,21 +193,16 @@ GROUP: dirs / dir
     self                   url       y   y  -   
     xid                    xid       y   y  -   
     xref                   url       -   -  y   
-`)
-	xNoErr(t, err)
+`, "", true)
 
-	cmd = exec.Command("../xr", "create", "/dirs/d1/files/f1/versions/v1",
-		"-vd", "hello world")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), "Created: /dirs/d1/files/f1/versions/v1\n")
+	xCLI(t, "create /dirs/d1/files/f1/versions/v1 -vd hello_world", "",
+		"", "Created: /dirs/d1/files/f1/versions/v1\n", true)
 
-	cmd = exec.Command("../xr", "get", "/dirs/d1/files/f1")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), "hello world\n")
+	xCLI(t, "get /dirs/d1/files/f1", "",
+		"hello_world\n", "", true)
 
-	cmd = exec.Command("../xr", "get", "/dirs/d1/files/f1$details")
-	out, err = cmd.CombinedOutput()
-	xCheckEqual(t, "", string(out), `{
+	xCLI(t, "get /dirs/d1/files/f1$details", "",
+		`{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -235,7 +217,7 @@ GROUP: dirs / dir
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
 }
-`)
+`, "", true)
 }
 
 func TestXRModel(t *testing.T) {
@@ -244,36 +226,21 @@ func TestXRModel(t *testing.T) {
 
 	os.Setenv("XR_SERVER", "localhost:8181")
 
-	tests := []struct {
-		Args   []string
-		Stdin  string
-		Output string
-	}{
-		{
-			Args: []string{"model", "update", "-vd",
-				"@files/dir/model-dirs-inc-docs.json"},
-			Stdin:  "",
-			Output: "Model updated\n",
-		},
-		{
-			Args:   []string{"model", "group", "create", "-v", "gts:gt"},
-			Output: "Created Group type: gts:gt\n",
-		},
-		{
-			Args: []string{"model", "resource", "create",
-				"-vg", "gts", "rts:rt"},
-			Output: "Created Resource type: rts:rt\n",
-		},
-		{
-			Args: []string{"model", "resource", "create",
-				"-vg", "gt2s:gt2", "rt2s:rt2"},
-			Output: `Created Group type: gt2s:gt2
-Created Resource type: rt2s:rt2
-`,
-		},
-		{
-			Args: []string{"model", "get"},
-			Output: `xRegistry Model:
+	xCLI(t, "model update -vd @files/dir/model-dirs-inc-docs.json", "",
+		"", "Model updated\n", true)
+
+	xCLI(t, "model group create -v gts:gt", "",
+		"", "Created Group type: gts:gt\n", true)
+
+	xCLI(t, "model resource create -vg gts rts:rt", "",
+		"", "Created Resource type: rts:rt\n", true)
+
+	xCLI(t, "model resource create -vg gt2s:gt2 rt2s:rt2", "",
+		"", "Created Group type: gt2s:gt2\nCreated Resource type: rt2s:rt2\n", true)
+
+	xCLI(t, "model get", "",
+
+		`xRegistry Model:
 
 ATTRIBUTES: TYPE        REQ RO MUT DEFAULT
 dirs        map(object) -   -  y   
@@ -364,72 +331,476 @@ GROUP: gts / gt
     rtbase64    string -   -  y   
     rtproxyurl  url    -   -  y   
     rturl       url    -   -  y   
-`,
-		},
-	}
+`, "", true)
 
-	for _, test := range tests {
-		t.Logf("Args: %v", test.Args)
-		cmd := exec.Command("../xr", test.Args...)
-
-		if test.Stdin != "" {
-			cmd.Stdin = bytes.NewBuffer([]byte(test.Stdin))
-		}
-
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("Output: %s\nErr: %s", string(out), err)
-		}
-		xCheckEqual(t, "", string(out), test.Output)
-	}
 }
 
-func TestXRServerBasic(t *testing.T) {
-	cmd := exec.Command("../xrserver", "-?")
-	out, err := cmd.CombinedOutput()
-	xNoErr(t, err)
-	lines, _, _ := strings.Cut(string(out), "Available Commands:")
+func TestXRUpdateRegistry(t *testing.T) {
+	reg := NewRegistry("TestXRUpdateRegistry")
+	defer PassDeleteReg(t, reg)
 
-	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines,
-		`xRegistry server
+	xCLIServer("localhost:8181")
 
-Usage:
-  xrserver [flags]
-  xrserver [command]
+	xCLI(t, "create", "",
+		"", "To create a registry use the 'xrserver registry create' command\n",
+		false)
 
-`)
+	xCLI(t, "create /", "",
+		"", "To create a registry use the 'xrserver registry create' command\n",
+		false)
 
-	cmd = exec.Command("../xrserver", "--verify")
-	out, err = cmd.CombinedOutput()
-	xNoErr(t, err)
-	lines, _, _ = strings.Cut(string(out), "Available Commands:")
+	xCLI(t, "update", "", "", "", true)
+	xCLI(t, "update -v", "", "", "Updated: /\n", true)
+	xCLI(t, "update /", "", "", "", true)
+	xCLI(t, "update -v /", "", "", "Updated: /\n", true)
 
-	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines, "")
+	xCLI(t, "update -vo json /", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 6,
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "Updated: /\n", true)
 
-	cmd = exec.Command("../xrserver", "-v", "--verify")
-	out, err = cmd.CombinedOutput()
-	xNoErr(t, err)
-	lines, _, _ = strings.Cut(string(out), "Available Commands:")
-	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
-2025/05/21 19:01:39 DB server: localhost:3306
-2025/05/21 19:01:39 Default(/): reg-xRegistry
-2025/05/21 19:01:39 Done verifying, exiting
-`
-	re := regexp.MustCompile(`(^|\n)\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `)
-	lines = re.ReplaceAllString(lines, "\nDATE ")
-	exp = re.ReplaceAllString(exp, "\nDATE ")
+	xCLI(t, "update -o=json / --set name=myreg", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 7,
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "name": "myreg",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
 
-	re = regexp.MustCompile(`GitCommit: [0-9a-f]*\n`)
-	lines = re.ReplaceAllString(lines, "GitCommit: <n/a>\n")
-	exp = re.ReplaceAllString(exp, "GitCommit: <n/a>\n")
+	xCLI(t, "update -o=json / --set name= --set=description=cool", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "description": "cool",
+  "epoch": 8,
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "name": "",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
 
-	re = regexp.MustCompile(`DB server: .*:3306`)
-	lines = re.ReplaceAllString(lines, "DB server: xxx:3306")
-	exp = re.ReplaceAllString(exp, "DB server: xxx:3306")
+	xCLI(t, "update -o=json / --set name --set=description=5", "",
+		"", "Attribute \"description\" must be a string\n", false)
 
-	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines, exp)
+	xCLI(t, "update -o=json / --set name --set=description=\"5\"", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "description": "5",
+  "epoch": 9,
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
+
+	xCLI(t, "update -o=json --set=labels.foo=5 --del description "+
+		"--del=labels", "",
+		"", "Attribute \"labels.foo\" must be a string\n", false)
+
+	xCLI(t, "update -o=json --set=labels.foo=\"5\" --del description "+
+		"--del=labels", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 10,
+  "labels": {
+    "foo": "5"
+  },
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
+
+	xCLI(t, "update -o=json --add=labels.bar=zzz", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 11,
+  "labels": {
+    "bar": "zzz",
+    "foo": "5"
+  },
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
+
+	xCLI(t, "update -o=json --add=labels.yyy=yay --del=labels.foo", "",
+		`{
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "epoch": 12,
+  "labels": {
+    "bar": "zzz",
+    "yyy": "yay"
+  },
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "`+SPECVERSION+`",
+  "xid": "/"
+}
+`, "", true)
+
+}
+
+func TestXRGroup(t *testing.T) {
+	reg := NewRegistry("TestXRGroup")
+	defer PassDeleteReg(t, reg)
+
+	xCLIServer("localhost:8181")
+
+	xCLI(t, "model group create", "",
+		"", "At least one Group type name must be specified\n", false)
+
+	xCLI(t, "model group create dirs", "",
+		"", "Group type name must be of the form: PLURAL:SINGULAR\n", false)
+
+	xCLI(t, "model group create dirs dir", "",
+		"", "Group type name must be of the form: PLURAL:SINGULAR\n", false)
+
+	xCLI(t, "model group create dirs:dir", "", "", "", true)
+
+	xCLI(t, "model group create dirs:dir", "", "",
+		"PLURAL value (dirs) conflicts with an existing Group PLURAL name\n",
+		false)
+
+	xCLI(t, "model group create -o table -v dirs2:dir2", "",
+		"GROUP: dirs2 / dir2\n", "Created Group type: dirs2:dir2\n", true)
+
+	xCLI(t, "model group create dirs3:dir3 -v -o json", "",
+		`{
+  "plural": "dirs3",
+  "singular": "dir3",
+  "attributes": {
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "dir3id": {
+      "name": "dir3id",
+      "type": "string",
+      "immutable": true,
+      "required": true
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    }
+  }
+}
+`, "Created Group type: dirs3:dir3\n", true)
+
+	xCLI(t, "model group create -ao table -v dirs4:dir4", "",
+		`GROUP: dirs4 / dir4
+
+  ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+  createdat     timestamp   y   -  y   
+  description   string      -   -  y   
+  dir4id        string      y   -  -   
+  documentation url         -   -  y   
+  epoch         uinteger    y   y  y   
+  icon          url         -   -  y   
+  labels        map(string) -   -  y   
+  modifiedat    timestamp   y   -  y   
+  name          string      -   -  y   
+  self          url         y   y  -   
+  xid           xid         y   y  -   
+`, "Created Group type: dirs4:dir4\n", true)
+
+	xCLI(t, "model group create -aro table dirs5:dir5", "",
+		`GROUP: dirs5 / dir5
+
+  ATTRIBUTES:   TYPE        REQ RO MUT DEFAULT
+  createdat     timestamp   y   -  y   
+  description   string      -   -  y   
+  dir5id        string      y   -  -   
+  documentation url         -   -  y   
+  epoch         uinteger    y   y  y   
+  icon          url         -   -  y   
+  labels        map(string) -   -  y   
+  modifiedat    timestamp   y   -  y   
+  name          string      -   -  y   
+  self          url         y   y  -   
+  xid           xid         y   y  -   
+`, "", true)
+
+	xCLI(t, "model group create -aro xxx dirs6:dir6", "",
+		"", "--output must be one of 'json', 'none', 'table'\n", false)
+
+	xCLI(t, "model group get dirs2", "", "GROUP: dirs2 / dir2\n", "", true)
+
+	xCLI(t, "model group get -o json dirs2", "",
+		`{
+  "plural": "dirs2",
+  "singular": "dir2",
+  "attributes": {
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "dir2id": {
+      "name": "dir2id",
+      "type": "string",
+      "immutable": true,
+      "required": true
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    }
+  }
+}
+`, "", true)
+
+	xCLI(t, "model group get -a -o json dirs2 dirs", "",
+		`[
+  {
+    "plural": "dirs2",
+    "singular": "dir2",
+    "attributes": {
+      "createdat": {
+        "name": "createdat",
+        "type": "timestamp",
+        "required": true
+      },
+      "description": {
+        "name": "description",
+        "type": "string"
+      },
+      "dir2id": {
+        "name": "dir2id",
+        "type": "string",
+        "immutable": true,
+        "required": true
+      },
+      "documentation": {
+        "name": "documentation",
+        "type": "url"
+      },
+      "epoch": {
+        "name": "epoch",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
+      },
+      "modifiedat": {
+        "name": "modifiedat",
+        "type": "timestamp",
+        "required": true
+      },
+      "name": {
+        "name": "name",
+        "type": "string"
+      },
+      "self": {
+        "name": "self",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "xid": {
+        "name": "xid",
+        "type": "xid",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      }
+    }
+  },
+  {
+    "plural": "dirs",
+    "singular": "dir",
+    "attributes": {
+      "createdat": {
+        "name": "createdat",
+        "type": "timestamp",
+        "required": true
+      },
+      "description": {
+        "name": "description",
+        "type": "string"
+      },
+      "dirid": {
+        "name": "dirid",
+        "type": "string",
+        "immutable": true,
+        "required": true
+      },
+      "documentation": {
+        "name": "documentation",
+        "type": "url"
+      },
+      "epoch": {
+        "name": "epoch",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
+      },
+      "modifiedat": {
+        "name": "modifiedat",
+        "type": "timestamp",
+        "required": true
+      },
+      "name": {
+        "name": "name",
+        "type": "string"
+      },
+      "self": {
+        "name": "self",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "xid": {
+        "name": "xid",
+        "type": "xid",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      }
+    }
+  }
+]
+`, "", true)
+
+	/*
+			xCLI(t, "model group get -r -o table dirs2 dirs", "",
+				`
+		`, "", true)
+	*/
 
 }

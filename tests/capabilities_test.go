@@ -55,7 +55,7 @@ func TestCapabilitySimple(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "?inline=capabilities", ``, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilitySimple",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -93,7 +93,7 @@ func TestCapabilitySimple(t *testing.T) {
     ],
     "pagination": false,
     "schemas": [
-      "xregistry-json/1.0-rc1"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
@@ -118,7 +118,7 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [],
   "pagination": false,
   "schemas": [
-    "xregistry-json/1.0-rc1"
+    "xregistry-json/` + SPECVERSION + `"
   ],
   "shortself": false,
   "specversions": [
@@ -354,7 +354,7 @@ func TestCapabilityPath(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/?inline=capabilities",
 		`{"capabilities":{"apis":["/capabilities"]}}`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -370,11 +370,11 @@ func TestCapabilityPath(t *testing.T) {
     "mutable": [],
     "pagination": false,
     "schemas": [
-      "xregistry-json/1.0-rc1"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "1.0-rc1"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   }
@@ -1152,7 +1152,7 @@ func TestCapabilityAPIs(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, "*")
 	xHTTP(t, reg, "GET", "/export", ``, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAPIs",
   "self": "#/",
   "xid": "/",
@@ -1169,11 +1169,11 @@ func TestCapabilityAPIs(t *testing.T) {
     "mutable": [],
     "pagination": false,
     "schemas": [
-      "xregistry-json/1.0-rc1"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "1.0-rc1"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   },
@@ -1322,11 +1322,11 @@ func TestCapabilityPatch(t *testing.T) {
   ],
   "pagination": false,
   "schemas": [
-    "xregistry-json/1.0-rc1"
+    "xregistry-json/`+SPECVERSION+`"
   ],
   "shortself": false,
   "specversions": [
-    "1.0-rc1"
+    "`+SPECVERSION+`"
   ],
   "sticky": false
 }
@@ -1338,7 +1338,7 @@ func TestCapabilityPatch(t *testing.T) {
     "sticky": true
 }
 }`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1355,11 +1355,11 @@ func TestCapabilityPatch(t *testing.T) {
     "mutable": [],
     "pagination": false,
     "schemas": [
-      "xregistry-json/1.0-rc1"
+      "xregistry-json/`+SPECVERSION+`"
     ],
     "shortself": false,
     "specversions": [
-      "1.0-rc1"
+      "`+SPECVERSION+`"
     ],
     "sticky": true
   }

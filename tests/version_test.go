@@ -762,7 +762,7 @@ func TestVersionOrdering(t *testing.T) {
 	    "v9": { "createdat": "`+t1+`","modifiedat":"`+t2+`" },
 	    "v5": { "createdat": "`+t1+`","modifiedat":"`+t2+`" }
 	  }
-    }`, 200, `--{
+    }`, 200, `--TS--{
   "fileid": "f1",
   "versionid": "V1",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -791,7 +791,7 @@ func TestVersionOrdering(t *testing.T) {
 			ct = t0
 		}
 
-		xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200, fmt.Sprintf(`--{
+		xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200, fmt.Sprintf(`--TS--{
   "fileid": "f1",
   "versionid": "%s",
   "self": "http://localhost:8181/dirs/d1/files/f1",

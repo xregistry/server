@@ -603,7 +603,7 @@ func TestSetNameUser(t *testing.T) {
 		"ext": {
 		}
 	}`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetNameUser",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -622,7 +622,7 @@ func TestSetNameUser(t *testing.T) {
 		  "foo": "bar"
 		}
 	}`, 200, `{
-  "specversion": "1.0-rc1",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetNameUser",
   "self": "http://localhost:8181/",
   "xid": "/",

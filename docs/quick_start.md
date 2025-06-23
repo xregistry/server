@@ -18,7 +18,7 @@ any HTTP client, such as `curl`:
 $ curl localhost:8080
 
 {
-  "specversion": "1.0-rc1",
+  "specversion": "1.0-rc2",
   "registryid": "xRegistry",
   "self": "http://ubuntu:8080/",
   "xid": "/",
@@ -36,7 +36,7 @@ another one:
 $ curl localhost:8080/reg-DocStore
 
 {
-  "specversion": "1.0-rc1",
+  "specversion": "1.0-rc2",
   "registryid": "DocStore",
   "self": "http://localhost:8080/reg-DocStore/",
   "xid": "/",
