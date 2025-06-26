@@ -91,9 +91,9 @@ type AttrInternals struct {
 	updateFn func(*Entity) error // prep prop for saving to DB
 }
 
-// Do not include "omitempty" on any attribute that has a default value that
-// doesn't match golang's default value for that type.
-// See the custom Unmarshal funcs for how we set those
+// Use pointers for any attributes that have a default value that differs
+// from the golang default value, or for any attr that you don't want to
+// show-up in modelsource by default
 type Attribute struct {
 	Model       *Model `json:"-"`
 	Name        string `json:"name,omitempty"`
@@ -170,7 +170,7 @@ type ResourceModel struct {
 	ModelVersion   string            `json:"modelversion,omitempty"`
 	CompatibleWith string            `json:"compatiblewith,omitempty"`
 
-	MaxVersions       int               `json:"maxversions,omitempty"`
+	MaxVersions       *int              `json:"maxversions,omitempty"`
 	SetVersionId      *bool             `json:"setversionid,omitempty"`
 	SetDefaultSticky  *bool             `json:"setdefaultversionsticky,omitempty"`
 	HasDocument       *bool             `json:"hasdocument,omitempty"`
@@ -198,20 +198,17 @@ type ResourceModel struct {
 }
 
 func ParseModel(buf []byte) (*Model, error) {
-	// All this just to remove $schema
-	tmp := map[string]any{}
-	err := Unmarshal(buf, &tmp)
+	buf, err := RemoveSchema(buf)
 	if err != nil {
 		return nil, err
 	}
-	delete(tmp, "$schema")
-	buf, _ = json.Marshal(tmp)
 
 	// Now do the real work
 	model := Model{}
 	if err := Unmarshal(buf, &model); err != nil {
 		return nil, err
 	}
+	model.ApplyDefaults()
 	model.SetSpecPropsFields()
 	model.SetPointers()
 	return &model, nil
@@ -241,6 +238,7 @@ func (attrs Attributes) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+/*
 func (r *ResourceModel) UnmarshalJSON(data []byte) error {
 	// Set the default values before we unmarshal
 	r.MaxVersions = MAXVERSIONS
@@ -264,6 +262,33 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) error {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 	}
 	return nil
+}
+*/
+
+func (m *Model) ApplyDefaults() {
+	for _, gm := range m.Groups {
+		for _, rm := range gm.Resources {
+			rm.ApplyDefaults()
+		}
+	}
+}
+
+func (r *ResourceModel) ApplyDefaults() {
+	if r.MaxVersions == nil {
+		r.MaxVersions = PtrInt(MAXVERSIONS)
+	}
+	if r.SetVersionId == nil {
+		r.SetVersionId = PtrBool(SETVERSIONID)
+	}
+	if r.SetDefaultSticky == nil {
+		r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
+	}
+	if r.HasDocument == nil {
+		r.HasDocument = PtrBool(HASDOCUMENT)
+	}
+	if r.SingleVersionRoot == nil {
+		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
+	}
 }
 
 func (m *Model) SetPointers() {
@@ -577,6 +602,20 @@ func (m *Model) GetChanged() bool {
 	return m.changed
 }
 
+func (m *Model) GetStuff(key string) (any, bool) {
+	if m.Stuff == nil {
+		return nil, false
+	}
+	return m.Stuff[key], true
+}
+
+func (m *Model) SetStuff(key string, val any) {
+	if m.Stuff == nil {
+		m.Stuff = map[string]any{}
+	}
+	m.Stuff[key] = val
+}
+
 func (m *Model) SetDescription(val string) {
 	m.Description = val
 	m.SetChanged(true)
@@ -864,7 +903,7 @@ func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*Resource
 	return gm.AddResourceModelFull(&ResourceModel{
 		Plural:            plural,
 		Singular:          singular,
-		MaxVersions:       MAXVERSIONS,
+		MaxVersions:       PtrInt(MAXVERSIONS),
 		SetVersionId:      PtrBool(SETVERSIONID),
 		SetDefaultSticky:  PtrBool(SETDEFAULTSTICKY),
 		HasDocument:       PtrBool(HASDOCUMENT),
@@ -876,7 +915,7 @@ func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersio
 	return gm.AddResourceModelFull(&ResourceModel{
 		Plural:           plural,
 		Singular:         singular,
-		MaxVersions:      maxVersions,
+		MaxVersions:      PtrInt(maxVersions),
 		SetVersionId:     PtrBool(setVerId),
 		SetDefaultSticky: PtrBool(setDefaultSticky),
 		HasDocument:      PtrBool(hasDocument),
@@ -891,14 +930,16 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 		return nil, fmt.Errorf("Can't add a group with an empty singular name")
 	}
 
-	if rm.MaxVersions < 0 {
-		return nil, fmt.Errorf(`"maxversions"(%d) must be >= 0`,
-			rm.MaxVersions)
-	}
+	if rm.MaxVersions != nil {
+		if *rm.MaxVersions < 0 {
+			return nil, fmt.Errorf(`"maxversions"(%d) must be >= 0`,
+				*(rm.MaxVersions))
+		}
 
-	if rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
-		return nil, fmt.Errorf("'setdefaultversionsticky' must be 'false' " +
-			"since 'maxversions' is '1'")
+		if *rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
+			return nil, fmt.Errorf("'setdefaultversionsticky' must be " +
+				"'false' since 'maxversions' is '1'")
+		}
 	}
 
 	if err := IsValidModelName(rm.Plural); err != nil {
@@ -2092,7 +2133,7 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		return err
 	}
 
-	if rm.MaxVersions < 0 {
+	if rm.MaxVersions != nil && *rm.MaxVersions < 0 {
 		return fmt.Errorf("Resource %q must have a 'maxversions' value >= 0",
 			rmName)
 	}
@@ -2248,9 +2289,16 @@ func (rm *ResourceModel) SetModel(m *Model) {
 	rm.MetaAttributes.SetModel(m)
 }
 
+func (rm *ResourceModel) GetMaxVersions() int {
+	if rm.MaxVersions == nil {
+		return MAXVERSIONS
+	}
+	return *rm.MaxVersions
+}
+
 func (rm *ResourceModel) SetMaxVersions(maxV int) error {
-	if rm.MaxVersions != maxV {
-		rm.MaxVersions = maxV
+	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
+		rm.MaxVersions = PtrInt(maxV)
 		rm.GroupModel.Model.SetChanged(true)
 	}
 

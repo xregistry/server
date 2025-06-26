@@ -175,7 +175,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
 		Singular:    "file",
-		MaxVersions: -1,
+		MaxVersions: PtrInt(-1),
 	})
 	xCheckErr(t, err, `"maxversions"(-1) must be >= 0`)
 	// reg.LoadModel()
@@ -184,7 +184,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
 		Singular:    "file",
-		MaxVersions: 1, // ONLY ALLOW 1 VERSION
+		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
 	})
 	xCheckErr(t, err, `'setdefaultversionsticky' must be 'false' since 'maxversions' is '1'`)
 	// reg.LoadModel()
@@ -193,7 +193,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	rm, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:           "files",
 		Singular:         "file",
-		MaxVersions:      1, // ONLY ALLOW 1 VERSION
+		MaxVersions:      PtrInt(1), // ONLY ALLOW 1 VERSION
 		SetDefaultSticky: PtrBool(false),
 	})
 	xNoErr(t, err)

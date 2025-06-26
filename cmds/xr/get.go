@@ -18,7 +18,7 @@ func addGetCmd(parent *cobra.Command) {
 		Run:     getFunc,
 		GroupID: "Entities",
 	}
-	getCmd.Flags().StringP("output", "o", "json", "Output format(json,human)")
+	getCmd.Flags().StringP("output", "o", "json", "Output format: json, table")
 	getCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 
 	parent.AddCommand(getCmd)
@@ -33,8 +33,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	output, _ := cmd.Flags().GetString("output")
-	if !ArrayContains([]string{"human", "json"}, output) {
-		Error("--output must be one of 'json', 'human'")
+	if !ArrayContains([]string{"table", "json"}, output) {
+		Error("--output must be one of: json, table")
 	}
 
 	if len(args) == 0 {
@@ -71,25 +71,42 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if !resIsJSON {
 		fmt.Printf("%s", string(res.Body))
-		if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
-			fmt.Print("\n")
-		}
+		// Don't add a \n since that could mess people up if they're sending
+		// the output on to another cmd or file (don't mess with their data)
+		/*
+			if len(res.Body) > 0 && res.Body[len(res.Body)-1] != '\n' {
+				fmt.Print("\n")
+			}
+		*/
 		return
 	}
 
-	err = json.Unmarshal(res.Body, &object)
-	if err != nil {
-		Error("Error parsing result json: %s\nRespone:\n%s", err,
-			string(res.Body))
-	}
+	/*
+		err = json.Unmarshal(res.Body, &object)
+		if err != nil {
+			Error("Error parsing result json: %s\nRespone:\n%s", err,
+				string(res.Body))
+		}
+	*/
 
 	if output == "json" {
-		fmt.Printf("%s\n", xrlib.PrettyPrint(object, "", "  "))
+		buf, err := PrettyPrintJSON(res.Body, "", "  ")
+		if err != nil {
+			Error("Error parsing result json: %s\nResponse:\n%s", err,
+				string(res.Body))
+		}
+
+		fmt.Printf("%s\n", string(buf))
 		return
 	}
 
-	if output == "human" {
-		fmt.Printf("%s\n", xrlib.Humanize(xid.String(), object))
+	if output == "table" {
+		err = json.Unmarshal(res.Body, &object)
+		if err != nil {
+			Error("Error parsing result json: %s\nRespone:\n%s", err,
+				string(res.Body))
+		}
+		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
 		return
 	}
 

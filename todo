@@ -119,5 +119,3 @@ TODOs:
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 - support patch / + capabilities - does patching of capabilities
 - support patch / + modelsource - full replacement
-
-- xr model group create xxS:xx, add support for  -o none|json|human (def:none)

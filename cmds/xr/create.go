@@ -24,18 +24,19 @@ func addCreateCmd(parent *cobra.Command) {
 
 	createCmd.Long = createCmd.Short + "\n" + `
 Notes:
-- Order of flags processing: --data, --del, --set, --add
+- Order of attribute flags processing: --data, --del, --set, --add
 - Using --del, --set or --add implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
 
-	createCmd.Flags().StringP("output", "o", "json", "Output format(json)")
+	createCmd.Flags().StringP("output", "o", "none",
+		"Output format (none, json) when xReg metadata")
 	createCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	createCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-(stdin)")
+		"Data, @FILE, @URL, @-(stdin)")
 	createCmd.Flags().BoolP("replace", "r", false,
-		"Only 'update' specified attributes when -f is applied")
+		"Replace entire entity (all attributes) when -f used")
 	createCmd.Flags().BoolP("force", "f", false,
 		"Force an 'update' if exist, skip pre-flight checks")
 	createCmd.Flags().StringArray("set", nil,
@@ -59,18 +60,19 @@ func addUpsertCmd(parent *cobra.Command) {
 
 	upsertCmd.Long = upsertCmd.Short + "\n" + `
 Notes:
-- Order of flags processing: --data, --del, --set, --add
+- Order of attribute flags processing: --data, --del, --set, --add
 - Using --del, --set or --add implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
 
-	upsertCmd.Flags().StringP("output", "o", "json", "Output format(json)")
+	upsertCmd.Flags().StringP("output", "o",
+		"none", "Output format (none, json) when xReg metadata")
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	upsertCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-(stdin)")
+		"Data, @FILE, @URL, @-(stdin)")
 	upsertCmd.Flags().BoolP("replace ", "r", false,
-		"Only update specified attributes")
+		"Replace entire entity (all attributes)")
 	upsertCmd.Flags().BoolP("force", "f", false,
 		"Skip pre-flight checks")
 	upsertCmd.Flags().StringArray("set", nil, "Set an attribute")
@@ -90,18 +92,19 @@ func addUpdateCmd(parent *cobra.Command) {
 
 	updateCmd.Long = updateCmd.Short + "\n" + `
 Notes:
-- Order of flags processing: --data, --del, --set, --add
+- Order of attribute flags processing: --data, --del, --set, --add
 - Using --del, --set or --add implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
 
-	updateCmd.Flags().StringP("output", "o", "json", "Output format(json)")
+	updateCmd.Flags().StringP("output", "o", "none",
+		"Output format (none, json) when xReg metadata")
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	updateCmd.Flags().StringP("data", "d", "",
-		"Data(json), @FILE, @URL, @-(stdin)")
+		"Data, @FILE, @URL, @-(stdin)")
 	updateCmd.Flags().BoolP("replace", "r", false,
-		"Only update specified attributes")
+		"Replace entire entity (all attributes)")
 	updateCmd.Flags().BoolP("force", "f", false,
 		"Force a 'create' if missing, skip pre-flight checks")
 	updateCmd.Flags().BoolP("noepoch", "", false,
@@ -370,14 +373,14 @@ func createFunc(cmd *cobra.Command, args []string) {
 	if xid.ResourceID == "" || isMetadata {
 		Error(json.Unmarshal(res.Body, &objects))
 
-		if cmd.Flags().Changed("output") && output == "json" {
+		if output == "json" {
 			fmt.Printf("%s\n", xrlib.PrettyPrint(objects, "", "  "))
 			return
 		}
 
 		/*
-			if output == "human" {
-				fmt.Printf("%s\n", xrlib.Humanize(xid.String(), objects))
+			if output == "table" {
+				fmt.Printf("%s\n", xrlib.Tablize(xid.String(), objects))
 				return
 			}
 		*/

@@ -555,7 +555,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:           "files",
 		Singular:         "file",
-		MaxVersions:      0,
+		MaxVersions:      PtrInt(0),
 		SetVersionId:     PtrBool(true),
 		SetDefaultSticky: PtrBool(true),
 		HasDocument:      PtrBool(true),

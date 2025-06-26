@@ -258,7 +258,7 @@ func PrettyPrint(object any, prefix string, indent string) string {
 	return string(buf)
 }
 
-func Humanize(xidStr string, object any) string {
+func Tablize(xidStr string, object any) string {
 	str := ""
 	xid, err := ParseXid(xidStr)
 	if err != nil {
@@ -267,7 +267,7 @@ func Humanize(xidStr string, object any) string {
 
 	switch xid.Type {
 	case ENTITY_REGISTRY:
-		str = HumanizeRegistry(object)
+		str = TablizeRegistry(object)
 	case ENTITY_GROUP_TYPE:
 	case ENTITY_GROUP:
 	case ENTITY_RESOURCE_TYPE:
@@ -281,7 +281,7 @@ func Humanize(xidStr string, object any) string {
 	return str
 }
 
-func HumanizeRegistry(regObj any) string {
+func TablizeRegistry(regObj any) string {
 	return "Registry:"
 }
 

@@ -4060,7 +4060,7 @@ func TestResourceModelCreate(t *testing.T) {
 					"files": &registry.ResourceModel{
 						Plural:            "files",
 						Singular:          "file",
-						MaxVersions:       6,
+						MaxVersions:       PtrInt(6),
 						SetVersionId:      PtrBool(false),
 						SetDefaultSticky:  PtrBool(false),
 						HasDocument:       PtrBool(false),
@@ -5149,7 +5149,7 @@ func TestResourceModelCreate(t *testing.T) {
 					"files2": &registry.ResourceModel{
 						Plural:            "files2",
 						Singular:          "file",
-						MaxVersions:       6,
+						MaxVersions:       PtrInt(6),
 						SetVersionId:      PtrBool(false),
 						SetDefaultSticky:  PtrBool(false),
 						HasDocument:       PtrBool(false),

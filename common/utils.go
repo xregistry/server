@@ -119,6 +119,10 @@ func NotNilInt(val *any) int {
 	return NotNilIntDef(val, 0)
 }
 
+func PtrInt(i int) *int {
+	return &i
+}
+
 func PtrIntDef(val *any, def int) *int {
 	result := NotNilIntDef(val, def)
 	return &result

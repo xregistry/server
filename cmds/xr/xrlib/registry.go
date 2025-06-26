@@ -100,6 +100,7 @@ func (reg *Registry) RefreshModel() error {
 		return fmt.Errorf("Unable to parse registry model: %s\n%s",
 			err, string(res.Body))
 	}
+	reg.Model.ApplyDefaults()
 	reg.Model.SetPointers()
 	return nil
 }

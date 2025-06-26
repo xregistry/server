@@ -23,12 +23,13 @@ xr conform
 xr create [ XID ]
   # Create a new entity in the registry
       --add stringArray   Add to an attribute: --add NAME[=(VALUE | "STRING")]
-  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+  -d, --data string       Data, @FILE, @URL, @-(stdin)
       --del stringArray   Delete an attribute: --del NAME
   -m, --details           Data is resource metadata
   -f, --force             Force an 'update' if exist, skip pre-flight checks
-  -o, --output string     Output format(json) (default "json")
-  -r, --replace           Only 'update' specified attributes when -f is applied
+  -o, --output string     Output format (none, json) when xReg metadata
+                          (default "none")
+  -r, --replace           Replace entire entity (all attributes) when -f used
       --set stringArray   Set an attribute: --set NAME[=(VALUE | "STRING")]
 
 xr delete [ XID ... ]
@@ -55,7 +56,7 @@ xr download DIR [ XID...]
 xr get [ XID ]
   # Retrieve entities from the registry
   -m, --details         Show resource metadata
-  -o, --output string   Output format(json,human) (default "json")
+  -o, --output string   Output format: json, table (default "json")
 
 xr import [ XID ]
   # Import entities into the registry
@@ -63,14 +64,14 @@ xr import [ XID ]
 
 xr model get
   # Retrieve details about the registry's model
-  -a, --all             Show all data
-  -o, --output string   output: table, json (default "table")
+  -a, --all             Include default attributes
+  -o, --output string   Output format: table, json (default "table")
 
 xr model group create PLURAL:SINGULAR...
   # Create a new Model Group type
-  -a, --all             Show all data
-  -o, --output string   output: none, table, json (default "none")
-  -r, --resources       Show Resource types
+  -a, --all             Include default attributes in output
+  -o, --output string   Output format: none, table, json (default "none")
+  -r, --resources       Show Resource types in output
 
 xr model group delete PLURAL...
   # Delete a Model Group type
@@ -78,18 +79,24 @@ xr model group delete PLURAL...
 
 xr model group get PLURAL
   # Retrieve details about a Model Group type
-  -a, --all             Show all data
-  -o, --output string   output: table, json (default "table")
-  -r, --resources       Show Resource types
+  -a, --all             Include default attributes
+  -o, --output string   Output format: table, json (default "table")
+
+xr model group list
+  # List the Group types defined in the model
+  -o, --output string   Output format: table, json (default "table")
 
 xr model normalize [ - | FILE ]
   # Parse and resolve 'includes' in an xRegistry model document
 
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
-  -a, --all             Show all data
-  -g, --group string    Group type plural name (add ":SINGULAR" to create)
-  -o, --output string   output: none, table, json (default "none")
+  -a, --all                Include default attributes in output
+  -g, --group string       Group type plural name (add ":SINGULAR" to create)
+  -m, --max-versions int   Max versions allowed (default 0 - no limit)
+  -n, --no-doc             Don't allow for domain docs
+  -o, --output string      Output format: none, table, json (default "none")
+  -r, --single-root        Only allow one root version
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
@@ -98,9 +105,14 @@ xr model resource delete PLURAL...
 
 xr model resource get PLURAL
   # Retrieve details about a Model Resource type
-  -a, --all             Show all data
+  -a, --all             Include default attributes
   -g, --group string    Group type plural name
-  -o, --output string   output: none, table, json (default "table")
+  -o, --output string   Output format: table, json (default "table")
+
+xr model resource list
+  # List the Resource types in a Group type
+  -g, --group string    Group type plural name
+  -o, --output string   Output format: table, json (default "table")
 
 xr model update [ - | FILE | -d ]
   # Update the registry's model
@@ -117,24 +129,26 @@ xr serve DIR
 xr update [ XID ]
   # Update an entity in the registry
       --add stringArray   Add to an attribute
-  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+  -d, --data string       Data, @FILE, @URL, @-(stdin)
       --del stringArray   Delete an attribute
   -m, --details           Data is resource metadata
   -f, --force             Force a 'create' if missing, skip pre-flight checks
       --noepoch           Skip 'epoch' checks
-  -o, --output string     Output format(json) (default "json")
-  -r, --replace           Only update specified attributes
+  -o, --output string     Output format (none, json) when xReg metadata
+                          (default "none")
+  -r, --replace           Replace entire entity (all attributes)
       --set stringArray   Set an attribute
 
 xr upsert [ XID ]
   # UPdate, or inSERT as appropriate, an entity in the registry
       --add stringArray   Add to an attribute
-  -d, --data string       Data(json), @FILE, @URL, @-(stdin)
+  -d, --data string       Data, @FILE, @URL, @-(stdin)
       --del stringArray   Delete an attribute
   -m, --details           Data is resource metadata
   -f, --force             Skip pre-flight checks
-  -o, --output string     Output format(json) (default "json")
-  -r, --replace           Only update specified attributes
+  -o, --output string     Output format (none, json) when xReg metadata
+                          (default "none")
+  -r, --replace           Replace entire entity (all attributes)
       --set stringArray   Set an attribute
 ```
 <!-- XR HELP END -->

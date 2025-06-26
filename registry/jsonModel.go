@@ -191,7 +191,8 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.WriteRune('"')
 	}
 
-	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`, ur.MaxVersions))
+	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
+		((*ResourceModel)(ur)).GetMaxVersions()))
 	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
 		NotNilBoolPtr(ur.SetVersionId)))
 	buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,

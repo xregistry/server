@@ -1397,7 +1397,7 @@ func (r *Resource) EnsureSingleVersionRoot() error {
 
 func (r *Resource) EnsureMaxVersions() error {
 	rm := r.GetResourceModel()
-	if rm.MaxVersions == 0 {
+	if rm.GetMaxVersions() == 0 {
 		// No limit, so just exit
 		return nil
 	}
@@ -1417,7 +1417,7 @@ func (r *Resource) EnsureMaxVersions() error {
 	// number of Versions allowed. Technically, this should always just
 	// delete 1, but ya never know. Also, skip the one that's tagged
 	// as "default" since that one is special
-	for count > rm.MaxVersions {
+	for count > rm.GetMaxVersions() {
 		// Skip the "default" Version
 		if verIDs[0].VID != defaultID {
 			v, err := r.FindVersion(verIDs[0].VID, false, FOR_WRITE)

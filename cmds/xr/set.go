@@ -25,7 +25,7 @@ func addSetCmd(parent *cobra.Command) {
 - Use escaped double-quotes (e.g. \"5\") to force it to be a string
 `
 
-	setCmd.Flags().StringP("output", "o", "json", "Output format(json,human)")
+	setCmd.Flags().StringP("output", "o", "json", "Output format: json, table")
 	setCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 	// Note that -m is ignored because we'll automatically add $details (or not)
 	// for them, but we include the flag for consistency. Meaning, some folks
@@ -47,8 +47,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 	}
 
 	output, _ := cmd.Flags().GetString("output")
-	if !ArrayContains([]string{"human", "json"}, output) {
-		Error("--output must be one of 'json', 'human'")
+	if !ArrayContains([]string{"table", "json"}, output) {
+		Error("--output must be one of: json, table")
 	}
 
 	xidStr := args[0]
@@ -176,8 +176,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if output == "human" {
-		fmt.Printf("%s\n", xrlib.Humanize(xid.String(), object))
+	if output == "table" {
+		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
 		return
 	}
 

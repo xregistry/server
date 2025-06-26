@@ -58,11 +58,12 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Retrieve details about the registry's model",
 		Run:   modelGetFunc,
 	}
-	getCmd.Flags().BoolP("all", "a", false, "Show all data")
-	getCmd.Flags().StringP("output", "o", "table", "output: table, json")
+	getCmd.Flags().BoolP("all", "a", false, "Include default attributes")
+	getCmd.Flags().StringP("output", "o", "table", "Output format: table, json")
 	modelCmd.AddCommand(getCmd)
 
 	// "model group" commands
+	// ////////////////////////////////////////////////////////////////////
 
 	modelGroupCmd := &cobra.Command{
 		Use:   "group",
@@ -70,14 +71,23 @@ func addModelCmd(parent *cobra.Command) {
 	}
 	modelCmd.AddCommand(modelGroupCmd)
 
+	groupListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List the Group types defined in the model",
+		Run:   modelGroupListFunc,
+	}
+	groupListCmd.Flags().StringP("output", "o", "table",
+		"Output format: table, json")
+	modelGroupCmd.AddCommand(groupListCmd)
+
 	groupGetCmd := &cobra.Command{
 		Use:   "get PLURAL",
 		Short: "Retrieve details about a Model Group type",
 		Run:   modelGroupGetFunc,
 	}
-	groupGetCmd.Flags().BoolP("resources", "r", false, "Show Resource types")
-	groupGetCmd.Flags().BoolP("all", "a", false, "Show all data")
-	groupGetCmd.Flags().StringP("output", "o", "table", "output: table, json")
+	groupGetCmd.Flags().BoolP("all", "a", false, "Include default attributes")
+	groupGetCmd.Flags().StringP("output", "o", "table",
+		"Output format: table, json")
 	modelGroupCmd.AddCommand(groupGetCmd)
 
 	groupCreateCmd := &cobra.Command{
@@ -85,9 +95,12 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Create a new Model Group type",
 		Run:   modelGroupCreateFunc,
 	}
-	groupCreateCmd.Flags().BoolP("resources", "r", false, "Show Resource types")
-	groupCreateCmd.Flags().BoolP("all", "a", false, "Show all data")
-	groupCreateCmd.Flags().StringP("output", "o", "none", "output: none, table, json")
+	groupCreateCmd.Flags().BoolP("resources", "r", false,
+		"Show Resource types in output")
+	groupCreateCmd.Flags().BoolP("all", "a", false,
+		"Include default attributes in output")
+	groupCreateCmd.Flags().StringP("output", "o", "none",
+		"Output format: none, table, json")
 	modelGroupCmd.AddCommand(groupCreateCmd)
 
 	groupDeleteCmd := &cobra.Command{
@@ -100,11 +113,23 @@ func addModelCmd(parent *cobra.Command) {
 	modelGroupCmd.AddCommand(groupDeleteCmd)
 
 	// "model resource" commands
+	// ////////////////////////////////////////////////////////////////////
+
 	modelResourceCmd := &cobra.Command{
 		Use:   "resource",
 		Short: "Model Resource operations",
 	}
 	modelCmd.AddCommand(modelResourceCmd)
+
+	resourceListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List the Resource types in a Group type",
+		Run:   modelResourceListFunc,
+	}
+	resourceListCmd.Flags().StringP("group", "g", "", "Group type plural name")
+	resourceListCmd.Flags().StringP("output", "o", "table",
+		"Output format: table, json")
+	modelResourceCmd.AddCommand(resourceListCmd)
 
 	resourceGetCmd := &cobra.Command{
 		Use:   "get PLURAL",
@@ -112,8 +137,10 @@ func addModelCmd(parent *cobra.Command) {
 		Run:   modelResourceGetFunc,
 	}
 	resourceGetCmd.Flags().StringP("group", "g", "", "Group type plural name")
-	resourceGetCmd.Flags().BoolP("all", "a", false, "Show all data")
-	resourceGetCmd.Flags().StringP("output", "o", "table", "output: none, table, json")
+	resourceGetCmd.Flags().BoolP("all", "a", false,
+		"Include default attributes")
+	resourceGetCmd.Flags().StringP("output", "o", "table",
+		"Output format: table, json")
 	modelResourceCmd.AddCommand(resourceGetCmd)
 
 	resourceCreateCmd := &cobra.Command{
@@ -123,8 +150,16 @@ func addModelCmd(parent *cobra.Command) {
 	}
 	resourceCreateCmd.Flags().StringP("group", "g", "",
 		"Group type plural name (add \":SINGULAR\" to create)")
-	resourceCreateCmd.Flags().BoolP("all", "a", false, "Show all data")
-	resourceCreateCmd.Flags().StringP("output", "o", "none", "output: none, table, json")
+	resourceCreateCmd.Flags().IntP("max-versions", "m", 0,
+		"Max versions allowed (default 0 - no limit)")
+	resourceCreateCmd.Flags().BoolP("no-doc", "n", false,
+		"Don't allow for domain docs")
+	resourceCreateCmd.Flags().BoolP("single-root", "r", false,
+		"Only allow one root version")
+	resourceCreateCmd.Flags().BoolP("all", "a", false,
+		"Include default attributes in output")
+	resourceCreateCmd.Flags().StringP("output", "o", "none",
+		"Output format: none, table, json")
 	modelResourceCmd.AddCommand(resourceCreateCmd)
 
 	resourceDeleteCmd := &cobra.Command{
@@ -430,7 +465,7 @@ func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, a
 	fmt.Printf(indent+"RESOURCE: %s/ %s\n", rm.Plural, rm.Singular)
 
 	PrintNotEmpty(indent+"  Description       ", rm.Description, os.Stdout)
-	PrintNotEmpty(indent+"  Max versions      ", rm.MaxVersions, os.Stdout)
+	PrintNotEmpty(indent+"  Max versions      ", rm.GetMaxVersions(), os.Stdout)
 	PrintNotEmpty(indent+"  Set version id    ", rm.SetVersionId, os.Stdout)
 	PrintNotEmpty(indent+"  Set version sticky", rm.SetDefaultSticky, os.Stdout)
 	PrintNotEmpty(indent+"  Has document      ", rm.HasDocument, os.Stdout)
@@ -475,8 +510,18 @@ func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) 
 		}
 
 		if level == ENTITY_RESOURCE {
-			vers := []string{"versions", "versionscount", "versionsurl"}
-			if ArrayContains(vers, aName) {
+			excludes := []string{"versions", "versionscount", "versionsurl",
+				singular, singular + "url",
+				singular + "base64", singular + "proxyurl"}
+			if ArrayContains(excludes, aName) {
+				delete(newAttrs, aName)
+			}
+		}
+
+		if level == ENTITY_VERSION {
+			excludes := []string{singular, singular + "url",
+				singular + "base64", singular + "proxyurl"}
+			if ArrayContains(excludes, aName) {
 				delete(newAttrs, aName)
 			}
 		}
@@ -492,7 +537,7 @@ func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 		attrs = RemoveSystemAttributes(attrs, level, singular)
 	}
 
-	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 1, ' ', 0)
+	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 3, ' ', 0)
 
 	// Make sure list if alphabetical, but put "*" last
 	list := SortedKeys(attrs)
@@ -552,12 +597,47 @@ func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 	ntw.Flush()
 }
 
+func modelGroupListFunc(cmd *cobra.Command, args []string) {
+	if len(args) != 0 {
+		Error("No arguments allowed")
+	}
+
+	output, _ := cmd.Flags().GetString("output")
+
+	if !ArrayContains([]string{"table", "json"}, output) {
+		Error("--output must be one of 'json', 'table'")
+	}
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model, err := reg.GetModel()
+	Error(err)
+
+	if output == "json" {
+		fmt.Printf("%s\n", ToJSON(model.Groups))
+		return
+	}
+
+	itw := xrlib.NewIndentTabWriter("", os.Stdout, 0, 1, 3, ' ', 0)
+	fmt.Fprintln(itw, "GROUP\tRESOURCES\tDESCRIPTION")
+	for _, gmName := range SortedKeys(model.Groups) {
+		gm := model.Groups[gmName]
+		fmt.Fprintf(itw, "%s / %s\t%d\t%s\n", gm.Plural, gm.Singular,
+			len(gm.Resources), gm.Description)
+	}
+	itw.Flush()
+}
+
 func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		Error("At least one Group type name must be specified")
 	}
 
-	resources, _ := cmd.Flags().GetBool("resources")
 	output, _ := cmd.Flags().GetString("output")
 	all, _ := cmd.Flags().GetBool("all")
 
@@ -575,7 +655,7 @@ func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 	model, err := reg.GetModel()
 	Error(err)
 
-	PrintGroupModelsByName(model, args, output, "", resources, all)
+	PrintGroupModelsByName(model, args, output, "", true, all)
 	/*
 		indent := ""
 		if output == "json" && len(args) > 1 {
@@ -760,6 +840,54 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 	Verbose(verMsg)
 }
 
+func modelResourceListFunc(cmd *cobra.Command, args []string) {
+	if len(args) != 0 {
+		Error("No arguments allowed")
+	}
+
+	output, _ := cmd.Flags().GetString("output")
+
+	if !ArrayContains([]string{"table", "json"}, output) {
+		Error("--output must be one of 'json', 'table'")
+	}
+
+	group, _ := cmd.Flags().GetString("group")
+	if group == "" {
+		Error("A Group type name must be provided via the --group flag")
+	}
+
+	if Server == "" {
+		Error("No Server address provided. Try either -s or XR_SERVER env var")
+	}
+
+	reg, err := xrlib.GetRegistry(Server)
+	Error(err)
+
+	model, err := reg.GetModel()
+	Error(err)
+
+	gm := model.FindGroupModel(group)
+	if gm == nil {
+		Error("Unknown Group type: %s", group)
+	}
+
+	if output == "json" {
+		fmt.Printf("%s\n", ToJSON(gm.Resources))
+		return
+	}
+
+	itw := xrlib.NewIndentTabWriter("", os.Stdout, 0, 1, 3, ' ', 0)
+	fmt.Fprintln(itw, "RESOURCE\tHAS DOC\tEXT ATTRS\tDESCRIPTION")
+	for _, rmName := range SortedKeys(gm.Resources) {
+		rm := gm.Resources[rmName]
+		attrs := rm.VersionAttributes
+		attrs = RemoveSystemAttributes(attrs, ENTITY_RESOURCE, rm.Singular)
+		fmt.Fprintf(itw, "%s / %s\t%v\t%d\t%s\n", rm.Plural, rm.Singular,
+			rm.GetHasDocument(), len(attrs), rm.Description)
+	}
+	itw.Flush()
+}
+
 func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		Error("At least one Resource type name must be specified")
@@ -784,7 +912,7 @@ func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 	reg, err := xrlib.GetRegistry(Server)
 	Error(err)
 
-	model, err := reg.GetModelSource()
+	model, err := reg.GetModel()
 	Error(err)
 
 	gm := model.FindGroupModel(group)
@@ -809,6 +937,9 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	output, _ := cmd.Flags().GetString("output")
 	all, _ := cmd.Flags().GetBool("all")
+	maxVersions, _ := cmd.Flags().GetInt("max-versions")
+	noDoc, _ := cmd.Flags().GetBool("no-doc")
+	singleRoot, _ := cmd.Flags().GetBool("single-root")
 
 	if !ArrayContains([]string{"none", "table", "json"}, output) {
 		Error("--output must be one of 'json', 'none', 'table'")
@@ -828,33 +959,33 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	groupPlural, groupSingular, _ := strings.Cut(group, ":")
 
-	model, err := reg.GetModelSource()
+	modelSrc, err := reg.GetModelSource()
 	Error(err)
-	gm := model.FindGroupModel(groupPlural)
+	gm := modelSrc.FindGroupModel(groupPlural)
 	if gm == nil {
 		if groupSingular == "" {
 			Error("Group type %q does not exist", group)
 		}
 
 		// Now create the group
-		Error(ValidateNewGroup(model, groupPlural, groupSingular))
+		Error(ValidateNewGroup(modelSrc, groupPlural, groupSingular))
 
-		if model.Groups == nil {
-			model.Groups = map[string]*xrlib.GroupModel{}
+		if modelSrc.Groups == nil {
+			modelSrc.Groups = map[string]*xrlib.GroupModel{}
 		}
 
-		model.Groups[groupPlural] = &xrlib.GroupModel{
-			Model:    model,
+		modelSrc.Groups[groupPlural] = &xrlib.GroupModel{
+			Model:    modelSrc,
 			Plural:   groupPlural,
 			Singular: groupSingular,
 		}
 
-		buf, err := json.MarshalIndent(model, "", "  ")
+		buf, err := json.MarshalIndent(modelSrc, "", "  ")
 		Error(err)
 		_, err = reg.HttpDo("PUT", "/modelsource", buf)
 		Error(err)
 		Verbose("Created Group type: %s:%s\n", groupPlural, groupSingular)
-		gm = model.FindGroupModel(groupPlural)
+		gm = modelSrc.FindGroupModel(groupPlural)
 	} else {
 		if groupSingular != "" && groupSingular != gm.Singular {
 			Error("Group type %q already exists with a different "+
@@ -899,9 +1030,20 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			gm.Resources = map[string]*xrlib.ResourceModel{}
 		}
 
-		gm.Resources[parts[0]] = &xrlib.ResourceModel{
+		rm := &xrlib.ResourceModel{
 			Plural:   parts[0],
 			Singular: parts[1],
+		}
+		gm.Resources[parts[0]] = rm
+
+		if cmd.Flags().Changed("max-versions") {
+			rm.SetMaxVersions(maxVersions)
+		}
+		if cmd.Flags().Changed("no-doc") {
+			rm.HasDocument = PtrBool(!noDoc)
+		}
+		if cmd.Flags().Changed("single-root") {
+			rm.SingleVersionRoot = &singleRoot
 		}
 
 		verMsg += fmt.Sprintf("Created Resource type: %s:%s\n",
@@ -909,7 +1051,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	}
 
-	buf, err := json.MarshalIndent(model, "", "  ")
+	buf, err := json.MarshalIndent(modelSrc, "", "  ")
 	Error(err)
 	_, err = reg.HttpDo("PUT", "/modelsource", buf)
 	Error(err)
@@ -933,7 +1075,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		if i != 0 {
 			fmt.Printf("")
 		}
-		PrintResourceModel(rm, output, "  ", all)
+		PrintResourceModel(rm, output, "", all)
 	}
 }
 

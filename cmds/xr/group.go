@@ -198,7 +198,7 @@ func groupTypesFunc(cmd *cobra.Command, args []string) {
 	output, _ := cmd.Flags().GetString("output")
 	switch output {
 	case "table":
-		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
+		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)
 		fmt.Fprintln(tw, "PLURAL\tSINGULAR\tURL")
 		for _, key := range keys {
 			g, err := reg.FindGroupModel(key)
@@ -265,7 +265,7 @@ func groupGetFunc(cmd *cobra.Command, args []string) {
 
 	switch output {
 	case "table":
-		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
+		tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)
 		fmt.Fprintln(tw, "TYPE\tNAME\tRESOURCES\tPATH")
 		groupKeys := SortedKeys(res)
 		for _, groupKey := range groupKeys {
