@@ -347,16 +347,6 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 
 	fmt.Println("")
 	PrintGroupModelsByName(reg.Model, SortedKeys(model.Groups), output, "", true, all)
-
-	/*
-		for _, gID := range SortedKeys(model.Groups) {
-			gm := model.Groups[gID]
-
-			fmt.Println("")
-			PrintGroupModel(gm, output, "", true, all)
-			fmt.Printf("\n")
-		}
-	*/
 }
 
 func PrintNotEmpty(title, val any, w io.Writer) {
@@ -553,23 +543,6 @@ func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 	for _, aName := range list {
 		attr, _ := attrs[aName]
 
-		/*
-			if !all {
-				if singular != "" && aName == singular+"id" {
-					continue
-				}
-				if xrlib.SpecProps[aName] != nil {
-					continue
-				}
-				if level == ENTITY_RESOURCE {
-					vers := []string{"versions", "versionscount", "versionsurl"}
-					if ArrayContains(vers, aName) {
-						continue
-					}
-				}
-			}
-		*/
-
 		if count == 0 {
 			fmt.Println("")
 			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
@@ -656,27 +629,6 @@ func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	PrintGroupModelsByName(model, args, output, "", true, all)
-	/*
-		indent := ""
-		if output == "json" && len(args) > 1 {
-			fmt.Printf("[\n")
-			indent = "  "
-		}
-		for i, gmName := range args {
-			gm := model.FindGroupModel(gmName)
-			if gm == nil {
-				Error("Unknown Group type: %s", args[1])
-			}
-
-			PrintGroupModel(gm, output, indent, resources, all)
-			if i+1 < len(args) {
-				fmt.Printf(",\n")
-			}
-		}
-		if output == "json" && len(args) > 1 {
-			fmt.Printf("\n]\n")
-		}
-	*/
 }
 
 func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
@@ -743,30 +695,6 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	Error(reg.RefreshModel())
 
 	PrintGroupModelsByName(reg.Model, gmNames, output, "", resources, all)
-	/*
-		indent = ""
-		if output == "json" && len(gmNames) > 1 {
-			indent = "  "
-			fmt.Printf("[\n")
-		}
-		for i, gmName := range gmNames {
-			gm := reg.Model.FindGroupModel(gmName)
-			if gm == nil {
-				Error("Can't find Group type: %s", gmName)
-			}
-			if output == "table" && i != 0 {
-				fmt.Printf("\n")
-			}
-			if i+1 < len(gmName) {
-				fmt.Printf(",\n")
-			}
-			PrintGroupModel(gm, output, "", resources, all)
-		}
-		if output == "json" && len(gmNames) > 1 {
-			fmt.Printf("\n]")
-		}
-		fmt.Printf("\n")
-	*/
 }
 
 func ValidateNewGroup(model *xrlib.Model, plural, singular string) error {

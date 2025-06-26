@@ -198,7 +198,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					tmp["self"] = []byte(fmt.Sprintf("%q", self))
 
 					if _, ok := tmp["metaurl"]; ok {
-						tmp["metaurl"] = []byte(fmt.Sprintf("\"%s/meta\"", self))
+						tmp["metaurl"] =
+							[]byte(fmt.Sprintf("\"%s/meta\"", self))
 					}
 
 					sort.Strings(plurals)

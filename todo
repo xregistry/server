@@ -119,3 +119,4 @@ TODOs:
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 - support patch / + capabilities - does patching of capabilities
 - support patch / + modelsource - full replacement
+- support "xr model group/resource create/update" with "--data"

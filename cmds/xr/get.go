@@ -81,14 +81,6 @@ func getFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	/*
-		err = json.Unmarshal(res.Body, &object)
-		if err != nil {
-			Error("Error parsing result json: %s\nRespone:\n%s", err,
-				string(res.Body))
-		}
-	*/
-
 	if output == "json" {
 		buf, err := PrettyPrintJSON(res.Body, "", "  ")
 		if err != nil {

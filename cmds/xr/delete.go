@@ -48,7 +48,8 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 
 	if len(data) > 0 {
 		if len(args) > 1 {
-			Error("--data can not be specified when more than one XID is provided")
+			Error("--data can not be specified when more than one " +
+				"XID is provided")
 		}
 
 		if xid.IsEntity {

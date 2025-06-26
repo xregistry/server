@@ -207,7 +207,7 @@ func main() {
 	// just so 'help' is in a group and Hidden is adhered to
 	xrCmd.SetHelpCommand(&cobra.Command{
 		Use:     "help [command]",
-		Short:   "Help about any command",
+		Short:   "I'm not really here",
 		Hidden:  true,
 		GroupID: "Admin",
 		/*
@@ -228,10 +228,8 @@ func main() {
 	addCreateCmd(xrCmd)
 	addDeleteCmd(xrCmd)
 	addGetCmd(xrCmd)
-	// addGroupCmd(xrCmd)
 	addImportCmd(xrCmd)
 	addModelCmd(xrCmd)
-	// addRegistryCmd(xrCmd)
 	addUpdateCmd(xrCmd)
 	addUpsertCmd(xrCmd)
 
