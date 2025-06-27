@@ -11,6 +11,7 @@ export GIT_ORG        ?= xregistry
 export GIT_REPO       ?= $(shell basename `git rev-parse --show-toplevel`)
 # DOCKERHUB must end with /, if it's set at all
 export DOCKERHUB      ?=
+export DBNAME         ?= registry
 export DBHOST         ?= 127.0.0.1
 export DBPORT         ?= 3306
 export DBUSER         ?= root
@@ -78,7 +79,7 @@ unittest:
 	@sed "s/XXX/xrlib/g" common/shared_entities > cmds/xr/xrlib/shared_entities.go
 	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
 	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
-	touch .sharedfiles
+	@touch .sharedfiles
 
 xrserver: .sharedfiles cmds/xrserver/* registry/* common/*
 	@echo
@@ -164,6 +165,7 @@ testimages: .testimages
 		$(XRSERVER_IMAGE) run -v --recreatedb --samples --verify
 	@misc/errOutput docker run --network host \
 		-e DBHOST=$(DBHOST) -e DBPORT=$(DBPORT) -e DBUSER=$(DBUSER) \
+		-e DBNAME=$(DBNAME) \
 		$(XRSERVER_IMAGE) -v --recreatedb --samples --verify
 	@touch .testimages
 
