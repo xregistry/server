@@ -169,7 +169,6 @@ func NewTx() (*Tx, error) {
 	tx := &Tx{}
 	err := tx.NewTx()
 	if err != nil {
-		log.Printf("NewTx error: %s", err)
 		return nil, err
 	}
 	return tx, nil
@@ -851,6 +850,8 @@ func DBExists(name string) bool {
 	if err != nil {
 		panic(err)
 	}
+	defer rows.Close()
+
 	found := rows.Next()
 	log.VPrintf(3, "<Exit: found: %v", found)
 	return found
@@ -892,6 +893,40 @@ func OpenDB(name string) error {
 	}
 
 	return nil
+}
+
+func ListDBs() ([]string, error) {
+	log.VPrintf(3, ">Enter: ListDBs")
+	defer log.VPrintf(3, "<Exit: ListDBs")
+
+	db, err := sql.Open("mysql",
+		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SHOW DATABASES")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	sysNames := []string{"information_schema", "mysql",
+		"performance_schema", "sys"}
+
+	names := []string{}
+	for rows.Next() {
+		name := ""
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		if !ArrayContains(sysNames, name) {
+			names = append(names, name)
+		}
+	}
+
+	return names, nil
 }
 
 func CreateDB(name string) error {

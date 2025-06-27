@@ -343,7 +343,9 @@ func BuildURLNoUI(info *RequestInfo, path string) string {
 
 func GenerateUI(info *RequestInfo, data []byte) []byte {
 	list := ""
-	regs := GetRegistryNames()
+	regs, err := GetRegistryNames()
+	Must(err)
+
 	sort.Strings(regs)
 	regs = append([]string{"Default"}, regs...)
 	if info.ProxyHost != "" {

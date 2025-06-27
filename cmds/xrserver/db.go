@@ -2,9 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"sort"
+	"text/tabwriter"
 
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -15,6 +19,42 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 	}
 
 	parent.AddCommand(dbCmd)
+
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List the databases",
+		Run: func(cmd *cobra.Command, args []string) {
+			output, _ := cmd.Flags().GetString("output")
+			if !ArrayContains([]string{"table", "json"}, output) {
+				Stop("--output must be one of: json, table")
+			}
+
+			dbs, err := registry.ListDBs()
+			ErrStop(err, "Error talking to mysql: %s", err)
+
+			sort.Strings(dbs)
+
+			if output == "table" {
+				tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)
+				fmt.Fprintf(tw, "DB NAME\n")
+
+				for _, name := range dbs {
+					fmt.Fprintf(tw, "%s\n", name)
+				}
+				tw.Flush()
+			} else {
+				res := []string{}
+				for _, name := range dbs {
+					res = append(res, name)
+				}
+
+				fmt.Printf("%s\n", ToJSON(res))
+			}
+		},
+	}
+	listCmd.Flags().StringP("output", "o", "table",
+		"Output format: json, table")
+	dbCmd.AddCommand(listCmd)
 
 	createCmd := &cobra.Command{
 		Use:   "create NAME",

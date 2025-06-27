@@ -35,6 +35,10 @@ xrserver db delete NAME
 xrserver db get NAME
   # Get details about a mysql DB
 
+xrserver db list
+  # List the databases
+  -o, --output string   Output format: json, table (default "table")
+
 xrserver help [command]
   # Help about any command
 
@@ -54,7 +58,6 @@ xrserver registry list
 
 xrserver run
   # Run server (the default command)
-      --db string         DB name (default "registry")
       --dontcreate        Don't create DB/reg if missing
   -p, --port int          API Listen port (default 8080)
       --recreatedb        Recreate the DB

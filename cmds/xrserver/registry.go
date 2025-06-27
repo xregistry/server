@@ -134,12 +134,13 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 		Use:   "list",
 		Short: "List the registries",
 		Run: func(cmd *cobra.Command, args []string) {
-			ids := registry.GetRegistryNames()
+			ids, err := registry.GetRegistryNames()
+			ErrStop(err, "Error talking to the DB: %s", err)
 
 			tx, err := registry.NewTx()
 			ErrStop(err, "Error talking to the DB: %s", err)
 
-			tw := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
+			tw := tabwriter.NewWriter(os.Stdout, 0, 1, 3, ' ', 0)
 			fmt.Fprintf(tw, "ID\tNAME\tCREATED\tMODIFIED\n")
 
 			for _, id := range ids {

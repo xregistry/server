@@ -188,18 +188,18 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 	return reg, nil
 }
 
-func GetRegistryNames() []string {
+func GetRegistryNames() ([]string, error) {
 	tx, err := NewTx()
 	if err != nil {
-		return []string{} // error!
+		return nil, err
 	}
 	defer tx.Rollback()
 
-	results, err := Query(tx, ` SELECT UID FROM Registries`)
+	results, err := Query(tx, `SELECT UID FROM Registries`)
 	defer results.Close()
 
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
 	res := []string{}
@@ -207,7 +207,7 @@ func GetRegistryNames() []string {
 		res = append(res, NotNilString(row[0]))
 	}
 
-	return res
+	return res, nil
 }
 
 var _ EntitySetter = &Registry{}
