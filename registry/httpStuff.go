@@ -627,8 +627,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	tmp := BuildURL(info, "")
 	urlPath := fmt.Sprintf(`<a href="%s">%s</a>`, tmp, info.BaseURL)
 	for i, p := range info.Parts {
-		tmp := BuildURL(info, strings.Join(info.Parts[:i], "/"))
-		tmp += "/" + p
+		tmp := BuildURL(info, strings.Join(info.Parts[:i+1], "/"))
 		urlPath += fmt.Sprintf(`/<a href="%s">%s</a>`, tmp, p)
 	}
 
