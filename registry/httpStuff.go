@@ -1050,7 +1050,7 @@ function apply() {
   if (ex != null && ex.checked) loc += "` + AMP + `doc"
 
   var elem = document.getElementById("sortkey")
-  if (elem != null) {
+  if (elem != null && elem.value != "") {
     loc += "` + AMP + `sort=" + elem.value
     elem = document.getElementById("sortdesc")
     if (elem != null && elem.checked) {
