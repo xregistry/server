@@ -1,4 +1,5 @@
 [![CI](https://github.com/xregistry/server/actions/workflows/ci.yaml/badge.svg)](https://github.com/xregistry/server/actions/workflows/ci.yaml)
+[![FOSSA Status](https://app.fossa.com/api/projects/custom%2B162%2Fgithub.com%2Fxregistry%2Fserver.svg?type=small)](https://app.fossa.com/projects/custom%2B162%2Fgithub.com%2Fxregistry%2Fserver?ref=badge_small)
 
 <img src="https://github.com/cncf/artwork/raw/main/projects/xregistry/horizontal/color/xregistry-horizontal-color.svg" alt="xRegistry"></img><br>
 
