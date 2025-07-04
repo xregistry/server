@@ -120,3 +120,4 @@ TODOs:
 - support patch / + capabilities - does patching of capabilities
 - support patch / + modelsource - full replacement
 - support "xr model group/resource create/update" with "--data"
+- make sure that * can appear in any string capability
