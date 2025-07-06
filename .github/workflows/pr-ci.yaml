@@ -1,11 +1,9 @@
 name: PR-CI
 on:
-  pull_request:
-    branches-ignore:
-      - master
+  pull_request
 
 jobs:
-  build_test_push:
+  build_test:
     runs-on: ubuntu-latest
 
     steps:
