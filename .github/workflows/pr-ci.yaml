@@ -1,0 +1,19 @@
+name: PR-CI
+on:
+  push:
+    branches-ignore:
+      - master
+
+jobs:
+  build_test_push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Show env vars for debugging
+        run: env | sort
+
+      - name: build, test
+        run: make mysql test
+
