@@ -121,3 +121,7 @@ TODOs:
 - support patch / + modelsource - full replacement
 - support "xr model group/resource create/update" with "--data"
 - make sure that * can appear in any string capability
+- xr model group/resource update
+- add support for setversionid, and flag an error when not allowed
+- generate an error when setdefaultversionidsticky is false but they try
+  to set it
