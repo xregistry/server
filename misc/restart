@@ -8,10 +8,10 @@
 #   command="bin/restartxreg" ssh-rsa AAAAB...(rest of public key)...
 
 set -ex
-trap 'rm -f .key' EXIT
+# trap 'rm -f .key' EXIT
 
-if [[ ! -v "$1" ]]; then
-  echo "Set \$$1 first to a public key"
+if [[ ! -v "$1" ]] || [[ "${!1}" == "" ]] ; then
+  echo "Set \$$1 first to a private key"
   exit 1
 fi
 
@@ -20,4 +20,3 @@ printf "%s\n" "${!1}" > .key
 set -x
 chmod 0600 .key
 ssh -o StrictHostKeyChecking=no -i .key $2
-rm -f .key
