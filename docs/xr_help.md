@@ -95,6 +95,7 @@ xr model resource create PLURAL:SINGULAR...
   -g, --group string       Group type plural name (add ":SINGULAR" to create)
   -m, --max-versions int   Max versions allowed (default 0 - no limit)
   -n, --no-doc             Don't allow for domain docs
+  -i, --no-set-versionid   Don't allow for setting of versionid
   -o, --output string      Output format: none, table, json (default "none")
   -r, --single-root        Only allow one root version
 

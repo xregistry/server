@@ -2272,3 +2272,217 @@ func TestHTTPJsonSchema(t *testing.T) {
 `)
 
 }
+
+func TestHTTPModelEnum(t *testing.T) {
+	reg := NewRegistry("TestHTTPModelEnum")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "object",
+            "enum": [ 1 ]
+          }
+        }
+      }
+    }
+  }
+}
+`, 400, `"groups.dirs.strs" is not a scalar, or an array of scalars, so "enum" is not allowed
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "integer",
+            "enum": [ 1 ]
+          }
+        }
+      }
+    }
+  }
+  ,
+  "dirs": {
+    "d1": { "strs":  "2" }
+  }
+}
+`, 400, `Attribute "strs" must be an integer
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ "1" ]
+          }
+        }
+      }
+    }
+  }
+}
+`, 400, `"groups.dirs.strs" enum value "1" must be of type "integer"
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ 1 ]
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ "abc" ] }
+  }
+}
+`, 400, `Attribute "strs[0]" must be an integer
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ 1 ]
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": 2 }
+  }
+}
+`, 400, `Attribute "strs" must be an array
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ 1 ],
+            "strict": false
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ 2 ] }
+  }
+}
+`, 200, `*`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ 1 ]
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ 2 ] }
+  }
+}
+`, 400, `Attribute "strs[0]"(2) must be one of the enum values: 1
+`)
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "integer"
+            },
+            "enum": [ 2, 3 ]
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ 3, 2 ] }
+  }
+}
+`, 200, `*`)
+
+	return
+
+	xHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "strs": {
+            "type": "array",
+            "item": {
+              "type": "string"
+            },
+            "enum": { 1 }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "strs": [ "zzz", "bbb" ] },
+    "d2": { "strs": [ "aaa", "bbb" ] }
+  }
+}
+`, 200, `{
+}
+`)
+
+}

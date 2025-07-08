@@ -1878,16 +1878,16 @@ func (e *Entity) Validate() error {
 		return nil
 		// If we ever support extensions in resourceattributes
 		/*
-				RemoveVersionAttributes(e.ResourceModel, e.NewObject)
+					RemoveVersionAttributes(e.ResourceModel, e.NewObject)
 
-		        // Not really correct yet.
-		        // should just use resourceattributes + ifvaluesattrs
-				for _, k := range Keys(attrs) {
-					a := attrs[k]
-					if a.InType(ENTITY_VERSION) && !a.InType(ENTITY_RESOURCE) {
-						delete(attrs, k)
+			        // Not really correct yet.
+			        // should just use resourceattributes + ifvaluesattrs
+					for _, k := range Keys(attrs) {
+						a := attrs[k]
+						if a.InType(ENTITY_VERSION) && !a.InType(ENTITY_RESOURCE) {
+							delete(attrs, k)
+						}
 					}
-				}
 		*/
 	}
 
@@ -2145,7 +2145,7 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (er
 	} else if attr.Type == MAP {
 		return e.ValidateMap(val, attr.Item, path), false, nil
 	} else if attr.Type == ARRAY {
-		return e.ValidateArray(val, attr.Item, path), false, nil
+		return e.ValidateArray(attr, val, path), false, nil
 	} else if attr.Type == OBJECT {
 		/*
 			attrs := e.GetBaseAttributes()
@@ -2215,12 +2215,12 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 	return nil
 }
 
-func (e *Entity) ValidateArray(val any, item *Item, path *PropPath) error {
+func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) error {
 	log.VPrintf(3, ">Enter: ValidateArray(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateArray")
 
 	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "item: %s", ToJSON(item))
+		log.VPrintf(0, "item: %s", ToJSON(arrayAttr.Item))
 		log.VPrintf(0, "val: %s", ToJSON(val))
 	}
 
@@ -2235,9 +2235,11 @@ func (e *Entity) ValidateArray(val any, item *Item, path *PropPath) error {
 
 	// All values in the array must be of the same type
 	attr := &Attribute{
-		Type:       item.Type,
-		Item:       item.Item,
-		Attributes: item.Attributes,
+		Type:       arrayAttr.Item.Type,
+		Item:       arrayAttr.Item.Item,
+		Attributes: arrayAttr.Item.Attributes,
+		Enum:       arrayAttr.Enum,
+		Strict:     arrayAttr.Strict,
 	}
 
 	for i := 0; i < valValue.Len(); i++ {

@@ -395,13 +395,13 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: INTEGER, Enum: []any{1}}}}, ""},
 		{"empty enum - obj", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: OBJECT, Enum: []any{1}}}},
-			`"model.x" is not a scalar, so "enum" is not allowed`},
+			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
 		{"empty enum - array", Model{Attributes: Attributes{
-			"x": {Name: "x", Type: ARRAY, Enum: []any{1}}}},
-			`"model.x" is not a scalar, so "enum" is not allowed`},
+			"x": {Name: "x", Type: ARRAY, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
+			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
 		{"empty enum - map", Model{Attributes: Attributes{
-			"x": {Name: "x", Type: MAP, Enum: []any{1}}}},
-			`"model.x" is not a scalar, so "enum" is not allowed`},
+			"x": {Name: "x", Type: MAP, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
+			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
 		{"empty enum - any", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ANY, Enum: []any{}}}},
 			`"model.x" specifies an "enum" but it is empty`},

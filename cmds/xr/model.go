@@ -154,6 +154,8 @@ func addModelCmd(parent *cobra.Command) {
 		"Max versions allowed (default 0 - no limit)")
 	resourceCreateCmd.Flags().BoolP("no-doc", "n", false,
 		"Don't allow for domain docs")
+	resourceCreateCmd.Flags().BoolP("no-set-versionid", "i", false,
+		"Don't allow for setting of versionid")
 	resourceCreateCmd.Flags().BoolP("single-root", "r", false,
 		"Only allow one root version")
 	resourceCreateCmd.Flags().BoolP("all", "a", false,
@@ -867,6 +869,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	all, _ := cmd.Flags().GetBool("all")
 	maxVersions, _ := cmd.Flags().GetInt("max-versions")
 	noDoc, _ := cmd.Flags().GetBool("no-doc")
+	noSetVersionId, _ := cmd.Flags().GetBool("no-set-versionid")
 	singleRoot, _ := cmd.Flags().GetBool("single-root")
 
 	if !ArrayContains([]string{"none", "table", "json"}, output) {
@@ -969,6 +972,9 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		}
 		if cmd.Flags().Changed("no-doc") {
 			rm.HasDocument = PtrBool(!noDoc)
+		}
+		if cmd.Flags().Changed("no-set-versionid") {
+			rm.SetVersionId = PtrBool(!noSetVersionId)
 		}
 		if cmd.Flags().Changed("single-root") {
 			rm.SingleVersionRoot = &singleRoot

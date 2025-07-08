@@ -2711,21 +2711,34 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		// if attr.Strict == true && len(attr.Enum) == 0 {
 		// }
 
+		// Object doesn't need an Item, but maps and arrays do
+		if attr.Type == MAP || attr.Type == ARRAY {
+			if attr.Item == nil {
+				return fmt.Errorf("%q must have an \"item\" section", path.UI())
+			}
+		}
+
 		// check enum values
 		if attr.Enum != nil && len(attr.Enum) == 0 {
 			return fmt.Errorf("%q specifies an \"enum\" but it is empty",
 				path.UI())
 		}
 		if len(attr.Enum) > 0 {
-			if IsScalar(attr.Type) != true {
-				return fmt.Errorf("%q is not a scalar, so \"enum\" is not "+
-					"allowed", path.UI())
+			daType := attr.Type
+
+			if attr.Type == ARRAY {
+				daType = attr.Item.Type
+			}
+
+			if IsScalar(daType) != true {
+				return fmt.Errorf("%q is not a scalar, or an array of "+
+					"scalars, so \"enum\" is not allowed", path.UI())
 			}
 
 			for _, val := range attr.Enum {
-				if !IsOfType(val, attr.Type) {
+				if !IsOfType(val, daType) {
 					return fmt.Errorf("%q enum value \"%v\" must be of type %q",
-						path.UI(), val, attr.Type)
+						path.UI(), val, daType)
 				}
 			}
 		}
@@ -2745,13 +2758,6 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 			if attr.Required == false {
 				return fmt.Errorf("%q must have \"require\" set to "+
 					"\"true\" since a default value is defined", path.UI())
-			}
-		}
-
-		// Object doesn't need an Item, but maps and arrays do
-		if attr.Type == MAP || attr.Type == ARRAY {
-			if attr.Item == nil {
-				return fmt.Errorf("%q must have an \"item\" section", path.UI())
 			}
 		}
 
