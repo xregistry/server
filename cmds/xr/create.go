@@ -107,7 +107,7 @@ Notes:
 		"Replace entire entity (all attributes)")
 	updateCmd.Flags().BoolP("force", "f", false,
 		"Force a 'create' if missing, skip pre-flight checks")
-	updateCmd.Flags().BoolP("noepoch", "", false,
+	updateCmd.Flags().BoolP("ignoreepoch", "", false,
 		"Skip 'epoch' checks")
 	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
 	updateCmd.Flags().StringArray("add", nil, "Add to an attribute")
@@ -150,7 +150,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	replace, _ := cmd.Flags().GetBool("replace")
 	force, _ := cmd.Flags().GetBool("force")
-	noEpoch, _ := cmd.Flags().GetBool("noepoch")
+	ignoreEpoch, _ := cmd.Flags().GetBool("ignoreepoch")
 	output, _ := cmd.Flags().GetString("output")
 	isDomainDoc := false
 
@@ -351,8 +351,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 		path += suffix
 	}
 
-	if noEpoch {
-		path = AddQuery(path, "noepoch")
+	if ignoreEpoch {
+		path = AddQuery(path, "ignoreepoch")
 	}
 
 	res, err := reg.HttpDo(method, path, []byte(data))

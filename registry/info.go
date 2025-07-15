@@ -420,9 +420,9 @@ func (info *RequestInfo) ParseRequestURL() error {
 	// Let's do some query parameter stuff.
 	// It's ok for tx to be nil, but only when we're doing a read operation
 	if info.tx != nil {
-		info.tx.IgnoreEpoch = info.HasFlag("noepoch")
-		info.tx.IgnoreDefaultVersionSticky = info.HasFlag("nodefaultversionsticky")
-		info.tx.IgnoreDefaultVersionID = info.HasFlag("nodefaultversionid")
+		info.tx.IgnoreEpoch = info.HasFlag("ignoreepoch")
+		info.tx.IgnoreDefaultVersionSticky = info.HasFlag("ignoredefaultversionsticky")
+		info.tx.IgnoreDefaultVersionID = info.HasFlag("ignoredefaultversionid")
 	}
 
 	if info.HasFlag("inline") {

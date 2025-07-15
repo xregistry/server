@@ -6959,8 +6959,8 @@ func TestHTTPNestedResources(t *testing.T) {
 	})
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "PATCH /RID + nodefaultversionsticky",
-		URL:        "/dirs/d1/files/f1$details?nodefaultversionsticky&inline=meta",
+		Name:       "PATCH /RID + ignoredefaultversionsticky",
+		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionsticky&inline=meta",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -7004,8 +7004,8 @@ func TestHTTPNestedResources(t *testing.T) {
 	})
 
 	xCheckHTTP(t, reg, &HTTPTest{
-		Name:       "PATCH /RID + nodefaultversionid",
-		URL:        "/dirs/d1/files/f1$details?nodefaultversionid&inline=meta",
+		Name:       "PATCH /RID + ignoredefaultversionid",
+		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionid&inline=meta",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -7140,7 +7140,7 @@ func TestHTTPExport(t *testing.T) {
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + re-load, ignore epoch",
-		URL:        "/?noepoch",
+		URL:        "/?ignoreepoch",
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody:    string(body),

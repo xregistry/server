@@ -48,9 +48,9 @@ var AllowableAPIs = ArrayToLower([]string{
 	"/capabilities", "/export", "/model", "/modelsource"})
 
 var AllowableFlags = ArrayToLower([]string{
-	"collections", "doc", "epoch", "filter", "inline",
-	"nodefaultversionid", "nodefaultversionsticky",
-	"noepoch", "noreadonly", "offered",
+	"collections", "doc", "epoch", "filter",
+	"ignoredefaultversionid", "ignoredefaultversionsticky",
+	"ignoreepoch", "ignorereadonly", "inline", "offered",
 	"schema", "setdefaultversionid", "sort", "specversion"})
 
 var AllowableMutable = ArrayToLower([]string{
@@ -61,9 +61,9 @@ var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
 var SupportedFlags = ArrayToLower([]string{
-	"collections", "doc", "epoch", "filter", "inline",
-	"nodefaultversionid", "nodefaultversionsticky",
-	"noepoch", "noreadonly", "offered",
+	"collections", "doc", "epoch", "filter",
+	"ignoredefaultversionid", "ignoredefaultversionsticky",
+	"ignoreepoch", "ignorereadonly", "inline", "offered",
 	"schema", "setdefaultversionid", "sort", "specversion"})
 
 var DefaultCapabilities = &Capabilities{
@@ -83,6 +83,8 @@ func init() {
 	sort.Strings(AllowableMutable)
 	sort.Strings(AllowableSchemas)
 	sort.Strings(AllowableSpecVersions)
+
+	sort.Strings(SupportedFlags)
 
 	Must(DefaultCapabilities.Validate())
 }

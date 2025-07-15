@@ -134,7 +134,7 @@ xr update [ XID ]
       --del stringArray   Delete an attribute
   -m, --details           Data is resource metadata
   -f, --force             Force a 'create' if missing, skip pre-flight checks
-      --noepoch           Skip 'epoch' checks
+      --ignoreepoch       Skip 'epoch' checks
   -o, --output string     Output format (none, json) when xReg metadata
                           (default "none")
   -r, --replace           Replace entire entity (all attributes)

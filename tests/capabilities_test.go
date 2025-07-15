@@ -26,11 +26,11 @@ func TestCapabilitySimple(t *testing.T) {
     "doc",
     "epoch",
     "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
     "inline",
-    "nodefaultversionid",
-    "nodefaultversionsticky",
-    "noepoch",
-    "noreadonly",
     "offered",
     "schema",
     "setdefaultversionid",
@@ -75,11 +75,11 @@ func TestCapabilitySimple(t *testing.T) {
       "doc",
       "epoch",
       "filter",
+      "ignoredefaultversionid",
+      "ignoredefaultversionsticky",
+      "ignoreepoch",
+      "ignorereadonly",
       "inline",
-      "nodefaultversionid",
-      "nodefaultversionsticky",
-      "noepoch",
-      "noreadonly",
       "offered",
       "schema",
       "setdefaultversionid",
@@ -287,11 +287,11 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
     "inline",
-    "nodefaultversionid",
-    "nodefaultversionsticky",
-    "noepoch",
-    "noreadonly",
     "offered",
     "schema",
     "setdefaultversionid",
@@ -463,9 +463,9 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities", "/export", "/model", "/modelsource"
   ],
   "flags": [
-    "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
-    "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
-	"setdefaultversionid", "sort", "specversion"
+    "collections", "doc", "epoch", "filter", "inline", "ignoredefaultversionid",
+    "ignoredefaultversionsticky", "ignoreepoch", "ignorereadonly",
+    "offered", "schema", "setdefaultversionid", "sort", "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -486,11 +486,11 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
     "inline",
-    "nodefaultversionid",
-    "nodefaultversionsticky",
-    "noepoch",
-    "noreadonly",
     "offered",
     "schema",
     "setdefaultversionid",
@@ -526,11 +526,11 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
     "inline",
-    "nodefaultversionid",
-    "nodefaultversionsticky",
-    "noepoch",
-    "noreadonly",
     "offered",
     "schema",
     "setdefaultversionid",
@@ -752,9 +752,9 @@ func TestCapabilityAttr(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "apis": ["/export", "/model", "/modelsource", "/capabilities"],
   "flags": [
-    "collections", "doc", "epoch", "filter", "inline", "nodefaultversionid",
-    "nodefaultversionsticky", "noepoch", "noreadonly", "offered", "schema",
-	"setdefaultversionid", "sort", "specversion"
+    "collections", "doc", "epoch", "filter", "inline", "ignoredefaultversionid",
+    "ignoredefaultversionsticky", "ignoreepoch", "ignorereadonly",
+    "offered", "schema", "setdefaultversionid", "sort", "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -786,11 +786,11 @@ func TestCapabilityAttr(t *testing.T) {
     "doc",
     "epoch",
     "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
     "inline",
-    "nodefaultversionid",
-    "nodefaultversionsticky",
-    "noepoch",
-    "noreadonly",
     "offered",
     "schema",
     "setdefaultversionid",
@@ -893,8 +893,8 @@ func TestCapabilityAttr(t *testing.T) {
 }
 
 // "collections", "doc", "epoch", "filter", "inline",
-// "nodefaultversionid", "nodefaultversionsticky",
-// "noepoch", "noreadonly", "offered", "schema", "setdefaultversionid",
+// "ignoredefaultversionid", "ignoredefaultversionsticky",
+// "ignoreepoch", "ignorereadonly", "offered", "schema", "setdefaultversionid",
 // "sort", "specversion"})
 
 func TestCapabilityFlagsOff(t *testing.T) {
@@ -1014,7 +1014,8 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	// Test ?specversion
 	xHTTP(t, reg, "GET", "/model?specversion=foo", ``, 200, `*`)
 
-	// TODO nodefaultversionid, nodefaultversionsticky, noepoch, noreadonly
+	// TODO ignoredefaultversionid, ignoredefaultversionsticky,
+	// ignoreepoch, ignorereadonly
 }
 
 func TestCapabilityOffered(t *testing.T) {
@@ -1044,11 +1045,11 @@ func TestCapabilityOffered(t *testing.T) {
       "doc",
       "epoch",
       "filter",
+      "ignoredefaultversionid",
+      "ignoredefaultversionsticky",
+      "ignoreepoch",
+      "ignorereadonly",
       "inline",
-      "nodefaultversionid",
-      "nodefaultversionsticky",
-      "noepoch",
-      "noreadonly",
       "offered",
       "schema",
       "setdefaultversionid",
