@@ -75,8 +75,8 @@ unittest:
 .sharedfiles: common/shared*
 	@echo
 	@echo "# Copying shared files"
-	@sed "s/XXX/registry/g" common/shared_entities > registry/shared_entities.go
-	@sed "s/XXX/xrlib/g" common/shared_entities > cmds/xr/xrlib/shared_entities.go
+	@sed "s/XXX/registry/g" common/shared_entity > registry/shared_entity.go
+	@sed "s/XXX/xrlib/g" common/shared_entity > cmds/xr/xrlib/shared_entity.go
 	@sed "s/XXX/registry/g" common/shared_model > registry/shared_model.go
 	@sed "s/XXX/xrlib/g" common/shared_model > cmds/xr/xrlib/shared_model.go
 	@touch .sharedfiles
