@@ -364,7 +364,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
-		"usage": "producer",
+		"usage": []string{"producer"},
 	})
 	ErrFatalf(err)
 	ErrFatalf(g.SetSave("name", "end1"))
@@ -393,7 +393,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(v.SetSave("epoch", 3))
 
 	g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
-		"usage": "consumer",
+		"usage": []string{"consumer"},
 	})
 	ErrFatalf(err)
 	ErrFatalf(g.SetSave("name", "end1"))
@@ -645,7 +645,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 
 		// Endpoints
 		g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
-			"usage": "producer",
+			"usage": []string{"producer"},
 		})
 		ErrFatalf(err)
 
@@ -656,7 +656,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(err)
 
 		g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
-			"usage": "consumer",
+			"usage": []string{"consumer"},
 		})
 		ErrFatalf(err)
 		r, err = g.AddResource("messages", "popped", "v1.0")

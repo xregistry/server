@@ -497,7 +497,6 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	if info.RootPath == "export" {
 		defaultInlines = (len(info.Inlines) == 3 &&
 			info.IsInlineSet(NewPPP("capabilities").DB()) &&
-			info.IsInlineSet(NewPPP("model").DB()) &&
 			info.IsInlineSet(NewPPP("modelsource").DB()) &&
 			info.IsInlineSet(NewPPP("*").DB()))
 	}
@@ -1611,7 +1610,6 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	if info.RootPath == "export" && len(info.Inlines) == 0 {
 		info.AddInline("*")
 		info.AddInline("capabilities")
-		info.AddInline("model")
 		info.AddInline("modelsource")
 	}
 

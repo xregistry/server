@@ -1669,11 +1669,15 @@ func (e *Entity) Save() error {
 			return nil
 		}
 
-		switch reflect.ValueOf(val).Kind() {
+		valValue := reflect.ValueOf(val)
+
+		switch valValue.Kind() {
 		case reflect.Map:
-			vMap := val.(map[string]any)
+			keys := valValue.MapKeys()
 			count := 0
-			for k, v := range vMap {
+			for _, keyValue := range keys {
+				k := keyValue.Interface().(string)
+				v := valValue.MapIndex(keyValue).Interface()
 				// "RESOURCE" is special - call SetDBProp if it's present
 				if resHasDoc && pp.Len() == 0 && k == resSingular {
 					if err := e.SetDBProperty(pp.P(k), v); err != nil {
@@ -1698,17 +1702,21 @@ func (e *Entity) Save() error {
 			}
 
 		case reflect.Slice:
-			vArray := val.([]any)
-			if len(vArray) == 0 {
-				return e.SetDBProperty(pp, []any{})
+			if valValue.Len() == 0 {
+				valValue = reflect.MakeSlice(reflect.TypeOf(val), 0, 0)
+				return e.SetDBProperty(pp, valValue.Interface())
 			}
-			for i, v := range vArray {
+			for i := 0; i < valValue.Len(); i++ {
+				v := valValue.Index(i).Interface()
 				if err := traverse(pp.I(i), v, obj); err != nil {
 					return err
 				}
 			}
 
 		case reflect.Struct:
+			panic("a struct")
+			// If this is ever needed, use reflect to traverse into val
+			// like we do for map & slice above. The stuff below is old/wrong
 			vMap := val.(map[string]any)
 			count := 0
 			for k, v := range vMap {
@@ -1723,6 +1731,7 @@ func (e *Entity) Save() error {
 			if count == 0 {
 				return e.SetDBProperty(pp, struct{}{})
 			}
+
 		default:
 			// must be scalar so add it
 			return e.SetDBProperty(pp, val)
