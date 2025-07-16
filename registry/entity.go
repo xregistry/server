@@ -1676,6 +1676,11 @@ func (e *Entity) Save() error {
 			keys := valValue.MapKeys()
 			count := 0
 			for _, keyValue := range keys {
+				if keyValue.Kind() != reflect.String {
+					return fmt.Errorf("Map key (%s) needs to be a string, "+
+						"not %s", pp.UI(), keyValue.Kind().String())
+				}
+
 				k := keyValue.Interface().(string)
 				v := valValue.MapIndex(keyValue).Interface()
 				// "RESOURCE" is special - call SetDBProp if it's present
@@ -2199,6 +2204,11 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 	}
 
 	for _, k := range valValue.MapKeys() {
+		if k.Kind() != reflect.String {
+			return fmt.Errorf("Map key (%s) needs to be a string, "+
+				"not %s", path.UI(), k.Kind().String())
+		}
+
 		keyName := k.Interface().(string)
 
 		if path.Len() > 0 {
