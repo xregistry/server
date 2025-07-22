@@ -45,6 +45,7 @@ func TestExportBasic(t *testing.T) {
       "/modelsource"
     ],
     "flags": [
+      "binary",
       "collections",
       "doc",
       "epoch",
@@ -293,6 +294,7 @@ func TestExportBasic(t *testing.T) {
       "/modelsource"
     ],
     "flags": [
+      "binary",
       "collections",
       "doc",
       "epoch",

@@ -2486,3 +2486,86 @@ func TestHTTPModelEnum(t *testing.T) {
 `)
 
 }
+
+func TestHTTPBinaryFlag(t *testing.T) {
+	reg := NewRegistry("TestHTTPBinaryFlag")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	xNoErr(t, err)
+	_, err = gm.AddResourceModelSimple("files", "file")
+
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?inline=file", `{
+  "file": { "attr": "value" }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "file": {
+    "attr": "value"
+  },
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file&binary", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "filebase64": "ewogICJhdHRyIjogInZhbHVlIgp9",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	xHTTP(t, reg, "GET", "/dirs/d1?inline=files.file&binary", ``, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "files": {
+    "f1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1$details",
+      "xid": "/dirs/d1/files/f1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "YYYY-MM-DDTHH:MM:01Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "ancestor": "1",
+      "contenttype": "application/json",
+      "filebase64": "ewogICJhdHRyIjogInZhbHVlIgp9",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 1
+    }
+  },
+  "filescount": 1
+}
+`)
+}

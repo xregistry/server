@@ -131,6 +131,7 @@ type Tx struct {
 	IgnoreDefaultVersionSticky bool
 	IgnoreDefaultVersionID     bool
 	RequestInfo                *RequestInfo
+	ClearFullTree              bool
 
 	// Cache of entities this Tx is dealing with. Things can get funky if
 	// we have more than one instance of the same entity in memory.
@@ -211,6 +212,52 @@ func (tx *Tx) NewTx() error {
 	TXs[tx.uuid] = tx
 	TXsMutex.Unlock()
 	return nil
+}
+
+func (tx *Tx) RefreshFullTree() {
+	if tx.ClearFullTree {
+		tx.ClearFullTree = false
+		/*
+			log.Printf("IsCacheDirty: %v", tx.IsCacheDirty())
+
+			log.Printf("\n=================")
+			res, _ := tx.Registry.Query("SELECT EntitySID,PropName from Props order by EntitySID")
+			for _, r := range res {
+				s := *(r[0].(*any))
+				p := *(r[1].(*any))
+				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
+			}
+
+			log.Printf("\n")
+			res, _ = tx.Registry.Query("SELECT Path,PropName from FullTree order by Path")
+			for _, r := range res {
+				s := *(r[0].(*any))
+				p := *(r[1].(*any))
+				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
+			}
+		*/
+
+		Must(Do(tx, `DELETE FROM FullTreeTable`))
+
+		// log.Printf("Table after delete")
+		res, err := tx.Registry.Query("SELECT Path,PropName from FullTree")
+		Must(err)
+		log.Printf("len(res): %d", len(res))
+		for _, r := range res {
+			s := *(r[0].(*any))
+			p := *(r[1].(*any))
+			log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
+		}
+		/*
+			res, err = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
+			Must(err)
+			for _, r := range res {
+				s := *(r[0].(*any))
+				log.Printf("count: %v", s.(int64))
+			}
+		*/
+		Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
+	}
 }
 
 func (tx *Tx) DumpCache() {
@@ -634,6 +681,12 @@ func DumpTimings() string {
 }
 
 func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
+	/*
+		if strings.Index(cmd, "FullTree") >= 0 {
+			tx.RefreshFullTree()
+		}
+	*/
+
 	startTime := time.Time{}
 	pTime := time.Time{}
 	qTime := time.Time{}
@@ -712,8 +765,27 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
 	return result, nil
 }
 
+var inDo = false
+
 func doCount(tx *Tx, cmd string, args ...interface{}) (int, error) {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
+
+	/*
+		if !inDo {
+			if strings.Index(cmd, "INSERT") >= 0 ||
+				strings.Index(cmd, "DELETE") >= 0 ||
+				strings.Index(cmd, "REPLACE") >= 0 {
+				tx.ClearFullTree = true
+			}
+
+			if tx.ClearFullTree && strings.Index(cmd, "FullTree") >= 0 {
+				inDo = true
+				tx.RefreshFullTree()
+				inDo = false
+			}
+		}
+	*/
+
 	ps, err := tx.Prepare(cmd)
 	if err != nil {
 		ShowStack()

@@ -411,7 +411,8 @@ UNION ALL SELECT                # Add Props for xRef resources
 FROM Metas AS mS
 JOIN Metas AS mT ON (mT.ResourceSID=mS.xRefSID)
 JOIN Props AS p ON (p.EntitySID=mT.SID AND
-       p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')))
+       p.PropName NOT IN
+         ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN'),'#nextversionid$DB_IN'))
 WHERE mS.xRefSID IS NOT NULL
 
 UNION ALL SELECT               # Add Version props for xRef resources
@@ -465,6 +466,26 @@ UNION ALL SELECT               # Add in Version.RESOURCEid, which is calculated
 FROM Entities AS v
 JOIN Resources AS r ON (r.SID=v.ParentSID)
 WHERE v.Type=$ENTITY_VERSION;
+
+CREATE TABLE FullTreeTable (
+  RegSID     VARCHAR(64) NOT NULL,
+  Type       BIGINT NOT NUll,
+  Plural     VARCHAR(64) NOT NULL,
+  Singular   VARCHAR(64) NOT NULL,
+  ParentSID  VARCHAR(64) NULL,
+  eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID
+  UID        VARCHAR(255) NOT NULL,      # User Defined
+  Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+  PropName   VARCHAR($MAX_PROPNAME) NOT NULL,
+  PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
+  PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
+  Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+  DocView    BIGINT NOT NULL,
+
+  PRIMARY KEY(RegSID, Path, PropName)
+  # UNIQUE INDEX(RegSID, eSID, PropName)
+  # INDEX(RegSID, Abstract)
+);
 
 CREATE VIEW FullTree AS
 SELECT

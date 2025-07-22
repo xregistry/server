@@ -22,6 +22,7 @@ func TestCapabilitySimple(t *testing.T) {
     "/modelsource"
   ],
   "flags": [
+    "binary",
     "collections",
     "doc",
     "epoch",
@@ -71,6 +72,7 @@ func TestCapabilitySimple(t *testing.T) {
       "/modelsource"
     ],
     "flags": [
+      "binary",
       "collections",
       "doc",
       "epoch",
@@ -283,6 +285,7 @@ func TestCapabilityPath(t *testing.T) {
     "/modelsource"
   ],
   "flags": [
+    "binary",
     "collections",
     "doc",
     "epoch",
@@ -463,9 +466,10 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities", "/export", "/model", "/modelsource"
   ],
   "flags": [
-    "collections", "doc", "epoch", "filter", "inline", "ignoredefaultversionid",
-    "ignoredefaultversionsticky", "ignoreepoch", "ignorereadonly",
-    "offered", "schema", "setdefaultversionid", "sort", "specversion"
+    "binary", "collections", "doc", "epoch", "filter", "inline",
+    "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
+    "ignorereadonly", "offered", "schema", "setdefaultversionid", "sort",
+    "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -482,6 +486,7 @@ func TestCapabilityPath(t *testing.T) {
     "/modelsource"
   ],
   "flags": [
+    "binary",
     "collections",
     "doc",
     "epoch",
@@ -522,6 +527,7 @@ func TestCapabilityPath(t *testing.T) {
     "/modelsource"
   ],
   "flags": [
+    "binary",
     "collections",
     "doc",
     "epoch",
@@ -752,9 +758,10 @@ func TestCapabilityAttr(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "apis": ["/export", "/model", "/modelsource", "/capabilities"],
   "flags": [
-    "collections", "doc", "epoch", "filter", "inline", "ignoredefaultversionid",
-    "ignoredefaultversionsticky", "ignoreepoch", "ignorereadonly",
-    "offered", "schema", "setdefaultversionid", "sort", "specversion"
+    "binary", "collections", "doc", "epoch", "filter", "inline",
+    "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
+    "ignorereadonly", "offered", "schema", "setdefaultversionid", "sort",
+    "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -782,6 +789,7 @@ func TestCapabilityAttr(t *testing.T) {
     "/modelsource"
   ],
   "flags": [
+    "binary",
     "collections",
     "doc",
     "epoch",
@@ -892,7 +900,7 @@ func TestCapabilityAttr(t *testing.T) {
 
 }
 
-// "collections", "doc", "epoch", "filter", "inline",
+// "binary", "collections", "doc", "epoch", "filter", "inline",
 // "ignoredefaultversionid", "ignoredefaultversionsticky",
 // "ignoreepoch", "ignorereadonly", "offered", "schema", "setdefaultversionid",
 // "sort", "specversion"})
@@ -1041,6 +1049,7 @@ func TestCapabilityOffered(t *testing.T) {
       "type": "string"
     },
     "enum": [
+      "binary",
       "collections",
       "doc",
       "epoch",

@@ -435,14 +435,26 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 				checked = " checked"
 			}
 			options +=
-				"    <div class=docview>\n" +
+				"    <div>\n" +
 					"      <input id=docview type='checkbox'" + checked + "/>doc view\n" +
 					"    </div>\n"
+		}
 
-			if options != "" { // Wrapper if any
-				options = "<b>Options:</b>\n\n" + options +
-					"\n    <hr style=\"width: 95%%\">\n"
+		if info.FlagEnabled("binary") {
+			checked := ""
+			if info.HasFlag("binary") {
+				checked = " checked"
 			}
+			options +=
+				"    <div>\n" +
+					"      <input id=binary type='checkbox'" + checked + "/>binary\n" +
+					"    </div>\n"
+
+		}
+		if options != "" { // Wrapper if any
+			options = "<b>Options:</b>\n<div class=options>\n" +
+				options +
+				"</div>\n    <hr style=\"width: 95%%\">\n"
 		}
 	}
 
@@ -855,7 +867,7 @@ toggleExp(null, false);
     margin-left: 3px ;
   }
 
-  .docview {
+  .options {
     margin-top: 5px ;
     font-size: 13px ;
     font-family: courier ;
@@ -1047,6 +1059,9 @@ function apply() {
 
   ex = document.getElementById("docview")
   if (ex != null && ex.checked) loc += "` + AMP + `doc"
+
+  ex = document.getElementById("binary")
+  if (ex != null && ex.checked) loc += "` + AMP + `binary"
 
   var elem = document.getElementById("sortkey")
   if (elem != null && elem.value != "") {

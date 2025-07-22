@@ -500,8 +500,14 @@ func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, ext
 			return nil
 		}
 
-		ct := jw.Entity.GetAsString("contenttype")
-		ct = rm.MapContentType(ct)
+		ct := ""
+
+		if jw.info.HasFlag("binary") {
+			ct = "binary"
+		} else {
+			ct = jw.Entity.GetAsString("contenttype")
+			ct = rm.MapContentType(ct)
+		}
 
 		// Try to write the body in either JSON (the current
 		// raw bytes stored in the DB), or if not valid JSON then
