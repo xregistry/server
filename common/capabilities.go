@@ -10,14 +10,14 @@ import (
 )
 
 type Capabilities struct {
-	APIs         []string `json:"apis"`         // must not have omitempty
-	Flags        []string `json:"flags"`        // must not have omitempty
-	Mutable      []string `json:"mutable"`      // must not have omitempty
-	Pagination   bool     `json:"pagination"`   // must not have omitempty
-	Schemas      []string `json:"schemas"`      // must not have omitempty
-	ShortSelf    bool     `json:"shortself"`    // must not have omitempty
-	SpecVersions []string `json:"specversions"` // must not have omitempty
-	Sticky       *bool    `json:"sticky"`       // must not have omitempty
+	APIs           []string `json:"apis"`           // must not have omitempty
+	Flags          []string `json:"flags"`          // must not have omitempty
+	Mutable        []string `json:"mutable"`        // must not have omitempty
+	Pagination     bool     `json:"pagination"`     // must not have omitempty
+	Schemas        []string `json:"schemas"`        // must not have omitempty
+	ShortSelf      bool     `json:"shortself"`      // must not have omitempty
+	SpecVersions   []string `json:"specversions"`   // must not have omitempty
+	StickyVersions *bool    `json:"stickyversions"` // must not have omitempty
 }
 
 type OfferedCapability struct {
@@ -34,14 +34,14 @@ type OfferedItem struct {
 }
 
 type Offered struct {
-	APIs         OfferedCapability `json:"apis,omitempty"`
-	Flags        OfferedCapability `json:"flags,omitempty"`
-	Mutable      OfferedCapability `json:"mutable,omitempty"`
-	Pagination   OfferedCapability `json:"pagination,omitempty"`
-	Schemas      OfferedCapability `json:"schemas,omitempty"`
-	ShortSelf    OfferedCapability `json:"shortself,omitempty"`
-	SpecVersions OfferedCapability `json:"specversions,omitempty"`
-	Sticky       OfferedCapability `json:"sticky,omitempty"`
+	APIs           OfferedCapability `json:"apis,omitempty"`
+	Flags          OfferedCapability `json:"flags,omitempty"`
+	Mutable        OfferedCapability `json:"mutable,omitempty"`
+	Pagination     OfferedCapability `json:"pagination,omitempty"`
+	Schemas        OfferedCapability `json:"schemas,omitempty"`
+	ShortSelf      OfferedCapability `json:"shortself,omitempty"`
+	SpecVersions   OfferedCapability `json:"specversions,omitempty"`
+	StickyVersions OfferedCapability `json:"stickyversions,omitempty"`
 }
 
 var AllowableAPIs = ArrayToLower([]string{
@@ -67,14 +67,14 @@ var SupportedFlags = ArrayToLower([]string{
 	"schema", "setdefaultversionid", "sort", "specversion"})
 
 var DefaultCapabilities = &Capabilities{
-	APIs:         AllowableAPIs,
-	Flags:        SupportedFlags,
-	Mutable:      AllowableMutable,
-	Pagination:   false,
-	Schemas:      AllowableSchemas,
-	ShortSelf:    false,
-	SpecVersions: AllowableSpecVersions,
-	Sticky:       PtrBool(true),
+	APIs:           AllowableAPIs,
+	Flags:          SupportedFlags,
+	Mutable:        AllowableMutable,
+	Pagination:     false,
+	Schemas:        AllowableSchemas,
+	ShortSelf:      false,
+	SpecVersions:   AllowableSpecVersions,
+	StickyVersions: PtrBool(true),
 }
 
 func init() {
@@ -135,7 +135,7 @@ func GetOffered() *Offered {
 			Type: "string",
 			Enum: String2AnySlice(AllowableSpecVersions),
 		},
-		Sticky: OfferedCapability{
+		StickyVersions: OfferedCapability{
 			Type: "boolean",
 			Enum: []any{false, true},
 		},
@@ -253,8 +253,8 @@ func (c *Capabilities) Validate() error {
 		return fmt.Errorf(`"specversions" must contain %q`, SPECVERSION)
 	}
 
-	if c.Sticky == nil {
-		c.Sticky = DefaultCapabilities.Sticky
+	if c.StickyVersions == nil {
+		c.StickyVersions = DefaultCapabilities.StickyVersions
 	}
 
 	return nil
@@ -302,6 +302,6 @@ func (c *Capabilities) SpecVersionEnabled(str string) bool {
 	return ArrayContainsAnyCase(c.SpecVersions, str)
 }
 
-func (c *Capabilities) StickyEnabled() bool {
-	return c.Sticky != nil && (*c.Sticky) == true
+func (c *Capabilities) StickyVersionsEnabled() bool {
+	return c.StickyVersions != nil && (*c.StickyVersions) == true
 }

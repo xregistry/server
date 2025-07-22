@@ -2034,7 +2034,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -2060,7 +2060,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 

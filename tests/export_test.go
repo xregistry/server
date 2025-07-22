@@ -74,7 +74,7 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   },
   "modelsource": {},
 
@@ -323,7 +323,7 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   },
 
   "dirsurl": "http://localhost:8181/dirs",

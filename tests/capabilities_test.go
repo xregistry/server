@@ -51,7 +51,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -101,7 +101,7 @@ func TestCapabilitySimple(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   }
 }
 `)
@@ -126,7 +126,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "sticky": true
+  "stickyversions": true
 }`,
 		},
 		{
@@ -148,7 +148,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "sticky": true
+  "stickyversions": true
 }`,
 		},
 		{
@@ -170,7 +170,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "sticky": true
+  "stickyversions": true
 }`,
 		},
 		{
@@ -192,7 +192,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "sticky": true
+  "stickyversions": true
 }`,
 		},
 		{
@@ -210,7 +210,7 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "sticky": true
+  "stickyversions": true
 }`,
 		},
 		{
@@ -314,7 +314,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -346,7 +346,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -379,7 +379,7 @@ func TestCapabilityPath(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   }
 }
 `)
@@ -410,7 +410,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -438,7 +438,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -456,7 +456,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -476,7 +476,7 @@ func TestCapabilityPath(t *testing.T) {
   "schemas": [ "xregistry-json/`+SPECVERSION+`" ],
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "sticky": true
+  "stickyversions": true
 }`, 200,
 		`{
   "apis": [
@@ -515,7 +515,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -556,7 +556,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -576,7 +576,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -594,7 +594,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -616,7 +616,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -625,7 +625,7 @@ func TestCapabilityPath(t *testing.T) {
     "apis":["/capabilities"],
 	"pagination": false,
 	"shortself": false,
-    "sticky": false
+    "stickyversions": false
 }`, 200, `{
   "apis": [
     "/capabilities"
@@ -640,7 +640,7 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": false
+  "stickyversions": false
 }
 `)
 
@@ -707,7 +707,7 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   }
 }
 `)
@@ -722,7 +722,7 @@ func TestCapabilityAttr(t *testing.T) {
   "schemas": null,
   "shortself": null,
   "specversions": null,
-  "sticky": null
+  "stickyversions": null
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -749,7 +749,7 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -768,7 +768,7 @@ func TestCapabilityAttr(t *testing.T) {
   "schemas": [ "xregistry-json/`+SPECVERSION+`" ],
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "sticky": false
+  "stickyversions": false
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -818,7 +818,7 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": false
+  "stickyversions": false
 }
 `)
 
@@ -832,7 +832,7 @@ func TestCapabilityAttr(t *testing.T) {
   "schemas": ["xregistry-json"],
   "shortself": false,
   "specversions": ["`+SPECVERSION+`"],
-  "sticky": true
+  "stickyversions": true
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -857,7 +857,7 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   }
 }
 `)
@@ -876,7 +876,7 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -932,7 +932,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -1098,7 +1098,7 @@ func TestCapabilityOffered(t *testing.T) {
       "`+SPECVERSION+`"
     ]
   },
-  "sticky": {
+  "stickyversions": {
     "type": "boolean",
     "enum": [
       false,
@@ -1127,7 +1127,7 @@ func TestCapabilityAPIs(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -1156,7 +1156,7 @@ func TestCapabilityAPIs(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": true
+  "stickyversions": true
 }
 `)
 
@@ -1185,7 +1185,7 @@ func TestCapabilityAPIs(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   },
   "modelsource": {}
 }
@@ -1213,7 +1213,7 @@ func TestCapabilityPatch(t *testing.T) {
 	// Try to clear it all
 	xHTTP(t, reg, "PATCH", "/capabilities", `{
       "flags": ["inline"],
-      "sticky": false
+      "stickyversions": false
     }`, 200, `{
   "apis": [
     "/capabilities",
@@ -1237,14 +1237,14 @@ func TestCapabilityPatch(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "sticky": false
+  "stickyversions": false
 }
 `)
 
 	xHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
   "capabilities": {
     "flags": [ "inline", "filter" ],
-    "sticky": true
+    "stickyversions": true
 }
 }`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -1270,7 +1270,7 @@ func TestCapabilityPatch(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "sticky": true
+    "stickyversions": true
   }
 }
 `)
