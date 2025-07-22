@@ -14,7 +14,6 @@ type Capabilities struct {
 	Flags          []string `json:"flags"`          // must not have omitempty
 	Mutable        []string `json:"mutable"`        // must not have omitempty
 	Pagination     bool     `json:"pagination"`     // must not have omitempty
-	Schemas        []string `json:"schemas"`        // must not have omitempty
 	ShortSelf      bool     `json:"shortself"`      // must not have omitempty
 	SpecVersions   []string `json:"specversions"`   // must not have omitempty
 	StickyVersions *bool    `json:"stickyversions"` // must not have omitempty
@@ -38,7 +37,6 @@ type Offered struct {
 	Flags          OfferedCapability `json:"flags,omitempty"`
 	Mutable        OfferedCapability `json:"mutable,omitempty"`
 	Pagination     OfferedCapability `json:"pagination,omitempty"`
-	Schemas        OfferedCapability `json:"schemas,omitempty"`
 	ShortSelf      OfferedCapability `json:"shortself,omitempty"`
 	SpecVersions   OfferedCapability `json:"specversions,omitempty"`
 	StickyVersions OfferedCapability `json:"stickyversions,omitempty"`
@@ -51,12 +49,10 @@ var AllowableFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter",
 	"ignoredefaultversionid", "ignoredefaultversionsticky",
 	"ignoreepoch", "ignorereadonly", "inline", "offered",
-	"schema", "setdefaultversionid", "sort", "specversion"})
+	"setdefaultversionid", "sort", "specversion"})
 
 var AllowableMutable = ArrayToLower([]string{
 	"capabilities", "entities", "model"})
-
-var AllowableSchemas = ArrayToLower([]string{XREGSCHEMA + "/" + SPECVERSION})
 
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
@@ -64,14 +60,13 @@ var SupportedFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter",
 	"ignoredefaultversionid", "ignoredefaultversionsticky",
 	"ignoreepoch", "ignorereadonly", "inline", "offered",
-	"schema", "setdefaultversionid", "sort", "specversion"})
+	"setdefaultversionid", "sort", "specversion"})
 
 var DefaultCapabilities = &Capabilities{
 	APIs:           AllowableAPIs,
 	Flags:          SupportedFlags,
 	Mutable:        AllowableMutable,
 	Pagination:     false,
-	Schemas:        AllowableSchemas,
 	ShortSelf:      false,
 	SpecVersions:   AllowableSpecVersions,
 	StickyVersions: PtrBool(true),
@@ -81,7 +76,6 @@ func init() {
 	sort.Strings(AllowableAPIs)
 	sort.Strings(AllowableFlags)
 	sort.Strings(AllowableMutable)
-	sort.Strings(AllowableSchemas)
 	sort.Strings(AllowableSpecVersions)
 
 	sort.Strings(SupportedFlags)
@@ -123,10 +117,6 @@ func GetOffered() *Offered {
 			Type: "boolean",
 			Enum: []any{false},
 		},
-		Schemas: OfferedCapability{
-			Type: "string",
-			Enum: String2AnySlice(AllowableSchemas),
-		},
 		ShortSelf: OfferedCapability{
 			Type: "boolean",
 			Enum: []any{false},
@@ -159,13 +149,6 @@ func CleanArray(arr []string, full []string, text string) ([]string, error) {
 	// Lowercase evrything and look for "*"
 	for i, s := range arr {
 		s = strings.ToLower(s)
-
-		// Special case these
-		if text == "schemas" && s == strings.ToLower(XREGSCHEMA) {
-			// Allow just "xregistry-json", we'll add the spec version #
-			s = s + "/" + SPECVERSION
-		}
-		// End-of-special
 
 		arr[i] = s
 		if s == "*" {
@@ -204,9 +187,6 @@ func CleanArray(arr []string, full []string, text string) ([]string, error) {
 func (c *Capabilities) Validate() error {
 	var err error
 
-	if c.Schemas == nil {
-		c.Schemas = []string{XREGSCHEMA + "/" + SPECVERSION}
-	}
 	if c.SpecVersions == nil {
 		c.SpecVersions = []string{SPECVERSION}
 	}
@@ -230,19 +210,10 @@ func (c *Capabilities) Validate() error {
 		return fmt.Errorf(`"pagination" must be "false"`)
 	}
 
-	c.Schemas, err = CleanArray(c.Schemas, AllowableSchemas, "schemas")
-	if err != nil {
-		return err
-	}
-
 	c.SpecVersions, err = CleanArray(c.SpecVersions, AllowableSpecVersions,
 		"specversions")
 	if err != nil {
 		return err
-	}
-
-	if !ArrayContainsAnyCase(c.Schemas, XREGSCHEMA+"/"+SPECVERSION) {
-		return fmt.Errorf(`"schemas" must contain %q`, XREGSCHEMA+"/"+SPECVERSION)
 	}
 
 	if c.ShortSelf != false {
@@ -288,10 +259,6 @@ func (c *Capabilities) MutableEnabled(str string) bool {
 
 func (c *Capabilities) PaginationEnabled() bool {
 	return c.Pagination
-}
-
-func (c *Capabilities) SchemaEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Schemas, str)
 }
 
 func (c *Capabilities) ShortSelfEnabled(str string) bool {

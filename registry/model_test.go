@@ -2,7 +2,6 @@ package registry
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -502,114 +501,6 @@ func TestModelVerifyEnum(t *testing.T) {
 		if err != nil && test.err != err.Error() {
 			t.Fatalf("ModifyVerify: %s\nExp: %s\nGot: %s", test.name,
 				test.err, err.Error())
-		}
-	}
-}
-
-func TestGetModelSerializer(t *testing.T) {
-	type Match struct {
-		format string
-		result ModelSerializer
-	}
-	type Format struct {
-		format string
-		fn     ModelSerializer
-	}
-
-	fn1 := func(m *Model, format string) ([]byte, error) { return nil, nil }
-	fn2 := func(m *Model, format string) ([]byte, error) { return nil, nil }
-	fn3 := func(m *Model, format string) ([]byte, error) { return nil, nil }
-	fn4 := func(m *Model, format string) ([]byte, error) { return nil, nil }
-
-	type Test struct {
-		formats []Format
-		matches []Match
-	}
-
-	tests := []Test{
-		{
-			formats: []Format{},
-			matches: []Match{
-				{format: "foo", result: nil},
-			},
-		},
-		{
-			formats: []Format{
-				{format: "f1", fn: fn1},
-			},
-			matches: []Match{
-				{format: "f1", result: fn1},
-				{format: "f1/v1", result: nil},
-				{format: "f2", result: nil},
-				{format: "f2/v1", result: nil},
-			},
-		},
-		{
-			formats: []Format{
-				{format: "f1", fn: fn1},
-				{format: "f1/v1", fn: fn2},
-				{format: "f1/v2", fn: fn3},
-			},
-			matches: []Match{
-				{format: "f1", result: fn1},
-				{format: "f1/v1", result: fn2},
-				{format: "f1/v2", result: fn3},
-				{format: "f1/vx", result: nil},
-			},
-		},
-		{
-			formats: []Format{
-				{format: "f1/v1", fn: fn2},
-				{format: "f1/v2", fn: fn3},
-			},
-			matches: []Match{
-				{format: "f1", result: fn3},
-				{format: "f1/v1", result: fn2},
-				{format: "f1/v2", result: fn3},
-				{format: "f1/vx", result: nil},
-			},
-		},
-		{
-			formats: []Format{
-				{format: "f1/v1", fn: fn1},
-				{format: "f1/v2", fn: fn2},
-				{format: "f2/va", fn: fn3},
-				{format: "f2/vb", fn: fn4},
-			},
-			matches: []Match{
-				{format: "f1", result: fn2},
-				{format: "f1/v1", result: fn1},
-				{format: "f1/v2", result: fn2},
-				{format: "f1/vx", result: nil},
-				{format: "f1vx", result: nil},
-				{format: "f2", result: fn3},
-				{format: "f2/va", result: fn3},
-				{format: "f2/vb", result: fn4},
-				{format: "f2/vx", result: nil},
-				{format: "f2vx", result: nil},
-			},
-		},
-	}
-
-	for _, test := range tests {
-		// Start out clean
-		ModelSerializers = map[string]ModelSerializer{}
-		for _, f := range test.formats {
-			RegisterModelSerializer(f.format, f.fn)
-		}
-		for _, m := range test.matches {
-			fn := GetModelSerializer(m.format)
-			if reflect.ValueOf(fn).Pointer() == reflect.ValueOf(m.result).Pointer() {
-				continue
-			}
-			if fn == nil {
-				t.Fatalf("Fn is nil for match: %q, Test:\n%s",
-					m.format, ToJSON(test.formats))
-			}
-			if fn != nil && m.result == nil {
-				t.Fatalf("Fn should have been nil for match: %q, Test:\n%s",
-					m.format, ToJSON(test.formats))
-			}
 		}
 	}
 }

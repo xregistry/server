@@ -1268,11 +1268,7 @@ func HTTPGETModel(info *RequestInfo) error {
 		model = &Model{}
 	}
 
-	ms := GetModelSerializer(format)
-	if ms == nil {
-		return fmt.Errorf("Unsupported schema format: %s", format)
-	}
-	buf, err := ms(model, format)
+	buf, err := model.SerializeForUser()
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
 		return err

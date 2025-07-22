@@ -2027,9 +2027,6 @@ func TestHTTPJsonSchema(t *testing.T) {
     "model"
   ],
   "pagination": false,
-  "schemas": [
-    "xregistry-json/`+SPECVERSION+`"
-  ],
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"
@@ -2053,9 +2050,6 @@ func TestHTTPJsonSchema(t *testing.T) {
     "model"
   ],
   "pagination": false,
-  "schemas": [
-    "xregistry-json/`+SPECVERSION+`"
-  ],
   "shortself": false,
   "specversions": [
     "`+SPECVERSION+`"

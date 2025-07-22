@@ -324,57 +324,6 @@ func (rm *ResourceModel) VerifyData() error {
 	return nil
 }
 
-// The model serializer we use for the "xRegistry" schema format
-func Model2xRegistryJson(m *Model, format string) ([]byte, error) {
+func (m *Model) SerializeForUser() ([]byte, error) {
 	return json.MarshalIndent((*UserModel)(m), "", "  ")
-}
-
-func GetModelSerializer(format string) ModelSerializer {
-	format = strings.ToLower(format)
-	searchParts := strings.SplitN(format, "/", 2)
-	if searchParts[0] == "" {
-		return nil
-	}
-	if len(searchParts) == 1 {
-		searchParts = append(searchParts, "")
-	}
-
-	result := ModelSerializer(nil)
-	resultVersion := ""
-
-	for format, sm := range ModelSerializers {
-		format = strings.ToLower(format)
-		parts := strings.SplitN(format, "/", 2)
-		if searchParts[0] != parts[0] {
-			continue
-		}
-		if len(parts) == 1 {
-			parts = append(parts, "")
-		}
-
-		if searchParts[1] != "" {
-			if searchParts[1] == parts[1] {
-				// Exact match - stop immediately
-				result = sm
-				break
-			}
-			// Looking for an exact match - not it so skip it
-			continue
-		}
-
-		if resultVersion == "" || strings.Compare(parts[1], resultVersion) > 0 {
-			result = sm
-			resultVersion = parts[1]
-		}
-	}
-
-	return result
-}
-
-func RegisterModelSerializer(name string, sm ModelSerializer) {
-	ModelSerializers[name] = sm
-}
-
-func init() {
-	RegisterModelSerializer(XREGSCHEMA+"/"+SPECVERSION, Model2xRegistryJson)
 }

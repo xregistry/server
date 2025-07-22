@@ -56,7 +56,6 @@ func TestExportBasic(t *testing.T) {
       "ignorereadonly",
       "inline",
       "offered",
-      "schema",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -67,9 +66,6 @@ func TestExportBasic(t *testing.T) {
       "model"
     ],
     "pagination": false,
-    "schemas": [
-      "xregistry-json/`+SPECVERSION+`"
-    ],
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
@@ -305,7 +301,6 @@ func TestExportBasic(t *testing.T) {
       "ignorereadonly",
       "inline",
       "offered",
-      "schema",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -316,9 +311,6 @@ func TestExportBasic(t *testing.T) {
       "model"
     ],
     "pagination": false,
-    "schemas": [
-      "xregistry-json/`+SPECVERSION+`"
-    ],
     "shortself": false,
     "specversions": [
       "`+SPECVERSION+`"
