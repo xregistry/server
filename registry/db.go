@@ -215,8 +215,22 @@ func (tx *Tx) NewTx() error {
 }
 
 func (tx *Tx) RefreshFullTree() {
+	return
 	if tx.ClearFullTree {
+		inDo = true
 		tx.ClearFullTree = false
+
+		Must(Do(tx, `DELETE FROM FullTreeTable`))
+		// Must(Do(tx, `ALTER TABLE FullTreeTable DISABLE KEYS`))
+		Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
+		// Must(Do(tx, `ALTER TABLE FullTreeTable ENABLE KEYS`))
+		/*
+					Must(Do(tx, `TRUNCATE TABLE FullTreeTable ;
+			            ALTER TABLE FullTreeTable DISABLE KEYS ;
+			            INSERT INTO FullTreeTable SELECT * FROM FullTree ;
+			            ALTER TABLE FullTreeTable ENABLE KEYS `))
+		*/
+
 		/*
 			log.Printf("IsCacheDirty: %v", tx.IsCacheDirty())
 
@@ -237,26 +251,29 @@ func (tx *Tx) RefreshFullTree() {
 			}
 		*/
 
-		Must(Do(tx, `DELETE FROM FullTreeTable`))
-
-		// log.Printf("Table after delete")
-		res, err := tx.Registry.Query("SELECT Path,PropName from FullTree")
-		Must(err)
-		log.Printf("len(res): %d", len(res))
-		for _, r := range res {
-			s := *(r[0].(*any))
-			p := *(r[1].(*any))
-			log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
-		}
 		/*
-			res, err = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
+			Must(Do(tx, `DELETE FROM FullTreeTable`))
+
+			// log.Printf("Table after delete")
+			res, err := tx.Registry.Query("SELECT Path,PropName from FullTree")
 			Must(err)
+			log.Printf("len(res): %d", len(res))
 			for _, r := range res {
 				s := *(r[0].(*any))
-				log.Printf("count: %v", s.(int64))
+				p := *(r[1].(*any))
+				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
 			}
 		*/
-		Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
+		/*
+				res, err = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
+				Must(err)
+				for _, r := range res {
+					s := *(r[0].(*any))
+					log.Printf("count: %v", s.(int64))
+				}
+			Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
+		*/
+		inDo = false
 	}
 }
 
@@ -770,21 +787,21 @@ var inDo = false
 func doCount(tx *Tx, cmd string, args ...interface{}) (int, error) {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
 
-	/*
-		if !inDo {
-			if strings.Index(cmd, "INSERT") >= 0 ||
-				strings.Index(cmd, "DELETE") >= 0 ||
-				strings.Index(cmd, "REPLACE") >= 0 {
-				tx.ClearFullTree = true
-			}
+	if !inDo {
+		if strings.Index(cmd, "INSERT") >= 0 ||
+			strings.Index(cmd, "DELETE") >= 0 ||
+			strings.Index(cmd, "REPLACE") >= 0 {
+			tx.ClearFullTree = true
+		}
 
+		/*
 			if tx.ClearFullTree && strings.Index(cmd, "FullTree") >= 0 {
 				inDo = true
 				tx.RefreshFullTree()
 				inDo = false
 			}
-		}
-	*/
+		*/
+	}
 
 	ps, err := tx.Prepare(cmd)
 	if err != nil {

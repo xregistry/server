@@ -411,8 +411,8 @@ UNION ALL SELECT                # Add Props for xRef resources
 FROM Metas AS mS
 JOIN Metas AS mT ON (mT.ResourceSID=mS.xRefSID)
 JOIN Props AS p ON (p.EntitySID=mT.SID AND
-       p.PropName NOT IN
-         ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN'),'#nextversionid$DB_IN'))
+       p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')) AND
+       LEFT(p.PropName,1) <> '#' )
 WHERE mS.xRefSID IS NOT NULL
 
 UNION ALL SELECT               # Add Version props for xRef resources
