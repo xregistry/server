@@ -6195,7 +6195,7 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
-		`Get "http://bogus.bogus.bogus.bogus.com/bogus.json": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host
+		`^Get "http://bogus.bogus.bogus.bogus.com/bogus.json": dial tcp: lookup bogus.bogus.bogus.bogus.com on .*: no such host
 `)
 
 	// nested include with http ref

@@ -587,7 +587,15 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	}
 
 	// Only check body if not "*"
-	if test.ResBody != "*" {
+	if strings.HasPrefix(test.ResBody, "^") {
+		re := regexp.MustCompile(test.ResBody)
+		if !re.Match(resBody) {
+			t.Fatalf("Test: " + test.Name +
+				"\nExpected:\n" + test.ResBody +
+				"\nGot:\n" + string(resBody))
+			t.FailNow()
+		}
+	} else if test.ResBody != "*" {
 		testBody := test.ResBody
 
 		for _, mask := range test.BodyMasks {
