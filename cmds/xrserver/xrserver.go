@@ -218,7 +218,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	if val, _ := cmd.Flags().GetBool("samples"); val {
 		paths := os.Getenv("XR_MODEL_PATH")
 		os.Setenv("XR_MODEL_PATH", ".:"+paths+
-			"http://raw.githubusercontent.com/xregistry/spec/main")
+			":http://raw.githubusercontent.com/xregistry/spec/main")
 
 		LoadCESample(nil)
 		LoadDirsSample(nil)

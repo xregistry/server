@@ -212,7 +212,8 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-	    --network host --name mysql mysql --port $(DBPORT) > /dev/null )
+	    -p $(DBPORT):$(DBPORT) --name mysql mysql \
+		--port $(DBPORT) > /dev/null )
 		@ # -e MYSQL_USER=$(DBUSER) \
 
 waitformysql:
@@ -259,12 +260,14 @@ prof: xrserver
 	@go tool pprof -top -cum cpu.prof | sed -n '0,/flat/p;/xreg/p' | more
 	@rm -f cpu.prof mem.prof tests.test
 
-devimage:
+devimage: .devimage
+.devimage: Makefile misc/Dockerfile-dev
 	@# See the misc/Dockerfile-dev for more info
 	@echo
 	@echo "# Build the dev image"
 	@misc/errOutput docker build -t $(DOCKERHUB)xreg-dev --no-cache \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -f misc/Dockerfile-dev .
+	@touch .devimage
 
 testdev: devimage
 	@# See the misc/Dockerfile-dev for more info
@@ -276,6 +279,17 @@ testdev: devimage
 	docker run -ti -v /var/run/docker.sock:/var/run/docker.sock \
 		-e VERIFY=--verify --network host $(DOCKERHUB)xreg-dev make clean all
 	@echo "## Done testing the dev image"
+
+devenv: devimage mysql waitformysql
+	@docker image ls | grep $(DOCKERHUB)xreg-dev > /dev/null || \
+		make devimage
+	docker run -ti \
+		-e DBHOST=$(DBHOST) \
+		-p 8080:8080 \
+		-v $(HOME)/.bashrc:/root/.bashrc:ro \
+		-v $(PWD):/go/src/github.com/xregistry/server \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		$(DOCKERHUB)xreg-dev bash
 
 clean:
 	@echo

@@ -19,6 +19,7 @@
 /.xr-all
 /.xrserver-all
 /.sharedfiles
+/.devimage
 
 # Junk
 /hostit
