@@ -212,7 +212,7 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-	    -p $(DBPORT):$(DBPORT) --name mysql mysql \
+		-p $(DBPORT):$(DBPORT) --name mysql mysql \
 		--port $(DBPORT) > /dev/null )
 		@ # -e MYSQL_USER=$(DBUSER) \
 
