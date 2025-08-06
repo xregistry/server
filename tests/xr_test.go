@@ -121,6 +121,7 @@ GROUP: dirs / dir
 
   ATTRIBUTES:     TYPE          REQ   RO   MUT   DEFAULT
   createdat       timestamp     y     -    y     
+  deprecated      object        -     -    y     
   description     string        -     -    y     
   dirid           string        y     -    -     
   documentation   url           -     -    y     
@@ -467,6 +468,32 @@ func TestXRGroupType(t *testing.T) {
       "type": "timestamp",
       "required": true
     },
+    "deprecated": {
+      "name": "deprecated",
+      "type": "object",
+      "attributes": {
+        "alternative": {
+          "name": "alternative",
+          "type": "url"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "effective": {
+          "name": "effective",
+          "type": "timestamp"
+        },
+        "removal": {
+          "name": "removal",
+          "type": "timestamp"
+        },
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
     "description": {
       "name": "description",
       "type": "string"
@@ -530,6 +557,7 @@ func TestXRGroupType(t *testing.T) {
 
   ATTRIBUTES:     TYPE          REQ   RO   MUT   DEFAULT
   createdat       timestamp     y     -    y     
+  deprecated      object        -     -    y     
   description     string        -     -    y     
   dir4id          string        y     -    -     
   documentation   url           -     -    y     
@@ -547,6 +575,7 @@ func TestXRGroupType(t *testing.T) {
 
   ATTRIBUTES:     TYPE          REQ   RO   MUT   DEFAULT
   createdat       timestamp     y     -    y     
+  deprecated      object        -     -    y     
   description     string        -     -    y     
   dir5id          string        y     -    -     
   documentation   url           -     -    y     
@@ -573,6 +602,32 @@ func TestXRGroupType(t *testing.T) {
       "name": "createdat",
       "type": "timestamp",
       "required": true
+    },
+    "deprecated": {
+      "name": "deprecated",
+      "type": "object",
+      "attributes": {
+        "alternative": {
+          "name": "alternative",
+          "type": "url"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "effective": {
+          "name": "effective",
+          "type": "timestamp"
+        },
+        "removal": {
+          "name": "removal",
+          "type": "timestamp"
+        },
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
     },
     "description": {
       "name": "description",
@@ -643,6 +698,32 @@ func TestXRGroupType(t *testing.T) {
         "type": "timestamp",
         "required": true
       },
+      "deprecated": {
+        "name": "deprecated",
+        "type": "object",
+        "attributes": {
+          "alternative": {
+            "name": "alternative",
+            "type": "url"
+          },
+          "documentation": {
+            "name": "documentation",
+            "type": "url"
+          },
+          "effective": {
+            "name": "effective",
+            "type": "timestamp"
+          },
+          "removal": {
+            "name": "removal",
+            "type": "timestamp"
+          },
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
       "description": {
         "name": "description",
         "type": "string"
@@ -707,6 +788,32 @@ func TestXRGroupType(t *testing.T) {
         "name": "createdat",
         "type": "timestamp",
         "required": true
+      },
+      "deprecated": {
+        "name": "deprecated",
+        "type": "object",
+        "attributes": {
+          "alternative": {
+            "name": "alternative",
+            "type": "url"
+          },
+          "documentation": {
+            "name": "documentation",
+            "type": "url"
+          },
+          "effective": {
+            "name": "effective",
+            "type": "timestamp"
+          },
+          "removal": {
+            "name": "removal",
+            "type": "timestamp"
+          },
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
       },
       "description": {
         "name": "description",

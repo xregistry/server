@@ -411,6 +411,32 @@ func TestHTTPModelSource(t *testing.T) {
             "type": "timestamp",
             "required": true
           },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",

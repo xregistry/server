@@ -360,7 +360,7 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types: StrTypes(ENTITY_GROUP, ENTITY_META),
 		},
 	},
 	{

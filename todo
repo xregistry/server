@@ -131,3 +131,5 @@ TODOs:
 - check for the correct length of group/resource plural/singular names - not 58
 - add tests for xr model resource create --flags
 - make sure ?schema works for GET /modelsource
+- add tests for groups.deprecated
+- add support for case insensitive ifvalues

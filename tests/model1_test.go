@@ -426,6 +426,32 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         }
       }
     }
@@ -622,6 +648,32 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         }
       }
     }
@@ -818,6 +870,32 @@ func TestGroupModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         }
       }
     }
@@ -1097,6 +1175,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "filesurl": {
           "name": "filesurl",
@@ -1480,6 +1584,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "filesurl": {
           "name": "filesurl",
@@ -2022,6 +2152,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -2404,6 +2560,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         }
       }
     }
@@ -2627,6 +2809,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -3009,6 +3217,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         }
       }
     }
@@ -3206,6 +3440,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "filesurl": {
           "name": "filesurl",
@@ -3720,6 +3980,32 @@ func TestResourceModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "filesurl": {
           "name": "filesurl",
@@ -4266,6 +4552,32 @@ func TestResourceModelCreate(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -4797,6 +5109,32 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
           },
           "filesurl": {
             "name": "filesurl",
@@ -5360,6 +5698,32 @@ func TestResourceModelCreate(t *testing.T) {
             "type": "timestamp",
             "required": true
           },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          },
           "files2url": {
             "name": "files2url",
             "type": "url",
@@ -5893,6 +6257,32 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
           }
         }
       }
@@ -6121,6 +6511,32 @@ func TestResourceModelCreate(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
           }
         }
       }
@@ -6371,6 +6787,32 @@ func TestMultModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "rms1url": {
           "name": "rms1url",
@@ -7070,6 +7512,32 @@ func TestMultModelCreate(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "rms1url": {
           "name": "rms1url",
@@ -7979,6 +8447,32 @@ func TestMultModel2Create(t *testing.T) {
             "type": "timestamp",
             "required": true
           },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -8361,6 +8855,32 @@ func TestMultModel2Create(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
           },
           "filesurl": {
             "name": "filesurl",

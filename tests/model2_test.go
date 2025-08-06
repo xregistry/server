@@ -222,6 +222,32 @@ func TestModelLabels(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "rmsurl": {
           "name": "rmsurl",
           "type": "url",
@@ -748,6 +774,32 @@ func TestModelLabels(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "rmsurl": {
           "name": "rmsurl",
@@ -1311,6 +1363,32 @@ func TestModelLabels(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "filesurl": {
           "name": "filesurl",
@@ -2163,6 +2241,32 @@ func TestUseSpecAttrs(t *testing.T) {
             "name": "modifiedat",
             "type": "timestamp",
             "required": true
+          },
+          "deprecated": {
+            "name": "deprecated",
+            "type": "object",
+            "attributes": {
+              "alternative": {
+                "name": "alternative",
+                "type": "url"
+              },
+              "documentation": {
+                "name": "documentation",
+                "type": "url"
+              },
+              "effective": {
+                "name": "effective",
+                "type": "timestamp"
+              },
+              "removal": {
+                "name": "removal",
+                "type": "timestamp"
+              },
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
           },
           "obj": {
             "name": "obj",
@@ -3355,6 +3459,32 @@ func TestModelCompatibleWith(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "datasurl": {
           "name": "datasurl",
@@ -4871,6 +5001,32 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -5428,6 +5584,32 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -5810,6 +5992,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "formatsurl": {
           "name": "formatsurl",
@@ -6426,6 +6634,32 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -6808,6 +7042,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "formatsurl": {
           "name": "formatsurl",
@@ -7361,6 +7621,32 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -7743,6 +8029,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "formatsurl": {
           "name": "formatsurl",
@@ -8296,6 +8608,32 @@ func TestModelIncludes(t *testing.T) {
           "type": "timestamp",
           "required": true
         },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -8678,6 +9016,32 @@ func TestModelIncludes(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "formatsurl": {
           "name": "formatsurl",
@@ -9308,6 +9672,32 @@ func TestModelMissingFields(t *testing.T) {
           "name": "modifiedat",
           "type": "timestamp",
           "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
         },
         "gext": {
           "name": "gext",
