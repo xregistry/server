@@ -741,6 +741,10 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 				for id, obj := range gMap {
 					_, _, err := info.Registry.UpsertGroupWithObject(gType,
 						id, obj, registry.ADD_UPDATE)
+					if err != nil {
+						log.Printf("From: %s", file.DownloadURL)
+						log.Printf("Input:\n%s", ToJSON(obj))
+					}
 					ErrFatalf(err, "  - %s", err)
 				}
 			}

@@ -48,6 +48,12 @@ func Error(obj any, args ...any) {
 					panic("First arg must be a string")
 				}
 				args = args[1:]
+
+				for i := 0; i < len(args); i++ {
+					if args[i] == "err" {
+						args[i] = err.Error()
+					}
+				}
 			}
 		} else {
 			panic(fmt.Sprintf("Unknown Error arg: %q(%T)", obj, obj))

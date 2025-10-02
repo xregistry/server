@@ -18,6 +18,8 @@ If there is a security concern please open an
 
 ## Additional Information
 
-- We adhere to the CNCF's
-  [Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md) guidelines
 - Our [LICENSE](../LICENSE) is Apache II.
+- Code of Conduct:
+
+  If you are more annoying to work with than your contributions justify, you
+  will be asked to leave.

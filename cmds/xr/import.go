@@ -75,6 +75,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 	res, err := reg.HttpDo("POST", xid.String()+suffix, []byte(data))
 	Error(err)
 
+	obj = map[string]json.RawMessage{}
 	Error(json.Unmarshal(res.Body, &obj))
 	subObj := (map[string]json.RawMessage)(nil)
 
@@ -82,13 +83,16 @@ func importFunc(cmd *cobra.Command, args []string) {
 	case ENTITY_REGISTRY:
 		for _, gType := range SortedKeys(obj) {
 			group := obj[gType]
-			Error(json.Unmarshal(group, &subObj))
+			Error(json.Unmarshal(group, &subObj),
+				"Error parsing response group collection %q: %s", gType, "err")
 			Verbose("Imported: %d %s", len(subObj), gType)
 		}
 	case ENTITY_GROUP:
 		for _, rType := range SortedKeys(obj) {
 			resource := obj[rType]
-			Error(json.Unmarshal(resource, &subObj))
+			Error(json.Unmarshal(resource, &subObj),
+				"Error parsing response resource collection %q: %s",
+				rType, "err")
 			Verbose("Imported: %d %s", len(subObj), rType)
 		}
 	case ENTITY_RESOURCE:
