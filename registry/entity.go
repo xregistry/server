@@ -1410,7 +1410,7 @@ var PropsFuncs = []*Attribute{
 				}
 				valStr := val.(string)
 
-				// place "meta" with "versions/VID"
+				// replace "meta" with "versions/VID"
 				path := e.Path[:len(e.Path)-4] + "versions/" + valStr
 				result := ""
 				isAbsURL := false
@@ -2539,8 +2539,8 @@ func (e *Entity) MatchXID(str string, xid string) error {
 		return fmt.Errorf("uses an unknown group %q", targetParts[1])
 	}
 	if len(strParts) < 3 || len(strParts[2]) == 0 {
-		return fmt.Errorf("must match %q target, missing \"%sid\"",
-			xid, gm.Singular)
+		return fmt.Errorf("must match %q target, %q is missing \"%sid\"",
+			xid, str, gm.Singular)
 	}
 	if err := IsValidID(strParts[2]); err != nil {
 		return fmt.Errorf("must match %q target: %s", xid, err)
@@ -2556,13 +2556,13 @@ func (e *Entity) MatchXID(str string, xid string) error {
 
 	// targetParts has RESOURCES
 	if len(strParts) < 4 { //    /GROUPS/GID/RESOURCES
-		return fmt.Errorf("must match %q target, missing %q",
-			xid, targetParts[2])
+		return fmt.Errorf("must match %q target, %q is missing %q",
+			xid, str, targetParts[2])
 	}
 
 	if targetParts[2] != strParts[3] {
-		return fmt.Errorf("must match %q target, missing %q",
-			xid, targetParts[2])
+		return fmt.Errorf("must match %q target, %q is missing %q",
+			xid, str, targetParts[2])
 	}
 
 	rm := gm.FindResourceModel(targetParts[2])
@@ -2571,8 +2571,8 @@ func (e *Entity) MatchXID(str string, xid string) error {
 	}
 
 	if len(strParts) < 5 || len(strParts[4]) == 0 {
-		return fmt.Errorf("must match %q target, missing \"%sid\"",
-			xid, rm.Singular)
+		return fmt.Errorf("must match %q target, %q is missing \"%sid\"",
+			xid, str, rm.Singular)
 	}
 	if err := IsValidID(strParts[4]); err != nil {
 		return fmt.Errorf("must match %q target: %s", xid, err)
@@ -2595,11 +2595,13 @@ func (e *Entity) MatchXID(str string, xid string) error {
 	}
 
 	if len(strParts) < 6 || strParts[5] != "versions" {
-		return fmt.Errorf("must match %q target, missing \"versions\"", xid)
+		return fmt.Errorf("must match %q target, %q is missing \"versions\"",
+			xid, str)
 	}
 
 	if len(strParts) < 7 || len(strParts[6]) == 0 {
-		return fmt.Errorf("must match %q target, missing a \"versionid\"", xid)
+		return fmt.Errorf("must match %q target, %q is missing a \"versionid\"",
+			xid, str)
 	}
 	if err := IsValidID(strParts[6]); err != nil {
 		return fmt.Errorf("must match %q target: %s", xid, err)
