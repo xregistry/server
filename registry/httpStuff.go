@@ -429,17 +429,6 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	}
 
 	if info.RootPath == "" {
-		if info.FlagEnabled("doc") {
-			checked := ""
-			if info.DoDocView() {
-				checked = " checked"
-			}
-			options +=
-				"    <div>\n" +
-					"      <input id=docview type='checkbox'" + checked + "/>doc view\n" +
-					"    </div>\n"
-		}
-
 		if info.FlagEnabled("binary") {
 			checked := ""
 			if info.HasFlag("binary") {
@@ -451,6 +440,30 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 					"    </div>\n"
 
 		}
+
+		if info.FlagEnabled("collections") {
+			checked := ""
+			if info.HasFlag("collections") {
+				checked = " checked"
+			}
+			options +=
+				"    <div>\n" +
+					"      <input id=collections type='checkbox'" + checked + "/>collections\n" +
+					"    </div>\n"
+
+		}
+
+		if info.FlagEnabled("doc") {
+			checked := ""
+			if info.DoDocView() {
+				checked = " checked"
+			}
+			options +=
+				"    <div>\n" +
+					"      <input id=docview type='checkbox'" + checked + "/>doc view\n" +
+					"    </div>\n"
+		}
+
 		if options != "" { // Wrapper if any
 			options = "<b>Options:</b>\n<div class=options>\n" +
 				options +
@@ -1057,11 +1070,14 @@ function apply() {
   if (detailsSwitch) loc += "$details"
   loc += "?` + addUI + `"
 
-  ex = document.getElementById("docview")
-  if (ex != null && ex.checked) loc += "` + AMP + `doc"
-
   ex = document.getElementById("binary")
   if (ex != null && ex.checked) loc += "` + AMP + `binary"
+
+  ex = document.getElementById("collections")
+  if (ex != null && ex.checked) loc += "` + AMP + `collections"
+
+  ex = document.getElementById("docview")
+  if (ex != null && ex.checked) loc += "` + AMP + `doc"
 
   var elem = document.getElementById("sortkey")
   if (elem != null && elem.value != "") {
