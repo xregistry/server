@@ -163,6 +163,7 @@ func (reg *Registry) GetModelSource() (*Model, error) {
 			return nil, err
 		}
 	}
+	tmpModel.SetPointers()
 
 	return &tmpModel, nil
 }

@@ -489,9 +489,8 @@ func (m *Model) AddAttribute(attr *Attribute) (*Attribute, error) {
 		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
 	}
 
-	attr.Model = m
+	attr.SetModel(m)
 	m.Attributes[attr.Name] = attr
-	attr.Item.SetModel(m)
 
 	ld := &LevelData{
 		Model:     m,
@@ -676,6 +675,7 @@ func (i *Item) SetModel(m *Model) {
 
 	i.Model = m
 	i.Attributes.SetModel(m)
+	i.Item.SetModel(m)
 }
 
 func (i *Item) SetItem(item *Item) error {
@@ -706,6 +706,10 @@ func (i *Item) AddAttrArray(name string, item *Item) (*Attribute, error) {
 func (i *Item) AddAttribute(attr *Attribute) (*Attribute, error) {
 	if attr == nil {
 		return nil, nil
+	}
+
+	if i.Type != OBJECT {
+		return nil, fmt.Errorf("Item must be of type OBJECT in order to add attributes, it's %q", i.Type)
 	}
 
 	if attr.Name != "*" {
@@ -871,8 +875,7 @@ func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	gm.Attributes[attr.Name] = attr
 
-	attr.Model = gm.Model
-	attr.Item.SetModel(gm.Model)
+	attr.SetModel(gm.Model)
 
 	ld := &LevelData{
 		Model:     gm.Model,
@@ -1270,8 +1273,7 @@ func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, erro
 
 	rm.ResourceAttributes[attr.Name] = attr
 
-	attr.Model = rm.GroupModel.Model
-	attr.Item.SetModel(rm.GroupModel.Model)
+	attr.SetModel(rm.GroupModel.Model)
 
 	rm.GroupModel.Model.SetChanged(true)
 
@@ -1311,8 +1313,7 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, error) {
 
 	rm.MetaAttributes[attr.Name] = attr
 
-	attr.Model = rm.GroupModel.Model
-	attr.Item.SetModel(rm.GroupModel.Model)
+	attr.SetModel(rm.GroupModel.Model)
 
 	rm.GroupModel.Model.SetChanged(true)
 
@@ -1381,8 +1382,7 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 	rm.VersionAttributes[attr.Name] = attr
 
-	attr.Model = rm.GroupModel.Model
-	attr.Item.SetModel(rm.GroupModel.Model)
+	attr.SetModel(rm.GroupModel.Model)
 
 	ld := &LevelData{
 		Model:     rm.GroupModel.Model,

@@ -261,9 +261,27 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		_, err = reg.Model.AddAttrMap("mapobj", item)
 		ErrFatalf(err)
 
-		_, err = reg.Model.AddAttrArray("arrmap",
+		_, err = reg.Model.AddAttrArray("arrmapstr",
 			registry.NewItemMap(registry.NewItemType(STRING)))
 		ErrFatalf(err)
+
+		item = registry.NewItemMap(registry.NewItemObject())
+		_, err = reg.Model.AddAttrArray("arrmapobj", item)
+		ErrFatalf(err)
+		item = item.Item
+		_, err = item.AddAttr("aoint", INTEGER)
+		ErrFatalf(err)
+		objAttr, err := item.AddAttrObj("objint")
+		ErrFatalf(err)
+		_, err = objAttr.AddAttr("anobjint", INTEGER)
+		ErrFatalf(err)
+
+		item = registry.NewItemObject()
+		_, err = item.AddAttr("aoint", INTEGER)
+		ErrFatalf(err)
+		_, err = reg.Model.AddAttrArray("arrobj", item)
+		ErrFatalf(err)
+
 		ErrFatalf(reg.Model.VerifyAndSave())
 
 		ErrFatalf(reg.SetSave("bool1", true))
@@ -279,7 +297,8 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("arr1[0]", "arr1-value"))
 		ErrFatalf(reg.SetSave("mapobj.mapkey.inint", 5))
 		ErrFatalf(reg.SetSave("mapobj['cool_key'].inint", 666))
-		ErrFatalf(reg.SetSave("arrmap[1].key1", "arrmapk1-value"))
+		ErrFatalf(reg.SetSave("arrmapobj[1].key1",
+			map[string]any{}))
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)

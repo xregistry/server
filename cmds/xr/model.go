@@ -522,7 +522,7 @@ func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) 
 	return newAttrs
 }
 
-func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
+func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 	singular string, indent string, w io.Writer, all bool) {
 
 	if !all {
@@ -537,23 +537,35 @@ func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 		list = append(list[1:], list[0])
 	}
 
-	if prefix != "" {
-		prefix += " "
+	if attrPrefix != "" {
+		attrPrefix += " "
 	}
 
-	count := 0
-	for _, aName := range list {
-		attr, _ := attrs[aName]
+	if len(list) != 0 {
+		fmt.Println("")
+		fmt.Fprintln(ntw, attrPrefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
+	}
 
-		if count == 0 {
-			fmt.Println("")
-			fmt.Fprintln(ntw, prefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
+	showAttr := func(attr *xrlib.Attribute, indent string, isIf bool) {}
+	showAttr = func(attr *xrlib.Attribute, indent string, isIf bool) {
+		nestedAttrs := attr.Attributes
+
+		typeStr := ""
+		tmpType := attr.Type
+		tmpItem := attr.Item
+		for {
+			if typeStr != "" {
+				typeStr += "/"
+			}
+			typeStr += tmpType
+			if tmpItem == nil {
+				break
+			}
+			nestedAttrs = tmpItem.Attributes
+			tmpType = tmpItem.Type
+			tmpItem = tmpItem.Item
 		}
-		count++
-		typ := attr.Type
-		if typ == MAP {
-			typ = fmt.Sprintf("%s(%s)", typ, attr.Item.Type)
-		}
+
 		req := xrlib.YesDash(attr.Required)
 		ro := xrlib.YesDash(attr.ReadOnly)
 		immut := xrlib.YesDash(!attr.Immutable)
@@ -565,8 +577,36 @@ func PrintAttributes(level int, prefix string, attrs xrlib.Attributes,
 				def = fmt.Sprintf("%v", attr.Default)
 			}
 		}
-		fmt.Fprintf(ntw, "%s\t%s\t%s\t%s\t%s\t%s\n", aName, typ,
-			req, ro, immut, def)
+		fmt.Fprintf(ntw, "%s%s\t%s\t%s\t%s\t%s\t%s\n",
+			indent, attr.Name, typeStr, req, ro, immut, def)
+		if isIf {
+			indent = indent[:len(indent)-2] + "  " // replace '>' with ' '
+		}
+
+		if len(attr.IfValues) > 0 {
+			for _, val := range SortedKeys(attr.IfValues) {
+				ifVal := attr.IfValues[val]
+				// for val, ifVal := range attr.IfValues {
+				fmt.Fprintf(ntw, "  %q\t(if value)\t\t\t\t\n", val)
+
+				for _, attr := range ifVal.SiblingAttributes {
+					showAttr(attr, indent+"  < ", true)
+				}
+			}
+		}
+
+		list := SortedKeys(nestedAttrs)
+		if len(list) > 0 && list[0] == "*" {
+			list = append(list[1:], list[0])
+		}
+		for _, key := range list {
+			showAttr(nestedAttrs[key], indent+"  ", false)
+		}
+	}
+
+	for _, aName := range list {
+		attr, _ := attrs[aName]
+		showAttr(attr, "", false)
 	}
 
 	ntw.Flush()
@@ -962,8 +1002,9 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		}
 
 		rm := &xrlib.ResourceModel{
-			Plural:   parts[0],
-			Singular: parts[1],
+			GroupModel: gm,
+			Plural:     parts[0],
+			Singular:   parts[1],
 		}
 		gm.Resources[parts[0]] = rm
 
