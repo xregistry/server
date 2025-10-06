@@ -6091,7 +6091,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v2",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6144,7 +6144,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -6328,7 +6328,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v2",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6498,7 +6498,7 @@ func TestHTTPCompatility(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)
@@ -6515,7 +6515,7 @@ func TestHTTPCompatility(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)
@@ -6533,7 +6533,7 @@ func TestHTTPCompatility(t *testing.T) {
   "compatibilityauthority": "external",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)
@@ -6551,7 +6551,7 @@ func TestHTTPCompatility(t *testing.T) {
   "compatibilityauthority": "external",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)
@@ -7760,7 +7760,7 @@ func TestHTTPDefault(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/2$details",
   "defaultversionsticky": true
 }
 `)
@@ -8192,7 +8192,7 @@ func TestHTTPDelete(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v3.1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3/versions/v3.1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3/versions/v3.1$details",
   "defaultversionsticky": false
 }
 `)
@@ -8209,7 +8209,7 @@ func TestHTTPDelete(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v2.1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2.1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2.1$details",
   "defaultversionsticky": false
 }
 `)
@@ -8403,7 +8403,7 @@ func TestHTTPDelete(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v5",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -8505,7 +8505,7 @@ func TestHTTPDelete(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v3",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -8579,7 +8579,7 @@ func TestHTTPDelete(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v10",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10$details",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -8647,7 +8647,7 @@ func TestHTTPDelete(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v10",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10$details",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -8702,7 +8702,7 @@ func TestHTTPDelete(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v1",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",

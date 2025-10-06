@@ -45,7 +45,7 @@ func TestDBRows(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "v1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
   "defaultversionsticky": false
 }
 `)

@@ -1414,6 +1414,7 @@ var PropsFuncs = []*Attribute{
 				path := e.Path[:len(e.Path)-4] + "versions/" + valStr
 				result := ""
 				isAbsURL := false
+				suffix := ""
 
 				info := e.GetRequestInfo()
 				if info != nil {
@@ -1440,6 +1441,9 @@ var PropsFuncs = []*Attribute{
 
 					if isAbsURL {
 						result = info.BaseURL
+						if e.GetResourceModel().GetHasDocument() == true {
+							suffix = "$details"
+						}
 					} else {
 						if info.DoDocView() {
 							result = DOCVIEW_BASE
@@ -1454,7 +1458,7 @@ var PropsFuncs = []*Attribute{
 				}
 
 				// remove "/meta" so we can add "/versions/vID"
-				result += "/" + path
+				result += "/" + path + suffix
 
 				return result
 			},

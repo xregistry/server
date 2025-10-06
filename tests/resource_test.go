@@ -306,7 +306,7 @@ func TestResourceDeprecated(t *testing.T) {
   "deprecated": {},
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)
@@ -339,7 +339,7 @@ func TestResourceDeprecated(t *testing.T) {
   },
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
   "defaultversionsticky": false
 }
 `)

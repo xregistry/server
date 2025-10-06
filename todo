@@ -142,5 +142,4 @@ TODOs:
 - when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 - add support for wrapping the output text (style=text-wrap=wrap)
 - hasdoc=true => MUST have a doc, empty->RESOURCEbase64=""
-- hasdoc=true => meta/defaultversionurl MUST use $details
 - show ifvalues in "model get" output

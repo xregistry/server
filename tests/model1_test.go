@@ -9240,7 +9240,7 @@ func TestMultModel2Create(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v2",
-            "defaultversionurl": "http://localhost:8181/dirs1/d1/files/f1/versions/v2",
+            "defaultversionurl": "http://localhost:8181/dirs1/d1/files/f1/versions/v2$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs1/d1/files/f1/versions",
@@ -9306,7 +9306,7 @@ func TestMultModel2Create(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1.1",
-            "defaultversionurl": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1",
+            "defaultversionurl": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs1/d2/files/f2/versions",
@@ -9376,7 +9376,7 @@ func TestMultModel2Create(t *testing.T) {
             "compatibility": "none",
 
             "defaultversionid": "v1",
-            "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1",
+            "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs2/d2/files/f2/versions",

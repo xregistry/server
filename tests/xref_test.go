@@ -71,7 +71,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -101,7 +101,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -135,7 +135,7 @@ func TestXrefBasic(t *testing.T) {
     "compatibility": "none",
 
     "defaultversionid": "v1",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
     "defaultversionsticky": false
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -193,7 +193,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -240,7 +240,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -308,7 +308,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -352,7 +352,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -409,7 +409,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -456,7 +456,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -512,7 +512,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "v1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -558,7 +558,7 @@ func TestXrefBasic(t *testing.T) {
       "compatibility": "none",
 
       "defaultversionid": "1",
-      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
       "defaultversionsticky": false
     },
     "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -1396,7 +1396,7 @@ func TestXrefDocs(t *testing.T) {
   "compatibility": "none",
 
   "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
   "defaultversionsticky": false
 }
 `)
