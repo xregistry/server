@@ -454,7 +454,7 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 }
 
 func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, all bool) {
-	fmt.Printf(indent+"RESOURCE: %s/ %s\n", rm.Plural, rm.Singular)
+	fmt.Printf(indent+"RESOURCE: %s / %s\n", rm.Plural, rm.Singular)
 
 	PrintNotEmpty(indent+"  Description       ", rm.Description, os.Stdout)
 	PrintNotEmpty(indent+"  Max versions      ", rm.GetMaxVersions(), os.Stdout)

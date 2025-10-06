@@ -89,7 +89,7 @@ GROUP: dirs / dir
   filescount    uinteger     y     y    y     
   filesurl      url          y     y    -     
 
-  RESOURCE: files/ file
+  RESOURCE: files / file
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -148,7 +148,7 @@ GROUP: dirs / dir
   self              url          y     y    -     
   xid               xid          y     y    -     
 
-  RESOURCE: files/ file
+  RESOURCE: files / file
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -282,7 +282,7 @@ GROUP: dirs / dir
   filescount    uinteger     y     y    y     
   filesurl      url          y     y    -     
 
-  RESOURCE: files/ file
+  RESOURCE: files / file
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -296,7 +296,7 @@ GROUP: docs / doc
   formatscount   uinteger     y     y    y     
   formatsurl     url          y     y    -     
 
-  RESOURCE: formats/ format
+  RESOURCE: formats / format
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -310,7 +310,7 @@ GROUP: gt2s / gt2
   rt2scount     uinteger     y     y    y     
   rt2surl       url          y     y    -     
 
-  RESOURCE: rt2s/ rt2
+  RESOURCE: rt2s / rt2
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -324,7 +324,7 @@ GROUP: gts / gt
   rtscount      uinteger     y     y    y     
   rtsurl        url          y     y    -     
 
-  RESOURCE: rts/ rt
+  RESOURCE: rts / rt
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -921,7 +921,7 @@ GROUP: dirs / dir
 		``, "Created Resource type: files:file\n", true)
 
 	xCLI(t, "model resource create -v -g dirs2 files2:file2 -o table", "",
-		`RESOURCE: files2/ file2
+		`RESOURCE: files2 / file2
   Max versions      : 0
   Set version id    : true
   Set version sticky: true
@@ -932,7 +932,7 @@ GROUP: dirs / dir
 		``, "Group type \"dirs7\" does not exist\n", false)
 
 	xCLI(t, "model resource create -v -g dirs7:dir7 files2:file2 -o table", "",
-		`RESOURCE: files2/ file2
+		`RESOURCE: files2 / file2
   Max versions      : 0
   Set version id    : true
   Set version sticky: true
