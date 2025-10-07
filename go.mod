@@ -1,8 +1,6 @@
 module github.com/xregistry/server
 
-go 1.23.0
-
-toolchain go1.23.2
+go 1.24
 
 require (
 	github.com/duglin/dlog v0.0.0-20250704164650-c6476585c645

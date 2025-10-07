@@ -1533,8 +1533,14 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 	for _, prop := range propsOrdered {
 		name := prop.Name
 
-		if hasDoc && strings.HasPrefix(name, "$RESOURCE") {
-			name = resourceSingular + name[9:]
+		// If hasDoc && we're in doc view &&  on the Resource (not version)
+		// then skip the RESOURCE/RESOURCEbase64 attributes.
+		// Other version-level attribute are automatically excluded by the
+		// query. RESOURCE* aren't part of the Props table, so they're special
+		if hasDoc && e.Type == ENTITY_RESOURCE && info.DoDocView() {
+			if name == resourceSingular || name == resourceSingular+"base64" {
+				continue
+			}
 		}
 
 		log.VPrintf(4, "Ser prop(%s): %q", e.Path, name)

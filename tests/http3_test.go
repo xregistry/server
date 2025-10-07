@@ -133,7 +133,8 @@ func TestHTTPMixedCase(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:01Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-              "ancestor": "666"
+              "ancestor": "666",
+              "filebase64": ""
             }
           },
           "versionscount": 1

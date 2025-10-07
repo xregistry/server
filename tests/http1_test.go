@@ -6078,6 +6078,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
           "createdat": "YYYY-MM-DDTHH:MM:04Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
           "ancestor": "v1",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -6105,7 +6106,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "isdefault": false,
               "createdat": "YYYY-MM-DDTHH:MM:03Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             },
             "v2": {
               "fileid": "f1",
@@ -6116,7 +6118,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:04Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             }
           },
           "versionscount": 2
@@ -6131,6 +6134,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
           "createdat": "YYYY-MM-DDTHH:MM:03Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
           "ancestor": "v1",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
           "meta": {
@@ -6158,7 +6162,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:03Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             }
           },
           "versionscount": 1
@@ -6315,6 +6320,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
           "createdat": "YYYY-MM-DDTHH:MM:02Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
           "ancestor": "v1",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -6342,7 +6348,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "isdefault": false,
               "createdat": "YYYY-MM-DDTHH:MM:02Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             },
             "v2": {
               "fileid": "f1",
@@ -6353,7 +6360,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:02Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             }
           },
           "versionscount": 2
@@ -8304,7 +8312,8 @@ func TestHTTPDelete(t *testing.T) {
 	xNoErr(t, err)
 	f1.AddVersion("v2")
 	f1.AddVersion("v3")
-	v4, _ := f1.AddVersion("v4")
+	// v4, _ := f1.AddVersion("v4")
+	f1.AddVersion("v4")
 	v5, _ := f1.AddVersion("v5")
 	xNoErr(t, f1.SetDefault(v5))
 	f1.AddVersion("v6")
@@ -8313,8 +8322,8 @@ func TestHTTPDelete(t *testing.T) {
 	f1.AddVersion("v9")
 	f1.AddVersion("v10")
 
-	t.Logf("v4.old: %s", ToJSON(v4.Object))
-	t.Logf("v4.new: %s", ToJSON(v4.NewObject))
+	// t.Logf("v4.old: %s", ToJSON(v4.Object))
+	// t.Logf("v4.new: %s", ToJSON(v4.NewObject))
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200,
 		`{
@@ -8390,6 +8399,7 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v5",
+  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -8417,7 +8427,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "v9"
+      "ancestor": "v9",
+      "filebase64": ""
     },
     "v3": {
       "fileid": "f1",
@@ -8428,7 +8439,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:04Z",
-      "ancestor": "v3"
+      "ancestor": "v3",
+      "filebase64": ""
     },
     "v5": {
       "fileid": "f1",
@@ -8439,7 +8451,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v5"
+      "ancestor": "v5",
+      "filebase64": ""
     },
     "v6": {
       "fileid": "f1",
@@ -8450,7 +8463,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "v5"
+      "ancestor": "v5",
+      "filebase64": ""
     },
     "v9": {
       "fileid": "f1",
@@ -8461,7 +8475,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:03Z",
-      "ancestor": "v9"
+      "ancestor": "v9",
+      "filebase64": ""
     }
   },
   "versionscount": 5
@@ -8492,6 +8507,7 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v3",
+  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -8519,7 +8535,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:03Z",
-      "ancestor": "v10"
+      "ancestor": "v10",
+      "filebase64": ""
     },
     "v3": {
       "fileid": "f1",
@@ -8530,7 +8547,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v3"
+      "ancestor": "v3",
+      "filebase64": ""
     },
     "v6": {
       "fileid": "f1",
@@ -8541,7 +8559,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:04Z",
-      "ancestor": "v6"
+      "ancestor": "v6",
+      "filebase64": ""
     }
   },
   "versionscount": 3
@@ -8566,6 +8585,7 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v10",
+  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -8593,7 +8613,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:04Z",
       "modifiedat": "2024-01-01T12:00:03Z",
-      "ancestor": "v1"
+      "ancestor": "v1",
+      "filebase64": ""
     },
     "v10": {
       "fileid": "f1",
@@ -8604,7 +8625,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v10"
+      "ancestor": "v10",
+      "filebase64": ""
     },
     "v3": {
       "fileid": "f1",
@@ -8615,7 +8637,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:05Z",
-      "ancestor": "v3"
+      "ancestor": "v3",
+      "filebase64": ""
     }
   },
   "versionscount": 3
@@ -8634,6 +8657,7 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v10",
+  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -8661,7 +8685,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:04Z",
       "modifiedat": "2024-01-01T12:00:05Z",
-      "ancestor": "v1"
+      "ancestor": "v1",
+      "filebase64": ""
     },
     "v10": {
       "fileid": "f1",
@@ -8672,7 +8697,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v10"
+      "ancestor": "v10",
+      "filebase64": ""
     }
   },
   "versionscount": 2
@@ -8689,6 +8715,7 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestor": "v1",
+  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -8716,7 +8743,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v1"
+      "ancestor": "v1",
+      "filebase64": ""
     },
     "v10": {
       "fileid": "f1",
@@ -8727,7 +8755,8 @@ func TestHTTPDelete(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:05Z",
-      "ancestor": "v10"
+      "ancestor": "v10",
+      "filebase64": ""
     }
   },
   "versionscount": 2

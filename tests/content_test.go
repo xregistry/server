@@ -145,8 +145,7 @@ func TestResourceContents(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/d1/files/f1$details?doc&inline=file",
-		`{"contenttype":null, "description":"hi"}`, 200, `{
+	xHTTP(t, reg, "GET", "dirs/d1/files/f1$details?doc&inline=file", ``, 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",

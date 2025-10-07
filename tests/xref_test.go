@@ -180,6 +180,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "meta": {
@@ -209,7 +210,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -226,6 +228,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
     "meta": {
@@ -256,7 +259,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -295,6 +299,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "meta": {
@@ -324,7 +329,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -339,6 +345,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:04Z",
     "modifiedat": "2024-01-01T12:00:04Z",
     "ancestor": "1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
     "meta": {
@@ -366,7 +373,8 @@ func TestXrefBasic(t *testing.T) {
         "isdefault": true,
         "createdat": "2024-01-01T12:00:04Z",
         "modifiedat": "2024-01-01T12:00:04Z",
-        "ancestor": "1"
+        "ancestor": "1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -396,6 +404,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "meta": {
@@ -425,7 +434,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -442,6 +452,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
     "meta": {
@@ -472,7 +483,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -499,6 +511,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestor": "v1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "meta": {
@@ -528,7 +541,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "testing xref",
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:02Z",
-        "ancestor": "v1"
+        "ancestor": "v1",
+        "filebase64": ""
       }
     },
     "versionscount": 1
@@ -545,6 +559,7 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "2024-01-01T12:00:04Z",
     "modifiedat": "2024-01-01T12:00:04Z",
     "ancestor": "1",
+    "filebase64": "",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
     "meta": {
@@ -574,7 +589,8 @@ func TestXrefBasic(t *testing.T) {
         "description": "very cool",
         "createdat": "2024-01-01T12:00:04Z",
         "modifiedat": "2024-01-01T12:00:04Z",
-        "ancestor": "1"
+        "ancestor": "1",
+        "filebase64": ""
       }
     },
     "versionscount": 1

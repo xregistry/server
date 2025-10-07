@@ -584,6 +584,7 @@ func TestBasicTypes(t *testing.T) {
           "xid3": "/dirs/d1/files/f1/versions/v1",
           "xidtype1": "/dirs/files/meta",
           "xidtype2": "/dirs/files/versions",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -627,7 +628,8 @@ func TestBasicTypes(t *testing.T) {
               "xid2": "/dirs/d1/files/f1/versions",
               "xid3": "/dirs/d1/files/f1/versions/v1",
               "xidtype1": "/dirs/files/meta",
-              "xidtype2": "/dirs/files/versions"
+              "xidtype2": "/dirs/files/versions",
+              "filebase64": ""
             }
           },
           "versionscount": 1

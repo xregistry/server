@@ -162,7 +162,8 @@ func TestFiltersBasic(t *testing.T) {
   "isdefault": false,
   "createdat": "2024-12-01T12:00:00Z",
   "modifiedat": "2024-12-01T12:00:00Z",
-  "ancestor": "v1"
+  "ancestor": "v1",
+  "filebase64": ""
 }
 `,
 		},
@@ -260,6 +261,7 @@ func TestFiltersBasic(t *testing.T) {
           "createdat": "2024-12-01T12:00:02Z",
           "modifiedat": "2024-12-01T12:00:02Z",
           "ancestor": "v1",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
           "meta": {
@@ -287,7 +289,8 @@ func TestFiltersBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-12-01T12:00:02Z",
               "modifiedat": "2024-12-01T12:00:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             },
             "v1.1": {
               "fileid": "f2",
@@ -301,7 +304,8 @@ func TestFiltersBasic(t *testing.T) {
               },
               "createdat": "2024-12-01T12:00:02Z",
               "modifiedat": "2024-12-01T12:00:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             }
           },
           "versionscount": 2
@@ -369,6 +373,7 @@ func TestFiltersBasic(t *testing.T) {
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
           "ancestor": "v1",
+          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
           "meta": {
@@ -396,7 +401,8 @@ func TestFiltersBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             },
             "v1.1": {
               "fileid": "f2",
@@ -410,7 +416,8 @@ func TestFiltersBasic(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1"
+              "ancestor": "v1",
+              "filebase64": ""
             }
           },
           "versionscount": 2
