@@ -112,6 +112,11 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		if len(body) != 0 {
 			tmp = string(body)
 		}
+		// If response has no body then we need to say something back to
+		// the user. A non-zero exit code w/o any text isn't helpful.
+		if strings.TrimSpace(tmp) == "" {
+			tmp = "An error occurred: " + res.Status
+		}
 		err = fmt.Errorf(tmp)
 	}
 
@@ -121,7 +126,7 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		Header: res.Header,
 	}
 
-	Debug("Response: %d", httpRes.Code)
+	Debug("Response: %s", res.Status)
 
 	showHeaders := map[string]bool{
 		"location":                     true,
