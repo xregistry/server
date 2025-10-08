@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -364,8 +363,8 @@ func TestTimestampParsing(t *testing.T) {
 		xNoErr(t, err)
 		if res.StatusCode != test.code {
 			t.Logf("TS: %#v", test)
-			t.Fatalf(fmt.Sprintf("Expected status %d, got %d\n%s",
-				test.code, res.StatusCode, string(buf)))
+			t.Fatalf("Expected status %d, got %d\n%s",
+				test.code, res.StatusCode, string(buf))
 		}
 
 		if test.code != 200 {

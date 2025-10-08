@@ -196,7 +196,7 @@ func TestSetDots(t *testing.T) {
 
 	err = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
 	xCheck(t, err.Error() == `Unexpected / in "labels.xxx/yyy" at pos 11`,
-		fmt.Sprintf("labels.xxx/yyy=nil should fail: %s", err))
+		"labels.xxx/yyy=nil should fail: %s", err)
 
 	err = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
 	xJSONCheck(t, err, `Unexpected . in "labels..abc" at pos 8`)

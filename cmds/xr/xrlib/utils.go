@@ -122,6 +122,24 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 	}
 
 	Debug("Response: %d", httpRes.Code)
+
+	showHeaders := map[string]bool{
+		"location":                     true,
+		"content-type":                 true,
+		"content-disposition":          true,
+		"access-control-allow-origin":  true,
+		"access-control-allow-methods": true,
+	}
+	for _, key := range SortedKeys(res.Header) {
+		val := res.Header[key][0]
+		key = strings.ToLower(key)
+		if strings.HasPrefix(key, "xregistry-") {
+			Debug("xRegistry-%s: %s", key[10:], val)
+		} else if showHeaders[key] {
+			Debug("%s: %s", key, val)
+		}
+	}
+
 	if len(body) != 0 {
 		Debug("Response Body:\n%s", string(body))
 		Debug("--------------------")

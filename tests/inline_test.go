@@ -695,7 +695,7 @@ func TestInlineResource(t *testing.T) {
 		}
 
 		res, err := http.Get("http://localhost:8181/" + test.URL)
-		xCheck(t, err == nil, fmt.Sprintf("%s", err))
+		xCheck(t, err == nil, "%s", err)
 
 		body, _ := io.ReadAll(res.Body)
 

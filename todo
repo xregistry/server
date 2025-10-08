@@ -131,12 +131,11 @@ TODOs:
 - support ximportresource being transitive
 - check for the correct length of group/resource plural/singular names - not 58
 - add tests for xr model resource create --flags
-- make sure ?schema works for GET /modelsource
 - add tests for groups.deprecated
 - add support for case insensitive ifvalues
 - verify that setting capabilities and modelsource to null resets them
-- add support for ?collections
 - support for modelsource=null or {} - erase everything
+- add support for ?collections
 - remove ?offered and replace with /capabilitiesoffered
 - verify that DELETE .../meta generates a method not allowed error
 - UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe

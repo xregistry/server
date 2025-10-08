@@ -1102,7 +1102,6 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	// _, touchedTS := v.NewObject["createdat"]
 	// if touchedTS -> call EnsureLatest
 
-	// Make sure we always have an ID
 	if err = v.ValidateAndSave(); err != nil {
 		return nil, false, err
 	}

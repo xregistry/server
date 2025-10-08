@@ -175,7 +175,7 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 		if cmd.Hidden {
 			continue
 		}
-		BufPrintf(res, showAllHelp(cmd, indent)) // indent+"  "))
+		BufPrintf(res, "%s", showAllHelp(cmd, indent)) // indent+"  "))
 	}
 
 	return res.String()

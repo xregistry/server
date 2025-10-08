@@ -191,18 +191,18 @@ func NewJob(test *testing.T, name string, sf *bool, wg *sync.WaitGroup, p int, t
 				go func(c int) {
 					defer func(d int) {
 						atomic.AddInt32(&j.active, -1)
-						j.t.Logf(fmt.Sprintf("Done: %s (%d)", j.name, d))
+						j.t.Logf("Done: %s (%d)", j.name, d)
 					}(c)
 					first := true
 					for *j.startFlag == false {
 						if first {
-							j.t.Logf(fmt.Sprintf("Waiting: %s (%d)", j.name, c))
+							j.t.Logf("Waiting: %s (%d)", j.name, c)
 							first = false
 							atomic.AddInt32(&ready, 1)
 						}
 						time.Sleep(2 * time.Millisecond)
 					}
-					j.t.Logf(fmt.Sprintf("Sending: %s (%d)", j.name, c))
+					j.t.Logf("Sending: %s (%d)", j.name, c)
 					j.fn(c)
 				}(i)
 				i++

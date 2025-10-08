@@ -231,8 +231,8 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 	xNoErr(t, err)
 
 	xCheck(t, res.StatusCode == test.Code,
-		fmt.Sprintf("\nTest: %s\nBad http code: %d should be %d\n%s", u,
-			res.StatusCode, test.Code, string(resBody)))
+		"\nTest: %s\nBad http code: %d should be %d\n%s", u,
+		res.StatusCode, test.Code, string(resBody))
 
 	// Make sure any headers have the expected text someplace
 	for _, header := range test.Headers {
@@ -241,8 +241,8 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 		value = strings.TrimSpace(value)
 		h := res.Header.Get(name)
 		xCheck(t, strings.Contains(h, value),
-			fmt.Sprintf("Test %s\nHeader %q(%s) should be %q",
-				u, name, h, value))
+			"Test %s\nHeader %q(%s) should be %q",
+			u, name, h, value)
 	}
 
 	if test.Body == "" || test.Body[0] != '*' {

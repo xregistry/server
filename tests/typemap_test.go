@@ -16,7 +16,7 @@ func TestTypeMap(t *testing.T) {
 
 	xNoErr(t, rm.AddTypeMap("foo/bar", "json"))
 	xCheck(t, ToJSON(rm.TypeMap) == "{\n  \"foo/bar\": \"json\"\n}",
-		"bad:"+ToJSON(rm.TypeMap))
+		"%s", "bad:"+ToJSON(rm.TypeMap))
 
 	xNoErr(t, rm.RemoveTypeMap("foo/bar"))
 	xCheck(t, rm.TypeMap == nil, "should be nil")

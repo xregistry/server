@@ -460,12 +460,12 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	xNoErr(t, err)
 	if test.Code < 10 {
 		xCheck(t, int(res.StatusCode/100) == test.Code,
-			fmt.Sprintf("Expected status %dxx, got %d\n%s",
-				test.Code, res.StatusCode, string(resBody)))
+			"Expected status %dxx, got %d\n%s",
+			test.Code, res.StatusCode, string(resBody))
 	} else {
 		xCheck(t, res.StatusCode == test.Code,
-			fmt.Sprintf("Expected status %d, got %d\n%s",
-				test.Code, res.StatusCode, string(resBody)))
+			"Expected status %d, got %d\n%s",
+			test.Code, res.StatusCode, string(resBody))
 	}
 
 	// t.Logf("%v\n%s", res.Header, string(resBody))
@@ -590,9 +590,8 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	if strings.HasPrefix(test.ResBody, "^") {
 		re := regexp.MustCompile(test.ResBody)
 		if !re.Match(resBody) {
-			t.Fatalf("Test: " + test.Name +
-				"\nExpected:\n" + test.ResBody +
-				"\nGot:\n" + string(resBody))
+			t.Fatalf("Test: %s\nExpected:\n%s\nGot:\n%s",
+				test.Name, test.ResBody, string(resBody))
 			t.FailNow()
 		}
 	} else if test.ResBody != "*" {

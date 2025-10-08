@@ -133,7 +133,7 @@ func (e *Entity) EnsureNewObject() bool {
 
 func (e *Entity) Get(path string) any {
 	pp, err := PropPathFromUI(path)
-	PanicIf(err != nil, fmt.Sprintf("%s", err))
+	PanicIf(err != nil, "%s", err)
 	return e.GetPP(pp)
 }
 
@@ -157,7 +157,7 @@ func (e *Entity) GetAsInt(path string) int {
 		return -1
 	}
 	i, ok := val.(int)
-	PanicIf(!ok, fmt.Sprintf("Val: %v  T: %T", val, val))
+	PanicIf(!ok, "Val: %v  T: %T", val, val)
 	return i
 }
 
@@ -166,6 +166,7 @@ func (e *Entity) GetPP(pp *PropPath) any {
 		rm := e.GetResourceModel()
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
 			contentID := e.Get("#contentid")
+
 			results, err := Query(e.tx, `
             SELECT Content FROM ResourceContents WHERE VersionSID=? `,
 				contentID)

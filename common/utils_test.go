@@ -341,7 +341,7 @@ func TestProcessIncludes(t *testing.T) {
 			buf, err = os.ReadFile(test.Path)
 		}
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatal(err.Error())
 		}
 		buf, err = ProcessIncludes(test.Path, buf,
 			!strings.HasPrefix(test.Path, "http"))

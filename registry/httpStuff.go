@@ -2277,7 +2277,7 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	// Just double-check
 	if numParts > 4 {
-		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s"+info.Parts[4])
+		PanicIf(info.Parts[4] != "versions", "Not 'versions': %s", info.Parts[4])
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/versions...

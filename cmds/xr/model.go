@@ -381,9 +381,9 @@ func PrintGroupModelsByName(model *xrlib.Model, gmNames []string, format, indent
 		return
 	}
 	if format == "json" && len(gmNames) > 1 {
-		fmt.Printf(indent + "[\n")
+		fmt.Print(indent + "[\n")
 		indent += "  "
-		fmt.Printf(indent)
+		fmt.Print(indent)
 	}
 	for i, gmName := range gmNames {
 		gm := model.FindGroupModel(gmName)
@@ -394,18 +394,18 @@ func PrintGroupModelsByName(model *xrlib.Model, gmNames []string, format, indent
 		PrintGroupModel(gm, format, indent, resources, all)
 		if i+1 < len(gmNames) {
 			if format == "table" {
-				fmt.Printf("\n")
+				fmt.Print("\n")
 			} else {
-				fmt.Printf(",\n" + indent)
+				fmt.Print(",\n" + indent)
 			}
 		}
 	}
 	if format == "json" {
 		if len(gmNames) > 1 {
 			indent = indent[:len(indent)-2]
-			fmt.Printf("\n" + indent + "]")
+			fmt.Print("\n" + indent + "]")
 		}
-		fmt.Printf("\n")
+		fmt.Print("\n")
 	}
 }
 
@@ -1048,7 +1048,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			Error("Unknown Resource type: %s", rmName)
 		}
 		if i != 0 {
-			fmt.Printf("")
+			fmt.Print("")
 		}
 		PrintResourceModel(rm, output, "", all)
 	}

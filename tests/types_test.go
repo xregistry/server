@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -680,18 +679,18 @@ func TestWildcardBoolTypes(t *testing.T) {
 
 	err = reg.SetSave("bogus", "foo")
 	xCheck(t, err.Error() == `Attribute "bogus" must be a boolean`,
-		fmt.Sprintf("bogus=foo: %s", err))
+		"bogus=foo: %s", err)
 
 	err = reg.SetSave("ext1", true)
-	xCheck(t, err == nil, fmt.Sprintf("set ext1: %s", err))
+	xCheck(t, err == nil, "set ext1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
-	xCheck(t, val == true, fmt.Sprintf("get ext1: %v", val))
+	xCheck(t, val == true, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", false)
-	xCheck(t, err == nil, fmt.Sprintf("set ext1-2: %s", err))
+	xCheck(t, err == nil, "set ext1-2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
-	xCheck(t, reg.Get("ext1") == false, fmt.Sprintf("get ext1-2: %v", val))
+	xCheck(t, reg.Get("ext1") == false, "get ext1-2: %v", val)
 }
 
 func TestWildcardAnyTypes(t *testing.T) {
@@ -703,23 +702,23 @@ func TestWildcardAnyTypes(t *testing.T) {
 
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
-	xCheck(t, err == nil, fmt.Sprintf("set ext1: %s", err))
+	xCheck(t, err == nil, "set ext1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
-	xCheck(t, val == 5.5, fmt.Sprintf("get ext1: %v", val))
+	xCheck(t, val == 5.5, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", "foo")
-	xCheck(t, err == nil, fmt.Sprintf("set ext2: %s", err))
+	xCheck(t, err == nil, "set ext2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext1")
-	xCheck(t, val == "foo", fmt.Sprintf("get ext2: %v", val))
+	xCheck(t, val == "foo", "get ext2: %v", val)
 
 	// Make sure we add one of a different type
 	err = reg.SetSave("ext2", true)
-	xCheck(t, err == nil, fmt.Sprintf("set ext3 %s", err))
+	xCheck(t, err == nil, "set ext3 %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext2")
-	xCheck(t, val == true, fmt.Sprintf("get ext3: %v", val))
+	xCheck(t, val == true, "get ext3: %v", val)
 }
 
 func TestWildcard2LayersTypes(t *testing.T) {
@@ -745,23 +744,23 @@ func TestWildcard2LayersTypes(t *testing.T) {
 	xNoErr(t, reg.Model.Save())
 
 	err = reg.SetSave("obj.map.k1", 5)
-	xCheck(t, err == nil, fmt.Sprintf("set foo.k1: %s", err))
+	xCheck(t, err == nil, "set foo.k1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("obj.map.k1")
-	xCheck(t, val == 5, fmt.Sprintf("get foo.k1: %v", val))
+	xCheck(t, val == 5, "get foo.k1: %v", val)
 
 	err = reg.SetSave("obj.map.foo.k1.k2", 5)
 	xCheck(t, err.Error() == `Attribute "obj.map.foo" must be an integer`,
-		fmt.Sprintf("set obj.map.foo.k1.k2: %s", err))
+		"set obj.map.foo.k1.k2: %s", err)
 	// reg.Refresh(registry.FOR_WRITE) // clear bad data
 
 	err = reg.SetSave("obj.myany.foo.k1.k2", 5)
-	xCheck(t, err == nil, fmt.Sprintf("set obj.myany.foo.k1.k2: %s", err))
+	xCheck(t, err == nil, "set obj.myany.foo.k1.k2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("obj.myany.foo.k1.k2")
-	xCheck(t, val == 5, fmt.Sprintf("set obj.myany.foo.k1.k2: %v", val))
+	xCheck(t, val == 5, "set obj.myany.foo.k1.k2: %v", val)
 	val = reg.Get("obj.myany.bogus.k1.k2")
-	xCheck(t, val == nil, fmt.Sprintf("set obj.myany.bogus.k1.k2: %v", val))
+	xCheck(t, val == nil, "set obj.myany.bogus.k1.k2: %v", val)
 
 }
 
@@ -918,20 +917,20 @@ func TestNameCharSet(t *testing.T) {
 	xNoErr(t, reg.SaveModel())
 
 	err = reg.SetSave("obj1.attr1-", "a1")
-	xCheck(t, err == nil, fmt.Sprintf("set foo.attr1-: %s", err))
+	xCheck(t, err == nil, "set foo.attr1-: %s", err)
 	err = reg.SetSave("obj1.attr1-id", "a1-id")
-	xCheck(t, err == nil, fmt.Sprintf("set foo.attr1-id: %s", err))
+	xCheck(t, err == nil, "set foo.attr1-id: %s", err)
 	err = reg.SetSave("obj1.foo-bar", 5)
-	xCheck(t, err == nil, fmt.Sprintf("set foo.foo-bar: %s", err))
+	xCheck(t, err == nil, "set foo.foo-bar: %s", err)
 
 	reg.Refresh(registry.FOR_WRITE)
 
 	val := reg.Get("obj1.attr1-")
-	xCheck(t, val == "a1", fmt.Sprintf("set obj1.attr1-: %v", val))
+	xCheck(t, val == "a1", "set obj1.attr1-: %v", val)
 	val = reg.Get("obj1.attr1-id")
-	xCheck(t, val == "a1-id", fmt.Sprintf("set obj1.attr1-id: %v", val))
+	xCheck(t, val == "a1-id", "set obj1.attr1-id: %v", val)
 	val = reg.Get("obj1.foo-bar")
-	xCheck(t, val == 5, fmt.Sprintf("set obj1.foo-bar: %v", val))
+	xCheck(t, val == 5, "set obj1.foo-bar: %v", val)
 
 	xHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
