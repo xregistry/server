@@ -392,7 +392,6 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 		{"", "Registry Root"},
 		{"capabilities", "Capabilities"},
 		{"model", "Model"},
-		{"modelsource", "Model Source"},
 		{"export", "Export"},
 	}
 
@@ -403,7 +402,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			continue
 		}
 
-		if info.RootPath == r.u && !info.HasFlag("offered") {
+		if info.RootPath == r.u {
 			name = "<b>" + name + "</b>"
 		}
 
@@ -411,18 +410,29 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			BuildURL(info, r.u), name)
 
 		if r.u == "capabilities" {
-			if info.FlagEnabled("offered") {
-				roots += "&nbsp;&nbsp;("
-				if info.HasFlag("offered") {
-					roots += "<b>"
-				}
-				roots += fmt.Sprintf("<a href=\"%s&offered\">offered</a>",
-					BuildURL(info, r.u))
-				if info.HasFlag("offered") {
-					roots += "</b>"
-				}
-				roots += ")"
+			roots += "&nbsp;&nbsp;("
+			if info.RootPath == "capabilitiesoffered" {
+				roots += "<b>"
 			}
+			roots += fmt.Sprintf("<a href=\"%s\">offered</a>",
+				BuildURL(info, r.u+"offered"))
+			if info.RootPath == "capabilitiesoffered" {
+				roots += "</b>"
+			}
+			roots += ")"
+		}
+
+		if r.u == "model" {
+			roots += "&nbsp;&nbsp;("
+			if info.RootPath == "modelsource" {
+				roots += "<b>"
+			}
+			roots += fmt.Sprintf("<a href=\"%s\">source</a>",
+				BuildURL(info, r.u+"source"))
+			if info.RootPath == "modelsource" {
+				roots += "</b>"
+			}
+			roots += ")"
 		}
 
 		roots += "</li>\n"
@@ -1243,21 +1253,36 @@ func HTTPGETCapabilities(info *RequestInfo) error {
 	buf := []byte(nil)
 	var err error
 
-	if info.HasFlag("offered") {
-		offered := GetOffered()
-		buf, err = json.MarshalIndent(offered, "", "  ")
-	} else {
-		cap := info.Registry.Capabilities
-		capStr := info.Registry.GetAsString("#capabilities")
-		if capStr != "" {
-			var err error
-			cap, err = ParseCapabilitiesJSON([]byte(capStr))
-			Must(err)
-		}
-
-		buf, err = json.MarshalIndent(cap, "", "  ")
+	cap := info.Registry.Capabilities
+	capStr := info.Registry.GetAsString("#capabilities")
+	if capStr != "" {
+		var err error
+		cap, err = ParseCapabilitiesJSON([]byte(capStr))
+		Must(err)
 	}
 
+	buf, err = json.MarshalIndent(cap, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	info.AddHeader("Content-Type", "application/json")
+	info.Write(buf)
+	info.Write([]byte("\n"))
+	return nil
+}
+
+func HTTPGETCapabilitiesOffered(info *RequestInfo) error {
+	if len(info.Parts) > 1 {
+		info.StatusCode = http.StatusNotFound
+		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+	}
+
+	buf := []byte(nil)
+	var err error
+
+	offered := GetOffered()
+	buf, err = json.MarshalIndent(offered, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -1566,6 +1591,14 @@ func HTTPGet(info *RequestInfo) error {
 			return fmt.Errorf("Not found")
 		}
 		return HTTPGETCapabilities(info)
+	}
+
+	if info.RootPath == "capabilitiesoffered" {
+		if !info.APIEnabled("/capabilitiesoffered") {
+			info.StatusCode = http.StatusNotFound
+			return fmt.Errorf("Not found")
+		}
+		return HTTPGETCapabilitiesOffered(info)
 	}
 
 	if info.RootPath == "export" {

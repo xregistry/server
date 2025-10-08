@@ -2043,6 +2043,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 		200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -2066,6 +2067,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 		200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"

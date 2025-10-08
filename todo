@@ -136,6 +136,5 @@ TODOs:
 - verify that setting capabilities and modelsource to null resets them
 - support for modelsource=null or {} - erase everything
 - add support for ?collections
-- remove ?offered and replace with /capabilitiesoffered
 - UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 - UI: add support for wrapping the output text (style=text-wrap=wrap)

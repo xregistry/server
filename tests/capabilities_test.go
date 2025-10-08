@@ -17,6 +17,7 @@ func TestCapabilitySimple(t *testing.T) {
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -32,7 +33,6 @@ func TestCapabilitySimple(t *testing.T) {
     "ignoreepoch",
     "ignorereadonly",
     "inline",
-    "offered",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -63,6 +63,7 @@ func TestCapabilitySimple(t *testing.T) {
   "capabilities": {
     "apis": [
       "/capabilities",
+      "/capabilitiesoffered",
       "/export",
       "/model",
       "/modelsource"
@@ -78,7 +79,6 @@ func TestCapabilitySimple(t *testing.T) {
       "ignoreepoch",
       "ignorereadonly",
       "inline",
-      "offered",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -252,6 +252,7 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -267,7 +268,6 @@ func TestCapabilityPath(t *testing.T) {
     "ignoreepoch",
     "ignorereadonly",
     "inline",
-    "offered",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -415,12 +415,12 @@ func TestCapabilityPath(t *testing.T) {
 	// Testing setting everything to the default
 	xHTTP(t, reg, "PUT", "/capabilities", `{
   "apis": [
-    "/capabilities", "/export", "/model", "/modelsource"
+    "/capabilities", "/capabilitiesoffered", "/export", "/model", "/modelsource"
   ],
   "flags": [
     "binary", "collections", "doc", "epoch", "filter", "inline",
     "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
-    "ignorereadonly", "offered", "setdefaultversionid", "sort",
+    "ignorereadonly", "setdefaultversionid", "sort",
     "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
@@ -432,6 +432,7 @@ func TestCapabilityPath(t *testing.T) {
 		`{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -447,7 +448,6 @@ func TestCapabilityPath(t *testing.T) {
     "ignoreepoch",
     "ignorereadonly",
     "inline",
-    "offered",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -469,6 +469,7 @@ func TestCapabilityPath(t *testing.T) {
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -484,7 +485,6 @@ func TestCapabilityPath(t *testing.T) {
     "ignoreepoch",
     "ignorereadonly",
     "inline",
-    "offered",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -656,11 +656,12 @@ func TestCapabilityAttr(t *testing.T) {
 	// Testing setting everything to the default
 	// inline still disabled
 	xHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "apis": ["/export", "/model", "/modelsource", "/capabilities"],
+  "apis": ["/export", "/model", "/modelsource", "/capabilities",
+    "/capabilitiesoffered"],
   "flags": [
     "binary", "collections", "doc", "epoch", "filter", "inline",
     "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
-    "ignorereadonly", "offered", "setdefaultversionid", "sort",
+    "ignorereadonly", "setdefaultversionid", "sort",
     "specversion"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
@@ -683,6 +684,7 @@ func TestCapabilityAttr(t *testing.T) {
 	xHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"
@@ -698,7 +700,6 @@ func TestCapabilityAttr(t *testing.T) {
     "ignoreepoch",
     "ignorereadonly",
     "inline",
-    "offered",
     "setdefaultversionid",
     "sort",
     "specversion"
@@ -784,7 +785,7 @@ func TestCapabilityAttr(t *testing.T) {
 
 // "binary", "collections", "doc", "epoch", "filter", "inline",
 // "ignoredefaultversionid", "ignoredefaultversionsticky",
-// "ignoreepoch", "ignorereadonly", "offered", "setdefaultversionid",
+// "ignoreepoch", "ignorereadonly", "setdefaultversionid",
 // "sort", "specversion"})
 
 func TestCapabilityFlagsOff(t *testing.T) {
@@ -906,7 +907,7 @@ func TestCapabilityOffered(t *testing.T) {
 	reg := NewRegistry("TestCapabilityOffered")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "GET", "/capabilities?offered", ``, 200, `{
+	xHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 200, `{
   "apis": {
     "type": "array",
     "item": {
@@ -914,6 +915,7 @@ func TestCapabilityOffered(t *testing.T) {
     },
     "enum": [
       "/capabilities",
+      "/capabilitiesoffered",
       "/export",
       "/model",
       "/modelsource"
@@ -935,7 +937,6 @@ func TestCapabilityOffered(t *testing.T) {
       "ignoreepoch",
       "ignorereadonly",
       "inline",
-      "offered",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -998,6 +999,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/capabilities", ``, 404, "Not found\n")
+	xHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 404, "Not found\n")
 	xHTTP(t, reg, "GET", "/export", ``, 404, "Not found\n")
 	xHTTP(t, reg, "GET", "/model", ``, 404, "Not found\n")
 	xHTTP(t, reg, "GET", "/modelsource", ``, 404, "Not found\n")
@@ -1077,6 +1079,7 @@ func TestCapabilityPatch(t *testing.T) {
     }`, 200, `{
   "apis": [
     "/capabilities",
+    "/capabilitiesoffered",
     "/export",
     "/model",
     "/modelsource"

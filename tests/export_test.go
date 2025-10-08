@@ -40,6 +40,7 @@ func TestExportBasic(t *testing.T) {
   "capabilities": {
     "apis": [
       "/capabilities",
+      "/capabilitiesoffered",
       "/export",
       "/model",
       "/modelsource"
@@ -55,7 +56,6 @@ func TestExportBasic(t *testing.T) {
       "ignoreepoch",
       "ignorereadonly",
       "inline",
-      "offered",
       "setdefaultversionid",
       "sort",
       "specversion"
@@ -285,6 +285,7 @@ func TestExportBasic(t *testing.T) {
   "capabilities": {
     "apis": [
       "/capabilities",
+      "/capabilitiesoffered",
       "/export",
       "/model",
       "/modelsource"
@@ -300,7 +301,6 @@ func TestExportBasic(t *testing.T) {
       "ignoreepoch",
       "ignorereadonly",
       "inline",
-      "offered",
       "setdefaultversionid",
       "sort",
       "specversion"

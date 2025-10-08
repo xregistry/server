@@ -47,8 +47,8 @@ type RequestInfo struct {
 
 var explicitInlines = []string{"capabilities", "model", "modelsource"}
 var nonModelInlines = append([]string{"*"}, explicitInlines...)
-var rootPaths = []string{"capabilities", "model", "modelsource",
-	"export", "proxy"}
+var rootPaths = []string{"capabilities", "capabilitiesoffered", "export",
+	"model", "modelsource", "proxy"}
 
 type Inline struct {
 	Path    string    // value from ?inline query param

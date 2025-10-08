@@ -43,12 +43,13 @@ type Offered struct {
 }
 
 var AllowableAPIs = ArrayToLower([]string{
-	"/capabilities", "/export", "/model", "/modelsource"})
+	"/capabilities", "/capabilitiesoffered", "/export",
+	"/model", "/modelsource"})
 
 var AllowableFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter",
 	"ignoredefaultversionid", "ignoredefaultversionsticky",
-	"ignoreepoch", "ignorereadonly", "inline", "offered",
+	"ignoreepoch", "ignorereadonly", "inline",
 	"setdefaultversionid", "sort", "specversion"})
 
 var AllowableMutable = ArrayToLower([]string{
@@ -59,7 +60,7 @@ var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 var SupportedFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter",
 	"ignoredefaultversionid", "ignoredefaultversionsticky",
-	"ignoreepoch", "ignorereadonly", "inline", "offered",
+	"ignoreepoch", "ignorereadonly", "inline",
 	"setdefaultversionid", "sort", "specversion"})
 
 var DefaultCapabilities = &Capabilities{
