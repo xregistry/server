@@ -251,6 +251,7 @@ func (reg *Registry) Delete() error {
 		return err
 	}
 	reg.tx.EraseCache()
+	reg.tx.Registry = nil
 	return nil
 }
 

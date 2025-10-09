@@ -240,6 +240,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		if RecreateReg {
 			Verbose("Deleting xReg: %s", RegistryName)
 			ErrStop(reg.Delete())
+			ErrStop(reg.Commit())
 			reg = nil // force a create below
 		}
 	}

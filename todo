@@ -138,3 +138,6 @@ TODOs:
 - add support for ?collections
 - UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 - UI: add support for wrapping the output text (style=text-wrap=wrap)
+- Send back Allow header on a 405 error
+- support OPTIONS
+- add tests for xrserver flags - like --recreatedb --recreatereg
