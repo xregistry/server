@@ -212,7 +212,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 		args = []string{"-"}
 	}
 
-	skipTarget, _ := cmd.Flags().GetBool("ignore-target")
+	skipTarget, _ := cmd.Flags().GetBool("skip-target")
 
 	for _, fileName := range args {
 		prefix := ""
