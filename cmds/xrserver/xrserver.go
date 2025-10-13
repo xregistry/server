@@ -160,6 +160,8 @@ func setupCmds() *cobra.Command {
 	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
 	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
+	serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
+		GitCommit[:12] + "\n")
 
 	return serverCmd
 }

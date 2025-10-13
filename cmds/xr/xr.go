@@ -209,6 +209,8 @@ func main() {
 
 	xrCmd.SetUsageTemplate(strings.ReplaceAll(xrCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
+	xrCmd.SetUsageTemplate(xrCmd.UsageTemplate() + "\nVersion: " +
+		GitCommit[:12] + "\n")
 
 	// just so 'help' is in a group and Hidden is adhered to
 	xrCmd.SetHelpCommand(&cobra.Command{
