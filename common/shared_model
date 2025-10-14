@@ -1454,9 +1454,9 @@ func (attrs Attributes) AddIfValuesAttributes(obj map[string]any) {
 			continue
 		}
 
-		valStr := fmt.Sprintf("%v", val)
+		valStr := strings.ToLower(fmt.Sprintf("%v", val))
 		for ifValStr, ifValueData := range attr.IfValues {
-			if ifValStr != valStr {
+			if strings.ToLower(ifValStr) != valStr {
 				continue
 			}
 

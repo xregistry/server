@@ -6982,6 +6982,45 @@ func TestHTTPIfValue(t *testing.T) {
 `,
 	})
 
+	// Test case insensitive IfValues
+	_, err = reg.Model.AddAttribute(&registry.Attribute{
+		Name: "mystr7",
+		Type: STRING,
+		IfValues: registry.IfValues{
+			"AbC": &registry.IfValue{
+				SiblingAttributes: registry.Attributes{
+					"mystr8": &registry.Attribute{
+						Name: "mystr8",
+						Type: STRING,
+					},
+				},
+			},
+		},
+	})
+	xCheckErr(t, err, "")
+
+	xCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT reg - case insensitive",
+		URL:    "",
+		Method: "PUT",
+		ReqBody: `{
+	     "mystr7": "aBc",
+         "mystr8": "hello"
+	   }`,
+		Code: 200,
+		ResBody: `{
+  "specversion": "` + SPECVERSION + `",
+  "registryid": "TestHTTPIfValues",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "mystr7": "aBc",
+  "mystr8": "hello"
+}
+`,
+	})
 }
 
 func TestHTTPResources(t *testing.T) {
