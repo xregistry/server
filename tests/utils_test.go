@@ -19,6 +19,9 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
+const TestDBName = "registry"
+const TestRegName = "testreg"
+
 func TestMain(m *testing.M) {
 	if tmp := os.Getenv("RX_VERBOSE"); tmp != "" {
 		if tmpInt, err := strconv.Atoi(tmp); err == nil {
@@ -27,9 +30,9 @@ func TestMain(m *testing.M) {
 	}
 
 	// call flag.Parse() here if TestMain uses flags
-	registry.DeleteDB("testreg")
-	registry.CreateDB("testreg")
-	registry.OpenDB("testreg")
+	registry.DeleteDB(TestRegName)
+	registry.CreateDB(TestRegName)
+	registry.OpenDB(TestRegName)
 
 	// DBName := "registry"
 	// if !registry.DBExists(DBName) {
@@ -55,7 +58,7 @@ func TestMain(m *testing.M) {
 	fsServer.Close()
 
 	if rc == 0 {
-		// registry.DeleteDB("testreg")
+		// registry.DeleteDB(TestRegName)
 	}
 
 	if dump := registry.DumpTimings(); dump != "" {
@@ -664,4 +667,54 @@ func xCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 
 	xCheckEqual(t, "Stderr:", stderr.String(), Eerr)
 	xCheckEqual(t, "Stdout:", stdout.String(), Eout)
+}
+
+func xServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
+	t.Helper()
+
+	args := strings.Split(strings.TrimSpace(line), " ")
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+
+	cmd := exec.Command("../xrserver", args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if in != "" {
+		cmd.Stdin = bytes.NewBuffer([]byte(in))
+	}
+
+	err := cmd.Run()
+
+	if err != nil && code == 0 {
+		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
+			err, stdout.String(), stderr.String())
+	} else if err == nil && code == 1 {
+		t.Fatalf("Should have failed:\nStdout: %s\nStderr: %s",
+			stdout.String(), stderr.String())
+	}
+
+	gotOut := MaskServer(stdout.String())
+	gotErr := MaskServer(stderr.String())
+	expOut := MaskServer(Eout)
+	expErr := MaskServer(Eerr)
+
+	if expErr != "*" {
+		xCheckEqual(t, "Stderr:", gotErr, expErr)
+	}
+	if expOut != "*" {
+		xCheckEqual(t, "Stdout:", gotOut, expOut)
+	}
+}
+
+var maskDate1 = regexp.MustCompile(`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`)
+var maskDate2 = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
+var maskCommit = regexp.MustCompile(`GitCommit: [0-9a-f]*\n`)
+var maskHost = regexp.MustCompile(`DB server: .*`)
+
+func MaskServer(str string) string {
+	str = maskDate1.ReplaceAllString(str, "YYYY/MM/DD HH:MM:SS")
+	str = maskDate2.ReplaceAllString(str, "YYYY-MM-DD HH:MM:SS")
+	str = maskCommit.ReplaceAllString(str, "GitCommit: sha\n")
+	str = maskHost.ReplaceAllString(str, "DB server: host:port")
+	return str
 }

@@ -52,7 +52,7 @@ func Stop(args ...any) {
 // runFunc uses this, true means log instead of printf. This is safe as a
 // global car becaus we're only running one command at a time. But if we ever
 // need to share it across more than one we may need to make it a param.
-var UseLogging = false
+var UseLogging = true
 
 func StopTx(tx *registry.Tx, args ...any) {
 	if tx != nil {
@@ -174,7 +174,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	// Turn on timestamps for our Verbose and Error messages.
-	UseLogging = true
+	// UseLogging = true
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
 	Verbose("GitCommit: %.10s", GitCommit)
@@ -236,7 +236,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	reg, err := registry.FindRegistry(nil, RegistryName, registry.FOR_READ)
-	ErrStop(err, "Error findng registry(%s): %s", RegistryName, err)
+	ErrStop(err, "Error finding registry(%s): %s", RegistryName, err)
 
 	if reg != nil {
 		if RecreateReg {
@@ -257,11 +257,14 @@ func runFunc(cmd *cobra.Command, args []string) {
 		ErrStop(err, "Error creating new registry(%s): %s", RegistryName, err)
 	}
 
-	Verbose("Default(/): reg-%s", reg.UID)
-
 	if reg == nil {
-		Stop("No default registry defined\n")
+		if RegistryName != "" {
+			Stop("Registry %q does not exist", RegistryName)
+		}
+		Stop("No default registry defined")
 	}
+
+	Verbose("Default(/): reg-%s", reg.UID)
 
 	if val, _ := cmd.Flags().GetBool("verify"); val {
 		Verbose("Done verifying, exiting")
