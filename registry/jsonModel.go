@@ -191,16 +191,26 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.WriteRune('"')
 	}
 
-	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
-		((*ResourceModel)(ur)).GetMaxVersions()))
-	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
-		NotNilBoolPtr(ur.SetVersionId)))
-	buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
-		NotNilBoolPtr(ur.SetDefaultSticky)))
-	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
-		NotNilBoolPtr(ur.HasDocument)))
-	buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
-		NotNilBoolPtr(ur.SingleVersionRoot)))
+	if ur.MaxVersions != nil {
+		buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
+			((*ResourceModel)(ur)).GetMaxVersions()))
+	}
+	if ur.SetVersionId != nil {
+		buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
+			NotNilBoolPtr(ur.SetVersionId)))
+	}
+	if ur.SetDefaultSticky != nil {
+		buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
+			NotNilBoolPtr(ur.SetDefaultSticky)))
+	}
+	if ur.HasDocument != nil {
+		buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
+			NotNilBoolPtr(ur.HasDocument)))
+	}
+	if ur.SingleVersionRoot != nil {
+		buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
+			NotNilBoolPtr(ur.SingleVersionRoot)))
+	}
 	if len(ur.TypeMap) > 0 {
 		buf.WriteString(`,"typemaps":`)
 		b, _ := json.Marshal(ur.TypeMap)

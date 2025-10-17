@@ -504,6 +504,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Write(dir+"/model.hdr", []byte("content-type: application/json"))
 	}
 
+	data, _ = Download(reg, "/modelsource")
+	if len(data) > 0 {
+		Write(dir+"/modelsource", data)
+		Write(dir+"/modelsource.hdr", []byte("content-type: application/json"))
+	}
+
 	data, _ = Download(reg, "/capabilities")
 	if len(data) > 0 {
 		if modCap {

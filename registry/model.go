@@ -231,7 +231,7 @@ func LoadModel(reg *Registry) *Model {
 	return model
 }
 
-func (m *Model) ApplyNewModel(newM *Model) error {
+func (m *Model) ApplyNewModel(newM *Model, src string) error {
 	newM.Registry = m.Registry
 	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
@@ -251,6 +251,18 @@ func (m *Model) ApplyNewModel(newM *Model) error {
 	m.Registry.Model = newM
 	m = newM
 	m.SetChanged(true)
+
+	if src == "" {
+		// This should serialize just the bare minimum, only what the
+		// user provided, no default values
+		// buf, err := json.MarshalIndent(m, "", "  ")
+		buf, err := m.SerializeForUser()
+		if err != nil {
+			return err
+		}
+		src = string(buf)
+	}
+	m.Source = src
 
 	if err := m.VerifyAndSave(); err != nil {
 		// Too much to undo. The Verify() at the top should have caught
@@ -277,9 +289,10 @@ func (m *Model) ApplyNewModelFromJSON(buf []byte) error {
 	if err != nil {
 		return err
 	}
-	model.Source = modelSource
 
-	return m.ApplyNewModel(model)
+	// model.Source = modelSource
+
+	return m.ApplyNewModel(model, modelSource)
 }
 
 func (rm *ResourceModel) VerifyData() error {

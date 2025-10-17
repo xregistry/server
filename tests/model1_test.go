@@ -4357,7 +4357,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	xNoErr(t, reg.Model.ApplyNewModel(newModel))
+	xNoErr(t, reg.Model.ApplyNewModel(newModel, ""))
 	xCheckGet(t, reg, "/model", `{
   "attributes": {
     "specversion": {
@@ -4895,7 +4895,7 @@ func TestResourceModelCreate(t *testing.T) {
 			},
 		},
 	}
-	err = reg.Model.ApplyNewModel(newModel)
+	err = reg.Model.ApplyNewModel(newModel, "")
 	xNoErr(t, err)
 
 	// Rollback since the previous "newModel" erased too much
@@ -5498,7 +5498,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel)
+	reg.Model.ApplyNewModel(newModel, "")
 	xCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
@@ -6058,7 +6058,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel)
+	reg.Model.ApplyNewModel(newModel, "")
 	xCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
@@ -6312,7 +6312,9 @@ func TestResourceModelCreate(t *testing.T) {
 			},
 		},
 	}
-	reg.Model.ApplyNewModel(newModel)
+
+	reg.Model.ApplyNewModel(newModel, "")
+
 	xCheckGet(t, reg, "?inline=model&inline=", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",

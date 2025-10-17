@@ -265,6 +265,16 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) error {
 }
 */
 
+func (m *Model) GetSourceAsModel() *Model {
+	if m.Source == "" {
+		return nil
+	}
+
+	srcModel, err := ParseModel([]byte(m.Source))
+	PanicIf(err != nil, "Error with src: %s", m.Source)
+	return srcModel
+}
+
 func (m *Model) ApplyDefaults() {
 	for _, gm := range m.Groups {
 		for _, rm := range gm.Resources {
@@ -569,6 +579,9 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, erro
 		Resources: map[string]*ResourceModel{},
 	}
 
+	if m.Groups == nil {
+		m.Groups = map[string]*GroupModel{}
+	}
 	m.Groups[plural] = gm
 	m.SetChanged(true)
 

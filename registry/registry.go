@@ -430,7 +430,7 @@ func (reg *Registry) LoadModelFromFile(file string) error {
 		return fmt.Errorf("Processing %q: %s", file, err)
 	}
 
-	if err := reg.Model.ApplyNewModel(model); err != nil {
+	if err := reg.Model.ApplyNewModel(model, string(buf)); err != nil {
 		return fmt.Errorf("Processing %q: %s", file, err)
 	}
 

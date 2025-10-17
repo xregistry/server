@@ -102,13 +102,15 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	g, err := reg.Model.AddGroupModel("apiproviders", "apiprovider")
+
+	newModel := &registry.Model{}
+	g, err := newModel.AddGroupModel("apiproviders", "apiprovider")
 	ErrFatalf(err)
 	r, err := g.AddResourceModel("apis", "api", 2, true, true, true)
 	_, err = r.AddAttr("format", STRING)
 	ErrFatalf(err)
 
-	ErrFatalf(reg.Model.VerifyAndSave())
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
 	iter := 0
 
@@ -229,26 +231,28 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 
 		ErrFatalf(reg.SetSave("labels.stage", "prod"))
 
-		_, err = reg.Model.AddAttr("bool1", BOOLEAN)
+		newModel := &registry.Model{}
+
+		_, err = newModel.AddAttr("bool1", BOOLEAN)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("int1", INTEGER)
+		_, err = newModel.AddAttr("int1", INTEGER)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("dec1", DECIMAL)
+		_, err = newModel.AddAttr("dec1", DECIMAL)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttr("str1", STRING)
+		_, err = newModel.AddAttr("str1", STRING)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrMap("map1", registry.NewItemType(STRING))
+		_, err = newModel.AddAttrMap("map1", registry.NewItemType(STRING))
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrArray("arr1", registry.NewItemType(STRING))
+		_, err = newModel.AddAttrArray("arr1", registry.NewItemType(STRING))
 		ErrFatalf(err)
 
-		_, err = reg.Model.AddAttrMap("emptymap", registry.NewItemType(STRING))
+		_, err = newModel.AddAttrMap("emptymap", registry.NewItemType(STRING))
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrArray("emptyarr", registry.NewItemType(STRING))
+		_, err = newModel.AddAttrArray("emptyarr", registry.NewItemType(STRING))
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrObj("emptyobj")
+		_, err = newModel.AddAttrObj("emptyobj")
 		ErrFatalf(err)
-		obj, err := reg.Model.AddAttrObj("modelobj")
+		obj, err := newModel.AddAttrObj("modelobj")
 		ErrFatalf(err)
 		_, err = obj.AddAttr("model", STRING)
 		ErrFatalf(err)
@@ -258,15 +262,15 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		item := registry.NewItemObject()
 		_, err = item.AddAttr("inint", INTEGER)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrMap("mapobj", item)
+		_, err = newModel.AddAttrMap("mapobj", item)
 		ErrFatalf(err)
 
-		_, err = reg.Model.AddAttrArray("arrmapstr",
+		_, err = newModel.AddAttrArray("arrmapstr",
 			registry.NewItemMap(registry.NewItemType(STRING)))
 		ErrFatalf(err)
 
 		item = registry.NewItemMap(registry.NewItemObject())
-		_, err = reg.Model.AddAttrArray("arrmapobj", item)
+		_, err = newModel.AddAttrArray("arrmapobj", item)
 		ErrFatalf(err)
 		item = item.Item
 		_, err = item.AddAttr("aoint", INTEGER)
@@ -279,10 +283,10 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		item = registry.NewItemObject()
 		_, err = item.AddAttr("aoint", INTEGER)
 		ErrFatalf(err)
-		_, err = reg.Model.AddAttrArray("arrobj", item)
+		_, err = newModel.AddAttrArray("arrobj", item)
 		ErrFatalf(err)
 
-		ErrFatalf(reg.Model.VerifyAndSave())
+		ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
 		ErrFatalf(reg.SetSave("bool1", true))
 		ErrFatalf(reg.SetSave("int1", 1))
@@ -301,8 +305,13 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 			map[string]any{}))
 	}
 
+	newModel := reg.Model.GetSourceAsModel()
+	if newModel == nil {
+		ErrFatalf(fmt.Errorf("modelsource is empty"))
+	}
+
 	Verbose("Loading: /reg-%s", reg.UID)
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	gm, err := newModel.AddGroupModel("dirs", "dir")
 	ErrFatalf(err)
 	rm, err := gm.AddResourceModel("files", "file", 2, true, true, true)
 	_, err = rm.AddMetaAttr("rext", STRING)
@@ -316,10 +325,10 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	_, err = rm.AddAttr("*", STRING)
 	ErrFatalf(err)
 
-	_, err = reg.Model.AddAttrXID("resptr", "/dirs/files[/versions]")
+	_, err = newModel.AddAttrXID("resptr", "/dirs/files[/versions]")
 	ErrFatalf(err)
 
-	ErrFatalf(reg.Model.VerifyAndSave())
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
 	g, err := reg.AddGroup("dirs", "d1")
 	ErrFatalf(err)
@@ -511,10 +520,13 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+
+	newModel := &registry.Model{}
+
+	gm, _ := newModel.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	ErrFatalf(reg.Model.VerifyAndSave())
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
 	maxD, maxF, maxV := 10, 150, 5
 	dirs, files, vers := 0, 0, 0
@@ -583,8 +595,6 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
       }
     }
     `)))
-
-	// ErrFatalf(reg.Model.VerifyAndSave())
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")
