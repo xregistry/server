@@ -49,10 +49,10 @@ func TestModelVerifySimple(t *testing.T) {
 		}, `GroupModel "Gs1" can't be empty`},
 		{"reg 1 group -3 ", Model{
 			Groups: map[string]*GroupModel{"Gs1": {}},
-		}, `Invalid model type name "Gs1", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+		}, `Invalid model type name "Gs1", must match: ^[a-z_][a-z_0-9]{0,56}$`},
 		{"reg 1 group -4 ", Model{
 			Groups: map[string]*GroupModel{"@": {}},
-		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,56}$`},
 		{"reg 1 group -4.5 ", Model{
 			Groups: map[string]*GroupModel{"a": {}},
 		}, `Group "a" is missing a "singular" value`},
@@ -66,11 +66,11 @@ func TestModelVerifySimple(t *testing.T) {
 			Groups: map[string]*GroupModel{"a": {Singular: "a"}},
 		}, `Group "a" has same value for "plural" and "singular"`},
 		{"reg 1 group -6 ", Model{
-			Groups: map[string]*GroupModel{"a234567890123456789012345678901234567890123456789012345678": {Plural: "a234567890123456789012345678901234567890123456789012345678", Singular: "a"}},
+			Groups: map[string]*GroupModel{"a23456789012345678901234567890123456789012345678901234567": {Plural: "a23456789012345678901234567890123456789012345678901234567", Singular: "a"}},
 		}, ``},
 		{"reg 1 group -7 ", Model{
-			Groups: map[string]*GroupModel{"a2345678901234567890123456789012345678901234567890123456789": {}},
-		}, `Invalid model type name "a2345678901234567890123456789012345678901234567890123456789", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+			Groups: map[string]*GroupModel{"a234567890123456789012345678901234567890123456789012345678": {}},
+		}, `Invalid model type name "a234567890123456789012345678901234567890123456789012345678", must match: ^[a-z_][a-z_0-9]{0,56}$`},
 
 		{"reg 1 res 1  ", Model{
 			Groups: map[string]*GroupModel{
@@ -91,7 +91,7 @@ func TestModelVerifySimple(t *testing.T) {
 					},
 				},
 			},
-		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,57}$`},
+		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,56}$`},
 		{"reg 1 res 3  ", Model{
 			Groups: map[string]*GroupModel{
 				"gs": {
@@ -554,8 +554,8 @@ func TestTargetRegExp(t *testing.T) {
 func TestValidChars(t *testing.T) {
 	a10 := "a234567890"
 	a50 := a10 + a10 + a10 + a10 + a10
+	a57 := a50 + "1234567"
 	a58 := a50 + "12345678"
-	a59 := a50 + "123456789"
 	a60 := a50 + a10
 	a63 := a60 + "123"
 	a64 := a63 + "4"
@@ -575,7 +575,7 @@ func TestValidChars(t *testing.T) {
 		{"0", `Invalid model type name "0", must match: ` + match},
 		{"0a", `Invalid model type name "0a", must match: ` + match},
 		{"aZ", `Invalid model type name "aZ", must match: ` + match},
-		{a59, `Invalid model type name "` + a59 + `", must match: ` + match},
+		{a58, `Invalid model type name "` + a58 + `", must match: ` + match},
 		{"a", ``},
 		{"_", ``},
 		{"_a", ``},
@@ -584,7 +584,7 @@ func TestValidChars(t *testing.T) {
 		{"a_8", ``},
 		{"aa", ``},
 		{"a9", ``},
-		{a58, ``},
+		{a57, ``},
 	} {
 		err := IsValidModelName(test.input)
 		got := ""

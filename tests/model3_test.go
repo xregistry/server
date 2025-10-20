@@ -109,7 +109,7 @@ func TestModelXImportErrors(t *testing.T) {
           "singular": "g2s"
         }
       }
-    }`, 400, `Invalid model type name "R1S", must match: ^[a-z_][a-z_0-9]{0,57}$
+    }`, 400, `Invalid model type name "R1S", must match: ^[a-z_][a-z_0-9]{0,56}$
 `)
 
 	xHTTP(t, reg, "PUT", "/modelsource", `{

@@ -127,7 +127,6 @@ TODOs:
   to set it
 - support min/max in capabilities
 - support ximportresource being transitive
-- check for the correct length of group/resource plural/singular names - not 58
 - add tests for xr model resource create --flags
 - add tests for groups.deprecated
 - verify that setting capabilities and modelsource to null resets them
@@ -140,3 +139,5 @@ TODOs:
 - block access to APIs based on capabilities.APIs
 - make tests so they don't use model.verifyandsave - should go thru modelsource
 - make model changes via API show up in modelsource
+- ban model changes that turn on hasDoc if Resources have RESOURCE* attribute
+  extension names
