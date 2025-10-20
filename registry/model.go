@@ -2,6 +2,7 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -236,12 +237,22 @@ func (m *Model) ApplyNewModel(newM *Model, src string) error {
 	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
-	for _, gm := range newM.Groups {
-		if oldGM := m.FindGroupModel(gm.Plural); oldGM != nil {
+	for gmPlural, gm := range newM.Groups {
+		// Note: gm.Plural might be ""
+		if oldGM := m.FindGroupModel(gmPlural); oldGM != nil {
+			if oldGM.Singular != gm.Singular {
+				return fmt.Errorf("Changing the singular name of Group %q "+
+					"is not allowed", gmPlural)
+			}
 			gm.SID = oldGM.SID
 
-			for _, rm := range gm.Resources {
-				if oldRM := gm.FindResourceModel(rm.Plural); oldRM != nil {
+			for rmPlural, rm := range gm.Resources {
+				// Note: rm.Plural might be ""
+				if oldRM := oldGM.FindResourceModel(rmPlural); oldRM != nil {
+					if oldRM.Singular != rm.Singular {
+						return fmt.Errorf("Changing the singular name of "+
+							"Resource %q is not allowed", rmPlural)
+					}
 					rm.SID = oldRM.SID
 				}
 			}

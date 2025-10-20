@@ -2210,3 +2210,50 @@ func TestModelNoResAttrExts(t *testing.T) {
 }`, 400, `Extension attributes are not allowed in "resourceattributes": myext1,myext2
 `)
 }
+
+func TestModelUpdateSingular(t *testing.T) {
+	reg := NewRegistry("TestModelUpdateSingular")
+	defer PassDeleteReg(t, reg)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file"
+            }
+          }
+        }
+      }
+}`, 200, `*`)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "foo",
+          "resources": {
+            "files": {
+              "singular": "file"
+            }
+          }
+        }
+      }
+}`, 400, `Changing the singular name of Group "dirs" is not allowed
+`)
+
+	xHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "foo"
+            }
+          }
+        }
+      }
+}`, 400, `Changing the singular name of Resource "files" is not allowed
+`)
+
+}

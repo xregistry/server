@@ -110,7 +110,6 @@ TODOs:
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestor correctly when server assigns the version
   ID. `ancestor=request`
-- don't allow people to change the Singular name of a groupType or resType
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
 - support <, <=, >, >=, <>, !=
