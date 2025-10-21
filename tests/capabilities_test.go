@@ -1066,6 +1066,61 @@ func TestCapabilityAPIs(t *testing.T) {
 		`Unknown "apis" value: "export"
 `)
 
+	// Reset to default
+
+	// notice that the ?inline will be ignored because it's a valid
+	// flag before the PATCH and won't take effect until AFTER this API
+	// is complete
+	xHTTP(t, reg, "PATCH", "/?inline=capabilities", `{"capabilities":null}`,
+		200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityAPIs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+
+	xHTTP(t, reg, "GET", "/capabilities", ``, 200,
+		`{
+  "apis": [
+    "/capabilities",
+    "/capabilitiesoffered",
+    "/export",
+    "/model",
+    "/modelsource"
+  ],
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignoredefaultversionid",
+    "ignoredefaultversionsticky",
+    "ignoreepoch",
+    "ignorereadonly",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "mutable": [
+    "capabilities",
+    "entities",
+    "model"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true
+}
+`)
+
 }
 
 func TestCapabilityPatch(t *testing.T) {

@@ -129,7 +129,6 @@ TODOs:
 - support ximportresource being transitive
 - add tests for xr model resource create --flags
 - add tests for groups.deprecated
-- verify that setting capabilities and modelsource to null resets them
 - support for modelsource=null or {} - erase everything
 - UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 - UI: add support for wrapping the output text (style=text-wrap=wrap)
