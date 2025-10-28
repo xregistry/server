@@ -1008,7 +1008,7 @@ func TestNameCharSet(t *testing.T) {
         "attr1": {
           "name": "attr1",
           "type": "string",
-          "ifValues": {
+          "ifvalues": {
             "a1-": {
               "siblingattributes": {
                 "good-": {
@@ -1029,7 +1029,7 @@ func TestNameCharSet(t *testing.T) {
         "attr1-": {
           "name": "attr1-",
           "type": "string",
-          "ifValues": {
+          "ifvalues": {
             "a1": {
               "siblingattributes": {
                 "another-": {

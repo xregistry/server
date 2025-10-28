@@ -347,8 +347,11 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	PrintAttributes(ENTITY_REGISTRY, "", model.Attributes, "registry", "",
 		os.Stdout, all)
 
-	fmt.Println("")
-	PrintGroupModelsByName(reg.Model, SortedKeys(model.Groups), output, "", true, all)
+	if len(model.Groups) > 0 {
+		fmt.Println("")
+		PrintGroupModelsByName(reg.Model, SortedKeys(model.Groups), output,
+			"", true, all)
+	}
 }
 
 func PrintNotEmpty(title, val any, w io.Writer) {
@@ -522,6 +525,8 @@ func RemoveSystemAttributes(attrs xrlib.Attributes, level int, singular string) 
 	return newAttrs
 }
 
+var useTree = false
+
 func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 	singular string, indent string, w io.Writer, all bool) {
 
@@ -529,7 +534,7 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 		attrs = RemoveSystemAttributes(attrs, level, singular)
 	}
 
-	ntw := xrlib.NewIndentTabWriter(indent, w, 0, 1, 3, ' ', 0)
+	ntw := NewTabWriter(w, []byte(indent), 0, 1, 3, ' ', 0)
 
 	// Make sure list if alphabetical, but put "*" last
 	list := SortedKeys(attrs)
@@ -537,6 +542,7 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 		list = append(list[1:], list[0])
 	}
 
+	// Prefix for "ATTRIBUTES" column title
 	if attrPrefix != "" {
 		attrPrefix += " "
 	}
@@ -546,10 +552,63 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 		fmt.Fprintln(ntw, attrPrefix+"ATTRIBUTES:\tTYPE\tREQ\tRO\tMUT\tDEFAULT")
 	}
 
-	showAttr := func(attr *xrlib.Attribute, indent string, isIf bool) {}
-	showAttr = func(attr *xrlib.Attribute, indent string, isIf bool) {
-		nestedAttrs := attr.Attributes
+	// https://www.ee.ucl.ac.uk/mflanaga/java/HTMLandASCIItableC1.html
+	/*
+	   ─   9472 2500 &#9472; &#x2500; &boxh;  box drawings horizontal
+	   │   9474 2502 &#9474; &#x2502; &boxv;  box drawings vertical
+	   ┌   9484 250C &#9484; &#x250C; &boxdr; box drawings down and right
+	   ┐   9488 2510 &#9488; &#x2510; &boxdl; box drawings down and left
+	   └   9492 2514 &#9492; &#x2514; &boxur; box drawings up and right
+	   ┘   9496 2518 &#9496; &#x2518; &boxul; box drawings up and left
+	   ├   9500 251C &#9500; &#x251C; &boxvr; box drawings vertical and right
+	   ┤   9508 2524 &#9508; &#x2524; &boxvl; box drawings vertical and left
+	   ┬   9516 252C &#9516; &#x252C; &boxhd; box drawings down and horizontal
+	   ┴   9524 2534 &#9524; &#x2534; &boxhu; box drawings up and horizontal
+	   ┼   9532 253C &#9532; &#x253C; &boxvh; box drawings vertical and horizontal
+	*/
+	lastItem := '\u2514'   // rune('└')
+	middleItem := '\u251c' // rune('├')
+	passThru := '\u2502'   // rune('│')
 
+	processList := func(list xrlib.Attributes, counts *[]int, atDepth int) {}
+	showAttr := func(attr *xrlib.Attribute, counts *[]int, atDepth int) {}
+
+	processList = func(list xrlib.Attributes, counts *[]int, atDepth int) {
+		// Count the number of attributes that will appear at this level.
+		// Start with the current list, then we'll add ones from nested ifVals
+		count := len(list)
+		for _, attr := range list {
+			for _, ifVal := range attr.IfValues {
+				count += len(ifVal.SiblingAttributes)
+			}
+		}
+
+		// If this is an attr of an IfVal, we've already counted this as
+		// part of its grandparent, so don't count it here.
+		if useTree && atDepth != len(*counts) {
+			count = 0
+		}
+
+		// Push this number/count of attributes to our stack/counts
+		*counts = append(*counts, count)
+
+		// Now print each attribute, making sure "*" is last
+		keys := SortedKeys(list)
+		if len(keys) > 0 && keys[0] == "*" {
+			keys = append(keys[1:], keys[0])
+		}
+		for _, key := range keys {
+			attr := list[key]
+			showAttr(attr, counts, atDepth)
+		}
+
+		// pop stack
+		*counts = (*counts)[:len(*counts)-1]
+	}
+
+	showAttr = func(attr *xrlib.Attribute, counts *[]int, atDepth int) {
+		// First get the values for all columsn except attr name (1st col)
+		nestedAttrs := attr.Attributes
 		typeStr := ""
 		tmpType := attr.Type
 		tmpItem := attr.Item
@@ -577,37 +636,107 @@ func PrintAttributes(level int, attrPrefix string, attrs xrlib.Attributes,
 				def = fmt.Sprintf("%v", attr.Default)
 			}
 		}
-		fmt.Fprintf(ntw, "%s%s\t%s\t%s\t%s\t%s\t%s\n",
-			indent, attr.Name, typeStr, req, ro, immut, def)
-		if isIf {
-			indent = indent[:len(indent)-2] + "  " // replace '>' with ' '
+		if attr.Type == "(if value)" {
+			// Make these columns empty
+			if useTree {
+				req, ro, immut = "", "", ""
+			} else {
+				typeStr, req, ro, immut = "", "", "", ""
+			}
 		}
 
-		if len(attr.IfValues) > 0 {
-			for _, val := range SortedKeys(attr.IfValues) {
-				ifVal := attr.IfValues[val]
-				// for val, ifVal := range attr.IfValues {
-				fmt.Fprintf(ntw, "  %q\t(if value)\t\t\t\t\n", val)
-
-				for _, attr := range ifVal.SiblingAttributes {
-					showAttr(attr, indent+"  < ", true)
+		// Now generate the name + indent tree stuff
+		indent := ""
+		for depth, count := range *counts {
+			if depth == atDepth && (useTree || attr.Type != "(if value)") {
+				if count == 1 {
+					indent += string(lastItem) + " "
+				} else if count > 1 {
+					indent += string(middleItem) + " "
+				} else {
+					indent += "  "
+				}
+				(*counts)[depth] = count - 1
+			} else {
+				if useTree {
+					if count == 0 {
+						indent += "  "
+					} else if atDepth != depth-2 {
+						indent += string(passThru) + " "
+					} else {
+						indent += "  "
+					}
+				} else {
+					if count == 0 {
+						indent += "  "
+					} else {
+						indent += string(passThru) + " "
+					}
 				}
 			}
 		}
 
-		list := SortedKeys(nestedAttrs)
-		if len(list) > 0 && list[0] == "*" {
-			list = append(list[1:], list[0])
+		if attr.Type == "(if value)" {
+			fmt.Fprintf(ntw, "%s%s\n", indent, attr.Name)
+		} else {
+			fmt.Fprintf(ntw, "%s%s\t%s\t%s\t%s\t%s\t%s\n",
+				indent, attr.Name, typeStr, req, ro, immut, def)
 		}
-		for _, key := range list {
-			showAttr(nestedAttrs[key], indent+"  ", false)
+
+		if useTree {
+			if len(attr.IfValues) > 0 {
+				*counts = append(*counts, len(attr.IfValues))
+				keys := SortedKeys(attr.IfValues)
+				for _, valStr := range keys {
+					ifVal := attr.IfValues[valStr]
+					showAttr(&xrlib.Attribute{
+						Name:       fmt.Sprintf("%q", valStr),
+						Type:       "(if value)",
+						Attributes: ifVal.SiblingAttributes,
+					}, counts, atDepth+1)
+				}
+				*counts = (*counts)[:len(*counts)-1]
+			}
+		} else {
+			if len(attr.IfValues) > 0 {
+				keys := SortedKeys(attr.IfValues)
+				for _, valStr := range keys {
+					ifVal := attr.IfValues[valStr]
+					showAttr(&xrlib.Attribute{
+						Name:       fmt.Sprintf(">> if %s=%q", attr.Name, valStr),
+						Type:       "(if value)",
+						Attributes: ifVal.SiblingAttributes,
+					}, counts, atDepth)
+					showAttr(&xrlib.Attribute{
+						Name: fmt.Sprintf("<< endif"),
+						Type: "(if value)",
+					}, counts, atDepth)
+				}
+			}
+		}
+
+		// Now process any nested child attributes
+		if len(nestedAttrs) > 0 {
+			if attr.Type == "(if value)" {
+				if useTree {
+					processList(nestedAttrs, counts, atDepth-1)
+				} else {
+					keys := SortedKeys(nestedAttrs)
+					for _, key := range keys {
+						showAttr(nestedAttrs[key], counts, atDepth)
+					}
+				}
+			} else {
+				if useTree && atDepth != len(*counts)-1 {
+					processList(nestedAttrs, counts, atDepth+3)
+				} else {
+					processList(nestedAttrs, counts, atDepth+1)
+				}
+			}
 		}
 	}
 
-	for _, aName := range list {
-		attr, _ := attrs[aName]
-		showAttr(attr, "", false)
-	}
+	processList(attrs, &[]int{}, 0)
 
 	ntw.Flush()
 }
@@ -638,7 +767,7 @@ func modelGroupListFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	itw := xrlib.NewIndentTabWriter("", os.Stdout, 0, 1, 3, ' ', 0)
+	itw := NewTabWriter(os.Stdout, nil, 0, 1, 3, ' ', 0)
 	fmt.Fprintln(itw, "GROUP\tRESOURCES\tDESCRIPTION")
 	for _, gmName := range SortedKeys(model.Groups) {
 		gm := model.Groups[gmName]
@@ -846,7 +975,7 @@ func modelResourceListFunc(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	itw := xrlib.NewIndentTabWriter("", os.Stdout, 0, 1, 3, ' ', 0)
+	itw := NewTabWriter(os.Stdout, nil, 0, 1, 3, ' ', 0)
 	fmt.Fprintln(itw, "RESOURCE\tHAS DOC\tEXT ATTRS\tDESCRIPTION")
 	for _, rmName := range SortedKeys(gm.Resources) {
 		rm := gm.Resources[rmName]

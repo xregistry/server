@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
-	"text/tabwriter"
+	// "text/tabwriter"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
@@ -377,6 +377,7 @@ func XRIndent(buf []byte) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
+/*
 type indentTabWriter struct {
 	RealWriter io.Writer
 	Indent     string
@@ -400,7 +401,7 @@ func (itw indentTabWriter) Write(p []byte) (int, error) {
 }
 
 func NewIndentTabWriter(indent string, output io.Writer, minwidth, tabwidth,
-	padding int, padchar byte, flags uint) *tabwriter.Writer {
+	padding int, padchar byte, flags uint) *TabWriter {
 
 	mybool := true
 	itw := indentTabWriter{
@@ -408,10 +409,11 @@ func NewIndentTabWriter(indent string, output io.Writer, minwidth, tabwidth,
 		Indent:     indent,
 		First:      &mybool,
 	}
-	w := tabwriter.NewWriter(&itw, minwidth, tabwidth, padding, padchar, flags)
+	w := NewTabWriter(&itw, indent, minwidth, tabwidth, padding, padchar, flags)
 
 	return w
 }
+*/
 
 func YesNo(v bool) string {
 	return BoolStr(v, "y", "n")

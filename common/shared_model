@@ -110,7 +110,7 @@ type Attribute struct {
 
 	Attributes Attributes `json:"attributes,omitempty"` // for Objs
 	Item       *Item      `json:"item,omitempty"`       // for maps & arrays
-	IfValues   IfValues   `json:"ifValues,omitempty"`   // Value
+	IfValues   IfValues   `json:"ifvalues,omitempty"`   // Value
 
 	// Internal fields
 	// We have them here so we can have access to them in any func that

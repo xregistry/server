@@ -1,5 +1,7 @@
 package tests
 
+// ├ │ └
+
 import (
 	"os"
 	"os/exec"
@@ -76,18 +78,18 @@ func TestXRBasic(t *testing.T) {
 		`xRegistry Model:
 
 ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-dirs          map/object   -     -    y     
-  *           any          -     -    y     
-dirscount     uinteger     y     y    y     
-dirsurl       url          y     y    -     
+├ dirs        map/object   -     -    y
+│ └ *         any          -     -    y
+├ dirscount   uinteger     y     y    y
+└ dirsurl     url          y     y    -
 
 GROUP: dirs / dir
 
-  ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-  files         map/object   -     -    y     
-    *           any          -     -    y     
-  filescount    uinteger     y     y    y     
-  filesurl      url          y     y    -     
+  ATTRIBUTES:    TYPE         REQ   RO   MUT   DEFAULT
+  ├ files        map/object   -     -    y
+  │ └ *          any          -     -    y
+  ├ filescount   uinteger     y     y    y
+  └ filesurl     url          y     y    -
 
   RESOURCE: files / file
     Max versions      : 0
@@ -99,54 +101,54 @@ GROUP: dirs / dir
 	xCLI(t, "model get -a", "",
 		`xRegistry Model:
 
-ATTRIBUTES:     TYPE         REQ   RO   MUT   DEFAULT
-capabilities    object       -     -    y     
-  *             any          -     -    y     
-createdat       timestamp    y     -    y     
-description     string       -     -    y     
-dirs            map/object   -     -    y     
-  *             any          -     -    y     
-dirscount       uinteger     y     y    y     
-dirsurl         url          y     y    -     
-documentation   url          -     -    y     
-epoch           uinteger     y     y    y     
-icon            url          -     -    y     
-labels          map/string   -     -    y     
-model           object       -     y    y     
-  *             any          -     -    y     
-modelsource     object       -     -    y     
-  *             any          -     -    y     
-modifiedat      timestamp    y     -    y     
-name            string       -     -    y     
-registryid      string       y     y    -     
-self            url          y     y    -     
-specversion     string       y     y    y     
-xid             xid          y     y    -     
+ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
+├ capabilities    object       -     -    y
+│ └ *             any          -     -    y
+├ createdat       timestamp    y     -    y
+├ description     string       -     -    y
+├ dirs            map/object   -     -    y
+│ └ *             any          -     -    y
+├ dirscount       uinteger     y     y    y
+├ dirsurl         url          y     y    -
+├ documentation   url          -     -    y
+├ epoch           uinteger     y     y    y
+├ icon            url          -     -    y
+├ labels          map/string   -     -    y
+├ model           object       -     y    y
+│ └ *             any          -     -    y
+├ modelsource     object       -     -    y
+│ └ *             any          -     -    y
+├ modifiedat      timestamp    y     -    y
+├ name            string       -     -    y
+├ registryid      string       y     y    -
+├ self            url          y     y    -
+├ specversion     string       y     y    y
+└ xid             xid          y     y    -
 
 GROUP: dirs / dir
 
-  ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
-  createdat         timestamp    y     -    y     
-  deprecated        object       -     -    y     
-    alternative     url          -     -    y     
-    documentation   url          -     -    y     
-    effective       timestamp    -     -    y     
-    removal         timestamp    -     -    y     
-    *               any          -     -    y     
-  description       string       -     -    y     
-  dirid             string       y     -    -     
-  documentation     url          -     -    y     
-  epoch             uinteger     y     y    y     
-  files             map/object   -     -    y     
-    *               any          -     -    y     
-  filescount        uinteger     y     y    y     
-  filesurl          url          y     y    -     
-  icon              url          -     -    y     
-  labels            map/string   -     -    y     
-  modifiedat        timestamp    y     -    y     
-  name              string       -     -    y     
-  self              url          y     y    -     
-  xid               xid          y     y    -     
+  ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ createdat         timestamp    y     -    y
+  ├ deprecated        object       -     -    y
+  │ ├ alternative     url          -     -    y
+  │ ├ documentation   url          -     -    y
+  │ ├ effective       timestamp    -     -    y
+  │ ├ removal         timestamp    -     -    y
+  │ └ *               any          -     -    y
+  ├ description       string       -     -    y
+  ├ dirid             string       y     -    -
+  ├ documentation     url          -     -    y
+  ├ epoch             uinteger     y     y    y
+  ├ files             map/object   -     -    y
+  │ └ *               any          -     -    y
+  ├ filescount        uinteger     y     y    y
+  ├ filesurl          url          y     y    -
+  ├ icon              url          -     -    y
+  ├ labels            map/string   -     -    y
+  ├ modifiedat        timestamp    y     -    y
+  ├ name              string       -     -    y
+  ├ self              url          y     y    -
+  └ xid               xid          y     y    -
 
   RESOURCE: files / file
     Max versions      : 0
@@ -154,59 +156,59 @@ GROUP: dirs / dir
     Set version sticky: true
     Has document      : true
 
-    ATTRIBUTES:     TYPE         REQ   RO   MUT   DEFAULT
-    ancestor        string       y     -    y     
-    contenttype     string       -     -    y     
-    createdat       timestamp    y     -    y     
-    description     string       -     -    y     
-    documentation   url          -     -    y     
-    epoch           uinteger     y     y    y     
-    file            any          -     -    y     
-    filebase64      string       -     -    y     
-    fileid          string       y     -    -     
-    fileproxyurl    url          -     -    y     
-    fileurl         url          -     -    y     
-    icon            url          -     -    y     
-    isdefault       boolean      y     y    y     false
-    labels          map/string   -     -    y     
-    modifiedat      timestamp    y     -    y     
-    name            string       -     -    y     
-    self            url          y     y    -     
-    versionid       string       y     -    -     
-    xid             xid          y     y    -     
+    ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
+    ├ ancestor        string       y     -    y
+    ├ contenttype     string       -     -    y
+    ├ createdat       timestamp    y     -    y
+    ├ description     string       -     -    y
+    ├ documentation   url          -     -    y
+    ├ epoch           uinteger     y     y    y
+    ├ file            any          -     -    y
+    ├ filebase64      string       -     -    y
+    ├ fileid          string       y     -    -
+    ├ fileproxyurl    url          -     -    y
+    ├ fileurl         url          -     -    y
+    ├ icon            url          -     -    y
+    ├ isdefault       boolean      y     y    y     false
+    ├ labels          map/string   -     -    y
+    ├ modifiedat      timestamp    y     -    y
+    ├ name            string       -     -    y
+    ├ self            url          y     y    -
+    ├ versionid       string       y     -    -
+    └ xid             xid          y     y    -
 
     RESOURCE ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-    fileid                 string       y     -    -     
-    meta                   object       -     -    y     
-      *                    any          -     -    y     
-    metaurl                url          y     y    -     
-    self                   url          y     y    -     
-    versions               map/object   -     -    y     
-      *                    any          -     -    y     
-    versionscount          uinteger     y     y    y     
-    versionsurl            url          y     y    -     
-    xid                    xid          y     y    -     
+    ├ fileid               string       y     -    -
+    ├ meta                 object       -     -    y
+    │ └ *                  any          -     -    y
+    ├ metaurl              url          y     y    -
+    ├ self                 url          y     y    -
+    ├ versions             map/object   -     -    y
+    │ └ *                  any          -     -    y
+    ├ versionscount        uinteger     y     y    y
+    ├ versionsurl          url          y     y    -
+    └ xid                  xid          y     y    -
 
-    META ATTRIBUTES:         TYPE        REQ   RO   MUT   DEFAULT
-    compatibility            string      y     -    y     "none"
-    compatibilityauthority   string      -     -    y     
-    createdat                timestamp   y     -    y     
-    defaultversionid         string      y     -    y     
-    defaultversionsticky     boolean     y     -    y     false
-    defaultversionurl        url         y     y    y     
-    deprecated               object      -     -    y     
-      alternative            url         -     -    y     
-      documentation          url         -     -    y     
-      effective              timestamp   -     -    y     
-      removal                timestamp   -     -    y     
-      *                      any         -     -    y     
-    epoch                    uinteger    y     y    y     
-    fileid                   string      y     -    -     
-    modifiedat               timestamp   y     -    y     
-    readonly                 boolean     y     y    y     false
-    self                     url         y     y    -     
-    xid                      xid         y     y    -     
-    xref                     url         -     -    y     
+    META ATTRIBUTES:           TYPE        REQ   RO   MUT   DEFAULT
+    ├ compatibility            string      y     -    y     "none"
+    ├ compatibilityauthority   string      -     -    y
+    ├ createdat                timestamp   y     -    y
+    ├ defaultversionid         string      y     -    y
+    ├ defaultversionsticky     boolean     y     -    y     false
+    ├ defaultversionurl        url         y     y    y
+    ├ deprecated               object      -     -    y
+    │ ├ alternative            url         -     -    y
+    │ ├ documentation          url         -     -    y
+    │ ├ effective              timestamp   -     -    y
+    │ ├ removal                timestamp   -     -    y
+    │ └ *                      any         -     -    y
+    ├ epoch                    uinteger    y     y    y
+    ├ fileid                   string      y     -    -
+    ├ modifiedat               timestamp   y     -    y
+    ├ readonly                 boolean     y     y    y     false
+    ├ self                     url         y     y    -
+    ├ xid                      xid         y     y    -
+    └ xref                     url         -     -    y
 `, "", true)
 
 	xCLI(t, "create /dirs/d1/files/f1/versions/v1 -vd hello_world", "",
@@ -257,30 +259,30 @@ func TestXRModel(t *testing.T) {
 		`xRegistry Model:
 
 ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-dirs          map/object   -     -    y     
-  *           any          -     -    y     
-dirscount     uinteger     y     y    y     
-dirsurl       url          y     y    -     
-docs          map/object   -     -    y     
-  *           any          -     -    y     
-docscount     uinteger     y     y    y     
-docsurl       url          y     y    -     
-gt2s          map/object   -     -    y     
-  *           any          -     -    y     
-gt2scount     uinteger     y     y    y     
-gt2surl       url          y     y    -     
-gts           map/object   -     -    y     
-  *           any          -     -    y     
-gtscount      uinteger     y     y    y     
-gtsurl        url          y     y    -     
+├ dirs        map/object   -     -    y
+│ └ *         any          -     -    y
+├ dirscount   uinteger     y     y    y
+├ dirsurl     url          y     y    -
+├ docs        map/object   -     -    y
+│ └ *         any          -     -    y
+├ docscount   uinteger     y     y    y
+├ docsurl     url          y     y    -
+├ gt2s        map/object   -     -    y
+│ └ *         any          -     -    y
+├ gt2scount   uinteger     y     y    y
+├ gt2surl     url          y     y    -
+├ gts         map/object   -     -    y
+│ └ *         any          -     -    y
+├ gtscount    uinteger     y     y    y
+└ gtsurl      url          y     y    -
 
 GROUP: dirs / dir
 
-  ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-  files         map/object   -     -    y     
-    *           any          -     -    y     
-  filescount    uinteger     y     y    y     
-  filesurl      url          y     y    -     
+  ATTRIBUTES:    TYPE         REQ   RO   MUT   DEFAULT
+  ├ files        map/object   -     -    y
+  │ └ *          any          -     -    y
+  ├ filescount   uinteger     y     y    y
+  └ filesurl     url          y     y    -
 
   RESOURCE: files / file
     Max versions      : 0
@@ -290,11 +292,11 @@ GROUP: dirs / dir
 
 GROUP: docs / doc
 
-  ATTRIBUTES:    TYPE         REQ   RO   MUT   DEFAULT
-  formats        map/object   -     -    y     
-    *            any          -     -    y     
-  formatscount   uinteger     y     y    y     
-  formatsurl     url          y     y    -     
+  ATTRIBUTES:      TYPE         REQ   RO   MUT   DEFAULT
+  ├ formats        map/object   -     -    y
+  │ └ *            any          -     -    y
+  ├ formatscount   uinteger     y     y    y
+  └ formatsurl     url          y     y    -
 
   RESOURCE: formats / format
     Max versions      : 0
@@ -305,10 +307,10 @@ GROUP: docs / doc
 GROUP: gt2s / gt2
 
   ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-  rt2s          map/object   -     -    y     
-    *           any          -     -    y     
-  rt2scount     uinteger     y     y    y     
-  rt2surl       url          y     y    -     
+  ├ rt2s        map/object   -     -    y
+  │ └ *         any          -     -    y
+  ├ rt2scount   uinteger     y     y    y
+  └ rt2surl     url          y     y    -
 
   RESOURCE: rt2s / rt2
     Max versions      : 0
@@ -319,16 +321,127 @@ GROUP: gt2s / gt2
 GROUP: gts / gt
 
   ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
-  rts           map/object   -     -    y     
-    *           any          -     -    y     
-  rtscount      uinteger     y     y    y     
-  rtsurl        url          y     y    -     
+  ├ rts         map/object   -     -    y
+  │ └ *         any          -     -    y
+  ├ rtscount    uinteger     y     y    y
+  └ rtsurl      url          y     y    -
 
   RESOURCE: rts / rt
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
     Has document      : true
+`, "", true)
+
+	// Test some ifvalues
+	xCLI(t, "model update -vd @-", `{
+  "attributes": {
+    "mystr": {
+      "type": "string",
+      "ifvalues": {
+        "abc": {
+          "siblingattributes": {
+            "myint": {
+              "type": "integer"
+            }
+          }
+        },
+        "def": {
+          "siblingattributes": {
+            "myobj": {
+              "type": "object",
+              "attributes": {
+                "anint": {
+                  "type": "integer",
+                  "ifvalues": {
+                    "1": {
+                      "siblingattributes": {
+                        "int2": {
+                          "type": "integer"
+                        },
+                        "int3": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "foo": {
+              "type": "string"
+            },
+            "zzz": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "obj": {
+      "type": "object",
+      "attributes": {
+        "astr": {
+          "type": "string",
+          "ifvalues": {
+            "foo": {
+              "siblingattributes": {
+                "amap": {
+                  "type": "map",
+                  "item": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "obj2": {
+      "type": "object",
+      "attributes": {
+        "astr": {
+          "type": "string",
+          "ifvalues": {
+            "foo": {},
+            "foo2": {}
+          }
+        }
+      }
+    }
+  }
+}`, "", "Model updated\n", true)
+
+	xCLI(t, "model get", "",
+		`xRegistry Model:
+
+ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
+├ mystr       string       -     -    y
+│ >> if mystr="abc"
+├ myint       integer      -     -    y
+│ << endif
+│ >> if mystr="def"
+├ foo         string       -     -    y
+├ myobj       object       -     -    y
+│ ├ anint     integer      -     -    y
+│ │ >> if anint="1"
+│ ├ int2      integer      -     -    y
+│ └ int3      integer      -     -    y
+│   << endif
+├ zzz         string       -     -    y
+│ << endif
+├ obj         object       -     -    y
+│ ├ astr      string       -     -    y
+│ │ >> if astr="foo"
+│ └ amap      map/string   -     -    y
+│   << endif
+└ obj2        object       -     -    y
+  └ astr      string       -     -    y
+    >> if astr="foo"
+    << endif
+    >> if astr="foo2"
+    << endif
 `, "", true)
 
 }
@@ -582,47 +695,47 @@ func TestXRGroupType(t *testing.T) {
 	xCLI(t, "model group create -ao table -v dirs4:dir4", "",
 		`GROUP: dirs4 / dir4
 
-  ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
-  createdat         timestamp    y     -    y     
-  deprecated        object       -     -    y     
-    alternative     url          -     -    y     
-    documentation   url          -     -    y     
-    effective       timestamp    -     -    y     
-    removal         timestamp    -     -    y     
-    *               any          -     -    y     
-  description       string       -     -    y     
-  dir4id            string       y     -    -     
-  documentation     url          -     -    y     
-  epoch             uinteger     y     y    y     
-  icon              url          -     -    y     
-  labels            map/string   -     -    y     
-  modifiedat        timestamp    y     -    y     
-  name              string       -     -    y     
-  self              url          y     y    -     
-  xid               xid          y     y    -     
+  ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ createdat         timestamp    y     -    y
+  ├ deprecated        object       -     -    y
+  │ ├ alternative     url          -     -    y
+  │ ├ documentation   url          -     -    y
+  │ ├ effective       timestamp    -     -    y
+  │ ├ removal         timestamp    -     -    y
+  │ └ *               any          -     -    y
+  ├ description       string       -     -    y
+  ├ dir4id            string       y     -    -
+  ├ documentation     url          -     -    y
+  ├ epoch             uinteger     y     y    y
+  ├ icon              url          -     -    y
+  ├ labels            map/string   -     -    y
+  ├ modifiedat        timestamp    y     -    y
+  ├ name              string       -     -    y
+  ├ self              url          y     y    -
+  └ xid               xid          y     y    -
 `, "Created Group type: dirs4:dir4\n", true)
 
 	xCLI(t, "model group create -aro table dirs5:dir5", "",
 		`GROUP: dirs5 / dir5
 
-  ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
-  createdat         timestamp    y     -    y     
-  deprecated        object       -     -    y     
-    alternative     url          -     -    y     
-    documentation   url          -     -    y     
-    effective       timestamp    -     -    y     
-    removal         timestamp    -     -    y     
-    *               any          -     -    y     
-  description       string       -     -    y     
-  dir5id            string       y     -    -     
-  documentation     url          -     -    y     
-  epoch             uinteger     y     y    y     
-  icon              url          -     -    y     
-  labels            map/string   -     -    y     
-  modifiedat        timestamp    y     -    y     
-  name              string       -     -    y     
-  self              url          y     y    -     
-  xid               xid          y     y    -     
+  ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ createdat         timestamp    y     -    y
+  ├ deprecated        object       -     -    y
+  │ ├ alternative     url          -     -    y
+  │ ├ documentation   url          -     -    y
+  │ ├ effective       timestamp    -     -    y
+  │ ├ removal         timestamp    -     -    y
+  │ └ *               any          -     -    y
+  ├ description       string       -     -    y
+  ├ dir5id            string       y     -    -
+  ├ documentation     url          -     -    y
+  ├ epoch             uinteger     y     y    y
+  ├ icon              url          -     -    y
+  ├ labels            map/string   -     -    y
+  ├ modifiedat        timestamp    y     -    y
+  ├ name              string       -     -    y
+  ├ self              url          y     y    -
+  └ xid               xid          y     y    -
 `, "", true)
 
 	xCLI(t, "model group create -aro xxx dirs6:dir6", "",
@@ -942,12 +1055,12 @@ Created Resource type: files2:file2
 `, true)
 
 	xCLI(t, "model group list", "", `GROUP          RESOURCES   DESCRIPTION
-dirs / dir     0           
-dirs2 / dir2   2           
-dirs3 / dir3   0           
-dirs4 / dir4   0           
-dirs5 / dir5   0           
-dirs7 / dir7   1           
+dirs / dir     0
+dirs2 / dir2   2
+dirs3 / dir3   0
+dirs4 / dir4   0
+dirs5 / dir5   0
+dirs7 / dir7   1
 `, ``, true)
 
 	xCLI(t, "model group list -o json", "", `*`, ``, true) // cheat
@@ -959,7 +1072,7 @@ dirs7 / dir7   1
 		"No arguments allowed\n", false)
 
 	xCLI(t, "model resource list -g dirs7", "", `RESOURCE         HAS DOC   EXT ATTRS   DESCRIPTION
-files2 / file2   true      0           
+files2 / file2   true      0
 `,
 		"", true)
 
