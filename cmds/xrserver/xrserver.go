@@ -36,7 +36,7 @@ func ErrStop(err error, args ...any) {
 }
 
 func ErrStopTx(err error, tx *registry.Tx, args ...any) {
-	if err == nil {
+	if IsNil(err) {
 		return
 	}
 	if len(args) == 0 {
@@ -161,7 +161,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
 	serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
-		GitCommit[:12] + "\n")
+		GitCommit[:min(len(GitCommit), 12)] + "\n")
 
 	return serverCmd
 }
@@ -177,7 +177,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 	// UseLogging = true
 
 	PanicIf(GitCommit == "" || GitCommit == "<n/a>", "GitCommit isn't set")
-	Verbose("GitCommit: %.10s", GitCommit)
+	Verbose("GitCommit: %.12s", GitCommit)
 	Verbose("DB server: %s:%s", registry.DBHOST, registry.DBPORT)
 
 	if tmp := os.Getenv("XR_PORT"); tmp != "" {
@@ -206,10 +206,14 @@ func runFunc(cmd *cobra.Command, args []string) {
 		// cmd.Flags().Set("createreg", "true")
 	}
 
-	if !registry.DBExists(DBName) && (!DontCreate || RecreateDB) {
-		Verbose("Creating DB: %s", DBName)
-		err := registry.CreateDB(DBName)
-		ErrStop(err, "Error creating DB(%s): %s", DBName, err)
+	if !registry.DBExists(DBName) {
+		if !DontCreate || RecreateDB {
+			Verbose("Creating DB: %s", DBName)
+			err := registry.CreateDB(DBName)
+			ErrStop(err, "Error creating DB(%s): %s", DBName, err)
+		} else {
+			Stop("DB %q does not exist", DBName)
+		}
 	}
 
 	err := registry.OpenDB(DBName)
@@ -235,8 +239,8 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	reg, err := registry.FindRegistry(nil, RegistryName, registry.FOR_READ)
-	ErrStop(err, "Error finding registry(%s): %s", RegistryName, err)
+	reg, xErr := registry.FindRegistry(nil, RegistryName, registry.FOR_READ)
+	ErrStop(xErr, "Error finding registry(%s): %s", RegistryName, xErr)
 
 	if reg != nil {
 		if RecreateReg {
@@ -249,12 +253,12 @@ func runFunc(cmd *cobra.Command, args []string) {
 
 	if reg == nil && (!DontCreate || RecreateReg) {
 		Verbose("Creating xReg: %s", RegistryName)
-		reg, err = registry.NewRegistry(nil, RegistryName)
-		if err == nil {
-			err = reg.Commit()
+		reg, xErr = registry.NewRegistry(nil, RegistryName)
+		if IsNil(xErr) {
+			xErr = reg.Commit()
 		}
 
-		ErrStop(err, "Error creating new registry(%s): %s", RegistryName, err)
+		ErrStop(xErr, "Error creating new registry(%s): %s", RegistryName, xErr)
 	}
 
 	if reg == nil {

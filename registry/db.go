@@ -163,31 +163,31 @@ func (tx *Tx) String() string {
 	return fmt.Sprintf("Tx: sql.tx: %s, Registry: %s", txStr, regStr)
 }
 
-func NewTx() (*Tx, error) {
+func NewTx() (*Tx, *XRError) {
 	log.VPrintf(4, ">Enter: NewTx")
 	defer log.VPrintf(4, "<exit: NewTx")
 
 	tx := &Tx{}
-	err := tx.NewTx()
-	if err != nil {
-		return nil, err
+	xErr := tx.NewTx()
+	if xErr != nil {
+		return nil, xErr
 	}
 	return tx, nil
 }
 
 // It's ok for this to be called multiple times for the same Tx just to
 // make sure we have an active transaction - it's a no-op at that point
-func (tx *Tx) NewTx() error {
+func (tx *Tx) NewTx() *XRError {
 	log.VPrintf(4, ">Enter: tx.NewTx")
 	defer log.VPrintf(4, "<Exit: tx.NewTx")
 
 	if DB == nil {
 		if DB_Name == "" {
-			return fmt.Errorf("No DB_Name set")
+			return NewXRError("server_error", "/").SetDetail("No DB_Name set")
 		}
 		err := OpenDB(DB_Name)
 		if err != nil {
-			return err
+			return NewXRError("server_error", "/").SetDetail(err.Error())
 		}
 	}
 
@@ -199,7 +199,7 @@ func (tx *Tx) NewTx() error {
 		&sql.TxOptions{sql.LevelReadCommitted, false})
 	if err != nil {
 		DB = nil
-		return err
+		return NewXRError("server_error", "/").SetDetail(err.Error())
 		// panic("Error talking to the DB: %s", err)
 	}
 
@@ -220,15 +220,15 @@ func (tx *Tx) RefreshFullTree() {
 		inDo = true
 		tx.ClearFullTree = false
 
-		Must(Do(tx, `DELETE FROM FullTreeTable`))
-		// Must(Do(tx, `ALTER TABLE FullTreeTable DISABLE KEYS`))
-		Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
-		// Must(Do(tx, `ALTER TABLE FullTreeTable ENABLE KEYS`))
+		Do(tx, `DELETE FROM FullTreeTable`)
+		// Do(tx, `ALTER TABLE FullTreeTable DISABLE KEYS`)
+		Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`)
+		// Do(tx, `ALTER TABLE FullTreeTable ENABLE KEYS`)
 		/*
-					Must(Do(tx, `TRUNCATE TABLE FullTreeTable ;
+					Do(tx, `TRUNCATE TABLE FullTreeTable ;
 			            ALTER TABLE FullTreeTable DISABLE KEYS ;
 			            INSERT INTO FullTreeTable SELECT * FROM FullTree ;
-			            ALTER TABLE FullTreeTable ENABLE KEYS `))
+			            ALTER TABLE FullTreeTable ENABLE KEYS `)
 		*/
 
 		/*
@@ -252,11 +252,10 @@ func (tx *Tx) RefreshFullTree() {
 		*/
 
 		/*
-			Must(Do(tx, `DELETE FROM FullTreeTable`))
+			Do(tx, `DELETE FROM FullTreeTable`)
 
 			// log.Printf("Table after delete")
-			res, err := tx.Registry.Query("SELECT Path,PropName from FullTree")
-			Must(err)
+			res := tx.Registry.Query("SELECT Path,PropName from FullTree")
 			log.Printf("len(res): %d", len(res))
 			for _, r := range res {
 				s := *(r[0].(*any))
@@ -265,13 +264,12 @@ func (tx *Tx) RefreshFullTree() {
 			}
 		*/
 		/*
-				res, err = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
-				Must(err)
+				res = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
 				for _, r := range res {
 					s := *(r[0].(*any))
 					log.Printf("count: %v", s.(int64))
 				}
-			Must(Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`))
+			Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`)
 		*/
 		inDo = false
 	}
@@ -308,7 +306,7 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 	delete(tx.Cache, e.Registry.UID+"/"+e.Path)
 }
 
-func (tx *Tx) Validate(info *RequestInfo) error {
+func (tx *Tx) Validate(info *RequestInfo) {
 	/*
 		if info != nil {
 			log.Printf("--- %s %s", info.OriginalRequest.Method, info.OriginalPath)
@@ -329,15 +327,13 @@ func (tx *Tx) Validate(info *RequestInfo) error {
 	// double check everthing is ok. We shouldn't need to, but something
 	// to think about if things get complicated
 	/*
-		if err := ValidateResources(tx); err != nil {
-			return err
+		if xErr := ValidateResources(tx); xErr != nil {
+			return xErr
 		}
 
 		// Check again just to be sure ValidateResources didn't mess up
 		PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
 	*/
-
-	return nil
 }
 
 func (tx *Tx) IsCacheDirty() bool {
@@ -359,7 +355,7 @@ func (tx *Tx) IsCacheDirty() bool {
 	return dirty
 }
 
-func (tx *Tx) WriteCache(force bool) error {
+func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
 		PanicIf(!force && e.NewObject != nil, "Entity %s/%q not saved",
 			e.Singular, e.UID)
@@ -367,27 +363,24 @@ func (tx *Tx) WriteCache(force bool) error {
 			log.Printf("%s: %s", e.Singular, e.UID)
 			ShowStack()
 		}
-		if err := e.ValidateAndSave(); err != nil {
-			return err
+		if xErr := e.ValidateAndSave(); xErr != nil {
+			return xErr
 		}
 	}
-
 	return nil
 }
 
 // Only call from tests
-func (tx *Tx) SaveCommitRefresh() error {
+func (tx *Tx) SaveCommitRefresh() *XRError {
 	// savedCache := maps.Clone(tx.Cache)
 
-	if err := tx.WriteCache(true); err != nil {
-		return err
+	if xErr := tx.WriteCache(true); xErr != nil {
+		return xErr
 	}
+	tx.Validate(nil)
 
-	if err := tx.Validate(nil); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return err
+	if xErr := tx.Commit(); xErr != nil {
+		return xErr
 	}
 
 	/*
@@ -395,40 +388,34 @@ func (tx *Tx) SaveCommitRefresh() error {
 		log.Printf("cache size: %d", len(tx.Cache))
 		for _, e := range tx.Cache {
 			log.Printf("  Refresh: %s/%s", e.Singular, e.UID)
-			Must(e.Refresh())
+			e.Refresh()
 		}
 	*/
 
 	return nil
 }
 
-func (tx *Tx) SaveAllAndCommit() error {
-	if err := tx.WriteCache(true); err != nil {
-		return err
+func (tx *Tx) SaveAllAndCommit() *XRError {
+	if xErr := tx.WriteCache(true); xErr != nil {
+		return xErr
 	}
 
-	if err := tx.Validate(nil); err != nil {
-		return err
-	}
+	tx.Validate(nil)
 
 	return tx.Commit()
 }
 
-func (tx *Tx) Commit() error {
+func (tx *Tx) Commit() *XRError {
 	// ShowStack()
 	if tx.tx == nil {
 		return nil
 	}
 
-	if err := tx.WriteCache(true); err != nil {
-		return err
+	if xErr := tx.WriteCache(true); xErr != nil {
+		return xErr
 	}
 
-	err := tx.tx.Commit()
-	Must(err)
-	if err != nil {
-		return err
-	}
+	Must(tx.tx.Commit())
 
 	TXsMutex.Lock()
 	delete(TXs, tx.uuid)
@@ -441,15 +428,12 @@ func (tx *Tx) Commit() error {
 	return nil
 }
 
-func (tx *Tx) Rollback() error {
+func (tx *Tx) Rollback() *XRError {
 	if tx == nil || tx.tx == nil {
 		return nil
 	}
 	err := tx.tx.Rollback()
 	Must(err)
-	if err != nil {
-		return err
-	}
 
 	TXsMutex.Lock()
 	delete(TXs, tx.uuid)
@@ -462,8 +446,8 @@ func (tx *Tx) Rollback() error {
 	return nil
 }
 
-func (tx *Tx) Conditional(err error) error {
-	if err == nil {
+func (tx *Tx) Conditional(err error) *XRError {
+	if IsNil(err) {
 		return tx.Commit()
 	}
 	return tx.Rollback()
@@ -472,9 +456,9 @@ func (tx *Tx) Conditional(err error) error {
 func (tx *Tx) Prepare(query string) (*sql.Stmt, error) {
 	// If the current Tx is closed, create a new one
 	if tx.tx == nil {
-		err := tx.NewTx()
-		if err != nil {
-			return nil, err
+		xErr := tx.NewTx()
+		if xErr != nil {
+			return nil, xErr
 		}
 	}
 	ps, err := tx.tx.Prepare(query)
@@ -699,7 +683,7 @@ func DumpTimings() string {
 	return str
 }
 
-func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
+func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	/*
 		if strings.Index(cmd, "FullTree") >= 0 {
 			tx.RefreshFullTree()
@@ -723,27 +707,17 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
 	if doTime {
 		pTime = time.Now()
 	}
-	if err != nil {
-		log.Printf("Error Prepping query (%s)->%s\n", cmd, err)
-		return nil, fmt.Errorf("Error Prepping query (%s)->%s\n", cmd, err)
-	}
+	PanicIf(err != nil, "Error Prepping query (%s): %s\n", cmd, err)
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
 	if doTime {
 		qTime = time.Now()
 	}
-
-	if err != nil {
-		log.Printf("Error querying DB(%s)(%v)->%s\n", cmd, args, err)
-		return nil, fmt.Errorf("Error querying DB(%s)->%s\n", cmd, err)
-	}
+	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
 
 	colTypes, err := rows.ColumnTypes()
-	if err != nil {
-		log.Printf("Error querying DB(%s)(%v)->%s\n", cmd, args, err)
-		return nil, fmt.Errorf("Error querying DB(%s)->%s\n", cmd, err)
-	}
+	PanicIf(err != nil, "Error querying DB(%s)(%v)->%s\n", cmd, args, err)
 
 	result := &Result{
 		tx:       tx,
@@ -781,12 +755,12 @@ func Query(tx *Tx, cmd string, args ...interface{}) (*Result, error) {
 		qt.count++
 	}
 
-	return result, nil
+	return result
 }
 
 var inDo = false
 
-func doCount(tx *Tx, cmd string, args ...interface{}) (int, error) {
+func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
 
 	if !inDo {
@@ -806,122 +780,57 @@ func doCount(tx *Tx, cmd string, args ...interface{}) (int, error) {
 	}
 
 	ps, err := tx.Prepare(cmd)
-	if err != nil {
-		ShowStack()
-		log.VPrintf(0, "CMD: %q args: %v", cmd, args)
-		return 0, err
-	}
+	PanicIf(err != nil, "CMD: %q args: %v  err: %s", cmd, args, err)
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
-	if err != nil {
-		if log.GetVerbose() > 4 {
-			query := SubQuery(cmd, args)
-			log.Printf("doCount:Error DB(%s)->%s\n", query, err)
-			ShowStack()
-			log.VPrintf(0, "CMD: %q args: %v", cmd, args)
-		}
-		return 0, err
-	}
+	PanicIf(err != nil, "doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
 
 	count, _ := result.RowsAffected()
-	return int(count), err
+	return int(count)
 }
 
-func Do(tx *Tx, cmd string, args ...interface{}) error {
-	_, err := doCount(tx, cmd, args...)
-	return err
+func Do(tx *Tx, cmd string, args ...interface{}) {
+	doCount(tx, cmd, args...)
 }
 
-func DoOne(tx *Tx, cmd string, args ...interface{}) error {
-	count, err := doCount(tx, cmd, args...)
-	if err != nil {
-		return err
-	}
+func DoOne(tx *Tx, cmd string, args ...interface{}) {
+	count := doCount(tx, cmd, args...)
 
-	if count != 1 {
-		query := SubQuery(cmd, args)
-		ShowStack()
-		log.Printf("DoOne:Error DB(%s) didn't change exactly 1 row(%d)",
-			query, count)
-		return fmt.Errorf("DoOne:Error DB(%s) didn't change exactly 1 row(%d)",
-			query, count)
-	}
-
-	return nil
+	PanicIf(count != 1, "DoOne:Error DB(%s) didn't change exactly 1 row(%d)",
+		SubQuery(cmd, args), count)
 }
 
-func DoZeroOne(tx *Tx, cmd string, args ...interface{}) error {
-	count, err := doCount(tx, cmd, args...)
-	if err != nil {
-		return err
-	}
+func DoZeroOne(tx *Tx, cmd string, args ...interface{}) {
+	count := doCount(tx, cmd, args...)
 
-	if count != 0 && count != 1 {
-		query := SubQuery(cmd, args)
-		ShowStack()
-		log.Printf("DoZeroOne:Error DB(%s) didn't change exactly 0/1 rows(%d)",
-			query, count)
-		return fmt.Errorf("DoZeroOne:Error DB(%s) didn't change exactly 0/1 rows(%d)",
-			query, count)
-	}
-
-	return nil
+	PanicIf(count != 0 && count != 1,
+		"DoOne:Error DB(%s) didn't change exactly 0/1 row(%d)",
+		SubQuery(cmd, args), count)
 }
 
-func DoOneTwo(tx *Tx, cmd string, args ...interface{}) error {
-	count, err := doCount(tx, cmd, args...)
-	if err != nil {
-		return err
-	}
+func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
+	count := doCount(tx, cmd, args...)
 
-	if count != 1 && count != 2 {
-		query := SubQuery(cmd, args)
-		ShowStack()
-		log.Printf("DoOneTwo:Error DB(%s) didn't change exactly 1/2 rows(%d)",
-			query, count)
-		return fmt.Errorf("DoOneTwo:Error DB(%s) didn't change exactly 1/2 rows(%d)",
-			query, count)
-	}
-
-	return nil
+	PanicIf(count != 1 && count != 2,
+		"DoOne:Error DB(%s) didn't change exactly 1/2 row(%d)",
+		SubQuery(cmd, args), count)
 }
 
-func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) error {
-	count, err := doCount(tx, cmd, args...)
-	if err != nil {
-		return err
-	}
-
-	if count != 0 && count != 2 {
-		query := SubQuery(cmd, args)
-		ShowStack()
-		log.Printf("DoZeroTwo:Error DB(%s) didn't change exactly 0/2 rows(%d)",
-			query, count)
-		return fmt.Errorf("DoZeroTwo:Error DB(%s) didn't change exactly 0/2 rows(%d)",
-			query, count)
-	}
-
-	return nil
+func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
+	count := doCount(tx, cmd, args...)
+	PanicIf(count != 1 && count != 2,
+		"DoOne:Error DB(%s) didn't change exactly 0/2 row(%d)",
+		SubQuery(cmd, args), count)
 }
 
-func DoCount(tx *Tx, num int, cmd string, args ...interface{}) error {
+func DoCount(tx *Tx, num int, cmd string, args ...interface{}) {
 	log.VPrintf(4, "DoCount: %s", cmd)
-	count, err := doCount(tx, cmd, args...)
-	if err != nil {
-		return err
-	}
+	count := doCount(tx, cmd, args...)
 
-	if count != num {
-		query := SubQuery(cmd, args)
-		ShowStack()
-		log.Printf("DoCount:Error DB(%s) didn't change exactly %d rows(%d)",
-			query, num, count)
-		return fmt.Errorf("DoCount:Error DB(%s) didn't change exactly %d rows(%d)",
-			query, num, count)
-	}
-
-	return nil
+	PanicIf(count != num,
+		"DoOne:Error DB(%s) didn't change exactly %d row(%d)",
+		SubQuery(cmd, args), num, count)
 }
 
 func DBExists(name string) bool {
@@ -929,18 +838,14 @@ func DBExists(name string) bool {
 	defer log.VPrintf(3, "<Exit: DBExists")
 	db, err := sql.Open("mysql",
 		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
-	if err != nil {
-		panic(err)
-	}
+	PanicIf(err != nil, "Error opening DB: %s", err)
 	defer db.Close()
 
 	rows, err := db.Query(`
 		SELECT SCHEMA_NAME
 		FROM INFORMATION_SCHEMA.SCHEMATA
 		WHERE SCHEMA_NAME=?`, name)
-	if err != nil {
-		panic(err)
-	}
+	PanicIf(err != nil, "Error querying DB: %s", err)
 	defer rows.Close()
 
 	found := rows.Next()
@@ -970,9 +875,8 @@ func OpenDB(name string) error {
 
 	if err != nil {
 		DB = nil
-		err = fmt.Errorf("Error talking to SQL: %s\n", err)
-		log.Print(err)
-		return err
+		return NewXRError("server_error", "/",
+			fmt.Sprintf("Error talking to SQL: %s", err))
 	}
 
 	DB_Name = name

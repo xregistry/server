@@ -72,16 +72,16 @@ func (jw *JsonWriter) Outdent() {
 	}
 }
 
-func (jw *JsonWriter) NextEntity() (*Entity, error) {
+func (jw *JsonWriter) NextEntity() (*Entity, *XRError) {
 	// If we have a cached entity, return it instead
 	var next *Entity
-	var err error
+	var xErr *XRError
 
 	if next = jw.Pop(); next == nil {
-		next, err = readNextEntity(jw.info.tx, jw.results, FOR_READ)
+		next, xErr = readNextEntity(jw.info.tx, jw.results, FOR_READ)
 	}
 	jw.Entity = next
-	return jw.Entity, err
+	return jw.Entity, xErr
 }
 
 func (jw *JsonWriter) Push(e *Entity) {
@@ -101,7 +101,7 @@ func (jw *JsonWriter) Pop() *Entity {
 // the collection, it also writes the COLLECTIONSurl and COLLECTIONscount
 // headers/attributes.
 // WriteCollection will do the actual processing of the entities in there.
-func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
+func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 	myPlural := jw.Entity.Plural
 	baseURL := ""
 
@@ -123,7 +123,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 	extra = ""
 
 	count := 0
-	var err error
+	var xErr *XRError
 
 	if !inlineCollection {
 		// If we're not inlining this collection then just skip over any
@@ -140,8 +140,8 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 
 			if strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN)) {
 				// Skip descendants that are not immediate children
-				if _, err = jw.NextEntity(); err != nil {
-					return "", err
+				if _, xErr = jw.NextEntity(); xErr != nil {
+					return "", xErr
 				}
 				continue
 			}
@@ -152,17 +152,17 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 				break
 			}
 
-			if _, err = jw.NextEntity(); err != nil {
-				return "", err
+			if _, xErr = jw.NextEntity(); xErr != nil {
+				return "", xErr
 			}
 
 			count++
 		}
 	} else {
 		jw.Printf("%s%q: ", jw.indent, jw.Entity.Plural)
-		count, err = jw.WriteCollection()
-		if err != nil {
-			return "", err
+		count, xErr = jw.WriteCollection()
+		if xErr != nil {
+			return "", xErr
 		}
 		extra = ",\n"
 	}
@@ -172,7 +172,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, error) {
 	return ",", nil
 }
 
-func (jw *JsonWriter) WriteCollection() (int, error) {
+func (jw *JsonWriter) WriteCollection() (int, *XRError) {
 	jw.Printf("{")
 	jw.Indent()
 
@@ -189,8 +189,8 @@ func (jw *JsonWriter) WriteCollection() (int, error) {
 
 		if strings.HasPrefix(jw.Entity.Abstract, myAbstract+string(DB_IN)) {
 			// Process a child
-			if _, err := jw.NextEntity(); err != nil {
-				return count, err
+			if _, xErr := jw.NextEntity(); xErr != nil {
+				return count, xErr
 			}
 			continue
 		}
@@ -206,8 +206,8 @@ func (jw *JsonWriter) WriteCollection() (int, error) {
 		}
 
 		jw.Printf("%s\n%s%q: ", extra, jw.indent, jw.Entity.UID)
-		if err := jw.WriteEntity(); err != nil {
-			return count, err
+		if xErr := jw.WriteEntity(); xErr != nil {
+			return count, xErr
 		}
 
 		count++
@@ -223,7 +223,7 @@ func (jw *JsonWriter) WriteCollection() (int, error) {
 	return count, nil
 }
 
-func (jw *JsonWriter) WriteEntity() error {
+func (jw *JsonWriter) WriteEntity() *XRError {
 	log.VPrintf(3, ">Enter: WriteEntity (%v)", jw.Entity)
 	defer log.VPrintf(3, "<Exit: WriteEntity")
 
@@ -250,7 +250,7 @@ func (jw *JsonWriter) WriteEntity() error {
 	jw.Printf("{")
 	jw.Indent()
 
-	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) error {
+	jsonIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
 		log.VPrintf(4, "jsonIt: %q", key)
 		if key == "$space" {
 			addSpace = true
@@ -345,14 +345,14 @@ func (jw *JsonWriter) WriteEntity() error {
 		return nil
 	}
 
-	var err error
+	var xErr *XRError
 
 	// Skip serializing the root entity's attributes if ?collections is set
 	// AND we're on the root entity of the response
 	if !jw.info.HasFlag("collections") || jw.info.Root != jw.Entity.Path {
-		err := jw.Entity.SerializeProps(jw.info, jsonIt)
-		if err != nil {
-			panic(err)
+		xErr := jw.Entity.SerializeProps(jw.info, jsonIt)
+		if xErr != nil {
+			panic(xErr)
 		}
 	}
 
@@ -367,8 +367,8 @@ func (jw *JsonWriter) WriteEntity() error {
 	}
 
 	jw.LoadCollections(myType) // load the list of current collections
-	if _, err := jw.NextEntity(); err != nil {
-		return err
+	if _, xErr := jw.NextEntity(); xErr != nil {
+		return xErr
 	}
 
 	// If we need to delay the serialization of "meta" for later
@@ -391,13 +391,13 @@ func (jw *JsonWriter) WriteEntity() error {
 			// defaultversionurl needs to be absolute, not relative
 			if jw.info.DoDocView() && len(jw.info.Filters) > 0 && jw.info.ShouldInline(versProp.DB()) {
 				cachedMeta = jw.Entity
-				if _, err = jw.NextEntity(); err != nil {
-					return err
+				if _, xErr = jw.NextEntity(); xErr != nil {
+					return xErr
 				}
 			} else {
 				jw.Printf("%s\n%s%q: ", extra, jw.indent, "meta")
-				if err := jw.WriteEntity(); err != nil {
-					return err
+				if xErr := jw.WriteEntity(); xErr != nil {
+					return xErr
 				}
 				extra = ","
 				// We don't need to call "jw.NextEntity()" because the
@@ -405,8 +405,8 @@ func (jw *JsonWriter) WriteEntity() error {
 			}
 		} else {
 			// Skip "meta" entity since we're not serialize/inlining it
-			if _, err = jw.NextEntity(); err != nil {
-				return err
+			if _, xErr = jw.NextEntity(); xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -425,8 +425,8 @@ func (jw *JsonWriter) WriteEntity() error {
 
 		extra = jw.WritePreCollections(hasXref, extra, jw.Entity.Plural, myType)
 
-		if extra, err = jw.WriteCollectionHeader(extra); err != nil {
-			return err
+		if extra, xErr = jw.WriteCollectionHeader(extra); xErr != nil {
+			return xErr
 		}
 	}
 	extra = jw.WritePostCollections(hasXref, extra, myType)
@@ -441,8 +441,8 @@ func (jw *JsonWriter) WriteEntity() error {
 		jw.info.extras["seenDefaultVid"] = jw.seenDefaultVid
 
 		jw.Printf("%s\n%s%q: ", extra, jw.indent, "meta")
-		if err := jw.WriteEntity(); err != nil {
-			return err
+		if xErr := jw.WriteEntity(); xErr != nil {
+			return xErr
 		}
 		extra = ","
 
@@ -457,7 +457,7 @@ func (jw *JsonWriter) WriteEntity() error {
 	return nil
 }
 
-func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, extra *string) error {
+func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, extra *string) *XRError {
 	PanicIf(e.Type != ENTITY_RESOURCE && e.Type != ENTITY_VERSION, "Bad eType: %d", e.Type)
 	// Add the "resource*" props
 	_, rm := jw.Entity.GetModels()

@@ -3,6 +3,7 @@ package common
 var GitCommit = ""
 
 const SPECVERSION = "1.0-rc2"
+const SPECURL = "https://github.com/xregistry/spec/blob/main/core/spec.md"
 
 // Model attribute default values
 const STRICT = true

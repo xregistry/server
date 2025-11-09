@@ -90,7 +90,12 @@ func TestMetaSimple(t *testing.T) {
 		Method:  "POST",
 		ReqBody: "{}",
 		Code:    405,
-		ResBody: `POST not allowed on a 'meta'
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d1/files/f11/meta",
+  "title": "The specified action (POST) is not supported",
+  "detail": "POST not allowed on a 'meta'"
+}
 `,
 	})
 
@@ -99,7 +104,11 @@ func TestMetaSimple(t *testing.T) {
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "PUT",
 		Code:   404,
-		ResBody: `URL is too long
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
+}
 `,
 	})
 
@@ -108,7 +117,11 @@ func TestMetaSimple(t *testing.T) {
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "POST",
 		Code:   404,
-		ResBody: `URL is too long
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
+}
 `,
 	})
 
@@ -117,7 +130,11 @@ func TestMetaSimple(t *testing.T) {
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "PATCH",
 		Code:   404,
-		ResBody: `URL is too long
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
+}
 `,
 	})
 
@@ -390,17 +407,25 @@ func TestMetaSimple(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{ "fff": "zzz"}`,
 		Code:    400,
-		ResBody: `Invalid extension(s): fff
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: invalid extension(s): fff"
+}
 `,
 	})
 
-	// Update PATCH empty body
+	// Update PATCH + bad ext
 	xCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f21/meta",
 		Method:  "PATCH",
 		ReqBody: `{"fff":"aaa"}`,
 		Code:    400,
-		ResBody: `Invalid extension(s): fff
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f21/meta",
+  "title": "The request cannot be processed as provided: invalid extension(s): fff"
+}
 `,
 	})
 
@@ -502,7 +527,11 @@ func TestMetaSimple(t *testing.T) {
 		URL:    "/dirs/d1/files/f1/meta",
 		Method: "DELETE",
 		Code:   405,
-		ResBody: `DELETE is not allowed on a "meta"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The specified action (DELETE) is not supported"
+}
 `,
 	})
 
@@ -594,7 +623,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"versionid":"v2.0"}`,
 		Code:    400,
-		ResBody: `When "versionid"(v2.0) is present it must match the "defaultversionid"(v1.0)
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: when \"versionid\"(v2.0) is present it must match the \"defaultversionid\"(v1.0)"
+}
 `,
 	})
 
@@ -604,7 +637,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"fileid":"foo"}`,
 		Code:    400,
-		ResBody: `The "fileid" attribute must be set to "f1", not "foo"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"foo\""
+}
 `,
 	})
 
@@ -614,7 +651,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"fileid":"foo"}`,
 		Code:    400,
-		ResBody: `meta.fileid must be "f1", not "foo"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The specified \"file\" ID value (foo) needs to be \"f1\""
+}
 `,
 	})
 
@@ -923,7 +964,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"defaultversionid": "v1.0","defaultversionsticky":true}`,
 		Code:    400,
-		ResBody: `Invalid extension(s): defaultversionid,defaultversionsticky
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
+  "title": "The request cannot be processed as provided: invalid extension(s): defaultversionid,defaultversionsticky"
+}
 `,
 	})
 
@@ -1112,7 +1157,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"defaultversionid":"v1.0"}`,
 		Code:    400,
-		ResBody: `Attribute "defaultversionid" must be "1" since "defaultversionsticky" is "false"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
+}
 `,
 	})
 
@@ -1186,7 +1235,11 @@ func TestMetaCombos(t *testing.T) {
 		  "defaultversionsticky":null,
 		  "foo":"bar"}`,
 		Code: 400,
-		ResBody: `Attribute "defaultversionid" must be "1" since "defaultversionsticky" is "false"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
+}
 `,
 	})
 
@@ -1395,7 +1448,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"epoch": 1}`,
 		Code:    400,
-		ResBody: `Attribute "epoch"(1) doesn't match existing value (12)
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The attribute \"epoch\" is not valid: value (1) doesn't match existing value (12)"
+}
 `,
 	})
 
@@ -1405,7 +1462,11 @@ func TestMetaCombos(t *testing.T) {
 		Method:  "PUT",
 		ReqBody: `{"meta":{"epoch": 1}}`,
 		Code:    400,
-		ResBody: `Attribute "epoch"(1) doesn't match existing value (12)
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The attribute \"epoch\" is not valid: value (1) doesn't match existing value (12)"
+}
 `,
 	})
 

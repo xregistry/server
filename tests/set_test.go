@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -29,17 +28,53 @@ func TestSetAttributeNames(t *testing.T) {
 		{"_123", ""},
 		{"_12_3", ""},
 		{"_123_", ""},
-		{"_123_", "Attribute \"_123_\" already exists"},
+		{"_123_", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: attribute \"_123_\" already exists"
+}`},
 		{"_", ""},
 		{"__", ""},
-		{"", "Invalid attribute name "},
-		{sixty + "1234", "Invalid attribute name "},
-		{"1234", "Invalid attribute name "},
-		{"A", "Invalid attribute name "},
-		{"aA", "Invalid attribute name "},
-		{"_A", "Invalid attribute name "},
-		{"_ _", "Invalid attribute name "},
-		{"#abc", "Invalid attribute name "},
+		{"", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{sixty + "1234", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"a234567890123456789012345678901234567890123456789012345678901234\" is not valid: attribute name \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"1234", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"1234\" is not valid: attribute name \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"A", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"A\" is not valid: attribute name \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"aA", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"aA\" is not valid: attribute name \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"_A", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"_A\" is not valid: attribute name \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"_ _", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"_ _\" is not valid: attribute name \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"#abc", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"#abc\" is not valid: attribute name \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
 	}
 
 	for _, test := range tests {
@@ -47,10 +82,10 @@ func TestSetAttributeNames(t *testing.T) {
 		_, err := reg.Model.AddAttr(test.name, STRING)
 
 		if test.msg == "" && err != nil {
-			t.Errorf("Name: %q failed: %s", test.name, err)
+			t.Fatalf("Name: %q failed: %s", test.name, err)
 		}
-		if test.msg != "" && (err == nil || !strings.HasPrefix(err.Error(), test.msg)) {
-			t.Errorf("Name: %q should have failed: %s", test.name, err)
+		if test.msg != "" && (err == nil || err.Error() != test.msg) {
+			xCheckErr(t, err, test.msg)
 		}
 
 	}
@@ -154,7 +189,11 @@ func TestSetDots(t *testing.T) {
 
 	// Nesting under labels should fail
 	err = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
-	xJSONCheck(t, err, `Attribute "labels.xxx" must be a string`)
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/dirs/d1",
+  "title": "The attribute \"labels.xxx\" is not valid: must be a string"
+}`)
 
 	// dots are ok as tag names
 	err = dir.SetSave(labels.P("abc.def").UI(), "ABC")
@@ -195,17 +234,28 @@ func TestSetDots(t *testing.T) {
 `)
 
 	err = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
-	xCheck(t, err.Error() == `Unexpected / in "labels.xxx/yyy" at pos 11`,
-		"labels.xxx/yyy=nil should fail: %s", err)
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/dirs/d1",
+  "title": "The request cannot be processed as provided: Unexpected / in \"labels.xxx/yyy\" at pos 11"
+}`)
 
 	err = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
-	xJSONCheck(t, err, `Unexpected . in "labels..abc" at pos 8`)
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/dirs/d1",
+  "title": "The request cannot be processed as provided: Unexpected . in \"labels..abc\" at pos 8"
+}`)
 
 	err = dir.SetSave(NewPP().P("labels").P("xxx.yyy").UI(), "xxx")
 	xJSONCheck(t, err, nil)
 
 	err = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
-	xJSONCheck(t, err, `Invalid extension(s): xxx`)
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/dirs/d1",
+  "title": "The request cannot be processed as provided: invalid extension(s): xxx"
+}`)
 	xCheck(t, err != nil, "xxx.yyy=nil should fail")
 	err = dir.SetSave("xxx.", "xxx")
 	xCheck(t, err != nil, "xxx.=xxx should fail")
@@ -296,10 +346,11 @@ func TestSetLabels(t *testing.T) {
 
 	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
-	if err == nil || err.Error() != `Attribute "labels.vv" must be a string` {
-		t.Errorf("wrong err msg: %s", err)
-		t.FailNow()
-	}
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/dirs/d1/files/f1/versions/v1",
+  "title": "The attribute \"labels.vv\" is not valid: must be a string"
+}`)
 	// ver.Refresh(registry.FOR_WRITE) // undo the change, otherwise next Set() will fail
 
 	// Important test
@@ -562,12 +613,42 @@ func TestSetNameUser(t *testing.T) {
 		msg  string
 	}{
 		{"a", ""},
-		{"", "Invalid attribute name"},
-		{"#a", "Invalid attribute name"},
-		{"$a", "Invalid attribute name"},
-		{"a$a", "Invalid attribute name"},
-		{"a$", "Invalid attribute name"},
-		{"a.", "Invalid attribute name"},
+		{"", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
+		{"#a", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"#a\" is not valid: attribute name \"#a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
+		{"$a", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"$a\" is not valid: attribute name \"$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
+		{"a$a", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"a$a\" is not valid: attribute name \"a$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
+		{"a$", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"a$\" is not valid: attribute name \"a$\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
+		{"a.", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"a.\" is not valid: attribute name \"a.\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}
+`},
 	} {
 		putFn := func(path string, name string, msg string) {
 			body := bytes.NewBuffer([]byte(fmt.Sprintf(`{"%s":"hi"}`, name)))
@@ -592,9 +673,7 @@ func TestSetNameUser(t *testing.T) {
 				t.Logf("Body:\n%s", string(resBody))
 				t.Fatalf("%q should have failed, but didn't", name)
 			}
-			if !strings.HasPrefix(string(resBody), msg) {
-				t.Fatalf("%q got wrong err msg: %q", name, string(resBody))
-			}
+			xCheckEqual(t, "", string(resBody), msg)
 		}
 		t.Logf("Name: %q", test.name)
 
@@ -645,17 +724,29 @@ func TestSetNameUser(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PUT", "/", `{"mymap":{":bar":"bar"}}`, 400,
-		`Invalid map key name ":bar", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \":bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 	xHTTP(t, reg, "PUT", "/", `{"mymap":{"@bar":"bar"}}`, 400,
-		`Invalid map key name "@bar", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json
 	xHTTP(t, reg, "PUT", "/", `{"ext":{"mymap":{"@bar":"bar"}}}`, 200, `*`)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1", `{"mymap":{"@bar":"bar"}}`, 400,
-		`Invalid map key name "@bar", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/dirs/d1",
+  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json
@@ -664,7 +755,11 @@ func TestSetNameUser(t *testing.T) {
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
 		`{"mymap":{"@bar":"bar"}}`, 400,
-		`Invalid map key name "@bar", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json

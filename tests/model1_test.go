@@ -227,7 +227,12 @@ func TestNoModel(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model/foo", "", 404, "\"model/foo\" not found\n")
+	xHTTP(t, reg, "GET", "/model/foo", "", 404, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "instance": "http://localhost:8181/model/foo",
+  "title": "The specified API is not supported: /model/foo"
+}
+`)
 }
 
 func TestGroupModelCreate(t *testing.T) {

@@ -403,6 +403,6 @@ func (reg *Registry) LoadConfigFromString(buffer string) error {
 
 var PropsFuncs = []*Attribute{}
 
-func (rm *ResourceModel) VerifyData() error {
+func (rm *ResourceModel) VerifyData() *XRError {
 	return nil
 }

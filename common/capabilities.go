@@ -143,7 +143,7 @@ func ArrayToLower(arr []string) []string {
 	return arr
 }
 
-func CleanArray(arr []string, full []string, text string) ([]string, error) {
+func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 	// Make a copy so we can tweak it
 	arr = slices.Clone(arr)
 
@@ -154,8 +154,9 @@ func CleanArray(arr []string, full []string, text string) ([]string, error) {
 		arr[i] = s
 		if s == "*" {
 			if len(arr) != 1 {
-				return nil, fmt.Errorf(`"*" must be the only value `+
-					`specified for %q`, text)
+				return nil, NewXRError("capability_error", "/capabilities",
+					fmt.Sprintf(`"*" must be the only value `+
+						`specified for %q`, text))
 			}
 			return full, nil
 		}
@@ -175,54 +176,59 @@ func CleanArray(arr []string, full []string, text string) ([]string, error) {
 		if as == fs {
 			ai--
 		} else if as > fs {
-			return nil, fmt.Errorf(`Unknown %q value: %q`, text, as)
+			return nil, NewXRError("capability_error", "/capabilities",
+				fmt.Sprintf(`unknown %q value: %q`, text, as))
 		}
 		fi--
 	}
 	if ai < 0 {
 		return arr, nil
 	}
-	return nil, fmt.Errorf(`Unknown %q value: %q`, text, arr[ai])
+	return nil, NewXRError("capability_error", "/capabilities",
+		fmt.Sprintf(`unknown %q value: %q`, text, arr[ai]))
 }
 
-func (c *Capabilities) Validate() error {
-	var err error
+func (c *Capabilities) Validate() *XRError {
+	var xErr *XRError
 
 	if c.SpecVersions == nil {
 		c.SpecVersions = []string{SPECVERSION}
 	}
 
-	c.APIs, err = CleanArray(c.APIs, AllowableAPIs, "apis")
-	if err != nil {
-		return err
+	c.APIs, xErr = CleanArray(c.APIs, AllowableAPIs, "apis")
+	if xErr != nil {
+		return xErr
 	}
 
-	c.Flags, err = CleanArray(c.Flags, AllowableFlags, "flags")
-	if err != nil {
-		return err
+	c.Flags, xErr = CleanArray(c.Flags, AllowableFlags, "flags")
+	if xErr != nil {
+		return xErr
 	}
 
-	c.Mutable, err = CleanArray(c.Mutable, AllowableMutable, "mutable")
-	if err != nil {
-		return err
+	c.Mutable, xErr = CleanArray(c.Mutable, AllowableMutable, "mutable")
+	if xErr != nil {
+		return xErr
 	}
 
 	if c.Pagination != false {
-		return fmt.Errorf(`"pagination" must be "false"`)
+		return NewXRError("capability_error", "/capabilities",
+			`"pagination" must be "false"`)
 	}
 
-	c.SpecVersions, err = CleanArray(c.SpecVersions, AllowableSpecVersions,
+	c.SpecVersions, xErr = CleanArray(c.SpecVersions, AllowableSpecVersions,
 		"specversions")
-	if err != nil {
-		return err
+	if xErr != nil {
+		return xErr
 	}
 
 	if c.ShortSelf != false {
-		return fmt.Errorf(`"shortself" must be "false"`)
+		return NewXRError("capability_error", "/capabilities",
+			`"shortself" must be "false"`)
 	}
 
 	if !ArrayContainsAnyCase(c.SpecVersions, SPECVERSION) {
-		return fmt.Errorf(`"specversions" must contain %q`, SPECVERSION)
+		return NewXRError("capability_error", "/capabilities",
+			fmt.Sprintf(`"specversions" must contain %q`, SPECVERSION))
 	}
 
 	if c.StickyVersions == nil {
@@ -232,16 +238,18 @@ func (c *Capabilities) Validate() error {
 	return nil
 }
 
-func ParseCapabilitiesJSON(buf []byte) (*Capabilities, error) {
+func ParseCapabilitiesJSON(buf []byte) (*Capabilities, *XRError) {
 	log.VPrintf(4, "Enter: ParseCapabilitiesJSON")
 	cap := Capabilities{}
 
 	err := Unmarshal(buf, &cap)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown field ") {
-			err = fmt.Errorf("Unknown capability: %s", err.Error()[14:])
+			return nil, NewXRError("capability_error", "/capabilities",
+				fmt.Sprintf("unknown capability: %s", err.Error()[14:]))
 		}
-		return nil, err
+		return nil, NewXRError("capability_error", "/capabilities",
+			fmt.Sprintf("error parsing data: %s", err))
 	}
 	return &cap, nil
 }

@@ -22,40 +22,60 @@ var RegexpPropName = regexp.MustCompile("^[a-z_][a-z_0-9]{0,62}$")
 var RegexpMapKey = regexp.MustCompile("^[a-z0-9][a-z0-9_.:\\-]{0,62}$")
 var RegexpID = regexp.MustCompile("^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$")
 
-type ModelSerializer func(*Model, string) ([]byte, error)
+type ModelSerializer func(*Model, string) ([]byte, *XRError)
 
 var ModelSerializers = map[string]ModelSerializer{}
 
-func IsValidModelName(name string) error {
+func IsValidModelName(name string) *XRError {
 	if RegexpModelName.MatchString(name) {
 		return nil
 	}
-	return fmt.Errorf("Invalid model type name %q, must match: %s",
-		name, RegexpModelName.String())
+	return NewXRError("model_error", "/",
+		fmt.Sprintf("model type name %q must match: %s", name,
+			RegexpModelName.String()))
 }
 
-func IsValidAttributeName(name string) error {
+func IsValidAttributeName(name string, errLocation string) *XRError {
 	if RegexpPropName.MatchString(name) {
 		return nil
 	}
-	return fmt.Errorf("Invalid attribute name %q, must match: %s",
-		name, RegexpPropName.String())
+
+	if errLocation != "" {
+		errLocation = fmt.Sprintf("while processing %q, ", errLocation)
+	}
+
+	return NewXRError("invalid_attribute", "/",
+		name,
+		fmt.Sprintf("%sattribute name %q must match: %s",
+			errLocation, name, RegexpPropName.String()))
 }
 
-func IsValidMapKey(key string) error {
+func IsValidMapKey(key string, errLocation string) *XRError {
 	if RegexpMapKey.MatchString(key) {
 		return nil
 	}
-	return fmt.Errorf("Invalid map key name %q, must match: %s",
-		key, RegexpMapKey.String())
+
+	if errLocation != "" {
+		errLocation = fmt.Sprintf("while processing %q, ", errLocation)
+	}
+
+	return NewXRError("model_error", "/",
+		fmt.Sprintf("%smap key name %q must match: %s",
+			errLocation, key, RegexpMapKey.String()))
 }
 
-func IsValidID(id string) error {
+func IsValidID(id string, errIDName string) *XRError {
 	if RegexpID.MatchString(id) {
 		return nil
 	}
-	return fmt.Errorf("Invalid ID %q, must match: %s",
-		id, RegexpID.String())
+	if errIDName != "" {
+		return NewXRError("invalid_attribute", "/",
+			errIDName, fmt.Sprintf("value %q must match: %s",
+				id, RegexpID.String()))
+	} else {
+		return NewXRError("bad_request", "/",
+			fmt.Sprintf("ID value %q must match: %s", id, RegexpID.String()))
+	}
 }
 
 type Model struct {
@@ -86,9 +106,9 @@ type AttrInternals struct {
 	httpHeader      string // custom HTTP header name, not xRegistry-...
 	xrefrequired    bool   // required in meta even when xref is set
 
-	getFn    func(*Entity) any   // return prop's value
-	checkFn  func(*Entity) error // validate incoming prop
-	updateFn func(*Entity) error // prep prop for saving to DB
+	getFn    func(*Entity) any      // return prop's value
+	checkFn  func(*Entity) *XRError // validate incoming prop
+	updateFn func(*Entity) *XRError // prep prop for saving to DB
 }
 
 // Use pointers for any attributes that have a default value that differs
@@ -197,16 +217,17 @@ type ResourceModel struct {
 	effectivePropsMap     map[string]*Attribute
 }
 
-func ParseModel(buf []byte) (*Model, error) {
+func ParseModel(buf []byte) (*Model, *XRError) {
 	buf, err := RemoveSchema(buf)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 
 	// Now do the real work
 	model := Model{}
 	if err := Unmarshal(buf, &model); err != nil {
-		return nil, err
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("error parsing data: %s", err))
 	}
 	model.ApplyDefaults()
 	model.SetSpecPropsFields()
@@ -239,14 +260,14 @@ func (attrs Attributes) MarshalJSON() ([]byte, error) {
 }
 
 /*
-func (r *ResourceModel) UnmarshalJSON(data []byte) error {
+func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	// Set the default values before we unmarshal
 	r.MaxVersions = MAXVERSIONS
 
 	type tmpResourceModel ResourceModel
 	err := Unmarshal(data, (*tmpResourceModel)(r))
 	if err != nil {
-		return err
+		return NewXRError("model_error", "/", "error parsing data: " + err)
 	}
 
 	if r.SetVersionId == nil {
@@ -270,8 +291,8 @@ func (m *Model) GetSourceAsModel() *Model {
 		return nil
 	}
 
-	srcModel, err := ParseModel([]byte(m.Source))
-	PanicIf(err != nil, "Error with src: %s", m.Source)
+	srcModel, xErr := ParseModel([]byte(m.Source))
+	PanicIf(xErr != nil, "Error with src: %s", m.Source)
 	return srcModel
 }
 
@@ -462,41 +483,42 @@ func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	return m.propsOrdered, m.propsMap
 }
 
-func (m *Model) AddAttr(name, daType string) (*Attribute, error) {
+func (m *Model) AddAttr(name, daType string) (*Attribute, *XRError) {
 	return m.AddAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (m *Model) AddAttrMap(name string, item *Item) (*Attribute, error) {
+func (m *Model) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return m.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (m *Model) AddAttrObj(name string) (*Attribute, error) {
+func (m *Model) AddAttrObj(name string) (*Attribute, *XRError) {
 	return m.AddAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (m *Model) AddAttrArray(name string, item *Item) (*Attribute, error) {
+func (m *Model) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return m.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (m *Model) AddAttrXID(name string, tgt string) (*Attribute, error) {
+func (m *Model) AddAttrXID(name string, tgt string) (*Attribute, *XRError) {
 	return m.AddAttribute(&Attribute{Name: name, Type: XID, Target: tgt})
 }
 
-func (m *Model) AddAttribute(attr *Attribute) (*Attribute, error) {
+func (m *Model) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if attr.Name != "*" {
-		if err := IsValidAttributeName(attr.Name); err != nil {
-			return nil, err
+		if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+			return nil, xErr
 		}
 	}
 
 	if m.Attributes == nil {
 		m.Attributes = Attributes{}
 	} else if _, ok := m.Attributes[attr.Name]; ok {
-		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("attribute %q already exists", attr.Name))
 	}
 
 	attr.SetModel(m)
@@ -507,9 +529,9 @@ func (m *Model) AddAttribute(attr *Attribute) (*Attribute, error) {
 		AttrNames: map[string]bool{},
 		Path:      NewPPP("model"),
 	}
-	if err := m.Attributes.Verify("strict", ld); err != nil {
+	if xErr := m.Attributes.Verify("strict", ld); xErr != nil {
 		delete(m.Attributes, attr.Name)
-		return nil, err
+		return nil, xErr
 	}
 
 	m.SetChanged(true)
@@ -517,7 +539,7 @@ func (m *Model) AddAttribute(attr *Attribute) (*Attribute, error) {
 	return attr, nil
 }
 
-func (m *Model) DelAttribute(name string) error {
+func (m *Model) DelAttribute(name string) *XRError {
 	if m.Attributes == nil {
 		return nil
 	}
@@ -529,43 +551,50 @@ func (m *Model) DelAttribute(name string) error {
 	return nil
 }
 
-func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*GroupModel, *ResourceModel, error) {
-	gm, err := m.AddGroupModel(gPlural, gSingular)
-	if err != nil {
-		return nil, nil, err
+func (m *Model) CreateModels(gPlural, gSingular, rPlural, rSingular string) (*GroupModel, *ResourceModel, *XRError) {
+	gm, xErr := m.AddGroupModel(gPlural, gSingular)
+	if xErr != nil {
+		return nil, nil, xErr
 	}
-	rm, err := gm.AddResourceModelSimple(rPlural, rSingular)
-	if err != nil {
+	rm, xErr := gm.AddResourceModelSimple(rPlural, rSingular)
+	if xErr != nil {
 		gm.Delete()
-		return nil, nil, err
+		return nil, nil, xErr
 	}
 	return gm, rm, nil
 }
 
-func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, error) {
+func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, *XRError) {
 	if plural == "" {
-		return nil, fmt.Errorf("Can't add a GroupModel with an empty plural name")
+		return nil,
+			NewXRError("model_error", "/",
+				fmt.Sprintf("can't add a GroupModel with an empty plural name"))
 	}
 	if singular == "" {
-		return nil, fmt.Errorf("Can't add a GroupModel with an empty singular name")
+		return nil,
+			NewXRError("model_error", "/",
+				fmt.Sprintf("can't add a GroupModel with an empty "+
+					"singular name"))
 	}
 
-	if err := IsValidModelName(plural); err != nil {
-		return nil, err
+	if xErr := IsValidModelName(plural); xErr != nil {
+		return nil, xErr
 	}
 
-	if err := IsValidModelName(singular); err != nil {
-		return nil, err
+	if xErr := IsValidModelName(singular); xErr != nil {
+		return nil, xErr
 	}
 
 	for _, gm := range m.Groups {
 		if gm.Plural == plural {
-			return nil, fmt.Errorf("GroupModel plural %q already exists",
-				plural)
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf("Group definition plural name %q already exists",
+					plural))
 		}
 		if gm.Singular == singular {
-			return nil, fmt.Errorf("GroupModel singular %q already exists",
-				singular)
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf("Group definition singular name %q already exists",
+					singular))
 		}
 	}
 
@@ -691,7 +720,7 @@ func (i *Item) SetModel(m *Model) {
 	i.Item.SetModel(m)
 }
 
-func (i *Item) SetItem(item *Item) error {
+func (i *Item) SetItem(item *Item) *XRError {
 	i.Item = item
 	item.SetModel(i.Model)
 
@@ -700,51 +729,58 @@ func (i *Item) SetItem(item *Item) error {
 	return nil
 }
 
-func (i *Item) AddAttr(name, daType string) (*Attribute, error) {
+func (i *Item) AddAttr(name, daType string) (*Attribute, *XRError) {
 	return i.AddAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (i *Item) AddAttrMap(name string, item *Item) (*Attribute, error) {
+func (i *Item) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return i.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (i *Item) AddAttrObj(name string) (*Attribute, error) {
+func (i *Item) AddAttrObj(name string) (*Attribute, *XRError) {
 	return i.AddAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (i *Item) AddAttrArray(name string, item *Item) (*Attribute, error) {
+func (i *Item) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return i.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (i *Item) AddAttribute(attr *Attribute) (*Attribute, error) {
+func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if i.Type != OBJECT {
-		return nil, fmt.Errorf("Item must be of type OBJECT in order to add attributes, it's %q", i.Type)
+		return nil,
+			NewXRError("model_error", "/",
+				fmt.Sprintf("item must be of type OBJECT in order to "+
+					"add attributes, it's %q", i.Type))
 	}
 
 	if attr.Name != "*" {
 		if i.Type == OBJECT {
 			if i.NameCharSet == "extended" {
-				if err := IsValidMapKey(attr.Name); err != nil {
-					return nil, fmt.Errorf("Invalid attribute name %q, must "+
-						"match: %s", attr.Name, RegexpMapKey.String())
+				if xErr := IsValidMapKey(attr.Name, ""); xErr != nil {
+					return nil,
+						NewXRError("model_error", "/",
+							fmt.Sprintf("invalid attribute name %q must "+
+								"match: %s", attr.Name, RegexpMapKey.String()))
 				}
 			} else if i.NameCharSet == "strict" || i.NameCharSet == "" {
-				if err := IsValidAttributeName(attr.Name); err != nil {
-					return nil, err
+				if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+					return nil, xErr
 				}
 			} else {
-				return nil, fmt.Errorf("Invalid \"namecharset\" value: %s",
-					i.NameCharSet)
+				return nil, NewXRError("model_error", "/",
+					fmt.Sprintf("invalid \"namecharset\" value: %s",
+						i.NameCharSet))
 			}
 		} else {
 			if attr.NameCharSet != "" {
-				return nil, fmt.Errorf("Attribute %q must not have a "+
-					"\"namecharset\" value unless its type is \"object\"",
-					attr.Name)
+				return nil, NewXRError("model_error", "/",
+					fmt.Sprintf("attribute %q must not have a "+
+						"\"namecharset\" value unless its type is \"object\"",
+						attr.Name))
 			}
 		}
 	}
@@ -752,7 +788,8 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, error) {
 	if i.Attributes == nil {
 		i.Attributes = Attributes{}
 	} else if _, ok := i.Attributes[attr.Name]; ok {
-		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("attribute %q already exists", attr.Name))
 	}
 
 	i.Attributes[attr.Name] = attr
@@ -767,7 +804,7 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, error) {
 	return attr, nil
 }
 
-func (i *Item) DelAttribute(name string) error {
+func (i *Item) DelAttribute(name string) *XRError {
 	if i.Attributes != nil {
 		delete(i.Attributes, name)
 	}
@@ -841,7 +878,7 @@ func (gm *GroupModel) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 	return gm.propsOrdered, gm.propsMap
 }
 
-func (gm *GroupModel) Delete() error {
+func (gm *GroupModel) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Delete.GroupModel: %s", gm.Plural)
 	defer log.VPrintf(3, "<Exit: Delete.GroupModel")
 
@@ -853,37 +890,38 @@ func (gm *GroupModel) Delete() error {
 	return nil
 }
 
-func (gm *GroupModel) AddAttr(name, daType string) (*Attribute, error) {
+func (gm *GroupModel) AddAttr(name, daType string) (*Attribute, *XRError) {
 	return gm.AddAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (gm *GroupModel) AddAttrMap(name string, item *Item) (*Attribute, error) {
+func (gm *GroupModel) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return gm.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (gm *GroupModel) AddAttrObj(name string) (*Attribute, error) {
+func (gm *GroupModel) AddAttrObj(name string) (*Attribute, *XRError) {
 	return gm.AddAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (gm *GroupModel) AddAttrArray(name string, item *Item) (*Attribute, error) {
+func (gm *GroupModel) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return gm.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, error) {
+func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if attr.Name != "*" {
-		if err := IsValidAttributeName(attr.Name); err != nil {
-			return nil, err
+		if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+			return nil, xErr
 		}
 	}
 
 	if gm.Attributes == nil {
 		gm.Attributes = Attributes{}
 	} else if _, ok := gm.Attributes[attr.Name]; ok {
-		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("attribute %q already exists", attr.Name))
 	}
 
 	gm.Attributes[attr.Name] = attr
@@ -895,9 +933,9 @@ func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 		AttrNames: map[string]bool{},
 		Path:      NewPPP("groups").P(gm.Plural),
 	}
-	if err := gm.Attributes.Verify("strict", ld); err != nil {
+	if xErr := gm.Attributes.Verify("strict", ld); xErr != nil {
 		delete(gm.Attributes, attr.Name)
-		return nil, err
+		return nil, xErr
 	}
 
 	attr.Model.SetChanged(true)
@@ -905,7 +943,7 @@ func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 	return attr, nil
 }
 
-func (gm *GroupModel) DelAttribute(name string) error {
+func (gm *GroupModel) DelAttribute(name string) *XRError {
 	if gm.Attributes != nil {
 		delete(gm.Attributes, name)
 	}
@@ -915,7 +953,7 @@ func (gm *GroupModel) DelAttribute(name string) error {
 	return nil
 }
 
-func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, error) {
+func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, *XRError) {
 	return gm.AddResourceModelFull(&ResourceModel{
 		Plural:            plural,
 		Singular:          singular,
@@ -927,7 +965,7 @@ func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*Resource
 	})
 }
 
-func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, setDefaultSticky bool, hasDocument bool) (*ResourceModel, error) {
+func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, setDefaultSticky bool, hasDocument bool) (*ResourceModel, *XRError) {
 	return gm.AddResourceModelFull(&ResourceModel{
 		Plural:           plural,
 		Singular:         singular,
@@ -938,42 +976,47 @@ func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersio
 	})
 }
 
-func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, error) {
+func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *XRError) {
 	if rm.Plural == "" {
-		return nil, fmt.Errorf("Can't add a group with an empty plural name")
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("can't add a Group with an empty plural name"))
 	}
 	if rm.Singular == "" {
-		return nil, fmt.Errorf("Can't add a group with an empty singular name")
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("can't add a Group with an empty singular name"))
 	}
 
 	if rm.MaxVersions != nil {
 		if *rm.MaxVersions < 0 {
-			return nil, fmt.Errorf(`"maxversions"(%d) must be >= 0`,
-				*(rm.MaxVersions))
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
+					*(rm.MaxVersions)))
 		}
 
 		if *rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
-			return nil, fmt.Errorf("'setdefaultversionsticky' must be " +
-				"'false' since 'maxversions' is '1'")
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf("'setdefaultversionsticky' must be "+
+					"'false' since 'maxversions' is '1'"))
 		}
 	}
 
-	if err := IsValidModelName(rm.Plural); err != nil {
-		return nil, err
+	if xErr := IsValidModelName(rm.Plural); xErr != nil {
+		return nil, xErr
 	}
-	if err := IsValidModelName(rm.Singular); err != nil {
-		return nil, err
+	if xErr := IsValidModelName(rm.Singular); xErr != nil {
+		return nil, xErr
 	}
 
 	for _, r := range gm.Resources {
 		if r.Plural == rm.Plural {
-			return nil, fmt.Errorf("Resource model plural %q already "+
-				"exists for group %q", rm.Plural, gm.Plural)
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf("Resource model plural name %q already "+
+					"exists for Group %q", rm.Plural, gm.Plural))
 		}
 		if r.Singular == rm.Singular {
-			return nil,
-				fmt.Errorf("Resource model singular %q already "+
-					"exists for group %q", rm.Singular, gm.Plural)
+			return nil, NewXRError("model_error", "/",
+				fmt.Sprintf("Resource model singular name %q already "+
+					"exists for Group %q", rm.Singular, gm.Plural))
 		}
 	}
 
@@ -987,25 +1030,29 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, e
 	return rm, nil
 }
 
-func (gm *GroupModel) AddXImportResource(absXID string) error {
+func (gm *GroupModel) AddXImportResource(absXID string) *XRError {
 	xidType, err := ParseXidType(absXID)
 	if err != nil {
-		return fmt.Errorf("'ximportresources' value %s", err)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("'ximportresources' value %s", err))
 	}
 	if xidType.Type != ENTITY_RESOURCE_TYPE {
-		return fmt.Errorf("'ximportresources' value of %q must be "+
-			"of the form: /GROUPS/RESOURCES", absXID)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("'ximportresources' value of %q must be "+
+				"of the form: /GROUPS/RESOURCES", absXID))
 	}
 
 	if xidType.Group == gm.Plural {
-		return fmt.Errorf("'ximportresources' value of %q is not allowed to "+
-			"reference its own GroupModel %q", absXID, gm.Plural)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("'ximportresources' value of %q is not allowed to "+
+				"reference its own GroupModel %q", absXID, gm.Plural))
 	}
 
 	for _, grName := range gm.XImportResources {
 		if grName == absXID {
-			return fmt.Errorf("'ximportresources' list already has "+
-				"an entry for %q", absXID)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("'ximportresources' list already has "+
+					"an entry for %q", absXID))
 		}
 	}
 
@@ -1253,30 +1300,30 @@ func (rm *ResourceModel) GetSingleVersionRoot() bool {
 	return *rm.SingleVersionRoot
 }
 
-func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, error) {
+func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
 	return rm.AddResourceAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (rm *ResourceModel) AddResourceAttrMap(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddResourceAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddResourceAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (rm *ResourceModel) AddResourceAttrObj(name string) (*Attribute, error) {
+func (rm *ResourceModel) AddResourceAttrObj(name string) (*Attribute, *XRError) {
 	return rm.AddResourceAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (rm *ResourceModel) AddResourceAttrArray(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddResourceAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddResourceAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, error) {
+func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if attr.Name != "*" {
-		if err := IsValidAttributeName(attr.Name); err != nil {
-			return nil, err
+		if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+			return nil, xErr
 		}
 	}
 
@@ -1293,30 +1340,30 @@ func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, erro
 	return attr, nil
 }
 
-func (rm *ResourceModel) AddMetaAttr(name, daType string) (*Attribute, error) {
+func (rm *ResourceModel) AddMetaAttr(name, daType string) (*Attribute, *XRError) {
 	return rm.AddMetaAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (rm *ResourceModel) AddMetaAttrMap(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddMetaAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddMetaAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (rm *ResourceModel) AddMetaAttrObj(name string) (*Attribute, error) {
+func (rm *ResourceModel) AddMetaAttrObj(name string) (*Attribute, *XRError) {
 	return rm.AddMetaAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (rm *ResourceModel) AddMetaAttrArray(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddMetaAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddMetaAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, error) {
+func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if attr.Name != "*" {
-		if err := IsValidAttributeName(attr.Name); err != nil {
-			return nil, err
+		if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+			return nil, xErr
 		}
 	}
 
@@ -1333,7 +1380,7 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, error) {
 	return attr, nil
 }
 
-func (rm *ResourceModel) Delete() error {
+func (rm *ResourceModel) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Delete.ResourceModel: %s", rm.Plural)
 	defer log.VPrintf(3, "<Exit: Delete.ResourceModel")
 
@@ -1345,30 +1392,30 @@ func (rm *ResourceModel) Delete() error {
 	return nil
 }
 
-func (rm *ResourceModel) AddAttr(name, daType string) (*Attribute, error) {
+func (rm *ResourceModel) AddAttr(name, daType string) (*Attribute, *XRError) {
 	return rm.AddAttribute(&Attribute{Name: name, Type: daType})
 }
 
-func (rm *ResourceModel) AddAttrMap(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (rm *ResourceModel) AddAttrObj(name string) (*Attribute, error) {
+func (rm *ResourceModel) AddAttrObj(name string) (*Attribute, *XRError) {
 	return rm.AddAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (rm *ResourceModel) AddAttrArray(name string, item *Item) (*Attribute, error) {
+func (rm *ResourceModel) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return rm.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
 
-func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
+func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr == nil {
 		return nil, nil
 	}
 
 	if attr.Name != "*" {
-		if err := IsValidAttributeName(attr.Name); err != nil {
-			return nil, err
+		if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+			return nil, xErr
 		}
 	}
 
@@ -1382,7 +1429,8 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 
 		for _, name := range invalidNames {
 			if attr.Name == name {
-				return nil, fmt.Errorf("Attribute name is reserved: %s", name)
+				return nil, NewXRError("model_error", "/",
+					fmt.Sprintf("attribute name is reserved: %s", name))
 			}
 		}
 	}
@@ -1390,7 +1438,8 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 	if rm.VersionAttributes == nil {
 		rm.VersionAttributes = Attributes{}
 	} else if _, ok := rm.VersionAttributes[attr.Name]; ok {
-		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("attribute %q already exists", attr.Name))
 	}
 
 	rm.VersionAttributes[attr.Name] = attr
@@ -1402,9 +1451,9 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 		AttrNames: map[string]bool{},
 		Path:      NewPPP("resources").P(rm.Plural),
 	}
-	if err := rm.VersionAttributes.Verify("strict", ld); err != nil {
+	if xErr := rm.VersionAttributes.Verify("strict", ld); xErr != nil {
 		delete(rm.VersionAttributes, attr.Name)
-		return nil, err
+		return nil, xErr
 	}
 
 	rm.GroupModel.Model.SetChanged(true)
@@ -1412,7 +1461,7 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, error) {
 	return attr, nil
 }
 
-func (rm *ResourceModel) DelResourceAttribute(name string) error {
+func (rm *ResourceModel) DelResourceAttribute(name string) *XRError {
 	if rm.ResourceAttributes != nil {
 		delete(rm.ResourceAttributes, name)
 	}
@@ -1422,7 +1471,7 @@ func (rm *ResourceModel) DelResourceAttribute(name string) error {
 	return nil
 }
 
-func (rm *ResourceModel) DelMetaAttribute(name string) error {
+func (rm *ResourceModel) DelMetaAttribute(name string) *XRError {
 	if rm.MetaAttributes != nil {
 		delete(rm.MetaAttributes, name)
 	}
@@ -1432,7 +1481,7 @@ func (rm *ResourceModel) DelMetaAttribute(name string) error {
 	return nil
 }
 
-func (rm *ResourceModel) DelAttribute(name string) error {
+func (rm *ResourceModel) DelAttribute(name string) *XRError {
 	if rm.VersionAttributes != nil {
 		delete(rm.VersionAttributes, name)
 	}
@@ -1545,7 +1594,7 @@ func (a *Attribute) SetStrict(val bool) {
 	a.Model.SetChanged(true)
 }
 
-func (a *Attribute) AddAttr(name, daType string) (*Attribute, error) {
+func (a *Attribute) AddAttr(name, daType string) (*Attribute, *XRError) {
 	return a.AddAttribute(&Attribute{
 		Model: a.Model,
 		Name:  name,
@@ -1553,38 +1602,41 @@ func (a *Attribute) AddAttr(name, daType string) (*Attribute, error) {
 	})
 }
 
-func (a *Attribute) AddAttrMap(name string, item *Item) (*Attribute, error) {
+func (a *Attribute) AddAttrMap(name string, item *Item) (*Attribute, *XRError) {
 	return a.AddAttribute(&Attribute{Name: name, Type: MAP, Item: item})
 }
 
-func (a *Attribute) AddAttrObj(name string) (*Attribute, error) {
+func (a *Attribute) AddAttrObj(name string) (*Attribute, *XRError) {
 	return a.AddAttribute(&Attribute{Name: name, Type: OBJECT})
 }
 
-func (a *Attribute) AddAttrArray(name string, item *Item) (*Attribute, error) {
+func (a *Attribute) AddAttrArray(name string, item *Item) (*Attribute, *XRError) {
 	return a.AddAttribute(&Attribute{Name: name, Type: ARRAY, Item: item})
 }
-func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, error) {
+func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr.Name != "*" {
 		if a.Type == OBJECT {
 			if a.NameCharSet == "extended" {
-				if err := IsValidMapKey(attr.Name); err != nil {
-					return nil, fmt.Errorf("Invalid attribute name %q, must "+
-						"match: %s", attr.Name, RegexpMapKey.String())
+				if xErr := IsValidMapKey(attr.Name, ""); xErr != nil {
+					return nil, NewXRError("model_error", "/",
+						fmt.Sprintf("invalid attribute name %q must "+
+							"match: %s", attr.Name, RegexpMapKey.String()))
 				}
 			} else if a.NameCharSet == "strict" || a.NameCharSet == "" {
-				if err := IsValidAttributeName(attr.Name); err != nil {
-					return nil, err
+				if xErr := IsValidAttributeName(attr.Name, ""); xErr != nil {
+					return nil, xErr
 				}
 			} else {
-				return nil, fmt.Errorf("Invalid \"namecharset\" value: %s",
-					a.NameCharSet)
+				return nil, NewXRError("model_error", "/",
+					fmt.Sprintf("invalid \"namecharset\" value: %s",
+						a.NameCharSet))
 			}
 		} else {
 			if a.NameCharSet != "" {
-				return nil, fmt.Errorf("Attribute %q must not have a "+
-					"\"namecharset\" value unless it is of type \"object\"",
-					a.Name)
+				return nil, NewXRError("model_error", "/",
+					fmt.Sprintf("attribute %q must not have a "+
+						"\"namecharset\" value unless it is of type \"object\"",
+						a.Name))
 			}
 		}
 	}
@@ -1592,7 +1644,8 @@ func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, error) {
 	if a.Attributes == nil {
 		a.Attributes = Attributes{}
 	} else if _, ok := a.Attributes[attr.Name]; ok {
-		return nil, fmt.Errorf("Attribute %q already exists", attr.Name)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("attribute %q already exists", attr.Name))
 	}
 
 	a.Attributes[attr.Name] = attr
@@ -1606,7 +1659,7 @@ func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, error) {
 // Make sure that the attribute doesn't deviate too much from the
 // spec defined version of it. There's only so much that we allow the
 // user to customize
-func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
+func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 	if userAttr.Name == "" {
 		userAttr.Name = specAttr.Name
 	}
@@ -1619,18 +1672,21 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) error {
 
 	if specAttr.Required {
 		if userAttr.Required == false {
-			return fmt.Errorf(`"model.%s" must have its "required" `+
-				`attribute set to "true"`, specAttr.Name)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf(`"model.%s" must have its "required" `+
+					`attribute set to "true"`, specAttr.Name))
 		}
 		if specAttr.ReadOnly && !userAttr.ReadOnly {
-			return fmt.Errorf(`"model.%s" must have its "readonly" `+
-				`attribute set to "true"`, specAttr.Name)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf(`"model.%s" must have its "readonly" `+
+					`attribute set to "true"`, specAttr.Name))
 		}
 	}
 
 	if specAttr.Type != userAttr.Type {
-		return fmt.Errorf(`"model.%s" must have a "type" of %q`,
-			userAttr.Name, specAttr.Type)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`"model.%s" must have a "type" of %q`,
+				userAttr.Name, specAttr.Type))
 	}
 
 	return nil
@@ -1681,7 +1737,7 @@ func (m *Model) RemoveConditionalProps() {
 	}
 }
 
-func (m *Model) Verify() error {
+func (m *Model) Verify() *XRError {
 	// TODO: Verify that the Registry data is model compliant
 
 	m.ClearPropsOrdered()
@@ -1691,14 +1747,15 @@ func (m *Model) Verify() error {
 	// flag that instead of an invalid GROUPScount attribute name
 	for gmName, gm := range m.Groups {
 		if gm == nil {
-			return fmt.Errorf("GroupModel %q can't be empty", gmName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group definition for %q can't be empty", gmName))
 		}
 
 		gm.Model = m
 
 		// PanicIf(m.Registry.Model == nil, "nil")
-		if err := gm.Verify(gmName); err != nil {
-			return err
+		if xErr := gm.Verify(gmName); xErr != nil {
+			return xErr
 		}
 	}
 
@@ -1724,16 +1781,16 @@ func (m *Model) Verify() error {
 			m.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
-			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-				return err
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
 			}
 		}
 	}
 
 	// Now check Registry attributes for correctness
 	for key, _ := range m.Labels {
-		if err := IsValidMapKey(key); err != nil {
-			return err
+		if xErr := IsValidMapKey(key, ""); xErr != nil {
+			return xErr
 		}
 	}
 
@@ -1742,8 +1799,8 @@ func (m *Model) Verify() error {
 		AttrNames: map[string]bool{},
 		Path:      NewPPP("model"),
 	}
-	if err := m.Attributes.Verify("strict", ld); err != nil {
-		return err
+	if xErr := m.Attributes.Verify("strict", ld); xErr != nil {
+		return xErr
 	}
 
 	return nil
@@ -1777,11 +1834,11 @@ func (gm *GroupModel) RemoveConditionalProps() {
 	}
 }
 
-func (gm *GroupModel) Verify(gmName string) error {
+func (gm *GroupModel) Verify(gmName string) *XRError {
 	gm.ClearPropsOrdered()
 
-	if err := IsValidModelName(gmName); err != nil {
-		return err
+	if xErr := IsValidModelName(gmName); xErr != nil {
+		return xErr
 	}
 
 	if gm.Plural == "" {
@@ -1789,8 +1846,9 @@ func (gm *GroupModel) Verify(gmName string) error {
 		gm.Plural = gmName
 		gm.Model.SetChanged(true)
 	} else if gm.Plural != gmName {
-		return fmt.Errorf("Group %q must have a `plural` value of %q, not %q",
-			gmName, gmName, gm.Plural)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("Group %q must have a `plural` value of %q, not %q",
+				gmName, gmName, gm.Plural))
 	}
 
 	if gm.SID == "" {
@@ -1798,21 +1856,24 @@ func (gm *GroupModel) Verify(gmName string) error {
 	}
 
 	if gm.Singular == "" {
-		return fmt.Errorf(`Group %q is missing a "singular" value`, gmName)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Group %q is missing a "singular" value`, gmName))
 	}
 
 	if gm.Singular == gm.Plural {
-		return fmt.Errorf(`Group %q has same value for "plural" `+
-			`and "singular"`, gmName)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Group %q has same value for "plural" `+
+				`and "singular"`, gmName))
 	}
 
 	if gm.Model.Groups[gm.Singular] != nil {
-		return fmt.Errorf(`Group %q has a "singular" value (%s) that `+
-			`matches another Group's "plural" value`, gmName, gm.Singular)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Group %q has a "singular" value (%s) that `+
+				`matches another Group's "plural" value`, gmName, gm.Singular))
 	}
 
-	if err := IsValidModelName(gm.Singular); err != nil {
-		return err
+	if xErr := IsValidModelName(gm.Singular); xErr != nil {
+		return xErr
 	}
 
 	// TODO: verify the Groups data are model compliant
@@ -1829,24 +1890,28 @@ func (gm *GroupModel) Verify(gmName string) error {
 
 		parts := strings.Split(grName, "/")
 		if len(parts) != 3 {
-			return fmt.Errorf("Group %q has an invalid \"ximportresources\" "+
-				"value (%s), must be of the form \"/Group/Resource\"",
-				gm.Plural, grName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
+					"value (%s), must be of the form \"/Group/Resource\"",
+					gm.Plural, grName))
 		}
 		if parts[0] != "" {
-			return fmt.Errorf("Group %q has an invalid \"ximportresources\" "+
-				"value (%s), must start with \"/\" and be of the form "+
-				"\"/Group/Resource\"", gm.Plural, grName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
+					"value (%s), must start with \"/\" and be of the form "+
+					"\"/Group/Resource\"", gm.Plural, grName))
 		}
 		if parts[1] == gm.Plural {
-			return fmt.Errorf("Group %q has a bad \"ximportresources\" value "+
-				"(%s), it can't reference its own Group", gm.Plural, grName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a bad \"ximportresources\" value "+
+					"(%s), it can't reference its own Group", gm.Plural, grName))
 		}
 
 		g := gm.Model.FindGroupModel(parts[1])
 		if g == nil {
-			return fmt.Errorf("Group %q references a non-existing "+
-				"Group %q", gm.Plural, parts[1])
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q references a non-existing "+
+					"Group %q", gm.Plural, parts[1]))
 		}
 
 		// r := g.FindResourceModel(parts[2]) - don't use, don't want ximps
@@ -1854,29 +1919,34 @@ func (gm *GroupModel) Verify(gmName string) error {
 		if r == nil {
 			for _, imp := range g.XImportResources {
 				if strings.HasSuffix(imp, "/"+parts[2]) {
-					return fmt.Errorf("Group %q references an imported "+
-						"Resource %q, try using %q instead",
-						gm.Plural, grName, imp)
+					return NewXRError("model_error", "/",
+						fmt.Sprintf("Group %q references an imported "+
+							"Resource %q, try using %q instead",
+							gm.Plural, grName, imp))
 				}
 			}
-			return fmt.Errorf("Group %q references a non-existing "+
-				"Resource %q", gm.Plural, grName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q references a non-existing "+
+					"Resource %q", gm.Plural, grName))
 		}
 
 		if _, ok := plurals[parts[2]]; ok {
-			return fmt.Errorf("Group %q has a duplicate Resource \"plural\" "+
-				"name %q", gm.Plural, parts[2])
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a duplicate Resource \"plural\" "+
+					"name %q", gm.Plural, parts[2]))
 		}
 
 		if _, ok := plurals[r.Singular]; ok {
-			return fmt.Errorf("Group %q has a \"singular\" Resource name "+
-				"%q that conflicts with a \"plural\" Resource name",
-				gm.Plural, parts[2])
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a \"singular\" Resource name "+
+					"%q that conflicts with a \"plural\" Resource name",
+					gm.Plural, parts[2]))
 		}
 
 		if _, ok := singulars[r.Singular]; ok {
-			return fmt.Errorf("Group %q has a duplicate \"singular\" "+
-				"Resource name %q", gm.Plural, r.Singular)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a duplicate \"singular\" "+
+					"Resource name %q", gm.Plural, r.Singular))
 		}
 
 		plurals[parts[2]] = r.Singular
@@ -1889,18 +1959,21 @@ func (gm *GroupModel) Verify(gmName string) error {
 	for _, rmName := range rList {
 		rm := gm.Resources[rmName]
 		if rm == nil {
-			return fmt.Errorf("Group %q has an empty Resource %q",
-				gm.Plural, rmName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has an empty Resource %q",
+					gm.Plural, rmName))
 		}
 
 		if _, ok := plurals[rmName]; ok {
-			return fmt.Errorf("Group %q has a Resource %q that has a "+
-				"duplicate \"plural\" name", gm.Plural, rmName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a Resource %q that has a "+
+					"duplicate \"plural\" name", gm.Plural, rmName))
 		}
 
 		if _, ok := singulars[rmName]; ok {
-			return fmt.Errorf("Group %q has a Resource %q that has a "+
-				"duplicate \"singular\" name", gm.Plural, rmName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a Resource %q that has a "+
+					"duplicate \"singular\" name", gm.Plural, rmName))
 		}
 
 		rm.GroupModel = gm
@@ -1910,15 +1983,17 @@ func (gm *GroupModel) Verify(gmName string) error {
 		}
 
 		if _, ok := plurals[rm.Singular]; ok {
-			return fmt.Errorf("Group %q has a Resource %q that has a "+
-				"\"singular\" name that conflicts with an existing "+
-				"\"plural\" name", gm.Plural, rmName)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a Resource %q that has a "+
+					"\"singular\" name that conflicts with an existing "+
+					"\"plural\" name", gm.Plural, rmName))
 		}
 
 		if _, ok := singulars[rm.Singular]; ok {
-			return fmt.Errorf("Group %q has a Resource %q that has a "+
-				"duplicate \"singular\" name %q",
-				gm.Plural, rmName, rm.Singular)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Group %q has a Resource %q that has a "+
+					"duplicate \"singular\" name %q",
+					gm.Plural, rmName, rm.Singular))
 		}
 
 		plurals[rmName] = rm.Singular
@@ -1955,7 +2030,7 @@ func (gm *GroupModel) Verify(gmName string) error {
 	}
 
 	for key, _ := range gm.Labels {
-		if err := IsValidMapKey(key); err != nil {
+		if err := IsValidMapKey(key, ""); err != nil {
 			return err
 		}
 	}
@@ -2108,11 +2183,11 @@ func (rm *ResourceModel) RemoveConditionalProps() {
 	}
 }
 
-func (rm *ResourceModel) Verify(rmName string) error {
+func (rm *ResourceModel) Verify(rmName string) *XRError {
 	rm.ClearPropsOrdered()
 
-	if err := IsValidModelName(rmName); err != nil {
-		return err
+	if xErr := IsValidModelName(rmName); xErr != nil {
+		return xErr
 	}
 
 	if rm.Plural == "" {
@@ -2120,8 +2195,9 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		rm.Plural = rmName
 		rm.GroupModel.Model.SetChanged(true)
 	} else if rm.Plural != rmName {
-		return fmt.Errorf("Resource %q must have a 'plural' value of %q, "+
-			"not %q", rmName, rmName, rm.Plural)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("Resource %q must have a 'plural' value of %q, "+
+				"not %q", rmName, rmName, rm.Plural))
 	}
 
 	if rm.SID == "" {
@@ -2129,26 +2205,30 @@ func (rm *ResourceModel) Verify(rmName string) error {
 	}
 
 	if rm.Singular == "" {
-		return fmt.Errorf(`Resource %q is missing a "singular" value`, rmName)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Resource %q is missing a "singular" value`, rmName))
 	}
 
 	if rm.Singular == rm.Plural {
-		return fmt.Errorf(`Resource %q has same value for "plural" `+
-			`and "singular"`, rmName)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Resource %q has same value for "plural" `+
+				`and "singular"`, rmName))
 	}
 
 	if rm.GroupModel.FindResourceModel(rm.Singular) != nil {
-		return fmt.Errorf(`Resource %q has a "singular" value (%s) that `+
-			`matches another Resource's "plural" value`, rmName, rm.Singular)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf(`Resource %q has a "singular" value (%s) that `+
+				`matches another Resource's "plural" value`, rmName, rm.Singular))
 	}
 
-	if err := IsValidModelName(rm.Singular); err != nil {
-		return err
+	if xErr := IsValidModelName(rm.Singular); xErr != nil {
+		return xErr
 	}
 
 	if rm.MaxVersions != nil && *rm.MaxVersions < 0 {
-		return fmt.Errorf("Resource %q must have a 'maxversions' value >= 0",
-			rmName)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("Resource %q must have a 'maxversions' value >= 0",
+				rmName))
 	}
 
 	// Make sure we have the xRegistry core/spec defined attributes
@@ -2186,8 +2266,8 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			rm.GroupModel.Model.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
-			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-				return err
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -2201,8 +2281,9 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		}
 	}
 	if len(list) > 0 {
-		return fmt.Errorf("Extension attributes are not allowed in "+
-			"\"resourceattributes\": %s", strings.Join(SortedKeys(list), ","))
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("extension attributes are not allowed in "+
+				"\"resourceattributes\": %s", strings.Join(SortedKeys(list), ",")))
 	}
 
 	propsOrdered, _ = rm.GetVersionPropsOrdered()
@@ -2220,8 +2301,8 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			rm.GroupModel.Model.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
-			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-				return err
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -2240,15 +2321,15 @@ func (rm *ResourceModel) Verify(rmName string) error {
 			rm.GroupModel.Model.SetChanged(true)
 		} else {
 			// It's there but make sure it's not changed in a bad way
-			if err := EnsureAttrOK(modelAttr, specProp); err != nil {
-				return err
+			if xErr := EnsureAttrOK(modelAttr, specProp); xErr != nil {
+				return xErr
 			}
 		}
 	}
 
 	for key, _ := range rm.Labels {
-		if err := IsValidMapKey(key); err != nil {
-			return err
+		if xErr := IsValidMapKey(key, ""); xErr != nil {
+			return xErr
 		}
 	}
 
@@ -2258,30 +2339,32 @@ func (rm *ResourceModel) Verify(rmName string) error {
 		Path:      NewPPP("resources").P(rm.Plural),
 	}
 
-	if err := rm.ResourceAttributes.Verify("strict", ld); err != nil {
-		return err
+	if xErr := rm.ResourceAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
 	}
-	if err := rm.VersionAttributes.Verify("strict", ld); err != nil {
-		return err
+	if xErr := rm.VersionAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
 	}
-	if err := rm.MetaAttributes.Verify("strict", ld); err != nil {
-		return err
+	if xErr := rm.MetaAttributes.Verify("strict", ld); xErr != nil {
+		return xErr
 	}
 	// TODO: verify the Resources data are model compliant
 	// Only do this if we have a Registry. It assumes that if we have
 	// no Registry then we're not connected to a backend and there's no data
 	// to verify
 	if rm.GroupModel.Model.Registry != nil {
-		if err := rm.VerifyData(); err != nil {
-			return err
+		if xErr := rm.VerifyData(); xErr != nil {
+			return xErr
 		}
 	}
 
 	// Make sure the typemap's values are just certain strings
 	for _, v := range rm.TypeMap {
 		if v != "string" && v != "json" && v != "binary" {
-			return fmt.Errorf("Resource %q has an invalid 'typemap' value "+
-				"(%s). Must be one of 'string', 'json' or 'binary'", rmName, v)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("Resource %q has an invalid 'typemap' value "+
+					"(%s). Must be one of 'string', 'json' or 'binary'",
+					rmName, v))
 		}
 	}
 
@@ -2309,7 +2392,7 @@ func (rm *ResourceModel) GetMaxVersions() int {
 	return *rm.MaxVersions
 }
 
-func (rm *ResourceModel) SetMaxVersions(maxV int) error {
+func (rm *ResourceModel) SetMaxVersions(maxV int) *XRError {
 	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
 		rm.MaxVersions = PtrInt(maxV)
 		rm.GroupModel.Model.SetChanged(true)
@@ -2318,7 +2401,7 @@ func (rm *ResourceModel) SetMaxVersions(maxV int) error {
 	return nil
 }
 
-func (rm *ResourceModel) SetSetDefaultSticky(val bool) error {
+func (rm *ResourceModel) SetSetDefaultSticky(val bool) *XRError {
 	if rm.GetSetDefaultSticky() != val {
 		rm.SetDefaultSticky = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
@@ -2327,7 +2410,7 @@ func (rm *ResourceModel) SetSetDefaultSticky(val bool) error {
 	return nil
 }
 
-func (rm *ResourceModel) SetSingleVersionRoot(val bool) error {
+func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
 	if rm.GetSingleVersionRoot() != val {
 		rm.SingleVersionRoot = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
@@ -2354,7 +2437,7 @@ func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 	return attrs
 }
 
-func EnsureJustOneRESOURCE(obj map[string]any, singular string) error {
+func EnsureJustOneRESOURCE(e *Entity, obj map[string]any, singular string) *XRError {
 	count := 0
 	list := []string{"", "url", "base64", "proxyurl"}
 	for i, suffix := range list {
@@ -2364,15 +2447,16 @@ func EnsureJustOneRESOURCE(obj map[string]any, singular string) error {
 		}
 	}
 	if count > 1 {
-		return fmt.Errorf("Only one of %s can be present at a time",
-			strings.Join(list, ",")) // include proxyurl
+		return NewXRError("bad_request", e.Path,
+			fmt.Sprintf("only one of %s can be present at a time",
+				strings.Join(list, ","))) // include proxyurl
 	}
 	return nil
 }
 
-func RESOURCEcheckFn(e *Entity) error {
+func RESOURCEcheckFn(e *Entity) *XRError {
 	_, rm := e.GetModels()
-	return EnsureJustOneRESOURCE(e.NewObject, rm.Singular)
+	return EnsureJustOneRESOURCE(e, e.NewObject, rm.Singular)
 }
 
 func (rm *ResourceModel) GetBaseAttributes() Attributes {
@@ -2402,9 +2486,10 @@ func (rm *ResourceModel) GetBaseAttributes() Attributes {
 	return attrs
 }
 
-func (rm *ResourceModel) AddTypeMap(ct string, format string) error {
+func (rm *ResourceModel) AddTypeMap(ct string, format string) *XRError {
 	if format != "binary" && format != "json" && format != "string" {
-		return fmt.Errorf("Invalid typemap format: %q", format)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("invalid typemap format: %q", format))
 	}
 	if rm.TypeMap == nil {
 		rm.TypeMap = map[string]string{}
@@ -2416,7 +2501,7 @@ func (rm *ResourceModel) AddTypeMap(ct string, format string) error {
 	return nil
 }
 
-func (rm *ResourceModel) RemoveTypeMap(ct string) error {
+func (rm *ResourceModel) RemoveTypeMap(ct string) *XRError {
 	if rm.TypeMap == nil {
 		return nil
 	}
@@ -2614,7 +2699,7 @@ func ConvertString(val string, toType string) (any, bool) {
 var targetREstr = `^(?:/([^/]+)(?:/([^[/]+)(?:(?:/(versions)|(\[(?:/versions)]))?))?)?$`
 var targetRE = regexp.MustCompile(targetREstr)
 
-func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
+func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 	ld = &LevelData{
 		Model:     ld.Model,
 		AttrNames: maps.Clone(ld.AttrNames),
@@ -2627,19 +2712,22 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 	// First add the new attribute names, while checking the attr
 	for name, attr := range attrs {
 		if attr == nil {
-			return fmt.Errorf("Error processing %q: "+
-				"attribute %q can't be empty", ld.Path.UI(), name)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("while processing %q, "+
+					"attribute %q can't be empty", ld.Path.UI(), name))
 		}
 		if name == "" { // attribute key empty?
-			return fmt.Errorf("Error processing %q: "+
-				"it has an empty attribute key", ld.Path.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("while processing %q, "+
+					"it has an empty attribute key", ld.Path.UI()))
 		}
 		if name[0] == '$' {
 			continue
 		}
 		if ld.AttrNames[name] == true { // Dup attr name?
-			return fmt.Errorf("Duplicate attribute name (%s) at: %s", name,
-				ld.Path.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("duplicate attribute name (%s) at: %s", name,
+					ld.Path.UI()))
 		}
 		// Not sure why we look at SpecProp, I suspect it's because at one
 		// point in time we had non-conforming (special) names in there and
@@ -2648,16 +2736,22 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		// to be a valid name/string so we should be ok
 		if name != "*" && SpecProps[name] == nil {
 			if namecharset == "extended" {
-				if err := IsValidMapKey(name); err != nil {
-					return fmt.Errorf("Error processing %q: %s", ld.Path.UI(), err)
+				if xErr := IsValidMapKey(name, ld.Path.UI()); xErr != nil {
+					return xErr
+					/*
+											return NewXRError("model_error", "/",
+												fmt.Sprintf("while processing %q, %s", ld.Path.UI(),
+						                        err))
+					*/
 				}
 			} else if namecharset == "strict" || namecharset == "" {
-				if err := IsValidAttributeName(name); err != nil {
-					return fmt.Errorf("Error processing %q: %s", ld.Path.UI(), err)
+				if xErr := IsValidAttributeName(name, ld.Path.UI()); xErr != nil {
+					return xErr
 				}
 			} else {
-				return fmt.Errorf("Invalid \"namecharset\" value: %s",
-					namecharset)
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("invalid \"namecharset\" value: %s",
+						namecharset))
 			}
 		}
 		path := ld.Path.P(name)
@@ -2669,23 +2763,27 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 			}
 		}
 		if name != attr.Name { // missing Name: field?
-			return fmt.Errorf("%q must have a \"name\" set to %q", path.UI(),
-				name)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q must have a \"name\" set to %q", path.UI(),
+					name))
 		}
 		if attr.Type == "" {
-			return fmt.Errorf("%q is missing a \"type\"", path.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q is missing a \"type\"", path.UI()))
 		}
 		if DefinedTypes[attr.Type] != true { // valid Type: field?
-			return fmt.Errorf("%q has an invalid type: %s", path.UI(),
-				attr.Type)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q has an invalid type: %s", path.UI(),
+					attr.Type))
 		}
 
 		if attr.Type == XID {
 			/* no longer required
-			if attr.Target == "" {
-				return fmt.Errorf("%q must have a \"target\" value "+
-					"since \"type\" is \"xid\"", path.UI())
-			}
+						if attr.Target == "" {
+							return NewXRError("model_error", "/",
+			                fmt.Sprintf("%q must have a \"target\" value "+
+								"since \"type\" is \"xid\"", path.UI()))
+						}
 			*/
 			skip := false
 			if attr.Model.Stuff != nil {
@@ -2696,28 +2794,32 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 				parts := targetRE.FindStringSubmatch(target)
 				// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
 				if len(parts) == 0 || parts[0] == "" {
-					return fmt.Errorf("%q \"target\" must be of the form: "+
-						"/GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]",
-						path.UI())
+					return NewXRError("model_error", "/",
+						fmt.Sprintf("%q \"target\" must be of the form: "+
+							"/GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]",
+							path.UI()))
 				}
 
 				gm := ld.Model.FindGroupModel(parts[1])
 				if gm == nil {
-					return fmt.Errorf("%q has an unknown Group type: %q",
-						path.UI(), parts[1])
+					return NewXRError("model_error", "/",
+						fmt.Sprintf("%q has an unknown Group type: %q",
+							path.UI(), parts[1]))
 				}
 				if parts[2] != "" {
 					if rm := gm.FindResourceModel(parts[2]); rm == nil {
-						return fmt.Errorf("%q has an unknown Resource type: %q",
-							path.UI(), parts[2])
+						return NewXRError("model_error", "/",
+							fmt.Sprintf("%q has an unknown Resource type: %q",
+								path.UI(), parts[2]))
 					}
 				}
 			}
 		}
 
 		if attr.Target != "" && attr.Type != XID {
-			return fmt.Errorf("%q must not have a \"target\" value "+
-				"since \"type\" is not \"xid\"", path.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q must not have a \"target\" value "+
+					"since \"type\" is not \"xid\"", path.UI()))
 		}
 
 		// Is it ok for strict=true and enum=[] ? Require no value???
@@ -2727,14 +2829,16 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 		// Object doesn't need an Item, but maps and arrays do
 		if attr.Type == MAP || attr.Type == ARRAY {
 			if attr.Item == nil {
-				return fmt.Errorf("%q must have an \"item\" section", path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q must have an \"item\" section", path.UI()))
 			}
 		}
 
 		// check enum values
 		if attr.Enum != nil && len(attr.Enum) == 0 {
-			return fmt.Errorf("%q specifies an \"enum\" but it is empty",
-				path.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q specifies an \"enum\" but it is empty",
+					path.UI()))
 		}
 		if len(attr.Enum) > 0 {
 			daType := attr.Type
@@ -2744,59 +2848,67 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 			}
 
 			if IsScalar(daType) != true {
-				return fmt.Errorf("%q is not a scalar, or an array of "+
-					"scalars, so \"enum\" is not allowed", path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q is not a scalar, or an array of "+
+						"scalars, so \"enum\" is not allowed", path.UI()))
 			}
 
 			for _, val := range attr.Enum {
 				if !IsOfType(val, daType) {
-					return fmt.Errorf("%q enum value \"%v\" must be of type %q",
-						path.UI(), val, daType)
+					return NewXRError("model_error", "/",
+						fmt.Sprintf("%q enum value \"%v\" must be of type %q",
+							path.UI(), val, daType))
 				}
 			}
 		}
 
 		if !IsNil(attr.Default) {
 			if IsScalar(attr.Type) != true {
-				return fmt.Errorf("%q is not a scalar, so \"default\" is not "+
-					"allowed", path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q is not a scalar, so \"default\" is not "+
+						"allowed", path.UI()))
 			}
 
 			val := attr.Default
 			if !IsOfType(val, attr.Type) {
-				return fmt.Errorf("%q \"default\" value must be of type %q",
-					path.UI(), attr.Type)
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q \"default\" value must be of type %q",
+						path.UI(), attr.Type))
 			}
 
 			if attr.Required == false {
-				return fmt.Errorf("%q must have \"require\" set to "+
-					"\"true\" since a default value is defined", path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q must have \"require\" set to "+
+						"\"true\" since a default value is defined", path.UI()))
 			}
 		}
 
 		if attr.Type == OBJECT {
 			if attr.NameCharSet != "" && attr.NameCharSet != "strict" && attr.NameCharSet != "extended" {
-				return fmt.Errorf("%q has an invalid \"namecharset\" value: "+
-					attr.NameCharSet, path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q has an invalid \"namecharset\" value: "+
+						attr.NameCharSet, path.UI()))
 			}
 
 			if attr.Item != nil {
-				return fmt.Errorf("%q must not have an \"item\" section", path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q must not have an \"item\" section", path.UI()))
 			}
-			if err := attr.Attributes.Verify(attr.NameCharSet, &LevelData{ld.Model, nil, path}); err != nil {
-				return err
+			if xErr := attr.Attributes.Verify(attr.NameCharSet, &LevelData{ld.Model, nil, path}); xErr != nil {
+				return xErr
 			}
 		} else {
 			if attr.NameCharSet != "" {
-				return fmt.Errorf("Attribute %q must not have a "+
-					"\"namecharset\" value unless its type is \"object\"",
-					attr.Name)
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("attribute %q must not have a "+
+						"\"namecharset\" value unless its type is \"object\"",
+						attr.Name))
 			}
 		}
 
 		if attr.Item != nil {
-			if err := attr.Item.Verify(path); err != nil {
-				return err
+			if xErr := attr.Item.Verify(path); xErr != nil {
+				return xErr
 			}
 		}
 
@@ -2809,12 +2921,14 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 	for _, attr := range attrs {
 		for valStr, ifValue := range attr.IfValues {
 			if valStr == "" {
-				return fmt.Errorf("%q has an empty ifvalues key", ld.Path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q has an empty ifvalues key", ld.Path.UI()))
 			}
 
 			if valStr[0] == '^' {
-				return fmt.Errorf("%q has an ifvalues key that starts "+
-					"with \"^\"", ld.Path.UI())
+				return NewXRError("model_error", "/",
+					fmt.Sprintf("%q has an ifvalues key that starts "+
+						"with \"^\"", ld.Path.UI()))
 			}
 
 			nextLD := &LevelData{
@@ -2823,8 +2937,8 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) error {
 				ld.Path.P(attr.Name).P("ifvalues").P(valStr)}
 
 			// Recursive
-			if err := ifValue.SiblingAttributes.Verify(namecharset, nextLD); err != nil {
-				return err
+			if xErr := ifValue.SiblingAttributes.Verify(namecharset, nextLD); xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -2856,43 +2970,49 @@ func (ifvalues IfValues) SetModel(m *Model) {
 	}
 }
 
-func (item *Item) Verify(path *PropPath) error {
+func (item *Item) Verify(path *PropPath) *XRError {
 	p := path.P("item")
 
 	if item.Type == "" {
-		return fmt.Errorf("%q must have a \"type\" defined", p.UI())
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("%q must have a \"type\" defined", p.UI()))
 	}
 
 	if DefinedTypes[item.Type] != true {
-		return fmt.Errorf("%q has an invalid \"type\": %s", p.UI(),
-			item.Type)
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("%q has an invalid \"type\": %s", p.UI(),
+				item.Type))
 	}
 
 	if item.Type != OBJECT && item.Attributes != nil {
-		return fmt.Errorf("%q must not have \"attributes\"", p.UI())
+		return NewXRError("model_error", "/",
+			fmt.Sprintf("%q must not have \"attributes\"", p.UI()))
 	}
 
 	if item.Type == MAP || item.Type == ARRAY {
 		if item.Item == nil {
-			return fmt.Errorf("%q must have an \"item\" section", p.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q must have an \"item\" section", p.UI()))
 		}
 	}
 
 	if item.Type == OBJECT {
 		if item.NameCharSet != "" && item.NameCharSet != "strict" && item.NameCharSet != "extended" {
-			return fmt.Errorf("Invalid \"namecharset\" value: %s",
-				item.NameCharSet)
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("invalid \"namecharset\" value: %s",
+					item.NameCharSet))
 		}
 	} else {
 		if item.NameCharSet != "" {
-			return fmt.Errorf("%q must not have a \"namecharset\" value "+
-				"since it is not of type \"object\"", p.UI())
+			return NewXRError("model_error", "/",
+				fmt.Sprintf("%q must not have a \"namecharset\" value "+
+					"since it is not of type \"object\"", p.UI()))
 		}
 	}
 
 	if item.Attributes != nil {
-		if err := item.Attributes.Verify(item.NameCharSet, &LevelData{item.Model, nil, p}); err != nil {
-			return err
+		if xErr := item.Attributes.Verify(item.NameCharSet, &LevelData{item.Model, nil, p}); xErr != nil {
+			return xErr
 		}
 	}
 

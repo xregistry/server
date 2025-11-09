@@ -24,10 +24,18 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	_, err = rm.AddAttr("*", STRING)
 	xNoErr(t, err)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400,
-		"$details isn't allowed on \"/dirs/d1/files$details\"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details", `{}`, 400,
-		"$details isn't allowed on \"/dirs/d1/files/f1/versions$details\"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
+`)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
+`)
 
 	// Not really a "hasdoc" test, but it has to go someplace :-)
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -39,7 +47,11 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 		ReqBody: `{}`,
 
 		Code: 400,
-		ResBody: `Including "xRegistry" headers when "$details" is used is invalid
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/bars",
+  "title": "The request cannot be processed as provided: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed"
+}
 `,
 	})
 
@@ -414,44 +426,119 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
-		"PATCH is not allowed on Resource documents\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
+`)
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", "{}", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1", "", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1", "", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1/versions", "{}", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
-		"PATCH is not allowed on Resource documents\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
+`)
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", "{}", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", "", 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/",
 		`{"dirs":{"dir1":{"files":{"f1":{}}}}}`, 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 
 	xHTTP(t, reg, "PATCH", "/",
 		`{"dirs":{"dir1":{"files":{"f1":{}}}}}`, 400,
-		"Write operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 
 	xHTTP(t, reg, "DELETE", "/dirs/dir1", ``, 400,
-		"Delete operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1"
+}
+`)
 	xHTTP(t, reg, "DELETE", "/dirs/dir1/files", ``, 400,
-		"Delete operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
 	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1", "", 400,
-		"Delete operations on read-only resources are not allowed\n")
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions", "", 400,
-		"Delete operations on read-only resources are not allowed\n")
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions/v1", "", 400,
-		"Delete operations on read-only resources are not allowed\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
+}
+`)
+	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1/versions/v1"
+}
+`)
+	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions/v1", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1/versions/v1"
+}
+`)
 }
 
-func TestDefaultVersionThis(t *testing.T) {
-	reg := NewRegistry("TestDefaultVersionThis")
+func TestHTTPDefaultVersionThis(t *testing.T) {
+	reg := NewRegistry("TestHTTPDefaultVersionThis")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -522,12 +609,38 @@ func TestDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "{}", 400, `"setdefaultversionid" must not be empty`+"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "{}", 400, `"setdefaultversionid" must not be empty`+"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `Can't use 'request' if a version wasn't processed`+"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "{}", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
+}
+`)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "{}", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
+}
+`)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: nan't use 'request' if a version wasn't processed"
+}
+`)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `"setdefaultversionid" must not be empty`+"\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid=", "", 400, `"setdefaultversionid" must not be empty`+"\n")
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
+}
+`)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid=", "", 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
+}
+`)
 
 	xCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?setdefaultversionid=request",
@@ -1342,7 +1455,11 @@ func TestHTTPContent(t *testing.T) {
 	"file": { bad bad json }
 `,
 		Code: 400,
-		ResBody: `path '.file': parsing object key: expected string starting with '"', got 'b' instead
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1$details",
+  "title": "The request cannot be processed as provided: error parsing data: path '.file': parsing object key: expected string starting with '\"', got 'b' instead"
+}
 `,
 	})
 
@@ -2461,7 +2578,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		  }
         }`,
 		Code: 400,
-		ResBody: `The "fileid" attribute must be set to "f23", not "bad f23"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f23",
+  "title": "The request cannot be processed as provided: the \"fileid\" attribute must be set to \"f23\", not \"bad f23\""
+}
 `})
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -2546,7 +2667,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Invalid extension(s): foo
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f3/versions/1",
+  "title": "The request cannot be processed as provided: invalid extension(s): foo"
+}
 `,
 	})
 
@@ -2625,9 +2750,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code: 400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `Invalid extension(s): f2,f3
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/1",
+  "title": "The request cannot be processed as provided: invalid extension(s): f2,f3"
+}
 `})
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -2641,9 +2770,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code: 400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `The "fileid" attribute must be set to "f4", not "f5"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f4$details",
+  "title": "The attribute \"fileid\" is not valid: must be set to \"f4\", not \"f5\""
+}
 `})
 
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -2886,7 +3019,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ReqBody:    `hello`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Including "xRegistry" headers when "$details" is used is invalid
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f8$details",
+  "title": "The request cannot be processed as provided: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed"
+}
 `,
 	})
 
@@ -2942,9 +3079,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ReqBody:    `{}`,
 		Code:       400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `Set of Versions to add can't be empty
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f99/versions",
+  "title": "The request cannot be processed as provided: set of Versions to add can't be empty"
+}
 `,
 	})
 
@@ -2987,9 +3128,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code: 400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `?setdefaultversionid can not be 'null'
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f10/versions",
+  "title": "The request cannot be processed as provided: ?setdefaultversionid can not be 'null'"
+}
 `,
 	})
 
@@ -3004,9 +3149,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code: 400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `?setdefaultversionid can not be 'request'
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f10/versions",
+  "title": "The request cannot be processed as provided: ?setdefaultversionid can not be 'request'"
+}
 `,
 	})
 
@@ -3095,9 +3244,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code: 400,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
+			"Content-Type:application/json; charset=utf-8",
 		},
-		ResBody: `Version "v3" not found
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f10",
+  "title": "The request cannot be processed as provided: Version \"v3\" not found"
+}
 `,
 	})
 
@@ -3305,7 +3458,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Version "vx" not found
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f12",
+  "title": "The request cannot be processed as provided: Version \"vx\" not found"
+}
 `,
 	})
 
@@ -3319,7 +3476,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ReqBody:    `v3`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `The "versionid" attribute must be set to "3", not "33"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f13/versions/3",
+  "title": "The attribute \"versionid\" is not valid: must be set to \"3\", not \"33\""
+}
 `,
 	})
 
@@ -3447,7 +3608,11 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ReqBody:    `{ "versionid": "77" }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `The "versionid" attribute must be set to "7", not "77"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f13/versions/7",
+  "title": "The attribute \"versionid\" is not valid: must be set to \"7\", not \"77\""
+}
 `,
 	})
 
@@ -3633,7 +3798,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	xHTTP(t, reg, "PATCH", "/", `{
 	  "badext": "str"
-	}`, 400, `Invalid extension(s): badext
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/",
+  "title": "The request cannot be processed as provided: invalid extension(s): badext"
+}
 `)
 
 	// Test PATCHing a Group
@@ -3777,7 +3946,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "badext": "str"
-	}`, 400, `Invalid extension(s): badext
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1",
+  "title": "The request cannot be processed as provided: invalid extension(s): badext"
+}
 `)
 
 	// Test PATCHing a Resource
@@ -3792,7 +3965,12 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
-		`PATCH is not allowed on Resource documents
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{}`, 200, `{
@@ -3959,7 +4137,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "badext": "str"
-	}`, 400, `Invalid extension(s): badext
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The request cannot be processed as provided: invalid extension(s): badext"
+}
 `)
 
 	// Test PATCHing a Version
@@ -3974,7 +4156,12 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
-		`PATCH is not allowed on Resource documents
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
 `)
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 200, `{
@@ -4109,7 +4296,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "badext": "str"
-	}`, 400, `Invalid extension(s): badext
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The request cannot be processed as provided: invalid extension(s): badext"
+}
 `)
 
 	// Test that PATCH can be used to create stuff too
@@ -4408,7 +4599,11 @@ func TestHTTPResourceCollections(t *testing.T) {
 	xHTTP(t, reg, "POST", "/dirs/dir1/files", `{
 	  "f5": { "fileid": "f5" },
 	  "f6": { "fileid": "ef6" }
-	}`, 400, `The "fileid" attribute must be set to "f6", not "ef6"
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f6",
+  "title": "The request cannot be processed as provided: the \"fileid\" attribute must be set to \"f6\", not \"ef6\""
+}
 `)
 
 	// via file, Versions + empty - new file
@@ -4478,7 +4673,11 @@ func TestHTTPResourceCollections(t *testing.T) {
 	// via file, Versions + empty + existing file + bad def + existing v
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=xxx", `{
 	  "versionid": "v2"
-	}`, 400, `Version "xxx" not found
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f7",
+  "title": "The request cannot be processed as provided: Version \"xxx\" not found"
+}
 `)
 
 	// Versions + empty
@@ -4545,7 +4744,11 @@ func TestHTTPResourceCollections(t *testing.T) {
 	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff9/versions?setdefaultversionid=v2", `{
 	  "v1": { "versionid": "v1" },
 	  "v2": { "versionid": "ev2" }
-	}`, 400, `The "versionid" attribute must be set to "v2", not "ev2"
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/ff9/versions/v2",
+  "title": "The attribute \"versionid\" is not valid: must be set to \"v2\", not \"ev2\""
+}
 `)
 }
 
@@ -4570,31 +4773,69 @@ func TestHTTPmeta(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "$details", `{}`, 400, `$details isn't allowed on "/$details"
+	xHTTP(t, reg, "PUT", "$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
-	xHTTP(t, reg, "PUT", "/$details", `{}`, 400, `$details isn't allowed on "/$details"
+	xHTTP(t, reg, "PUT", "/$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
-	xHTTP(t, reg, "PUT", "/dirs$details", `{}`, 400, `$details isn't allowed on "/dirs$details"
+	xHTTP(t, reg, "PUT", "/dirs$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1$details", `{}`, 400, `$details isn't allowed on "/dirs/dir1$details"
+	xHTTP(t, reg, "PUT", "/dirs/dir1$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/$details", `{}`, 400,
-		`$details isn't allowed on "/dirs/dir1/$details"
+	xHTTP(t, reg, "PUT", "/dirs/dir1/$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files$details", `{}`, 400,
-		`$details isn't allowed on "/dirs/dir1/files$details"
+	xHTTP(t, reg, "PUT", "/dirs/dir1/files$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/$details", `{}`, 400,
-		`"fileid" can't be an empty string
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files//meta",
+  "title": "The attribute \"fileid\" is not valid: can't be an empty string"
+}
 `)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions$details", `{}`, 400,
-		`$details isn't allowed on "/dirs/dir1/files/f1/versions$details"
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions$details",
+  "title": "The request cannot be processed as provided: $details isn't allowed in this context"
+}
 `)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/$details", `{}`, 400,
-		`Version id in URL can't be blank
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/$details",
+  "title": "The request cannot be processed as provided: Version id in URL can't be blank"
+}
 `)
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1/$details", `{}`, 404,
-		`URL is too long
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1/$details",
+  "title": "The specified entity cannot be found: /dirs/dir1/files/f1/versions/v1/$details"
+}
 `)
 }
 
@@ -4707,8 +4948,14 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    `{}`,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `PUT not allowed on collections
-`})
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs",
+  "title": "The specified action (PUT) is not supported",
+  "detail": "PUT not allowed on collections"
+}
+`,
+	})
 
 	// PATCH /GROUPS
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -4844,8 +5091,14 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    ``,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `PUT not allowed on collections
-`})
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d2/files",
+  "title": "The specified action (PUT) is not supported",
+  "detail": "PUT not allowed on collections"
+}
+`,
+	})
 
 	// PATCH /GROUPS/GID/RESOURCES
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -4967,7 +5220,12 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    `Everybody wants to rule the world`,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `PATCH is not allowed on Resource documents
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/d2/files/f1",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
 `,
 	})
 
@@ -5173,8 +5431,14 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    `{}`,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `PUT not allowed on collections
-`})
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d2/files/f1/versions",
+  "title": "The specified action (PUT) is not supported",
+  "detail": "PUT not allowed on collections"
+}
+`,
+	})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID/versions
 	xCheckHTTP(t, reg, &HTTPTest{
@@ -5279,7 +5543,12 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    `test doc`,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `PATCH is not allowed on Resource documents
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "instance": "http://localhost:8181/dirs/d2/files/f1/versions/v5",
+  "title": "$details suffixed is needed when using PATCH for this Resource",
+  "detail": "PATCH is not allowed on Resource documents"
+}
 `,
 	})
 
@@ -5292,7 +5561,12 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    `test doc`,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `POST not allowed on a version
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d2/files/f1/versions/v5",
+  "title": "The specified action (POST) is not supported",
+  "detail": "POST not allowed on a version"
+}
 `,
 	})
 
@@ -5381,7 +5655,12 @@ func TestHTTPURLs(t *testing.T) {
 		ReqBody:    ``,
 		Code:       405,
 		ResHeaders: []string{},
-		ResBody: `POST not allowed on a version
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
+  "instance": "http://localhost:8181/dirs/d2/files/f1/versions/v5$details",
+  "title": "The specified action (POST) is not supported",
+  "detail": "POST not allowed on a version"
+}
 `,
 	})
 
@@ -6130,7 +6409,11 @@ func TestHTTPNestedResources(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Version "v2" not found
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The \"Version\" with the ID \"v2\" cannot be found"
+}
 `,
 	})
 
@@ -6147,7 +6430,11 @@ func TestHTTPNestedResources(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Attribute "defaultversionsticky" must be a boolean
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionsticky\" must be a boolean"
+}
 `,
 	})
 
@@ -6165,7 +6452,11 @@ func TestHTTPNestedResources(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Attribute "defaultversionsticky" must be a boolean
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionsticky\" must be a boolean"
+}
 `,
 	})
 
@@ -6183,7 +6474,11 @@ func TestHTTPNestedResources(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Attribute "defaultversionid" must be "1" since "defaultversionsticky" is "false"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
+}
 `,
 	})
 
@@ -6313,7 +6608,11 @@ func TestHTTPNestedResources(t *testing.T) {
         }`,
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Attribute "defaultversionid" must be "1" since "defaultversionsticky" is "false"
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
+}
 `,
 	})
 
@@ -6930,7 +7229,11 @@ func TestHTTPExport(t *testing.T) {
 		ReqBody:    string(body),
 		Code:       400,
 		ResHeaders: []string{},
-		ResBody: `Attribute "epoch"(2) doesn't match existing value (3)
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"epoch\" is not valid: value (2) doesn't match existing value (3)"
+}
 `,
 	})
 
@@ -7048,21 +7351,40 @@ func TestHTTPVersionIDs(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "fx",
 	  "versionid": "v1"
-	}`, 400, "The \"fileid\" attribute must be set to \"f1\", not \"fx\"\n")
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"fx\""
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "fx"
-	}`, 400, "The \"fileid\" attribute must be set to \"f1\", not \"fx\"\n")
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"fx\""
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "f1",
 	  "versionid": "vx"
-	}`, 400, "The \"versionid\" attribute must be set to \"v1\", not \"vx\"\n")
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The attribute \"versionid\" is not valid: must be set to \"v1\", not \"vx\""
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "versionid": "vx"
-	}`, 400, "The \"versionid\" attribute must be set to \"v1\", not \"vx\"\n")
-
+	}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "title": "The attribute \"versionid\" is not valid: must be set to \"v1\", not \"vx\""
+}
+`)
 }
 
 func TestHTTPRecursiveData(t *testing.T) {
@@ -8186,40 +8508,103 @@ func TestHTTPInvalidID(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModelSimple("files", "file")
 
-	match := `^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`
-
 	xHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
-		`Invalid ID "*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/",
+  "title": "The attribute \"registryid\" is not valid: value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1*", `{}`, 400,
-		`Invalid ID "d1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1*",
+  "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1", `{"dirid": "d1*" }`, 400,
-		`Invalid ID "d1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1",
+  "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "POST", "/dirs/", `{"d1*":{}}`, 400,
-		`Invalid ID "d1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1*",
+  "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "POST", "/dirs/", `{"d1*":{"dirid": "d1*" }}`, 400,
-		`Invalid ID "d1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1*",
+  "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "POST", "/dirs/", `{"d1":{"dirid": "d2*" }}`, 400,
-		`Invalid ID "d2*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1",
+  "title": "The attribute \"dirid\" is not valid: value \"d2*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1*$details", `{}`, 400,
-		`Invalid ID "f1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1*/meta",
+  "title": "The attribute \"fileid\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"fileid":"f1*"}`, 400,
-		"The \"fileid\" attribute must be set to \"f1\", not \"f1*\"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1$details",
+  "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"f1*\""
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"versionid":"v1*"}`,
 		400,
-		`Invalid ID "v1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1*",
+  "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v1*":{}}`, 400,
-		`Invalid ID "v1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1*",
+  "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1*", `{}`, 400,
-		`Invalid ID "v1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1*",
+  "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"versionid": "v1*"}`, 400,
-		`Invalid ID "v1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"fileid": "f1*"}`, 400,
-		`Invalid ID "f1*", must match: `+match+"\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "title": "The attribute \"fileid\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}
+`)
 }
 
 func TestHTTPSpecVersion(t *testing.T) {
@@ -8228,7 +8613,12 @@ func TestHTTPSpecVersion(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?specversion="+SPECVERSION, "", 200, "*")
 	xHTTP(t, reg, "GET", "?specversion=0.x", "", 400,
-		"Unsupported xRegistry spec version: 0.x\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
+  "instance": "http://localhost:8181/",
+  "title": "The specified \"specversion\" value (0.x) is not supported"
+}
+`)
 }
 
 func TestHTTPMissingBody(t *testing.T) {
@@ -8242,79 +8632,98 @@ func TestHTTPMissingBody(t *testing.T) {
 
 	// Just check for an error about a missing body based on the path + method
 
-	msg := "An HTTP body must be specified\n"
+	fn := func(i string) string {
+		xErr := &XRError{
+			Type:     "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+			Instance: i,
+			Title:    "The request cannot be processed as provided: an HTTP body must be specified, try {}",
+		}
+		return xErr.ToUserJson("http://localhost:8181") + "\n"
+	}
 
-	xHTTP(t, reg, "PUT", "/", "", 400, msg)
-	xHTTP(t, reg, "POST", "/", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/", "", 400, fn("/"))
+	xHTTP(t, reg, "POST", "/", "", 400, fn("/"))
+	xHTTP(t, reg, "PATCH", "/", "", 400, fn("/"))
 
 	xHTTP(t, reg, "PUT", "/dirs", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs", "", 400, fn("/dirs"))
+	xHTTP(t, reg, "PATCH", "/dirs", "", 400, fn("/dirs"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", "", 400, msg)
-	xHTTP(t, reg, "POST", "/dirs/d1", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/dirs/d1", "", 400, fn("/dirs/d1"))
+	xHTTP(t, reg, "POST", "/dirs/d1", "", 400, fn("/dirs/d1"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, fn("/dirs/d1"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/files", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, "")
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1", "", 201, "")
 	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", "", 405, "*")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", "", 400, msg)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", "", 200, "*")
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1", "", 405, "*")
 	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1", "", 405, "*")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1$details", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
 	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1$details", "", 405, "*")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1$details", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/datas", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/datas", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1", "", 400, msg)
-	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
+	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
 
 	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions", "", 400, msg)
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions", "", 400, msg)
+	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
+	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
 	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions/1", "", 405, "*")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, msg)
+	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
 }
 
 func TestHTTPJsonParsingErrors(t *testing.T) {
 	reg := NewRegistry("TestHTTPJsonParsingErrors")
 	defer PassDeleteReg(t, reg)
 
+	m1 := `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/",
+  "title": "The request cannot be processed as provided: error parsing data: `
+	m2 := `"
+}
+`
 	tests := []struct {
 		body string
 		msg  string
 	}{
-		{`{1`, `path '': parsing object key: expected string starting with '"', got '1' instead`},
+		{`{1`, `path '': parsing object key: expected string starting with '\"', got '1' instead`},
 		{`{"}`, `path '': parsing object key: unterminated string`},
 		{`{},"}`, `Syntax error at line 1: invalid character ',' looking for beginning of value; possibly near position 2`},
 		{`{}[]`, `Error parsing json: extra data possibly near position 3: [`},
 		{`{}{}`, `Error parsing json: extra data possibly near position 3: {`},
-		{`[]`, `path '': expected "map", got "array"`},
-		{``, `An HTTP body must be specified`},
+		{`[]`, `path '': expected \"map\", got \"array\"`},
+		{``, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "http://localhost:8181/",
+  "title": "The request cannot be processed as provided: an HTTP body must be specified, try {}"
+}
+`},
 		{`,`, `path '': unexpected character ','`},
 		{`"`, `path '': unterminated string`},
-		{`1`, `path '': expected "map", got "number"`},
+		{`1`, `path '': expected \"map\", got \"number\"`},
 		{`{"foo":{"bar":"asd}}`, `path '.foo.bar': unterminated string`},
 	}
 
@@ -8334,7 +8743,11 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 
 		data, err := io.ReadAll(res.Body)
 		xNoErr(t, err)
-		xCheckEqual(t, test.body, string(data), test.msg+"\n")
+		exp := test.msg
+		if exp[0] != '{' {
+			exp = m1 + test.msg + m2
+		}
+		xCheckEqual(t, test.body, string(data), exp)
 	}
 }
 
@@ -8466,29 +8879,90 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 `)
 
 	// And now the errors
-	xHTTP(t, reg, "GET", "/dirs?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
+	xHTTP(t, reg, "GET", "/dirs?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1$details",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/?collections", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?collections", "", 400,
-		"?collections is only allow on the Registry or Group instance level\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?collections",
+		"", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "title": "The specified flag (collections) is not allowed in this context",
+  "detail": "?collections is only allow on the Registry or Group instance level"
+}
+`)
 
-	xHTTP(t, reg, "GET", "/dirsx?collections", "", 404,
-		"Unknown Group type: dirsx\n")
-	xHTTP(t, reg, "GET", "/dirs/d1x?collections", "", 404,
-		"Not found\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/filesx?collections", "", 404,
-		"Unknown Resource type: filesx\n")
+	xHTTP(t, reg, "GET", "/dirsx?collections", "", 404, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirsx",
+  "title": "The specified entity cannot be found: /dirsx",
+  "detail": "Unknown Group type: dirsx"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1x?collections", "", 404, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1x",
+  "title": "The specified entity cannot be found: /dirs/d1x"
+}
+`)
+	xHTTP(t, reg, "GET", "/dirs/d1/filesx?collections", "", 404, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/filesx",
+  "title": "The specified entity cannot be found: /dirs/d1/filesx",
+  "detail": "Unknown Resource type: filesx"
+}
+`)
 }

@@ -27,15 +27,12 @@ TODOs:
 - see if we can remove all uses of JustSet except for the few testing cases
   where we need to set a property w/o verifying/saving it
   - Just see if we can clean-up the Set... stuff in general
-- convert internal errors into "panic" so any "error" returned is a user error
 - see if we can move "#resource??" into the attributes struct
 - fix it so that a failed call to model.Save() (e.g. verify fails) doesn't
   invalidate existing local variables. See if we can avoid redownloading the
   model from the DB
 - make sure we check for uniqueness of IDs - they're case insensitive and
   unique within the scope of their parent
-- make sure we throw an error if ?specversion on HTTP requests specifies the
-  wrong version
 - specversion strings compares MUST ignore the patch version #
 
 - pagination
@@ -90,7 +87,6 @@ TODOs:
 - verify readonly attrs are ignored on writes, but readonly resources generate an error
 - add tests for POST / and POST /GROUPS/gID with filters and inlining
 - compat/compatauth
-- use spec define error message
 - find a way to define rules to enforce constraints for extensions w/o making
   people write code
   - for example

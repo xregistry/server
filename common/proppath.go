@@ -463,7 +463,7 @@ func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
 			prev.UI())
 	}
 	if objValue.Type().Key().Kind() != reflect.String {
-		return nil, false, fmt.Errorf("Key of %q must be a string, not %s",
+		return nil, false, fmt.Errorf("key of %q must be a string, not %s",
 			prev.UI(), objValue.Type().Key().Kind())
 	}
 
@@ -524,7 +524,7 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 		if current != nil {
 			daArray, ok = current.([]any)
 			if !ok {
-				return nil, fmt.Errorf("Attribute %q isn't an array",
+				return nil, fmt.Errorf("attribute %q isn't an array",
 					prev.Append(pp.First()).UI())
 			}
 		}
@@ -550,7 +550,7 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 	if !IsNil(current) {
 		daMap, ok = current.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("Current isn't a map: %T", current)
+			return nil, fmt.Errorf("current isn't a map: %T", current)
 		}
 	}
 
@@ -565,5 +565,5 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 		daMap[pp.Top()] = res
 	}
 
-	return daMap, err
+	return daMap, nil
 }

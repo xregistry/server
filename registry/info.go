@@ -56,7 +56,7 @@ type Inline struct {
 	NonWild *PropPath // PP for value w/o .* if present, else nil
 }
 
-func (info *RequestInfo) AddInline(path string) error {
+func (info *RequestInfo) AddInline(path string) *XRError {
 	// use "*" to inline all
 	// path = strings.TrimLeft(path, "/.") // To be nice
 	originalPath := path
@@ -72,7 +72,7 @@ func (info *RequestInfo) AddInline(path string) error {
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
-		return err
+		return NewXRError("bad_request", info.GetParts(0), err.Error())
 	}
 
 	storeInline := &Inline{
@@ -141,7 +141,8 @@ func (info *RequestInfo) AddInline(path string) error {
 		path = path[len(info.Abstract)+1:]
 	}
 
-	return fmt.Errorf("Invalid 'inline' value: %s", path)
+	return NewXRError("bad_request", info.GetParts(0),
+		fmt.Sprintf("invalid 'inline' value: %s", path))
 }
 
 func (info *RequestInfo) IsInlineSet(entityPath string) bool {
@@ -211,24 +212,16 @@ type FilterExpr struct {
 	PropName string
 }
 
-func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, error) {
-
-	path := strings.Trim(r.URL.Path, " /")
+func NewRequestInfo(w http.ResponseWriter, r *http.Request) *RequestInfo {
 	info := &RequestInfo{
-		tx: tx,
-
-		OriginalPath:     path,
+		OriginalPath:     strings.Trim(r.URL.Path, " /"),
 		OriginalRequest:  r,
 		OriginalResponse: w,
-		Registry:         nil, // GetDefaultReg(tx),
 		BaseURL:          "http://" + r.Host,
-
-		extras: map[string]any{},
+		extras:           map[string]any{},
 	}
 
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Access-Control-Allow-Methods",
-		"GET, PATCH, POST, PUT, DELETE")
+	info.HTTPWriter = DefaultHTTPWriter(info)
 
 	if r.TLS != nil {
 		info.BaseURL = "https" + info.BaseURL[4:]
@@ -238,13 +231,23 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		}
 	}
 
+	return info
+}
+
+func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo, *XRError) {
+
+	info := NewRequestInfo(w, r)
+	info.tx = tx
+
 	// See which registry to use and twiddle some stuff in info if needed
-	err := info.ParseRegistryURL()
-	if err != nil {
-		return info, err
+	xErr := info.ParseRegistryURL()
+	if xErr != nil {
+		return info, xErr
 	}
 
-	info.HTTPWriter = DefaultHTTPWriter(info)
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Methods",
+		"GET, PATCH, POST, PUT, DELETE")
 
 	if log.GetVerbose() > 2 {
 		defer func() { log.VPrintf(3, "Info:\n%s\n", ToJSON(info)) }()
@@ -255,15 +258,15 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	}
 
 	// Parse the incoming URL and setup more stuff in info, like Groups...
-	err = info.ParseRequestURL()
-	if err != nil {
-		return info, err
+	xErr = info.ParseRequestURL()
+	if xErr != nil {
+		return info, xErr
 	}
 
-	return info, err
+	return info, nil
 }
 
-func (info *RequestInfo) ParseFilters() error {
+func (info *RequestInfo) ParseFilters() *XRError {
 	for _, filterQ := range info.GetFlagValues("filter") {
 		// ?filter=path.to.attribute[=value],* & filter=...
 
@@ -298,15 +301,17 @@ func (info *RequestInfo) ParseFilters() error {
 
 			pp, err := PropPathFromUI(path)
 			if err != nil {
-				return err
+				return NewXRError("bad_request", info.GetParts(0),
+					err.Error())
 			}
 			path = pp.DB()
 
 			/*
-				if info.What != "Coll" && strings.Index(path, "/") < 0 {
-					return fmt.Errorf("A filter with just an attribute name (%s) "+
-						"isn't allowed in this context", path)
-				}
+					if info.What != "Coll" && strings.Index(path, "/") < 0 {
+						return NewXRError("bad_request", info.GetParts(0),
+				        fmt.Sprintf("A filter with just an attribute name (%s) "+
+						"isn't allowed in this context", path))
+					}
 			*/
 
 			if info.Abstract != "" {
@@ -370,7 +375,7 @@ func SplitProp(reg *Registry, path string) (string, string) {
 // appropriate Registry to use. It'll update info's BaseURL based on reg-
 // This will populate some initial stuff in the "info" struct too, like
 // Registry.
-func (info *RequestInfo) ParseRegistryURL() error {
+func (info *RequestInfo) ParseRegistryURL() *XRError {
 	path := strings.Trim(info.OriginalPath, " /")
 
 	if len(path) > 0 && strings.HasPrefix(path, "reg-") {
@@ -379,13 +384,14 @@ func (info *RequestInfo) ParseRegistryURL() error {
 		info.OriginalPath = rest
 		name := regName[4:] // remove leading "reg-"
 
-		reg, err := FindRegistry(info.tx, name, FOR_READ)
+		reg, xErr := FindRegistry(info.tx, name, FOR_READ)
+		if xErr != nil {
+			return NewXRError("server_error", info.GetParts(0)).
+				SetDetail(xErr.GetTitle())
+		}
 		if reg == nil {
-			extra := ""
-			if err != nil {
-				extra = ": " + err.Error()
-			}
-			return fmt.Errorf("Can't find registry %q%s", name, extra)
+			return NewXRError("bad_request", "/",
+				fmt.Sprintf("can't find registry %q", name))
 		}
 		info.Registry = reg
 		info.tx.Registry = reg
@@ -396,7 +402,7 @@ func (info *RequestInfo) ParseRegistryURL() error {
 	return nil
 }
 
-func (info *RequestInfo) ParseRequestURL() error {
+func (info *RequestInfo) ParseRequestURL() *XRError {
 	log.VPrintf(4, "ParseRequestURL:\n%s", ToJSON(info))
 	log.VPrintf(4, "Req: %#v", info.OriginalRequest.URL)
 
@@ -410,8 +416,8 @@ func (info *RequestInfo) ParseRequestURL() error {
 		}
 	}
 
-	if err := info.ParseRequestPath(); err != nil {
-		return err
+	if xErr := info.ParseRequestPath(); xErr != nil {
+		return xErr
 	}
 
 	// Some of these have to come after we parse the path so that the
@@ -437,17 +443,19 @@ func (info *RequestInfo) ParseRequestURL() error {
 						// want: p = info.Abstract + "." + p  in UI format
 						absPP, err := PropPathFromPath(info.Abstract)
 						if err != nil {
-							return err
+							return NewXRError("bad_request", info.GetParts(0),
+								err.Error())
 						}
 						pPP, err := PropPathFromUI(p)
 						if err != nil {
-							return err
+							return NewXRError("bad_request", info.GetParts(0),
+								err.Error())
 						}
 						p = absPP.Append(pPP).UI()
 					}
 				}
-				if err := info.AddInline(p); err != nil {
-					return err
+				if xErr := info.AddInline(p); xErr != nil {
+					return xErr
 				}
 			}
 		}
@@ -457,7 +465,8 @@ func (info *RequestInfo) ParseRequestURL() error {
 	if info.HasFlag("collections") {
 		if !(info.GroupType == "" ||
 			(info.GroupUID != "" && info.ResourceType == "")) {
-			return fmt.Errorf("?collections is only allow on the " +
+			return NewXRError("bad_flag", info.OriginalPath,
+				"collections").SetDetail("?collections is only allow on the " +
 				"Registry or Group instance level")
 		}
 		// Force inline=* to be on
@@ -466,21 +475,25 @@ func (info *RequestInfo) ParseRequestURL() error {
 
 	if info.HasFlag("sort") {
 		if info.What != "Coll" {
-			return fmt.Errorf("Can't sort on a non-collection results")
+			return NewXRError("bad_request", info.GetParts(0),
+				"can't sort on a non-collection results")
 		}
 
 		sortStr := info.GetFlag("sort")
 		name, ascDesc, _ := strings.Cut(sortStr, "=")
 		if name == "" {
-			return fmt.Errorf("Missing ?sort attribute name")
+			return NewXRError("bad_request", info.GetParts(0),
+				"Missing ?sort attribute name")
 		}
 		if ascDesc != "" && ascDesc != "asc" && ascDesc != "desc" {
-			return fmt.Errorf("Invalid ?sort order %q", ascDesc)
+			return NewXRError("bad_request", info.GetParts(0),
+				fmt.Sprintf("Invalid ?sort order %q", ascDesc))
 		}
 		// info.SortKey = name
 		pp, err := PropPathFromUI(name)
 		if err != nil {
-			return err
+			return NewXRError("bad_request", info.GetParts(0),
+				err.Error())
 		}
 		info.SortKey = pp.DB()
 		if ascDesc == "desc" {
@@ -491,7 +504,7 @@ func (info *RequestInfo) ParseRequestURL() error {
 	return info.ParseFilters()
 }
 
-func (info *RequestInfo) ParseRequestPath() error {
+func (info *RequestInfo) ParseRequestPath() *XRError {
 	// Now process the URL path
 	log.VPrintf(4, "ParseRequestPath: %q", info.OriginalPath)
 
@@ -517,7 +530,8 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	// /GROUPs
 	if strings.HasSuffix(info.Parts[0], "$details") {
-		return fmt.Errorf("$details isn't allowed on %q", "/"+info.Parts[0])
+		return NewXRError("bad_request", "/"+info.Parts[0],
+			"$details isn't allowed in this context")
 	}
 
 	gModel := (*GroupModel)(nil)
@@ -527,8 +541,8 @@ func (info *RequestInfo) ParseRequestPath() error {
 	if gModel == nil &&
 		(!ArrayContains(rootPaths, info.Parts[0]) || len(info.Parts) > 1) {
 
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Unknown Group type: %s", info.Parts[0])
+		return NewXRError("not_found", info.GetParts(1), info.GetParts(1)).
+			SetDetailf("Unknown Group type: %s", info.Parts[0])
 	}
 	info.GroupModel = gModel
 	info.GroupType = info.Parts[0]
@@ -542,8 +556,9 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	// /GROUPs/gID
 	if strings.HasSuffix(info.Parts[1], "$details") {
-		return fmt.Errorf("$details isn't allowed on %q",
-			"/"+strings.Join(info.Parts[:2], "/"))
+		return NewXRError("bad_request",
+			"/"+strings.Join(info.Parts[:2], "/"),
+			"$details isn't allowed in this context")
 	}
 
 	info.GroupUID = info.Parts[1]
@@ -556,14 +571,15 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	// /GROUPs/gID/RESOURCEs
 	if strings.HasSuffix(info.Parts[2], "$details") {
-		return fmt.Errorf("$details isn't allowed on %q",
-			"/"+strings.Join(info.Parts[:3], "/"))
+		return NewXRError("bad_request",
+			"/"+strings.Join(info.Parts[:3], "/"),
+			"$details isn't allowed in this context")
 	}
 
 	rModel := gModel.FindResourceModel(info.Parts[2])
 	if rModel == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Unknown Resource type: %s", info.Parts[2])
+		return NewXRError("not_found", info.GetParts(3), info.GetParts(3)).
+			SetDetailf("Unknown Resource type: %s", info.Parts[2])
 	}
 	info.ResourceModel = rModel
 	info.ResourceType = info.Parts[2]
@@ -590,19 +606,21 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	// GROUPs/gID/RESOURCEs/rID/???
 	if info.ShowDetails {
-		return fmt.Errorf("$details isn't allowed on %q",
-			"/"+strings.Join(info.Parts[:4], "/"))
+		return NewXRError("bad_request",
+			"/"+strings.Join(info.Parts[:4], "/"),
+			"$details isn't allowed in this context")
 	}
 
 	if strings.HasSuffix(info.Parts[4], "$details") {
-		return fmt.Errorf("$details isn't allowed on %q",
-			"/"+strings.Join(info.Parts[:5], "/"))
+		return NewXRError("bad_request",
+			"/"+strings.Join(info.Parts[:5], "/"),
+			"$details isn't allowed in this context")
 	}
 
 	if info.Parts[4] != "versions" && info.Parts[4] != "meta" {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Expected \"versions\" or \"meta\", got: %s",
-			info.Parts[4])
+		return NewXRError("not_found", info.GetParts(5), info.GetParts(5)).
+			SetDetailf("Expected \"versions\" or \"meta\", got: %s",
+				info.Parts[4])
 	}
 
 	// GROUPs/gID/RESOURCEs/rID/[meta|versions]
@@ -610,8 +628,8 @@ func (info *RequestInfo) ParseRequestPath() error {
 		if info.Parts[4] == "meta" {
 			if len(info.Parts) > 5 {
 				// GROUPs/gID/RESOURCEs/rID/meta/???
-				info.StatusCode = http.StatusNotFound
-				return fmt.Errorf("URL is too long")
+				return NewXRError("not_found", info.GetParts(0),
+					info.GetParts(0))
 			}
 
 			// GROUPs/gID/RESOURCEs/rID/meta
@@ -639,7 +657,8 @@ func (info *RequestInfo) ParseRequestPath() error {
 
 	if len(info.Parts) == 6 {
 		if info.VersionUID == "" {
-			return fmt.Errorf("Version id in URL can't be blank")
+			return NewXRError("bad_request", path,
+				"Version id in URL can't be blank")
 		}
 
 		info.Parts[5] = info.VersionUID
@@ -647,8 +666,7 @@ func (info *RequestInfo) ParseRequestPath() error {
 		return nil
 	}
 
-	info.StatusCode = http.StatusNotFound
-	return fmt.Errorf("URL is too long")
+	return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
 }
 
 // Get query parameter value
@@ -698,4 +716,14 @@ func (info *RequestInfo) APIEnabled(name string) bool {
 
 func (info *RequestInfo) DoDocView() bool {
 	return info.HasFlag("doc") || info.RootPath == "export"
+}
+
+func (info *RequestInfo) GetParts(num int) string {
+	PanicIf(num < 0, "Can't be %d", num)
+	if num == 0 {
+		return "/" + strings.TrimLeft(info.OriginalPath, "/")
+	}
+	PanicIf(num > len(info.Parts), "Asking for too many (%d): %s", num,
+		info.OriginalPath)
+	return "/" + strings.Join(info.Parts[:num], "/")
 }

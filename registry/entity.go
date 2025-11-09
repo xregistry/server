@@ -27,9 +27,9 @@ func (e *Entity) GetRequestInfo() *RequestInfo {
 
 type EntitySetter interface {
 	Get(name string) any
-	JustSet(name string, val any) error
-	SetSave(name string, val any) error
-	Delete() error
+	JustSet(name string, val any) *XRError
+	SetSave(name string, val any) *XRError
+	Delete() *XRError
 }
 
 func (e *Entity) GetResourceSingular() string {
@@ -167,14 +167,10 @@ func (e *Entity) GetPP(pp *PropPath) any {
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
 			contentID := e.Get("#contentid")
 
-			results, err := Query(e.tx, `
+			results := Query(e.tx, `
             SELECT Content FROM ResourceContents WHERE VersionSID=? `,
 				contentID)
 			defer results.Close()
-
-			if err != nil {
-				return fmt.Errorf("Error finding contents %q: %s", e.DbSID, err)
-			}
 
 			row := results.NextRow()
 			if row == nil {
@@ -216,7 +212,7 @@ func (e *Entity) GetPP(pp *PropPath) any {
 	return val
 }
 
-func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, error) {
+func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, *XRError) {
 	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
 	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
 
@@ -228,7 +224,7 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 		caseExpr = " COLLATE utf8mb4_0900_ai_ci"
 	}
 
-	results, err := Query(tx, `
+	results := Query(tx, `
 		SELECT
             e.RegSID as RegSID,
             e.Type as Type,
@@ -247,20 +243,12 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 		regID, path)
 	defer results.Close()
 
-	if err != nil {
-		return nil, err
-	}
-
 	return readNextEntity(tx, results, accessMode)
 }
 
-func (e *Entity) Query(query string, args ...any) ([][]any, error) {
-	results, err := Query(e.tx, query, args...)
+func (e *Entity) Query(query string, args ...any) [][]any {
+	results := Query(e.tx, query, args...)
 	defer results.Close()
-
-	if err != nil {
-		return nil, err
-	}
 
 	data := ([][]any)(nil)
 	/*
@@ -297,10 +285,10 @@ func (e *Entity) Query(query string, args ...any) ([][]any, error) {
 		data = append(data, r)
 	}
 
-	return data, nil
+	return data
 }
 
-func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, error) {
+func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, args ...any) ([]*Entity, *XRError) {
 	log.VPrintf(3, ">Enter: RawEntititiesFromQuery(%s)", query)
 	defer log.VPrintf(3, "<Exit: RawEntitiesFromQuery")
 
@@ -311,7 +299,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 		query = "AND (" + query + ") "
 	}
 	args = append(append([]any{}, regID), args...)
-	results, err := Query(tx, `
+	results := Query(tx, `
 		SELECT
             e.RegSID as RegSID,
             e.Type as Type,
@@ -329,15 +317,11 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
         WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
 	defer results.Close()
 
-	if err != nil {
-		return nil, err
-	}
-
 	entities := []*Entity{}
 	for {
-		e, err := readNextEntity(tx, results, accessMode)
-		if err != nil {
-			return nil, err
+		e, xErr := readNextEntity(tx, results, accessMode)
+		if xErr != nil {
+			return nil, xErr
 		}
 		if e == nil {
 			break
@@ -350,7 +334,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 
 // Update the entity's Object - not the other props in Entity. Similar to
 // RawEntityFromPath
-func (e *Entity) Refresh(accessMode int) error {
+func (e *Entity) Refresh(accessMode int) *XRError {
 	log.VPrintf(3, ">Enter: Refresh(%s)", e.DbSID)
 	defer log.VPrintf(3, "<Exit: Refresh")
 
@@ -359,14 +343,10 @@ func (e *Entity) Refresh(accessMode int) error {
 		mode = " FOR UPDATE"
 	}
 
-	results, err := Query(e.tx, `
+	results := Query(e.tx, `
         SELECT PropName, PropValue, PropType
         FROM Props WHERE EntitySID=?`+mode, e.DbSID)
 	defer results.Close()
-
-	if err != nil {
-		return fmt.Errorf("Error refreshing props(%s): %s", e.DbSID, err)
-	}
 
 	// Erase all old props first
 	e.Object = map[string]any{}
@@ -377,8 +357,8 @@ func (e *Entity) Refresh(accessMode int) error {
 		val := NotNilString(row[1])
 		propType := NotNilString(row[2])
 
-		if err = e.SetFromDBName(name, &val, propType); err != nil {
-			return err
+		if xErr := e.SetFromDBName(name, &val, propType); xErr != nil {
+			return xErr
 		}
 	}
 
@@ -400,21 +380,22 @@ func (e *Entity) Refresh(accessMode int) error {
 }
 
 // Set, Validate and Save to DB but not Commit
-func (e *Entity) eSetSave(path string, val any) error {
+func (e *Entity) eSetSave(path string, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetSave(%s=%v)", path, val)
 	defer log.VPrintf(3, "<Exit Set")
 
 	pp, err := PropPathFromUI(path)
-	if err == nil {
-		// Set, Validate and Save
-		err = e.SetPP(pp, val)
+	if err != nil {
+		return NewXRError("bad_request", e.Path, err)
 	}
 
-	return err
+	// Set, Validate and Save
+	xErr := e.SetPP(pp, val)
+	return xErr.SetInstance(e.Path)
 }
 
 // Set the prop in the Entity but don't Validate or Save to the DB
-func (e *Entity) eJustSet(pp *PropPath, val any) error {
+func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: JustSet([%d] %s.%s=%v)", e.Type, e.UID, pp.UI(), val)
 	defer log.VPrintf(3, "<Exit: JustSet")
 
@@ -456,11 +437,11 @@ func (e *Entity) eJustSet(pp *PropPath, val any) error {
 	/*
 				if e.Type == ENTITY_RESOURCE && pp.Top() == "xref" {
 					// Handles both val=nil and non-nil cases
-					err := DoOneTwo(e.tx,
+					xErr := DoOneTwo(e.tx,
 		               `UPDATE Resources SET xRef=? WHERE SID=?`,
 						val, e.DbSID)
-					if err != nil {
-						return err
+					if xErr != nil {
+						return xErr
 					}
 				}
 	*/
@@ -471,10 +452,14 @@ func (e *Entity) eJustSet(pp *PropPath, val any) error {
 		log.VPrintf(0, "e.NewObject:\n%s", ToJSON(e.NewObject))
 	}
 
-	return ObjectSetProp(e.NewObject, pp, val)
+	err := ObjectSetProp(e.NewObject, pp, val)
+	if err != nil {
+		return NewXRError("bad_request", e.Path, err)
+	}
+	return nil
 }
 
-func (e *Entity) ValidateAndSave() error {
+func (e *Entity) ValidateAndSave() *XRError {
 	log.VPrintf(3, ">Enter: ValidateAndSave %s/%s", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: ValidateAndSave")
 
@@ -491,8 +476,8 @@ func (e *Entity) ValidateAndSave() error {
 			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	}
 
-	if err := e.Validate(); err != nil {
-		return err
+	if xErr := e.Validate(); xErr != nil {
+		return xErr
 	}
 
 	return e.Save()
@@ -500,7 +485,7 @@ func (e *Entity) ValidateAndSave() error {
 
 // This is really just an internal Setter used for testing.
 // It'll set a property and then validate and save the entity in the DB
-func (e *Entity) SetPP(pp *PropPath, val any) error {
+func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetPP(%s: %s=%v)", e.DbSID, pp.UI(), val)
 	defer log.VPrintf(3, "<Exit SetPP")
 	defer func() {
@@ -509,12 +494,12 @@ func (e *Entity) SetPP(pp *PropPath, val any) error {
 		}
 	}()
 
-	if err := e.eJustSet(pp, val); err != nil {
-		return err
+	if xErr := e.eJustSet(pp, val); xErr != nil {
+		return xErr
 	}
 
-	err := e.ValidateAndSave()
-	if err != nil {
+	xErr := e.ValidateAndSave()
+	if xErr != nil {
 		// If there's an error, and we're making the assumption that we're
 		// setting and saving all in one shot (and there are no other edits
 		// pending), go ahead and undo the changes since they're wrong.
@@ -525,23 +510,23 @@ func (e *Entity) SetPP(pp *PropPath, val any) error {
 		e.Refresh(FOR_READ)
 	}
 
-	return err
+	return xErr
 }
 
 // This will save a single property/value in the DB. This assumes
 // the caller is traversing the Object and splitting it into individual props
-func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
+func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetDBProperty(%s=%v)", pp, val)
 	defer log.VPrintf(3, "<Exit SetDBProperty")
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
-	var err error
 	name := pp.DB()
 
 	if len(name) > MAX_PROPNAME {
-		return fmt.Errorf("Attribute paths must not exceed %d chars"+
-			"(%s)", MAX_PROPNAME, name)
+		return NewXRError("invalid_attribute", e.Path,
+			name, fmt.Sprintf("attribute paths must not exceed %d chars",
+				MAX_PROPNAME))
 	}
 
 	// Any prop with "dontStore"=true we skip
@@ -561,17 +546,13 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 		if rm.GetHasDocument() && pp.Top() == rm.Singular {
 			if IsNil(val) {
 				// Remove the content
-				err = Do(e.tx, `DELETE FROM ResourceContents WHERE VersionSID=?`,
+				Do(e.tx, `DELETE FROM ResourceContents WHERE VersionSID=?`,
 					e.DbSID)
-				return err
 			} else {
 				// Update the content
-				err = DoOneTwo(e.tx, `
+				DoOneTwo(e.tx, `
                 REPLACE INTO ResourceContents(VersionSID, Content)
             	VALUES(?,?)`, e.DbSID, val)
-				if err != nil {
-					return err
-				}
 
 				PanicIf(IsNil(e.NewObject["#contentid"]), "Missing cid")
 
@@ -590,7 +571,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 
 	if IsNil(val) {
 		// Should never need this but keeping it just in case
-		err = Do(e.tx, `DELETE FROM Props WHERE EntitySID=? and PropName=?`,
+		Do(e.tx, `DELETE FROM Props WHERE EntitySID=? and PropName=?`,
 			e.DbSID, name)
 	} else {
 		propType := GoToOurType(val)
@@ -609,46 +590,51 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) error {
 		switch reflect.ValueOf(val).Kind() {
 		case reflect.String:
 			if reflect.ValueOf(val).Len() > MAX_VARCHAR {
-				return fmt.Errorf("Value of %q must be less than %d chars",
-					pp.UI(), MAX_VARCHAR+1)
+				return NewXRError("invalid_attribute", e.Path,
+					pp.UI(), fmt.Sprintf("must be less than %d chars",
+						MAX_VARCHAR+1))
 			}
 		case reflect.Slice:
 			if reflect.ValueOf(val).Len() > 0 {
-				return fmt.Errorf("Can't set non-empty arrays (%s)", pp.UI())
+				return NewXRError("invalid_attribute", e.Path,
+					pp.UI(), "can't set non-empty arrays")
 			}
 			dbVal = ""
 		case reflect.Map:
 			if reflect.ValueOf(val).Len() > 0 {
-				return fmt.Errorf("Can't set non-empty maps (%s)", pp.UI())
+				return NewXRError("invalid_attribute", e.Path,
+					pp.UI(), "can't set non-empty maps")
 			}
 			dbVal = ""
 		case reflect.Struct:
 			if reflect.ValueOf(val).NumField() > 0 {
-				return fmt.Errorf("Can't set non-empty objects (%s)", pp.UI())
+				return NewXRError("invalid_attribute", e.Path,
+					pp.UI(), "can't set non-empty objects")
 			}
 			dbVal = ""
 		}
 
-		err = DoOneTwo(e.tx, `
+		DoOneTwo(e.tx, `
             REPLACE INTO Props(
               RegistrySID,EntitySID,eType,PropName,PropValue,PropType,DocView)
             VALUES( ?,?,?,?,?,?, true )`,
 			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType)
 	}
 
-	if err != nil {
-		return fmt.Errorf("Error updating prop(%s/%v): %s", pp.UI(), val, err)
-	}
-
 	return nil
 }
 
 // This is used to take a DB entry and update the current Entity's Object
-func (e *Entity) SetFromDBName(name string, val *string, propType string) error {
+func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRError {
+	var err error
 	pp := MustPropPathFromDB(name)
 
 	if val == nil {
-		return ObjectSetProp(e.Object, pp, val)
+		err := ObjectSetProp(e.Object, pp, val)
+		if err != nil {
+			return NewXRError("bad_request", e.Path, err)
+		}
+		return nil
 	}
 	if e.Object == nil {
 		e.Object = map[string]any{}
@@ -657,44 +643,49 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) error 
 	if propType == STRING || propType == URI || propType == URI_REFERENCE ||
 		propType == URI_TEMPLATE || propType == URL || propType == TIMESTAMP ||
 		propType == XID || propType == XIDTYPE {
-		return ObjectSetProp(e.Object, pp, *val)
+		err = ObjectSetProp(e.Object, pp, *val)
 	} else if propType == BOOLEAN {
 		// Technically the "1" check shouldn't be needed, but just in case
-		return ObjectSetProp(e.Object, pp, (*val == "1" || (*val == "true")))
+		err = ObjectSetProp(e.Object, pp, (*val == "1" || (*val == "true")))
 	} else if propType == INTEGER || propType == UINTEGER {
 		tmpInt, err := strconv.Atoi(*val)
 		if err != nil {
-			panic(fmt.Sprintf("error parsing int: %s", *val))
+			panic(fmt.Sprintf("error parsing int: %s: %s", *val, err))
 		}
-		return ObjectSetProp(e.Object, pp, tmpInt)
+		err = ObjectSetProp(e.Object, pp, tmpInt)
 	} else if propType == DECIMAL {
 		tmpFloat, err := strconv.ParseFloat(*val, 64)
 		if err != nil {
-			panic(fmt.Sprintf("error parsing float: %s", *val))
+			panic(fmt.Sprintf("error parsing float: %s: %s", *val, err))
 		}
-		return ObjectSetProp(e.Object, pp, tmpFloat)
+		err = ObjectSetProp(e.Object, pp, tmpFloat)
 	} else if propType == MAP {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		return ObjectSetProp(e.Object, pp, map[string]any{})
+		err = ObjectSetProp(e.Object, pp, map[string]any{})
 	} else if propType == ARRAY {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		return ObjectSetProp(e.Object, pp, []any{})
+		err = ObjectSetProp(e.Object, pp, []any{})
 	} else if propType == OBJECT {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		return ObjectSetProp(e.Object, pp, map[string]any{})
+		err = ObjectSetProp(e.Object, pp, map[string]any{})
 	} else {
 		panic(fmt.Sprintf("bad type(%s): %v", propType, name))
 	}
+
+	if err != nil {
+		return NewXRError("bad_request", e.Path, err)
+	}
+	return nil
 }
 
 // Create a new Entity based on what's in the DB. Similar to Refresh()
-func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, error) {
+func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
 	entity := (*Entity)(nil)
 
 	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
@@ -755,8 +746,9 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, error) {
 			continue
 		}
 
-		if err := entity.SetFromDBName(propName, &propVal, propType); err != nil {
-			return nil, err
+		xErr := entity.SetFromDBName(propName, &propVal, propType)
+		if xErr != nil {
+			return nil, xErr
 		}
 	}
 
@@ -773,10 +765,11 @@ var PropsFuncs = []*Attribute{
 			getFn: func(e *Entity) any {
 				return SPECVERSION
 			},
-			checkFn: func(e *Entity) error {
+			checkFn: func(e *Entity) *XRError {
 				tmp := e.NewObject["specversion"]
 				if !IsNil(tmp) && tmp != "" && tmp != SPECVERSION {
-					return fmt.Errorf("Invalid 'specversion': %s", tmp)
+					return NewXRError("invalid_attribute", e.Path,
+						"specversion", "invalid value: %s", tmp)
 				}
 				return nil
 			},
@@ -785,7 +778,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "id",
 		internals: &AttrInternals{
-			checkFn: func(e *Entity) error {
+			checkFn: func(e *Entity) *XRError {
 				singular := e.Singular
 				// PanicIf(singular == "", "singular is '' :  %v", e)
 				if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
@@ -807,21 +800,23 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if newID == "" {
-					return fmt.Errorf(`%q can't be an empty string`,
-						singular)
+					return NewXRError("invalid_attribute", e.Path,
+						singular, fmt.Sprintf(`can't be an empty string`))
 				}
 
-				if err := IsValidID(newID.(string)); err != nil {
-					return err
+				if xErr := IsValidID(newID.(string), singular); xErr != nil {
+					xErr.Instance = e.Path
+					return xErr
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return fmt.Errorf(`The %q attribute must be set to `+
-						`%q, not %q`, singular, oldID, newID)
+					return NewXRError("invalid_attribute", e.Path,
+						singular, fmt.Sprintf(`must be set to `+
+							`%q, not %q`, oldID, newID))
 				}
 				return nil
 			},
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				// Make sure the ID is always set
 				singular := e.Singular
 				if e.Type == ENTITY_VERSION || e.Type == ENTITY_META {
@@ -843,7 +838,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "versionid",
 		internals: &AttrInternals{
-			checkFn: func(e *Entity) error {
+			checkFn: func(e *Entity) *XRError {
 				oldID := any(e.UID)
 				newID := any(e.NewObject["versionid"])
 
@@ -852,20 +847,23 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if newID == "" {
-					return fmt.Errorf(`"versionid" can't be an empty string`)
+					return NewXRError("invalid_attribute", e.Path,
+						"versionid", "can't be an empty string")
 				}
 
-				if err := IsValidID(newID.(string)); err != nil {
-					return err
+				if xErr := IsValidID(newID.(string), "versionid"); xErr != nil {
+					xErr.Instance = e.Path
+					return xErr
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return fmt.Errorf(`The "versionid" attribute must be `+
-						`set to %q, not %q`, oldID, newID)
+					return NewXRError("invalid_attribute", e.Path,
+						"versionid", fmt.Sprintf(`must be `+
+							`set to %q, not %q`, oldID, newID))
 				}
 				return nil
 			},
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				// Make sure the ID is always set
 				if IsNil(e.NewObject["versionid"]) {
 					ShowStack()
@@ -958,7 +956,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "epoch",
 		internals: &AttrInternals{
-			checkFn: func(e *Entity) error {
+			checkFn: func(e *Entity) *XRError {
 				// If we explicitly setEpoch via internal API then don't check
 				if e.EpochSet {
 					return nil
@@ -977,16 +975,18 @@ var PropsFuncs = []*Attribute{
 
 				newEpoch, err := AnyToUInt(val)
 				if err != nil {
-					return fmt.Errorf("Attribute \"epoch\" must be a uinteger")
+					return NewXRError("invalid_attribute", e.Path,
+						"epoch", "must be a uinteger")
 				}
 
 				if !e.tx.IgnoreEpoch && oldEpoch != 0 && newEpoch != oldEpoch {
-					return fmt.Errorf("Attribute %q(%d) doesn't match "+
-						"existing value (%d)", "epoch", newEpoch, oldEpoch)
+					return NewXRError("invalid_attribute", e.Path,
+						"epoch", fmt.Sprintf("value (%d) doesn't match "+
+							"existing value (%d)", newEpoch, oldEpoch))
 				}
 				return nil
 			},
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				// Very special, if we're in meta and xref set then
 				// erase 'epoch'. We can't do it earlier because we need
 				// the checkFn to be run to make sure any incoming value
@@ -1046,7 +1046,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "createdat",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["createdat"] = nil
 
@@ -1078,7 +1078,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "modifiedat",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				if e.Type == ENTITY_META && e.GetAsString("xref") != "" {
 					e.NewObject["modifiedat"] = nil
 					return nil
@@ -1121,21 +1121,22 @@ var PropsFuncs = []*Attribute{
 						return e.Registry.Capabilities
 					}
 
-					cap, err := ParseCapabilitiesJSON([]byte(capStr))
-					Must(err)
+					cap, xErr := ParseCapabilitiesJSON([]byte(capStr))
+					Must(xErr)
 					return cap
 				}
 				return nil
 			},
-			checkFn: func(e *Entity) error {
+			checkFn: func(e *Entity) *XRError {
 				// Yes it's weird to store it in #capabilities but
 				// it's actually easier to do it this way. Trying to convert
 				// map[string]any <-> Capabilities  is really annoying
 				val, ok := e.NewObject["capabilities"]
 
+				var xErr *XRError
+
 				if ok {
 					var cap *Capabilities
-					var err error
 
 					if !IsNil(val) {
 						// If speed is ever a concern here, just save the raw
@@ -1143,16 +1144,16 @@ var PropsFuncs = []*Attribute{
 						// processing
 						valStr := ToJSON(val)
 
-						cap, err = ParseCapabilitiesJSON([]byte(valStr))
-						if err != nil {
-							return err
+						cap, xErr = ParseCapabilitiesJSON([]byte(valStr))
+						if xErr != nil {
+							return xErr
 						}
 					} else {
 						cap = DefaultCapabilities
 					}
 
-					if err = cap.Validate(); err != nil {
-						return err
+					if xErr = cap.Validate(); xErr != nil {
+						return xErr
 					}
 
 					valStr := ToJSON(cap)
@@ -1163,7 +1164,7 @@ var PropsFuncs = []*Attribute{
 				}
 				return nil
 			},
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				return nil
 			},
 		},
@@ -1219,7 +1220,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "compatibilityauthority",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				if !IsNil(e.NewObject["xref"]) {
 					return nil
 				}
@@ -1241,7 +1242,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "ancestor",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				_, ok := e.NewObject["ancestor"]
 				PanicIf(!ok, "Missing versionid")
 				if !ok {
@@ -1275,7 +1276,7 @@ var PropsFuncs = []*Attribute{
 		Name: "$RESOURCEurl",
 		internals: &AttrInternals{
 			checkFn: RESOURCEcheckFn,
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				singular := e.GetResourceSingular()
 				v, ok := e.NewObject[singular+"url"]
 				if ok && !IsNil(v) {
@@ -1291,7 +1292,7 @@ var PropsFuncs = []*Attribute{
 		Name: "$RESOURCEproxyurl",
 		internals: &AttrInternals{
 			checkFn: RESOURCEcheckFn,
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				singular := e.GetResourceSingular()
 				v, ok := e.NewObject[singular+"proxyurl"]
 				if ok && !IsNil(v) {
@@ -1307,7 +1308,7 @@ var PropsFuncs = []*Attribute{
 		Name: "$RESOURCE",
 		internals: &AttrInternals{
 			checkFn: RESOURCEcheckFn,
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				singular := e.GetResourceSingular()
 				v, ok := e.NewObject[singular]
 				if ok {
@@ -1327,7 +1328,7 @@ var PropsFuncs = []*Attribute{
 		Name: "$RESOURCEbase64",
 		internals: &AttrInternals{
 			checkFn: RESOURCEcheckFn,
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				singular := e.GetResourceSingular()
 				v, ok := e.NewObject[singular]
 				if ok {
@@ -1390,7 +1391,7 @@ var PropsFuncs = []*Attribute{
 	{
 		Name: "defaultversionid",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) error {
+			updateFn: func(e *Entity) *XRError {
 				// Make sure it has a value, if not copy from existing
 				xRef := e.NewObject["xref"]
 				PanicIf(xRef == "", "xref is ''")
@@ -1515,7 +1516,7 @@ func (e *Entity) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
 //   - Call that passed-in 'fn' to serialize each prop but in the right order
 //     as defined by the entity's GetPropsOrdered()
 func (e *Entity) SerializeProps(info *RequestInfo,
-	fn func(*Entity, *RequestInfo, string, any, *Attribute) error) error {
+	fn func(*Entity, *RequestInfo, string, any, *Attribute) *XRError) *XRError {
 	log.VPrintf(3, ">Enter: SerializeProps(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: SerializeProps")
 
@@ -1580,8 +1581,8 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 					}
 					// log.Printf("Ser*ext(%s): %q", e.Path, objKey)
 
-					if err := fn(e, info, objKey, val, attr); err != nil {
-						return err
+					if xErr := fn(e, info, objKey, val, attr); xErr != nil {
+						return xErr
 					}
 				}
 			}
@@ -1590,8 +1591,8 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 
 		if name[0] == '$' || (prop.internals != nil && prop.internals.alwaysSerialize) {
 			log.VPrintf(4, "  forced serialization of %q", name)
-			if err := fn(e, info, name, nil, attr); err != nil {
-				return err
+			if xErr := fn(e, info, name, nil, attr); xErr != nil {
+				return xErr
 			}
 			continue
 		}
@@ -1600,9 +1601,9 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 		if val, ok := daObj[name]; ok {
 			log.VPrintf(4, "  val: %v", val)
 			if !IsNil(val) {
-				err := fn(e, info, name, val, attr)
-				if err != nil {
-					return err
+				xErr := fn(e, info, name, val, attr)
+				if xErr != nil {
+					return xErr
 				}
 			}
 			delete(daObj, name)
@@ -1626,8 +1627,8 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 					"Can't find attr for %q", attrKey)
 			}
 
-			if err := fn(e, info, objKey, val, attr); err != nil {
-				return err
+			if xErr := fn(e, info, objKey, val, attr); xErr != nil {
+				return xErr
 			}
 		}
 	*/
@@ -1647,7 +1648,7 @@ func (e *Entity) Lock() bool { // did we lock it?
 	return true
 }
 
-func (e *Entity) Save() error {
+func (e *Entity) Save() *XRError {
 	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: Save")
 
@@ -1671,10 +1672,7 @@ func (e *Entity) Save() error {
 
 	// Delete all props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	err := Do(e.tx, "DELETE FROM Props WHERE EntitySID=? ", e.DbSID)
-	if err != nil {
-		return fmt.Errorf("Error deleting all prop: %s", err)
-	}
+	Do(e.tx, "DELETE FROM Props WHERE EntitySID=? ", e.DbSID)
 
 	resSingular := ""
 	resHasDoc := false
@@ -1683,8 +1681,8 @@ func (e *Entity) Save() error {
 		resHasDoc = rm.GetHasDocument()
 	}
 
-	var traverse func(pp *PropPath, val any, obj map[string]any) error
-	traverse = func(pp *PropPath, val any, obj map[string]any) error {
+	var traverse func(pp *PropPath, val any, obj map[string]any) *XRError
+	traverse = func(pp *PropPath, val any, obj map[string]any) *XRError {
 		if IsNil(val) { // Skip empty attributes
 			return nil
 		}
@@ -1697,27 +1695,29 @@ func (e *Entity) Save() error {
 			count := 0
 			for _, keyValue := range keys {
 				if keyValue.Kind() != reflect.String {
-					return fmt.Errorf("Map key (%s) needs to be a string, "+
-						"not %s", pp.UI(), keyValue.Kind().String())
+					return NewXRError("invalid_attribute", e.Path,
+						pp.RemoveLast().UI(),
+						fmt.Sprintf("map key (%s) needs to be a string, "+
+							"not %s", pp.Last().Text, keyValue.Kind().String()))
 				}
 
 				k := keyValue.Interface().(string)
 				v := valValue.MapIndex(keyValue).Interface()
 				// "RESOURCE" is special - call SetDBProp if it's present
 				if resHasDoc && pp.Len() == 0 && k == resSingular {
-					if err := e.SetDBProperty(pp.P(k), v); err != nil {
-						return err
+					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
+						return xErr
 					}
 				} else if k[0] == '#' {
-					if err := e.SetDBProperty(pp.P(k), v); err != nil {
-						return err
+					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
+						return xErr
 					}
 				} else {
 					if IsNil(v) {
 						continue
 					}
-					if err := traverse(pp.P(k), v, obj); err != nil {
-						return err
+					if xErr := traverse(pp.P(k), v, obj); xErr != nil {
+						return xErr
 					}
 				}
 				count++
@@ -1733,8 +1733,8 @@ func (e *Entity) Save() error {
 			}
 			for i := 0; i < valValue.Len(); i++ {
 				v := valValue.Index(i).Interface()
-				if err := traverse(pp.I(i), v, obj); err != nil {
-					return err
+				if xErr := traverse(pp.I(i), v, obj); xErr != nil {
+					return xErr
 				}
 			}
 
@@ -1748,8 +1748,8 @@ func (e *Entity) Save() error {
 				if IsNil(v) {
 					continue
 				}
-				if err := traverse(pp.P(k), v, obj); err != nil {
-					return err
+				if xErr := traverse(pp.P(k), v, obj); xErr != nil {
+					return xErr
 				}
 				count++
 			}
@@ -1764,18 +1764,21 @@ func (e *Entity) Save() error {
 		return nil
 	}
 
-	err = traverse(NewPP(), newObj, e.NewObject)
-	if err == nil {
-		// Copy 'newObj', removing all 'nil' attributes
-		e.Object = map[string]any{}
-		for k, v := range newObj {
-			if !IsNil(v) {
-				e.Object[k] = v
-			}
-		}
-		e.NewObject = nil
+	xErr := traverse(NewPP(), newObj, e.NewObject)
+	if xErr != nil {
+		return xErr
 	}
-	return err
+
+	// Copy 'newObj', removing all 'nil' attributes
+	e.Object = map[string]any{}
+	for k, v := range newObj {
+		if !IsNil(v) {
+			e.Object[k] = v
+		}
+	}
+	e.NewObject = nil
+
+	return nil
 }
 
 // This will add in the calculated properties into the entity. This will
@@ -1902,7 +1905,7 @@ func (e *Entity) GetBaseAttributes() Attributes {
 // NOTE!!! This isn't a read-only operation. Normally it would be, but to
 // avoid traversing the entity more than once, we will tweak things if needed.
 // For example, if a missing attribute has a Default value then we'll add it.
-func (e *Entity) Validate() error {
+func (e *Entity) Validate() *XRError {
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
 	log.VPrintf(4, "In Validate - Attrs:\n%s", ToJSON(attrs))
@@ -1936,7 +1939,7 @@ func (e *Entity) Validate() error {
 
 // This should be called after all type-specific calculated properties have
 // been removed - such as collections
-func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) error {
+func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attributes, path *PropPath) *XRError {
 
 	log.VPrintf(3, ">Enter: ValidateObject(path: %s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateObject")
@@ -1950,8 +1953,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 	if valValue.Kind() != reflect.Map ||
 		valValue.Type().Key().Kind() != reflect.String {
 
-		return fmt.Errorf("Attribute %q must be a map[string] or object",
-			path.UI())
+		return NewXRError("invalid_attribute", e.Path,
+			path.UI(), "must be a map[string] or object")
 	}
 	newObj := val.(map[string]any)
 
@@ -2016,11 +2019,14 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			}
 
 			/* Not sure what this was for :-)  save for now
-			if path.Len() > 0 {
-				if err := IsValidAttributeName(path.Bottom()); err != nil {
-					return err
-				}
-			}
+						if path.Len() > 0 {
+							if xErr := IsValidAttributeName(path.Bottom(), path.UI()); xErr != nil {
+			                    if xErr.Instance == "/" {
+			                        xErr.SetInstance(e.Path)
+			                    }
+								return xErr
+							}
+						}
 			*/
 
 			// Based on the attribute's type check the incoming 'val'.
@@ -2028,10 +2034,10 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// the next section (checkFn) will allow for more detailed
 			// checking, like for valid values
 			if !IsNil(val) {
-				err, haveReplacement, newValue := e.ValidateAttribute(val,
+				xErr, haveReplacement, newValue := e.ValidateAttribute(val,
 					attr, path.P(key))
-				if err != nil {
-					return err
+				if xErr != nil {
+					return xErr
 				}
 				if haveReplacement {
 					val = newValue
@@ -2050,10 +2056,12 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 					for _, newAttr := range ifValueData.SiblingAttributes {
 						if _, ok := allAttrNames[newAttr.Name]; ok {
-							return fmt.Errorf(`Attribute %q has an "ifvalues"`+
-								`(%s) that defines a conflictng `+
-								`siblingattribute: %s`, path.P(key).UI(),
-								valStr, newAttr.Name)
+							return NewXRError("invalid_attribute", e.Path,
+								path.P(key).UI(),
+								fmt.Sprintf(`has an "ifvalues"`+
+									`(%s) that defines a conflictng `+
+									`siblingattribute: %s`,
+									valStr, newAttr.Name))
 						}
 						// add new attr to the list so we can check its ifValues
 						if newAttr.Name == "*" {
@@ -2069,8 +2077,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// Call the attr's checkFn if there to make sure any
 			// incoming value is ok
 			if attr.internals != nil && attr.internals.checkFn != nil {
-				if err := attr.internals.checkFn(e); err != nil {
-					return err
+				if xErr := attr.internals.checkFn(e); xErr != nil {
+					return xErr
 				}
 			}
 
@@ -2085,8 +2093,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// If this attr has a func to update its value, call it
 			if attr.internals != nil && attr.internals.updateFn != nil {
-				if err := attr.internals.updateFn(e); err != nil {
-					return err
+				if xErr := attr.internals.updateFn(e); xErr != nil {
+					return xErr
 				}
 
 				// grab value in case it changed
@@ -2112,8 +2120,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				}
 
 				if flagit {
-					return fmt.Errorf("Required property %q is missing",
-						path.P(key).UI())
+					return NewXRError("bad_request", e.Path,
+						fmt.Sprintf("required property %q is missing",
+							path.P(key).UI()))
 				}
 			}
 
@@ -2121,16 +2130,19 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// but only if it's actually present in the object.
 			if keyPresent {
 				if namecharset == "extended" {
-					if err := IsValidMapKey(key); err != nil {
-						return err
+					if xErr := IsValidMapKey(key, path.UI()); xErr != nil {
+						xErr.Instance = e.Path
+						return xErr
 					}
 				} else if namecharset == "" || namecharset == "strict" {
-					if err := IsValidAttributeName(key); err != nil {
-						return err
+					if xErr := IsValidAttributeName(key, path.UI()); xErr != nil {
+						xErr.Instance = e.Path
+						return xErr
 					}
 				} else {
-					return fmt.Errorf("Unknown \"namecharset\" value: %s",
-						namecharset)
+					return NewXRError("bad_request", e.Path,
+						fmt.Sprintf("unknown \"namecharset\" value: %s",
+							namecharset))
 				}
 			}
 
@@ -2154,15 +2166,16 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 		if where != "" {
 			where = " in \"" + where + "\""
 		}
-		return fmt.Errorf("Invalid extension(s)%s: %s", where,
-			strings.Join(SortedKeys(objKeys), ","))
+		return NewXRError("bad_request", e.Path,
+			fmt.Sprintf("invalid extension(s)%s: %s", where,
+				strings.Join(SortedKeys(objKeys), ",")))
 	}
 
 	return nil
 }
 
 // Return: error, haveReplaceValue, newValue
-func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (error, bool, any) {
+func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	log.VPrintf(3, ">Enter: ValidateAttribute(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateAttribute")
 
@@ -2198,7 +2211,7 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (er
 	panic(fmt.Sprintf("Unknown type(%s): %s", path.UI(), attr.Type))
 }
 
-func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
+func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
 	log.VPrintf(3, ">Enter: ValidateMap(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateMap")
 
@@ -2213,7 +2226,8 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 
 	valValue := reflect.ValueOf(val)
 	if valValue.Kind() != reflect.Map {
-		return fmt.Errorf("Attribute %q must be a map", path.UI())
+		return NewXRError("invalid_attribute", e.Path,
+			path.UI(), "must be a map")
 	}
 
 	// All values in the map must be of the same type
@@ -2225,15 +2239,18 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 
 	for _, k := range valValue.MapKeys() {
 		if k.Kind() != reflect.String {
-			return fmt.Errorf("Map key (%s) needs to be a string, "+
-				"not %s", path.UI(), k.Kind().String())
+			return NewXRError("invalid_attribute",
+				path.RemoveLast().UI(),
+				fmt.Sprintf("map key (%s) needs to be a string, "+
+					"not %s", path.Last().Text, k.Kind().String()))
 		}
 
 		keyName := k.Interface().(string)
 
 		if path.Len() > 0 {
-			if err := IsValidMapKey(keyName); err != nil {
-				return err
+			if xErr := IsValidMapKey(keyName, path.UI()); xErr != nil {
+				xErr.Instance = e.Path
+				return xErr
 			}
 		}
 
@@ -2241,10 +2258,10 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 		if IsNil(v) {
 			continue
 		}
-		err, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+		xErr, haveReplacement, newValue := e.ValidateAttribute(v, attr,
 			path.P(keyName))
-		if err != nil {
-			return err
+		if xErr != nil {
+			return xErr
 		}
 		if haveReplacement {
 			valValue.SetMapIndex(k, reflect.ValueOf(newValue))
@@ -2254,7 +2271,7 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) error {
 	return nil
 }
 
-func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) error {
+func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *XRError {
 	log.VPrintf(3, ">Enter: ValidateArray(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateArray")
 
@@ -2269,7 +2286,8 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) er
 
 	valValue := reflect.ValueOf(val)
 	if valValue.Kind() != reflect.Slice {
-		return fmt.Errorf("Attribute %q must be an array", path.UI())
+		return NewXRError("invalid_attribute", e.Path,
+			path.UI(), "must be an array")
 	}
 
 	// All values in the array must be of the same type
@@ -2283,10 +2301,10 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) er
 
 	for i := 0; i < valValue.Len(); i++ {
 		v := valValue.Index(i).Interface()
-		err, haveReplacement, newValue := e.ValidateAttribute(v, attr,
+		xErr, haveReplacement, newValue := e.ValidateAttribute(v, attr,
 			path.I(i))
-		if err != nil {
-			return err
+		if xErr != nil {
+			return xErr
 		}
 		if haveReplacement {
 			valValue.Index(i).Set(reflect.ValueOf(newValue))
@@ -2297,7 +2315,7 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) er
 }
 
 // returns: Error, haveReplacementValue, replacementValue
-func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (error, bool, any) {
+func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XRError, bool, any) {
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, ">Enter: ValidateScalar(%s:%s)", path, ToJSON(val))
 		defer log.VPrintf(3, "<Exit: ValidateScalar")
@@ -2305,31 +2323,30 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (error
 
 	replace := false
 	newValue := (any)(nil)
-	var err error
 
 	valKind := reflect.ValueOf(val).Kind()
 
 	switch attr.Type {
 	case BOOLEAN:
 		if valKind != reflect.Bool {
-			return fmt.Errorf("Attribute %q must be a boolean", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a boolean"), false, nil
 		}
 	case DECIMAL:
 		if valKind != reflect.Int && valKind != reflect.Float64 {
-			return fmt.Errorf("Attribute %q must be a decimal", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a decimal"), false, nil
 		}
 	case INTEGER:
 		if valKind == reflect.Float64 {
 			f := val.(float64)
 			if f != float64(int(f)) {
-				return fmt.Errorf("Attribute %q must be an integer",
-					path.UI()), false, nil
+				return NewXRError("invalid_attribute", e.Path,
+					path.UI(), "must be an integer"), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return fmt.Errorf("Attribute %q must be an integer", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be an integer"), false, nil
 		}
 	case UINTEGER:
 		i := 0
@@ -2337,133 +2354,145 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (error
 			f := val.(float64)
 			i = int(f)
 			if f != float64(i) {
-				return fmt.Errorf("Attribute %q must be a uinteger",
-					path.UI()), false, nil
+				return NewXRError("invalid_attribute", e.Path,
+					path.UI(), "must be a uinteger"), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return fmt.Errorf("Attribute %q must be a uinteger", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a uinteger"), false, nil
 		} else {
 			i = val.(int)
 			if valKind != reflect.Int {
-				return fmt.Errorf("Attribute %q must be a uinteger",
-					path.UI()), false, nil
+				return NewXRError("invalid_attribute", e.Path,
+					path.UI(), "must be a uinteger"), false, nil
 			}
 		}
 		if i < 0 {
-			return fmt.Errorf("Attribute %q must be a uinteger", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a uinteger"), false, nil
 		}
 	case XID:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be an xid", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be an xid"), false, nil
 		}
 		str := val.(string)
 
 		if attr.Target != "" {
-			err := e.MatchXID(str, attr.Target)
-			if err != nil {
-				return fmt.Errorf("Attribute %q %s", path.UI(),
-					err.Error()), false, nil
+			xErr := e.MatchXID(str, attr.Target, attr.Name)
+			if xErr != nil {
+				return xErr, false, nil
+				/*
+					return NewXRError("invalid_attribute", e.Path,
+						path.UI(), err.Error()), false, nil
+				*/
 			}
 		}
 
 		xid, err := ParseXid(str)
 		if err != nil {
-			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, %s",
-				path.UI(), str, err), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), fmt.Sprintf("value (%s) isn't a valid xid, %s",
+					str, err)), false, nil
 		}
 
 		if xid.VersionID != "" && xid.Version == "meta" {
-			return fmt.Errorf("Attribute %q (%s) isn't a valid xid, "+
-				"it must be in the form of: "+
-				"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
-				path.UI(), str), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), fmt.Sprintf("value (%s) isn't a valid xid, "+
+					"it must be in the form of: "+
+					"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
+					str)), false, nil
 		}
 
 		if xid.Type != ENTITY_REGISTRY {
 			gm := e.Registry.Model.FindGroupModel(xid.Group)
 			if gm == nil {
-				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, xid.Group), false, nil
+				return NewXRError("invalid_attribute", e.Path,
+					path.UI(), fmt.Sprintf("value (%s) references an unknown "+
+						"Group type %q", str, xid.Group)), false, nil
 			}
 
 			if xid.Resource != "" {
 				rm := gm.FindResourceModel(xid.Resource)
 				if rm == nil {
-					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown ResourceModel %q", path.UI(), str,
-						xid.Resource), false, nil
+					return NewXRError("invalid_attribute", e.Path,
+						path.UI(), fmt.Sprintf("value (%s) references an "+
+							"unknown Resource type %q", str,
+							xid.Resource)), false, nil
 				}
 			}
 		}
 
 	case XIDTYPE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be an xidtype", path.UI()),
+			return NewXRError("invalid_attribute", e.Path,
+					path.UI(), fmt.Sprintf("value  must be an xidtype")),
 				false, nil
 		}
 		str := val.(string)
 
 		xidType, err := ParseXidType(str)
 		if err != nil {
-			return fmt.Errorf("Attribute %q (%s) isn't a valid xidtype, %s",
-				path.UI(), str, err), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), fmt.Sprintf("value (%s) isn't a valid xidtype, %s",
+					str, err)), false, nil
 		}
 
 		if xidType.Group != "" {
 			gm := e.Registry.Model.FindGroupModel(xidType.Group)
 			if gm == nil {
-				return fmt.Errorf("Attribute %q (%s) references an unknown "+
-					"GroupModel %q", path.UI(), str, xidType.Group), false, nil
+				return NewXRError("invalid_attribute", e.Path,
+					path.UI(), fmt.Sprintf("value (%s) references an unknown "+
+						"Group type %q", str, xidType.Group)), false, nil
 			}
 
 			if xidType.Resource != "" {
 				rm := gm.FindResourceModel(xidType.Resource)
 				if rm == nil {
-					return fmt.Errorf("Attribute %q (%s) references an "+
-						"unknown ResourceModel %q", path.UI(), str,
-						xidType.Resource), false, nil
+					return NewXRError("invalid_attribute", e.Path,
+						path.UI(), fmt.Sprintf("value (%s) references an "+
+							"unknown Resource type %q", str,
+							xidType.Resource)), false, nil
 				}
 			}
 		}
 	case STRING:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a string", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a string"), false, nil
 		}
 	case URI:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a uri"), false, nil
 		}
 	case URI_REFERENCE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri-reference",
-				path.UI()), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a uri-reference"), false, nil
 		}
 	case URI_TEMPLATE:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a uri-template",
-				path.UI()), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a uri-template"), false, nil
 		}
 	case URL:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a url", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a url"), false, nil
 		}
 	case TIMESTAMP:
 		if valKind != reflect.String {
-			return fmt.Errorf("Attribute %q must be a timestamp", path.UI()),
-				false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "must be a timestamp"), false, nil
 		}
 		str := val.(string)
 
+		var err error
 		newValue, err = NormalizeStrTime(str)
 		if err != nil {
-			return fmt.Errorf("Attribute %q is a malformed timestamp",
-				path.UI()), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), "is a malformed timestamp"), false, nil
 		}
 		replace = (newValue != str)
 	default:
@@ -2489,15 +2518,16 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (error
 				}
 				valids += fmt.Sprintf("%v", v)
 			}
-			return fmt.Errorf("Attribute %q(%v) must be one of the enum "+
-				"values: %s", path.UI(), val, valids), false, nil
+			return NewXRError("invalid_attribute", e.Path,
+				path.UI(), fmt.Sprintf("value (%v) must be one of the enum "+
+					"values: %s", val, valids)), false, nil
 		}
 	}
 
 	return nil, replace, newValue
 }
 
-func PrepUpdateEntity(e *Entity) error {
+func PrepUpdateEntity(e *Entity) *XRError {
 	attrs := e.GetAttributes(e.NewObject)
 
 	for key, _ := range attrs {
@@ -2517,8 +2547,8 @@ func PrepUpdateEntity(e *Entity) error {
 		*/
 
 		if attr.InType(e.Type) && attr.internals != nil && attr.internals.updateFn != nil {
-			if err := attr.internals.updateFn(e); err != nil {
-				return err
+			if xErr := attr.internals.updateFn(e); xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -2527,83 +2557,98 @@ func PrepUpdateEntity(e *Entity) error {
 }
 
 // If no match then return an error saying why
-func (e *Entity) MatchXID(str string, xid string) error {
+func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 	// 0=all  1=GROUPS  2=RESOURCES  3=versions|""  4=[/versions]|""
 	targetParts := targetRE.FindStringSubmatch(xid)
 
 	if len(str) == 0 {
-		return fmt.Errorf("must be an xid, not empty")
+		return NewXRError("invalid_attribute", e.Path,
+			attr, "must be an xid, not empty")
 	}
 	if str[0] != '/' {
-		return fmt.Errorf("must be an xid, and start with /")
+		return NewXRError("invalid_attribute", e.Path,
+			attr, "must be an xid, and start with /")
 	}
 	strParts := strings.Split(str, "/")
 	if len(strParts) < 2 {
-		return fmt.Errorf("must be a valid xid")
+		return NewXRError("invalid_attribute", e.Path,
+			attr, "must be a valid xid")
 	}
 	if len(strParts[0]) > 0 {
-		return fmt.Errorf("must be an xid, and start with /")
+		return NewXRError("invalid_attribute", e.Path,
+			attr, "must be an xid, and start with /")
 	}
 	if xid == "/" {
 		if str != "/" {
-			return fmt.Errorf("must match %q target", xid)
+			return NewXRError("invalid_attribute", e.Path,
+				attr, fmt.Sprintf("must match %q target", xid))
 		}
 		return nil
 	}
 	if targetParts[1] != strParts[1] { // works for "" too
-		return fmt.Errorf("must match %q target", xid)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target", xid))
 	}
 
 	gm := e.Registry.Model.Groups[targetParts[1]]
 	if gm == nil {
-		return fmt.Errorf("uses an unknown group %q", targetParts[1])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("uses an unknown group %q", targetParts[1]))
 	}
 	if len(strParts) < 3 || len(strParts[2]) == 0 {
-		return fmt.Errorf("must match %q target, %q is missing \"%sid\"",
-			xid, str, gm.Singular)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+				xid, str, gm.Singular))
 	}
-	if err := IsValidID(strParts[2]); err != nil {
-		return fmt.Errorf("must match %q target: %s", xid, err)
+	if xErr := IsValidID(strParts[2], attr); xErr != nil {
+		return xErr
 	}
 
 	if targetParts[2] == "" { // /GROUPS
 		if len(strParts) == 3 {
 			return nil
 		}
-		return fmt.Errorf("must match %q target, extra stuff after %q",
-			xid, strParts[2])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, extra stuff after %q",
+				xid, strParts[2]))
 	}
 
 	// targetParts has RESOURCES
 	if len(strParts) < 4 { //    /GROUPS/GID/RESOURCES
-		return fmt.Errorf("must match %q target, %q is missing %q",
-			xid, str, targetParts[2])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing %q",
+				xid, str, targetParts[2]))
 	}
 
 	if targetParts[2] != strParts[3] {
-		return fmt.Errorf("must match %q target, %q is missing %q",
-			xid, str, targetParts[2])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing %q",
+				xid, str, targetParts[2]))
 	}
 
 	rm := gm.FindResourceModel(targetParts[2])
 	if rm == nil {
-		return fmt.Errorf("uses an unknown resource %q", targetParts[2])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("uses an unknown resource %q", targetParts[2]))
 	}
 
 	if len(strParts) < 5 || len(strParts[4]) == 0 {
-		return fmt.Errorf("must match %q target, %q is missing \"%sid\"",
-			xid, str, rm.Singular)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+				xid, str, rm.Singular))
 	}
-	if err := IsValidID(strParts[4]); err != nil {
-		return fmt.Errorf("must match %q target: %s", xid, err)
+	if xErr := IsValidID(strParts[4], ""); xErr != nil {
+		xErr.Instance = e.Path
+		return xErr
 	}
 
 	if targetParts[3] == "" && targetParts[4] == "" {
 		if len(strParts) == 5 {
 			return nil
 		}
-		return fmt.Errorf("must match %q target, extra stuff after %q",
-			xid, strParts[4])
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, extra stuff after %q",
+				xid, strParts[4]))
 
 	}
 
@@ -2615,20 +2660,24 @@ func (e *Entity) MatchXID(str string, xid string) error {
 	}
 
 	if len(strParts) < 6 || strParts[5] != "versions" {
-		return fmt.Errorf("must match %q target, %q is missing \"versions\"",
-			xid, str)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing \"versions\"",
+				xid, str))
 	}
 
 	if len(strParts) < 7 || len(strParts[6]) == 0 {
-		return fmt.Errorf("must match %q target, %q is missing a \"versionid\"",
-			xid, str)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, %q is missing a \"versionid\"",
+				xid, str))
 	}
-	if err := IsValidID(strParts[6]); err != nil {
-		return fmt.Errorf("must match %q target: %s", xid, err)
+	if xErr := IsValidID(strParts[6], ""); xErr != nil {
+		xErr.Instance = e.Path
+		return xErr
 	}
 
 	if len(strParts) > 7 {
-		return fmt.Errorf("must match %q target, too long", xid)
+		return NewXRError("invalid_attribute", e.Path,
+			attr, fmt.Sprintf("must match %q target, too long", xid))
 	}
 
 	return nil
@@ -2644,15 +2693,15 @@ func (e *Entity) MatchXID(str string, xid string) error {
 // of logic - but it might actually make for a cleaner design to keep
 // system data out of the user data space, so worth considering in the future.
 // I really would prefer to push this down in the stack though.
-func CheckAttrs(obj map[string]any) error {
+func CheckAttrs(obj map[string]any) *XRError {
 	if obj == nil {
 		return nil
 	}
 	for k, _ := range obj {
-		if err := IsValidAttributeName(k); err != nil {
+		if xErr := IsValidAttributeName(k, ""); xErr != nil {
 			// log.Printf("Key: %q", k)
 			// ShowStack()
-			return err
+			return xErr
 		}
 	}
 	return nil

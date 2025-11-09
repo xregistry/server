@@ -55,12 +55,11 @@ func TestDBRows(t *testing.T) {
 		return NotNilString(vp)
 	}
 
-	rows, err := reg.Query("SELECT e.Path,p.PropName,p.PropValue "+
+	rows := reg.Query("SELECT e.Path,p.PropName,p.PropValue "+
 		"FROM Props AS p "+
 		"JOIN Entities AS e ON (p.EntitySID=e.eSID) WHERE p.RegistrySID=? "+
 		"ORDER BY Path, PropName ",
 		reg.DbSID)
-	xNoErr(t, err)
 
 	result := ""
 	for _, row := range rows {

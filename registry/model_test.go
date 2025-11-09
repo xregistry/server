@@ -46,16 +46,32 @@ func TestModelVerifySimple(t *testing.T) {
 		}, ""},
 		{"reg 1 group -2 ", Model{
 			Groups: map[string]*GroupModel{"Gs1": nil},
-		}, `GroupModel "Gs1" can't be empty`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Group definition for \"Gs1\" can't be empty"
+}`},
 		{"reg 1 group -3 ", Model{
 			Groups: map[string]*GroupModel{"Gs1": {}},
-		}, `Invalid model type name "Gs1", must match: ^[a-z_][a-z_0-9]{0,56}$`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"Gs1\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
 		{"reg 1 group -4 ", Model{
 			Groups: map[string]*GroupModel{"@": {}},
-		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,56}$`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"@\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
 		{"reg 1 group -4.5 ", Model{
 			Groups: map[string]*GroupModel{"a": {}},
-		}, `Group "a" is missing a "singular" value`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Group \"a\" is missing a \"singular\" value"
+}`},
 		{"reg 1 group -5 ", Model{
 			Groups: map[string]*GroupModel{"_a": {Plural: "_a", Singular: "a"}},
 		}, ``},
@@ -64,13 +80,21 @@ func TestModelVerifySimple(t *testing.T) {
 		}, ``},
 		{"reg 1 group -5.6 ", Model{
 			Groups: map[string]*GroupModel{"a": {Singular: "a"}},
-		}, `Group "a" has same value for "plural" and "singular"`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Group \"a\" has same value for \"plural\" and \"singular\""
+}`},
 		{"reg 1 group -6 ", Model{
 			Groups: map[string]*GroupModel{"a23456789012345678901234567890123456789012345678901234567": {Plural: "a23456789012345678901234567890123456789012345678901234567", Singular: "a"}},
 		}, ``},
 		{"reg 1 group -7 ", Model{
 			Groups: map[string]*GroupModel{"a234567890123456789012345678901234567890123456789012345678": {}},
-		}, `Invalid model type name "a234567890123456789012345678901234567890123456789012345678", must match: ^[a-z_][a-z_0-9]{0,56}$`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"a234567890123456789012345678901234567890123456789012345678\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
 
 		{"reg 1 res 1  ", Model{
 			Groups: map[string]*GroupModel{
@@ -81,7 +105,11 @@ func TestModelVerifySimple(t *testing.T) {
 					},
 				},
 			},
-		}, `Resource "rs" is missing a "singular" value`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Resource \"rs\" is missing a \"singular\" value"
+}`},
 		{"reg 1 res 2  ", Model{
 			Groups: map[string]*GroupModel{
 				"gs": {
@@ -91,7 +119,11 @@ func TestModelVerifySimple(t *testing.T) {
 					},
 				},
 			},
-		}, `Invalid model type name "@", must match: ^[a-z_][a-z_0-9]{0,56}$`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"@\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
 		{"reg 1 res 3  ", Model{
 			Groups: map[string]*GroupModel{
 				"gs": {
@@ -101,7 +133,11 @@ func TestModelVerifySimple(t *testing.T) {
 					},
 				},
 			},
-		}, `Resource "rs" has same value for "plural" and "singular"`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Resource \"rs\" has same value for \"plural\" and \"singular\""
+}`},
 
 		{"reg 1 res 4  ", Model{
 			Groups: map[string]*GroupModel{
@@ -113,13 +149,21 @@ func TestModelVerifySimple(t *testing.T) {
 					},
 				},
 			},
-		}, `Resource "rs" has a "singular" value (r) that matches another Resource's "plural" value`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Resource \"rs\" has a \"singular\" value (r) that matches another Resource's \"plural\" value"
+}`},
 		{"reg 1 group 8  ", Model{
 			Groups: map[string]*GroupModel{
 				"gs": {Singular: "g"},
 				"g":  {Singular: "gsx"},
 			},
-		}, `Group "gs" has a "singular" value (g) that matches another Group's "plural" value`},
+		}, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: Group \"gs\" has a \"singular\" value (g) that matches another Group's \"plural\" value"
+}`},
 	}
 
 	for _, test := range tests {
@@ -160,15 +204,27 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		},
 	}
 
+	m1 := `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"`
+	m2 := `"
+}`
+	a1 := `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "`
+	a2 := `"
+}`
 	tests := []Test{
 		{"empty attrs", Model{Attributes: Attributes{}}, ""},
 		{
 			"err - wrong name", Model{
 				Attributes: Attributes{"myint": {Name: "bad"}},
-			}, `"model.myint" must have a "name" set to "myint"`},
+			}, m1 + `model.myint\" must have a \"name\" set to \"myint\"` + m2},
 		{"err - missing type", Model{
 			Attributes: Attributes{"myint": {Name: "myint"}},
-		}, `"model.myint" is missing a "type"`},
+		}, m1 + `model.myint\" is missing a \"type\"` + m2},
 		// Test all valid types
 		{"type - boolean", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: BOOLEAN}}}, ``},
@@ -185,31 +241,34 @@ func TestModelVerifyRegAttr(t *testing.T) {
 
 		{"err - type - xid - extra target", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: STRING, Target: "/"}}},
-			`"model.x" must not have a "target" value since "type" is not "xid"`},
+			m1 + `model.x\" must not have a \"target\" value since \"type\" is not \"xid\"` + m2},
 		{"err - type - xid - leading chars", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "xx/"}}},
-			`"model.x" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`},
+			m1 + `model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]` + m2},
 		{"err - type - xid - extra / at end", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/xx/"}}},
-			`"model.x" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`},
+			m1 + `model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]` + m2},
 		{"err - type - xid - spaces", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/  xx"}}},
-			`"model.x" has an unknown Group type: "  xx"`},
+			m1 + `model.x\" has an unknown Group type: \"  xx\"` + m2},
 		{"err - type - xid - bad group", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/badg"}},
 			Groups: groups},
-			`"model.x" has an unknown Group type: "badg"`,
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" has an unknown Group type: \"badg\""
+}`,
 		},
 		{"err - type - xid - bad resource", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/dirs/badr"}},
 			Groups: groups},
-			`"model.x" has an unknown Resource type: "badr"`,
-		},
+			m1 + `model.x\" has an unknown Resource type: \"badr\"` + m2},
 		{"type - xid - group", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/dirs"}}, Groups: groups}, ``,
@@ -236,8 +295,7 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"type - xid - reg - /", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/"}}, Groups: groups},
-			`"model.x" "target" must be of the form: /GROUPS[/RESOURCES[/versions | \[/versions\] ]]`,
-		},
+			m1 + `model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]` + m2},
 
 		{"type - string", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: STRING}}}, ``},
@@ -281,45 +339,76 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"type - object - bad name charset - ", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: OBJECT,
 				NameCharSet: "foo"}}},
-			`"model.x" has an invalid "namecharset" value: foo`},
-
+			m1 + `model.x\" has an invalid \"namecharset\" value: foo` + m2},
 		{"type - attr - err1", Model{
 			Attributes: Attributes{".foo": {Name: ".foo", Type: ANY}}},
-			`Error processing "model": Invalid attribute name ".foo", must match: ^[a-z_][a-z_0-9]{0,62}$`},
+			a1 + `The attribute \".foo\" is not valid: while processing \"model\", attribute name \".foo\" must match: ^[a-z_][a-z_0-9]{0,62}$` + a2},
 		{"type - attr - err2", Model{
 			Attributes: Attributes{"foo.bar": {}}},
-			`Error processing "model": Invalid attribute name "foo.bar", must match: ^[a-z_][a-z_0-9]{0,62}$`},
+			a1 + `The attribute \"foo.bar\" is not valid: while processing \"model\", attribute name \"foo.bar\" must match: ^[a-z_][a-z_0-9]{0,62}$` + a2},
 		{"type - attr - err3", Model{
 			Attributes: Attributes{"foo": nil}},
-			`Error processing "model": attribute "foo" can't be empty`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: while processing \"model\", attribute \"foo\" can't be empty"
+}`},
 		{"type - attr - err4", Model{
 			Attributes: Attributes{"FOO": {}}},
-			`Error processing "model": Invalid attribute name "FOO", must match: ^[a-z_][a-z_0-9]{0,62}$`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"FOO\" is not valid: while processing \"model\", attribute name \"FOO\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
 		{"type - attr - err5", Model{
 			Attributes: Attributes{"9foo": {}}},
-			`Error processing "model": Invalid attribute name "9foo", must match: ^[a-z_][a-z_0-9]{0,62}$`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"9foo\" is not valid: while processing \"model\", attribute name \"9foo\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
 		{"type - attr - err6", Model{
 			Attributes: Attributes{"": {}}},
-			`Error processing "model": it has an empty attribute key`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: while processing \"model\", it has an empty attribute key"
+}`},
 		{"type - attr - ok1", Model{
 			Attributes: Attributes{"a23456789012345678901234567890123456789012345678901234567890123": {Name: "a23456789012345678901234567890123456789012345678901234567890123", Type: STRING}}},
 			``},
 		{"type - attr - err7", Model{
 			Attributes: Attributes{"a234567890123456789012345678901234567890123456789012345678901234": {Name: "a234567890123456789012345678901234567890123456789012345678901234", Type: STRING}}},
-			`Error processing "model": Invalid attribute name "a234567890123456789012345678901234567890123456789012345678901234", must match: ^[a-z_][a-z_0-9]{0,62}$`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"a234567890123456789012345678901234567890123456789012345678901234\" is not valid: while processing \"model\", attribute name \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
 
 		{"type - array - missing item", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: ARRAY}}},
-			`"model.x" must have an "item" section`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" must have an \"item\" section"
+}`},
 		{"type - map - missing item", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: MAP}}},
-			`"model.x" must have an "item" section`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" must have an \"item\" section"
+}`},
 		{"type - object - missing item", Model{ // odd but allowable
 			Attributes: Attributes{"x": {Name: "x", Type: OBJECT}}}, ""},
 
 		{"type - bad urlx", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: "urlx"}}},
-			`"model.x" has an invalid type: urlx`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" has an invalid type: urlx"
+}`},
 
 		// Now some Item stuff
 		{"Item - missing", Model{
@@ -327,7 +416,11 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"Item - empty - ", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: OBJECT,
 				Item: &Item{}}}},
-			`"model.x" must not have an "item" section`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" must not have an \"item\" section"
+}`},
 
 		// Nested stuff
 		{"Nested - map - obj", Model{
@@ -337,7 +430,11 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"Nested - map - obj - bad namecharset", Model{
 			Attributes: Attributes{"m": {Name: "m", Type: MAP,
 				Item: &Item{Type: OBJECT, NameCharSet: "foo"}}}},
-			`Invalid "namecharset" value: foo`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: invalid \"namecharset\" value: foo"
+}`},
 		{"Nested - map - obj - missing item - valid", Model{
 			Attributes: Attributes{"m": {Name: "m", Type: MAP,
 				Item: &Item{Type: OBJECT, Attributes: Attributes{}}}}},
@@ -345,11 +442,19 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"Nested - map - map - misplaced attrs", Model{
 			Attributes: Attributes{"m": {Name: "m", Type: MAP,
 				Item: &Item{Type: MAP, Attributes: Attributes{}}}}},
-			`"model.m.item" must not have "attributes"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.m.item\" must not have \"attributes\""
+}`},
 		{"Nested - map - array - misplaced attrs", Model{
 			Attributes: Attributes{"m": {Name: "m", Type: MAP,
 				Item: &Item{Type: ARRAY, Attributes: Attributes{}}}}},
-			`"model.m.item" must not have "attributes"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.m.item\" must not have \"attributes\""
+}`},
 
 		{"Nested - map - obj + attr", Model{
 			Attributes: Attributes{"m": {Name: "m", Type: MAP,
@@ -394,16 +499,32 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: INTEGER, Enum: []any{1}}}}, ""},
 		{"empty enum - obj", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: OBJECT, Enum: []any{1}}}},
-			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+}`},
 		{"empty enum - array", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ARRAY, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
-			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+}`},
 		{"empty enum - map", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: MAP, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
-			`"model.x" is not a scalar, or an array of scalars, so "enum" is not allowed`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+}`},
 		{"empty enum - any", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ANY, Enum: []any{}}}},
-			`"model.x" specifies an "enum" but it is empty`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" specifies an \"enum\" but it is empty"
+}`},
 
 		{"enum - bool - true ", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{true}}}}, ""},
@@ -411,13 +532,25 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{true, false}}}}, ""},
 		{"enum - bool string", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{true, ""}}}},
-			`"model.x" enum value "" must be of type "boolean"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"\" must be of type \"boolean\""
+}`},
 		{"enum - bool float", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{5.5}}}},
-			`"model.x" enum value "5.5" must be of type "boolean"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"boolean\""
+}`},
 		{"enum - bool map", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{map[string]string{}}}}},
-			`"model.x" enum value "map[]" must be of type "boolean"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"map[]\" must be of type \"boolean\""
+}`},
 
 		{"enum - decimal 1", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: DECIMAL, Enum: []any{5.5}}}}, ""},
@@ -425,7 +558,11 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: DECIMAL, Enum: []any{5.5, 2}}}}, ""},
 		{"enum - decimal bool", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: DECIMAL, Enum: []any{true, 5}}}},
-			`"model.x" enum value "true" must be of type "decimal"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"true\" must be of type \"decimal\""
+}`},
 
 		{"enum - integer 1", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: INTEGER, Enum: []any{1}}}}, ""},
@@ -433,10 +570,18 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: INTEGER, Enum: []any{-1, 1}}}}, ""},
 		{"enum - integer float", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: INTEGER, Enum: []any{-1, 1, 3.1}}}},
-			`"model.x" enum value "3.1" must be of type "integer"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"3.1\" must be of type \"integer\""
+}`},
 		{"enum - integer float", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: INTEGER, Enum: []any{[]int{}}}}},
-			`"model.x" enum value "[]" must be of type "integer"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"[]\" must be of type \"integer\""
+}`},
 
 		{"enum - string 1", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: STRING, Enum: []any{"a"}}}}, ""},
@@ -444,10 +589,18 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: STRING, Enum: []any{"a", ""}}}}, ""},
 		{"enum - string int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: STRING, Enum: []any{"a", 0}}}},
-			`"model.x" enum value "0" must be of type "string"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"0\" must be of type \"string\""
+}`},
 		{"enum - string struct", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: STRING, Enum: []any{"a", struct{}{}}}}},
-			`"model.x" enum value "{}" must be of type "string"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"{}\" must be of type \"string\""
+}`},
 
 		{"enum - timestamp 1", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: TIMESTAMP,
@@ -459,11 +612,19 @@ func TestModelVerifyEnum(t *testing.T) {
 		{"enum - timestamp bad", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: TIMESTAMP,
 				Enum: []any{"2024-01-02T12:01:02Z", "bad"}}}},
-			`"model.x" enum value "bad" must be of type "timestamp"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"bad\" must be of type \"timestamp\""
+}`},
 		{"enum - timestamp type", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: TIMESTAMP,
 				Enum: []any{"2024-01-02T12:01:02Z", 5.5}}}},
-			`"model.x" enum value "5.5" must be of type "timestamp"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"timestamp\""
+}`},
 
 		{"enum - uint 1", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: UINTEGER, Enum: []any{1}}}}, ""},
@@ -472,11 +633,19 @@ func TestModelVerifyEnum(t *testing.T) {
 			""},
 		{"enum - uint bad", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: UINTEGER, Enum: []any{2, -1}}}},
-			`"model.x" enum value "-1" must be of type "uinteger"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"-1\" must be of type \"uinteger\""
+}`},
 		{"enum - uint type", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: UINTEGER,
 				Enum: []any{5.5}}}},
-			`"model.x" enum value "5.5" must be of type "uinteger"`},
+			`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"uinteger\""
+}`},
 
 		{"empty enum - int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: URI, Enum: []any{"..."}}}}, ""},
@@ -568,14 +737,46 @@ func TestValidChars(t *testing.T) {
 		input  string
 		result string
 	}{
-		{"", `Invalid model type name "", must match: ` + match},
-		{"A", `Invalid model type name "A", must match: ` + match},
-		{"*", `Invalid model type name "*", must match: ` + match},
-		{"@", `Invalid model type name "@", must match: ` + match},
-		{"0", `Invalid model type name "0", must match: ` + match},
-		{"0a", `Invalid model type name "0a", must match: ` + match},
-		{"aZ", `Invalid model type name "aZ", must match: ` + match},
-		{a58, `Invalid model type name "` + a58 + `", must match: ` + match},
+		{"", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"A", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"A\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"*", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"*\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"@", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"@\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"0", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"0\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"0a", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"0a\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{"aZ", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"aZ\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
+		{a58, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: model type name \"a234567890a234567890a234567890a234567890a23456789012345678\" must match: ^[a-z_][a-z_0-9]{0,56}$"
+}`},
 		{"a", ``},
 		{"_", ``},
 		{"_a", ``},
@@ -602,14 +803,46 @@ func TestValidChars(t *testing.T) {
 		input  string
 		result string
 	}{
-		{"", `Invalid attribute name "", must match: ` + match},
-		{"A", `Invalid attribute name "A", must match: ` + match},
-		{"*", `Invalid attribute name "*", must match: ` + match},
-		{"@", `Invalid attribute name "@", must match: ` + match},
-		{"0", `Invalid attribute name "0", must match: ` + match},
-		{"0a", `Invalid attribute name "0a", must match: ` + match},
-		{"aZ", `Invalid attribute name "aZ", must match: ` + match},
-		{a64, `Invalid attribute name "` + a64 + `", must match: ` + match},
+		{"", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"A", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"A\" is not valid: attribute name \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"*", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"*\" is not valid: attribute name \"*\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"@", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"@\" is not valid: attribute name \"@\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"0", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"0\" is not valid: attribute name \"0\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"0a", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"0a\" is not valid: attribute name \"0a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{"aZ", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"aZ\" is not valid: attribute name \"aZ\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
+		{a64, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "instance": "/",
+  "title": "The attribute \"` + a64 + `\" is not valid: attribute name \"` + a64 + `\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+}`},
 		{"a", ``},
 		{"_", ``},
 		{"_a", ``},
@@ -620,7 +853,7 @@ func TestValidChars(t *testing.T) {
 		{"a9", ``},
 		{a63, ``},
 	} {
-		err := IsValidAttributeName(test.input)
+		err := IsValidAttributeName(test.input, "")
 		got := ""
 		if err != nil {
 			got = err.Error()
@@ -632,17 +865,23 @@ func TestValidChars(t *testing.T) {
 
 	// Test IDs
 	match = RegexpID.String()
+	m1 := `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/",
+  "title": "The request cannot be processed as provided: ID value \"`
+	m2 := `\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+}`
 	for _, test := range []struct {
 		input  string
 		result string
 	}{
-		{"", `Invalid ID "", must match: ` + match},
-		{"*", `Invalid ID "*", must match: ` + match},
-		{"!", `Invalid ID "!", must match: ` + match},
-		{"+", `Invalid ID "+", must match: ` + match},
-		{"A*", `Invalid ID "A*", must match: ` + match},
-		{"*a", `Invalid ID "*a", must match: ` + match},
-		{a129, `Invalid ID "` + a129 + `", must match: ` + match},
+		{"", m1 + "" + m2},
+		{"*", m1 + "*" + m2},
+		{"!", m1 + "!" + m2},
+		{"+", m1 + "+" + m2},
+		{"A*", m1 + "A*" + m2},
+		{"*a", m1 + "*a" + m2},
+		{a129, m1 + a129 + m2},
 		{"a", ``},
 		{"A", ``},
 		{"_", ``},
@@ -666,15 +905,15 @@ func TestValidChars(t *testing.T) {
 		{"90", ``},
 		{"_Z", ``},
 		{"_Z_", ``},
-		{" a", `Invalid ID " a", must match: ` + match},
-		{".", `Invalid ID ".", must match: ` + match},
-		{"-", `Invalid ID "-", must match: ` + match},
-		{"~", `Invalid ID "~", must match: ` + match},
-		{"@", `Invalid ID "@", must match: ` + match},
+		{" a", m1 + " a" + m2},
+		{".", m1 + "." + m2},
+		{"-", m1 + "-" + m2},
+		{"~", m1 + "~" + m2},
+		{"@", m1 + "@" + m2},
 		{"Z.-~:_0Nb", ``},
 		{a128, ``},
 	} {
-		err := IsValidID(test.input)
+		err := IsValidID(test.input, "")
 		got := ""
 		if err != nil {
 			got = err.Error()
@@ -685,28 +924,34 @@ func TestValidChars(t *testing.T) {
 	}
 
 	// Test map keys
-	match = RegexpMapKey.String()
+	match = JSONEscape(RegexpMapKey.String())
+	m1 = `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: map key name \"`
+	m2 = `\" must match: ` + match + `"
+}`
 	for _, test := range []struct {
 		input  string
 		result string
 	}{
-		{"", `Invalid map key name "", must match: ` + match},
-		{"_", `Invalid map key name "_", must match: ` + match},
-		{".", `Invalid map key name ".", must match: ` + match},
-		{"-", `Invalid map key name "-", must match: ` + match},
-		{"*", `Invalid map key name "*", must match: ` + match},
-		{"!", `Invalid map key name "!", must match: ` + match},
-		{"~", `Invalid map key name "~", must match: ` + match},
-		{"A", `Invalid map key name "A", must match: ` + match},
-		{"aA", `Invalid map key name "aA", must match: ` + match},
-		{"Aa", `Invalid map key name "Aa", must match: ` + match},
-		{"_a", `Invalid map key name "_a", must match: ` + match},
-		{"9A", `Invalid map key name "9A", must match: ` + match},
-		{"a*", `Invalid map key name "a*", must match: ` + match},
-		{"a!", `Invalid map key name "a!", must match: ` + match},
-		{"a~", `Invalid map key name "a~", must match: ` + match},
-		{":a", `Invalid map key name ":a", must match: ` + match},
-		{a64, `Invalid map key name "` + a64 + `", must match: ` + match},
+		{"", m1 + "" + m2},
+		{"_", m1 + "_" + m2},
+		{".", m1 + "." + m2},
+		{"-", m1 + "-" + m2},
+		{"*", m1 + "*" + m2},
+		{"!", m1 + "!" + m2},
+		{"~", m1 + "~" + m2},
+		{"A", m1 + "A" + m2},
+		{"aA", m1 + "aA" + m2},
+		{"Aa", m1 + "Aa" + m2},
+		{"_a", m1 + "_a" + m2},
+		{"9A", m1 + "9A" + m2},
+		{"a*", m1 + "a*" + m2},
+		{"a!", m1 + "a!" + m2},
+		{"a~", m1 + "a~" + m2},
+		{":a", m1 + ":a" + m2},
+		{a64, m1 + a64 + m2},
 
 		{"a", ``},
 		{"0", ``},
@@ -722,7 +967,7 @@ func TestValidChars(t *testing.T) {
 		{"m:9", ``},
 		{a63, ``},
 	} {
-		err := IsValidMapKey(test.input)
+		err := IsValidMapKey(test.input, "")
 		got := ""
 		if err != nil {
 			got = err.Error()

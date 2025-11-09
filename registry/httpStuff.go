@@ -62,10 +62,23 @@ func (s *Server) Serve() {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var info *RequestInfo
-	var err error
 	var tx *Tx
 
 	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("Panic: %s", rec)
+			ShowStack()
+
+			// If info isn't defined yet
+			if info == nil {
+				info = NewRequestInfo(w, r)
+			}
+
+			xErr := NewXRError("server_error", "/").SetDetail(
+				"An internal error occurred, contact the admin")
+			HTTPWriteError(info, xErr)
+		}
+
 		// As of now we should never have more than one active Tx during
 		// testing
 		/*
@@ -100,30 +113,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.VPrintf(2, "%s %s", r.Method, r.URL)
 
 	if r.URL.Path == "/proxy" {
-		err := HTTPProxy(w, r)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error proxying: " + err.Error() + "\n"))
+		HTTPProxy(w, r)
+		return
+	}
+
+	tx, xErr := NewTx()
+	if xErr != nil {
+		log.Printf("Error talking to the DB creating new Tx: %s",
+			xErr.GetTitle())
+
+		// Special one off - info isn't defined yet
+		if info == nil {
+			info = NewRequestInfo(w, r)
 		}
+
+		HTTPWriteError(info, xErr)
+
 		return
 	}
 
-	tx, err = NewTx()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Error talking to DB, try again later\n"))
-		return
-	}
-
-	info, err = ParseRequest(tx, w, r)
+	info, xErr = ParseRequest(tx, w, r)
 	tx.RequestInfo = info
 
-	if err != nil {
-		if info.StatusCode == 0 {
-			info.StatusCode = http.StatusBadRequest
-		}
-		w.WriteHeader(info.StatusCode)
-		w.Write([]byte(fmt.Sprintf("%s\n", err.Error())))
+	if xErr != nil {
+		HTTPWriteError(info, xErr)
 		return
 	}
 
@@ -141,43 +154,37 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info.HTTPWriter = NewBufferedWriter(info)
 	}
 
-	if err == nil {
-		if sv := info.GetFlag("specversion"); sv != "" {
-			if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
-				err = fmt.Errorf("Unsupported xRegistry spec version: %s",
-					sv)
-			}
+	if sv := info.GetFlag("specversion"); sv != "" {
+		if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
+			xErr = NewXRError("unsupported_specversion",
+				info.OriginalPath, sv)
 		}
 	}
 
-	if err == nil {
+	if xErr == nil {
 		// These should only return an error if they didn't already
 		// send a response back to the client.
 		switch r.Method {
 		case "GET":
-			err = HTTPGet(info)
+			xErr = HTTPGet(info)
 		case "PUT":
-			err = HTTPPutPost(info)
+			xErr = HTTPPutPost(info)
 		case "POST":
-			err = HTTPPutPost(info)
+			xErr = HTTPPutPost(info)
 		case "PATCH":
-			err = HTTPPutPost(info)
+			xErr = HTTPPutPost(info)
 		case "DELETE":
-			err = HTTPDelete(info)
+			xErr = HTTPDelete(info)
 		default:
-			info.StatusCode = http.StatusMethodNotAllowed
-			err = fmt.Errorf("HTTP method %q not supported", r.Method)
+			xErr = NewXRError("action_not_supported", info.OriginalPath,
+				r.Method)
 		}
 	}
 
-	Must(tx.Conditional(err))
+	Must(tx.Conditional(xErr))
 
-	if err != nil {
-		if info.StatusCode == 0 {
-			// Only default to BadRequest if not set by someone else
-			info.StatusCode = http.StatusBadRequest
-		}
-		info.Write([]byte(err.Error() + "\n"))
+	if xErr != nil {
+		HTTPWriteError(info, xErr)
 	}
 }
 
@@ -1182,7 +1189,7 @@ function dokeydown(event) {
 <svg height="20" aria-hidden="true" viewBox="0 0 24 24" width="20" onclick="opensrc('commit')">
   <title>Open commit: ` + GitCommit + `</title>
   <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z"></path>
-</svg>` + GitCommit[:5] + `
+</svg>` + GitCommit[:min(len(GitCommit), 12)] + `
 </div>
 ` + autoExpand + `
 </html>
@@ -1244,10 +1251,9 @@ func GetVersionModelInlines(rm *ResourceModel) []string {
 	return []string{rm.Singular}
 }
 
-func HTTPGETCapabilities(info *RequestInfo) error {
+func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	buf := []byte(nil)
@@ -1263,7 +1269,7 @@ func HTTPGETCapabilities(info *RequestInfo) error {
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
 	if err != nil {
-		return err
+		return NewXRError("server_error", "/").SetDetail(err.Error())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1272,10 +1278,9 @@ func HTTPGETCapabilities(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPGETCapabilitiesOffered(info *RequestInfo) error {
+func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	buf := []byte(nil)
@@ -1284,7 +1289,7 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) error {
 	offered := GetOffered()
 	buf, err = json.MarshalIndent(offered, "", "  ")
 	if err != nil {
-		return err
+		return NewXRError("bad_request", "/capabilitiesofferd", err)
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1293,10 +1298,9 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPGETModel(info *RequestInfo) error {
+func HTTPGETModel(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	format := info.GetFlag("schema")
@@ -1309,10 +1313,9 @@ func HTTPGETModel(info *RequestInfo) error {
 		model = &Model{}
 	}
 
-	buf, err := model.SerializeForUser()
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return err
+	buf, xErr := model.SerializeForUser()
+	if xErr != nil {
+		return NewXRError("server_error", "/").SetDetail(xErr.GetTitle())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1321,10 +1324,9 @@ func HTTPGETModel(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPGETModelSource(info *RequestInfo) error {
+func HTTPGETModelSource(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	model := info.Registry.Model
@@ -1338,7 +1340,7 @@ func HTTPGETModelSource(info *RequestInfo) error {
 
 	buf, err := PrettyPrintJSON([]byte(modelSrc), "", "  ")
 	if err != nil {
-		return err
+		return NewXRError("bad_request", "/modelsource", err)
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1347,7 +1349,7 @@ func HTTPGETModelSource(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPGETContent(info *RequestInfo) error {
+func HTTPGETContent(info *RequestInfo) *XRError {
 	log.VPrintf(3, ">Enter: HTTPGetContent")
 	defer log.VPrintf(3, "<Exit: HTTPGetContent")
 
@@ -1372,23 +1374,18 @@ FROM FullTree WHERE RegSID=? AND `
 
 	log.VPrintf(3, "Query:\n%s", SubQuery(query, args))
 
-	results, err := Query(info.tx, query, args...)
+	results := Query(info.tx, query, args...)
 	defer results.Close()
 
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return err
-	}
-
-	entity, err := readNextEntity(info.tx, results, FOR_READ)
+	entity, xErr := readNextEntity(info.tx, results, FOR_READ)
 	log.VPrintf(3, "Entity: %#v", entity)
 	if entity == nil {
-		info.StatusCode = http.StatusNotFound
-		if err != nil {
-			log.Printf("Error loading entity: %s", err)
-			return fmt.Errorf("Error finding entity: %s", err)
+		if xErr != nil {
+			log.Printf("Error loading entity: %s", xErr)
+			return NewXRError("server_error", "/"+path).SetDetailf(
+				"error loading entity: %s", xErr.GetTitle())
 		} else {
-			return fmt.Errorf("%q not found", path)
+			return NewXRError("not_found", "/"+path, "/"+path)
 		}
 	}
 
@@ -1399,24 +1396,21 @@ FROM FullTree WHERE RegSID=? AND `
 		// how many versions there are for the VersionsCount attribute
 		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
 		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error finding group(%s): %s", info.GroupUID, err)
+			return NewXRError("server_error",
+				info.GetParts(2)).SetDetailf("Error finding Group: %s", err)
 		}
 		if group == nil {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Group %q not found", info.GroupUID)
+			return NewXRError("not_found", info.GetParts(2), info.GetParts(2))
 		}
 
 		resource, err := group.FindResource(info.ResourceType,
 			info.ResourceUID, false, FOR_READ)
 		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error finding resource(%s): %s",
-				info.ResourceUID, err)
+			return NewXRError("server_error",
+				info.GetParts(4)).SetDetailf("Error finding Resource: %s", err)
 		}
 		if resource == nil {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Resource %q not found", info.ResourceUID)
+			return NewXRError("not_found", info.GetParts(4), info.GetParts(4))
 		}
 		meta, err := resource.FindMeta(false, FOR_READ)
 		PanicIf(err != nil, "%s", err)
@@ -1436,8 +1430,9 @@ FROM FullTree WHERE RegSID=? AND `
 			}
 
 			if v == nil && version == nil {
-				info.StatusCode = http.StatusInternalServerError
-				return fmt.Errorf("Can't find version: %s : %s", vID, err)
+				return NewXRError("server_error",
+					resource.Path+"/"+vID).SetDetailf(
+					"error finding Version: %s", err)
 			}
 			if v == nil {
 				break
@@ -1453,7 +1448,7 @@ FROM FullTree WHERE RegSID=? AND `
 
 	log.VPrintf(3, "Version: %#v", version)
 
-	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) error {
+	headerIt := func(e *Entity, info *RequestInfo, key string, val any, attr *Attribute) *XRError {
 		if key[0] == '#' {
 			return nil
 		}
@@ -1487,9 +1482,9 @@ FROM FullTree WHERE RegSID=? AND `
 		return nil
 	}
 
-	err = entity.SerializeProps(info, headerIt)
-	if err != nil {
-		panic(err)
+	xErr = entity.SerializeProps(info, headerIt)
+	if xErr != nil {
+		panic(xErr)
 	}
 
 	if info.VersionUID == "" {
@@ -1525,12 +1520,12 @@ FROM FullTree WHERE RegSID=? AND `
 		// Just act as a proxy and copy the remote resource as our response
 		resp, err := http.Get(url)
 		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return err
+			return NewXRError("bad_request", "/", err)
 		}
 		if resp.StatusCode/100 != 2 {
 			info.StatusCode = resp.StatusCode
-			return fmt.Errorf("Remote error")
+			// return fmt.Error f("Remote error")
+			// Let the body of the response be our body, below
 		}
 
 		// Copy all HTTP headers
@@ -1541,8 +1536,7 @@ FROM FullTree WHERE RegSID=? AND `
 		// Now copy the body
 		_, err = io.Copy(info, resp.Body)
 		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return err
+			return NewXRError("bad_request", "/", err)
 		}
 		return nil
 	}
@@ -1563,7 +1557,7 @@ FROM FullTree WHERE RegSID=? AND `
 	return nil
 }
 
-func HTTPGet(info *RequestInfo) error {
+func HTTPGet(info *RequestInfo) *XRError {
 	log.VPrintf(3, ">Enter: HTTPGet(%s)", info.What)
 	defer log.VPrintf(3, "<Exit: HTTPGet(%s)", info.What)
 
@@ -1571,40 +1565,36 @@ func HTTPGet(info *RequestInfo) error {
 
 	if info.RootPath == "model" {
 		if !info.APIEnabled("/model") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/model", "/model")
 		}
 		return HTTPGETModel(info)
 	}
 
 	if info.RootPath == "modelsource" {
 		if !info.APIEnabled("/modelsource") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/modelsource", "/modelsource")
 		}
 		return HTTPGETModelSource(info)
 	}
 
 	if info.RootPath == "capabilities" {
 		if !info.APIEnabled("/capabilities") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/capabilities", "/capabilities")
 		}
 		return HTTPGETCapabilities(info)
 	}
 
 	if info.RootPath == "capabilitiesoffered" {
 		if !info.APIEnabled("/capabilitiesoffered") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/capabilitiesoffered",
+				"/capabilitiesoffered")
 		}
 		return HTTPGETCapabilitiesOffered(info)
 	}
 
 	if info.RootPath == "export" {
 		if !info.APIEnabled("/export") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/export", "/export")
 		}
 		return SerializeQuery(info, nil, "Registry", info.Filters)
 	}
@@ -1629,12 +1619,10 @@ func HTTPGet(info *RequestInfo) error {
 }
 
 func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
-	what string, filters [][]*FilterExpr) error {
+	what string, filters [][]*FilterExpr) *XRError {
 
 	// Make sure everything is ok before we send back the results
-	if err := info.tx.Validate(info); err != nil {
-		return err
-	}
+	info.tx.Validate(info)
 
 	// resPaths is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
@@ -1681,7 +1669,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		paths, ok := resPaths[key]
 		PanicIf(!ok, "can't find %q", key)
 
-		var err error
+		var xErr *XRError
 		var results *Result
 
 		// "!" is special - it means skip the query and just produce: {}
@@ -1691,13 +1679,8 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			if err != nil {
 				return err
 			}
-			results, err = Query(info.tx, query, args...)
+			results = Query(info.tx, query, args...)
 			defer results.Close()
-
-			if err != nil {
-				info.StatusCode = http.StatusInternalServerError
-				return err
-			}
 
 			if log.GetVerbose() > 3 {
 				log.Printf("SerializeQuery: %s", SubQuery(query, args))
@@ -1730,14 +1713,14 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
 					if entity != nil && !IsNil(entity.Object["xref"]) {
-						info.StatusCode = http.StatusBadRequest
-						return fmt.Errorf("'doc' flag not allowed on " +
+						return NewXRError("bad_flag", info.OriginalPath,
+							"doc").SetDetail("'doc' flag is not allowed on " +
 							"xref'd Versions")
 					}
 				}
 
-				info.StatusCode = http.StatusNotFound
-				return fmt.Errorf("Not found")
+				return NewXRError("not_found", info.GetParts(0),
+					info.GetParts(0))
 			}
 		}
 
@@ -1747,15 +1730,13 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		// Path
 		if what == "Coll" && jw.Entity == nil && len(info.Parts) > 2 {
 			path := strings.Join(info.Parts[:len(info.Parts)-1], "/")
-			entity, err := RawEntityFromPath(info.tx, info.Registry.DbSID,
+			entity, xErr := RawEntityFromPath(info.tx, info.Registry.DbSID,
 				path, false, FOR_READ)
-			if err != nil {
-				info.StatusCode = http.StatusInternalServerError
-				return fmt.Errorf("Error finding parent(%s): %s", path, err)
+			if xErr != nil {
+				return xErr
 			}
 			if IsNil(entity) {
-				info.StatusCode = http.StatusNotFound
-				return fmt.Errorf("%q not found", path)
+				return NewXRError("not_found", "/"+path, "/"+path)
 			}
 		}
 
@@ -1768,8 +1749,9 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
 			// Can copy the RawEntityFromPath... stuff above
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf("'doc' flag not allowed on xref'd Versions")
+			return NewXRError("bad_flag", info.OriginalPath,
+				"doc").SetDetail("'doc' flag is not allowed on " +
+				"xref'd Versions")
 		}
 
 		// Only do this if we're adding the extra grouping wrapper
@@ -1783,14 +1765,13 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		}
 
 		if what == "Coll" {
-			_, err = jw.WriteCollection()
+			_, xErr = jw.WriteCollection()
 		} else {
-			err = jw.WriteEntity()
+			xErr = jw.WriteEntity()
 		}
 
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return err
+		if xErr != nil {
+			return xErr
 		}
 
 		if jw.hasData {
@@ -1826,7 +1807,7 @@ func init() {
 	}
 }
 
-func HTTPPutPost(info *RequestInfo) error {
+func HTTPPutPost(info *RequestInfo) *XRError {
 	method := info.OriginalRequest.Method
 	isNew := false
 	paths := ([]string)(nil)
@@ -1844,21 +1825,20 @@ func HTTPPutPost(info *RequestInfo) error {
 	// Capabilities has its own special func
 	if info.RootPath == "capabilities" {
 		if !info.APIEnabled("/capabilities") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/capabilities", "/capabilities")
 		}
 		return HTTPPUTCapabilities(info)
 	}
 
 	if info.RootPath == "model" {
-		return fmt.Errorf("Use \"/modelsource\" instead of \"/model\"")
+		return NewXRError("bad_request", "/",
+			"use \"/modelsource\" instead of \"/model\"")
 	}
 
 	// The model has its own special func
 	if info.RootPath == "modelsource" {
 		if !info.APIEnabled("/modelsource") {
-			info.StatusCode = http.StatusNotFound
-			return fmt.Errorf("Not found")
+			return NewXRError("api_not_found", "/modelsource", "/modelsource")
 		}
 		return HTTPPUTModelSource(info)
 	}
@@ -1867,8 +1847,8 @@ func HTTPPutPost(info *RequestInfo) error {
 	// //////////////////////////////////////////////////////
 	body, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf("Error reading body: %s", err)
+		return NewXRError("bad_request", info.OriginalPath,
+			fmt.Sprintf("Error reading body: %s", err))
 	}
 	if len(body) == 0 {
 		body = nil
@@ -1877,32 +1857,32 @@ func HTTPPutPost(info *RequestInfo) error {
 	// Check for some obvious high-level bad states up-front
 	// //////////////////////////////////////////////////////
 	if info.What == "Coll" && method == "PUT" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("PUT not allowed on collections")
+		return NewXRError("action_not_supported", info.OriginalPath,
+			method).SetDetail("PUT not allowed on collections")
 	}
 
 	if numParts >= 5 && info.Parts[4] == "meta" && method == "POST" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("POST not allowed on a 'meta'")
+		return NewXRError("action_not_supported", info.OriginalPath,
+			method).SetDetail("POST not allowed on a 'meta'")
 	}
 
 	if numParts == 6 && method == "POST" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("POST not allowed on a version")
+		return NewXRError("action_not_supported", info.OriginalPath,
+			method).SetDetail("POST not allowed on a version")
 	}
 
 	if (numParts == 4 || numParts == 6) && !metaInBody && method == "PATCH" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("PATCH is not allowed on Resource documents")
+		return NewXRError("details_required", info.OriginalPath).SetDetail(
+			"PATCH is not allowed on Resource documents")
 	}
 
 	// Ok, now start to deal with the incoming request
 	//////////////////////////////////////////////////
 
 	// Get the incoming Object either from the body or from xRegistry headers
-	IncomingObj, err := ExtractIncomingObject(info, body)
-	if err != nil {
-		return err
+	IncomingObj, xErr := ExtractIncomingObject(info, body)
+	if xErr != nil {
+		return xErr
 	}
 
 	// Walk the PATH and process things
@@ -1920,10 +1900,9 @@ func HTTPPutPost(info *RequestInfo) error {
 			if method == "PATCH" {
 				addType = ADD_PATCH
 			}
-			err = info.Registry.Update(IncomingObj, addType)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			xErr = info.Registry.Update(IncomingObj, addType)
+			if xErr != nil {
+				return xErr
 			}
 
 			// Return HTTP GET of Registry root
@@ -1936,33 +1915,36 @@ func HTTPPutPost(info *RequestInfo) error {
 		// Error on anything but a group type
 		for key, _ := range IncomingObj {
 			if info.Registry.Model.FindGroupModel(key) == nil {
-				return fmt.Errorf("POST / only allows Group types to be "+
-					"specified. %q is invalid", key)
+				return NewXRError("bad_request", "/",
+					fmt.Sprintf("'POST /' only allows Group types to be "+
+						"specified. %q is invalid", key))
 			}
 		}
 
-		objMap, err := IncomingObj2Map(IncomingObj)
-		if err != nil {
-			return fmt.Errorf("Body must be a map of Group types")
+		objMap, xErr := IncomingObj2Map(IncomingObj)
+		if xErr != nil {
+			return xErr.SetInstance(info.GetParts(0)).SetTitle(
+				"body must be a map of Group types")
 		}
 
 		resPaths := map[string][]string{}
 		for gType, gAny := range objMap {
 			// Should be caught above, but just in case
 			if info.Registry.Model.Groups[gType] == nil {
-				return fmt.Errorf("Unknown Group type: %s", gType)
+				return NewXRError("bad_request", "/",
+					fmt.Sprintf("unknown Group type: %s", gType))
 			}
 
-			gMap, err := IncomingObj2Map(gAny)
-			if err != nil {
-				return err
+			gMap, xErr := IncomingObj2Map(gAny)
+			if xErr != nil {
+				return xErr.SetInstance(info.GetParts(0))
 			}
 
 			for id, obj := range gMap {
-				g, _, err := info.Registry.UpsertGroupWithObject(gType,
+				g, _, xErr := info.Registry.UpsertGroupWithObject(gType,
 					id, obj, ADD_UPDATE)
-				if err != nil {
-					return err
+				if xErr != nil {
+					return xErr
 				}
 				resPaths[gType] = append(resPaths[gType], g.Path)
 			}
@@ -1990,9 +1972,9 @@ func HTTPPutPost(info *RequestInfo) error {
 	if numParts == 1 {
 		// POST /GROUPs + body:map[id]Group
 
-		objMap, err := IncomingObj2Map(IncomingObj)
-		if err != nil {
-			return err
+		objMap, xErr := IncomingObj2Map(IncomingObj)
+		if xErr != nil {
+			return xErr.SetInstance(info.GetParts(0))
 		}
 
 		addType := ADD_UPSERT
@@ -2001,11 +1983,10 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		for id, obj := range objMap {
-			g, _, err := info.Registry.UpsertGroupWithObject(info.GroupType,
+			g, _, xErr := info.Registry.UpsertGroupWithObject(info.GroupType,
 				id, obj, addType)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 			paths = append(paths, g.Path)
 		}
@@ -2030,11 +2011,10 @@ func HTTPPutPost(info *RequestInfo) error {
 				addType = ADD_PATCH
 			}
 
-			group, isNew, err := info.Registry.UpsertGroupWithObject(info.GroupType,
+			group, isNew, xErr := info.Registry.UpsertGroupWithObject(info.GroupType,
 				info.GroupUID, IncomingObj, addType)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 
 			if isNew { // 201, else let it default to 200
@@ -2048,32 +2028,35 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
-		objMap, err := IncomingObj2Map(IncomingObj)
-		if err != nil {
-			return fmt.Errorf("Body must be a map of Resource types")
+		objMap, xErr := IncomingObj2Map(IncomingObj)
+		if xErr != nil {
+			return xErr.SetInstance(info.GetParts(2)).SetTitle(
+				fmt.Sprintf("body must be a map of Resource types"))
 		}
 
-		group, _, err = info.Registry.UpsertGroup(info.GroupType, groupUID)
-		if err != nil {
-			return err
+		group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+		if xErr != nil {
+			return xErr
 		}
 
 		resPaths := map[string][]string{}
 		for rType, rAny := range objMap {
 			if info.GroupModel.FindResourceModel(rType) == nil {
-				return fmt.Errorf("Unknown Resource type: %s", rType)
+				return NewXRError("bad_request",
+					info.GetParts(2),
+					fmt.Sprintf("Unknown Resource type: %s", rType))
 			}
 
-			rMap, err := IncomingObj2Map(rAny)
-			if err != nil {
-				return err
+			rMap, xErr := IncomingObj2Map(rAny)
+			if xErr != nil {
+				return xErr.SetInstance(info.GetParts(0))
 			}
 
 			for id, obj := range rMap {
-				r, _, err := group.UpsertResourceWithObject(rType,
+				r, _, xErr := group.UpsertResourceWithObject(rType,
 					id, "", obj, ADD_UPDATE, false)
-				if err != nil {
-					return err
+				if xErr != nil {
+					return xErr
 				}
 				resPaths[rType] = append(resPaths[rType], r.Path)
 			}
@@ -2097,10 +2080,9 @@ func HTTPPutPost(info *RequestInfo) error {
 	// Must be PUT/POST /GROUPs/gID/...
 
 	// This will either find or create an empty Group as needed
-	group, _, err = info.Registry.UpsertGroup(info.GroupType, groupUID)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return err
+	group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+	if xErr != nil {
+		return xErr
 	}
 
 	// URL: /GROUPs/gID/RESOURCEs...
@@ -2124,10 +2106,9 @@ func HTTPPutPost(info *RequestInfo) error {
 	if numParts == 3 {
 		// POST GROUPs/gID/RESOURCEs + body:map[id]Resource
 
-		objMap, err := IncomingObj2Map(IncomingObj)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		objMap, xErr := IncomingObj2Map(IncomingObj)
+		if xErr != nil {
+			return xErr.SetInstance(info.GetParts(0))
 		}
 
 		// For each Resource in the map, upsert it and add it's path to result
@@ -2137,11 +2118,10 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		for id, obj := range objMap {
-			r, _, err := group.UpsertResourceWithObject(info.ResourceType,
+			r, _, xErr := group.UpsertResourceWithObject(info.ResourceType,
 				id, "", obj, addType, false)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 			paths = append(paths, r.Path)
 		}
@@ -2158,12 +2138,10 @@ func HTTPPutPost(info *RequestInfo) error {
 	if numParts > 3 {
 		// GROUPs/gID/RESOURCEs/rID...
 
-		resource, err = group.FindResource(info.ResourceType, resourceUID,
+		resource, xErr = group.FindResource(info.ResourceType, resourceUID,
 			false, FOR_READ)
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error finding resource(%s): %s", resourceUID,
-				err)
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -2178,13 +2156,14 @@ func HTTPPutPost(info *RequestInfo) error {
 		}
 
 		if propsID != "" && propsID != resourceUID {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf("The \"%sid\" attribute must be set to %q, "+
-				"not %q", info.ResourceModel.Singular, resourceUID, propsID)
+			return NewXRError("invalid_attribute", info.OriginalPath,
+				info.ResourceModel.Singular+"id",
+				fmt.Sprintf("must be set to %q, "+"not %q",
+					resourceUID, propsID))
 		}
 
 		if resource != nil {
-			// version, err = resource.GetDefault(FOR_WRITE)
+			// version, xErr = resource.GetDefault(FOR_WRITE)
 
 			// ID needs to be the version's ID, not the Resources
 			// IncomingObj["id"] = version.UID
@@ -2194,15 +2173,14 @@ func HTTPPutPost(info *RequestInfo) error {
 			if method == "PATCH" || !metaInBody {
 				addType = ADD_PATCH
 			}
-			resource, _, err = group.UpsertResourceWithObject(
+			resource, _, xErr = group.UpsertResourceWithObject(
 				info.ResourceType, resourceUID, "" /*versionUID*/, IncomingObj,
 				addType, false)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 
-			version, err = resource.GetDefault(FOR_WRITE)
+			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
 			delete(IncomingObj, info.ResourceModel.Singular+"id") // ID is the Resource's delete it
@@ -2210,19 +2188,17 @@ func HTTPPutPost(info *RequestInfo) error {
 			if method == "PATCH" {
 				addType = ADD_PATCH
 			}
-			resource, isNew, err = group.UpsertResourceWithObject(
+			resource, isNew, xErr = group.UpsertResourceWithObject(
 				info.ResourceType, resourceUID, "" /*versionUID*/, IncomingObj,
 				addType, false)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 
-			version, err = resource.GetDefault(FOR_WRITE)
+			version, xErr = resource.GetDefault(FOR_WRITE)
 		}
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -2237,21 +2213,19 @@ func HTTPPutPost(info *RequestInfo) error {
 
 		if resource == nil {
 			// Implicitly create the resource
-			resource, isNew, err = group.UpsertResourceWithObject(
+			resource, isNew, xErr = group.UpsertResourceWithObject(
 				info.ResourceType, resourceUID, propsID, IncomingObj,
 				ADD_ADD, true)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
-			version, err = resource.GetDefault(FOR_WRITE)
+			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
-			version, isNew, err = resource.UpsertVersionWithObject(propsID,
+			version, isNew, xErr = resource.UpsertVersionWithObject(propsID,
 				IncomingObj, ADD_UPSERT, false)
 		}
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		if xErr != nil {
+			return xErr
 		}
 		// Default to just returning the version
 	}
@@ -2274,28 +2248,28 @@ func HTTPPutPost(info *RequestInfo) error {
 			}
 
 			if propsID != "" && propsID != resourceUID {
-				info.StatusCode = http.StatusBadRequest
-				return fmt.Errorf("The \"%sid\" attribute must be set to %q, "+
-					"not %q", info.ResourceModel.Singular, resourceUID, propsID)
+				return NewXRError("invalid_attribute",
+					info.GetParts(4),
+					info.ResourceModel.Singular+"id",
+					fmt.Sprintf("be set to %q, "+"not %q",
+						resourceUID, propsID))
 			}
 
 			// Implicitly create the resource
-			resource, _, err = group.UpsertResourceWithObject(
+			resource, _, xErr = group.UpsertResourceWithObject(
 				// TODO check to see if "" should be propsID
 				info.ResourceType, resourceUID, "", map[string]any{},
 				ADD_ADD, false)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 		}
 
 		// Technically, this will always "update" not "insert"
-		meta, _, err := resource.UpsertMetaWithObject(IncomingObj, addType,
+		meta, _, xErr := resource.UpsertMetaWithObject(IncomingObj, addType,
 			true, true)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		if xErr != nil {
+			return xErr
 		}
 
 		// Return HTTP GET of 'meta'
@@ -2317,10 +2291,10 @@ func HTTPPutPost(info *RequestInfo) error {
 
 	if info.ShowDetails && numParts == 5 {
 		// PATCH|POST GROUPs/gID/RESOURCEs/rID/versions$details - error
-		info.StatusCode = http.StatusBadRequest
 		// TODO add a test for this
-		return fmt.Errorf("Use of \"$details\" on the \"versions\" " +
-			" collection is not allowed")
+		return NewXRError("bad_request", info.GetParts(5),
+			fmt.Sprintf("ese of \"$details\" on the \"versions\" "+
+				" collection is not allowed"))
 	}
 
 	if numParts == 5 && (method == "POST" || method == "PATCH") {
@@ -2328,10 +2302,9 @@ func HTTPPutPost(info *RequestInfo) error {
 		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
 		// Convert IncomingObj to a map of Objects
-		objMap, err := IncomingObj2Map(IncomingObj)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		objMap, xErr := IncomingObj2Map(IncomingObj)
+		if xErr != nil {
+			return xErr
 		}
 
 		thisVersion := (*Version)(nil)
@@ -2339,21 +2312,21 @@ func HTTPPutPost(info *RequestInfo) error {
 		if resource == nil {
 			// Implicitly create the resource
 			if len(objMap) == 0 {
-				info.StatusCode = http.StatusBadRequest
-				return fmt.Errorf("Set of Versions to add can't be empty")
+				return NewXRError("bad_request", info.OriginalPath,
+					fmt.Sprintf("set of Versions to add can't be empty"))
 			}
 
 			vID := info.GetFlag("setdefaultversionid")
 			if vID == "null" {
-				info.StatusCode = http.StatusBadRequest
-				return fmt.Errorf("?setdefaultversionid can not be 'null'")
+				return NewXRError("bad_request", info.OriginalPath,
+					fmt.Sprintf("?setdefaultversionid can not be 'null'"))
 			}
 
 			if vID == "request" {
 				if vID == "request" && len(objMap) > 1 {
-					info.StatusCode = http.StatusBadRequest
-					return fmt.Errorf("?setdefaultversionid can not be " +
-						"'request'")
+					return NewXRError("bad_request", info.OriginalPath,
+						fmt.Sprintf("?setdefaultversionid can not be "+
+							"'request'"))
 				}
 			}
 
@@ -2366,16 +2339,15 @@ func HTTPPutPost(info *RequestInfo) error {
 				addType = ADD_PATCH
 			}
 
-			resource, _, err = group.UpsertResourceWithObject(info.ResourceType,
+			resource, _, xErr = group.UpsertResourceWithObject(info.ResourceType,
 				resourceUID, "", tmpObj, addType, false)
 
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 
-			v, err := resource.GetDefault(FOR_WRITE)
-			Must(err)
+			v, xErr := resource.GetDefault(FOR_WRITE)
+			Must(xErr)
 			thisVersion = v
 
 			// Remove the newly created default version from objMap so we
@@ -2387,16 +2359,12 @@ func HTTPPutPost(info *RequestInfo) error {
 					"/"))
 			}
 		} else {
-			if resource.IsXref() {
-				return fmt.Errorf(`Can't update "versions" if "xref" is set`)
-			}
-
-			meta, err := resource.FindMeta(false, FOR_WRITE)
-			PanicIf(err != nil, "No meta %q: %s", resource.UID, err)
+			meta, xErr := resource.FindMeta(false, FOR_WRITE)
+			PanicIf(xErr != nil, "No meta %q: %s", resource.UID, xErr)
 
 			if meta.Get("readonly") == true {
-				return fmt.Errorf("Write operations on read-only " +
-					"resources are not allowed")
+				return NewXRError("readonly", "/"+resource.Path,
+					"/"+resource.Path)
 			}
 
 			// Process the versions
@@ -2407,20 +2375,19 @@ func HTTPPutPost(info *RequestInfo) error {
 			count := 0
 			for id, obj := range objMap {
 				count++
-				v, _, err := resource.UpsertVersionWithObject(id, obj, addType,
+				v, _, xErr := resource.UpsertVersionWithObject(id, obj, addType,
 					count != len(objMap))
-				if err != nil {
-					info.StatusCode = http.StatusBadRequest
-					return err
+				if xErr != nil {
+					return xErr
 				}
 
 				paths = append(paths, v.Path)
 			}
 		}
 
-		err = ProcessSetDefaultVersionIDFlag(info, resource, thisVersion)
-		if err != nil {
-			return err
+		xErr = ProcessSetDefaultVersionIDFlag(info, resource, thisVersion)
+		if xErr != nil {
+			return xErr
 		}
 
 		if len(paths) == 0 {
@@ -2441,32 +2408,29 @@ func HTTPPutPost(info *RequestInfo) error {
 
 		if resource == nil {
 			// Implicitly create the resource
-			resource, err = group.AddResourceWithObject(info.ResourceType,
+			resource, xErr = group.AddResourceWithObject(info.ResourceType,
 				resourceUID, versionUID, IncomingObj, true)
-			if err != nil {
-				info.StatusCode = http.StatusBadRequest
-				return err
+			if xErr != nil {
+				return xErr
 			}
 
 			isNew = true
 		}
 
-		version, err = resource.FindVersion(versionUID, false, FOR_WRITE)
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error finding version(%s): %s", versionUID,
-				err)
+		version, xErr = resource.FindVersion(versionUID, false, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
 
 		if version == nil {
 			// We have a Resource, so add a new Version based on IncomingObj
-			version, isNew, err = resource.UpsertVersionWithObject(versionUID,
+			version, isNew, xErr = resource.UpsertVersionWithObject(versionUID,
 				IncomingObj, ADD_UPSERT, false)
 		} else if !isNew {
 			if propsID != "" && propsID != version.UID {
-				info.StatusCode = http.StatusBadRequest
-				return fmt.Errorf("The \"versionid\" attribute must be set "+
-					"to %q, not %q", version.UID, propsID)
+				return NewXRError("invalid_attribute", version.Path,
+					"versionid", fmt.Sprintf("must be set to %q, not %q",
+						version.UID, propsID))
 			}
 
 			IncomingObj["versionid"] = version.UID
@@ -2474,27 +2438,24 @@ func HTTPPutPost(info *RequestInfo) error {
 			if method == "PATCH" || !metaInBody {
 				addType = ADD_PATCH
 			}
-			version, _, err = resource.UpsertVersionWithObject(version.UID,
+			version, _, xErr = resource.UpsertVersionWithObject(version.UID,
 				IncomingObj, addType, false)
 		}
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		if xErr != nil {
+			return xErr
 		}
 	}
 
-	PanicIf(err != nil, "err should be nil")
+	PanicIf(xErr != nil, "err should be nil")
 
 	// Process any ?setdefaultversionid query parameter there might be
-	err = ProcessSetDefaultVersionIDFlag(info, resource, version)
-	if err != nil {
-		return err
+	xErr = ProcessSetDefaultVersionIDFlag(info, resource, version)
+	if xErr != nil {
+		return xErr
 	}
 
 	// Make sure everything is ok before we send back the results
-	if err := info.tx.Validate(info); err != nil {
-		return err
-	}
+	info.tx.Validate(info)
 
 	originalLen := numParts
 
@@ -2535,21 +2496,20 @@ func HTTPPutPost(info *RequestInfo) error {
 	return SerializeQuery(info, resPaths, what, info.Filters)
 }
 
-func HTTPPUTCapabilities(info *RequestInfo) error {
+func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
-		return err
+		return NewXRError("server_error", "/").SetDetailf("%s", err)
 	}
 
 	reqBody, err = RemoveSchema(reqBody)
 	if err != nil {
-		return err
+		return NewXRError("bad_request", info.GetParts(0), err.Error())
 	}
 
 	cap := &Capabilities{}
@@ -2566,55 +2526,52 @@ func HTTPPUTCapabilities(info *RequestInfo) error {
 		// Now override wth anything new
 		err := Unmarshal(reqBody, &tmp)
 		if err != nil {
-			return err
+			return NewXRError("bad_request", "/capabilities",
+				fmt.Sprintf("error parsing capabilities: %s", err))
 		}
 
 		reqBody, _ = json.Marshal(tmp)
 	} else {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("%s not allowed on '/capabilities'",
+		return NewXRError("action_not_supported", info.OriginalPath,
 			info.OriginalRequest.Method)
 	}
 
-	cap, err = ParseCapabilitiesJSON(reqBody)
-	if err != nil {
-		return err
+	cap, xErr := ParseCapabilitiesJSON(reqBody)
+	if xErr != nil {
+		return xErr
 	}
 
-	err = cap.Validate()
-	if err != nil {
-		return err
+	xErr = cap.Validate()
+	if xErr != nil {
+		return xErr
 	}
 
-	if err = info.Registry.SetSave("#capabilities", ToJSON(cap)); err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return err
+	if xErr = info.Registry.SetSave("#capabilities", ToJSON(cap)); xErr != nil {
+		return xErr
 	}
 
 	return HTTPGETCapabilities(info)
 }
 
-func HTTPPUTModelSource(info *RequestInfo) error {
+func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("%q not found", strings.Join(info.Parts, "/"))
+		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	if info.OriginalRequest.Method != "PUT" {
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("%s not allowed on '/modelsource'",
+		return NewXRError("action_not_supported", "/modelsource",
 			info.OriginalRequest.Method)
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return err
+		return NewXRError("server_error", info.GetParts(0)).
+			SetDetailf("error finding Version: %s", err)
 	}
 
-	err = info.Registry.Model.ApplyNewModelFromJSON(reqBody)
-	if err != nil {
-		return err
+	xErr := info.Registry.Model.ApplyNewModelFromJSON(reqBody)
+	if xErr != nil {
+		return xErr
 	}
 
 	return HTTPGETModelSource(info)
@@ -2623,27 +2580,22 @@ func HTTPPUTModelSource(info *RequestInfo) error {
 // Process the ?setdefaultversionid query parameter
 // "resource" is the resource we're processing
 // "version" is the version that was processed
-func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, version *Version) error {
+func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, version *Version) *XRError {
 	vIDs := info.GetFlagValues("setdefaultversionid")
 	if len(vIDs) == 0 {
 		return nil
 	}
 
-	if resource.IsXref() {
-		return fmt.Errorf(`Can't update "defaultversionid" if "xref" is set`)
-	}
-
 	if info.ResourceModel.GetSetDefaultSticky() == false {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf(`Resource %q doesn't allow setting of `+
-			`"defaultversionid"`, info.ResourceModel.Plural)
+		return NewXRError("defaultversionid_not_allowed", resource.Path,
+			info.ResourceModel.Plural)
 	}
 
 	vID := vIDs[0]
 
 	if vID == "" {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf(`"setdefaultversionid" must not be empty`)
+		return NewXRError("bad_request", resource.Path,
+			`"setdefaultversionid" must not be empty`)
 	}
 
 	// "null" and "request" have special meaning
@@ -2654,94 +2606,83 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 
 	if vID == "request" {
 		if version == nil {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf("Can't use 'request' if a version wasn't " +
-				"processed")
+			return NewXRError("bad_request", resource.Path,
+				fmt.Sprintf("nan't use 'request' if a version wasn't "+
+					"processed"))
 		}
 		// stick default version to current one we just processed
 		return resource.SetDefault(version)
 	}
 
-	version, err := resource.FindVersion(vID, false, FOR_READ)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf("Error finding version(%s): %s", vID, err)
+	version, xErr := resource.FindVersion(vID, false, FOR_READ)
+	if xErr != nil {
+		return xErr
 	}
 	if version == nil {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf("Version %q not found", vID)
+		return NewXRError("bad_request", resource.Path,
+			fmt.Sprintf("Version %q not found", vID))
 	}
 
-	err = resource.SetDefault(version)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf("Error setting default version: %s", err)
-	}
-
-	return nil
+	return resource.SetDefault(version)
 }
 
-func HTTPDelete(info *RequestInfo) error {
+func HTTPDelete(info *RequestInfo) *XRError {
 	// DELETE /...
 	if len(info.Parts) == 0 {
 		// DELETE /
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf("Can't delete an entire registry")
+		return NewXRError("action_not_supported", "/", "DELETE")
 	}
 
+	var xErr *XRError
 	var err error
 	epochStr := info.GetFlag("epoch")
 	epochInt := -1
 	if epochStr != "" {
 		epochInt, err = strconv.Atoi(epochStr)
 		if err != nil || epochInt < 0 {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf("Epoch value %q must be an UINTEGER", epochStr)
+			return NewXRError("invalid_attribute", info.OriginalPath,
+				"epoch", fmt.Sprintf("value (%s) must be a uinteger", epochStr))
 		}
 	}
 
 	// DELETE /GROUPs...
 	gm := info.Registry.Model.Groups[info.GroupType]
 	if gm == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf("Group type %q not found", info.GroupType)
+		return NewXRError("not_found", info.GetParts(1), info.GetParts(1))
 	}
 
 	if len(info.Parts) == 1 {
 		// DELETE /GROUPs
-		err = HTTPDeleteGroups(info)
-		if err != nil {
-			return err
+		xErr = HTTPDeleteGroups(info)
+		if xErr != nil {
+			return xErr
 		}
-		return info.tx.Validate(info)
+		info.tx.Validate(info)
+		return nil
 	}
 
 	// DELETE /GROUPs/gID...
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf(`Error finding Group %q: %s`, info.GroupUID, err)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
 	}
 	if group == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf(`Group %q not found`, info.GroupUID)
+		return NewXRError("not_found", info.GetParts(2), info.GetParts(2))
 	}
 
 	if len(info.Parts) == 2 {
 		// DELETE /GROUPs/gID
 		if epochInt >= 0 {
 			if e := group.Get("epoch"); e != epochInt {
-				return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-					group.UID, e, epochInt)
+				return NewXRError("mismatched_epoch", group.Path,
+					epochInt, e) // specified, current
 			}
 		}
-		if err = group.Delete(); err != nil {
-			return err
+		if xErr = group.Delete(); xErr != nil {
+			return xErr
 		}
 
-		if err = info.tx.Validate(info); err != nil {
-			return err
-		}
+		info.tx.Validate(info)
 
 		info.StatusCode = http.StatusNoContent
 		return nil
@@ -2749,55 +2690,49 @@ func HTTPDelete(info *RequestInfo) error {
 
 	// DELETE /GROUPs/gID/RESOURCEs...
 	if rm := gm.FindResourceModel(info.ResourceType); rm == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf(`Resource type %q not found`, info.ResourceType)
+		return NewXRError("not_found", info.GetParts(3), info.GetParts(3))
 	}
 
 	if len(info.Parts) == 3 {
 		// DELETE /GROUPs/gID/RESOURCEs
-		err = HTTPDeleteResources(info)
-		if err != nil {
-			return err
+		xErr = HTTPDeleteResources(info)
+		if xErr != nil {
+			return xErr
 		}
-		return info.tx.Validate(info)
+		info.tx.Validate(info)
+		return nil
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
-	resource, err := group.FindResource(info.ResourceType, info.ResourceUID,
+	resource, xErr := group.FindResource(info.ResourceType, info.ResourceUID,
 		false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf(`Error finding resource %q`, info.ResourceUID)
+	if xErr != nil {
+		return xErr
 	}
 	if resource == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf(`Resource %q not found`, info.ResourceUID)
+		return NewXRError("not_found", info.GetParts(4), info.GetParts(4))
 	}
 
-	meta, err := resource.FindMeta(false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf(`Error finding resource %q: %s`,
-			info.ResourceUID, err)
+	meta, xErr := resource.FindMeta(false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
 	}
 
 	if len(info.Parts) == 4 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID
 		if epochInt >= 0 {
 			if e := meta.Get("epoch"); e != epochInt {
-				return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-					resource.UID, e, epochInt)
+				return NewXRError("mismatched_epoch", meta.Path,
+					epochInt, e) // specified, current
 			}
 		}
 
-		err = resource.Delete()
-		if err != nil {
-			return err
+		xErr = resource.Delete()
+		if xErr != nil {
+			return xErr
 		}
 
-		if err = info.tx.Validate(info); err != nil {
-			return err
-		}
+		info.tx.Validate(info)
 
 		info.StatusCode = http.StatusNoContent
 		return nil
@@ -2805,69 +2740,63 @@ func HTTPDelete(info *RequestInfo) error {
 
 	if len(info.Parts) == 5 && info.Parts[4] == "meta" {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/meta
-		info.StatusCode = http.StatusMethodNotAllowed
-		return fmt.Errorf(`DELETE is not allowed on a "meta"`)
-	}
-
-	if resource.IsXref() {
-		return fmt.Errorf(`Can't delete "versions" if "xref" is set`)
+		return NewXRError("action_not_supported", info.OriginalPath, "DELETE")
 	}
 
 	if len(info.Parts) == 5 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/versions
-		err = HTTPDeleteVersions(info)
-		if err != nil {
-			return err
+		xErr = HTTPDeleteVersions(info)
+		if xErr != nil {
+			return xErr
 		}
 
-		return info.tx.Validate(info)
+		info.tx.Validate(info)
+		return nil
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
-	version, err := resource.FindVersion(info.VersionUID, false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return fmt.Errorf(`Error finding version %q`, info.VersionUID)
+	version, xErr := resource.FindVersion(info.VersionUID, false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
 	}
 	if version == nil {
-		info.StatusCode = http.StatusNotFound
-		return fmt.Errorf(`Version %q not found`, info.VersionUID)
+		return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
 	}
 
 	if len(info.Parts) == 6 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID
 		if epochInt >= 0 {
 			if e := version.Get("epoch"); e != epochInt {
-				return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-					info.VersionUID, e, epochInt)
+				return NewXRError("invalid_attribute", version.Path,
+					"epoch", fmt.Sprintf(`value must be %d not %d`,
+						e, epochInt))
 			}
 		}
 		nextDefault := info.GetFlag("setdefaultversionid")
-		err = version.DeleteSetNextVersion(nextDefault)
-		if err != nil {
-			return err
+		xErr = version.DeleteSetNextVersion(nextDefault)
+		if xErr != nil {
+			return xErr
 		}
 
-		if err = info.tx.Validate(info); err != nil {
-			return err
-		}
+		info.tx.Validate(info)
 
 		info.StatusCode = http.StatusNoContent
 		return nil
 	}
 
-	return fmt.Errorf("Bad API: %s", info.BaseURL)
+	return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
 }
 
 type EpochEntry map[string]any
 type EpochEntryMap map[string]EpochEntry
 
-func LoadEpochMap(info *RequestInfo) (EpochEntryMap, error) {
+func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 	res := EpochEntryMap{}
 
 	body, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading body: %s", err)
+		return nil, NewXRError("bad_request", info.OriginalPath,
+			fmt.Sprintf("error reading body: %s", err))
 	}
 
 	bodyStr := strings.TrimSpace(string(body))
@@ -2875,7 +2804,8 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, error) {
 	if len(bodyStr) > 0 {
 		err = Unmarshal([]byte(bodyStr), &res)
 		if err != nil {
-			return nil, err
+			return nil, NewXRError("bad_request", info.GetParts(0),
+				fmt.Sprintf("error parsing data: %s", err))
 		}
 	} else {
 		// EpochEntryMap == nil mean no list at all, not same as empty list
@@ -2885,26 +2815,22 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, error) {
 	return res, nil
 }
 
-func HTTPDeleteGroups(info *RequestInfo) error {
-	list, err := LoadEpochMap(info)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return err
+func HTTPDeleteGroups(info *RequestInfo) *XRError {
+	list, xErr := LoadEpochMap(info)
+	if xErr != nil {
+		return xErr
 	}
 
 	// No list provided so get list of Groups so we can delete them all
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results, err := Query(info.tx, `
+		results := Query(info.tx, `
 			SELECT UID
 			FROM Entities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID, info.GroupType)
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error getting the list: %s", err)
-		}
+
 		for row := results.NextRow(); row != nil; row = results.NextRow() {
 			list[NotNilString(row[0])] = EpochEntry{}
 		}
@@ -2913,10 +2839,9 @@ func HTTPDeleteGroups(info *RequestInfo) error {
 
 	// Delete each Group, checking epoch first if provided
 	for id, entry := range list {
-		group, err := info.Registry.FindGroup(info.GroupType, id, false, FOR_WRITE)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf(`Error getting Group %q`, id)
+		group, xErr := info.Registry.FindGroup(info.GroupType, id, false, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
 		if group == nil {
 			// Silently ignore the 404
@@ -2926,24 +2851,25 @@ func HTTPDeleteGroups(info *RequestInfo) error {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return fmt.Errorf(`Epoch value for %q must be a uinteger`,
-					id)
+				return NewXRError("invalid_attribute", group.Path,
+					"epoch", "must be a uinteger")
 			}
 			if tmpInt != group.Get("epoch") {
-				return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-					id, group.Get("epoch"), tmpInt)
+				return NewXRError("invalid_attribute", group.Path,
+					"epoch", fmt.Sprintf(`value must be %d not %d`,
+						group.Get("epoch"), tmpInt))
 			}
 		}
 
 		singular := group.Singular + "id"
 		if tmp, ok := entry[singular]; ok && tmp != id {
-			return fmt.Errorf(`%q value for %q must be %q not "%v"`,
-				singular, id, id, tmp)
+			return NewXRError("invalid_attribute", group.Path,
+				singular, fmt.Sprintf(`value must be %q not "%v"`, id, tmp))
 		}
 
-		err = group.Delete()
-		if err != nil {
-			return err
+		xErr = group.Delete()
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -2951,56 +2877,49 @@ func HTTPDeleteGroups(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPDeleteResources(info *RequestInfo) error {
-	list, err := LoadEpochMap(info)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return err
+func HTTPDeleteResources(info *RequestInfo) *XRError {
+	list, xErr := LoadEpochMap(info)
+	if xErr != nil {
+		return xErr
 	}
 
 	// No list provided so get list of Resources so we can delete them all
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		results, err := Query(info.tx, `
+		results := Query(info.tx, `
 			SELECT UID
 			FROM Entities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID,
 			NewPPP(info.GroupType).P(info.ResourceType).Abstract())
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf("Error getting the list: %s", err)
-		}
+
 		for row := results.NextRow(); row != nil; row = results.NextRow() {
 			list[NotNilString(row[0])] = EpochEntry{}
 		}
 		defer results.Close()
 	}
 
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf(`Error getting Group %q`, info.GroupUID)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
 	}
 
 	// Delete each Resource, checking epoch first if provided
 	for id, entry := range list {
-		resource, err := group.FindResource(info.ResourceType, id, false,
+		resource, xErr := group.FindResource(info.ResourceType, id, false,
 			FOR_WRITE)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf(`Error getting Resource %q`, id)
+		if xErr != nil {
+			return xErr
 		}
 		if resource == nil {
 			// Silently ignore the 404
 			continue
 		}
 
-		meta, err := resource.FindMeta(false, FOR_WRITE)
-		if err != nil {
-			info.StatusCode = http.StatusInternalServerError
-			return fmt.Errorf(`Error finding resource %q: %s`, id, err)
+		meta, xErr := resource.FindMeta(false, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
 
 		singular := resource.Singular + "id"
@@ -3008,42 +2927,45 @@ func HTTPDeleteResources(info *RequestInfo) error {
 		if metaJSON, ok := entry["meta"]; ok {
 			metaMap, ok := metaJSON.(map[string]any)
 			if !ok {
-				if err != nil {
-					info.StatusCode = http.StatusBadRequest
-					return fmt.Errorf(`"meta" isn't a map`)
+				if xErr != nil { // makes no sense  TODO
+					return NewXRError("bad_request", resource.Path,
+						`"meta" isn't an object`)
 				}
 			}
 
 			if tmp, ok := metaMap[singular]; ok && tmp != id {
-				return fmt.Errorf(`%q value for %q must be %q not "%v"`,
-					singular, id, id, tmp)
+				return NewXRError("mismatched_id", resource.Path,
+					resource.Singular, tmp, id)
 			}
 
 			if tmp, ok := metaMap["epoch"]; ok {
 				tmpInt, err := AnyToUInt(tmp)
 				if err != nil {
-					return fmt.Errorf(`Epoch value for %q must be a uinteger`,
-						id)
+					return NewXRError("invalid_attribute", meta.Path,
+						"epoch", "must be a uinteger")
 				}
 				if tmpInt != meta.Get("epoch") {
-					return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-						id, meta.Get("epoch"), tmpInt)
+					return NewXRError("invalid_attribute", meta.Path,
+						"epoch", fmt.Sprintf(`value must be %d not %d`,
+							meta.Get("epoch"), tmpInt))
 				}
 			}
 		} else {
 			if _, ok := entry["epoch"]; ok {
-				return fmt.Errorf(`"epoch" should be under a "meta" map`)
+				return NewXRError("invalid_attribute", resource.Path,
+					"epoch", "should be under a \"meta\" object")
 			}
 		}
 
 		if tmp, ok := entry[singular]; ok && tmp != id {
-			return fmt.Errorf(`%q value for %q must be %q not "%v"`,
-				singular, id, id, tmp)
+			return NewXRError("invalid_attribute", resource.Path,
+				singular, fmt.Sprintf(`value must be %q not "%v"`,
+					id, tmp))
 		}
 
-		err = resource.Delete()
-		if err != nil {
-			return err
+		xErr = resource.Delete()
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -3051,36 +2973,32 @@ func HTTPDeleteResources(info *RequestInfo) error {
 	return nil
 }
 
-func HTTPDeleteVersions(info *RequestInfo) error {
+func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	nextDefault := info.GetFlag("setdefaultversionid")
 
-	list, err := LoadEpochMap(info)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return err
+	list, xErr := LoadEpochMap(info)
+	if xErr != nil {
+		return xErr
 	}
 
-	group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf(`Error getting Group %q: %s`, info.GroupUID, err)
+	group, xErr := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
+	if xErr != nil {
+		return xErr
 	}
 
-	resource, err := group.FindResource(info.ResourceType, info.ResourceUID,
+	resource, xErr := group.FindResource(info.ResourceType, info.ResourceUID,
 		false, FOR_WRITE)
-	if err != nil {
-		info.StatusCode = http.StatusBadRequest
-		return fmt.Errorf(`Error getting Resource %q: %s`,
-			info.ResourceUID, err)
+	if xErr != nil {
+		return xErr
 	}
 
 	// No list provided so get list of Versions so we can delete them all
 	// TODO: optimize this to just delete it all in one shot
 	if list == nil {
 		list = EpochEntryMap{}
-		vIDs, err := resource.GetVersionIDs()
-		if err != nil {
-			return err
+		vIDs, xErr := resource.GetVersionIDs()
+		if xErr != nil {
+			return xErr
 		}
 		for _, vID := range vIDs {
 			list[vID] = EpochEntry{}
@@ -3094,10 +3012,9 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 	// However, we can save the Versions for the next loop.
 	vers := []*Version{}
 	for id, entry := range list {
-		version, err := resource.FindVersion(id, false, FOR_WRITE)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf(`Error getting Version %q: %s`, id, err)
+		version, xErr := resource.FindVersion(id, false, FOR_WRITE)
+		if xErr != nil {
+			return xErr
 		}
 		if version == nil {
 			// Silently ignore the 404
@@ -3109,12 +3026,13 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return fmt.Errorf(`Epoch value for %q must be a uinteger`,
-					id)
+				return NewXRError("invalid_attribute", version.Path,
+					"epoch", `value must be a uinteger`)
 			}
 			if tmpInt != version.Get("epoch") {
-				return fmt.Errorf(`Epoch value for %q must be %d not %d`,
-					id, version.Get("epoch"), tmpInt)
+				return NewXRError("invalid_attribute", version.Path,
+					"epoch", fmt.Sprintf(`value must be %d not %d`,
+						version.Get("epoch"), tmpInt))
 			}
 		}
 
@@ -3122,31 +3040,29 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 		// matches
 		singular := version.Singular + "id"
 		if tmp, ok := entry[singular]; ok && tmp != version.Get(singular) {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf(`%q value for %q must be %q not "%v"`,
-				singular, id, version.Get(singular), tmp)
+			return NewXRError("invalid_attribute", version.Path,
+				singular, fmt.Sprintf(`value must be %q not "%v"`,
+					version.Get(singular), tmp))
 		}
 
 	}
 
 	// Now we can actually delete each one
 	for _, version := range vers {
-		err = version.DeleteSetNextVersion(nextDefault)
-		if err != nil {
-			return err
+		xErr = version.DeleteSetNextVersion(nextDefault)
+		if xErr != nil {
+			return xErr
 		}
 	}
 
 	if nextDefault != "" {
-		version, err := resource.FindVersion(nextDefault, false, FOR_READ)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return fmt.Errorf(`Error getting Version %q: %s`, nextDefault, err)
+		version, xErr := resource.FindVersion(nextDefault, false, FOR_READ)
+		if xErr != nil {
+			return xErr
 		}
-		err = resource.SetDefault(version)
-		if err != nil {
-			info.StatusCode = http.StatusBadRequest
-			return err
+		xErr = resource.SetDefault(version)
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -3154,7 +3070,7 @@ func HTTPDeleteVersions(info *RequestInfo) error {
 	return nil
 }
 
-func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
+func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	IncomingObj := map[string]any{}
 
 	if len(body) == 0 {
@@ -3178,7 +3094,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 	}
 
 	if requireBody && len(body) == 0 {
-		return nil, fmt.Errorf("An HTTP body must be specified")
+		return nil, NewXRError("bad_request", info.OriginalPath,
+			"an HTTP body must be specified, try {}")
 	}
 
 	// len=5 is a special case where we know .../versions always has the
@@ -3195,18 +3112,21 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 			k := strings.ToLower(k)
 			if strings.HasPrefix(k, "xregistry-") {
 				if hasDoc == false {
-					return nil, fmt.Errorf("Including \"xRegistry\" headers " +
-						"for a Resource that has the model \"hasdocument\" " +
-						"value of \"false\" is invalid")
+					return nil, NewXRError("bad_request", info.OriginalPath,
+						fmt.Sprintf("including \"xRegistry\" headers "+
+							"for a Resource that has the model "+
+							"\"hasdocument\" value of \"false\" is invalid"))
 				}
-				return nil, fmt.Errorf("Including \"xRegistry\" headers " +
-					"when \"$details\" is used is invalid")
+				return nil, NewXRError("bad_request", info.OriginalPath,
+					fmt.Sprintf("including \"xRegistry\" HTTP headers "+
+						"when \"$details\" is used is not allowed"))
 			}
 		}
 
 		err := Unmarshal(body, &IncomingObj)
 		if err != nil {
-			return nil, err
+			return nil, NewXRError("bad_request", info.GetParts(0),
+				fmt.Sprintf("error parsing data: %s", err))
 		}
 
 		// "modelsource" is sooo special! Don't parse it into a golang type
@@ -3216,7 +3136,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 				ModelSource json.RawMessage
 			}{}
 			if err := json.Unmarshal(body, &tmpReg); err != nil {
-				return nil, err
+				return nil, NewXRError("bad_request", info.GetParts(0),
+					fmt.Sprintf("error parsing data: %s", err))
 			}
 			IncomingObj["modelsource"] = tmpReg.ModelSource
 		}
@@ -3261,14 +3182,16 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 			}
 
 			if key == resSingular || key == resSingular+"base64" {
-				return nil, fmt.Errorf("'xRegistry-%s' isn't allowed as "+
-					"an HTTP header", key)
+				return nil, NewXRError("bad_request", info.OriginalPath,
+					fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
+						"an HTTP header", key))
 			}
 
 			if key == resSingular+"url" || key == resSingular+"proxyurl" {
 				if len(body) != 0 {
-					return nil, fmt.Errorf("'xRegistry-%s' isn't allowed "+
-						"if there's a body", key)
+					return nil, NewXRError("bad_request", info.OriginalPath,
+						fmt.Sprintf("'xRegistry-%s' HTTP header isn't allowed "+
+							"if there's a body", key))
 				}
 			}
 
@@ -3314,8 +3237,9 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 					} else {
 						obj, ok = prop.(map[string]any)
 						if !ok {
-							return nil, fmt.Errorf("HTTP header %q should "+
-								"reference a map", key)
+							return nil, NewXRError("bad_request", "/",
+								fmt.Sprintf("HTTP header %q should "+
+									"reference a map", key))
 						}
 					}
 				}
@@ -3348,7 +3272,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, error) {
 	return IncomingObj, nil
 }
 
-func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
+func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	host := r.URL.Query().Get("host") // http://xregistry.io/xreg
 	path := r.URL.Query().Get("path") // /GROUPS?inline
 
@@ -3356,25 +3280,22 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 	path = "/" + strings.Trim(path, "/")
 	data := []byte(nil)
 
-	reg, err := LoadRemoteRegistry(host)
-	if err != nil {
-		data = []byte(err.Error())
+	reg, xErr := LoadRemoteRegistry(host)
+	if xErr != nil {
+		data = []byte(xErr.Error())
 	}
 
 	log.VPrintf(4, "Download: %s%s", host, path)
 
+	var err error
 	if data == nil {
 		data, err = DownloadURL(host + path)
-		if err != nil {
+		if !IsNil(err) {
 			// See if we can be tricky and load the index.html file ourselves
-			var err2 error
-			data, err2 = DownloadURL(host + path + "/index.html")
-			if err2 == nil {
-				err = nil
+			data, err = DownloadURL(host + path + "/index.html")
+			if !IsNil(err) {
+				data = []byte(err.Error())
 			}
-		}
-		if err != nil {
-			data = []byte(err.Error())
 		}
 	}
 
@@ -3396,8 +3317,8 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if reg != nil && reg.Model != nil {
-		if err = info.ParseRequestURL(); err != nil {
-			data = []byte(err.Error())
+		if xErr = info.ParseRequestURL(); xErr != nil {
+			data = []byte(xErr.Error())
 		}
 	}
 
@@ -3408,6 +3329,22 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) error {
 
 	html := GenerateUI(info, data)
 	w.Write(html)
+}
 
-	return nil
+func HTTPWriteError(info *RequestInfo, errAny any) {
+	var xErr *XRError
+	var ok bool
+
+	if xErr, ok = errAny.(*XRError); !ok {
+		xErr = NewXRError("bad_request", info.OriginalPath, errAny)
+	}
+
+	info.StatusCode = xErr.Code
+	info.AddHeader("Content-Type", "application/json; charset=utf-8")
+
+	for k, v := range xErr.Headers {
+		info.AddHeader(k, v)
+	}
+
+	info.Write([]byte(xErr.ToUserJson(info.BaseURL) + "\n"))
 }

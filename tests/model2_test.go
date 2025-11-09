@@ -1720,7 +1720,11 @@ func TestModelLabels(t *testing.T) {
 	// Now some errors
 	xHTTP(t, reg, "PUT", "/modelsource", `{
       "labels":{"bad one": "1"}
-    }`, 400, `Invalid map key name "bad one", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 
 	xHTTP(t, reg, "PUT", "/modelsource", `{
@@ -1728,7 +1732,11 @@ func TestModelLabels(t *testing.T) {
         "dirs": {
           "singular":"dir",
           "labels":{"bad one": "1"}}}
-    }`, 400, `Invalid map key name "bad one", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 
 	xHTTP(t, reg, "PUT", "/modelsource", `{
@@ -1739,7 +1747,11 @@ func TestModelLabels(t *testing.T) {
             "files":{
               "singular":"file",
               "labels":{"bad one": "1"}}}}}
-    }`, 400, `Invalid map key name "bad one", must match: ^[a-z0-9][a-z0-9_.:\-]{0,62}$
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+}
 `)
 
 }
@@ -6362,7 +6374,12 @@ func TestModelIncludes(t *testing.T) {
 `
 
 	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
-		"Not allowed to access file: ../foo.json\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: Error processing JSON: Not allowed to access file: ../foo.json"
+}
+`)
 
 	// Another bad one - using /foo
 	str = `{
@@ -6382,7 +6399,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
-		"Not allowed to access file: /foo.json\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: Error processing JSON: Not allowed to access file: /foo.json"
+}
+`)
 
 	// Another bad one - 404 url
 	str = `
@@ -6403,7 +6425,11 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
-		`^Get "http://bogus.bogus.bogus.bogus.com/bogus.json": dial tcp: lookup bogus.bogus.bogus.bogus.com.*: no such host
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "http://localhost:8181/",
+  "title": "There was an error in the model definition provided: Error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host"
+}
 `)
 
 	// nested include with http ref

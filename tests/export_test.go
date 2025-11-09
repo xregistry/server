@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -1272,10 +1273,22 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
-		"'doc' flag not allowed on xref'd Versions\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "title": "The specified flag (doc) is not allowed in this context",
+  "detail": "'doc' flag is not allowed on xref'd Versions"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
-		"'doc' flag not allowed on xref'd Versions\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+  "title": "The specified flag (doc) is not allowed in this context",
+  "detail": "'doc' flag is not allowed on xref'd Versions"
+}
+`)
 
 	// Just some filtering too for fun
 
@@ -1466,8 +1479,14 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", code, 404)
 	code, manualBody = xGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=vx")
 	xCheckEqual(t, "", code, 404)
+	fullBody = strings.ReplaceAll(fullBody, "/export", "/")
 	xCheckEqual(t, "", fullBody, manualBody)
-	xCheckEqual(t, "", fullBody, "Not found\n")
+	xCheckEqual(t, "", fullBody, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`)
 
 	code, fullBody = xGET(t, "export?filter=dirs.files.versions.versionid=v2,dirs.files.fileid=fx&inline=*")
 	xCheckEqual(t, "", code, 200)
@@ -1726,34 +1745,86 @@ func TestExportBasic(t *testing.T) {
 	// error checking logic
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1/foo?doc", ``, 404,
-		"URL is too long\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1/foo",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/v1/foo"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1/foo?doc", ``, 404,
-		"URL is too long\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/v1/foo",
+  "title": "The specified entity cannot be found: /dirs/d1/files/fx/versions/v1/foo"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/vx?doc", ``, 404,
-		"Not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/vx",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/vx"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
-		"\"dirs/d1/files/fz\" not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/fz",
+  "title": "The specified entity cannot be found: /dirs/d1/files/fz"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
-		"Not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/fz",
+  "title": "The specified entity cannot be found: /dirs/d1/files/fz"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
-		"\"dirs/dx\" not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/dx",
+  "title": "The specified entity cannot be found: /dirs/dx"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
-		"Unknown Resource type: filesx\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/filesx",
+  "title": "The specified entity cannot be found: /dirs/d1/filesx",
+  "detail": "Unknown Resource type: filesx"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/dx?doc", ``, 404,
-		"Not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/dx",
+  "title": "The specified entity cannot be found: /dirs/dx"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirsx?doc", ``, 404,
-		"Unknown Group type: dirsx\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirsx",
+  "title": "The specified entity cannot be found: /dirsx",
+  "detail": "Unknown Group type: dirsx"
+}
+`)
 
 	xHTTP(t, reg, "GET", "/dirs/dx/files/fz/versions/vx?doc", ``, 404,
-		"Not found\n")
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/dx/files/fz/versions/vx",
+  "title": "The specified entity cannot be found: /dirs/dx/files/fz/versions/vx"
+}
+`)
 
 }
 

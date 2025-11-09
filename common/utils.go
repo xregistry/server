@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -36,7 +37,7 @@ func IsURL(str string) bool {
 }
 
 func Must(err error) {
-	if err != nil {
+	if !IsNil(err) {
 		panic(err)
 	}
 }
@@ -47,6 +48,8 @@ func PanicIf(b bool, msg string, args ...any) {
 	}
 }
 func Panicf(msg string, args ...any) {
+	log.Printf(msg, args...)
+	ShowStack()
 	panic(fmt.Sprintf(msg, args...))
 }
 
@@ -245,6 +248,10 @@ func GetStack() []string {
 	return stack
 }
 
+func GetStackAsString() string {
+	return strings.Join(GetStack(), "\n")
+}
+
 func ShowStack() {
 	stack := GetStack()
 	log.VPrintf(0, "----- Stack")
@@ -397,13 +404,14 @@ type IncludeArgs struct {
 	LocalFiles bool                      // ok to access local FS files?
 }
 
-func ProcessIncludes(file string, buf []byte, localFiles bool) ([]byte, error) {
+func ProcessIncludes(file string, buf []byte, localFiles bool) ([]byte, *XRError) {
 	data := map[string]any{}
 
 	buf = RemoveComments(buf)
 
 	if err := Unmarshal(buf, &data); err != nil {
-		return nil, fmt.Errorf("Error parsing JSON: %s", err)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("Error parsing JSON: %s", err))
 	}
 
 	includeArgs := IncludeArgs{
@@ -415,14 +423,16 @@ func ProcessIncludes(file string, buf []byte, localFiles bool) ([]byte, error) {
 	}
 
 	if err := IncludeTraverse(includeArgs, data); err != nil {
-		return nil, err
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("Error processing JSON: %s", err))
 	}
 
 	// Convert back to byte
 	// buf, err := json.MarshalIndent(data, "", "  ")
 	buf, err := json.Marshal(data)
 	if err != nil {
-		return nil, fmt.Errorf("Error generating JSON: %s", err)
+		return nil, NewXRError("model_error", "/",
+			fmt.Sprintf("Error generating JSON: %s", err))
 	}
 
 	return buf, nil
@@ -731,15 +741,17 @@ func ResetMap[M ~map[K]V, K comparable, V any](m M, key K, oldVal V) {
 
 type Object map[string]any
 
-func IncomingObj2Map(incomingObj Object) (map[string]Object, error) {
+func IncomingObj2Map(incomingObj Object) (map[string]Object, *XRError) {
 	result := map[string]Object{}
 	for id, obj := range incomingObj {
 		oV := reflect.ValueOf(obj)
 		if oV.Kind() != reflect.Map ||
 			oV.Type().Key().Kind() != reflect.String {
 
-			return nil, fmt.Errorf("Body must be a map of id->Entity, near %q",
-				id)
+			return nil,
+				NewXRError("bad_request", "/",
+					fmt.Sprintf("Body must be a map of id->Entity, near %q",
+						id))
 		}
 		newObj := Object{}
 		for _, keyVal := range oV.MapKeys() {
@@ -1509,4 +1521,13 @@ func RemoveSchema(buf []byte) ([]byte, error) {
 	}
 
 	return json.Marshal(ordered)
+}
+
+func IsPortInUse(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port),
+		50*time.Millisecond)
+	if conn != nil {
+		conn.Close()
+	}
+	return err == nil
 }

@@ -228,7 +228,7 @@ func TestProcessIncludes(t *testing.T) {
 		"/nest/nest4.f": `{"foo":"bar1","$include":"../onelevel"}`,
 		"/nest/nest5":   `{"foo":"bar2","$include":"/nest/nest4"}`,
 		"/nest/nest5.f": `{"foo":"bar2","$include":"../nest/nest4.f"}`,
-		"/nest/nest6":   `{"foo":"bar2","$include":"http://localhost:9999/nest/nest4"}`,
+		"/nest/nest6":   `{"foo":"bar2","$include":"http://localhost:4567/nest/nest4"}`,
 
 		"/err1": `{"$include": "empty"}`,
 		"/err2": `{"$include": "notjson"}`,
@@ -244,7 +244,10 @@ func TestProcessIncludes(t *testing.T) {
 		"/nest9":  `{"$includes": [ "onelevel", "twolevel" ], "foo":"xxx"}`,
 		"/nest10": `{"$includes": [ "nonfoo", "onelevel" ], "foo":"xxx"}`,
 	}
-	server := &http.Server{Addr: ":9999", Handler: &FSHandler{httpPaths}}
+	if IsPortInUse(4567) {
+		t.Fatal("Port 4567 is in-use - kill it")
+	}
+	server := &http.Server{Addr: ":4567", Handler: &FSHandler{httpPaths}}
 	go server.ListenAndServe()
 
 	// Setup our local dir structure
@@ -266,7 +269,7 @@ func TestProcessIncludes(t *testing.T) {
 
 	// Wait for server
 	for {
-		if _, err := http.Get("http://localhost:9999/"); err == nil {
+		if _, err := http.Get("http://localhost:4567/"); err == nil {
 			break
 		}
 	}
@@ -311,7 +314,7 @@ func TestProcessIncludes(t *testing.T) {
 		{"nest7.err1", `In "tmp/xreg1/nest7.err1", $include value isn't a string`},
 		{"nest7.err2", `In "tmp/xreg1/nest7.err2", $includes contains a non-string value (1)`},
 		{"nest7.err3", `In "tmp/xreg1/nest7.err3", both $include and $includes is not allowed`},
-		{"http:/nest7.err1", `In "http://localhost:9999/nest7.err1", $include value isn't a string`},
+		{"http:/nest7.err1", `Error processing JSON: In "http://localhost:4567/nest7.err1", $include value isn't a string`},
 
 		{"nest8", `{"foo":"bar","foo6":666}`},
 		{"nest9", `{"foo":"xxx","foo6":666}`},
@@ -319,6 +322,12 @@ func TestProcessIncludes(t *testing.T) {
 	}
 
 	mask := regexp.MustCompile(`".*/xreg[^/]*`)
+	m1 := `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "instance": "/",
+  "title": "There was an error in the model definition provided: `
+	m2 := `"
+}`
 
 	for i, test := range tests {
 		t.Logf("Test #: %d", i)
@@ -326,7 +335,7 @@ func TestProcessIncludes(t *testing.T) {
 		var buf []byte
 		var err error
 		if strings.HasPrefix(test.Path, "http:") {
-			test.Path = "http://localhost:9999" + test.Path[5:]
+			test.Path = "http://localhost:4567" + test.Path[5:]
 			var res *http.Response
 			if res, err = http.Get(test.Path); err == nil {
 				if res.StatusCode != 200 {
@@ -343,15 +352,20 @@ func TestProcessIncludes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err.Error())
 		}
-		buf, err = ProcessIncludes(test.Path, buf,
+		buf, xErr := ProcessIncludes(test.Path, buf,
 			!strings.HasPrefix(test.Path, "http"))
-		if err != nil {
-			buf = []byte(err.Error())
+		if xErr != nil {
+			buf = []byte(xErr.Error())
 		}
-		exp := string(mask.ReplaceAll([]byte(test.Result), []byte("tmp")))
+		exp := test.Result
+		if exp[0] != '{' {
+			exp = m1 + JSONEscape(test.Result) + m2
+		}
+		exp = string(mask.ReplaceAll([]byte(exp), []byte("tmp")))
 		buf = mask.ReplaceAll(buf, []byte("tmp"))
+
 		if string(buf) != exp {
-			t.Fatalf("\nPath: %s\nExp: %s\nGot: %s",
+			t.Fatalf("\nPath: %s\nExp: %s<<\nGot: %s<<",
 				test.Path, exp, string(buf))
 		}
 	}

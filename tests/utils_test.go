@@ -40,10 +40,18 @@ func TestMain(m *testing.M) {
 	// }
 	// registry.OpenDB(DBName)
 
+	if IsPortInUse(8181) {
+		panic("Port 8181 is already in use - kill it")
+	}
+
 	// Start xRegistry HTTP server
 	server := registry.NewServer(8181).Start()
 
 	// Start testing fileserver
+	if IsPortInUse(8282) {
+		panic("Port 8282 is already in use - kill it")
+	}
+
 	fsServer := &http.Server{
 		Addr:    ":8282",
 		Handler: http.FileServer(http.Dir("files")),
@@ -70,17 +78,15 @@ func TestMain(m *testing.M) {
 }
 
 func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
-	var err error
-
 	reg, _ := registry.FindRegistry(nil, name, registry.FOR_WRITE)
 	if reg != nil {
 		reg.Delete()
 		reg.SaveAllAndCommit()
 	}
 
-	reg, err = registry.NewRegistry(nil, name, opts...)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, err)
+	reg, xErr := registry.NewRegistry(nil, name, opts...)
+	if xErr != nil {
+		fmt.Fprintf(os.Stderr, "Error creating registry %q: %s\n", name, xErr)
 		ShowStack()
 		os.Exit(1)
 	}
@@ -91,9 +97,9 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 
 	/*
 		// Now find it again and start a new Tx
-		reg, err = registry.FindRegistry(nil, name, registry.FOR_WRITE)
-		if err != nil {
-			panic(err.Error())
+		reg, xErr = registry.FindRegistry(nil, name, registry.FOR_WRITE)
+		if xErr != nil {
+			panic(xErr.Error())
 		}
 		if reg == nil {
 			panic("nil")
@@ -133,26 +139,26 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 			panic("Cache is dirty outside of a tx")
 		}
 
-		err := reg.SaveAllAndCommit() // should this be Rollback() ?
-		if err != nil {
-			panic(err.Error())
+		xErr := reg.SaveAllAndCommit() // should this be Rollback() ?
+		if xErr != nil {
+			panic(xErr.Error())
 		}
 
 		if os.Getenv("NO_DELETE_REGISTRY") == "" {
 			// We do this to make sure that we can support more than
 			// one registry in the DB at a time
-			if err := reg.Delete(); err != nil {
+			if xErr := reg.Delete(); xErr != nil {
 				registry.DumpTXs()
-				panic(err.Error())
+				panic(xErr.Error())
 			}
 		}
 		registry.DefaultRegDbSID = ""
 	}
 
 	/*
-		err := reg.SaveAllAndCommit() // should this be Rollback() ?
-		if err != nil {
-			panic("SaveAllAndCommit: " + err.Error())
+		xErr := reg.SaveAllAndCommit() // should this be Rollback() ?
+		if xErr != nil {
+			panic("SaveAllAndCommit: " + xErr.Error())
 		}
 	*/
 
@@ -170,7 +176,8 @@ func Fail(t *testing.T, str string, args ...any) {
 
 func xCheckErr(t *testing.T, err error, errStr string) {
 	t.Helper()
-	if err == nil {
+
+	if IsNil(err) {
 		if errStr == "" {
 			return
 		}
@@ -181,9 +188,12 @@ func xCheckErr(t *testing.T, err error, errStr string) {
 		t.Fatalf("Test failed: %s", err)
 	}
 
-	if err.Error() != errStr {
-		t.Fatalf("\nGot: %s\nExp: %s", err.Error(), errStr)
-	}
+	xCheckEqual(t, "", err, errStr)
+	/*
+		if err.Error() != errStr {
+			t.Fatalf("\nGot: %s\nExp: %s", err.Error(), errStr)
+		}
+	*/
 }
 
 func xCheck(t *testing.T, b bool, errStr string, args ...any) {
@@ -195,7 +205,7 @@ func xCheck(t *testing.T, b bool, errStr string, args ...any) {
 
 func xNoErr(t *testing.T, err error) {
 	t.Helper()
-	if err != nil {
+	if !IsNil(err) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 }
@@ -350,7 +360,7 @@ func xGET(t *testing.T, url string) (int, string) {
 	t.Helper()
 	url = "http://localhost:8181/" + url
 	res, err := http.Get(url)
-	if err != nil {
+	if !IsNil(err) {
 		t.Fatalf("HTTP GET error: %s", err)
 	}
 
@@ -571,6 +581,7 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 			resValue = re.ReplaceAllString(resValue, headerReplace[i])
 		}
 
+		// t.Logf("Body: %s", string(resBody))
 		xCheckEqual(t, "Header:"+name+"\n", resValue, value)
 		// Delete the response header so we'll know if there are any
 		// unexpected xregistry- headers left around
@@ -657,10 +668,10 @@ func xCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 
 	err := cmd.Run()
 
-	if err != nil && work {
+	if !IsNil(err) && work {
 		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
 			err, stdout.String(), stderr.String())
-	} else if err == nil && !work {
+	} else if IsNil(err) && !work {
 		t.Fatalf("Should have failed:\nStdout: %s\nStderr: %s",
 			stdout.String(), stderr.String())
 	}
@@ -685,10 +696,10 @@ func xServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
 
 	err := cmd.Run()
 
-	if err != nil && code == 0 {
+	if !IsNil(err) && code == 0 {
 		t.Fatalf("Should have worked: %s\nStdout: %s\nStderr: %s",
 			err, stdout.String(), stderr.String())
-	} else if err == nil && code == 1 {
+	} else if IsNil(err) && code == 1 {
 		t.Fatalf("Should have failed:\nStdout: %s\nStderr: %s",
 			stdout.String(), stderr.String())
 	}

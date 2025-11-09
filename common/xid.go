@@ -269,17 +269,17 @@ func ParseXref(xidStr string) (*Xid, error) {
 								}
 							}
 							if len(parts) > 6 {
-								return nil, fmt.Errorf("XID is too long")
+								return nil, fmt.Errorf("%q is too long", xidStr)
 							}
 						} else if xid.Version == "meta" {
 							xid.Type = ENTITY_META
 							xid.IsEntity = false
 							if len(parts) > 5 {
-								return nil, fmt.Errorf("XID is too long")
+								return nil, fmt.Errorf("%q is too long", xidStr)
 							}
 						} else {
-							return nil, fmt.Errorf("references an unknown "+
-								"entity %q", xid.Version)
+							return nil, fmt.Errorf("%q references an unknown "+
+								"entity %q", xidStr, xid.Version)
 						}
 
 					}

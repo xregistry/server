@@ -34,24 +34,33 @@ func Error(obj any, args ...any) {
 	if IsNil(obj) {
 		return
 	}
+
 	fmtStr, ok := obj.(string)
 	if !ok {
 		if err, ok := obj.(error); ok {
 			if err == nil {
 				return
 			}
-			fmtStr = err.Error()
 
-			if len(args) > 0 {
-				fmtStr, ok = args[0].(string)
-				if !ok {
-					panic("First arg must be a string")
+			if xrErr, ok := obj.(*XRError); ok {
+				fmtStr = xrErr.GetTitle()
+				if xrErr.Detail != "" {
+					fmtStr += "\n" + xrErr.Detail
 				}
-				args = args[1:]
+			} else {
+				fmtStr = err.Error()
 
-				for i := 0; i < len(args); i++ {
-					if args[i] == "err" {
-						args[i] = err.Error()
+				if len(args) > 0 {
+					fmtStr, ok = args[0].(string)
+					if !ok {
+						panic("First arg must be a string")
+					}
+					args = args[1:]
+
+					for i := 0; i < len(args); i++ {
+						if args[i] == "err" {
+							args[i] = err.Error()
+						}
 					}
 				}
 			}
@@ -210,7 +219,7 @@ func main() {
 	xrCmd.SetUsageTemplate(strings.ReplaceAll(xrCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
 	xrCmd.SetUsageTemplate(xrCmd.UsageTemplate() + "\nVersion: " +
-		GitCommit[:12] + "\n")
+		GitCommit[:min(len(GitCommit), 12)] + "\n")
 
 	// just so 'help' is in a group and Hidden is adhered to
 	xrCmd.SetHelpCommand(&cobra.Command{

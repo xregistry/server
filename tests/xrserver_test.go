@@ -171,7 +171,7 @@ func TestXRServerCmds(t *testing.T) {
 			Args:   "--dontcreate",
 			Stdin:  "",
 			Code:   1,
-			Experr: "2025/10/15 00:55:54 Error finding registry(xRegistry): Error 1049 (42000): Unknown database 'registry'\n",
+			Experr: "2025/10/15 00:55:54 DB \"registry\" does not exist\n",
 		},
 		{
 			Args:  "-v --dontcreate",
@@ -179,7 +179,7 @@ func TestXRServerCmds(t *testing.T) {
 			Code:  1,
 			Experr: "YYYY/MM/DD HH:MM:SS GitCommit: sha\n" +
 				"YYYY/MM/DD HH:MM:SS DB server: host:port\n" +
-				"YYYY/MM/DD HH:MM:SS Error finding registry(xRegistry): Error 1049 (42000): Unknown database 'registry'\n",
+				"YYYY/MM/DD HH:MM:SS DB \"registry\" does not exist\n",
 		},
 		{
 			Args:   "-v db create " + TestDBName,

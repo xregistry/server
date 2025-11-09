@@ -40,18 +40,18 @@ func GetDefaultReg(tx *Tx) *Registry {
 	return reg
 }
 
-func (r *Registry) Rollback() error {
+func (r *Registry) Rollback() *XRError {
 	if r != nil {
 		return r.tx.Rollback()
 	}
 	return nil
 }
 
-func (r *Registry) SaveAllAndCommit() error {
+func (r *Registry) SaveAllAndCommit() *XRError {
 	if r != nil {
 		if r.Model.GetChanged() {
-			if err := r.SaveModel(); err != nil {
-				return err
+			if xErr := r.SaveModel(); xErr != nil {
+				return xErr
 			}
 		}
 		return r.tx.SaveAllAndCommit()
@@ -60,7 +60,7 @@ func (r *Registry) SaveAllAndCommit() error {
 }
 
 // ONLY CALL FROM TESTS - NEVER IN PROD
-func (r *Registry) SaveCommitRefresh() error {
+func (r *Registry) SaveCommitRefresh() *XRError {
 	if r != nil {
 		return r.tx.SaveCommitRefresh()
 	}
@@ -72,7 +72,7 @@ func (r *Registry) AddToCache(e *Entity) {
 	r.tx.AddToCache(e)
 }
 
-func (r *Registry) Commit() error {
+func (r *Registry) Commit() *XRError {
 	if r != nil {
 		return r.tx.Commit()
 	}
@@ -81,24 +81,24 @@ func (r *Registry) Commit() error {
 
 type RegOpt string
 
-func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
+func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	log.VPrintf(3, ">Enter: NewRegistry %q", id)
 	defer log.VPrintf(3, "<Exit: NewRegistry")
 
-	var err error // must be used for all error checking due to defer
+	var xErr *XRError // must be used for all error checking due to defer
 	newTx := false
 
 	defer func() {
 		if newTx {
 			// If created just for us, close it
-			tx.Conditional(err)
+			tx.Conditional(xErr)
 		}
 	}()
 
 	if tx == nil {
-		tx, err = NewTx()
-		if err != nil {
-			return nil, err
+		tx, xErr = NewTx()
+		if xErr != nil {
+			return nil, xErr
 		}
 		newTx = true
 	}
@@ -107,21 +107,19 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 		id = NewUUID()
 	}
 
-	r, err := FindRegistry(tx, id, FOR_READ)
-	if err != nil {
-		return nil, err
+	r, xErr := FindRegistry(tx, id, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
 	}
 	if r != nil {
-		return nil, fmt.Errorf("A registry with ID %q already exists", id)
+		return nil, NewXRError("bad_request", "/",
+			fmt.Sprintf("a registry with ID %q already exists", id))
 	}
 
 	dbSID := NewUUID()
-	err = DoOne(tx, `
+	DoOne(tx, `
 		INSERT INTO Registries(SID, UID)
 		VALUES(?,?)`, dbSID, id)
-	if err != nil {
-		return nil, err
-	}
 
 	reg := &Registry{
 		Entity: Entity{
@@ -152,23 +150,20 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 	tx.Registry = reg
 	tx.AddRegistry(reg)
 
-	err = reg.Model.Verify()
-	if err != nil {
-		return nil, err
+	xErr = reg.Model.Verify()
+	if xErr != nil {
+		return nil, xErr
 	}
 
-	err = DoOne(tx, `
+	DoOne(tx, `
 		INSERT INTO Models(RegistrySID)
 		VALUES(?)`, dbSID)
-	if err != nil {
-		return nil, err
-	}
 
-	if err = reg.JustSet("specversion", SPECVERSION); err != nil {
-		return nil, err
+	if xErr = reg.JustSet("specversion", SPECVERSION); xErr != nil {
+		return nil, xErr
 	}
-	if err = reg.JustSet("registryid", reg.UID); err != nil {
-		return nil, err
+	if xErr = reg.JustSet("registryid", reg.UID); xErr != nil {
+		return nil, xErr
 	}
 
 	/*
@@ -177,30 +172,26 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, error) {
 		}
 	*/
 
-	if err = reg.SetSave("epoch", 1); err != nil {
-		return nil, err
+	if xErr = reg.SetSave("epoch", 1); xErr != nil {
+		return nil, xErr
 	}
 
-	if err = reg.Model.VerifyAndSave(); err != nil {
-		return nil, err
+	if xErr = reg.Model.VerifyAndSave(); xErr != nil {
+		return nil, xErr
 	}
 
 	return reg, nil
 }
 
-func GetRegistryNames() ([]string, error) {
-	tx, err := NewTx()
-	if err != nil {
-		return nil, err
+func GetRegistryNames() ([]string, *XRError) {
+	tx, xErr := NewTx()
+	if xErr != nil {
+		return nil, xErr
 	}
 	defer tx.Rollback()
 
-	results, err := Query(tx, `SELECT UID FROM Registries`)
+	results := Query(tx, `SELECT UID FROM Registries`)
 	defer results.Close()
-
-	if err != nil {
-		return nil, err
-	}
 
 	res := []string{}
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
@@ -216,7 +207,7 @@ func (reg *Registry) Get(name string) any {
 	return reg.Entity.Get(name)
 }
 
-func (reg *Registry) JustSet(name string, val any) error {
+func (reg *Registry) JustSet(name string, val any) *XRError {
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
 	// for writing until later in the process. So instead of forcing the
@@ -226,7 +217,7 @@ func (reg *Registry) JustSet(name string, val any) error {
 	return reg.Entity.eJustSet(NewPPP(name), val)
 }
 
-func (reg *Registry) SetSave(name string, val any) error {
+func (reg *Registry) SetSave(name string, val any) *XRError {
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
 	// for writing until later in the process. So instead of forcing the
@@ -236,7 +227,7 @@ func (reg *Registry) SetSave(name string, val any) error {
 	return reg.Entity.eSetSave(name, val)
 }
 
-func (reg *Registry) Delete() error {
+func (reg *Registry) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Reg.Delete(%s)", reg.UID)
 	defer log.VPrintf(3, "<Exit: Reg.Delete")
 
@@ -246,16 +237,14 @@ func (reg *Registry) Delete() error {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update'  will just lock it automatically
 	reg.Lock()
-	err := DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
-	if err != nil {
-		return err
-	}
+	DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
+
 	reg.tx.EraseCache()
 	reg.tx.Registry = nil
 	return nil
 }
 
-func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, error) {
+func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError) {
 	log.VPrintf(3, ">Enter: FindRegistrySID(%s)", sid)
 	defer log.VPrintf(3, "<Exit: FindRegistrySID")
 
@@ -263,9 +252,10 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, error) {
 		return tx.Registry, nil
 	}
 
-	ent, err := RawEntityFromPath(tx, sid, "", false, accessMode)
-	if err != nil {
-		return nil, fmt.Errorf("Error finding Registry %q: %s", sid, err)
+	ent, xErr := RawEntityFromPath(tx, sid, "", false, accessMode)
+	if xErr != nil {
+		return nil, NewXRError("server_error", "/").SetDetailf(
+			"Error finding Registry %q: %s", sid, xErr.GetTitle())
 	}
 	if ent == nil {
 		return nil, nil
@@ -286,7 +276,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, error) {
 }
 
 // BY UID
-func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, error) {
+func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	log.VPrintf(3, ">Enter: FindRegistry(%s)", id)
 	defer log.VPrintf(3, "<Exit: FindRegistry")
 
@@ -296,10 +286,10 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, error) {
 
 	newTx := false
 	if tx == nil {
-		var err error
-		tx, err = NewTx()
-		if err != nil {
-			return nil, err
+		var xErr *XRError
+		tx, xErr = NewTx()
+		if xErr != nil {
+			return nil, xErr
 		}
 		newTx = true
 
@@ -314,19 +304,18 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, error) {
 		}()
 	}
 
-	results, err := Query(tx, `
+	defer func() {
+		if newTx {
+			tx.Rollback()
+		}
+	}()
+
+	results := Query(tx, `
 	   	SELECT SID
 	   	FROM Registries
 	   	WHERE UID=?`, id)
 
 	defer results.Close()
-
-	if err != nil {
-		if newTx {
-			tx.Rollback()
-		}
-		return nil, fmt.Errorf("Error finding Registry %q: %s", id, err)
-	}
 
 	row := results.NextRow()
 
@@ -338,13 +327,14 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, error) {
 	id = NotNilString(row[0])
 	results.Close()
 
-	ent, err := RawEntityFromPath(tx, id, "", false, accessMode)
+	ent, xErr := RawEntityFromPath(tx, id, "", false, accessMode)
 
-	if err != nil {
+	if xErr != nil {
 		if newTx {
 			tx.Rollback()
 		}
-		return nil, fmt.Errorf("Error finding Registry %q: %s", id, err)
+		return nil, NewXRError("server_error", "/").SetDetailf(
+			"Error finding Registry %q: %s", id, xErr.GetTitle())
 	}
 
 	PanicIf(ent == nil, "No entity but we found a reg")
@@ -376,8 +366,8 @@ func (reg *Registry) LoadCapabilities() *Capabilities {
 		// Custom capabilities
 		capStr, ok := capVal.(string)
 		PanicIf(!ok, "not a byte array: %T", capVal)
-		cap, err := ParseCapabilitiesJSON([]byte(capStr))
-		Must(err)
+		cap, xErr := ParseCapabilitiesJSON([]byte(capStr))
+		Must(xErr)
 		reg.Capabilities = cap
 	}
 	return reg.Capabilities
@@ -387,14 +377,15 @@ func (reg *Registry) LoadModel() *Model {
 	return LoadModel(reg)
 }
 
-func (reg *Registry) SaveModel() error {
+func (reg *Registry) SaveModel() *XRError {
 	return reg.Model.VerifyAndSave()
 }
 
-func (reg *Registry) LoadModelFromFile(file string) error {
+func (reg *Registry) LoadModelFromFile(file string) *XRError {
 	log.VPrintf(3, ">Enter: LoadModelFromFile: %s", file)
 	defer log.VPrintf(3, "<Exit:LoadModelFromFile")
 
+	var xErr *XRError
 	var err error
 	buf := []byte{}
 	if strings.HasPrefix(file, "http") {
@@ -404,34 +395,37 @@ func (reg *Registry) LoadModelFromFile(file string) error {
 			res.Body.Close()
 
 			if res.StatusCode/100 != 2 {
-				err = fmt.Errorf("Error getting model: %s\n%s",
-					res.Status, string(buf))
+				return NewXRError("bad_request", "/",
+					fmt.Sprintf("Error getting model from %q: %s\n%s",
+						file, res.Status, string(buf)))
 			}
 		}
 	} else {
 		buf, err = os.ReadFile(file)
 	}
 	if err != nil {
-		return fmt.Errorf("Processing %q: %s", file, err)
+		return NewXRError("bad_request", "/",
+			fmt.Sprintf("processing %q: %s", file, err))
 	}
 
-	buf, err = ProcessIncludes(file, buf, true)
-	if err != nil {
-		return fmt.Errorf("Processing %q: %s", file, err)
+	buf, xErr = ProcessIncludes(file, buf, true)
+	if xErr != nil {
+		return xErr
 	}
 
-	model, err := ParseModel(buf)
-	if err != nil {
-		return fmt.Errorf("Processing %q: %s", file, err)
+	model, xErr := ParseModel(buf)
+	if xErr != nil {
+		return NewXRError("bad_request", "/",
+			fmt.Sprintf("processing %q: %s", file, err))
 	}
 
 	model.Registry = reg
-	if err := model.Verify(); err != nil {
-		return fmt.Errorf("Processing %q: %s", file, err)
+	if xErr = model.Verify(); xErr != nil {
+		return xErr
 	}
 
-	if err := reg.Model.ApplyNewModel(model, string(buf)); err != nil {
-		return fmt.Errorf("Processing %q: %s", file, err)
+	if xErr = reg.Model.ApplyNewModel(model, string(buf)); xErr != nil {
+		return xErr
 	}
 
 	// reg.Model = model
@@ -439,9 +433,9 @@ func (reg *Registry) LoadModelFromFile(file string) error {
 	return nil
 }
 
-func (reg *Registry) Update(obj Object, addType AddType) error {
-	if err := CheckAttrs(obj); err != nil {
-		return err
+func (reg *Registry) Update(obj Object, addType AddType) *XRError {
+	if xErr := CheckAttrs(obj); xErr != nil {
+		return xErr
 	}
 
 	// Normally we should never call Lock() directly, however Registry is
@@ -466,13 +460,13 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 			rawJson = val.(json.RawMessage)
 			rawJson, err = RemoveSchema(rawJson)
 			if err != nil {
-				return err
+				return NewXRError("bad_request", "/", err.Error())
 			}
 		}
 
-		err := reg.Model.ApplyNewModelFromJSON(rawJson)
-		if err != nil {
-			return err
+		xErr := reg.Model.ApplyNewModelFromJSON(rawJson)
+		if xErr != nil {
+			return xErr
 		}
 
 		delete(reg.NewObject, "modelsource")
@@ -496,14 +490,16 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 		}
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
-			return fmt.Errorf("Attribute %q doesn't appear to be of a "+
-				"map of %q", plural, plural)
+			return NewXRError("invalid_attribute", "/", plural,
+				fmt.Sprintf("doesn't appear to be of a "+
+					"map of %q", plural))
 		}
 		for key, val := range collMap {
 			_, ok := val.(map[string]any)
 			if !ok {
-				return fmt.Errorf("Key %q in attribute %q doesn't "+
-					"appear to be of type %q", key, plural, singular)
+				return NewXRError("invalid_attribute", "/", plural,
+					fmt.Sprintf("key %q doesn't appear to be of type %q",
+						key, singular))
 			}
 		}
 
@@ -518,10 +514,10 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 	for plural, collMap := range collsMaps {
 		for key, val := range collMap {
 			valObj, _ := val.(map[string]any)
-			_, _, err := reg.UpsertGroupWithObject(plural, key, valObj,
+			_, _, xErr := reg.UpsertGroupWithObject(plural, key, valObj,
 				addType)
-			if err != nil {
-				return err
+			if xErr != nil {
+				return xErr
 			}
 		}
 	}
@@ -539,7 +535,7 @@ func (reg *Registry) Update(obj Object, addType AddType) error {
 	return reg.ValidateAndSave()
 }
 
-func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, error) {
+func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
 
@@ -550,10 +546,11 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		return g, nil
 	}
 
-	ent, err := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase,
+	ent, xErr := RawEntityFromPath(reg.tx, reg.DbSID, gType+"/"+id, anyCase,
 		accessMode)
-	if err != nil {
-		return nil, fmt.Errorf("Error finding Group %q(%s): %s", id, gType, err)
+	if xErr != nil {
+		return nil, NewXRError("server_error", "/").SetDetailf(
+			"Error finding Group %q(%s): %s", id, gType, xErr.GetTitle())
 	}
 	if ent == nil {
 		log.VPrintf(3, "None found")
@@ -566,22 +563,22 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	return g, nil
 }
 
-func (reg *Registry) AddGroup(gType string, id string) (*Group, error) {
-	g, _, err := reg.UpsertGroupWithObject(gType, id, nil, ADD_ADD)
-	return g, err
+func (reg *Registry) AddGroup(gType string, id string) (*Group, *XRError) {
+	g, _, xErr := reg.UpsertGroupWithObject(gType, id, nil, ADD_ADD)
+	return g, xErr
 }
 
-func (reg *Registry) AddGroupWithObject(gType string, id string, obj Object) (*Group, error) {
-	g, _, err := reg.UpsertGroupWithObject(gType, id, obj, ADD_ADD)
-	return g, err
+func (reg *Registry) AddGroupWithObject(gType string, id string, obj Object) (*Group, *XRError) {
+	g, _, xErr := reg.UpsertGroupWithObject(gType, id, obj, ADD_ADD)
+	return g, xErr
 }
 
 // *Group, isNew, error
-func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, error) {
+func (reg *Registry) UpsertGroup(gType string, id string) (*Group, bool, *XRError) {
 	return reg.UpsertGroupWithObject(gType, id, nil, ADD_UPSERT)
 }
 
-func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, error) {
+func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, addType AddType) (*Group, bool, *XRError) {
 	log.VPrintf(3, ">Enter UpsertGroupWithObject(%s,%s)", gType, id)
 	defer log.VPrintf(3, "<Exit UpsertGroupWithObject")
 
@@ -592,18 +589,17 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	// that all interactions go thru.
 	reg.Lock()
 
-	if err := reg.SaveModel(); err != nil {
-		return nil, false, err
+	if xErr := reg.SaveModel(); xErr != nil {
+		return nil, false, xErr
 	}
 
-	if err := CheckAttrs(obj); err != nil {
-		return nil, false, err
+	if xErr := CheckAttrs(obj); xErr != nil {
+		return nil, false, xErr
 	}
 
 	gm := reg.Model.Groups[gType]
 	if gm == nil {
-		return nil, false, fmt.Errorf("Error adding Group, unknown type: %s",
-			gType)
+		return nil, false, NewXRError("not_found", "/"+gType, "/"+gType)
 	}
 
 	if id == "" {
@@ -612,21 +608,24 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	isNew := false
 
-	g, err := reg.FindGroup(gType, id, true, FOR_WRITE)
-	if err != nil {
-		return nil, false, fmt.Errorf("Error finding Group(%s) %q: %s",
-			gType, id, err)
+	g, xErr := reg.FindGroup(gType, id, true, FOR_WRITE)
+	if xErr != nil {
+		return nil, false, xErr
 	}
 
 	if g != nil && g.UID != id {
-		return nil, false, fmt.Errorf("Attempting to create a Group "+
-			"with a \"%sid\" of %q, when one already exists as %q",
-			gm.Singular, id, g.UID)
+		return nil, false,
+			NewXRError("bad_request", "/"+g.UID,
+				fmt.Sprintf("attempting to create a Group "+
+					"with a \"%sid\" of %q, when one already exists as %q",
+					gm.Singular, id, g.UID))
 	}
 
 	if addType == ADD_ADD && g != nil {
-		return nil, false, fmt.Errorf("Group %q of type %q already exists",
-			id, gType)
+		return nil, false,
+			NewXRError("bad_request", "/"+id,
+				fmt.Sprintf("Group %q of type %q already exists",
+					id, gType))
 	}
 
 	for g == nil {
@@ -654,7 +653,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 		g.Self = g
 
-		err = DoOne(reg.tx, `
+		DoOne(reg.tx, `
 			INSERT INTO "Groups"(
                 SID, RegistrySID, UID,
                 ModelSID, Path, Abstract,
@@ -664,16 +663,10 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			gm.SID, g.Path, g.Abstract,
 			g.Plural, g.Singular)
 
-		if err != nil {
-			err = fmt.Errorf("Error adding Group: %s", err)
-			log.Print(err)
-			return nil, false, err
-		}
-
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
-		if err = g.JustSet(g.Singular+"id", g.UID); err != nil {
-			return nil, false, err
+		if xErr = g.JustSet(g.Singular+"id", g.UID); xErr != nil {
+			return nil, false, xErr
 		}
 		isNew = true
 		g.Registry.Touch()
@@ -694,15 +687,18 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
 			return nil, false,
-				fmt.Errorf("Attribute %q doesn't appear to be of a "+
-					"map of %q", plural, plural)
+				NewXRError("invalid_attribute", "/"+gType+"/"+id, plural,
+					fmt.Sprintf("doesn't appear to be of a "+
+						"map of %q", plural))
 		}
 		for key, val := range collMap {
 			_, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					fmt.Errorf("Key %q in attribute %q doesn't "+
-						"appear to be of type %q", key, plural, singular)
+					NewXRError("invalid_attribute", "/"+plural,
+						plural,
+						fmt.Sprintf("Key %q doesn't appear to be of type %q",
+							key, singular))
 			}
 		}
 
@@ -731,8 +727,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			g.NewObject[g.Singular+"id"] = g.UID
 		}
 
-		if err = g.ValidateAndSave(); err != nil {
-			return nil, false, err
+		if xErr = g.ValidateAndSave(); xErr != nil {
+			return nil, false, xErr
 		}
 	}
 
@@ -740,28 +736,29 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	for plural, daMap := range objColls {
 		for key, val := range daMap {
 			valObj, _ := val.(map[string]any)
-			_, _, err := g.UpsertResourceWithObject(plural, key, "",
+			_, _, xErr := g.UpsertResourceWithObject(plural, key, "",
 				valObj, addType, false)
-			if err != nil {
-				return nil, false, err
+			if xErr != nil {
+				return nil, false, xErr
 			}
 		}
 	}
 
-	if err = reg.ValidateAndSave(); err != nil {
-		return nil, false, err
+	if xErr = reg.ValidateAndSave(); xErr != nil {
+		return nil, false, xErr
 	}
 
 	return g, isNew, nil
 }
 
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
-func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, error) {
+func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
 	query := ""
 	args := []any{}
 
 	if sortKey != "" && what != "Coll" {
-		return "", nil, fmt.Errorf("Can't sort on a non-collection results")
+		return "", nil, NewXRError("bad_request", "/",
+			"can't sort on a non-collection results")
 	}
 
 	ascDesc := "ASC"
@@ -1034,151 +1031,170 @@ func WildcardIt(str string) (string, bool) {
 	return res.String(), wild
 }
 
-func (r *Registry) XID2Entity(xidStr string) (*Entity, error) {
+func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 
-	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
-	if err != nil {
-		return nil, err
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
 	}
 	if g == nil {
-		return nil, fmt.Errorf("Cant find Group %q from xid %q", xid.Group,
-			xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("Cant find Group %q from xid %q", xid.Group,
+				xidStr))
 	}
 	if xid.Type == ENTITY_GROUP {
 		return &g.Entity, nil
 	}
 
 	if xid.IsEntity == false || xid.Type == ENTITY_META {
-		return nil, fmt.Errorf("%q isn't an xid", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("%q isn't an xid", xidStr))
 	}
 
-	res, err := g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
-	if err != nil {
-		return nil, err
+	res, xErr := g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
 	}
 
 	if res == nil {
-		return nil, fmt.Errorf("Can't find Resource %q from xid %q",
-			xid.Resource, xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("can't find Resource %q from xid %q",
+				xid.Resource, xidStr))
 	}
 	if xid.Type == ENTITY_RESOURCE {
 		return &res.Entity, nil
 	}
 
-	v, err := res.FindVersion(xid.VersionID, false, FOR_READ)
-	if err != nil {
-		return nil, err
+	v, xErr := res.FindVersion(xid.VersionID, false, FOR_READ)
+	if xErr != nil {
+		return nil, xErr
 	}
 	if v == nil {
-		return nil, fmt.Errorf("Can't find Version %q from xid %q",
-			xid.VersionID, xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("can't find Version %q from xid %q",
+				xid.VersionID, xidStr))
 	}
 	if xid.Type == ENTITY_VERSION {
 		return &v.Entity, nil
 	}
 
-	return nil, fmt.Errorf("xid %q isn't valid", xidStr)
+	return nil, NewXRError("bad_request", path,
+		fmt.Sprintf("xid %q isn't valid", xidStr))
 }
 
-func (r *Registry) FindXIDGroup(xidStr string) (*Group, error) {
+func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
 	}
 
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 }
 
-func (r *Registry) FindResourceByXID(xidStr string) (*Resource, error) {
+func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
 	}
 	if xid.ResourceID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
 	}
-	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
-	if err != nil || g == nil {
-		return nil, err
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	if xErr != nil || g == nil {
+		return nil, xErr
 	}
 	return g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
 }
 
-func (r *Registry) FindXIDVersion(xidStr string) (*Version, error) {
+func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
 	}
 	if xid.ResourceID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
 	}
 	if xid.VersionID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"versionid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"versionid\"", xidStr))
 	}
 	if xid.Version != "versions" {
-		return nil, fmt.Errorf("XID %q is \"versions\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is \"versions\"", xidStr))
 	}
-	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
-	if err != nil || g == nil {
-		return nil, err
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	if xErr != nil || g == nil {
+		return nil, xErr
 	}
-	resource, err := g.FindResource(xid.Resource, xid.ResourceID, false,
+	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, false,
 		FOR_READ)
-	if err != nil || resource == nil {
-		return nil, err
+	if xErr != nil || resource == nil {
+		return nil, xErr
 	}
 	return resource.FindVersion(xid.VersionID, false, FOR_READ)
 }
 
-func (r *Registry) FindXIDMeta(xidStr string) (*Meta, error) {
+func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"groupid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
 	}
 	if xid.ResourceID == "" {
-		return nil, fmt.Errorf("XID %q is missing a \"resourceid\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
 	}
 	if xid.Version != "meta" {
-		return nil, fmt.Errorf("XID %q is \"meta\"", xidStr)
+		return nil, NewXRError("bad_request", path,
+			fmt.Sprintf("XID %q is \"meta\"", xidStr))
 	}
-	g, err := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
-	if err != nil || g == nil {
-		return nil, err
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	if !IsNil(err) || g == nil {
+		return nil, xErr
 	}
-	resource, err := g.FindResource(xid.Resource, xid.ResourceID, false,
+	resource, xErr := g.FindResource(xid.Resource, xid.ResourceID, false,
 		FOR_READ)
-	if err != nil || resource == nil {
-		return nil, err
+	if xErr != nil || resource == nil {
+		return nil, xErr
 	}
 	return resource.FindMeta(false, FOR_READ)
 }
 
-func LoadRemoteRegistry(host string) (*Registry, error) {
+func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	reg := &Registry{}
 
 	// Download model
 	data, err := DownloadURL(host + "/model")
-	if err == nil {
-		reg.Model, err = ParseModel(data)
-	}
 	if err != nil {
-		return nil, fmt.Errorf("Error getting model (%s/model): %s", host, err)
+		return nil, NewXRError("bad_request", "/",
+			fmt.Sprintf("Error getting model (%s/model): %s", host, err))
+	}
+
+	var xErr *XRError
+	reg.Model, xErr = ParseModel(data)
+	if xErr != nil {
+		return nil, xErr
 	}
 
 	// Download capabilities
@@ -1186,9 +1202,11 @@ func LoadRemoteRegistry(host string) (*Registry, error) {
 	if err == nil {
 		reg.Capabilities, err = ParseCapabilitiesJSON(data)
 	}
+
 	if err != nil {
-		return nil, fmt.Errorf("Error getting capabilities "+
-			"(%s/capabilities): %s", host, err)
+		return nil, NewXRError("bad_request", "/",
+			fmt.Sprintf("Error getting capabilities "+
+				"(%s/capabilities): %s", host, err))
 	}
 
 	return reg, nil

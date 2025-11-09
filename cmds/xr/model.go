@@ -196,8 +196,8 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	buf, err = xrlib.ReadFile(fileName)
 	Error(err)
 
-	buf, err = ProcessIncludes(fileName, buf, true)
-	Error(err)
+	buf, xErr := ProcessIncludes(fileName, buf, true)
+	Error(xErr)
 
 	tmp := map[string]any{}
 	Error(Unmarshal(buf, &tmp))
@@ -233,15 +233,15 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 }
 
 func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
-	buf, err := ProcessIncludes(fileName, buf, true)
-	if err != nil {
-		return err
+	buf, xErr := ProcessIncludes(fileName, buf, true)
+	if xErr != nil {
+		return xErr
 		// Error("%s%s", fileName, err)
 	}
 
 	// All this just to remove $schema
 	tmp := map[string]any{}
-	err = Unmarshal(buf, &tmp)
+	err := Unmarshal(buf, &tmp)
 	if err != nil {
 		return err
 	}
@@ -262,8 +262,8 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 		model.Stuff["skipTargetCheck"] = true
 	}
 
-	if err := model.Verify(); err != nil {
-		return err
+	if xErr := model.Verify(); xErr != nil {
+		return xErr
 		// Error("%s%s", fileName, err)
 	}
 	return nil
@@ -307,8 +307,8 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error(err)
 	}
 
-	buf, err = ProcessIncludes(fileName, buf, true)
-	Error(err)
+	buf, xErr := ProcessIncludes(fileName, buf, true)
+	Error(xErr)
 
 	if len(buf) == 0 {
 		Error("Missing model data")

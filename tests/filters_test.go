@@ -89,9 +89,14 @@ func TestFiltersBasic(t *testing.T) {
 		},
 		{
 			Name: "Get/filter root, no match",
-			URL:  "?inline&oneline&filter=registryid=xxx",
+			URL:  "?inline&filter=registryid=xxx",
 			// Nothing matched so 404
-			Exp: `Not found`,
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get root, filter group coll - match",
@@ -101,9 +106,14 @@ func TestFiltersBasic(t *testing.T) {
 		},
 		{
 			Name: "Get root, filter group coll - no match",
-			URL:  "?inline&oneline&filter=dirs.dirid=xxx",
+			URL:  "?inline&filter=dirs.dirid=xxx",
 			// Nothing, matched, so 404
-			Exp: `Not found`,
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get/filter group coll - match",
@@ -124,9 +134,14 @@ func TestFiltersBasic(t *testing.T) {
 		},
 		{
 			Name: "Get/filter group entity - no match",
-			URL:  "dirs/d1?inline&oneline&filter=dirid=xxx",
+			URL:  "dirs/d1?inline&filter=dirid=xxx",
 			// Nothing, matched, so 404
-			Exp: `Not found`,
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1",
+  "title": "The specified entity cannot be found: /dirs/d1"
+}
+`,
 		},
 		{
 			Name: "Get group entity, filter resource - match",
@@ -136,9 +151,14 @@ func TestFiltersBasic(t *testing.T) {
 		},
 		{
 			Name: "Get group entity, filter resource - no match",
-			URL:  "dirs/d1?inline&oneline&filter=files.fileid=xxx",
+			URL:  "dirs/d1?inline&filter=files.fileid=xxx",
 			// Nothing, matched, so 404
-			Exp: `Not found`,
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1",
+  "title": "The specified entity cannot be found: /dirs/d1"
+}
+`,
 		},
 		{
 			Name: "Get/filter version coll - match",
@@ -169,9 +189,14 @@ func TestFiltersBasic(t *testing.T) {
 		},
 		{
 			Name: "Get/filter version - no match",
-			URL:  "dirs/d1/files/f1/versions/v1$details?inline&oneline&filter=versionid=xxx",
+			URL:  "dirs/d1/files/f1/versions/v1$details?inline&filter=versionid=xxx",
 			// Nothing, matched, so 404
-			Exp: `Not found`,
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/v1$details"
+}
+`,
 		},
 
 		// Some tag filters
@@ -179,7 +204,12 @@ func TestFiltersBasic(t *testing.T) {
 			Name: "Get/filter reg.labels - no match",
 			URL:  "?filter=labels.reg1=xxx",
 			// Nothing, matched, so 404
-			Exp: "Not found\n",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get/filter reg.labels - match",
@@ -321,17 +351,32 @@ func TestFiltersBasic(t *testing.T) {
 		{
 			Name: "Get/filter dir file.labels - no match empty string",
 			URL:  "?inline&filter=dirs.files.labels.file1=",
-			Exp:  "Not found\n",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get/filter dir file.labels.xxx - no match empty string",
 			URL:  "?inline&filter=dirs.files.labels.xxx=",
-			Exp:  "Not found\n",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get/filter dir file.labels.xxx - no match non-empty string",
 			URL:  "?inline&filter=dirs.files.labels.xxx",
-			Exp:  "Not found\n",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "Get/filter dir file.labels - match non-empty string",
@@ -491,8 +536,13 @@ func TestFiltersANDOR(t *testing.T) {
 		},
 		{
 			Name: "AND same obj/level - no match",
-			URL:  "?oneline&inline&filter=dirs.files.fileid=f1,dirs.files.name=f2",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.fileid=f1,dirs.files.name=f2",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "OR same obj/level - match",
@@ -659,8 +709,13 @@ func TestFiltersWildcards(t *testing.T) {
 		},
 		{
 			Name: "escape - 3",
-			URL:  "?oneline&inline&filter=dirs.files.name=g\\*d",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=g\\*d",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "all - 1",
@@ -679,33 +734,63 @@ func TestFiltersWildcards(t *testing.T) {
 		},
 		{
 			Name: "fail - 1",
-			URL:  "?oneline&inline&filter=dirs.files.name=f*x",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=f*x",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "fail - 2",
-			URL:  "?oneline&inline&filter=dirs.files.name=*f",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=*f",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "fail - 3",
-			URL:  "?oneline&inline&filter=dirs.files.name=z*",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=z*",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "fail - 4",
-			URL:  "?oneline&inline&filter=dirs.files.name=*z*",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=*z*",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "fail - 5",
-			URL:  "?oneline&inline&filter=dirs.files.name=**z**",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.name=**z**",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "fail - 6",
-			URL:  "?oneline&inline&filter=dirs.files.description=*",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=dirs.files.description=*",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 	}
 
@@ -842,13 +927,23 @@ func TestFiltersObjs(t *testing.T) {
 	}{
 		{
 			Name: "regobj1 present - not found",
-			URL:  "?oneline&inline&filter=regobj1",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj1",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj1 present - not found",
-			URL:  "?oneline&inline&filter=regobj1!=null",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj1!=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj1 not present",
@@ -868,8 +963,13 @@ func TestFiltersObjs(t *testing.T) {
 		},
 		{
 			Name: "regobj2 not present",
-			URL:  "?oneline&inline&filter=regobj2=null",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj2=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj2.bool not present",
@@ -878,8 +978,13 @@ func TestFiltersObjs(t *testing.T) {
 		},
 		{
 			Name: "regobj2.bool present",
-			URL:  "?oneline&inline&filter=regobj2.bool",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj2.bool",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj2.bool!=true",
@@ -888,13 +993,23 @@ func TestFiltersObjs(t *testing.T) {
 		},
 		{
 			Name: "regobj2.bool != null present",
-			URL:  "?oneline&inline&filter=regobj2.bool!=null",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj2.bool!=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj1.bool != null present",
-			URL:  "?oneline&inline&filter=regobj1.bool!=null",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj1.bool!=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj1.bool == null true",
@@ -904,8 +1019,13 @@ func TestFiltersObjs(t *testing.T) {
 
 		{
 			Name: "regobj3.bool == null false",
-			URL:  "?oneline&inline&filter=regobj3.bool=null",
-			Exp:  `Not found`,
+			URL:  "?inline&filter=regobj3.bool=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/",
+  "title": "The specified entity cannot be found: /"
+}
+`,
 		},
 		{
 			Name: "regobj3.bool != null true",

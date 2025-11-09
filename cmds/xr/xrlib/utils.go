@@ -112,12 +112,25 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		if len(body) != 0 {
 			tmp = string(body)
 		}
+
+		tmp = strings.TrimSpace(tmp)
+
 		// If response has no body then we need to say something back to
 		// the user. A non-zero exit code w/o any text isn't helpful.
-		if strings.TrimSpace(tmp) == "" {
-			tmp = "An error occurred: " + res.Status
+		if tmp == "" {
+			err = fmt.Errorf("An error occurred: " + res.Status)
+		} else {
+			// If we 'think' it's an XRError then return it, else just
+			// return the raw data
+			var xrErr XRError
+			if pErr := json.Unmarshal([]byte(tmp), &xrErr); pErr == nil {
+				if xrErr.Type != "" && xrErr.Title != "" {
+					err = &xrErr
+				}
+			} else {
+				err = fmt.Errorf(tmp)
+			}
 		}
-		err = fmt.Errorf(tmp)
 	}
 
 	httpRes := &HttpResponse{

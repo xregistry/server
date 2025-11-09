@@ -58,10 +58,32 @@ func TestCreateGroup(t *testing.T) {
   "filescount": 1
 }
 `)
-	xCheckGet(t, reg, "/dirs/xxx", "Not found\n")
-	xCheckGet(t, reg, "dirs/xxx", "Not found\n")
-	xCheckGet(t, reg, "/dirs/xxx/yyy", "Unknown Resource type: yyy\n")
-	xCheckGet(t, reg, "dirs/xxx/yyy", "Unknown Resource type: yyy\n")
+	xCheckGet(t, reg, "/dirs/xxx", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/xxx",
+  "title": "The specified entity cannot be found: /dirs/xxx"
+}
+`)
+	xCheckGet(t, reg, "dirs/xxx", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/xxx",
+  "title": "The specified entity cannot be found: /dirs/xxx"
+}
+`)
+	xCheckGet(t, reg, "/dirs/xxx/yyy", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/xxx/yyy",
+  "title": "The specified entity cannot be found: /dirs/xxx/yyy",
+  "detail": "Unknown Resource type: yyy"
+}
+`)
+	xCheckGet(t, reg, "dirs/xxx/yyy", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
+  "instance": "http://localhost:8181/dirs/xxx/yyy",
+  "title": "The specified entity cannot be found: /dirs/xxx/yyy",
+  "detail": "Unknown Resource type: yyy"
+}
+`)
 
 	g, err := reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
 	g.AccessMode = d1.AccessMode // cheat a little
@@ -106,7 +128,11 @@ func TestGroupRequiredFields(t *testing.T) {
 	reg.SaveAllAndCommit()
 
 	_, err = reg.AddGroup("dirs", "d1")
-	xCheckErr(t, err, "Required property \"req\" is missing")
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/dirs/d1",
+  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+}`)
 	reg.Rollback()
 	reg.Refresh(registry.FOR_WRITE)
 
@@ -116,7 +142,11 @@ func TestGroupRequiredFields(t *testing.T) {
 	reg.SaveAllAndCommit()
 
 	err = g1.SetSave("req", nil)
-	xCheckErr(t, err, "Required property \"req\" is missing")
+	xCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "instance": "/dirs/d1",
+  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+}`)
 
 	err = g1.SetSave("req", "again")
 	xNoErr(t, err)

@@ -25,7 +25,7 @@ var Token string
 var Secret string
 
 func ErrFatalf(err error, args ...any) {
-	if err == nil {
+	if IsNil(err) {
 		return
 	}
 	format := "%s"
