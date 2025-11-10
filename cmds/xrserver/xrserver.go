@@ -31,16 +31,16 @@ var DontCreate = false
 var RecreateDB = false
 var RecreateReg = false
 
-func ErrStop(err error, args ...any) {
-	ErrStopTx(err, nil, args...)
+func ErrStop(errAny any, args ...any) {
+	ErrStopTx(errAny, nil, args...)
 }
 
-func ErrStopTx(err error, tx *registry.Tx, args ...any) {
-	if IsNil(err) {
+func ErrStopTx(errAny any, tx *registry.Tx, args ...any) {
+	if IsNil(errAny) {
 		return
 	}
 	if len(args) == 0 {
-		args = []any{err.Error()}
+		args = []any{fmt.Sprintf("%s", errAny)}
 	}
 	StopTx(tx, args...)
 }

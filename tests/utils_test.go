@@ -99,7 +99,7 @@ func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 		// Now find it again and start a new Tx
 		reg, xErr = registry.FindRegistry(nil, name, registry.FOR_WRITE)
 		if xErr != nil {
-			panic(xErr.Error())
+			panic(xErr.String())
 		}
 		if reg == nil {
 			panic("nil")
@@ -141,7 +141,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 
 		xErr := reg.SaveAllAndCommit() // should this be Rollback() ?
 		if xErr != nil {
-			panic(xErr.Error())
+			panic(xErr.String())
 		}
 
 		if os.Getenv("NO_DELETE_REGISTRY") == "" {
@@ -149,7 +149,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 			// one registry in the DB at a time
 			if xErr := reg.Delete(); xErr != nil {
 				registry.DumpTXs()
-				panic(xErr.Error())
+				panic(xErr.String())
 			}
 		}
 		registry.DefaultRegDbSID = ""
@@ -158,7 +158,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 	/*
 		xErr := reg.SaveAllAndCommit() // should this be Rollback() ?
 		if xErr != nil {
-			panic("SaveAllAndCommit: " + xErr.Error())
+			panic("SaveAllAndCommit: " + xErr.String())
 		}
 	*/
 
@@ -174,10 +174,10 @@ func Fail(t *testing.T, str string, args ...any) {
 	t.Fatalf("%s\n\n", text)
 }
 
-func xCheckErr(t *testing.T, err error, errStr string) {
+func xCheckErr(t *testing.T, errAny any, errStr string) {
 	t.Helper()
 
-	if IsNil(err) {
+	if IsNil(errAny) {
 		if errStr == "" {
 			return
 		}
@@ -185,13 +185,13 @@ func xCheckErr(t *testing.T, err error, errStr string) {
 	}
 
 	if errStr == "" {
-		t.Fatalf("Test failed: %s", err)
+		t.Fatalf("Test failed: %s", errAny)
 	}
 
-	xCheckEqual(t, "", err, errStr)
+	xCheckEqual(t, "", errAny, errStr)
 	/*
-		if err.Error() != errStr {
-			t.Fatalf("\nGot: %s\nExp: %s", err.Error(), errStr)
+		if errAny.String() != errStr {
+			t.Fatalf("\nGot: %s\nExp: %s", errAny.String(), errStr)
 		}
 	*/
 }
@@ -203,10 +203,10 @@ func xCheck(t *testing.T, b bool, errStr string, args ...any) {
 	}
 }
 
-func xNoErr(t *testing.T, err error) {
+func xNoErr(t *testing.T, errAny any) {
 	t.Helper()
-	if !IsNil(err) {
-		t.Fatalf("Unexpected error: %s", err)
+	if !IsNil(errAny) {
+		t.Fatalf("Unexpected error: %s", errAny)
 	}
 }
 

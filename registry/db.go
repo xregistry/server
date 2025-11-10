@@ -185,9 +185,9 @@ func (tx *Tx) NewTx() *XRError {
 		if DB_Name == "" {
 			return NewXRError("server_error", "/").SetDetail("No DB_Name set")
 		}
-		err := OpenDB(DB_Name)
-		if err != nil {
-			return NewXRError("server_error", "/").SetDetail(err.Error())
+		xErr := OpenDB(DB_Name)
+		if xErr != nil {
+			return xErr
 		}
 	}
 
@@ -446,14 +446,14 @@ func (tx *Tx) Rollback() *XRError {
 	return nil
 }
 
-func (tx *Tx) Conditional(err error) *XRError {
-	if IsNil(err) {
+func (tx *Tx) Conditional(xErr *XRError) *XRError {
+	if xErr == nil {
 		return tx.Commit()
 	}
 	return tx.Rollback()
 }
 
-func (tx *Tx) Prepare(query string) (*sql.Stmt, error) {
+func (tx *Tx) Prepare(query string) (*sql.Stmt, *XRError) {
 	// If the current Tx is closed, create a new one
 	if tx.tx == nil {
 		xErr := tx.NewTx()
@@ -462,8 +462,11 @@ func (tx *Tx) Prepare(query string) (*sql.Stmt, error) {
 		}
 	}
 	ps, err := tx.tx.Prepare(query)
+	if err != nil {
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
+	}
 
-	return ps, err
+	return ps, nil
 }
 
 func (tx *Tx) AddRegistry(r *Registry) { tx.AddToCache(&r.Entity) }
@@ -703,11 +706,11 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 		log.Printf("Query: %s", SubQuery(cmd, args))
 	}
 
-	ps, err := tx.Prepare(cmd)
+	ps, xErr := tx.Prepare(cmd)
 	if doTime {
 		pTime = time.Now()
 	}
-	PanicIf(err != nil, "Error Prepping query (%s): %s\n", cmd, err)
+	PanicIf(xErr != nil, "Error Prepping query (%s): %s\n", cmd, xErr)
 	defer ps.Close()
 
 	rows, err := ps.Query(args...)
@@ -779,8 +782,8 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 		*/
 	}
 
-	ps, err := tx.Prepare(cmd)
-	PanicIf(err != nil, "CMD: %q args: %v  err: %s", cmd, args, err)
+	ps, xErr := tx.Prepare(cmd)
+	PanicIf(xErr != nil, "CMD: %q args: %v  err: %s", cmd, args, xErr)
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
@@ -857,7 +860,7 @@ func DBExists(name string) bool {
 var initDB string
 var firstTime = true
 
-func OpenDB(name string) error {
+func OpenDB(name string) *XRError {
 	if firstTime {
 		log.VPrintf(3, "Open DB: %s:%s", DBHOST, DBPORT)
 		firstTime = false
@@ -890,20 +893,20 @@ func OpenDB(name string) error {
 	return nil
 }
 
-func ListDBs() ([]string, error) {
+func ListDBs() ([]string, *XRError) {
 	log.VPrintf(3, ">Enter: ListDBs")
 	defer log.VPrintf(3, "<Exit: ListDBs")
 
 	db, err := sql.Open("mysql",
 		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
 	}
 	defer db.Close()
 
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
 	}
 	defer rows.Close()
 
@@ -914,7 +917,7 @@ func ListDBs() ([]string, error) {
 	for rows.Next() {
 		name := ""
 		if err := rows.Scan(&name); err != nil {
-			return nil, err
+			return nil, NewXRError("server_error", "/").SetDetail(err.Error())
 		}
 		if !ArrayContains(sysNames, name) {
 			names = append(names, name)

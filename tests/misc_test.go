@@ -213,7 +213,7 @@ func NewJob(test *testing.T, name string, sf *bool, wg *sync.WaitGroup, p int, t
 			time.Sleep(10 * time.Millisecond)
 		}
 	}()
-	// Wait until we have 'paralle' threads ready to go
+	// Wait until we have 'parallel' threads ready to go
 	for atomic.LoadInt32(&ready) < int32(j.parallel) {
 		time.Sleep(2 * time.Millisecond)
 	}

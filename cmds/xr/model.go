@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -235,7 +236,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 	buf, xErr := ProcessIncludes(fileName, buf, true)
 	if xErr != nil {
-		return xErr
+		return errors.New(xErr.String())
 		// Error("%s%s", fileName, err)
 	}
 
@@ -263,7 +264,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 	}
 
 	if xErr := model.Verify(); xErr != nil {
-		return xErr
+		return errors.New(xErr.String())
 		// Error("%s%s", fileName, err)
 	}
 	return nil

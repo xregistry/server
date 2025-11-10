@@ -24,9 +24,9 @@ func GetDefaultReg(tx *Tx) *Registry {
 	}
 
 	if tx == nil {
-		var err error
-		tx, err = NewTx()
-		Must(err)
+		var xErr *XRError
+		tx, xErr = NewTx()
+		Must(xErr)
 	}
 
 	reg, err := FindRegistryBySID(tx, DefaultRegDbSID, FOR_READ)
@@ -1200,10 +1200,13 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	// Download capabilities
 	data, err = DownloadURL(host + "/capabilities")
 	if err == nil {
-		reg.Capabilities, err = ParseCapabilitiesJSON(data)
-	}
+		var xErr *XRError
+		reg.Capabilities, xErr = ParseCapabilitiesJSON(data)
 
-	if err != nil {
+		if xErr != nil {
+			return nil, xErr
+		}
+	} else {
 		return nil, NewXRError("bad_request", "/",
 			fmt.Sprintf("Error getting capabilities "+
 				"(%s/capabilities): %s", host, err))

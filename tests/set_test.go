@@ -79,13 +79,13 @@ func TestSetAttributeNames(t *testing.T) {
 
 	for _, test := range tests {
 		t.Logf("test: %q", test.name)
-		_, err := reg.Model.AddAttr(test.name, STRING)
+		_, xErr := reg.Model.AddAttr(test.name, STRING)
 
-		if test.msg == "" && err != nil {
-			t.Fatalf("Name: %q failed: %s", test.name, err)
+		if test.msg == "" && xErr != nil {
+			t.Fatalf("Name: %q failed: %s", test.name, xErr)
 		}
-		if test.msg != "" && (err == nil || err.Error() != test.msg) {
-			xCheckErr(t, err, test.msg)
+		if test.msg != "" && (xErr == nil || xErr.String() != test.msg) {
+			xCheckErr(t, xErr, test.msg)
 		}
 
 	}
@@ -149,8 +149,8 @@ func TestSetVersion(t *testing.T) {
 	namePP := NewPP().P("name").UI()
 	ver.SetSave(namePP, "myName")
 	file, _ = dir.FindResource("files", "f1", false, registry.FOR_WRITE)
-	l, err := file.GetDefault(registry.FOR_WRITE)
-	xNoErr(t, err)
+	l, xErr := file.GetDefault(registry.FOR_WRITE)
+	xNoErr(t, xErr)
 	xCheck(t, l != nil, "default is nil")
 	val := l.Get(namePP)
 	if val != "myName" {
@@ -184,20 +184,20 @@ func TestSetDots(t *testing.T) {
 	xNoErr(t, reg.SaveAllAndCommit())
 	dir.Refresh(registry.FOR_WRITE)
 
-	err := dir.SetSave(labels.UI(), "xxx")
-	xCheck(t, err != nil, "labels=xxx should fail")
+	xErr := dir.SetSave(labels.UI(), "xxx")
+	xCheck(t, xErr != nil, "labels=xxx should fail")
 
 	// Nesting under labels should fail
-	err = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
-	xCheckErr(t, err, `{
+	xErr = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
+	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "instance": "/dirs/d1",
   "title": "The attribute \"labels.xxx\" is not valid: must be a string"
 }`)
 
 	// dots are ok as tag names
-	err = dir.SetSave(labels.P("abc.def").UI(), "ABC")
-	xNoErr(t, err)
+	xErr = dir.SetSave(labels.P("abc.def").UI(), "ABC")
+	xNoErr(t, xErr)
 	xJSONCheck(t, dir.Get(labels.P("abc.def").UI()), "ABC")
 
 	xCheckGet(t, reg, "/dirs/d1", `{
@@ -218,8 +218,8 @@ func TestSetDots(t *testing.T) {
 
 	dir.Refresh(registry.FOR_WRITE)
 
-	err = dir.SetSave("labels", nil)
-	xJSONCheck(t, err, nil)
+	xErr = dir.SetSave("labels", nil)
+	xJSONCheck(t, xErr, nil)
 	xCheckGet(t, reg, "/dirs/d1", `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -233,36 +233,36 @@ func TestSetDots(t *testing.T) {
 }
 `)
 
-	err = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
-	xCheckErr(t, err, `{
+	xErr = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
+	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "instance": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected / in \"labels.xxx/yyy\" at pos 11"
 }`)
 
-	err = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
-	xCheckErr(t, err, `{
+	xErr = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
+	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "instance": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected . in \"labels..abc\" at pos 8"
 }`)
 
-	err = dir.SetSave(NewPP().P("labels").P("xxx.yyy").UI(), "xxx")
-	xJSONCheck(t, err, nil)
+	xErr = dir.SetSave(NewPP().P("labels").P("xxx.yyy").UI(), "xxx")
+	xJSONCheck(t, xErr, nil)
 
-	err = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
-	xCheckErr(t, err, `{
+	xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
+	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "instance": "/dirs/d1",
   "title": "The request cannot be processed as provided: invalid extension(s): xxx"
 }`)
-	xCheck(t, err != nil, "xxx.yyy=nil should fail")
-	err = dir.SetSave("xxx.", "xxx")
-	xCheck(t, err != nil, "xxx.=xxx should fail")
-	err = dir.SetSave(".xxx", "xxx")
-	xCheck(t, err != nil, ".xxx=xxx should fail")
-	err = dir.SetSave(".xxx.", "xxx")
-	xCheck(t, err != nil, ".xxx.=xxx should fail")
+	xCheck(t, xErr != nil, "xxx.yyy=nil should fail")
+	xErr = dir.SetSave("xxx.", "xxx")
+	xCheck(t, xErr != nil, "xxx.=xxx should fail")
+	xErr = dir.SetSave(".xxx", "xxx")
+	xCheck(t, xErr != nil, ".xxx=xxx should fail")
+	xErr = dir.SetSave(".xxx.", "xxx")
+	xCheck(t, xErr != nil, ".xxx.=xxx should fail")
 }
 
 func TestSetLabels(t *testing.T) {

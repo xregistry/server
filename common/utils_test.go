@@ -355,7 +355,7 @@ func TestProcessIncludes(t *testing.T) {
 		buf, xErr := ProcessIncludes(test.Path, buf,
 			!strings.HasPrefix(test.Path, "http"))
 		if xErr != nil {
-			buf = []byte(xErr.Error())
+			buf = []byte(xErr.String())
 		}
 		exp := test.Result
 		if exp[0] != '{' {

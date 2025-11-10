@@ -1262,9 +1262,9 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	cap := info.Registry.Capabilities
 	capStr := info.Registry.GetAsString("#capabilities")
 	if capStr != "" {
-		var err error
-		cap, err = ParseCapabilitiesJSON([]byte(capStr))
-		Must(err)
+		var xErr *XRError
+		cap, xErr = ParseCapabilitiesJSON([]byte(capStr))
+		Must(xErr)
 	}
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
@@ -3282,7 +3282,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 
 	reg, xErr := LoadRemoteRegistry(host)
 	if xErr != nil {
-		data = []byte(xErr.Error())
+		data = []byte(xErr.String())
 	}
 
 	log.VPrintf(4, "Download: %s%s", host, path)
@@ -3318,7 +3318,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 
 	if reg != nil && reg.Model != nil {
 		if xErr = info.ParseRequestURL(); xErr != nil {
-			data = []byte(xErr.Error())
+			data = []byte(xErr.String())
 		}
 	}
 

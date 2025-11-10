@@ -168,18 +168,18 @@ func TestModelVerifySimple(t *testing.T) {
 
 	for _, test := range tests {
 		t.Logf("test: %s", test.name)
-		err := test.model.Verify()
-		if test.err == "" && err != nil {
+		xErr := test.model.Verify()
+		if test.err == "" && xErr != nil {
 			t.Fatalf("ModelVerify: %s - should have worked, got: %s",
-				test.name, err)
+				test.name, xErr)
 		}
-		if test.err != "" && err == nil {
+		if test.err != "" && xErr == nil {
 			t.Fatalf("ModelVerify: %s - should have failed with: %s",
 				test.name, test.err)
 		}
-		if err != nil && test.err != err.Error() {
+		if xErr != nil && test.err != xErr.String() {
 			t.Fatalf("ModifyVerify: %s\nexp: %s\ngot: %s", test.name,
-				test.err, err.Error())
+				test.err, xErr.String())
 		}
 	}
 }
@@ -471,18 +471,18 @@ func TestModelVerifyRegAttr(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := test.model.Verify()
-		if test.err == "" && err != nil {
+		xErr := test.model.Verify()
+		if test.err == "" && xErr != nil {
 			t.Fatalf("ModelVerify: %s - should have worked, got: %s",
-				test.name, err)
+				test.name, xErr)
 		}
-		if test.err != "" && err == nil {
+		if test.err != "" && xErr == nil {
 			t.Fatalf("ModelVerify: %s - should have failed with: %s",
 				test.name, test.err)
 		}
-		if err != nil && test.err != err.Error() {
+		if xErr != nil && test.err != xErr.String() {
 			t.Fatalf("ModifyVerify: %s:\nExp: %s\nGot: %s", test.name,
-				test.err, err.Error())
+				test.err, xErr.String())
 		}
 	}
 }
@@ -658,18 +658,18 @@ func TestModelVerifyEnum(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		err := test.model.Verify()
-		if test.err == "" && err != nil {
+		xErr := test.model.Verify()
+		if test.err == "" && xErr != nil {
 			t.Fatalf("ModelVerify: %s - should have worked, got: %s",
-				test.name, err)
+				test.name, xErr)
 		}
-		if test.err != "" && err == nil {
+		if test.err != "" && xErr == nil {
 			t.Fatalf("ModelVerify: %s - should have failed with: %s",
 				test.name, test.err)
 		}
-		if err != nil && test.err != err.Error() {
+		if xErr != nil && test.err != xErr.String() {
 			t.Fatalf("ModifyVerify: %s\nExp: %s\nGot: %s", test.name,
-				test.err, err.Error())
+				test.err, xErr.String())
 		}
 	}
 }
@@ -787,10 +787,10 @@ func TestValidChars(t *testing.T) {
 		{"a9", ``},
 		{a57, ``},
 	} {
-		err := IsValidModelName(test.input)
+		xErr := IsValidModelName(test.input)
 		got := ""
-		if err != nil {
-			got = err.Error()
+		if xErr != nil {
+			got = xErr.String()
 		}
 		if got != test.result {
 			t.Fatalf("Test: %s\nExp: %s\nGot: %s", test.input, test.result, got)
@@ -853,10 +853,10 @@ func TestValidChars(t *testing.T) {
 		{"a9", ``},
 		{a63, ``},
 	} {
-		err := IsValidAttributeName(test.input, "")
+		xErr := IsValidAttributeName(test.input, "")
 		got := ""
-		if err != nil {
-			got = err.Error()
+		if xErr != nil {
+			got = xErr.String()
 		}
 		if got != test.result {
 			t.Fatalf("Test: %s\nExp: %s\nGot: %s", test.input, test.result, got)
@@ -913,10 +913,10 @@ func TestValidChars(t *testing.T) {
 		{"Z.-~:_0Nb", ``},
 		{a128, ``},
 	} {
-		err := IsValidID(test.input, "")
+		xErr := IsValidID(test.input, "")
 		got := ""
-		if err != nil {
-			got = err.Error()
+		if xErr != nil {
+			got = xErr.String()
 		}
 		if got != test.result {
 			t.Fatalf("Test: %s\nExp: %s\nGot: %s", test.input, test.result, got)
@@ -967,10 +967,10 @@ func TestValidChars(t *testing.T) {
 		{"m:9", ``},
 		{a63, ``},
 	} {
-		err := IsValidMapKey(test.input, "")
+		xErr := IsValidMapKey(test.input, "")
 		got := ""
-		if err != nil {
-			got = err.Error()
+		if xErr != nil {
+			got = xErr.String()
 		}
 		if got != test.result {
 			t.Fatalf("Test: %s\nExp: %s\nGot: %s", test.input, test.result, got)

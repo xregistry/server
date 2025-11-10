@@ -36,7 +36,7 @@ func IsURL(str string) bool {
 	return strings.HasPrefix(str, "http:") || strings.HasPrefix(str, "https:")
 }
 
-func Must(err error) {
+func Must(err any) {
 	if !IsNil(err) {
 		panic(err)
 	}

@@ -38,8 +38,8 @@ func TestLoadModel(td *TD) {
 	td.MustEqual(res.Code, 200, "'GET /model' MUST return 200")
 	td.MustNotEqual(res.Body, nil, "The model MUST NOT be empty")
 
-	_, err = xrlib.ParseModel(res.Body)
-	td.MustEqual(err, nil, "Parsing model should work")
+	_, xErr := xrlib.ParseModel(res.Body)
+	td.MustEqual(xErr, nil, "Parsing model should work")
 
 	// td.Log("Model:\n%s", xrlib.ToJSON(data))
 	td.Fail("asd")

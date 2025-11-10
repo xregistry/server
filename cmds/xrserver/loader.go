@@ -24,8 +24,8 @@ import (
 var Token string
 var Secret string
 
-func ErrFatalf(err error, args ...any) {
-	if IsNil(err) {
+func ErrFatalf(errAny any, args ...any) {
+	if IsNil(errAny) {
 		return
 	}
 	format := "%s"
@@ -33,7 +33,7 @@ func ErrFatalf(err error, args ...any) {
 		format = args[0].(string)
 		args = args[1:]
 	} else {
-		args = []any{err}
+		args = []any{errAny}
 	}
 	log.Printf(format, args...)
 	common.ShowStack()
@@ -78,16 +78,17 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	gzf, _ := gzip.NewReader(tarStream)
 	reader := tar.NewReader(gzf)
 
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "APIs-Guru", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "APIs-Guru", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "APIs-Guru")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "APIs-Guru")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		// Verbose( "New registry:\n%#v", reg)
 		defer reg.Rollback()
 
@@ -104,11 +105,11 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	Verbose("Loading: /reg-%s", reg.UID)
 
 	newModel := &registry.Model{}
-	g, err := newModel.AddGroupModel("apiproviders", "apiprovider")
-	ErrFatalf(err)
-	r, err := g.AddResourceModel("apis", "api", 2, true, true, true)
-	_, err = r.AddAttr("format", STRING)
-	ErrFatalf(err)
+	g, xErr := newModel.AddGroupModel("apiproviders", "apiprovider")
+	ErrFatalf(xErr)
+	r, xErr := g.AddResourceModel("apis", "api", 2, true, true, true)
+	_, xErr = r.AddAttr("format", STRING)
+	ErrFatalf(xErr)
 
 	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
@@ -146,13 +147,13 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		// org/service/version/file
 		// org/version/file
 
-		group, err := reg.FindGroup("apiproviders", parts[0], false,
+		group, xErr := reg.FindGroup("apiproviders", parts[0], false,
 			registry.FOR_WRITE)
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 
 		if group == nil {
-			group, err = reg.AddGroup("apiproviders", parts[0])
-			ErrFatalf(err)
+			group, xErr = reg.AddGroup("apiproviders", parts[0])
+			ErrFatalf(xErr)
 		}
 
 		ErrFatalf(group.SetSave("name", group.UID))
@@ -169,20 +170,20 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 			verIndex++
 		}
 
-		res, err := group.AddResource("apis", resName, "v1")
-		ErrFatalf(err)
+		res, xErr := group.AddResource("apis", resName, "v1")
+		ErrFatalf(xErr)
 
-		version, err := res.FindVersion(parts[verIndex], false,
+		version, xErr := res.FindVersion(parts[verIndex], false,
 			registry.FOR_WRITE)
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 		if version != nil {
 			log.Fatalf("Have more than one file per version: %s\n", header.Name)
 		}
 
 		buf := &bytes.Buffer{}
 		io.Copy(buf, reader)
-		version, err = res.AddVersion(parts[verIndex])
-		ErrFatalf(err)
+		version, xErr = res.AddVersion(parts[verIndex])
+		ErrFatalf(xErr)
 		ErrFatalf(version.SetSave("name", parts[verIndex+1]))
 		ErrFatalf(version.SetSave("format", "openapi/3.0.6"))
 
@@ -210,18 +211,18 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 }
 
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "TestRegistry",
+		reg, xErr = registry.FindRegistry(nil, "TestRegistry",
 			registry.FOR_WRITE)
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "TestRegistry")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "TestRegistry")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
@@ -233,58 +234,58 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 
 		newModel := &registry.Model{}
 
-		_, err = newModel.AddAttr("bool1", BOOLEAN)
-		ErrFatalf(err)
-		_, err = newModel.AddAttr("int1", INTEGER)
-		ErrFatalf(err)
-		_, err = newModel.AddAttr("dec1", DECIMAL)
-		ErrFatalf(err)
-		_, err = newModel.AddAttr("str1", STRING)
-		ErrFatalf(err)
-		_, err = newModel.AddAttrMap("map1", registry.NewItemType(STRING))
-		ErrFatalf(err)
-		_, err = newModel.AddAttrArray("arr1", registry.NewItemType(STRING))
-		ErrFatalf(err)
+		_, xErr = newModel.AddAttr("bool1", BOOLEAN)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttr("int1", INTEGER)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttr("dec1", DECIMAL)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttr("str1", STRING)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrMap("map1", registry.NewItemType(STRING))
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrArray("arr1", registry.NewItemType(STRING))
+		ErrFatalf(xErr)
 
-		_, err = newModel.AddAttrMap("emptymap", registry.NewItemType(STRING))
-		ErrFatalf(err)
-		_, err = newModel.AddAttrArray("emptyarr", registry.NewItemType(STRING))
-		ErrFatalf(err)
-		_, err = newModel.AddAttrObj("emptyobj")
-		ErrFatalf(err)
-		obj, err := newModel.AddAttrObj("modelobj")
-		ErrFatalf(err)
-		_, err = obj.AddAttr("model", STRING)
-		ErrFatalf(err)
-		_, err = obj.AddAttr("model2", STRING)
-		ErrFatalf(err)
+		_, xErr = newModel.AddAttrMap("emptymap", registry.NewItemType(STRING))
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrArray("emptyarr", registry.NewItemType(STRING))
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrObj("emptyobj")
+		ErrFatalf(xErr)
+		obj, xErr := newModel.AddAttrObj("modelobj")
+		ErrFatalf(xErr)
+		_, xErr = obj.AddAttr("model", STRING)
+		ErrFatalf(xErr)
+		_, xErr = obj.AddAttr("model2", STRING)
+		ErrFatalf(xErr)
 
 		item := registry.NewItemObject()
-		_, err = item.AddAttr("inint", INTEGER)
-		ErrFatalf(err)
-		_, err = newModel.AddAttrMap("mapobj", item)
-		ErrFatalf(err)
+		_, xErr = item.AddAttr("inint", INTEGER)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrMap("mapobj", item)
+		ErrFatalf(xErr)
 
-		_, err = newModel.AddAttrArray("arrmapstr",
+		_, xErr = newModel.AddAttrArray("arrmapstr",
 			registry.NewItemMap(registry.NewItemType(STRING)))
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 
 		item = registry.NewItemMap(registry.NewItemObject())
-		_, err = newModel.AddAttrArray("arrmapobj", item)
-		ErrFatalf(err)
+		_, xErr = newModel.AddAttrArray("arrmapobj", item)
+		ErrFatalf(xErr)
 		item = item.Item
-		_, err = item.AddAttr("aoint", INTEGER)
-		ErrFatalf(err)
-		objAttr, err := item.AddAttrObj("objint")
-		ErrFatalf(err)
-		_, err = objAttr.AddAttr("anobjint", INTEGER)
-		ErrFatalf(err)
+		_, xErr = item.AddAttr("aoint", INTEGER)
+		ErrFatalf(xErr)
+		objAttr, xErr := item.AddAttrObj("objint")
+		ErrFatalf(xErr)
+		_, xErr = objAttr.AddAttr("anobjint", INTEGER)
+		ErrFatalf(xErr)
 
 		item = registry.NewItemObject()
-		_, err = item.AddAttr("aoint", INTEGER)
-		ErrFatalf(err)
-		_, err = newModel.AddAttrArray("arrobj", item)
-		ErrFatalf(err)
+		_, xErr = item.AddAttr("aoint", INTEGER)
+		ErrFatalf(xErr)
+		_, xErr = newModel.AddAttrArray("arrobj", item)
+		ErrFatalf(xErr)
 
 		ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
@@ -311,33 +312,33 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	}
 
 	Verbose("Loading: /reg-%s", reg.UID)
-	gm, err := newModel.AddGroupModel("dirs", "dir")
-	ErrFatalf(err)
-	rm, err := gm.AddResourceModel("files", "file", 2, true, true, true)
-	_, err = rm.AddMetaAttr("rext", STRING)
-	ErrFatalf(err)
-	_, err = rm.AddMetaAttr("*", ANY)
-	ErrFatalf(err)
-	_, err = rm.AddAttr("vext", STRING)
-	ErrFatalf(err)
-	rm, err = gm.AddResourceModel("datas", "data", 2, true, true, false)
-	ErrFatalf(err)
-	_, err = rm.AddAttr("*", STRING)
-	ErrFatalf(err)
+	gm, xErr := newModel.AddGroupModel("dirs", "dir")
+	ErrFatalf(xErr)
+	rm, xErr := gm.AddResourceModel("files", "file", 2, true, true, true)
+	_, xErr = rm.AddMetaAttr("rext", STRING)
+	ErrFatalf(xErr)
+	_, xErr = rm.AddMetaAttr("*", ANY)
+	ErrFatalf(xErr)
+	_, xErr = rm.AddAttr("vext", STRING)
+	ErrFatalf(xErr)
+	rm, xErr = gm.AddResourceModel("datas", "data", 2, true, true, false)
+	ErrFatalf(xErr)
+	_, xErr = rm.AddAttr("*", STRING)
+	ErrFatalf(xErr)
 
-	_, err = newModel.AddAttrXID("resptr", "/dirs/files[/versions]")
-	ErrFatalf(err)
+	_, xErr = newModel.AddAttrXID("resptr", "/dirs/files[/versions]")
+	ErrFatalf(xErr)
 
 	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
 
-	g, err := reg.AddGroup("dirs", "d1")
-	ErrFatalf(err)
+	g, xErr := reg.AddGroup("dirs", "d1")
+	ErrFatalf(xErr)
 	ErrFatalf(g.SetSave("labels.private", "true"))
-	r, err := g.AddResource("files", "f1", "v1")
-	ErrFatalf(err)
+	r, xErr := g.AddResource("files", "f1", "v1")
+	ErrFatalf(xErr)
 	ErrFatalf(g.SetSave("labels.private", "true"))
-	_, err = r.AddVersion("v2")
-	ErrFatalf(err)
+	_, xErr = r.AddVersion("v2")
+	ErrFatalf(xErr)
 	ErrFatalf(r.SetSaveMeta("labels.stage", "dev"))
 	ErrFatalf(r.SetSaveMeta("labels.none", ""))
 	ErrFatalf(r.SetSaveMeta("rext", "a string"))
@@ -347,34 +348,34 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(r.SetSave("file", `{"hello":"world"}`))
 	ErrFatalf(r.SetSave("contenttype", `application/json`))
 
-	r, err = g.AddResource("files", "fr", "v1")
-	ErrFatalf(err)
+	r, xErr = g.AddResource("files", "fr", "v1")
+	ErrFatalf(xErr)
 	ErrFatalf(r.SetSaveMeta("readonly", true))
 
-	_, err = g.AddResource("datas", "d1", "v1")
+	_, xErr = g.AddResource("datas", "d1", "v1")
 
-	_, err = g.AddResourceWithObject("files", "fx", "",
+	_, xErr = g.AddResourceWithObject("files", "fx", "",
 		map[string]any{
 			"meta": map[string]any{"xref": "/dirs/d1/files/f1"},
 		}, false)
-	ErrFatalf(err)
+	ErrFatalf(xErr)
 
 	reg.Commit()
 	return reg
 }
 
 func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Endpoints", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "Endpoints", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "Endpoints")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "Endpoints")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
@@ -386,44 +387,44 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := common.FindModelFile("endpoint/model.json")
 	ErrFatalf(err)
-	err = reg.LoadModelFromFile(fn)
-	ErrFatalf(err)
+	xErr = reg.LoadModelFromFile(fn)
+	ErrFatalf(xErr)
 
 	// End of model
 
-	g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
+	g, xErr := reg.AddGroupWithObject("endpoints", "e1", common.Object{
 		"usage": []string{"producer"},
 	})
-	ErrFatalf(err)
+	ErrFatalf(xErr)
 	ErrFatalf(g.SetSave("name", "end1"))
 	ErrFatalf(g.SetSave("epoch", 1))
 	ErrFatalf(g.SetSave("labels.stage", "dev"))
 	ErrFatalf(g.SetSave("labels.stale", "true"))
 
-	r, err := g.AddResource("messages", "created", "v1")
-	ErrFatalf(err)
-	v, err := r.FindVersion("v1", false, registry.FOR_WRITE)
-	ErrFatalf(err)
+	r, xErr := g.AddResource("messages", "created", "v1")
+	ErrFatalf(xErr)
+	v, xErr := r.FindVersion("v1", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 2))
 
-	v, err = r.AddVersion("v2")
-	ErrFatalf(err)
+	v, xErr = r.AddVersion("v2")
+	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 4))
 	ErrFatalf(r.SetDefault(v))
 
-	r, err = g.AddResource("messages", "deleted", "v1.0")
-	ErrFatalf(err)
-	v, err = r.FindVersion("v1.0", false, registry.FOR_WRITE)
-	ErrFatalf(err)
+	r, xErr = g.AddResource("messages", "deleted", "v1.0")
+	ErrFatalf(xErr)
+	v, xErr = r.FindVersion("v1.0", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobDeleted"))
 	ErrFatalf(v.SetSave("epoch", 3))
 
-	g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
+	g, xErr = reg.AddGroupWithObject("endpoints", "e2", common.Object{
 		"usage": []string{"consumer"},
 	})
-	ErrFatalf(err)
+	ErrFatalf(xErr)
 	ErrFatalf(g.SetSave("name", "end1"))
 	ErrFatalf(g.SetSave("epoch", 1))
 
@@ -433,17 +434,17 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 }
 
 func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Messages", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "Messages", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "Messages")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "Messages")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
@@ -455,8 +456,8 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := common.FindModelFile("message/model.json")
 	ErrFatalf(err)
-	err = reg.LoadModelFromFile(fn)
-	ErrFatalf(err)
+	xErr = reg.LoadModelFromFile(fn)
+	ErrFatalf(xErr)
 
 	// End of model
 
@@ -466,17 +467,17 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 }
 
 func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Schemas", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "Schemas", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "Schemas")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "Schemas")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
@@ -488,8 +489,8 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := common.FindModelFile("schema/model.json")
 	ErrFatalf(err)
-	err = reg.LoadModelFromFile(fn)
-	ErrFatalf(err)
+	xErr = reg.LoadModelFromFile(fn)
+	ErrFatalf(xErr)
 
 	// End of model
 
@@ -499,18 +500,18 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 }
 
 func LoadLargeSample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	start := time.Now()
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "Large", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "Large", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "Large")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "Large")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
@@ -532,19 +533,19 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	dirs, files, vers := 0, 0, 0
 	for dcount := 0; dcount < maxD; dcount++ {
 		dName := fmt.Sprintf("dir%d", dcount)
-		d, err := reg.AddGroup("dirs", dName)
-		ErrFatalf(err)
+		d, xErr := reg.AddGroup("dirs", dName)
+		ErrFatalf(xErr)
 		dirs++
 		for fcount := 0; fcount < maxF; fcount++ {
 			fName := fmt.Sprintf("file%d", fcount)
-			f, err := d.AddResource("files", fName, "v0")
-			ErrFatalf(err)
+			f, xErr := d.AddResource("files", fName, "v0")
+			ErrFatalf(xErr)
 			files++
 			vers++
 			for vcount := 1; vcount < maxV; vcount++ {
-				_, err = f.AddVersion(fmt.Sprintf("v%d", vcount))
+				_, xErr = f.AddVersion(fmt.Sprintf("v%d", vcount))
 				vers++
-				ErrFatalf(err)
+				ErrFatalf(xErr)
 				ErrFatalf(reg.Commit())
 			}
 		}
@@ -561,17 +562,17 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 }
 
 func LoadDocStore(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "DocStore", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "DocStore", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "DocStore")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "DocStore")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
@@ -625,18 +626,18 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 }
 
 func LoadCESample(reg *registry.Registry) *registry.Registry {
-	var err error
+	var xErr *XRError
 
 	if reg == nil {
-		reg, err = registry.FindRegistry(nil, "CloudEvents", registry.FOR_WRITE)
-		ErrFatalf(err)
+		reg, xErr = registry.FindRegistry(nil, "CloudEvents", registry.FOR_WRITE)
+		ErrFatalf(xErr)
 		if reg != nil {
 			reg.Rollback()
 			return reg
 		}
 
-		reg, err = registry.NewRegistry(nil, "CloudEvents")
-		ErrFatalf(err, "Error creating new registry: %s", err)
+		reg, xErr = registry.NewRegistry(nil, "CloudEvents")
+		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
 		defer reg.Rollback()
 
 		reg.SetSave("#baseURL", "http://soaphub.org:8585/")
@@ -648,8 +649,8 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	fn, err := common.FindModelFile("cloudevents/model.json")
 	ErrFatalf(err)
-	err = reg.LoadModelFromFile(fn)
-	ErrFatalf(err)
+	xErr = reg.LoadModelFromFile(fn)
+	ErrFatalf(xErr)
 
 	// End of model
 
@@ -673,36 +674,36 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		Verbose("  - Loading fake data instead")
 
 		// Endpoints
-		g, err := reg.AddGroupWithObject("endpoints", "e1", common.Object{
+		g, xErr := reg.AddGroupWithObject("endpoints", "e1", common.Object{
 			"usage": []string{"producer"},
 		})
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 
-		r, err := g.AddResource("messages", "blobCreated", "v1")
-		ErrFatalf(err)
+		r, xErr := g.AddResource("messages", "blobCreated", "v1")
+		ErrFatalf(xErr)
 
-		r, err = g.AddResource("messages", "blobDeleted", "v1.0")
-		ErrFatalf(err)
+		r, xErr = g.AddResource("messages", "blobDeleted", "v1.0")
+		ErrFatalf(xErr)
 
-		g, err = reg.AddGroupWithObject("endpoints", "e2", common.Object{
+		g, xErr = reg.AddGroupWithObject("endpoints", "e2", common.Object{
 			"usage": []string{"consumer"},
 		})
-		ErrFatalf(err)
-		r, err = g.AddResource("messages", "popped", "v1.0")
-		ErrFatalf(err)
+		ErrFatalf(xErr)
+		r, xErr = g.AddResource("messages", "popped", "v1.0")
+		ErrFatalf(xErr)
 
 		// Schemas
-		g, err = reg.AddGroupWithObject("schemagroups", "sg1", common.Object{
+		g, xErr = reg.AddGroupWithObject("schemagroups", "sg1", common.Object{
 			"format": "text",
 		})
-		ErrFatalf(err)
-		r, err = g.AddResourceWithObject("schemas", "popped", "v1.0",
+		ErrFatalf(xErr)
+		r, xErr = g.AddResourceWithObject("schemas", "popped", "v1.0",
 			common.Object{"format": "text"}, false)
-		ErrFatalf(err)
-		_, err = r.AddVersionWithObject("v2.0", common.Object{
+		ErrFatalf(xErr)
+		_, xErr = r.AddVersionWithObject("v2.0", common.Object{
 			"format": "text",
 		})
-		ErrFatalf(err)
+		ErrFatalf(xErr)
 	} else {
 		files := []struct {
 			Name        string `json:"name"`
@@ -751,8 +752,8 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 			}
 
 			// Error on anything but a group type
-			IncomingObj, err := registry.ExtractIncomingObject(info, body)
-			ErrFatalf(err)
+			IncomingObj, xErr := registry.ExtractIncomingObject(info, body)
+			ErrFatalf(xErr)
 			for key, _ := range IncomingObj {
 				if reg.Model.FindGroupModel(key) == nil {
 					ErrFatalf(fmt.Errorf("  - POST / only allows Group "+
@@ -760,21 +761,21 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 				}
 			}
 
-			objMap, err := IncomingObj2Map(IncomingObj)
-			ErrFatalf(err)
+			objMap, xErr := IncomingObj2Map(IncomingObj)
+			ErrFatalf(xErr)
 
 			for gType, gAny := range objMap {
-				gMap, err := IncomingObj2Map(gAny)
-				ErrFatalf(err)
+				gMap, xErr := IncomingObj2Map(gAny)
+				ErrFatalf(xErr)
 
 				for id, obj := range gMap {
-					_, _, err := info.Registry.UpsertGroupWithObject(gType,
+					_, _, xErr := info.Registry.UpsertGroupWithObject(gType,
 						id, obj, registry.ADD_UPDATE)
-					if err != nil {
+					if xErr != nil {
 						log.Printf("From: %s", file.DownloadURL)
 						log.Printf("Input:\n%s", ToJSON(obj))
 					}
-					ErrFatalf(err, "  - %s", err)
+					ErrFatalf(xErr, "  - %s", xErr)
 				}
 			}
 		}

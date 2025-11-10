@@ -19,16 +19,16 @@ type XRError struct {
 	Headers   map[string]string // HTTP headers to include in response
 }
 
+/*
 func (xErr *XRError) Error() string {
 	return xErr.ToUserJson("")
-	/*
-		str := fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
-		if xErr.Detail != "" {
-			str += " (" + xErr.Detail + ")"
-		}
-		return str
-	*/
+		// str := fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
+		// if xErr.Detail != "" {
+			// str += " (" + xErr.Detail + ")"
+		// }
+		// return str
 }
+*/
 
 func NewXRErrorWithTitle(code int, title string) *XRError {
 	return &XRError{
@@ -65,6 +65,7 @@ func NewXRError(daType string, instance string, args ...any) *XRError {
 	}
 }
 
+/*
 // If not already an XRError, convert the "error" to one using daType
 func AsXRError(err error, daType string, instance string) *XRError {
 	xErr, ok := err.(*XRError)
@@ -74,10 +75,13 @@ func AsXRError(err error, daType string, instance string) *XRError {
 	}
 	return xErr
 }
+*/
 
+/*
 func (xErr *XRError) AsError() error {
 	return (error)(xErr)
 }
+*/
 
 var Type2Error = map[string]*XRError{
 	// CODE SPEC

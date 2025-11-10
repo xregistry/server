@@ -263,13 +263,13 @@ func TestCapabilitySimple(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c, err := ParseCapabilitiesJSON([]byte(test.Cap))
-		if err == nil {
-			err = c.Validate()
+		c, xErr := ParseCapabilitiesJSON([]byte(test.Cap))
+		if xErr == nil {
+			xErr = c.Validate()
 		}
 		res := ""
-		if err != nil {
-			res = err.Error()
+		if xErr != nil {
+			res = xErr.String()
 		} else {
 			buf, _ := json.MarshalIndent(c, "", "  ")
 			res = string(buf)

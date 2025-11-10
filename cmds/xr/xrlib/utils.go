@@ -3,6 +3,7 @@ package xrlib
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
 // var DebugFlag = EnvBool("XR_DEBUG", false)
 var Server = EnvString("XR_SERVER", "")
+var Output = ""
 
 func Debug(args ...any) {
 	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
@@ -122,10 +124,14 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		} else {
 			// If we 'think' it's an XRError then return it, else just
 			// return the raw data
-			var xrErr XRError
-			if pErr := json.Unmarshal([]byte(tmp), &xrErr); pErr == nil {
-				if xrErr.Type != "" && xrErr.Title != "" {
-					err = &xrErr
+			var xErr XRError
+			if pErr := json.Unmarshal([]byte(tmp), &xErr); pErr == nil {
+				if xErr.Type != "" && xErr.Title != "" {
+					if Output == "json" {
+						err = errors.New(xErr.String())
+					} else {
+						err = errors.New(xErr.GetTitle())
+					}
 				}
 			} else {
 				err = fmt.Errorf(tmp)

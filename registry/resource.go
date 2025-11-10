@@ -269,7 +269,7 @@ func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 func (r *Resource) Touch() bool {
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
 	if xErr != nil {
-		panic(xErr.Error())
+		panic(xErr)
 	}
 	return meta.Touch()
 }
