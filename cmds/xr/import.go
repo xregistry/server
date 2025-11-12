@@ -26,8 +26,8 @@ func importFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	if len(args) == 0 {
 		args = []string{"/"}
@@ -50,8 +50,8 @@ func importFunc(cmd *cobra.Command, args []string) {
 		Error("Using 'import' on a Version isn't allowed. Try 'create' instead")
 	}
 
-	rm, err := xrlib.GetResourceModelFrom(xid, reg)
-	Error(err)
+	rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+	Error(xErr)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
 	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
@@ -60,8 +60,8 @@ func importFunc(cmd *cobra.Command, args []string) {
 
 	data, _ := cmd.Flags().GetString("data")
 	if len(data) > 0 && data[0] == '@' {
-		buf, err := xrlib.ReadFile(data[1:])
-		Error(err)
+		buf, xErr := xrlib.ReadFile(data[1:])
+		Error(xErr)
 		data = string(buf)
 	}
 
@@ -72,8 +72,8 @@ func importFunc(cmd *cobra.Command, args []string) {
 	obj := map[string]json.RawMessage{}
 	Error(json.Unmarshal([]byte(data), &obj))
 
-	res, err := reg.HttpDo("POST", xid.String()+suffix, []byte(data))
-	Error(err)
+	res, xErr := reg.HttpDo("POST", xid.String()+suffix, []byte(data))
+	Error(xErr)
 
 	obj = map[string]json.RawMessage{}
 	Error(json.Unmarshal(res.Body, &obj))

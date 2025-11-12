@@ -8,6 +8,7 @@ import (
 	// log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	// "github.com/xregistry/server/cmds/xr/xrlib"
+	. "github.com/xregistry/server/common"
 )
 
 func addServeCmd(parent *cobra.Command) {
@@ -35,7 +36,8 @@ func serveFunc(cmd *cobra.Command, args []string) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			Error("Directory %q doesn't not exist", dir)
+			Error(NewXRError("not_found", dir, dir).
+				SetDetailf("Directory %q doesn't not exist", dir))
 		}
 		Error(err)
 	}

@@ -30,8 +30,8 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	force, _ := cmd.Flags().GetBool("force")
 	data, _ := cmd.Flags().GetString("data")
@@ -57,8 +57,8 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 		}
 
 		if len(data) > 0 && data[0] == '@' {
-			buf, err := xrlib.ReadFile(data[1:])
-			Error(err)
+			buf, xErr := xrlib.ReadFile(data[1:])
+			Error(xErr)
 			data = string(buf)
 		}
 
@@ -71,16 +71,17 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 
 	if !force {
 		for id, _ := range objects {
-			if _, err := reg.HttpDo("GET", id, nil); err != nil {
-				Error("%q does not exist", id)
+			if _, xErr := reg.HttpDo("GET", id, nil); xErr != nil {
+				Error(NewXRError("not_found", id, id).
+					SetDetailf("%q does not exist", id))
 			}
 		}
 	}
 
 	for id, _ := range objects {
-		res, err := reg.HttpDo("DELETE", id, nil)
+		res, xErr := reg.HttpDo("DELETE", id, nil)
 		if res == nil || res.Code != 404 {
-			Error(err)
+			Error(xErr)
 		}
 		// Should we output on a 404?
 		Verbose("Deleted: %s", id)

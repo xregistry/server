@@ -32,8 +32,8 @@ var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
 var ShowLogs = EnvBool("XR_SHOWLOGS", false)
 
 func conformFunc(cmd *cobra.Command, args []string) {
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	if ConfigFile != "" {
 		Error(reg.LoadConfigFromFile(ConfigFile))
@@ -122,12 +122,12 @@ type XRegistry struct {
 	Config map[string]string
 }
 
-func NewXRegistry() (*XRegistry, error) {
+func NewXRegistry() (*XRegistry, *XRError) {
 	xreg := &XRegistry{}
 	return xreg, xreg.LoadConfig("")
 }
 
-func NewXRegistryWithConfigPath(path string) (*XRegistry, error) {
+func NewXRegistryWithConfigPath(path string) (*XRegistry, *XRError) {
 	xreg := &XRegistry{}
 	return xreg, xreg.LoadConfig(path)
 }
@@ -136,10 +136,10 @@ func (xr *XRegistry) GetServerURL() string {
 	return xr.GetConfig("server.url")
 }
 
-func (xr *XRegistry) LoadConfig(path string) error {
-	err := xr.LoadConfigFromFile(path)
-	if err != nil {
-		return err
+func (xr *XRegistry) LoadConfig(path string) *XRError {
+	xErr := xr.LoadConfigFromFile(path)
+	if xErr != nil {
+		return xErr
 	}
 	return nil
 }
@@ -147,13 +147,13 @@ func (xr *XRegistry) LoadConfig(path string) error {
 // File syntax:
 // prop: value
 // # comment
-func (xr *XRegistry) LoadConfigFromFile(filename string) error {
+func (xr *XRegistry) LoadConfigFromFile(filename string) *XRError {
 	if filename == "" {
 		filename = "xr.config"
 	}
 	buf, err := os.ReadFile(filename)
 	if err != nil {
-		return err
+		return NewXRError("bad_request", "/", err.Error())
 	}
 	return xr.LoadConfigFromBuffer(string(buf))
 }
@@ -161,7 +161,7 @@ func (xr *XRegistry) LoadConfigFromFile(filename string) error {
 // Buffer syntax:
 // prop: value
 // # comment
-func (xr *XRegistry) LoadConfigFromBuffer(buffer string) error {
+func (xr *XRegistry) LoadConfigFromBuffer(buffer string) *XRError {
 	lines := strings.Split(buffer, "/n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -170,7 +170,8 @@ func (xr *XRegistry) LoadConfigFromBuffer(buffer string) error {
 		}
 		name, value, _ := strings.Cut(line, ":")
 		if name == "" {
-			return fmt.Errorf("Error in config data - no name: %q", line)
+			return NewXRError("bad_request", "/",
+				fmt.Sprintf("Error in config data - no name: %q", line))
 		}
 		xr.SetConfig(name, value)
 	}
@@ -184,12 +185,13 @@ func (xr *XRegistry) GetConfig(name string) string {
 	return xr.Config[name]
 }
 
-func (xr *XRegistry) SetConfig(name string, value string) error {
+func (xr *XRegistry) SetConfig(name string, value string) *XRError {
 	name = strings.TrimSpace(name)
 	value = strings.TrimSpace(value)
 
 	if name == "" {
-		return fmt.Errorf("Config name can't be blank")
+		return NewXRError("bad_request", "/",
+			fmt.Sprintf("Config name can't be blank"))
 	}
 	if value == "" {
 		delete(xr.Config, name)
@@ -203,7 +205,7 @@ func (xr *XRegistry) SetConfig(name string, value string) error {
 }
 
 type HTTPResponse struct {
-	Error      error
+	Error      *XRError
 	StatusCode int
 	Headers    http.Header
 	Body       []byte
@@ -244,7 +246,7 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 
 	req, err := http.NewRequest(verb, xr.GetServerURL()+"/"+path, bodyReader)
 	if err != nil {
-		return &HTTPResponse{Error: err}
+		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
 	}
 
 	for key, value := range xr.Config {
@@ -270,7 +272,7 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 
 	doRes, err := client.Do(req)
 	if err != nil || doRes == nil {
-		return &HTTPResponse{Error: err}
+		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
 	}
 	defer doRes.Body.Close()
 
@@ -280,7 +282,7 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 	}
 	res.Body, err = io.ReadAll(doRes.Body)
 	if err != nil {
-		return &HTTPResponse{Error: err}
+		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
 	}
 
 	if len(res.Body) > 0 {

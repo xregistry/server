@@ -3,7 +3,6 @@ package xrlib
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,7 +19,6 @@ import (
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
 // var DebugFlag = EnvBool("XR_DEBUG", false)
 var Server = EnvString("XR_SERVER", "")
-var Output = ""
 
 func Debug(args ...any) {
 	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
@@ -79,7 +77,7 @@ type HttpResponse struct {
 
 // statusCode, body
 // Add headers (in and out) later
-func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
+func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 	client := &http.Client{}
 	// CheckRedirect: func(req *http.Request, via []*http.Request) error {
 	// return http.ErrUseLastResponse
@@ -89,7 +87,7 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 
 	req, err := http.NewRequest(verb, url, bodyReader)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 
 	Debug("Request: %s %s", verb, url)
@@ -100,15 +98,16 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 
 	body, err = io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, NewXRError("bad_request", "/", err.Error())
 	}
 
+	var xErr *XRError
 	if res.StatusCode/100 != 2 {
 		tmp := res.Status
 		if len(body) != 0 {
@@ -120,21 +119,14 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		// If response has no body then we need to say something back to
 		// the user. A non-zero exit code w/o any text isn't helpful.
 		if tmp == "" {
-			err = fmt.Errorf("An error occurred: " + res.Status)
+			return nil, NewXRError("bad_request", "/",
+				fmt.Sprintf("An error occurred: %s"+res.Status))
 		} else {
 			// If we 'think' it's an XRError then return it, else just
 			// return the raw data
-			var xErr XRError
-			if pErr := json.Unmarshal([]byte(tmp), &xErr); pErr == nil {
-				if xErr.Type != "" && xErr.Title != "" {
-					if Output == "json" {
-						err = errors.New(xErr.String())
-					} else {
-						err = errors.New(xErr.GetTitle())
-					}
-				}
-			} else {
-				err = fmt.Errorf(tmp)
+			err := json.Unmarshal([]byte(tmp), &xErr)
+			if (err == nil && xErr.Type == "") || err != nil {
+				xErr = NewXRError("bad_request", "/", tmp)
 			}
 		}
 	}
@@ -169,40 +161,43 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, error) {
 		Debug("--------------------")
 	}
 
-	return httpRes, err
+	return httpRes, xErr
 }
 
 // Support "http" and "-" (stdin)
-func ReadFile(fileName string) ([]byte, error) {
+func ReadFile(fileName string) ([]byte, *XRError) {
 	buf := []byte(nil)
 	var err error
 
 	if fileName == "" || fileName == "-" {
 		buf, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, fmt.Errorf("Error reading from stdin: %s", err)
+			return nil, NewXRError("bad_request", "/",
+				fmt.Sprintf("Error reading from stdin: %s", err.Error()))
 		}
 	} else if strings.HasPrefix(fileName, "http") {
 		res, err := http.Get(fileName)
 		if err != nil {
-			return nil, err
+			return nil, NewXRError("bad_request", "/", err.Error())
 		}
 
 		buf, err = io.ReadAll(res.Body)
 		res.Body.Close()
 
 		if err != nil {
-			return nil, err
+			return nil, NewXRError("bad_request", "/", err.Error())
 		}
 
 		if res.StatusCode/100 != 2 {
-			return nil, fmt.Errorf("Error downloading %q: %s\n%s",
-				fileName, res.Status, string(buf))
+			return nil, NewXRError("bad_request", "/",
+				fmt.Sprintf("Error downloading %q: %s\n%s",
+					fileName, res.Status, string(buf)))
 		}
 	} else {
 		buf, err = os.ReadFile(fileName)
 		if err != nil {
-			return nil, fmt.Errorf("Error reading file %q: %s", fileName, err)
+			return nil, NewXRError("bad_request", "/",
+				fmt.Sprintf("Error reading file %q: %s", fileName, err))
 		}
 	}
 
@@ -225,21 +220,21 @@ func AnyToString(val any) (string, error) {
 	return valStr, nil
 }
 
-func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) error {
+func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	if xid.Group == "" {
 		return nil
 	}
 
 	gm := (*GroupModel)(nil)
-	gList, err := reg.ListGroupModels()
-	if err != nil {
-		return err
+	gList, xErr := reg.ListGroupModels()
+	if xErr != nil {
+		return xErr
 	}
 	sort.Strings(gList)
 	for _, plural := range gList {
-		m, err := reg.FindGroupModel(plural)
-		if err != nil {
-			return err
+		m, xErr := reg.FindGroupModel(plural)
+		if xErr != nil {
+			return xErr
 		}
 		if m.Plural == xid.Group || (allowSingular && m.Singular == xid.Group) {
 			gm = m
@@ -247,7 +242,8 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) error {
 		}
 	}
 	if gm == nil {
-		return fmt.Errorf("Unknown Group type: %s", xid.Group)
+		return NewXRError("not_found", xid.Group, xid.Group).
+			SetDetailf("Unknown Group type: %s", xid.Group)
 	}
 
 	if xid.Resource == "" {
@@ -264,33 +260,37 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) error {
 		}
 	}
 	if rm == nil {
-		return fmt.Errorf("Unknown Resource type: %s", xid.Resource)
+		return NewXRError("not_found", xid.Resource, xid.Resource).
+			SetDetailf("Unknown Resource type: %s", xid.Resource)
 	}
 
 	if xid.Version != "" {
 		if xid.Version != "versions" && (!allowSingular || xid.Version != "version") {
-			return fmt.Errorf("Expected %q not %q", "versions", xid.Version)
+			return NewXRError("bad_request", "/",
+				fmt.Sprintf("expected %q not %q", "versions", xid.Version))
 		}
 	}
 	return nil
 }
 
-func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, error) {
+func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
 	if xid.Resource == "" {
 		return nil, nil
 	}
 
-	gm, err := reg.FindGroupModel(xid.Group)
-	if err != nil {
-		return nil, err
+	gm, xErr := reg.FindGroupModel(xid.Group)
+	if xErr != nil {
+		return nil, xErr
 	}
 	if gm == nil {
-		return nil, fmt.Errorf("Unknown group type: %s", xid.Group)
+		return nil, NewXRError("not_found", xid.Group, xid.Group).
+			SetDetailf("Unknown group type: %s", xid.Group)
 	}
 
 	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
-		return nil, fmt.Errorf("Unknown resource type: %s", xid.Resource)
+		return nil, NewXRError("bad_request", xid.Resource, xid.Resource).
+			SetDetailf("Unknown resource type: %s", xid.Resource)
 	}
 	return rm, nil
 }
@@ -449,17 +449,21 @@ func BoolStr(v bool, yes string, no string) string {
 	return no
 }
 
-func DownloadObject(urlPath string) (map[string]any, error) {
-	res, err := HttpDo("GET", urlPath, nil)
-	if err != nil {
-		return nil, err
+func DownloadObject(urlPath string) (map[string]any, *XRError) {
+	res, xErr := HttpDo("GET", urlPath, nil)
+	if xErr != nil {
+		return nil, xErr
 	}
 	if res.Code != 200 {
-		return nil, fmt.Errorf("Error downloading %q: %s %s", urlPath,
-			res.Code, res.Body)
+		return nil, NewXRError("bad_request", "/",
+			fmt.Sprintf("Error downloading %q: %s %s", urlPath,
+				res.Code, res.Body))
 	}
 
 	object := map[string]any(nil)
-	err = json.Unmarshal(res.Body, &object)
-	return object, err
+	err := json.Unmarshal(res.Body, &object)
+	if err != nil {
+		return object, NewXRError("bad_request", "/", err.Error())
+	}
+	return object, nil
 }

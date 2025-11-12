@@ -123,8 +123,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	if len(args) == 0 {
 		args = []string{"/"}
@@ -156,8 +156,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	data, _ := cmd.Flags().GetString("data")
 	if len(data) > 0 && data[0] == '@' {
-		buf, err := xrlib.ReadFile(data[1:])
-		Error(err)
+		buf, xErr := xrlib.ReadFile(data[1:])
+		Error(xErr)
 		data = string(buf)
 	}
 
@@ -172,8 +172,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 		dataMap := map[string]any{}
 
 		if len(dels) > 0 || len(adds) > 0 {
-			oldData, err = reg.DownloadObject(xid.String())
-			Error(err)
+			oldData, xErr = reg.DownloadObject(xid.String())
+			Error(xErr)
 		}
 
 		if len(data) > 0 {
@@ -301,15 +301,18 @@ func createFunc(cmd *cobra.Command, args []string) {
 	// Make sure none of the top-level entities already exist
 	if xid.IsEntity {
 		if !force && action != "upsert" {
-			res, err := reg.HttpDo("GET", xid.String(), nil)
-			if err != nil && res == nil {
-				Error("Can't connect to server: %s", reg.GetServerURL())
+			res, xErr := reg.HttpDo("GET", xid.String(), nil)
+			if xErr != nil && res == nil {
+				Error(xErr, NewXRError("bad_request", "/",
+					fmt.Sprintf("Can't connect to server: %s",
+						reg.GetServerURL())))
 			}
-			if action == "create" && err == nil {
-				Error("%q already exists", xid.String())
+			if action == "create" && xErr == nil {
+				Error(xErr, NewXRError("bad_request", "/",
+					fmt.Sprintf("%q already exists", xid.String())))
 			}
 			if action == "update" && res != nil && res.Code == 404 {
-				Error("%q doesn't exists", xid.String())
+				Error(NewXRError("not_found", xid.String(), xid.String()))
 			}
 		}
 		IDs = xid.String()
@@ -327,12 +330,14 @@ func createFunc(cmd *cobra.Command, args []string) {
 			IDs += id
 			if !force && action != "upsert" {
 				id = xid.String() + "/" + id
-				_, err = reg.HttpDo("GET", id, nil)
-				if action == "create" && err == nil {
-					Error("%q already exists", id)
+				_, xErr = reg.HttpDo("GET", id, nil)
+				if action == "create" && xErr == nil {
+					Error(NewXRError("bad_request", id,
+						fmt.Sprintf("%q already exists", id)))
 				}
-				if action == "update" && err != nil {
-					Error("%q doesn't exists", id)
+				if action == "update" && xErr != nil {
+					Error(NewXRError("not_found", id, id).
+						SetDetailf("%q doesn't exists", id))
 				}
 			}
 		}
@@ -355,8 +360,8 @@ func createFunc(cmd *cobra.Command, args []string) {
 		path = AddQuery(path, "ignoreepoch")
 	}
 
-	res, err := reg.HttpDo(method, path, []byte(data))
-	Error(err)
+	res, xErr := reg.HttpDo(method, path, []byte(data))
+	Error(xErr)
 
 	// Verbose("Processed: %s", IDs)
 	if res.Code == 201 || (action == "create" && !xid.IsEntity) {

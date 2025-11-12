@@ -408,15 +408,15 @@ func (td *TD) GetProp(obj map[string]any, prop string) (any, bool, error) {
 	return ObjectGetProp(obj, pp)
 }
 
-func (td *TD) NoError(err error, args ...any) {
-	if err == nil {
+func (td *TD) NoError(errAny any, args ...any) {
+	if IsNil(errAny) {
 		return
 	}
 	td.Fail(args...)
 }
 
-func (td *TD) NoErrorStop(err error, args ...any) {
-	if err == nil {
+func (td *TD) NoErrorStop(errAny any, args ...any) {
+	if IsNil(errAny) {
 		return
 	}
 	td.FailNow(args...)

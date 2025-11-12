@@ -17,62 +17,59 @@ var VerboseCount = 0
 
 var Server = "" // Will grab DefaultServer after we add the --server flag
 var DefaultServer = EnvString("XR_SERVER", "localhost:8080")
+var ErrJson = false
 
-func ErrStop(err error, prefix ...any) {
-	if err == nil {
-		return
-	}
-
-	str := err.Error()
-	if prefix != nil {
-		str = fmt.Sprintf(prefix[0].(string), prefix[1:]...)
-	}
-	Error(str)
-}
+// string, args      -> Title=sprintf(string, args...)
+// xErr              -> use as is
+// err               -> Title=err.Error()
+// err, string, args -> Title=sprintf(string, args...)
+//    if an arg is "err" then replace with err.Error()
 
 func Error(obj any, args ...any) {
 	if IsNil(obj) {
 		return
 	}
 
-	fmtStr, ok := obj.(string)
-	if !ok {
-		if err, ok := obj.(error); ok {
-			if err == nil {
-				return
-			}
+	var xErr *XRError
 
-			if xrErr, ok := obj.(*XRError); ok {
-				fmtStr = xrErr.GetTitle()
-				if xrErr.Detail != "" {
-					fmtStr += "\n" + xrErr.Detail
-				}
-			} else {
-				fmtStr = err.Error()
-
-				if len(args) > 0 {
-					fmtStr, ok = args[0].(string)
-					if !ok {
-						panic("First arg must be a string")
-					}
-					args = args[1:]
-
-					for i := 0; i < len(args); i++ {
-						if args[i] == "err" {
-							args[i] = err.Error()
-						}
-					}
-				}
-			}
+	if str, ok := obj.(string); ok {
+		xErr = NewXRError("bad_request", "/", fmt.Sprintf(str, args...))
+	} else if xErr, ok = obj.(*XRError); ok {
+		// Use as is
+		PanicIf(len(args) > 0, "Extra args to Error(xErr): %v", args)
+	} else if err, ok := obj.(error); ok {
+		if len(args) == 0 {
+			xErr = NewXRError("bad_request", "/", err.Error())
 		} else {
-			panic(fmt.Sprintf("Unknown Error arg: %q(%T)", obj, obj))
+			for i := 1; i < len(args); i++ {
+				if args[i] == "err" {
+					args[i] = err.Error()
+				}
+			}
+			str := args[0].(string)
+			xErr = NewXRError("bad_request", "/",
+				fmt.Sprintf(str, args[1:]...))
 		}
 	}
 
-	if fmtStr != "" {
-		fmtStr = strings.TrimSpace(fmtStr) + "\n"
-		fmt.Fprintf(os.Stderr, fmtStr, args...)
+	PanicIf(IsNil(xErr), "xErr is nil")
+
+	var msg string
+	if ErrJson {
+		msg = xErr.String()
+	} else {
+		msg = xErr.GetTitle()
+		if xErr.IsType("bad_request") {
+			_, msg, _ = strings.Cut(msg, ": ")
+		}
+
+		if xErr.Detail != "" {
+			msg += ". " + xErr.Detail
+		}
 	}
+
+	fmt.Fprintf(os.Stderr, "%s\n", msg)
+
 	// ShowStack()
 	os.Exit(1)
 }
@@ -210,6 +207,8 @@ func main() {
 		"Be chatty``")
 	xrCmd.PersistentFlags().StringVarP(&Server, "server", "s", "",
 		"xRegistry server URL")
+	xrCmd.PersistentFlags().BoolVarP(&ErrJson, "errjson", "", false,
+		"Print errors as json")
 	xrCmd.PersistentFlags().BoolP("help", "?", false, "Help for xr")
 
 	xrCmd.AddGroup(

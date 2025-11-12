@@ -10,8 +10,8 @@ func TestRoot(td *TD) {
 	// td.DependsOn(TestLoadModel)
 	reg := td.Props["xreg"].(*xrlib.Registry)
 
-	res, err := reg.HttpDo("GET", "/", nil)
-	td.NoErrorStop(err, "'GET /' should have worked: %s", err)
+	res, xErr := reg.HttpDo("GET", "/", nil)
+	td.NoErrorStop(xErr, "'GET /' should have worked: %s", xErr)
 
 	if res.Code != 200 {
 		td.Fail("'GET /' MUST return 200, not %d(%s)", res.Code, res.Body)

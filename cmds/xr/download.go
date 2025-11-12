@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -79,13 +78,14 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Error("Missing the DIR argument")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	dir := args[0]
 	stat, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stat.IsDir() {
-		Error("%q must be an existing directory", dir)
+		Error(NewXRError("bad_request", "/",
+			fmt.Sprintf("%q must be an existing directory", dir)))
 	}
 	args = args[1:]
 
@@ -101,16 +101,16 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 	if md2htmlHeader != "" {
 		if md2htmlHeader[0] == '@' {
-			buf, err := xrlib.ReadFile(md2htmlHeader[1:])
-			Error(err)
+			buf, xErr := xrlib.ReadFile(md2htmlHeader[1:])
+			Error(xErr)
 			md2htmlHeader = string(buf)
 		}
 	}
 
 	if md2htmlHTML != "" {
 		if md2htmlHTML[0] == '@' {
-			buf, err := xrlib.ReadFile(md2htmlHTML[1:])
-			Error(err)
+			buf, xErr := xrlib.ReadFile(md2htmlHTML[1:])
+			Error(xErr)
 			md2htmlHTML = string(buf)
 		}
 	}
@@ -134,7 +134,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	downloadXidFn := func(xid *Xid, wait bool) ([]byte, error) {
+	downloadXidFn := func(xid *Xid, wait bool) ([]byte, *XRError) {
 		if !wait && parallel > 1 {
 			listCH <- xid
 			return nil, nil
@@ -155,11 +155,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 			if host != "" {
 				obj["self"] = []byte(fmt.Sprintf("%q", host))
-				list, err := reg.ListGroupModels()
-				Error(err)
+				list, xErr := reg.ListGroupModels()
+				Error(xErr)
 				for _, gmName := range list {
-					gm, err := reg.FindGroupModel(gmName)
-					Error(err)
+					gm, xErr := reg.FindGroupModel(gmName)
+					Error(xErr)
 					obj[gm.Plural+"url"] =
 						[]byte(fmt.Sprintf("%q", host+gm.Plural))
 				}
@@ -172,8 +172,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case ENTITY_GROUP_TYPE:
-			gm, err := reg.FindGroupModel(xid.Group)
-			Error(err)
+			gm, xErr := reg.FindGroupModel(xid.Group)
+			Error(xErr)
 
 			rList := gm.GetResourceList()
 			for _, rName := range rList {
@@ -227,8 +227,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				Error(json.Unmarshal(data, &obj))
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				gm, err := reg.FindGroupModel(xid.Group)
-				Error(err)
+				gm, xErr := reg.FindGroupModel(xid.Group)
+				Error(xErr)
 				rList := gm.GetResourceList()
 				for _, rName := range rList {
 					p := fmt.Sprintf(`"%s/%s"`, self, rName) // rm.Plural)
@@ -261,8 +261,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-			rm, err := reg.FindResourceModel(xid.Group, xid.Resource)
-			Error(err)
+			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
+			Error(xErr)
 
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
@@ -413,8 +413,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
-			rm, err := reg.FindResourceModel(xid.Group, xid.Resource)
-			Error(err)
+			rm, xErr := reg.FindResourceModel(xid.Group, xid.Resource)
+			Error(xErr)
 
 			if rm.HasDocument != nil && *(rm.HasDocument) {
 				fn = file + xid.String() + "/" + indexFile
@@ -463,8 +463,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				break
 			}
 			go func() {
-				_, err := downloadXidFn(xid, true)
-				Error(err)
+				_, xErr := downloadXidFn(xid, true)
+				Error(xErr)
 			}()
 		}
 		wg.Done()
@@ -485,8 +485,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			tmpData := map[string]json.RawMessage(nil)
 			Error(json.Unmarshal(data, &tmpData))
 
-			caps, err := ParseCapabilitiesJSON(tmpData["capabilities"])
-			Error(err)
+			caps, xErr := ParseCapabilitiesJSON(tmpData["capabilities"])
+			Error(xErr)
 
 			caps.Flags = nil
 			caps.Mutable = nil
@@ -513,8 +513,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	data, _ = Download(reg, "/capabilities")
 	if len(data) > 0 {
 		if modCap {
-			caps, err := ParseCapabilitiesJSON(data)
-			Error(err)
+			caps, xErr := ParseCapabilitiesJSON(data)
+			Error(xErr)
 			caps.Flags = nil
 			caps.Mutable = nil
 			caps.Pagination = false
@@ -531,8 +531,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 // Body, Headers
 func Download(reg *xrlib.Registry, path string) ([]byte, map[string]string) {
-	res, err := reg.HttpDo("GET", path, nil)
-	Error(errors.Unwrap(err))
+	res, xErr := reg.HttpDo("GET", path, nil)
+	Error(xErr)
 
 	headers := (map[string]string)(nil)
 	// Only save if we have xRegistry headers, but also save special headers
@@ -562,15 +562,15 @@ func Write(file string, data []byte) {
 	Error(os.WriteFile(file, data, 0644))
 }
 
-type traverseFunc func(xid *Xid, wait bool) ([]byte, error)
+type traverseFunc func(xid *Xid, wait bool) ([]byte, *XRError)
 
-func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc) error {
+func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc) *XRError {
 	switch xid.Type {
 	case ENTITY_REGISTRY:
 		fn(xid, false)
 
-		gList, err := reg.ListGroupModels()
-		Error(err)
+		gList, xErr := reg.ListGroupModels()
+		Error(xErr)
 		sort.Strings(gList)
 		for _, gName := range gList {
 			nextXid, err := xid.AddPath(gName)
@@ -583,8 +583,8 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 	case ENTITY_RESOURCE_TYPE:
 		fallthrough
 	case ENTITY_VERSION_TYPE:
-		data, err := fn(xid, true)
-		Error(err)
+		data, xErr := fn(xid, true)
+		Error(xErr)
 
 		tmp := map[string]any{}
 		Error(json.Unmarshal([]byte(data), &tmp))
@@ -599,8 +599,8 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 	case ENTITY_GROUP:
 		fn(xid, false)
 
-		gm, err := reg.FindGroupModel(xid.Group)
-		Error(err)
+		gm, xErr := reg.FindGroupModel(xid.Group)
+		Error(xErr)
 		rList := gm.GetResourceList()
 		sort.Strings(rList)
 		for _, rName := range rList {

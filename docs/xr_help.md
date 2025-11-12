@@ -8,6 +8,7 @@ The `xr` CLI lets you interact with an xRegistry server:
 ```yaml
 xr [command]
   # Global flags:
+      --errjson         Print errors as json
   -?, --help            Help for xr
       --help-all        Help for all commands
   -s, --server string   xRegistry server URL

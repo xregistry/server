@@ -22,20 +22,22 @@ type XRError struct {
 /*
 func (xErr *XRError) Error() string {
 	return xErr.ToUserJson("")
-		// str := fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
-		// if xErr.Detail != "" {
-			// str += " (" + xErr.Detail + ")"
-		// }
-		// return str
+	// str := fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
+	// if xErr.Detail != "" {
+	// str += " (" + xErr.Detail + ")"
+	// }
+	// return str
 }
 */
 
+/*
 func NewXRErrorWithTitle(code int, title string) *XRError {
 	return &XRError{
 		Code:  code,
 		Title: title,
 	}
 }
+*/
 
 func NewXRError(daType string, instance string, args ...any) *XRError {
 	err := Type2Error[daType]
@@ -64,24 +66,6 @@ func NewXRError(daType string, instance string, args ...any) *XRError {
 		Headers:   maps.Clone(err.Headers),
 	}
 }
-
-/*
-// If not already an XRError, convert the "error" to one using daType
-func AsXRError(err error, daType string, instance string) *XRError {
-	xErr, ok := err.(*XRError)
-	if !ok {
-		xErr = NewXRError(daType, instance)
-		xErr.SetDetail(err.Error())
-	}
-	return xErr
-}
-*/
-
-/*
-func (xErr *XRError) AsError() error {
-	return (error)(xErr)
-}
-*/
 
 var Type2Error = map[string]*XRError{
 	// CODE SPEC
@@ -314,7 +298,9 @@ func (xErr *XRError) ToUserJson(baseURL string) string {
 	inst := xErr.Instance
 	if len(inst) == 0 {
 		inst = "/"
-	} else if inst[0] != '/' {
+	} else if inst[0] != '/' && !strings.HasPrefix(inst, "http") {
+		// If we ever change e.Path so it starts with "/" then we should
+		// be able to stop looking for "http" as a special case
 		inst = "/" + inst
 	}
 
@@ -332,6 +318,15 @@ func (xErr *XRError) GetTitle() string {
 	return fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
 }
 
+func (xErr *XRError) IsType(daType string) bool {
+	if xErr == nil {
+		return false
+	}
+	_, t, found := strings.Cut(xErr.Type, "#")
+	PanicIf(!found, "No # found in: %s", xErr)
+	return t == daType
+}
+
 func ParseXRError(buf []byte) (*XRError, error) {
 	xErr := XRError{}
 	if err := json.Unmarshal(buf, &xErr); err != nil {
@@ -339,17 +334,3 @@ func ParseXRError(buf []byte) (*XRError, error) {
 	}
 	return &xErr, nil
 }
-
-/*
-func SetXRErrorInstance(err error, xid string) *XRError {
-	if err == nil {
-		return nil
-	}
-	xErr, ok := err.(*XRError)
-	if !ok {
-		return err
-	}
-	xErr.SetInstance(xid)
-	return xErr
-}
-*/

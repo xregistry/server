@@ -4,7 +4,7 @@ OLD TODO:
 - Make sure that the Path entity is always in the result set when filtering
 - twiddle the self and XXXUrls to include proper filter and inline stuff
 - see if we can get rid of the recursion stuff
-- should we add "/" to then end of the Path for non-collections, then
+- should we add "/" to the end of the Path for non-collections, then
   we can just look for PATH/%  and not PATH + PATH/%
 - can we set the registry's path to "" instead of NULL ?? already did, test it
 - add support for boolean types (set/get/filter)

@@ -39,8 +39,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	if len(args) < 2 {
 		Error("Must specify an XID and one or more NAME[=VALUE] expressions")
@@ -62,8 +62,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 
 	resIsJSON := true
 
-	rm, err := xrlib.GetResourceModelFrom(xid, reg)
-	Error(err)
+	rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+	Error(xErr)
 
 	// If we have doc + ../rID or ../vID (but not .../versions) then...
 	if xid.ResourceID != "" && rm.HasDoc() && xid.IsEntity {
@@ -128,8 +128,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 				Error("Bad name in: %s", arg)
 			}
 			if oldData == nil {
-				oldData, err = reg.DownloadObject(xid.String())
-				Error(err)
+				oldData, xErr = reg.DownloadObject(xid.String())
+				Error(xErr)
 			}
 			tmpName, _, _ := strings.Cut(name, ".")
 			if tmpName != "" && IsNil(dataMap[tmpName]) &&
@@ -158,8 +158,8 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	Verbose("Updating %q", xid)
-	res, err := reg.HttpDo("PATCH", xid.String(), data)
-	Error(err)
+	res, xErr := reg.HttpDo("PATCH", xid.String(), data)
+	Error(xErr)
 
 	if !resIsJSON {
 		fmt.Printf("%s", string(res.Body))

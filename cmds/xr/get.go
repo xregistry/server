@@ -29,8 +29,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	output, _ := cmd.Flags().GetString("output")
 	if !ArrayContains([]string{"table", "json"}, output) {
@@ -52,8 +52,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 	resIsJSON := true
 	suffix := ""
 
-	rm, err := xrlib.GetResourceModelFrom(xid, reg)
-	Error(err)
+	rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+	Error(xErr)
 
 	hasDetails, _ := cmd.Flags().GetBool("details")
 
@@ -66,8 +66,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	res, err := reg.HttpDo("GET", xid.String()+suffix, nil)
-	Error(err)
+	res, xErr := reg.HttpDo("GET", xid.String()+suffix, nil)
+	Error(xErr)
 
 	if !resIsJSON {
 		fmt.Printf("%s", string(res.Body))
@@ -83,10 +83,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "json" {
 		buf, err := PrettyPrintJSON(res.Body, "", "  ")
-		if err != nil {
-			Error("Error parsing result json: %s\nResponse:\n%s", err,
-				string(res.Body))
-		}
+		Error(err, NewXRError("bad_request", "/",
+			fmt.Sprintf("error parsing result json: %s\nResponse:\n%s", err,
+				string(res.Body))))
 
 		fmt.Printf("%s\n", string(buf))
 		return
@@ -94,10 +93,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "table" {
 		err = json.Unmarshal(res.Body, &object)
-		if err != nil {
-			Error("Error parsing result json: %s\nRespone:\n%s", err,
-				string(res.Body))
-		}
+		Error(err, NewXRError("bad_request", "/",
+			fmt.Sprintf("error parsing result json: %s\nRespone:\n%s", err,
+				string(res.Body))))
 		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
 		return
 	}

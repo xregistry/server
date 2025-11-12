@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -178,7 +177,7 @@ func addModelCmd(parent *cobra.Command) {
 }
 
 func modelNormalizeFunc(cmd *cobra.Command, args []string) {
-	var err error
+	var xErr *XRError
 	var buf []byte
 
 	// if len(args) > 0 && cmd.Flags().Changed("data") {
@@ -194,10 +193,10 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	}
 
 	fileName := args[0]
-	buf, err = xrlib.ReadFile(fileName)
-	Error(err)
+	buf, xErr = xrlib.ReadFile(fileName)
+	Error(xErr)
 
-	buf, xErr := ProcessIncludes(fileName, buf, true)
+	buf, xErr = ProcessIncludes(fileName, buf, true)
 	Error(xErr)
 
 	tmp := map[string]any{}
@@ -207,7 +206,7 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 
 func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	var buf []byte
-	var err error
+	var xErr *XRError
 
 	if len(args) == 0 {
 		args = []string{"-"}
@@ -218,25 +217,26 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	for _, fileName := range args {
 		prefix := ""
 		if len(args) > 1 {
-			prefix = fileName + ": "
+			// prefix = fileName + ": "
 		}
 
-		buf, err = xrlib.ReadFile(fileName)
-		if err == nil {
-			err = VerifyModel(fileName, buf, skipTarget)
+		buf, xErr = xrlib.ReadFile(fileName)
+		if xErr == nil {
+			xErr = VerifyModel(fileName, buf, skipTarget)
 		}
-		if err != nil {
-			Error(err, "%s%s", prefix, err)
+		if xErr != nil {
+			xErr.SetDetailf("Found at: %s", prefix)
+			// Error(err, "%s%s", prefix, err)
 		}
 
 		Verbose("%sModel verified", prefix)
 	}
 }
 
-func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
+func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 	buf, xErr := ProcessIncludes(fileName, buf, true)
 	if xErr != nil {
-		return errors.New(xErr.String())
+		return xErr
 		// Error("%s%s", fileName, err)
 	}
 
@@ -244,7 +244,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 	tmp := map[string]any{}
 	err := Unmarshal(buf, &tmp)
 	if err != nil {
-		return err
+		return NewXRError("bad_request", "/", err.Error())
 	}
 	delete(tmp, "$schema")
 	buf, _ = json.Marshal(tmp)
@@ -252,7 +252,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 	model := &xrlib.Model{}
 
 	if err := Unmarshal(buf, model); err != nil {
-		return err
+		return NewXRError("bad_request", "/", err.Error())
 		//Error("%s%s", fileName, err)
 	}
 
@@ -264,7 +264,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 	}
 
 	if xErr := model.Verify(); xErr != nil {
-		return errors.New(xErr.String())
+		return xErr
 		// Error("%s%s", fileName, err)
 	}
 	return nil
@@ -272,7 +272,7 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) error {
 
 func modelUpdateFunc(cmd *cobra.Command, args []string) {
 	var buf []byte
-	var err error
+	var xErr *XRError
 
 	if len(args) > 0 && cmd.Flags().Changed("data") {
 		Error("Can't specify a FILE and the -d flag")
@@ -286,8 +286,8 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	fileName := ""
 	if len(args) > 0 {
@@ -304,19 +304,19 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if len(buf) == 0 {
-		buf, err = xrlib.ReadFile(fileName)
-		Error(err)
+		buf, xErr = xrlib.ReadFile(fileName)
+		Error(xErr)
 	}
 
-	buf, xErr := ProcessIncludes(fileName, buf, true)
+	buf, xErr = ProcessIncludes(fileName, buf, true)
 	Error(xErr)
 
 	if len(buf) == 0 {
 		Error("Missing model data")
 	}
 
-	_, err = reg.HttpDo("PUT", "/modelsource", []byte(buf))
-	Error(err)
+	_, xErr = reg.HttpDo("PUT", "/modelsource", []byte(buf))
+	Error(xErr)
 	Verbose("Model updated")
 }
 
@@ -325,8 +325,8 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	output, _ := cmd.Flags().GetString("output")
 	all, _ := cmd.Flags().GetBool("all")
@@ -335,8 +335,8 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'table'")
 	}
 
-	model, err := reg.GetModel()
-	Error(err)
+	model, xErr := reg.GetModel()
+	Error(xErr)
 
 	if output == "json" {
 		fmt.Printf("%s\n", ToJSON(model))
@@ -757,11 +757,11 @@ func modelGroupListFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModel()
-	Error(err)
+	model, xErr := reg.GetModel()
+	Error(xErr)
 
 	if output == "json" {
 		fmt.Printf("%s\n", ToJSON(model.Groups))
@@ -794,11 +794,11 @@ func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModel()
-	Error(err)
+	model, xErr := reg.GetModel()
+	Error(xErr)
 
 	PrintGroupModelsByName(model, args, output, "", true, all)
 }
@@ -820,11 +820,11 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModelSource()
-	Error(err)
+	model, xErr := reg.GetModelSource()
+	Error(xErr)
 
 	verMsg := ""
 	gmNames := []string{}
@@ -855,9 +855,11 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	}
 
 	buf, err := json.MarshalIndent(model, "", "  ")
-	Error(err)
-	_, err = reg.HttpDo("PUT", "/modelsource", buf)
-	Error(err)
+	if err != nil {
+		Error(err)
+	}
+	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	Error(xErr)
 	Verbose(verMsg)
 
 	if output == "none" {
@@ -869,7 +871,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	PrintGroupModelsByName(reg.Model, gmNames, output, "", resources, all)
 }
 
-func ValidateNewGroup(model *xrlib.Model, plural, singular string) error {
+func ValidateNewGroup(model *xrlib.Model, plural, singular string) *XRError {
 	if plural == singular {
 		Error("Group PLURAL and SINGULAR names must be different")
 	}
@@ -906,11 +908,11 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModelSource()
-	Error(err)
+	model, xErr := reg.GetModelSource()
+	Error(xErr)
 	verMsg := ""
 	for _, arg := range args {
 		gm := model.FindGroupModel(arg)
@@ -935,8 +937,8 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/modelsource", buf)
-	Error(err)
+	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	Error(xErr)
 	Verbose(verMsg)
 }
 
@@ -960,11 +962,11 @@ func modelResourceListFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModel()
-	Error(err)
+	model, xErr := reg.GetModel()
+	Error(xErr)
 
 	gm := model.FindGroupModel(group)
 	if gm == nil {
@@ -1009,11 +1011,11 @@ func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModel()
-	Error(err)
+	model, xErr := reg.GetModel()
+	Error(xErr)
 
 	gm := model.FindGroupModel(group)
 	if gm == nil {
@@ -1055,13 +1057,13 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
 	groupPlural, groupSingular, _ := strings.Cut(group, ":")
 
-	modelSrc, err := reg.GetModelSource()
-	Error(err)
+	modelSrc, xErr := reg.GetModelSource()
+	Error(xErr)
 	gm := modelSrc.FindGroupModel(groupPlural)
 	if gm == nil {
 		if groupSingular == "" {
@@ -1083,8 +1085,8 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 		buf, err := json.MarshalIndent(modelSrc, "", "  ")
 		Error(err)
-		_, err = reg.HttpDo("PUT", "/modelsource", buf)
-		Error(err)
+		_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+		Error(xErr)
 		Verbose("Created Group type: %s:%s\n", groupPlural, groupSingular)
 		gm = modelSrc.FindGroupModel(groupPlural)
 	} else {
@@ -1158,8 +1160,8 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(modelSrc, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/modelsource", buf)
-	Error(err)
+	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	Error(xErr)
 	Verbose(verMsg)
 
 	if output == "none" {
@@ -1200,11 +1202,11 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, err := xrlib.GetRegistry(Server)
-	Error(err)
+	reg, xErr := xrlib.GetRegistry(Server)
+	Error(xErr)
 
-	model, err := reg.GetModelSource()
-	Error(err)
+	model, xErr := reg.GetModelSource()
+	Error(xErr)
 	gm := model.FindGroupModel(group)
 	if gm == nil {
 		Error("Group type %q does not exist", group)
@@ -1234,7 +1236,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, err = reg.HttpDo("PUT", "/modelsource", buf)
-	Error(err)
+	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	Error(xErr)
 	Verbose(verMsg)
 }
