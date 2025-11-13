@@ -99,42 +99,42 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe/")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", " /")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_reg", "/")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_reg\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" has an unknown Group type: \"xxxs\""
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs/")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
@@ -144,14 +144,14 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/?")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"?\""
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/file")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"file\""
 }`)
 
@@ -162,21 +162,21 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd?")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
@@ -188,14 +188,14 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?asd")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?/")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
@@ -483,7 +483,7 @@ func TestBasicTypes(t *testing.T) {
 
 				// xCheckEqual(t, "eType", xErr.Type,
 				// Type2Error["invalid_attribute"].Type)
-				// xCheckEqual(t, "eInstance", xErr.Instance, "")
+				// xCheckEqual(t, "eSubject", xErr.Subject, "")
 				if !strings.HasSuffix(xErr.GetTitle(), prop.ErrMsg) {
 					t.Errorf("Exp: %s", prop.ErrMsg)
 					t.Errorf("Got: %s", xErr.GetTitle())
@@ -741,7 +741,7 @@ func TestWildcardBoolTypes(t *testing.T) {
 	err = reg.SetSave("bogus", "foo")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"bogus\" is not valid: must be a boolean"
 }`)
 
@@ -816,7 +816,7 @@ func TestWildcard2LayersTypes(t *testing.T) {
 	err = reg.SetSave("obj.map.foo.k1.k2", 5)
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"obj.map.foo\" is not valid: must be an integer"
 }`)
 	// reg.Refresh(registry.FOR_WRITE) // clear bad data
@@ -847,7 +847,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`)
 
@@ -864,7 +864,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`)
 
@@ -890,7 +890,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"another-\" is not valid: while processing \"model.obj1.attr1.ifvalues.a1\", attribute name \"another-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`)
 
@@ -907,7 +907,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: while processing \"model.obj1\", map key name \"attr space\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }`)
 
@@ -926,7 +926,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`)
 
@@ -950,7 +950,7 @@ func TestNameCharSet(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.attr1.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`)
 

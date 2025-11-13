@@ -99,7 +99,7 @@ func TestAncestorBasic(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": ""}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The attribute \"ancestor\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
@@ -107,7 +107,7 @@ func TestAncestorBasic(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "vx"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): vx"
 }
 `)
@@ -149,7 +149,7 @@ func TestAncestorBasic(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): 2"
 }
 `)
@@ -157,7 +157,7 @@ func TestAncestorBasic(t *testing.T) {
 	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): 2"
 }
 `)
@@ -317,7 +317,7 @@ func TestAncestorBasic(t *testing.T) {
   "1": {"ancestor":"3"}, "2":{}, "3":{}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f4",
+  "subject": "http://localhost:8181/dirs/d1/files/f4",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2, 3"
 }
 `)
@@ -326,7 +326,7 @@ func TestAncestorBasic(t *testing.T) {
   "1": {"ancestor":"2"}, "2":{}, "3":{}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f4",
+  "subject": "http://localhost:8181/dirs/d1/files/f4",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2"
 }
 `)
@@ -336,7 +336,7 @@ func TestAncestorBasic(t *testing.T) {
   "3":{"ancestor":"4"}, "4":{"ancestor":"3"}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f4",
+  "subject": "http://localhost:8181/dirs/d1/files/f4",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2, 3, 4"
 }
 `)
@@ -665,7 +665,7 @@ func TestAncestorRoots(t *testing.T) {
 	err = reg.Model.VerifyAndSave()
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }`)
 	reg.LoadModel()   // reset
@@ -690,7 +690,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"ancestor":"v3"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }
 `)
@@ -699,7 +699,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"ancestor":"v3"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }
 `)
@@ -708,7 +708,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"v3":{"ancestor":"v3"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }
 `)
@@ -717,7 +717,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }
 `)
@@ -726,7 +726,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
 }
 `)
@@ -735,7 +735,7 @@ func TestAncestorRoots(t *testing.T) {
 		`{"versions":{"v1":{"ancestor":"v1"},"v3":{"ancestor":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: \"dirs/d1/files/f2\" has too many (2) root versions"
 }
 `)
@@ -758,7 +758,7 @@ func TestAncestorCircles(t *testing.T) {
 		`{"versions":{"v1":{"ancestor":"v2"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2"
 }
 `)
@@ -767,7 +767,7 @@ func TestAncestorCircles(t *testing.T) {
 		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2"
 }
 `)
@@ -777,7 +777,7 @@ func TestAncestorCircles(t *testing.T) {
 		              "v3":{"ancestor":"v4"},"v4":{"ancestor":"v3"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f2",
+  "subject": "http://localhost:8181/dirs/d1/files/f2",
   "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2, v3, v4"
 }
 `)
@@ -910,7 +910,7 @@ func TestAncestorErrors(t *testing.T) {
 		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): v2"
 }
 `)
@@ -921,7 +921,7 @@ func TestAncestorErrors(t *testing.T) {
 		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): v2"
 }
 `)

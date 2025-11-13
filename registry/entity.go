@@ -391,7 +391,7 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 
 	// Set, Validate and Save
 	xErr := e.SetPP(pp, val)
-	return xErr.SetInstance(e.Path)
+	return xErr.SetSubject(e.Path)
 }
 
 // Set the prop in the Entity but don't Validate or Save to the DB
@@ -805,7 +805,7 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if xErr := IsValidID(newID.(string), singular); xErr != nil {
-					xErr.Instance = e.Path
+					xErr.Subject = e.Path
 					return xErr
 				}
 
@@ -852,7 +852,7 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if xErr := IsValidID(newID.(string), "versionid"); xErr != nil {
-					xErr.Instance = e.Path
+					xErr.Subject = e.Path
 					return xErr
 				}
 
@@ -2021,8 +2021,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			/* Not sure what this was for :-)  save for now
 						if path.Len() > 0 {
 							if xErr := IsValidAttributeName(path.Bottom(), path.UI()); xErr != nil {
-			                    if xErr.Instance == "/" {
-			                        xErr.SetInstance(e.Path)
+			                    if xErr.Subject == "/" {
+			                        xErr.SetSubject(e.Path)
 			                    }
 								return xErr
 							}
@@ -2131,12 +2131,12 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			if keyPresent {
 				if namecharset == "extended" {
 					if xErr := IsValidMapKey(key, path.UI()); xErr != nil {
-						xErr.Instance = e.Path
+						xErr.Subject = e.Path
 						return xErr
 					}
 				} else if namecharset == "" || namecharset == "strict" {
 					if xErr := IsValidAttributeName(key, path.UI()); xErr != nil {
-						xErr.Instance = e.Path
+						xErr.Subject = e.Path
 						return xErr
 					}
 				} else {
@@ -2249,7 +2249,7 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
 
 		if path.Len() > 0 {
 			if xErr := IsValidMapKey(keyName, path.UI()); xErr != nil {
-				xErr.Instance = e.Path
+				xErr.Subject = e.Path
 				return xErr
 			}
 		}
@@ -2638,7 +2638,7 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 				xid, str, rm.Singular))
 	}
 	if xErr := IsValidID(strParts[4], ""); xErr != nil {
-		xErr.Instance = e.Path
+		xErr.Subject = e.Path
 		return xErr
 	}
 
@@ -2671,7 +2671,7 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 				xid, str))
 	}
 	if xErr := IsValidID(strParts[6], ""); xErr != nil {
-		xErr.Instance = e.Path
+		xErr.Subject = e.Path
 		return xErr
 	}
 

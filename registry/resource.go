@@ -905,7 +905,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 						fmt.Sprintf(` must be a string, not %T`, val))
 			}
 			if xErr = IsValidID(valStr, "ancestor"); xErr != nil {
-				xErr.Instance = r.Path
+				xErr.Subject = r.Path
 				return nil, false, xErr
 			}
 		}

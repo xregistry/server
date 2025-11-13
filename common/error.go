@@ -10,19 +10,21 @@ import (
 )
 
 type XRError struct {
-	Type      string
-	Title     string
-	TitleArgs []any
-	Instance  string
-	Detail    string
-	Code      int               // HTTP response code
-	Headers   map[string]string // HTTP headers to include in response
+	Type     string
+	Code     int // HTTP response code
+	Title    string
+	Args     []any
+	Subject  string
+	Detail   string
+	Instance string
+	Source   string
+	Headers  map[string]string // HTTP headers to include in response
 }
 
 /*
 func (xErr *XRError) Error() string {
 	return xErr.ToUserJson("")
-	// str := fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
+	// str := fmt.Sprintf(xErr.Title, xErr.Args...)
 	// if xErr.Detail != "" {
 	// str += " (" + xErr.Detail + ")"
 	// }
@@ -39,7 +41,7 @@ func NewXRErrorWithTitle(code int, title string) *XRError {
 }
 */
 
-func NewXRError(daType string, instance string, args ...any) *XRError {
+func NewXRError(daType string, subject string, args ...any) *XRError {
 	err := Type2Error[daType]
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
@@ -57,13 +59,13 @@ func NewXRError(daType string, instance string, args ...any) *XRError {
 	// ShowStack()
 
 	return &XRError{
-		Type:      err.Type,
-		Instance:  instance,
-		Title:     err.Title,
-		TitleArgs: args,
-		Detail:    err.Detail,
-		Code:      err.Code,
-		Headers:   maps.Clone(err.Headers),
+		Type:    err.Type,
+		Subject: subject,
+		Title:   err.Title,
+		Args:    args,
+		Detail:  err.Detail,
+		Code:    err.Code,
+		Headers: maps.Clone(err.Headers),
 	}
 }
 
@@ -213,9 +215,9 @@ func init() {
 	}
 }
 
-func (xErr *XRError) SetInstance(i string) *XRError {
+func (xErr *XRError) SetSubject(s string) *XRError {
 	if xErr != nil {
-		xErr.Instance = i
+		xErr.Subject = s
 	}
 	return xErr
 }
@@ -227,9 +229,9 @@ func (xErr *XRError) SetTitle(t string) *XRError {
 	return xErr
 }
 
-func (xErr *XRError) SetTitleArgs(args ...any) *XRError {
+func (xErr *XRError) SetArgs(args ...any) *XRError {
 	if xErr != nil {
-		xErr.TitleArgs = args
+		xErr.Args = args
 	}
 	return xErr
 }
@@ -274,11 +276,11 @@ func (xErr *XRError) SetHeader(name, value string) *XRError {
 
 func (xErr *XRError) String() string {
 	return xErr.ToUserJson("")
-	str := fmt.Sprintf(xErr.Title, xErr.TitleArgs)
+	str := fmt.Sprintf(xErr.Title, xErr.Args)
 	str = fmt.Sprintf("%d/%s: %s", xErr.Code, xErr.Type, str)
 
-	if xErr.Instance != "" {
-		str += "(" + xErr.Instance + ")"
+	if xErr.Subject != "" {
+		str += "(" + xErr.Subject + ")"
 	}
 
 	if xErr.Detail != "" {
@@ -295,17 +297,17 @@ func (xErr *XRError) String() string {
 func (xErr *XRError) ToUserJson(baseURL string) string {
 	str := "{\n"
 	str += fmt.Sprintf("  \"type\": %q,\n", xErr.Type)
-	inst := xErr.Instance
-	if len(inst) == 0 {
-		inst = "/"
-	} else if inst[0] != '/' && !strings.HasPrefix(inst, "http") {
+	sub := xErr.Subject
+	if len(sub) == 0 {
+		sub = "/"
+	} else if sub[0] != '/' && !strings.HasPrefix(sub, "http") {
 		// If we ever change e.Path so it starts with "/" then we should
 		// be able to stop looking for "http" as a special case
-		inst = "/" + inst
+		sub = "/" + sub
 	}
 
 	u := strings.TrimRight(baseURL, "/")
-	str += fmt.Sprintf("  \"instance\": %q,\n", u+inst)
+	str += fmt.Sprintf("  \"subject\": %q,\n", u+sub)
 	str += fmt.Sprintf("  \"title\": %q", xErr.GetTitle())
 	if xErr.Detail != "" {
 		str += fmt.Sprintf(",\n  \"detail\": %q", xErr.Detail)
@@ -315,7 +317,7 @@ func (xErr *XRError) ToUserJson(baseURL string) string {
 }
 
 func (xErr *XRError) GetTitle() string {
-	return fmt.Sprintf(xErr.Title, xErr.TitleArgs...)
+	return fmt.Sprintf(xErr.Title, xErr.Args...)
 }
 
 func (xErr *XRError) IsType(daType string) bool {

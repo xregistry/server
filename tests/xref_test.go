@@ -25,7 +25,7 @@ func TestXrefBasic(t *testing.T) {
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/meta",
   "title": "The request cannot be processed as provided: error parsing 'xref': \"dirs/d1/files/f1\" must start with /"
 }
 `)
@@ -34,7 +34,7 @@ func TestXrefBasic(t *testing.T) {
 		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/meta",
   "title": "The request cannot be processed as provided: error parsing 'xref': \"/foo/dirs/d1/files/f1\" must be of the form: /GROUPS/GID/RESOURCES/RID"
 }
 `)
@@ -618,25 +618,25 @@ func TestXrefErrors(t *testing.T) {
 	xCheckErr(t, gm2.AddXImportResource("dirs/files"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value \"dirs/files\" must start with /"
 }`)
 	xCheckErr(t, gm2.AddXImportResource("/dirs/files/versions"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value of \"/dirs/files/versions\" must be of the form: /GROUPS/RESOURCES"
 }`)
 	xCheckErr(t, gm2.AddXImportResource("/dirs"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value of \"/dirs\" must be of the form: /GROUPS/RESOURCES"
 }`)
 	xCheckErr(t, gm2.AddXImportResource("//files"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value \"//files\" has an empty part at position 1"
 }`)
 
@@ -651,7 +651,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref": "/dirs/d1/files/fx","fileid":"f2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The specified \"file\" ID value (f2) needs to be \"f1\""
 }
 `)
@@ -659,7 +659,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref": "/dirs/d1/files/fx","epoch":5}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"epoch\" is not valid: value (5) doesn't match existing value (1)"
 }
 `)
@@ -668,7 +668,7 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: extra attributes (modifiedat) in \"meta\" not allowed when \"xref\" is set"
 }
 `)
@@ -676,7 +676,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"foo":"foo","xref": "/dirs/d1/files/fx"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: extra attributes (foo) in \"meta\" not allowed when \"xref\" is set"
 }
 `)
@@ -686,7 +686,7 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: extra attributes (description,epoch) not allowed when \"xref\" is set"
 }
 `)
@@ -695,7 +695,7 @@ func TestXrefErrors(t *testing.T) {
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: extra attributes (description,epoch) not allowed when \"xref\" is set"
 }
 `)
@@ -704,7 +704,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"fileid": "f2", "meta": {"xref":"/dirs/d1/files/f1"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"f2\""
 }
 `)
@@ -712,7 +712,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"meta": {"xref":"/dirs/d1/files/f1","epoch":6}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"epoch\" is not valid: value (6) doesn't match existing value (1)"
 }
 `)
@@ -720,7 +720,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: extra attributes (modifiedat) in \"meta\" not allowed when \"xref\" is set"
 }
 `)
@@ -740,7 +740,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref":"/bars/b1/files/f1"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/bars/b1/files/f1/meta",
+  "subject": "http://localhost:8181/bars/b1/files/f1/meta",
   "title": "The request cannot be processed as provided: 'xref' \"/bars/b1/files/f1\" must point to a Resource of type \"/dirs/files\" not \"/bars/files\""
 }
 `)
@@ -749,7 +749,7 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref":"/bars/b1/files/f2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/bars/b1/files/f1/meta",
+  "subject": "http://localhost:8181/bars/b1/files/f1/meta",
   "title": "The request cannot be processed as provided: 'xref' \"/bars/b1/files/f2\" must point to a Resource of type \"/dirs/files\" not \"/bars/files\""
 }
 `)
@@ -1242,7 +1242,7 @@ func TestXrefRevert(t *testing.T) {
   "versions": { "z2": {}, "b3": {} }
 } `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: Version \"bb\" not found"
 }
 `)
@@ -1329,7 +1329,7 @@ func TestXrefRevert(t *testing.T) {
   "versions": { "z2": {}, "b3": {} }
 } `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/meta",
   "title": "The \"Version\" with the ID \"bb\" cannot be found"
 }
 `)
@@ -1400,7 +1400,7 @@ func TestXrefRevert(t *testing.T) {
           "defaultversionid": "bb"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/meta",
   "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
 }
 `)
@@ -1412,7 +1412,7 @@ func TestXrefRevert(t *testing.T) {
 		  "defaultversionsticky": true }`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/meta",
   "title": "The \"Version\" with the ID \"bb\" cannot be found"
 }
 `)
@@ -1546,49 +1546,49 @@ func TestXrefDocs(t *testing.T) {
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx$details", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: Version \"2\" not found"
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=1",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"defaultversionid\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1597,28 +1597,28 @@ func TestXrefDocs(t *testing.T) {
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", `{"vv":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions/1", "hi", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
   "title": "The specified action (POST) is not supported",
   "detail": "POST not allowed on a version"
 }
@@ -1626,14 +1626,14 @@ func TestXrefDocs(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx",
+  "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1642,7 +1642,7 @@ func TestXrefDocs(t *testing.T) {
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fy",
+  "subject": "http://localhost:8181/dirs/d1/files/fy",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1650,7 +1650,7 @@ func TestXrefDocs(t *testing.T) {
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fy",
+  "subject": "http://localhost:8181/dirs/d1/files/fy",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1659,7 +1659,7 @@ func TestXrefDocs(t *testing.T) {
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fy",
+  "subject": "http://localhost:8181/dirs/d1/files/fy",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1667,7 +1667,7 @@ func TestXrefDocs(t *testing.T) {
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fy",
+  "subject": "http://localhost:8181/dirs/d1/files/fy",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1676,7 +1676,7 @@ func TestXrefDocs(t *testing.T) {
 		`{"files":{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d2/files/fy",
+  "subject": "http://localhost:8181/dirs/d2/files/fy",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
@@ -1684,14 +1684,14 @@ func TestXrefDocs(t *testing.T) {
 	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/1", ``,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
   "title": "The request cannot be processed as provided: can't delete \"versions\" of a Resource that uses \"xref\""
 }
 `)
 	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/x", ``,
 		404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/x",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/x",
   "title": "The specified entity cannot be found: /dirs/d1/files/fx/versions/x"
 }
 `)
@@ -1699,7 +1699,7 @@ func TestXrefDocs(t *testing.T) {
 	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/", `{"1":{}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
   "title": "The request cannot be processed as provided: can't delete \"versions\" of a Resource that uses \"xref\""
 }
 `)

@@ -302,7 +302,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: xxx"
 }
 `,
@@ -312,7 +312,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=Dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: Dirs"
 }
 `,
@@ -322,7 +322,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx.files",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: xxx.files"
 }
 `,
@@ -332,7 +332,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.xxx"
 }
 `,
@@ -352,7 +352,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs",
+  "subject": "http://localhost:8181/dirs",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs"
 }
 `,
@@ -372,7 +372,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=files.versions.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs",
+  "subject": "http://localhost:8181/dirs",
   "title": "The request cannot be processed as provided: invalid 'inline' value: files.versions.xxx"
 }
 `,
@@ -408,7 +408,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs,dirs2.files.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs2.files.xxx"
 }
 `,
@@ -689,7 +689,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=XXversions.file",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1-proxy$details",
+  "subject": "http://localhost:8181/dirs/d1/files/f1-proxy$details",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.XXversions.file"
 }
 `,
@@ -699,7 +699,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.yy"
 }
 `,
@@ -709,7 +709,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.version.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.version.yy"
 }
 `,
@@ -1309,120 +1309,120 @@ func TestInlineWildcards(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: Unexpected . in \".*\" at pos 1"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: foo.*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: foo*"
 }
 `)
 
 	xHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad.*"
 }
 `)
 
 	xHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad.*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file.*"
 }
 `)
 
 	xHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta.*"
 }
 `)
 
 	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.bad*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.bad*"
 }
 `)
 
 	xHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: model.*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: model.bad*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.*"
 }
 `)
 	xHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.bad*"
 }
 `)

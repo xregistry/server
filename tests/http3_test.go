@@ -1032,14 +1032,14 @@ func TestHTTPModelSource(t *testing.T) {
 	xHTTP(t, reg, "POST", "/modelsource", `{}`, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "instance": "http://localhost:8181/modelsource",
+  "subject": "http://localhost:8181/modelsource",
   "title": "The specified action (POST) is not supported"
 }
 `)
 	xHTTP(t, reg, "PATCH", "/modelsource", `{}`, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "instance": "http://localhost:8181/modelsource",
+  "subject": "http://localhost:8181/modelsource",
   "title": "The specified action (PATCH) is not supported"
 }
 `)
@@ -1073,7 +1073,7 @@ func TestHTTPModelSource(t *testing.T) {
 }`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: 'POST /' only allows Group types to be specified. \"modelsource\" is invalid"
 }
 `)
@@ -1173,39 +1173,39 @@ func TestHTTPSort(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
 	xHTTP(t, reg, "GET", "/dirs/d1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1$details",
+  "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
@@ -2357,7 +2357,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: \"groups.dirs.strs\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
 }
 `)
@@ -2383,7 +2383,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "The attribute \"strs\" is not valid: must be an integer"
 }
 `)
@@ -2408,7 +2408,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: \"groups.dirs.strs\" enum value \"1\" must be of type \"integer\""
 }
 `)
@@ -2436,7 +2436,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "The attribute \"strs[0]\" is not valid: must be an integer"
 }
 `)
@@ -2464,7 +2464,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "The attribute \"strs\" is not valid: must be an array"
 }
 `)
@@ -2516,7 +2516,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "The attribute \"strs[0]\" is not valid: value (2) must be one of the enum values: 1"
 }
 `)

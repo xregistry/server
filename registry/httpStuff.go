@@ -1923,7 +1923,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		objMap, xErr := IncomingObj2Map(IncomingObj)
 		if xErr != nil {
-			return xErr.SetInstance(info.GetParts(0)).SetTitle(
+			return xErr.SetSubject(info.GetParts(0)).SetTitle(
 				"body must be a map of Group types")
 		}
 
@@ -1937,7 +1937,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			gMap, xErr := IncomingObj2Map(gAny)
 			if xErr != nil {
-				return xErr.SetInstance(info.GetParts(0))
+				return xErr.SetSubject(info.GetParts(0))
 			}
 
 			for id, obj := range gMap {
@@ -1974,7 +1974,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		objMap, xErr := IncomingObj2Map(IncomingObj)
 		if xErr != nil {
-			return xErr.SetInstance(info.GetParts(0))
+			return xErr.SetSubject(info.GetParts(0))
 		}
 
 		addType := ADD_UPSERT
@@ -2030,7 +2030,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
 		objMap, xErr := IncomingObj2Map(IncomingObj)
 		if xErr != nil {
-			return xErr.SetInstance(info.GetParts(2)).SetTitle(
+			return xErr.SetSubject(info.GetParts(2)).SetTitle(
 				fmt.Sprintf("body must be a map of Resource types"))
 		}
 
@@ -2049,7 +2049,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			rMap, xErr := IncomingObj2Map(rAny)
 			if xErr != nil {
-				return xErr.SetInstance(info.GetParts(0))
+				return xErr.SetSubject(info.GetParts(0))
 			}
 
 			for id, obj := range rMap {
@@ -2108,7 +2108,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		objMap, xErr := IncomingObj2Map(IncomingObj)
 		if xErr != nil {
-			return xErr.SetInstance(info.GetParts(0))
+			return xErr.SetSubject(info.GetParts(0))
 		}
 
 		// For each Resource in the map, upsert it and add it's path to result

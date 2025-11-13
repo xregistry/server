@@ -25,28 +25,28 @@ func TestCreateRegistry(t *testing.T) {
 `)
 	xCheckGet(t, reg, "/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/xxx",
+  "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
 	xCheckGet(t, reg, "xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/xxx",
+  "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
 	xCheckGet(t, reg, "/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/xxx",
+  "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
 	xCheckGet(t, reg, "xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/xxx",
+  "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
@@ -181,7 +181,7 @@ func TestRegistryRequiredFields(t *testing.T) {
 	err = reg.SetSave("description", "testing")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/",
+  "subject": "/",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
@@ -215,7 +215,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" \"default\" value must be of type \"string\""
 }`)
 
@@ -226,7 +226,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" must have \"require\" set to \"true\" since a default value is defined"
 }`)
 
@@ -238,7 +238,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" is not a scalar, so \"default\" is not allowed"
 }`)
 
@@ -250,7 +250,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" \"default\" value must be of type \"string\""
 }`)
 
@@ -280,7 +280,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	err = reg.SaveModel()
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.myobj.defint\" \"default\" value must be of type \"integer\""
 }`)
 	reg.LoadModel()
@@ -296,7 +296,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	err = reg.SaveModel()
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"model.myobj.defint\" is not a scalar, so \"default\" is not allowed"
 }`)
 	reg.LoadModel()

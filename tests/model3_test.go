@@ -24,7 +24,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g2p\" has an invalid \"ximportresources\" value (/g1p), must be of the form \"/Group/Resource\""
 }
 `)
@@ -42,7 +42,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g2p\" references a non-existing Group \"gxx\""
 }
 `)
@@ -60,7 +60,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g2p\" references a non-existing Resource \"/g1p/xxx\""
 }
 `)
@@ -77,7 +77,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Resource \"r1p\" has same value for \"plural\" and \"singular\""
 }
 `)
@@ -97,7 +97,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g1p\" has a Resource \"r2p\" that has a duplicate \"singular\" name \"r1s\""
 }
 `)
@@ -115,7 +115,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g2p\" has a duplicate Resource \"plural\" name \"r1p\""
 }
 `)
@@ -135,7 +135,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: model type name \"R1S\" must match: ^[a-z_][a-z_0-9]{0,56}$"
 }
 `)
@@ -159,7 +159,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g3p\" references an imported Resource \"/g2p/r1p\", try using \"/g1p/r1p\" instead"
 }
 `)
@@ -176,7 +176,7 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: Group \"g1p\" has a bad \"ximportresources\" value (/g1p/r1p), it can't reference its own Group"
 }
 `)
@@ -241,7 +241,7 @@ func TestModelXImport(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r1p/r1"}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/g2p/g1/r2p/r2/meta",
+  "subject": "http://localhost:8181/g2p/g1/r2p/r2/meta",
   "title": "The request cannot be processed as provided: 'xref' \"/g1p/g1/r1p/r1\" must point to a Resource of type \"/g1p/r2p\" not \"/g1p/r1p\""
 }
 `)
@@ -2226,7 +2226,7 @@ func TestModelNoResAttrExts(t *testing.T) {
       }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: extension attributes are not allowed in \"resourceattributes\": myext"
 }
 `)
@@ -2253,7 +2253,7 @@ func TestModelNoResAttrExts(t *testing.T) {
       }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: extension attributes are not allowed in \"resourceattributes\": myext1,myext2"
 }
 `)
@@ -2289,7 +2289,7 @@ func TestModelUpdateSingular(t *testing.T) {
       }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: changing the singular name of Group \"dirs\" is not allowed"
 }
 `)
@@ -2307,7 +2307,7 @@ func TestModelUpdateSingular(t *testing.T) {
       }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: changing the singular name of Resource \"files\" is not allowed"
 }
 `)

@@ -174,6 +174,7 @@ func Fail(t *testing.T, str string, args ...any) {
 	t.Fatalf("%s\n\n", text)
 }
 
+// got, any
 func xCheckErr(t *testing.T, errAny any, errStr string) {
 	t.Helper()
 
@@ -189,11 +190,6 @@ func xCheckErr(t *testing.T, errAny any, errStr string) {
 	}
 
 	xCheckEqual(t, "", errAny, errStr)
-	/*
-		if errAny.String() != errStr {
-			t.Fatalf("\nGot: %s\nExp: %s", errAny.String(), errStr)
-		}
-	*/
 }
 
 func xCheck(t *testing.T, b bool, errStr string, args ...any) {
@@ -262,27 +258,6 @@ func xCheckGreater(t *testing.T, extra string, newAny any, oldAny any) {
 	}
 
 	t.Fatalf("New not > Old:\nOld:\n%s\n\nNew:\n%s", Old, New)
-}
-
-var TSREGEXP = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
-var TSMASK = TSREGEXP + `||YYYY-MM-DDTHH:MM:SSZ`
-
-// Mask timestamps, but if (for the same input) the same TS is used, make sure
-// the mask result is the same for just those two
-func MaskTimestamps(input string) string {
-	seenTS := map[string]string{}
-
-	replaceFunc := func(input string) string {
-		if val, ok := seenTS[input]; ok {
-			return val
-		}
-		val := fmt.Sprintf("YYYY-MM-DDTHH:MM:%02dZ", len(seenTS)+1)
-		seenTS[input] = val
-		return val
-	}
-
-	re := savedREs[TSREGEXP]
-	return re.ReplaceAllStringFunc(input, replaceFunc)
 }
 
 func xCheckEqual(t *testing.T, extra string, gotAny any, expAny any) {
@@ -503,7 +478,7 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	resReplaceFunc := func(input string) string {
 		return replaceFunc(input, resSeenTS)
 	}
-	TSre := savedREs[TSREGEXP]
+	TSre := SavedREs[TSREGEXP]
 
 	// Parse expected headers - split and lowercase the name
 	for _, v := range test.ResHeaders {
@@ -534,9 +509,9 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	for _, mask := range test.HeaderMasks {
 		var re *regexp.Regexp
 		search, replace, _ := strings.Cut(mask, "||")
-		if re = savedREs[search]; re == nil {
+		if re = SavedREs[search]; re == nil {
 			re = regexp.MustCompile(search)
-			savedREs[search] = re
+			SavedREs[search] = re
 		}
 		headerMasks = append(headerMasks, re)
 		headerReplace = append(headerReplace, replace)
@@ -620,9 +595,9 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 				replace = `${1}xxx${3}`
 			}
 
-			if re = savedREs[search]; re == nil {
+			if re = SavedREs[search]; re == nil {
 				re = regexp.MustCompile(search)
-				savedREs[search] = re
+				SavedREs[search] = re
 			}
 
 			resBody = re.ReplaceAll(resBody, []byte(replace))
@@ -635,10 +610,6 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 			t.FailNow()
 		}
 	}
-}
-
-var savedREs = map[string]*regexp.Regexp{
-	TSREGEXP: regexp.MustCompile(TSREGEXP),
 }
 
 func xJSONCheck(t *testing.T, gotObj any, expObj any) {

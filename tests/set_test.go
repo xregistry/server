@@ -30,49 +30,49 @@ func TestSetAttributeNames(t *testing.T) {
 		{"_123_", ""},
 		{"_123_", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: attribute \"_123_\" already exists"
 }`},
 		{"_", ""},
 		{"__", ""},
 		{"", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{sixty + "1234", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"a234567890123456789012345678901234567890123456789012345678901234\" is not valid: attribute name \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"1234", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"1234\" is not valid: attribute name \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"A", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"A\" is not valid: attribute name \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"aA", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"aA\" is not valid: attribute name \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"_A", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"_A\" is not valid: attribute name \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"_ _", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"_ _\" is not valid: attribute name \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 		{"#abc", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/",
+  "subject": "/",
   "title": "The attribute \"#abc\" is not valid: attribute name \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }`},
 	}
@@ -191,7 +191,7 @@ func TestSetDots(t *testing.T) {
 	xErr = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
 	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The attribute \"labels.xxx\" is not valid: must be a string"
 }`)
 
@@ -236,14 +236,14 @@ func TestSetDots(t *testing.T) {
 	xErr = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
 	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected / in \"labels.xxx/yyy\" at pos 11"
 }`)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
 	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected . in \"labels..abc\" at pos 8"
 }`)
 
@@ -253,7 +253,7 @@ func TestSetDots(t *testing.T) {
 	xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
 	xCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: invalid extension(s): xxx"
 }`)
 	xCheck(t, xErr != nil, "xxx.yyy=nil should fail")
@@ -348,7 +348,7 @@ func TestSetLabels(t *testing.T) {
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The attribute \"labels.vv\" is not valid: must be a string"
 }`)
 	// ver.Refresh(registry.FOR_WRITE) // undo the change, otherwise next Set() will fail
@@ -615,37 +615,37 @@ func TestSetNameUser(t *testing.T) {
 		{"a", ""},
 		{"", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
 		{"#a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"#a\" is not valid: attribute name \"#a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
 		{"$a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"$a\" is not valid: attribute name \"$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
 		{"a$a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"a$a\" is not valid: attribute name \"a$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
 		{"a$", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"a$\" is not valid: attribute name \"a$\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
 		{"a.", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The attribute \"a.\" is not valid: attribute name \"a.\" must match: ^[a-z_][a-z_0-9]{0,62}$"
 }
 `},
@@ -726,14 +726,14 @@ func TestSetNameUser(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/", `{"mymap":{":bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \":bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }
 `)
 	xHTTP(t, reg, "PUT", "/", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }
 `)
@@ -744,7 +744,7 @@ func TestSetNameUser(t *testing.T) {
 	xHTTP(t, reg, "PUT", "/dirs/d1", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/dirs/d1",
+  "subject": "http://localhost:8181/dirs/d1",
   "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }
 `)
@@ -757,7 +757,7 @@ func TestSetNameUser(t *testing.T) {
 		`{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
   "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }
 `)

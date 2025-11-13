@@ -324,7 +324,7 @@ func TestProcessIncludes(t *testing.T) {
 	mask := regexp.MustCompile(`".*/xreg[^/]*`)
 	m1 := `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: `
 	m2 := `"
 }`
@@ -364,10 +364,13 @@ func TestProcessIncludes(t *testing.T) {
 		exp = string(mask.ReplaceAll([]byte(exp), []byte("tmp")))
 		buf = mask.ReplaceAll(buf, []byte("tmp"))
 
-		if string(buf) != exp {
-			t.Fatalf("\nPath: %s\nExp: %s<<\nGot: %s<<",
-				test.Path, exp, string(buf))
-		}
+		XEqual(t, test.Path, string(buf), exp)
+		/*
+			if string(buf) != exp {
+				t.Fatalf("\nPath: %s\nExp: %s<<\nGot: %s<<",
+					test.Path, exp, string(buf))
+			}
+		*/
 	}
 
 	server.Shutdown(context.Background())

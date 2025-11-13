@@ -65,26 +65,26 @@ func TestCreateResource(t *testing.T) {
 `)
 	xCheckGet(t, reg, "/dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
 }
 `)
 	xCheckGet(t, reg, "dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
 }
 `)
 	xCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
   "detail": "Expected \"versions\" or \"meta\", got: yyy"
 }
 `)
 	xCheckGet(t, reg, "dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
   "detail": "Expected \"versions\" or \"meta\", got: yyy"
 }
@@ -170,7 +170,7 @@ func TestResourceRequiredFields(t *testing.T) {
 	_, err = group.AddResource("files", "f1", "v1")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 	reg.Rollback()
@@ -185,7 +185,7 @@ func TestResourceRequiredFields(t *testing.T) {
 	err = f1.SetSaveDefault("req", nil)
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1/versions/v1",
+  "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
@@ -209,7 +209,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: \"maxversions\"(-1) must be >= 0"
 }`)
 	// reg.LoadModel()
@@ -222,7 +222,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	})
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "instance": "/",
+  "subject": "/",
   "title": "There was an error in the model definition provided: 'setdefaultversionsticky' must be 'false' since 'maxversions' is '1'"
 }`)
 	// reg.LoadModel()
@@ -388,7 +388,7 @@ func TestResourceDeprecated(t *testing.T) {
       }
     }  `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"deprecated.effective\" is not valid: is a malformed timestamp"
 }
 `)
@@ -400,7 +400,7 @@ func TestResourceDeprecated(t *testing.T) {
       }
     }  `, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"deprecated.removal\" is not valid: is a malformed timestamp"
 }
 `)

@@ -1275,7 +1275,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions",
   "title": "The specified flag (doc) is not allowed in this context",
   "detail": "'doc' flag is not allowed on xref'd Versions"
 }
@@ -1284,7 +1284,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
   "title": "The specified flag (doc) is not allowed in this context",
   "detail": "'doc' flag is not allowed on xref'd Versions"
 }
@@ -1483,7 +1483,7 @@ func TestExportBasic(t *testing.T) {
 	xCheckEqual(t, "", fullBody, manualBody)
 	xCheckEqual(t, "", fullBody, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/",
+  "subject": "http://localhost:8181/",
   "title": "The specified entity cannot be found: /"
 }
 `)
@@ -1747,7 +1747,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v1/foo",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1/foo",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/v1/foo"
 }
 `)
@@ -1755,7 +1755,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/fx/versions/v1/foo",
+  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1/foo",
   "title": "The specified entity cannot be found: /dirs/d1/files/fx/versions/v1/foo"
 }
 `)
@@ -1763,7 +1763,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/vx",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/vx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/vx"
 }
 `)
@@ -1771,7 +1771,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/fz",
+  "subject": "http://localhost:8181/dirs/d1/files/fz",
   "title": "The specified entity cannot be found: /dirs/d1/files/fz"
 }
 `)
@@ -1779,7 +1779,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/fz",
+  "subject": "http://localhost:8181/dirs/d1/files/fz",
   "title": "The specified entity cannot be found: /dirs/d1/files/fz"
 }
 `)
@@ -1787,7 +1787,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/dx",
+  "subject": "http://localhost:8181/dirs/dx",
   "title": "The specified entity cannot be found: /dirs/dx"
 }
 `)
@@ -1795,7 +1795,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/filesx",
+  "subject": "http://localhost:8181/dirs/d1/filesx",
   "title": "The specified entity cannot be found: /dirs/d1/filesx",
   "detail": "Unknown Resource type: filesx"
 }
@@ -1804,7 +1804,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/dx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/dx",
+  "subject": "http://localhost:8181/dirs/dx",
   "title": "The specified entity cannot be found: /dirs/dx"
 }
 `)
@@ -1812,7 +1812,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirsx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirsx",
+  "subject": "http://localhost:8181/dirsx",
   "title": "The specified entity cannot be found: /dirsx",
   "detail": "Unknown Group type: dirsx"
 }
@@ -1821,7 +1821,7 @@ func TestExportBasic(t *testing.T) {
 	xHTTP(t, reg, "GET", "/dirs/dx/files/fz/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/dx/files/fz/versions/vx",
+  "subject": "http://localhost:8181/dirs/dx/files/fz/versions/vx",
   "title": "The specified entity cannot be found: /dirs/dx/files/fz/versions/vx"
 }
 `)

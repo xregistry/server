@@ -60,26 +60,26 @@ func TestCreateGroup(t *testing.T) {
 `)
 	xCheckGet(t, reg, "/dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/xxx",
+  "subject": "http://localhost:8181/dirs/xxx",
   "title": "The specified entity cannot be found: /dirs/xxx"
 }
 `)
 	xCheckGet(t, reg, "dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/xxx",
+  "subject": "http://localhost:8181/dirs/xxx",
   "title": "The specified entity cannot be found: /dirs/xxx"
 }
 `)
 	xCheckGet(t, reg, "/dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/xxx/yyy",
   "detail": "Unknown Resource type: yyy"
 }
 `)
 	xCheckGet(t, reg, "dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/xxx/yyy",
   "detail": "Unknown Resource type: yyy"
 }
@@ -130,7 +130,7 @@ func TestGroupRequiredFields(t *testing.T) {
 	_, err = reg.AddGroup("dirs", "d1")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 	reg.Rollback()
@@ -144,7 +144,7 @@ func TestGroupRequiredFields(t *testing.T) {
 	err = g1.SetSave("req", nil)
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1",
+  "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 

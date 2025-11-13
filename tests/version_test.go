@@ -67,25 +67,25 @@ func TestCreateVersion(t *testing.T) {
 `)
 	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx"
 }
 `)
 	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx"
 }
 `)
 	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx/yyy"
 }
 `)
 	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx/yyy"
 }
 `)
@@ -186,7 +186,7 @@ func TestCreateVersion(t *testing.T) {
 	err = vt.DeleteSetNextVersion("v2")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d2/files/f1",
+  "subject": "/dirs/d2/files/f1",
   "title": "The request cannot be processed as provided: can't find next default Version \"v2\""
 }`)
 
@@ -197,7 +197,7 @@ func TestCreateVersion(t *testing.T) {
 	err = vt.DeleteSetNextVersion("v1.1")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d2/files/f1/versions/v1.1",
+  "subject": "/dirs/d2/files/f1/versions/v1.1",
   "title": "The request cannot be processed as provided: can't set \"defaultversionid\" to a Version that is being deleted"
 }`)
 
@@ -462,7 +462,7 @@ func TestDefaultVersion(t *testing.T) {
 	err = v3.DeleteSetNextVersion("v1")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't find next default Version \"v1\""
 }`)
 	err = v3.DeleteSetNextVersion("v2")
@@ -569,7 +569,7 @@ func TestDefaultVersion(t *testing.T) {
 	xNoErr(t, v5.DeleteSetNextVersion(""))
 	xCheckGet(t, reg, "dirs/d1/files/f1$details", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1$details",
+  "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1$details"
 }
 `)
@@ -755,7 +755,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	_, err = f1.AddVersion("v2")
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1/versions/v2",
+  "subject": "/dirs/d1/files/f1/versions/v2",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 	reg.Rollback()
@@ -768,7 +768,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	err = v1.SetSave("req", nil)
 	xCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "/dirs/d1/files/f1/versions/v2",
+  "subject": "/dirs/d1/files/f1/versions/v2",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
@@ -856,7 +856,7 @@ func TestVersionOrdering(t *testing.T) {
 
 	xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1"
 }
 `)

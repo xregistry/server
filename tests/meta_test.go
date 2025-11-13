@@ -92,7 +92,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:    405,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "instance": "http://localhost:8181/dirs/d1/files/f11/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f11/meta",
   "title": "The specified action (POST) is not supported",
   "detail": "POST not allowed on a 'meta'"
 }
@@ -106,7 +106,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:   404,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
 }
 `,
@@ -119,7 +119,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:   404,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
 }
 `,
@@ -132,7 +132,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:   404,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "instance": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
+  "subject": "http://localhost:8181/dirs/d1/files/f11/meta/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f11/meta/xxx"
 }
 `,
@@ -409,7 +409,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: invalid extension(s): fff"
 }
 `,
@@ -423,7 +423,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f21/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f21/meta",
   "title": "The request cannot be processed as provided: invalid extension(s): fff"
 }
 `,
@@ -529,7 +529,7 @@ func TestMetaSimple(t *testing.T) {
 		Code:   405,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The specified action (DELETE) is not supported"
 }
 `,
@@ -625,7 +625,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: when \"versionid\"(v2.0) is present it must match the \"defaultversionid\"(v1.0)"
 }
 `,
@@ -639,7 +639,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1",
+  "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"foo\""
 }
 `,
@@ -653,7 +653,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The specified \"file\" ID value (foo) needs to be \"f1\""
 }
 `,
@@ -966,7 +966,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
   "title": "The request cannot be processed as provided: invalid extension(s): defaultversionid,defaultversionsticky"
 }
 `,
@@ -1159,7 +1159,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
 }
 `,
@@ -1237,7 +1237,7 @@ func TestMetaCombos(t *testing.T) {
 		Code: 400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The request cannot be processed as provided: attribute \"defaultversionid\" must be \"1\" since \"defaultversionsticky\" is \"false\""
 }
 `,
@@ -1450,7 +1450,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"epoch\" is not valid: value (1) doesn't match existing value (12)"
 }
 `,
@@ -1464,7 +1464,7 @@ func TestMetaCombos(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "instance": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The attribute \"epoch\" is not valid: value (1) doesn't match existing value (12)"
 }
 `,
