@@ -5,16 +5,18 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	. "github.com/xregistry/server/common"
 )
 
 func TestXRServerBasic(t *testing.T) {
 	cmd := exec.Command("../xrserver", "-?")
 	out, err := cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	lines, _, _ := strings.Cut(string(out), "Available Commands:")
 
 	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines,
+	XEqual(t, "", lines,
 		`xRegistry server
 
 Usage:
@@ -25,15 +27,15 @@ Usage:
 
 	cmd = exec.Command("../xrserver", "--verify")
 	out, err = cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 
 	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines, "")
+	XEqual(t, "", lines, "")
 
 	cmd = exec.Command("../xrserver", "-v", "--verify")
 	out, err = cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	lines, _, _ = strings.Cut(string(out), "Available Commands:")
 	exp := `2025/05/21 19:01:39 GitCommit: 8061f34abf
 2025/05/21 19:01:39 DB server: localhost:3306
@@ -53,7 +55,7 @@ Usage:
 	exp = re.ReplaceAllString(exp, "DB server: xxx:3306")
 
 	// Just look for the first 3 lines
-	xCheckEqual(t, "", lines, exp)
+	XEqual(t, "", lines, exp)
 
 }
 
@@ -63,7 +65,7 @@ func TestXRServerRecreates(t *testing.T) {
 
 	cmd := exec.Command("../xrserver", "--recreatedb", "-vv", "--verify")
 	buf, err := cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	out := string(buf)
 
 	exp := `
@@ -88,13 +90,13 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "DB server: xxx:3306")
 	exp = re.ReplaceAllString(exp, "DB server: xxx:3306")
 
-	xCheckEqual(t, "", out, exp)
+	XEqual(t, "", out, exp)
 
 	// --
 
 	cmd = exec.Command("../xrserver", "--recreatereg", "-vv", "--verify")
 	buf, err = cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	out = string(buf)
 
 	exp = `
@@ -118,14 +120,14 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "DB server: xxx:3306")
 	exp = re.ReplaceAllString(exp, "DB server: xxx:3306")
 
-	xCheckEqual(t, "", out, exp)
+	XEqual(t, "", out, exp)
 
 	// --
 
 	cmd = exec.Command("../xrserver", "--recreatereg", "--recreatedb", "-vv",
 		"--verify")
 	buf, err = cmd.CombinedOutput()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	out = string(buf)
 
 	exp = `
@@ -150,7 +152,7 @@ func TestXRServerRecreates(t *testing.T) {
 	out = re.ReplaceAllString(out, "DB server: xxx:3306")
 	exp = re.ReplaceAllString(exp, "DB server: xxx:3306")
 
-	xCheckEqual(t, "", out, exp)
+	XEqual(t, "", out, exp)
 }
 
 func TestXRServerCmds(t *testing.T) {
@@ -224,7 +226,7 @@ func TestXRServerCmds(t *testing.T) {
 			Stdin: "",
 			Code:  0,
 			Expout: `ID        NAME   CREATED               MODIFIED
-testreg          2025-10-16 12:23:14   2025-10-16 12:23:14
+testreg          2025/10/16 12:23:14   2025/10/16 12:23:14
 `,
 		},
 		{
@@ -276,7 +278,7 @@ Modified   : YYYY-MM-DDTHH:MM:01Z
 
 	for _, test := range tests {
 		t.Logf("CMD: xrserver %s", test.Args)
-		xServer(t, test.Args, test.Stdin, test.Expout, test.Experr, test.Code)
+		XServer(t, test.Args, test.Stdin, test.Expout, test.Experr, test.Code)
 	}
 
 }

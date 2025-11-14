@@ -12,10 +12,10 @@ func TestHTTPMixedCase(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModelSimple("files", "file")
 
-	xHTTP(t, reg, "POST", "/?inline&doc", `{
+	XHTTP(t, reg, "POST", "/?inline&doc", `{
   "dirs": {
     "Dir1": {
       "files": {
@@ -153,7 +153,7 @@ func TestHTTPModelSource(t *testing.T) {
 
 	// Make sure 'model' is ignored
 	// Make sure we process "modelsource" before we process the data
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "model": { "ignore": "me" },
   "modelsource": {
     "groups": {
@@ -190,7 +190,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/?inline=modelsource,model", `{
+	XHTTP(t, reg, "PUT", "/?inline=modelsource,model", `{
   "model": { "ignore": "me" },
   "modelsource": {
     "groups": {
@@ -778,7 +778,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
+	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
   "modelsource": {}
 }`, 200, `{
@@ -895,7 +895,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -911,7 +911,7 @@ func TestHTTPModelSource(t *testing.T) {
 }`, 200, `*`)
 
 	// Notice "null" means erase model
-	xHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
+	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
   "modelsource": null
 }`, 200, `{
@@ -1029,14 +1029,14 @@ func TestHTTPModelSource(t *testing.T) {
 `)
 
 	// Some errors
-	xHTTP(t, reg, "POST", "/modelsource", `{}`, 405,
+	XHTTP(t, reg, "POST", "/modelsource", `{}`, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
   "subject": "http://localhost:8181/modelsource",
   "title": "The specified action (POST) is not supported"
 }
 `)
-	xHTTP(t, reg, "PATCH", "/modelsource", `{}`, 405,
+	XHTTP(t, reg, "PATCH", "/modelsource", `{}`, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
   "subject": "http://localhost:8181/modelsource",
@@ -1044,7 +1044,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/?inline=modelsource", `{
+	XHTTP(t, reg, "PATCH", "/?inline=modelsource", `{
   "modelsource": {"groups": { "foos": { "singular": "foo"}}}}
 `, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -1068,7 +1068,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/", `{
+	XHTTP(t, reg, "POST", "/", `{
   "modelsource": {}
 }`, 400,
 		`{
@@ -1083,7 +1083,7 @@ func TestHTTPSort(t *testing.T) {
 	reg := NewRegistry("TestHTTPSort")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -1171,38 +1171,38 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?sort=epoch", ``, 400, `{
+	XHTTP(t, reg, "GET", "/?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1?sort=epoch", ``, 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?sort=epoch", ``, 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?sort=epoch", ``, 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?sort=epoch", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?sort=epoch",
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: can't sort on a non-collection results"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?sort=epoch",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -1212,7 +1212,7 @@ func TestHTTPSort(t *testing.T) {
 
 	// Notice that d3(D1) comes before d2(d2) - sort by name case insensitively
 	// Notice that d1 comes before d3 - same 'name' so sort by id (insensitive)
-	xHTTP(t, reg, "GET", "/dirs?sort=name", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=name", ``, 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1262,7 +1262,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=name=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=name=desc", ``, 200, `{
   "d2": {
     "dirid": "d2",
     "self": "http://localhost:8181/dirs/d2",
@@ -1312,7 +1312,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myany", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myany", ``, 200, `{
   "d3": {
     "dirid": "d3",
     "self": "http://localhost:8181/dirs/d3",
@@ -1362,7 +1362,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myany=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myany=desc", ``, 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1412,7 +1412,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myfloat", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myfloat", ``, 200, `{
   "d3": {
     "dirid": "d3",
     "self": "http://localhost:8181/dirs/d3",
@@ -1462,7 +1462,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myfloat=asc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myfloat=asc", ``, 200, `{
   "d3": {
     "dirid": "d3",
     "self": "http://localhost:8181/dirs/d3",
@@ -1512,7 +1512,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myfloat=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myfloat=desc", ``, 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1562,7 +1562,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myobj.foo", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myobj.foo", ``, 200, `{
   "d3": {
     "dirid": "d3",
     "self": "http://localhost:8181/dirs/d3",
@@ -1612,7 +1612,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=myobj.foo=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=myobj.foo=desc", ``, 200, `{
   "d2": {
     "dirid": "d2",
     "self": "http://localhost:8181/dirs/d2",
@@ -1662,7 +1662,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=name", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?sort=name", ``, 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v3",
@@ -1699,7 +1699,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=name=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?sort=name=desc", ``, 200, `{
   "f2": {
     "fileid": "f2",
     "versionid": "v3",
@@ -1736,7 +1736,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?sort=description=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?sort=description=desc", ``, 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v3",
@@ -1773,7 +1773,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool", ``, 200, `{
   "v3": {
     "fileid": "f1",
     "versionid": "v3",
@@ -1815,7 +1815,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=mybool=desc", ``, 200, `{
   "v2": {
     "fileid": "f1",
     "versionid": "v2",
@@ -1857,7 +1857,7 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=ancestor=desc", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?sort=ancestor=desc", ``, 200, `{
   "v3": {
     "fileid": "f1",
     "versionid": "v3",
@@ -1905,7 +1905,7 @@ func TestHTTPSortArray(t *testing.T) {
 	reg := NewRegistry("TestHTTPSortArray")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -1940,7 +1940,7 @@ func TestHTTPSortArray(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=strs[0]", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=strs[0]", "", 200, `{
   "d2": {
     "dirid": "d2",
     "self": "http://localhost:8181/dirs/d2",
@@ -1968,7 +1968,7 @@ func TestHTTPSortArray(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=strs[1]", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=strs[1]", "", 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1996,7 +1996,7 @@ func TestHTTPSortArray(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?sort=strs[0]=desc", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs?sort=strs[0]=desc", "", 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -2030,7 +2030,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 	reg := NewRegistry("TestHTTPJsonSchema")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com"}`,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
@@ -2041,7 +2041,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
-	xHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com", "name": "foo"}`,
+	XHTTP(t, reg, "PUT", "/", `{"$schema": "http://foo.com", "name": "foo"}`,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
@@ -2054,7 +2054,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com"}`,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
@@ -2066,7 +2066,7 @@ func TestHTTPJsonSchema(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
-	xHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com", "name": "zoo"}`,
+	XHTTP(t, reg, "PATCH", "/", `{"$schema": "http://foo.com", "name": "zoo"}`,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPJsonSchema",
@@ -2079,7 +2079,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+	XHTTP(t, reg, "PUT", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
 		200, `{
   "apis": [
     "/capabilities",
@@ -2103,7 +2103,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+	XHTTP(t, reg, "PATCH", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
 		200, `{
   "apis": [
     "/capabilities",
@@ -2127,12 +2127,12 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "PUT", "/modelsource", `{"$schema": "http://foo.com"}`,
 		200, `{
   "$schema": "http://foo.com"
 }
 `)
-	xHTTP(t, reg, "PUT", "/modelsource",
+	XHTTP(t, reg, "PUT", "/modelsource",
 		`{"$schema": "http://foo.com", "groups": {"dirs":{"singular":"dir","resources":{"files": {"singular": "file"}}}}}`, 200, `{
   "$schema": "http://foo.com",
   "groups": {
@@ -2148,7 +2148,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v1"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v1"}`,
 		201, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -2163,7 +2163,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v11"}`,
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v1$details", `{"$schema": "http://foo.com", "name":"v11"}`,
 		200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -2178,7 +2178,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"$schema": "http://foo.com", "v2": {}}`,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"$schema": "http://foo.com", "v2": {}}`,
 		200, `{
   "v2": {
     "fileid": "f1",
@@ -2194,7 +2194,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com"}`,
 		201, `{
   "fileid": "f1",
   "versionid": "1",
@@ -2208,7 +2208,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo"}`,
 		200, `{
   "fileid": "f1",
   "versionid": "1",
@@ -2227,7 +2227,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo2"}`,
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{"$schema": "http://foo.com", "name": "foo2"}`,
 		200, `{
   "fileid": "f1",
   "versionid": "1",
@@ -2246,11 +2246,11 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com"}`,
 		200, `{}
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com", "f2":{}}`,
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"$schema": "http://foo.com", "f2":{}}`,
 		200, `{
   "f2": {
     "fileid": "f2",
@@ -2270,7 +2270,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com"}`,
 		200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -2284,7 +2284,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d1"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d1"}`,
 		200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -2299,7 +2299,7 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d11"}`,
+	XHTTP(t, reg, "PATCH", "/dirs/d1", `{"$schema": "http://foo.com", "name":"d11"}`,
 		200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -2314,11 +2314,11 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com"}`,
+	XHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com"}`,
 		200, `{}
 `)
 
-	xHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com", "d2":{}}`,
+	XHTTP(t, reg, "POST", "/dirs", `{"$schema": "http://foo.com", "d2":{}}`,
 		200, `{
   "d2": {
     "dirid": "d2",
@@ -2340,7 +2340,7 @@ func TestHTTPModelEnum(t *testing.T) {
 	reg := NewRegistry("TestHTTPModelEnum")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2362,7 +2362,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2388,7 +2388,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2413,7 +2413,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2441,7 +2441,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2469,7 +2469,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2493,7 +2493,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 200, `*`)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2521,7 +2521,7 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2546,7 +2546,7 @@ func TestHTTPModelEnum(t *testing.T) {
 
 	return
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
       "dirs": {
@@ -2579,10 +2579,10 @@ func TestHTTPBinaryFlag(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModelSimple("files", "file")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?inline=file", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?inline=file", `{
   "file": { "attr": "value" }
 }`, 201, `{
   "fileid": "f1",
@@ -2605,7 +2605,7 @@ func TestHTTPBinaryFlag(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file&binary", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file&binary", ``, 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -2624,7 +2624,7 @@ func TestHTTPBinaryFlag(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?inline=files.file&binary", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?inline=files.file&binary", ``, 200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",

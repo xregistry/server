@@ -148,10 +148,10 @@ func addRegistryCmd(parent *cobra.Command) *cobra.Command {
 				ErrStop(err, "Error retrieving registry %q: %s", id, err)
 
 				t, _ := time.Parse(time.RFC3339, reg.GetAsString("createdat"))
-				cts := t.Format(time.DateTime)
+				cts := t.Format("2006/01/02 15:04:05")
 
 				t, _ = time.Parse(time.RFC3339, reg.GetAsString("modifiedat"))
-				mts := t.Format(time.DateTime)
+				mts := t.Format("2006/01/02 15:04:05")
 
 				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
 					id, reg.GetAsString("name"), cts, mts)

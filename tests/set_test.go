@@ -85,11 +85,11 @@ func TestSetAttributeNames(t *testing.T) {
 			t.Fatalf("Name: %q failed: %s", test.name, xErr)
 		}
 		if test.msg != "" && (xErr == nil || xErr.String() != test.msg) {
-			xCheckErr(t, xErr, test.msg)
+			XCheckErr(t, xErr, test.msg)
 		}
 
 	}
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 }
 
 func TestSetResource(t *testing.T) {
@@ -98,7 +98,7 @@ func TestSetResource(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -115,20 +115,20 @@ func TestSetResource(t *testing.T) {
 	}
 
 	name := file.Get(namePP).(string)
-	xCheckEqual(t, "", name, "myName")
+	XEqual(t, "", name, "myName")
 
 	// Verify that nil and "" are treated differently
 	ver.SetSave(namePP, nil)
 	ver2, _ := file.FindVersion(ver.UID, false, registry.FOR_WRITE)
-	xJSONCheck(t, ver2, ver)
+	XJSONCheck(t, ver2, ver)
 	val = ver.Get(namePP)
-	xCheck(t, val == nil, "Setting to nil should return nil")
+	XCheck(t, val == nil, "Setting to nil should return nil")
 
 	ver.SetSave(namePP, "")
 	ver2, _ = file.FindVersion(ver.UID, false, registry.FOR_WRITE)
-	xJSONCheck(t, ver2, ver)
+	XJSONCheck(t, ver2, ver)
 	val = ver.Get(namePP)
-	xCheck(t, val == "", "Setting to '' should return ''")
+	XCheck(t, val == "", "Setting to '' should return ''")
 }
 
 func TestSetVersion(t *testing.T) {
@@ -150,8 +150,8 @@ func TestSetVersion(t *testing.T) {
 	ver.SetSave(namePP, "myName")
 	file, _ = dir.FindResource("files", "f1", false, registry.FOR_WRITE)
 	l, xErr := file.GetDefault(registry.FOR_WRITE)
-	xNoErr(t, xErr)
-	xCheck(t, l != nil, "default is nil")
+	XNoErr(t, xErr)
+	XCheck(t, l != nil, "default is nil")
 	val := l.Get(namePP)
 	if val != "myName" {
 		t.Errorf("resource.default.Name is %q, should be 'myName'", val)
@@ -181,15 +181,15 @@ func TestSetDots(t *testing.T) {
 	dir, _ := reg.AddGroup("dirs", "d1")
 	labels := NewPP().P("labels")
 
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveAllAndCommit())
 	dir.Refresh(registry.FOR_WRITE)
 
 	xErr := dir.SetSave(labels.UI(), "xxx")
-	xCheck(t, xErr != nil, "labels=xxx should fail")
+	XCheck(t, xErr != nil, "labels=xxx should fail")
 
 	// Nesting under labels should fail
 	xErr = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
-	xCheckErr(t, xErr, `{
+	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/dirs/d1",
   "title": "The attribute \"labels.xxx\" is not valid: must be a string"
@@ -197,10 +197,10 @@ func TestSetDots(t *testing.T) {
 
 	// dots are ok as tag names
 	xErr = dir.SetSave(labels.P("abc.def").UI(), "ABC")
-	xNoErr(t, xErr)
-	xJSONCheck(t, dir.Get(labels.P("abc.def").UI()), "ABC")
+	XNoErr(t, xErr)
+	XEqual(t, "", dir.Get(labels.P("abc.def").UI()), "ABC")
 
-	xCheckGet(t, reg, "/dirs/d1", `{
+	XCheckGet(t, reg, "/dirs/d1", `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -219,8 +219,8 @@ func TestSetDots(t *testing.T) {
 	dir.Refresh(registry.FOR_WRITE)
 
 	xErr = dir.SetSave("labels", nil)
-	xJSONCheck(t, xErr, nil)
-	xCheckGet(t, reg, "/dirs/d1", `{
+	XJSONCheck(t, xErr, nil)
+	XCheckGet(t, reg, "/dirs/d1", `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -234,35 +234,35 @@ func TestSetDots(t *testing.T) {
 `)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
-	xCheckErr(t, xErr, `{
+	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected / in \"labels.xxx/yyy\" at pos 11"
 }`)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
-	xCheckErr(t, xErr, `{
+	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: Unexpected . in \"labels..abc\" at pos 8"
 }`)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("xxx.yyy").UI(), "xxx")
-	xJSONCheck(t, xErr, nil)
+	XJSONCheck(t, xErr, nil)
 
 	xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
-	xCheckErr(t, xErr, `{
+	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: invalid extension(s): xxx"
 }`)
-	xCheck(t, xErr != nil, "xxx.yyy=nil should fail")
+	XCheck(t, xErr != nil, "xxx.yyy=nil should fail")
 	xErr = dir.SetSave("xxx.", "xxx")
-	xCheck(t, xErr != nil, "xxx.=xxx should fail")
+	XCheck(t, xErr != nil, "xxx.=xxx should fail")
 	xErr = dir.SetSave(".xxx", "xxx")
-	xCheck(t, xErr != nil, ".xxx=xxx should fail")
+	XCheck(t, xErr != nil, ".xxx=xxx should fail")
 	xErr = dir.SetSave(".xxx.", "xxx")
-	xCheck(t, xErr != nil, ".xxx.=xxx should fail")
+	XCheck(t, xErr != nil, ".xxx.=xxx should fail")
 }
 
 func TestSetLabels(t *testing.T) {
@@ -289,52 +289,52 @@ func TestSetLabels(t *testing.T) {
 	// /dirs/d1/f1/v1
 	labels := NewPP().P("labels")
 	err := reg.SetSave(labels.P("r2").UI(), "123.234")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.Refresh(registry.FOR_WRITE)
 	// But it's a string here because labels is a map[string]string
-	xJSONCheck(t, reg.Get(labels.P("r2").UI()), "123.234")
+	XEqual(t, "", reg.Get(labels.P("r2").UI()), "123.234")
 	err = reg.SetSave("labels.r1", "foo")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, reg.Get(labels.P("r1").UI()), "foo")
+	XEqual(t, "", reg.Get(labels.P("r1").UI()), "foo")
 	err = reg.SetSave(labels.P("r1").UI(), nil)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, reg.Get(labels.P("r1").UI()), nil)
+	XEqual(t, "", reg.Get(labels.P("r1").UI()), nil)
 
 	err = dir.SetSave(labels.P("d1").UI(), "bar")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	dir.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, dir.Get(labels.P("d1").UI()), "bar")
+	XEqual(t, "", dir.Get(labels.P("d1").UI()), "bar")
 	// test override
 	err = dir.SetSave(labels.P("d1").UI(), "foo")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	dir.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, dir.Get(labels.P("d1").UI()), "foo")
+	XEqual(t, "", dir.Get(labels.P("d1").UI()), "foo")
 	err = dir.SetSave(labels.P("d1").UI(), nil)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	dir.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, dir.Get(labels.P("d1").UI()), nil)
+	XEqual(t, "", dir.Get(labels.P("d1").UI()), nil)
 
 	err = file.SetSaveDefault(labels.P("f1").UI(), "foo")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	file.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, file.Get(labels.P("f1").UI()), "foo")
+	XEqual(t, "", file.Get(labels.P("f1").UI()), "foo")
 	err = file.SetSaveDefault(labels.P("f1").UI(), nil)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	file.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, file.Get(labels.P("f1").UI()), nil)
+	XEqual(t, "", file.Get(labels.P("f1").UI()), nil)
 
 	// Set before we refresh to see if creating v2 causes issues
 	// see comment below too
 	err = ver.SetSave(labels.P("v1").UI(), "foo")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	ver.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, ver.Get(labels.P("v1").UI()), "foo")
+	XEqual(t, "", ver.Get(labels.P("v1").UI()), "foo")
 	err = ver.SetSave(labels.P("v1").UI(), nil)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	ver.Refresh(registry.FOR_WRITE)
-	xJSONCheck(t, ver.Get(labels.P("v1").UI()), nil)
+	XEqual(t, "", ver.Get(labels.P("v1").UI()), nil)
 
 	dir.SetSave(labels.P("dd").UI(), "dd.foo")
 	file.SetSaveDefault(labels.P("ff").UI(), "ff.bar")
@@ -346,7 +346,7 @@ func TestSetLabels(t *testing.T) {
 
 	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The attribute \"labels.vv\" is not valid: must be a string"
@@ -358,10 +358,10 @@ func TestSetLabels(t *testing.T) {
 	// this could cause both versions to be tagged as "default". Make sure
 	// we don't have that situation. See comment above too
 	err = ver.SetSave(labels.P("vv2").UI(), "v11")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	ver2.SetSave(labels.P("2nd").UI(), "3rd")
 
-	xCheckGet(t, reg, "?inline", `{
+	XCheckGet(t, reg, "?inline", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetLabels",
   "self": "http://localhost:8181/",
@@ -472,7 +472,7 @@ func TestSetLabels(t *testing.T) {
 `)
 
 	file.SetDefault(ver)
-	xCheckGet(t, reg, "?inline", `{
+	XCheckGet(t, reg, "?inline", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestSetLabels",
   "self": "http://localhost:8181/",
@@ -585,27 +585,27 @@ func TestSetNameUser(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, rm, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = reg.Model.AddAttrMap("mymap",
 		registry.NewItemType(STRING))
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = reg.Model.AddAttr("*", ANY)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = gm.AddAttr("*", ANY)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddAttrMap("mymap", registry.NewItemType(STRING))
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = rm.AddAttr("*", ANY)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = rm.AddMetaAttr("*", ANY)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = rm.AddAttrMap("mymap", registry.NewItemType(STRING))
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xNoErr(t, reg.SaveModel())
-	xNoErr(t, reg.Commit())
+	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Commit())
 
 	base := "http://localhost:8181"
 	for _, test := range []struct {
@@ -659,7 +659,7 @@ func TestSetNameUser(t *testing.T) {
 
 			resBody := []byte{}
 			res, err := client.Do(req)
-			xNoErr(t, err)
+			XNoErr(t, err)
 			if res != nil {
 				resBody, _ = io.ReadAll(res.Body)
 			}
@@ -673,7 +673,7 @@ func TestSetNameUser(t *testing.T) {
 				t.Logf("Body:\n%s", string(resBody))
 				t.Fatalf("%q should have failed, but didn't", name)
 			}
-			xCheckEqual(t, "", string(resBody), msg)
+			XEqual(t, "", string(resBody), msg)
 		}
 		t.Logf("Name: %q", test.name)
 
@@ -684,7 +684,7 @@ func TestSetNameUser(t *testing.T) {
 		putFn("/dirs/d1/files/f1/meta", test.name, test.msg)
 	}
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
 		"ext": {
 		}
 	}`, 200, `{
@@ -702,7 +702,7 @@ func TestSetNameUser(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
 		"ext": {
 		  "foo": "bar"
 		}
@@ -723,14 +723,14 @@ func TestSetNameUser(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{"mymap":{":bar":"bar"}}`, 400,
+	XHTTP(t, reg, "PUT", "/", `{"mymap":{":bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/",
   "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \":bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/", `{"mymap":{"@bar":"bar"}}`, 400,
+	XHTTP(t, reg, "PUT", "/", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/",
@@ -739,9 +739,9 @@ func TestSetNameUser(t *testing.T) {
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json
-	xHTTP(t, reg, "PUT", "/", `{"ext":{"mymap":{"@bar":"bar"}}}`, 200, `*`)
+	XHTTP(t, reg, "PUT", "/", `{"ext":{"mymap":{"@bar":"bar"}}}`, 200, `*`)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{"mymap":{"@bar":"bar"}}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/dirs/d1",
@@ -750,10 +750,10 @@ func TestSetNameUser(t *testing.T) {
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json
-	xHTTP(t, reg, "PUT", "/dirs/d1",
+	XHTTP(t, reg, "PUT", "/dirs/d1",
 		`{"ext":{"mymap":{"@bar":"bar"}}}`, 200, `*`)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
 		`{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -763,7 +763,7 @@ func TestSetNameUser(t *testing.T) {
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
 	// and that allows ANYTHING as long as it's valid json
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"ext":{"mymap":{"@bar":"bar"}}}`, 200, `*`)
 
 }

@@ -30,9 +30,9 @@ func TestResourceContents(t *testing.T) {
 	rm.AddAttr("dec3", DECIMAL)
 
 	d1, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	f1.SetSaveDefault("name", "file1")
 	f1.SetSaveDefault("labels.str1", "foo")
@@ -53,7 +53,7 @@ func TestResourceContents(t *testing.T) {
 
 	f1.SetSaveDefault("file", "Hello there")
 
-	xCheckEqual(t, "", Any2String(f1.Get("file")), "Hello there")
+	XEqual(t, "", Any2String(f1.Get("file")), "Hello there")
 
 	CompareContentMeta(t, reg, &Test{
 		Code:    200,
@@ -70,7 +70,7 @@ func TestResourceContents(t *testing.T) {
 	})
 
 	v2, err := f1.AddVersion("v2")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	v2.SetSave("file", "This is version 2")
 
 	CompareContentMeta(t, reg, &Test{
@@ -128,7 +128,7 @@ func TestResourceContents(t *testing.T) {
 	})
 
 	// v4 = fileURL
-	xHTTP(t, reg, "PATCH", "dirs/d1/files/f1/versions/v4$details?inline=file",
+	XHTTP(t, reg, "PATCH", "dirs/d1/files/f1/versions/v4$details?inline=file",
 		`{"contenttype":null, "description":"hi"}`, 200, `{
   "fileid": "f1",
   "versionid": "v4",
@@ -145,7 +145,7 @@ func TestResourceContents(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/d1/files/f1$details?doc&inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "dirs/d1/files/f1$details?doc&inline=file", ``, 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",
@@ -157,7 +157,7 @@ func TestResourceContents(t *testing.T) {
 `)
 
 	// Set default to v2
-	xHTTP(t, reg, "PATCH", "dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PATCH", "dirs/d1/files/f1/meta",
 		`{"defaultversionid":"v2", "defaultversionsticky":true}`, 200, `{
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -175,7 +175,7 @@ func TestResourceContents(t *testing.T) {
 `)
 
 	// v2 = file
-	xHTTP(t, reg, "PATCH", "dirs/d1/files/f1$details?doc&inline=file",
+	XHTTP(t, reg, "PATCH", "dirs/d1/files/f1$details?doc&inline=file",
 		`{"contenttype":null, "description":"hi"}`, 200, `{
   "fileid": "f1",
   "self": "#/",
@@ -198,18 +198,18 @@ type Test struct {
 
 func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 	t.Helper()
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	u := test.URL
 
 	t.Logf("Testing: URL: %s", test.URL)
 	metaResp, err := http.Get("http://localhost:8181/" + u + "$details")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	if metaResp == nil {
 		t.Fatalf("metaResp is nil")
 	}
 	metaBody, err := io.ReadAll(metaResp.Body)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	if metaResp.StatusCode/100 != 2 {
 		t.Fatalf("Bad response: %s\n%s", metaResp.Status, metaBody)
 	}
@@ -225,12 +225,12 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 		}}
 
 	res, err := client.Get("http://localhost:8181/" + u)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	resBody, err := io.ReadAll(res.Body)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xCheck(t, res.StatusCode == test.Code,
+	XCheck(t, res.StatusCode == test.Code,
 		"\nTest: %s\nBad http code: %d should be %d\n%s", u,
 		res.StatusCode, test.Code, string(resBody))
 
@@ -240,13 +240,13 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 		name = strings.TrimSpace(name)
 		value = strings.TrimSpace(value)
 		h := res.Header.Get(name)
-		xCheck(t, strings.Contains(h, value),
+		XCheck(t, strings.Contains(h, value),
 			"Test %s\nHeader %q(%s) should be %q",
 			u, name, h, value)
 	}
 
 	if test.Body == "" || test.Body[0] != '*' {
-		xCheckEqual(t, "body", string(resBody), test.Body)
+		XEqual(t, "body", string(resBody), test.Body)
 	} else {
 		if !strings.Contains(string(resBody), test.Body[1:]) {
 			t.Fatalf("Unexpected body for %q\nGot:\n%s\nExpected:\n%s",
@@ -294,11 +294,11 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 			str := ""
 			str = fmt.Sprintf("%v", propValue)
 			if name == "self" || name == "defaultversionurl" {
-				xCheckEqual(t, propName, value[0]+"$details", str)
+				XEqual(t, propName, value[0]+"$details", str)
 				break
 			}
 
-			xCheckEqual(t, propName+"(exp:header, got:$details)", value[0], str)
+			XEqual(t, propName+"(exp:header, got:$details)", value[0], str)
 			break
 		}
 		if !foundIt {

@@ -433,7 +433,7 @@ func TestInlineBasic(t *testing.T) {
 
 	for _, test := range tests {
 		t.Logf("Testing: %s", test.Name)
-		xCheckGet(t, reg, test.URL, test.Exp)
+		XCheckGet(t, reg, test.URL, test.Exp)
 	}
 }
 
@@ -474,7 +474,7 @@ func TestInlineResource(t *testing.T) {
 	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
 
 	v, _ = f.AddVersion("v3")
-	xNoErr(t, v.SetSave(NewPP().P("file").UI(), "Hello world! v3"))
+	XNoErr(t, v.SetSave(NewPP().P("file").UI(), "Hello world! v3"))
 
 	// /dirs/d1/files/f1-proxy/v1 - resource
 	//                        /v2 - URL
@@ -717,7 +717,7 @@ func TestInlineResource(t *testing.T) {
 	}
 
 	// Save everythign to the DB
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	for _, test := range tests {
 		t.Logf("Testing: %s", test.Name)
@@ -745,7 +745,7 @@ func TestInlineResource(t *testing.T) {
 		}
 
 		res, err := http.Get("http://localhost:8181/" + test.URL)
-		xCheck(t, err == nil, "%s", err)
+		XCheck(t, err == nil, "%s", err)
 
 		body, _ := io.ReadAll(res.Body)
 
@@ -756,7 +756,7 @@ func TestInlineResource(t *testing.T) {
 		}
 		body = regexp.MustCompile(`(?m)^ *$\n`).ReplaceAll(body, []byte{})
 
-		xCheckEqual(t, "Test: "+test.Name+"\n", string(body), test.Exp)
+		XEqual(t, "Test: "+test.Name+"\n", string(body), test.Exp)
 	}
 }
 
@@ -767,10 +767,10 @@ func TestInlineWildcards(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world"}}`, 201, `*`)
 
-	xHTTP(t, reg, "GET", "?inline=*", ``,
+	XHTTP(t, reg, "GET", "?inline=*", ``,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineWildcards",
@@ -850,7 +850,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.*", ``,
+	XHTTP(t, reg, "GET", "?inline=dirs.*", ``,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineWildcards",
@@ -930,7 +930,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.files.*", ``,
+	XHTTP(t, reg, "GET", "?inline=dirs.files.*", ``,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineWildcards",
@@ -1010,7 +1010,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.*", ``,
+	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.*", ``,
 		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineWildcards",
@@ -1073,7 +1073,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/?inline=files.versions.*", ``,
+	XHTTP(t, reg, "GET", "dirs/?inline=files.versions.*", ``,
 		200, `{
   "d1": {
     "dirid": "d1",
@@ -1124,7 +1124,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/?inline=files.*", ``,
+	XHTTP(t, reg, "GET", "dirs/?inline=files.*", ``,
 		200, `{
   "d1": {
     "dirid": "d1",
@@ -1192,7 +1192,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/d1?inline=files.versions.*", ``,
+	XHTTP(t, reg, "GET", "dirs/d1?inline=files.versions.*", ``,
 		200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -1241,7 +1241,7 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "dirs/d1?inline=files.*", ``,
+	XHTTP(t, reg, "GET", "dirs/d1?inline=files.*", ``,
 		200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -1307,120 +1307,120 @@ func TestInlineWildcards(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: Unexpected . in \".*\" at pos 1"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: foo.*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: foo*"
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad.*"
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad.*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file.*"
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta.*"
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.bad*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.bad*"
 }
 `)
 
-	xHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: model.*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: model.bad*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.*"
 }
 `)
-	xHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
+	XHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/",
   "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.bad*"
@@ -1436,7 +1436,7 @@ func TestInlineEmpty(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "GET", "/?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1451,7 +1451,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1466,7 +1466,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1481,7 +1481,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1496,7 +1496,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1513,7 +1513,7 @@ func TestInlineEmpty(t *testing.T) {
 
 	reg.AddGroup("dirs", "d1")
 
-	xHTTP(t, reg, "GET", "/?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1541,7 +1541,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1568,35 +1568,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
-  "specversion": "`+SPECVERSION+`",
-  "registryid": "TestInlineEmpty",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 1,
-  "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
-
-  "dirsurl": "http://localhost:8181/dirs",
-  "dirs": {
-    "d1": {
-      "dirid": "d1",
-      "self": "http://localhost:8181/dirs/d1",
-      "xid": "/dirs/d1",
-      "epoch": 1,
-      "createdat": "2025-01-01T12:00:02Z",
-      "modifiedat": "2025-01-01T12:00:02Z",
-
-      "filesurl": "http://localhost:8181/dirs/d1/files",
-      "files": {},
-      "filescount": 0
-    }
-  },
-  "dirscount": 1
-}
-`)
-
-	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1624,7 +1596,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
@@ -1652,7 +1624,35 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?inline=files.versions,files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?inline=dirs.files.versions,dirs.files.meta", "", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestInlineEmpty",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:01Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2025-01-01T12:00:02Z",
+      "modifiedat": "2025-01-01T12:00:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {},
+      "filescount": 0
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?inline=files.versions,files.meta", "", 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -1668,7 +1668,7 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?inline=files.versions,files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?inline=files.versions,files.meta", "", 200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",

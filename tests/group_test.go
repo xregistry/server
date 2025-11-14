@@ -16,23 +16,23 @@ func TestCreateGroup(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	d1, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
-	xCheck(t, d1 != nil, "D1 is nil")
+	XNoErr(t, err)
+	XCheck(t, d1 != nil, "D1 is nil")
 
 	dt, err := reg.AddGroup("dirs", "d1")
-	xCheck(t, dt == nil && err != nil, "Dup should fail")
+	XCheck(t, dt == nil && err != nil, "Dup should fail")
 
 	d2, isNew, err := reg.UpsertGroup("dirs", "d1")
-	xCheck(t, d2 != nil && err == nil, "Update should have worked")
-	xCheck(t, isNew == false, "Should not be new")
-	xCheck(t, d2 == d1, "Should be the same")
+	XCheck(t, d2 != nil && err == nil, "Update should have worked")
+	XCheck(t, isNew == false, "Should not be new")
+	XCheck(t, d2 == d1, "Should be the same")
 
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	ft, err := d1.AddResource("files", "f1", "v1")
-	xCheck(t, ft == nil && err != nil, "Dup files should have failed - 1")
+	XCheck(t, ft == nil && err != nil, "Dup files should have failed - 1")
 	ft, err = d1.AddResource("files", "f1", "v2")
-	xCheck(t, ft == nil && err != nil, "Dup files should have failed - 2")
+	XCheck(t, ft == nil && err != nil, "Dup files should have failed - 2")
 
 	f1.AddVersion("v2")
 	d2, _ = reg.AddGroup("dirs", "d2")
@@ -45,7 +45,7 @@ func TestCreateGroup(t *testing.T) {
 	//             v1.1
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/dirs/d1",
+	XCheckGet(t, reg, "/dirs/d1",
 		`{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
@@ -58,26 +58,26 @@ func TestCreateGroup(t *testing.T) {
   "filescount": 1
 }
 `)
-	xCheckGet(t, reg, "/dirs/xxx", `{
+	XCheckGet(t, reg, "/dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/xxx",
   "title": "The specified entity cannot be found: /dirs/xxx"
 }
 `)
-	xCheckGet(t, reg, "dirs/xxx", `{
+	XCheckGet(t, reg, "dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/xxx",
   "title": "The specified entity cannot be found: /dirs/xxx"
 }
 `)
-	xCheckGet(t, reg, "/dirs/xxx/yyy", `{
+	XCheckGet(t, reg, "/dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/xxx/yyy",
   "detail": "Unknown Resource type: yyy"
 }
 `)
-	xCheckGet(t, reg, "dirs/xxx/yyy", `{
+	XCheckGet(t, reg, "dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/xxx/yyy",
@@ -87,31 +87,31 @@ func TestCreateGroup(t *testing.T) {
 
 	g, err := reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
 	g.AccessMode = d1.AccessMode // cheat a little
-	xNoErr(t, err)
-	xJSONCheck(t, g, d1)
+	XNoErr(t, err)
+	XJSONCheck(t, g, d1)
 
 	g, err = reg.FindGroup("xxx", "d1", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && g == nil, "Finding xxx/d1 should have failed")
+	XCheck(t, err == nil && g == nil, "Finding xxx/d1 should have failed")
 
 	g, err = reg.FindGroup("dirs", "xx", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && g == nil, "Finding dirs/xxx should have failed")
+	XCheck(t, err == nil && g == nil, "Finding dirs/xxx should have failed")
 
 	r, err := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && r != nil, "Finding resource failed")
+	XCheck(t, err == nil && r != nil, "Finding resource failed")
 	r.AccessMode = f1.AccessMode // minor cheat
-	xJSONCheck(t, r, f1)
+	XJSONCheck(t, r, f1)
 
 	r2, err := d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && r2 == nil, "Finding files/xxx didn't work")
+	XCheck(t, err == nil && r2 == nil, "Finding files/xxx didn't work")
 
 	r2, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && r2 == nil, "Finding xxx/f1 didn't work")
+	XCheck(t, err == nil && r2 == nil, "Finding xxx/f1 didn't work")
 
 	err = d1.Delete()
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	g, err = reg.FindGroup("dirs", "d1", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && g == nil, "Finding delete group failed")
+	XCheck(t, err == nil && g == nil, "Finding delete group failed")
 }
 
 func TestGroupRequiredFields(t *testing.T) {
@@ -124,11 +124,11 @@ func TestGroupRequiredFields(t *testing.T) {
 		Type:     STRING,
 		Required: true,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	_, err = reg.AddGroup("dirs", "d1")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
@@ -138,16 +138,16 @@ func TestGroupRequiredFields(t *testing.T) {
 
 	g1, err := reg.AddGroupWithObject("dirs", "d1",
 		Object{"req": "test"})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	err = g1.SetSave("req", nil)
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
 	err = g1.SetSave("req", "again")
-	xNoErr(t, err)
+	XNoErr(t, err)
 }

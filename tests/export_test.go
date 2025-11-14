@@ -14,22 +14,22 @@ func TestExportBasic(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world" }}`, 201, `*`)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details",
 		`{"file": { "hello": "world" }}`, 201, `*`)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details",
 		`{"meta": { "xref": "/dirs/d1/files/f1" }}`, 201, `*`)
 
 	// Full export - 2 different ways
-	code, fullBody := xGET(t, "export")
-	xCheckEqual(t, "", code, 200)
+	code, fullBody := XGET(t, "export")
+	XEqual(t, "", code, 200)
 
-	code, manualBody := xGET(t, "?doc&inline=*,capabilities,modelsource")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, manualBody := XGET(t, "?doc&inline=*,capabilities,modelsource")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -164,13 +164,13 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// Play with ?export vanilla
-	code, fullBody = xGET(t, "export?inline=*")
-	xCheckEqual(t, "", code, 200)
-	code, manualBody = xGET(t, "?doc&inline=*")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, fullBody = XGET(t, "export?inline=*")
+	XEqual(t, "", code, 200)
+	code, manualBody = XGET(t, "?doc&inline=*")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -268,13 +268,13 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// Play with ?doc inline just capabilities
-	code, fullBody = xGET(t, "export?inline=capabilities")
-	xCheckEqual(t, "", code, 200)
-	code, manualBody = xGET(t, "?doc&inline=capabilities")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, fullBody = XGET(t, "export?inline=capabilities")
+	XEqual(t, "", code, 200)
+	code, manualBody = XGET(t, "?doc&inline=capabilities")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -325,13 +325,13 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// Play with ?doc inline just model
-	code, fullBody = xGET(t, "export?inline=model")
-	xCheckEqual(t, "", code, 200)
-	code, manualBody = xGET(t, "?doc&inline=model")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, fullBody = XGET(t, "export?inline=model")
+	XEqual(t, "", code, 200)
+	code, manualBody = XGET(t, "?doc&inline=model")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -885,7 +885,7 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// Play with ?doc not at root
-	xHTTP(t, reg, "GET", "/dirs?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?doc&inline=*", ``, 200, `{
   "d1": {
     "dirid": "d1",
     "self": "#/d1",
@@ -970,7 +970,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?doc&inline=*", ``, 200, `{
   "dirid": "d1",
   "self": "#/",
   "xid": "/dirs/d1",
@@ -1053,7 +1053,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=*", ``, 200, `{
   "f1": {
     "fileid": "f1",
     "self": "#/f1",
@@ -1125,7 +1125,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline=*", ``, 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",
@@ -1182,7 +1182,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc&inline=*", ``, 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1/meta",
@@ -1198,7 +1198,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", ``, 200, `{
   "fileid": "fx",
   "self": "#/",
   "xid": "/dirs/d1/files/fx",
@@ -1213,7 +1213,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc&inline=*", ``, 200, `{
   "fileid": "fx",
   "self": "#/",
   "xid": "/dirs/d1/files/fx/meta",
@@ -1221,7 +1221,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc&inline=*", ``, 200, `{
   "v1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -1255,7 +1255,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?doc&inline=*", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?doc&inline=*", ``, 200, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "#/",
@@ -1272,7 +1272,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions",
@@ -1281,7 +1281,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
@@ -1297,7 +1297,7 @@ func TestExportBasic(t *testing.T) {
 
 	// Notice "meta" now appears after "versions" and
 	// defaultversionurl is absolute
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
 		"filter=versions.versionid=v1", "", 200, `{
   "fileid": "f1",
   "self": "#/",
@@ -1341,7 +1341,7 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// defaultversionurl is relative this time
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline&"+
 		"filter=versions.versionid=v2", "", 200, `{
   "fileid": "f1",
   "self": "#/",
@@ -1385,15 +1385,15 @@ func TestExportBasic(t *testing.T) {
 `)
 
 	// check full output + filtering
-	code, fullBody = xGET(t, "export?filter=dirs.files.versions.versionid=v2&inline=*")
-	xCheckEqual(t, "", code, 200)
-	code, manualBody = xGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=v2")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, fullBody = XGET(t, "export?filter=dirs.files.versions.versionid=v2&inline=*")
+	XEqual(t, "", code, 200)
+	code, manualBody = XGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=v2")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
 	// Notice that "meta" moved down to after the Versions collection
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -1475,26 +1475,26 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	code, fullBody = xGET(t, "export?filter=dirs.files.versions.versionid=vx&inline=*")
-	xCheckEqual(t, "", code, 404)
-	code, manualBody = xGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=vx")
-	xCheckEqual(t, "", code, 404)
+	code, fullBody = XGET(t, "export?filter=dirs.files.versions.versionid=vx&inline=*")
+	XEqual(t, "", code, 404)
+	code, manualBody = XGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=vx")
+	XEqual(t, "", code, 404)
 	fullBody = strings.ReplaceAll(fullBody, "/export", "/")
-	xCheckEqual(t, "", fullBody, manualBody)
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, manualBody)
+	XEqual(t, "", fullBody, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/",
   "title": "The specified entity cannot be found: /"
 }
 `)
 
-	code, fullBody = xGET(t, "export?filter=dirs.files.versions.versionid=v2,dirs.files.fileid=fx&inline=*")
-	xCheckEqual(t, "", code, 200)
-	code, manualBody = xGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=v2,dirs.files.fileid=fx")
-	xCheckEqual(t, "", code, 200)
-	xCheckEqual(t, "", fullBody, manualBody)
+	code, fullBody = XGET(t, "export?filter=dirs.files.versions.versionid=v2,dirs.files.fileid=fx&inline=*")
+	XEqual(t, "", code, 200)
+	code, manualBody = XGET(t, "?doc&inline=*&filter=dirs.files.versions.versionid=v2,dirs.files.fileid=fx")
+	XEqual(t, "", code, 200)
+	XEqual(t, "", fullBody, manualBody)
 
-	xCheckEqual(t, "", fullBody, `{
+	XEqual(t, "", fullBody, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
   "self": "#/",
@@ -1538,7 +1538,7 @@ func TestExportBasic(t *testing.T) {
 
 	// Make sure that we only move "meta" after "versions" if we actually
 	// inline "versions", even if there are filters
-	xHTTP(t, reg, "GET",
+	XHTTP(t, reg, "GET",
 		"/dirs/d1/files?doc&inline=meta&filter=versions.versionid=v2",
 		"", 200, `{
   "f1": {
@@ -1583,7 +1583,7 @@ func TestExportBasic(t *testing.T) {
 	// Make sure that ?doc doesn't turn on ?inline by mistake.
 	// At one point ?export (?doc) implied ?inline=*
 
-	xHTTP(t, reg, "GET", "?doc", ``, 200,
+	XHTTP(t, reg, "GET", "?doc", ``, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportBasic",
@@ -1598,7 +1598,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs?doc", ``, 200,
 		`{
   "d1": {
     "dirid": "d1",
@@ -1614,7 +1614,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1?doc", ``, 200,
 		`{
   "dirid": "d1",
   "self": "#/",
@@ -1628,7 +1628,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files?doc", ``, 200,
 		`{
   "f1": {
     "fileid": "f1",
@@ -1649,7 +1649,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc", ``, 200,
 		`{
   "fileid": "f1",
   "self": "#/",
@@ -1661,7 +1661,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", ``, 200,
 		`{
   "fileid": "f1",
   "self": "#/",
@@ -1678,7 +1678,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc", ``, 200,
 		`{
   "v1": {
     "fileid": "f1",
@@ -1707,7 +1707,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?doc", ``, 200,
 		`{
   "fileid": "f1",
   "versionid": "v1",
@@ -1722,7 +1722,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc", ``, 200,
 		`{
   "fileid": "fx",
   "self": "#/",
@@ -1732,7 +1732,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/meta?doc", ``, 200,
 		`{
   "fileid": "fx",
   "self": "#/",
@@ -1744,7 +1744,7 @@ func TestExportBasic(t *testing.T) {
 	// Test some error cases. Make sure ?doc doesn't change our
 	// error checking logic
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1/foo?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1/foo",
@@ -1752,7 +1752,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1/foo?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1/foo",
@@ -1760,7 +1760,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/vx?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/vx",
@@ -1768,7 +1768,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/fz",
@@ -1776,7 +1776,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/fz",
@@ -1784,7 +1784,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/dx",
@@ -1792,7 +1792,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/filesx",
@@ -1801,7 +1801,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/dx?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/dx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/dx",
@@ -1809,7 +1809,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirsx?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirsx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirsx",
@@ -1818,7 +1818,7 @@ func TestExportBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/dx/files/fz/versions/vx?doc", ``, 404,
+	XHTTP(t, reg, "GET", "/dirs/dx/files/fz/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/dx/files/fz/versions/vx",
@@ -1833,11 +1833,11 @@ func TestExportURLs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModelSimple("schemas", "schema")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "GET", "/?doc", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -1851,7 +1851,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -1866,9 +1866,9 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", "{}", 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1", "{}", 201, `*`)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -1897,7 +1897,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?doc&inline=files", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs?doc&inline=files", "", 200, `{
   "d1": {
     "dirid": "d1",
     "self": "#/d1",
@@ -1915,7 +1915,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -1945,7 +1945,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?doc", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs?doc", "", 200, `{
   "d1": {
     "dirid": "d1",
     "self": "#/d1",
@@ -1962,9 +1962,9 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, ``)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, ``)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2004,7 +2004,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2058,7 +2058,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2111,7 +2111,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions,dirs.files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions,dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2178,7 +2178,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=versions,meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=versions,meta", "", 200, `{
   "f1": {
     "fileid": "f1",
     "self": "#/f1",
@@ -2218,7 +2218,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=meta", "", 200, `{
   "f1": {
     "fileid": "f1",
     "self": "#/f1",
@@ -2245,7 +2245,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=versions", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?doc&inline=versions", "", 200, `{
   "f1": {
     "fileid": "f1",
     "self": "#/f1",
@@ -2271,7 +2271,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.meta", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2325,7 +2325,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs.files.versions", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2378,7 +2378,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?doc", "", 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1/meta",
@@ -2394,7 +2394,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?doc", "", 200, `{
   "1": {
     "fileid": "f1",
     "versionid": "1",
@@ -2409,7 +2409,7 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1?doc", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1?doc", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "#/",
@@ -2422,10 +2422,10 @@ func TestExportURLs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?doc&inline=*", "", 200, `{
   "fileid": "fx",
   "self": "#/",
   "xid": "/dirs/d1/files/fx",
@@ -2442,7 +2442,7 @@ func TestExportURLs(t *testing.T) {
 
 	// One file GET of everything
 
-	xHTTP(t, reg, "GET", "/?doc&inline=*", "", 200, `{
+	XHTTP(t, reg, "GET", "/?doc&inline=*", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
@@ -2533,7 +2533,7 @@ func TestExportNoDoc(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "#/",
@@ -2547,7 +2547,7 @@ func TestExportNoDoc(t *testing.T) {
 `)
 
 	// Make sure there's no $details
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline=meta", "{}", 200, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline=meta", "{}", 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",
@@ -2573,7 +2573,7 @@ func TestExportNoDoc(t *testing.T) {
 `)
 
 	// No $default
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline", "{}", 200, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?doc&inline", "{}", 200, `{
   "fileid": "f1",
   "self": "#/",
   "xid": "/dirs/d1/files/f1",

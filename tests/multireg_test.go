@@ -12,23 +12,23 @@ func TestMultiReg(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	reg2, err := registry.NewRegistry(nil, "reg2")
 	defer PassDeleteReg(t, reg2)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	gm, err = reg2.Model.AddGroupModel("reg2_dirs", "reg2_dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModel("reg2_files", "reg2_file", 0, true, true,
 		true)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg2.SaveAllAndCommit()
 
 	// reg
-	xHTTP(t, reg, "GET", "/", "", 200, `{
+	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestMultiReg",
   "self": "http://localhost:8181/",
@@ -43,7 +43,7 @@ func TestMultiReg(t *testing.T) {
 `)
 
 	// reg2
-	xHTTP(t, reg2, "GET", "/reg-reg2", "", 200, `{
+	XHTTP(t, reg2, "GET", "/reg-reg2", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "reg2",
   "self": "http://localhost:8181/reg-reg2/",
@@ -57,9 +57,9 @@ func TestMultiReg(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg2, "GET", "/reg-reg2/reg2_dirs", "", 200, "{}\n")
+	XHTTP(t, reg2, "GET", "/reg-reg2/reg2_dirs", "", 200, "{}\n")
 
-	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2", "{}", 201, `{
+	XHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2", "{}", 201, `{
   "reg2_dirid": "d2",
   "self": "http://localhost:8181/reg-reg2/reg2_dirs/d2",
   "xid": "/reg2_dirs/d2",
@@ -72,7 +72,7 @@ func TestMultiReg(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2/reg2_files/f2$details", "{}", 201, `{
+	XHTTP(t, reg2, "PUT", "/reg-reg2/reg2_dirs/d2/reg2_files/f2$details", "{}", 201, `{
   "reg2_fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/reg-reg2/reg2_dirs/d2/reg2_files/f2$details",

@@ -12,7 +12,7 @@ func TestCreateRegistry(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/",
+	XCheckGet(t, reg, "/",
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCreateRegistry",
@@ -23,28 +23,28 @@ func TestCreateRegistry(t *testing.T) {
   "modifiedat": "2024-01-01T12:00:01Z"
 }
 `)
-	xCheckGet(t, reg, "/xxx", `{
+	XCheckGet(t, reg, "/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
-	xCheckGet(t, reg, "xxx", `{
+	XCheckGet(t, reg, "xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
-	xCheckGet(t, reg, "/xxx/yyy", `{
+	XCheckGet(t, reg, "/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
   "detail": "Unknown Group type: xxx"
 }
 `)
-	xCheckGet(t, reg, "xxx/yyy", `{
+	XCheckGet(t, reg, "xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/xxx",
   "title": "The specified entity cannot be found: /xxx",
@@ -63,16 +63,16 @@ func TestCreateRegistry(t *testing.T) {
 	reg3, err := registry.FindRegistry(nil, "TestCreateRegistry",
 		registry.FOR_WRITE)
 	defer reg3.Rollback()
-	xCheck(t, err == nil && reg3 != nil,
+	XCheck(t, err == nil && reg3 != nil,
 		"Finding TestCreateRegistry should have worked")
 
 	reg3, err = registry.NewRegistry(nil, "")
 	defer PassDeleteReg(t, reg3)
-	xNoErr(t, err)
-	xCheck(t, reg3 != nil, "reg3 shouldn't be nil")
-	xCheck(t, reg3 != reg, "reg3 should be different from reg")
+	XNoErr(t, err)
+	XCheck(t, reg3 != nil, "reg3 shouldn't be nil")
+	XCheck(t, reg3 != reg, "reg3 should be different from reg")
 
-	xCheckGet(t, reg, "", `{
+	XCheckGet(t, reg, "", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCreateRegistry",
   "self": "http://localhost:8181/",
@@ -87,16 +87,16 @@ func TestCreateRegistry(t *testing.T) {
 func TestDeleteRegistry(t *testing.T) {
 	reg, err := registry.NewRegistry(nil, "TestDeleteRegistry")
 	defer reg.Rollback()
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	err = reg.Delete()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	reg, err = registry.FindRegistry(nil, "TestDeleteRegistry",
 		registry.FOR_WRITE)
 	defer reg.Rollback()
-	xCheck(t, reg == nil && err == nil,
+	XCheck(t, reg == nil && err == nil,
 		"Finding TestCreateRegistry found one but shouldn't")
 }
 
@@ -105,31 +105,31 @@ func TestRefreshRegistry(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Entity.Object["xxx"] = "yyy"
-	xCheck(t, reg.Get("xxx") == "yyy", "xxx should be yyy")
+	XCheck(t, reg.Get("xxx") == "yyy", "xxx should be yyy")
 
 	err := reg.Refresh(registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xCheck(t, reg.Get("xxx") == nil, "xxx should not be there")
+	XCheck(t, reg.Get("xxx") == nil, "xxx should not be there")
 }
 
 func TestFindRegistry(t *testing.T) {
 	reg, err := registry.FindRegistry(nil, "TestFindRegistry",
 		registry.FOR_WRITE)
 	defer reg.Rollback()
-	xCheck(t, reg == nil && err == nil,
+	XCheck(t, reg == nil && err == nil,
 		"Shouldn't have found TestFindRegistry")
 
 	reg, err = registry.NewRegistry(nil, "TestFindRegistry")
 	defer reg.SaveAllAndCommit()
 	defer reg.Delete() // PassDeleteReg(t, reg)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	reg2, err := registry.FindRegistry(nil, reg.UID, registry.FOR_WRITE)
 	defer reg2.Rollback()
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg2.AccessMode = reg.AccessMode
-	xJSONCheck(t, reg2, reg)
+	XJSONCheck(t, reg2, reg)
 }
 
 func TestRegistryProps(t *testing.T) {
@@ -146,7 +146,7 @@ func TestRegistryProps(t *testing.T) {
 	reg.SetSave("documentation", "https://docs.com")
 	reg.SetSave("labels.stage", "dev")
 
-	xCheckGet(t, reg, "", `{
+	XCheckGet(t, reg, "", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryProps",
   "self": "http://localhost:8181/",
@@ -173,22 +173,22 @@ func TestRegistryRequiredFields(t *testing.T) {
 		Type:     STRING,
 		Required: true,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Commit before we call Set below otherwise the Tx will be rolled back
 	reg.SaveAllAndCommit()
 
 	err = reg.SetSave("description", "testing")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
-	xNoErr(t, reg.JustSet("req", "testing2"))
-	xNoErr(t, reg.SetSave("description", "testing"))
+	XNoErr(t, reg.JustSet("req", "testing2"))
+	XNoErr(t, reg.SetSave("description", "testing"))
 
-	xHTTP(t, reg, "GET", "/", "", 200, `{
+	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRequiredFields",
   "self": "http://localhost:8181/",
@@ -213,7 +213,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  123,
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" \"default\" value must be of type \"string\""
@@ -224,7 +224,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Type:    STRING,
 		Default: "abc",
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" must have \"require\" set to \"true\" since a default value is defined"
@@ -236,7 +236,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  "hello",
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" is not a scalar, so \"default\" is not allowed"
@@ -248,7 +248,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  map[string]any{"key": "value"},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.defstring\" \"default\" value must be of type \"string\""
@@ -260,15 +260,15 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  "hello",
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	obj, err := reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj",
 		Type: OBJECT,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = reg.SaveModel()
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = obj.AddAttribute(&registry.Attribute{
 		Name:     "defint",
@@ -276,9 +276,9 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  "string",
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = reg.SaveModel()
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.myobj.defint\" \"default\" value must be of type \"integer\""
@@ -292,9 +292,9 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  "string",
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = reg.SaveModel()
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.myobj.defint\" is not a scalar, so \"default\" is not allowed"
@@ -308,15 +308,15 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Required: true,
 		Default:  123,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = reg.SaveModel()
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Commit before we call Set below otherwise the Tx will be rolled back
 	reg.Refresh(registry.FOR_WRITE)
 	reg.Touch() // Force a validation which will set all defaults
 
-	xHTTP(t, reg, "GET", "/", "", 200, `{
+	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
@@ -328,7 +328,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", "{}", 200, `{
+	XHTTP(t, reg, "PUT", "/", "{}", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
@@ -340,7 +340,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "defstring": "updated hello",
   "myobj": {}
 }`, 200, `{
@@ -358,7 +358,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "myobj": {
     "defint": 666
   }
@@ -377,7 +377,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
 }`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
@@ -390,7 +390,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/", `{
+	XHTTP(t, reg, "PUT", "/", `{
   "myobj": null
 }`, 200, `{
   "specversion": "`+SPECVERSION+`",

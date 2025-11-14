@@ -11,7 +11,7 @@ func TestModelXImportErrors(t *testing.T) {
 	reg := NewRegistry("TestModelXImportErrors")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -29,7 +29,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -47,7 +47,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -65,7 +65,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -82,7 +82,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -102,7 +102,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -120,7 +120,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -140,7 +140,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -164,7 +164,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -187,7 +187,7 @@ func TestModelXImport(t *testing.T) {
 	reg := NewRegistry("TestModel")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -203,16 +203,16 @@ func TestModelXImport(t *testing.T) {
       }
     }`, 200, "*")
 
-	xHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2", "{}", 404, "*")
+	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2", "{}", 404, "*")
 
 	// Erase everything, including the model itself
-	xHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
-	xHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
-	xHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "*")
+	XHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
+	XHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
+	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "*")
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
           "singular": "g1s",
@@ -232,13 +232,13 @@ func TestModelXImport(t *testing.T) {
       }
     }`, 200, "*")
 
-	xHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g1p/g1/r2p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r1", "{}", 201, "*")
-	xHTTP(t, reg, "PUT", "/g2p/g1/g2r2p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g1p/g1/r2p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g2p/g1/r2p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g2p/g1/g2r2p/r1", "{}", 201, "*")
 
-	xHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r1p/r1"}`,
+	XHTTP(t, reg, "PUT", "/g2p/g1/r2p/r2/meta", `{"xref":"/g1p/g1/r1p/r1"}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/g2p/g1/r2p/r2/meta",
@@ -256,20 +256,20 @@ func TestModelResourceAttrs(t *testing.T) {
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	_, err := rm.AddResourceAttr("rstring", STRING)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = rm.AddResourceAttrMap("rmap", registry.NewItemType(STRING))
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = rm.AddResourceAttrObj("robj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = rm.AddResourceAttrArray("rarray", registry.NewItemType(INTEGER))
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
-	xHTTP(t, reg, "GET", "/model", "{}", 200, `{
+	XHTTP(t, reg, "GET", "/model", "{}", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -815,7 +815,7 @@ func TestModelResourceAttrs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "dir",
@@ -850,7 +850,7 @@ func TestModelResourceAttrs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", "{}", 200, `{
+	XHTTP(t, reg, "GET", "/model", "{}", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -1401,8 +1401,8 @@ func TestModelFullModel(t *testing.T) {
 	reg := NewRegistry("TestModelFullModel")
 	defer PassDeleteReg(t, reg)
 
-	// xHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
-	xHTTP(t, reg, "PUT", "/?inline=model,*", `{
+	// XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+	XHTTP(t, reg, "PUT", "/?inline=model,*", `{
       "name": "my reg",
       "description": "reg instance desc",
       "documentation": "reg instance docs",
@@ -1520,7 +1520,7 @@ func TestModelFullModel(t *testing.T) {
           }
         }
       }
-    }`, 200, `--TS--{
+    }`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestModelFullModel",
   "self": "http://localhost:8181/",
@@ -2195,7 +2195,7 @@ func TestModelFullModel(t *testing.T) {
   },
   "dirscount": 1
 }
-`)
+`, NOMASK_TS)
 
 }
 
@@ -2203,7 +2203,7 @@ func TestModelNoResAttrExts(t *testing.T) {
 	reg := NewRegistry("TestModelNoResAttrExts")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "dir",
@@ -2231,7 +2231,7 @@ func TestModelNoResAttrExts(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "dir",
@@ -2263,7 +2263,7 @@ func TestModelUpdateSingular(t *testing.T) {
 	reg := NewRegistry("TestModelUpdateSingular")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "dir",
@@ -2276,7 +2276,7 @@ func TestModelUpdateSingular(t *testing.T) {
       }
 }`, 200, `*`)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "foo",
@@ -2294,7 +2294,7 @@ func TestModelUpdateSingular(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "dirs": {
           "singular": "dir",

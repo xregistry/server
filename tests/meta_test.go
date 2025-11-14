@@ -15,7 +15,7 @@ func TestMetaSimple(t *testing.T) {
 	rm.AddMetaAttr("foo", ANY)
 
 	// Simple no body create PUT
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: "{}",
@@ -40,7 +40,7 @@ func TestMetaSimple(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -85,7 +85,7 @@ func TestMetaSimple(t *testing.T) {
 `)
 
 	// Simple create no body POST - error
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f11/meta",
 		Method:  "POST",
 		ReqBody: "{}",
@@ -100,7 +100,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple create no body PUT, URL too long
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "PUT",
 		Code:   404,
@@ -113,7 +113,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple create no body POST, URL too long
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "POST",
 		Code:   404,
@@ -126,7 +126,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple create no body PATCH, URL too long
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f11/meta/xxx",
 		Method: "PATCH",
 		Code:   404,
@@ -139,7 +139,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple create no body PATCH
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f12/meta",
 		Method:  "PUT",
 		ReqBody: "{}",
@@ -165,7 +165,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple body create PUT + ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f2/meta",
 		Method: "PUT",
 		ReqBody: `{
@@ -195,7 +195,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Simple body create PATCH + ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f21/meta",
 		Method: "PUT",
 		ReqBody: `{
@@ -225,7 +225,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT no body - erases ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f2/meta",
 		Method:  "PUT",
 		ReqBody: "{}",
@@ -250,7 +250,7 @@ func TestMetaSimple(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f2?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f2?inline", ``, 200, `{
   "fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f2",
@@ -295,7 +295,7 @@ func TestMetaSimple(t *testing.T) {
 `)
 
 	// Update PUT empty body
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{}`,
@@ -321,7 +321,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PATCH empty body
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f21/meta",
 		Method:  "PATCH",
 		ReqBody: `{}`,
@@ -348,7 +348,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT + ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{ "foo": "zzz"}`,
@@ -375,7 +375,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PATCH empty body
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f21/meta",
 		Method:  "PATCH",
 		ReqBody: `{"foo":"aaa"}`,
@@ -402,7 +402,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT + bad ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{ "fff": "zzz"}`,
@@ -416,7 +416,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PATCH + bad ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f21/meta",
 		Method:  "PATCH",
 		ReqBody: `{"fff":"aaa"}`,
@@ -430,7 +430,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT, del ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{}`,
@@ -453,7 +453,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PATCH, del ext
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f21/meta",
 		Method:  "PATCH",
 		ReqBody: `{"foo":null}`,
@@ -476,7 +476,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT, add ext again
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{ "foo": "zz1"}`,
@@ -500,7 +500,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Update PUT, del ext again
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"foo":null}`,
@@ -523,7 +523,7 @@ func TestMetaSimple(t *testing.T) {
 	})
 
 	// Make sure DELETE fails
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1/meta",
 		Method: "DELETE",
 		Code:   405,
@@ -546,7 +546,7 @@ func TestMetaCombos(t *testing.T) {
 	rm.AddMetaAttr("foo", ANY)
 
 	// Create Resource and set the versionID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"versionid":"v1.0"}`,
@@ -573,7 +573,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Verify it's all correct
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
   "fileid": "f1",
   "versionid": "v1.0",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -618,7 +618,7 @@ func TestMetaCombos(t *testing.T) {
 `)
 
 	// PUT again with wrong versionid should fail
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"versionid":"v2.0"}`,
@@ -632,7 +632,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// PUT again with wrong fileid should fail
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"fileid":"foo"}`,
@@ -646,7 +646,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// PUT on meta with wrong fileid should fail
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"fileid":"foo"}`,
@@ -660,7 +660,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Create a version, setting vid
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "POST",
 		ReqBody: `{"versionid":"v2.0"}`,
@@ -683,7 +683,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Verify
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", ``, 200, `{
   "fileid": "f1",
   "versionid": "v2.0",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -739,7 +739,7 @@ func TestMetaCombos(t *testing.T) {
 `)
 
 	// Update/PUT w/o body should just bump epoch/modifiedat
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: "{}",
@@ -763,7 +763,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Make sure resource's epoch didn't change
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -800,7 +800,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - valid vid
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"versionid": "v2.0"}`,
@@ -824,7 +824,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Make sure just version's epoch/timestamp changed
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -861,7 +861,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - make defaultversionid sticky
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"meta":{"defaultversionsticky":true}}`,
@@ -885,7 +885,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// defversticky changed, but so did the default version's epoch/timestamp
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -922,7 +922,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Make sure just version's epoch/timestamp changed
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -959,7 +959,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - def attrs at the wrong spot
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"defaultversionid": "v1.0","defaultversionsticky":true}`,
@@ -973,7 +973,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - stick it again via meta this time
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"defaultversionsticky":true}`,
@@ -996,7 +996,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// meta's epoch changed but the defver didn't
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1034,7 +1034,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Create new version, defverid should not change, nor meta epoch/ts.
 	// New vid should be generated - ie '1'
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "POST",
 		ReqBody: "{}",
@@ -1054,7 +1054,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// defver and meta should be unchanged
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1091,7 +1091,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - unstick it, '1' should be the def now
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"defaultversionsticky":false}`,
@@ -1114,7 +1114,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// meta's epoch changed but the defver didn't
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1152,7 +1152,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PUT - update it via 'defverid' - should err since not sticky
 	// except bump epoch
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"defaultversionid":"v1.0"}`,
@@ -1166,7 +1166,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - stick it via 'defverid' AND sticky
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"defaultversionid":"v1.0","defaultversionsticky":true}`,
@@ -1189,7 +1189,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// meta's epoch changed but the defver didn't
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1227,7 +1227,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PUT - change defverid/unstick - error
 	// Include extension
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1/meta",
 		Method: "PUT",
 		ReqBody: `{
@@ -1245,7 +1245,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PUT - unstick
 	// Include extension
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{ "defaultversionsticky":null, "foo":"bar" }`,
@@ -1269,7 +1269,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// meta's epoch changed but the defver didn't
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1308,7 +1308,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PATCH - change defverid+sticky.
 	// Ext should remain
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PATCH",
 		ReqBody: `{"defaultversionid":"v1.0","defaultversionsticky":true}`,
@@ -1332,7 +1332,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// meta's epoch changed but the defver didn't
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?inline=meta",
 		Method: "GET",
 		Code:   200,
@@ -1371,7 +1371,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PATCH - unstick
 	// Ext should remain
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PATCH",
 		ReqBody: `{"defaultversionsticky":null}`,
@@ -1396,7 +1396,7 @@ func TestMetaCombos(t *testing.T) {
 
 	// Update/PATCH - stick
 	// Ext should remain
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PATCH",
 		ReqBody: `{"defaultversionsticky":true}`,
@@ -1420,7 +1420,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT - empty - should erase ext and unstick it
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: "{}",
@@ -1443,7 +1443,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT meta - bad epoch
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
 		Method:  "PUT",
 		ReqBody: `{"epoch": 1}`,
@@ -1457,7 +1457,7 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 	// Update/PUT resource - bad epoch
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `{"meta":{"epoch": 1}}`,

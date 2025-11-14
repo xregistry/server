@@ -77,6 +77,11 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
+// The funcs that use registry.* types can't be in "common/test.go" because
+// it causes a circular dependency issue. But I wanted to share the other
+// testing utils outside of the "testing" dir, so that's why they're split
+// across the 2 dirs this way. Kind of weird I know, but I'll clean it later
+
 func NewRegistry(name string, opts ...registry.RegOpt) *registry.Registry {
 	reg, _ := registry.FindRegistry(nil, name, registry.FOR_WRITE)
 	if reg != nil {
@@ -168,55 +173,17 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 	}
 }
 
-func Fail(t *testing.T, str string, args ...any) {
+func XCheckGet(t *testing.T, reg *registry.Registry, url string, expected string) {
 	t.Helper()
-	text := strings.TrimSpace(fmt.Sprintf(str, args...))
-	t.Fatalf("%s\n\n", text)
-}
-
-// got, any
-func xCheckErr(t *testing.T, errAny any, errStr string) {
-	t.Helper()
-
-	if IsNil(errAny) {
-		if errStr == "" {
-			return
-		}
-		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
-	}
-
-	if errStr == "" {
-		t.Fatalf("Test failed: %s", errAny)
-	}
-
-	xCheckEqual(t, "", errAny, errStr)
-}
-
-func xCheck(t *testing.T, b bool, errStr string, args ...any) {
-	t.Helper()
-	if !b {
-		t.Fatalf(errStr, args...)
-	}
-}
-
-func xNoErr(t *testing.T, errAny any) {
-	t.Helper()
-	if !IsNil(errAny) {
-		t.Fatalf("Unexpected error: %s", errAny)
-	}
-}
-
-func xCheckGet(t *testing.T, reg *registry.Registry, url string, expected string) {
-	t.Helper()
-	xNoErr(t, reg.SaveModel())
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	if len(url) > 0 {
 		url = strings.TrimLeft(url, "/")
 	}
 
 	res, err := http.Get("http://localhost:8181/" + url)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	body, err := io.ReadAll(res.Body)
 	buf := bytes.NewBuffer(body)
@@ -231,89 +198,7 @@ func xCheckGet(t *testing.T, reg *registry.Registry, url string, expected string
 		expected = string(OneLine([]byte(expected)))
 	}
 
-	xCheckEqual(t, "URL: "+url+"\n", buf.String(), expected)
-}
-
-func xCheckNotEqual(t *testing.T, extra string, gotAny any, expAny any) {
-	t.Helper()
-
-	exp := fmt.Sprintf("%v", expAny)
-	got := fmt.Sprintf("%v", gotAny)
-
-	if exp != got {
-		return
-	}
-
-	t.Fatalf("Should differ, but they're both:\n%s", exp)
-}
-
-func xCheckGreater(t *testing.T, extra string, newAny any, oldAny any) {
-	t.Helper()
-
-	New := fmt.Sprintf("%v", newAny)
-	Old := fmt.Sprintf("%v", oldAny)
-
-	if New > Old {
-		return
-	}
-
-	t.Fatalf("New not > Old:\nOld:\n%s\n\nNew:\n%s", Old, New)
-}
-
-func xCheckEqual(t *testing.T, extra string, gotAny any, expAny any) {
-	t.Helper()
-	pos := 0
-
-	exp := fmt.Sprintf("%v", expAny)
-	got := fmt.Sprintf("%v", gotAny)
-
-	if exp == "*" {
-		return
-	}
-
-	// expected output starting with "--TS--" means "skip timestamp masking"
-	if len(exp) > 6 && exp[0:6] == "--TS--" {
-		exp = exp[6:]
-	} else {
-		got = MaskTimestamps(got)
-		exp = MaskTimestamps(exp)
-	}
-
-	for pos < len(got) && pos < len(exp) && got[pos] == exp[pos] {
-		pos++
-	}
-	if pos == len(got) && pos == len(exp) {
-		return
-	}
-
-	if pos == len(got) {
-		t.Fatalf(extra+
-			"\nExpected:\n"+exp+
-			"\nGot:\n"+got+
-			"\nGot ended early at(%d)[%02X]:\n%q",
-			pos, exp[pos], got[pos:])
-	}
-
-	if pos == len(exp) {
-		t.Fatalf(extra+
-			"\nExpected:\n"+exp+
-			"\nGot:\n"+got+
-			"\nExp ended early at(%d)[%02X]:\n"+got[pos:],
-			pos, got[pos])
-	}
-
-	expMax := pos + 90
-	if expMax > len(exp) {
-		expMax = len(exp)
-	}
-
-	t.Fatalf(extra+
-		"\nExpected:\n"+exp+
-		"\nGot:\n"+got+
-		"\nDiff at(%d)[x%0x/x%0x]:"+
-		"\nExp subset:\n"+exp[pos:expMax]+
-		"\nGot:\n"+got[pos:],
-		pos, exp[pos], got[pos])
+	XEqual(t, "URL: "+url+"\n", buf.String(), expected)
 }
 
 type HTTPTest struct {
@@ -330,36 +215,16 @@ type HTTPTest struct {
 	ResBody     string
 }
 
-// http code, body
-func xGET(t *testing.T, url string) (int, string) {
+func XHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code int, resBody string, flags ...string) {
 	t.Helper()
-	url = "http://localhost:8181/" + url
-	res, err := http.Get(url)
-	if !IsNil(err) {
-		t.Fatalf("HTTP GET error: %s", err)
-	}
-
-	body, _ := io.ReadAll(res.Body)
-	/*
-		if res.StatusCode != 200 {
-			t.Logf("URL: %s", url)
-			t.Logf("Code: %d\n%s", res.StatusCode, string(body))
-		}
-	*/
-
-	return res.StatusCode, string(body)
-}
-
-func xHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code int, resBody string) {
-	t.Helper()
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        url,
 		Method:     verb,
 		ReqBody:    reqBody,
 		Code:       code,
 		ResBody:    resBody,
 		ResHeaders: []string{"*"},
-	})
+	}, flags...)
 }
 
 type HTTPResult struct {
@@ -367,11 +232,11 @@ type HTTPResult struct {
 	body string
 }
 
-func xDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
+func XDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	bodyStr string) *HTTPResult {
 
-	xNoErr(t, reg.SaveModel())
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -386,10 +251,10 @@ func xDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	path = strings.TrimLeft(path, "/")
 
 	req, err := http.NewRequest(method, "http://localhost:8181/"+path, body)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	doRes, err := client.Do(req)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	result := &HTTPResult{
 		Response: *doRes,
@@ -402,10 +267,10 @@ func xDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	return result
 }
 
-func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
+func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...string) {
 	t.Helper()
-	xNoErr(t, reg.SaveModel())
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	// t.Logf("Test: %s", test.Name)
 	// t.Logf(">> %s %s  (%s)", test.Method, test.URL, registry.GetStack()[1])
@@ -429,7 +294,7 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 
 	req, err := http.NewRequest(test.Method,
 		"http://localhost:8181/"+test.URL, body)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Add all request headers to the outbound message
 	for _, header := range test.ReqHeaders {
@@ -445,13 +310,13 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 		resBody, _ = io.ReadAll(res.Body)
 	}
 
-	xNoErr(t, err)
+	XNoErr(t, err)
 	if test.Code < 10 {
-		xCheck(t, int(res.StatusCode/100) == test.Code,
+		XCheck(t, int(res.StatusCode/100) == test.Code,
 			"Expected status %dxx, got %d\n%s",
 			test.Code, res.StatusCode, string(resBody))
 	} else {
-		xCheck(t, res.StatusCode == test.Code,
+		XCheck(t, res.StatusCode == test.Code,
 			"Expected status %d, got %d\n%s",
 			test.Code, res.StatusCode, string(resBody))
 	}
@@ -478,7 +343,7 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 	resReplaceFunc := func(input string) string {
 		return replaceFunc(input, resSeenTS)
 	}
-	TSre := SavedREs[TSREGEXP]
+	TSre := SavedREs[REG_RFC3339]
 
 	// Parse expected headers - split and lowercase the name
 	for _, v := range test.ResHeaders {
@@ -557,7 +422,7 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 		}
 
 		// t.Logf("Body: %s", string(resBody))
-		xCheckEqual(t, "Header:"+name+"\n", resValue, value)
+		XEqual(t, "Header:"+name+"\n", resValue, value, flags...)
 		// Delete the response header so we'll know if there are any
 		// unexpected xregistry- headers left around
 		delete(resHeaders, name)
@@ -604,26 +469,19 @@ func xCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest) {
 			testBody = re.ReplaceAllString(testBody, replace)
 		}
 
-		xCheckEqual(t, "Test: "+test.Name+"\nBody:\n",
-			string(resBody), testBody)
+		XEqual(t, "Test: "+test.Name+"\nBody:\n",
+			string(resBody), testBody, flags...)
 		if t.Failed() {
 			t.FailNow()
 		}
 	}
 }
 
-func xJSONCheck(t *testing.T, gotObj any, expObj any) {
-	t.Helper()
-	got := ToJSON(gotObj)
-	exp := ToJSON(expObj)
-	xCheckEqual(t, "", got, exp)
-}
-
-func xCLIServer(serverURL string) {
+func XCLIServer(serverURL string) {
 	os.Setenv("XR_SERVER", serverURL)
 }
 
-func xCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
+func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 	t.Helper()
 
 	args := strings.Split(line, " ")
@@ -647,11 +505,11 @@ func xCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 			stdout.String(), stderr.String())
 	}
 
-	xCheckEqual(t, "Stderr:", stderr.String(), Eerr)
-	xCheckEqual(t, "Stdout:", stdout.String(), Eout)
+	XEqual(t, "Stderr:", stderr.String(), Eerr)
+	XEqual(t, "Stdout:", stdout.String(), Eout)
 }
 
-func xServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
+func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
 	t.Helper()
 
 	args := strings.Split(strings.TrimSpace(line), " ")
@@ -675,28 +533,10 @@ func xServer(t *testing.T, line string, in, Eout, Eerr string, code int) {
 			stdout.String(), stderr.String())
 	}
 
-	gotOut := MaskServer(stdout.String())
-	gotErr := MaskServer(stderr.String())
-	expOut := MaskServer(Eout)
-	expErr := MaskServer(Eerr)
-
-	if expErr != "*" {
-		xCheckEqual(t, "Stderr:", gotErr, expErr)
+	if Eerr != "*" {
+		XEqual(t, "Stderr:", stderr.String(), Eerr, MASK_SERVER)
 	}
-	if expOut != "*" {
-		xCheckEqual(t, "Stdout:", gotOut, expOut)
+	if Eout != "*" {
+		XEqual(t, "Stdout:", stdout.String(), Eout, MASK_SERVER)
 	}
-}
-
-var maskDate1 = regexp.MustCompile(`\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`)
-var maskDate2 = regexp.MustCompile(`\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}`)
-var maskCommit = regexp.MustCompile(`GitCommit: [0-9a-f]*\n`)
-var maskHost = regexp.MustCompile(`DB server: .*`)
-
-func MaskServer(str string) string {
-	str = maskDate1.ReplaceAllString(str, "YYYY/MM/DD HH:MM:SS")
-	str = maskDate2.ReplaceAllString(str, "YYYY-MM-DD HH:MM:SS")
-	str = maskCommit.ReplaceAllString(str, "GitCommit: sha\n")
-	str = maskHost.ReplaceAllString(str, "DB server: host:port")
-	return str
 }

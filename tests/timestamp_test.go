@@ -15,7 +15,7 @@ func TestTimestampRegistry(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/",
+	XCheckGet(t, reg, "/",
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampRegistry",
@@ -30,13 +30,13 @@ func TestTimestampRegistry(t *testing.T) {
 	// Should be the same values
 	regCreate := reg.Get("createdat")
 	regMod := reg.Get("modifiedat")
-	xCheckEqual(t, "", regCreate, regMod)
+	XEqual(t, "", regCreate, regMod)
 	reg.SaveAllAndCommit()
 	reg.Refresh(registry.FOR_WRITE)
 
 	// Test to make sure modify timestamp changes, but created didn't
-	xNoErr(t, reg.SetSave("description", "my docs"))
-	xCheckHTTP(t, reg, &HTTPTest{
+	XNoErr(t, reg.SetSave("description", "my docs"))
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/",
 		Method: "GET",
 		Code:   200,
@@ -52,28 +52,28 @@ func TestTimestampRegistry(t *testing.T) {
 }
 `})
 
-	xCheckEqual(t, "", reg.Get("createdat"), regCreate)
-	xCheck(t, regMod != reg.Get("modifiedat"), "should be new time")
+	XEqual(t, "", reg.Get("createdat"), regCreate)
+	XCheck(t, regMod != reg.Get("modifiedat"), "should be new time")
 
 	// Mod should be higher than before
-	xCheck(t, ToJSON(reg.Get("modifiedat")) > ToJSON(regMod),
+	XCheck(t, ToJSON(reg.Get("modifiedat")) > ToJSON(regMod),
 		"Mod should be newer than before")
 
 	reg.Refresh(registry.FOR_WRITE)
 	regMod = reg.Get("modifiedat")
 
-	xCheck(t, ToJSON(regMod) > ToJSON(regCreate),
+	XCheck(t, ToJSON(regMod) > ToJSON(regCreate),
 		"Mod should be newer than create")
 
 	// Now test with Groups and Resources
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/?inline",
 		Method: "GET",
 		Code:   200,
@@ -156,25 +156,25 @@ func TestTimestampRegistry(t *testing.T) {
 	fCTime := f.Get("createdat")
 	fMTime := f.Get("modifiedat")
 
-	xCheckEqual(t, "", reg.Get("createdat"), regCreate)
-	xCheckEqual(t, "", reg.Get("modifiedat"), regMod)
+	XEqual(t, "", reg.Get("createdat"), regCreate)
+	XEqual(t, "", reg.Get("modifiedat"), regMod)
 
-	xNoErr(t, f.SetSaveDefault("description", "myfile"))
+	XNoErr(t, f.SetSaveDefault("description", "myfile"))
 
-	xCheckEqual(t, "", dCTime, d.Get("createdat"))
-	xCheckEqual(t, "", dMTime, d.Get("modifiedat"))
-	xCheckEqual(t, "", fCTime, f.Get("createdat"))
-	xCheck(t, ToJSON(fMTime) < ToJSON(f.Get("modifiedat")),
+	XEqual(t, "", dCTime, d.Get("createdat"))
+	XEqual(t, "", dMTime, d.Get("modifiedat"))
+	XEqual(t, "", fCTime, f.Get("createdat"))
+	XCheck(t, ToJSON(fMTime) < ToJSON(f.Get("modifiedat")),
 		"Should not be the same")
 
 	// Close out any lingering tx
-	xNoErr(t, reg.SaveAllAndCommit())
+	XNoErr(t, reg.SaveAllAndCommit())
 
 	/*
 	   	reg = NewRegistry("TestTimestampRegistry2")
 	   	defer PassDeleteReg(t, reg)
 
-	   	xCheckHTTP(t, reg, &HTTPTest{
+	   	XCheckHTTP(t, reg, &HTTPTest{
 	   		URL:    "/",
 	   		Method: "GET",
 	   		Code:   200,
@@ -190,7 +190,7 @@ func TestTimestampRegistry(t *testing.T) {
 	*/
 
 	// Test updating registry's times
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - set ts",
 		URL:        "/",
 		Method:     "PUT",
@@ -201,7 +201,7 @@ func TestTimestampRegistry(t *testing.T) {
 		}`,
 		Code:       200,
 		ResHeaders: []string{"Content-Type:application/json"},
-		ResBody: `--TS--{
+		ResBody: `{
   "specversion": "` + SPECVERSION + `",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
@@ -214,13 +214,13 @@ func TestTimestampRegistry(t *testing.T) {
   "dirscount": 1
 }
 `,
-	})
+	}, NOMASK_TS)
 	reg.Refresh(registry.FOR_WRITE)
 	// Shouldn't need these, but do it anyway
-	xCheckEqual(t, "", reg.Get("createdat"), "1970-01-02T03:04:05Z")
-	xCheckEqual(t, "", reg.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	XEqual(t, "", reg.Get("createdat"), "1970-01-02T03:04:05Z")
+	XEqual(t, "", reg.Get("modifiedat"), "2000-05-04T03:02:01Z")
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - set ts",
 		URL:        "/",
 		Method:     "PUT",
@@ -246,7 +246,7 @@ func TestTimestampRegistry(t *testing.T) {
 	})
 
 	// Test creating a group and setting it's times
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - set ts",
 		URL:        "/dirs/d4",
 		Method:     "PUT",
@@ -272,12 +272,12 @@ func TestTimestampRegistry(t *testing.T) {
 	})
 
 	g, err := reg.FindGroup("dirs", "d4", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheckEqual(t, "", g.Get("createdat"), "1970-01-02T03:04:05Z")
-	xCheckEqual(t, "", g.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	XNoErr(t, err)
+	XEqual(t, "", g.Get("createdat"), "1970-01-02T03:04:05Z")
+	XEqual(t, "", g.Get("modifiedat"), "2000-05-04T03:02:01Z")
 
 	// Test creating a dir/file/version and setting the version's times
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - set ts",
 		URL:        "/dirs/d5/files/f5/versions/v99$details",
 		Method:     "PUT",
@@ -303,13 +303,13 @@ func TestTimestampRegistry(t *testing.T) {
 	})
 
 	g, err = reg.FindGroup("dirs", "d5", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	r, err := g.FindResource("files", "f5", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	v, err := r.FindVersion("v99", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheckEqual(t, "", v.Get("createdat"), "1970-01-02T03:04:05Z")
-	xCheckEqual(t, "", v.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	XNoErr(t, err)
+	XEqual(t, "", v.Get("createdat"), "1970-01-02T03:04:05Z")
+	XEqual(t, "", v.Get("modifiedat"), "2000-05-04T03:02:01Z")
 }
 
 func TestTimestampParsing(t *testing.T) {
@@ -317,7 +317,7 @@ func TestTimestampParsing(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/",
+	XCheckGet(t, reg, "/",
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampParsing",
@@ -353,14 +353,14 @@ func TestTimestampParsing(t *testing.T) {
 		buf := []byte(`{"modifiedat":"` + test.timestamp + `"}`)
 		body := bytes.NewReader(buf)
 		req, err := http.NewRequest("PATCH", "http://localhost:8181/", body)
-		xNoErr(t, err)
+		XNoErr(t, err)
 
 		res, err := client.Do(req)
 		if res != nil {
 			buf, _ = io.ReadAll(res.Body)
 		}
 
-		xNoErr(t, err)
+		XNoErr(t, err)
 		if res.StatusCode != test.code {
 			t.Logf("TS: %#v", test)
 			t.Fatalf("Expected status %d, got %d\n%s",
@@ -373,10 +373,10 @@ func TestTimestampParsing(t *testing.T) {
 
 		reg.Refresh(registry.FOR_WRITE)
 		if test.utc != "" {
-			xCheckEqual(t, "", reg.Get("modifiedat"), "--TS--"+test.utc)
+			XEqual(t, "", reg.Get("modifiedat"), test.utc, NOMASK_TS)
 		} else {
-			xCheckEqual(t, "", reg.Get("modifiedat"), "--TS--"+test.value)
+			XEqual(t, "", reg.Get("modifiedat"), test.value, NOMASK_TS)
 		}
-		xNoErr(t, reg.SaveAllAndCommit())
+		XNoErr(t, reg.SaveAllAndCommit())
 	}
 }

@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	. "github.com/xregistry/server/common"
 	"github.com/xregistry/server/registry"
 )
 
@@ -13,15 +14,15 @@ func TestXrefBasic(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
 	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	rows := reg.Query("select * from Versions where ResourceSID=?",
 		f1.DbSID)
-	xCheckEqual(t, "", len(rows), 1) // Just to be sure Query works ok
+	XEqual(t, "", len(rows), 1) // Just to be sure Query works ok
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"dirs/d1/files/f1"}`, 400, // missing leading /
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -30,7 +31,7 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/foo/dirs/d1/files/f1"}`, 400, // make it bad
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -39,11 +40,11 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
 
 	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
 	meta, _ := fx.FindMeta(false, registry.FOR_WRITE)
@@ -53,9 +54,9 @@ func TestXrefBasic(t *testing.T) {
 	// Use fx.GetVersions() will grab from xref target so don't use that
 	rows = reg.Query("select * from Versions where ResourceSID=?",
 		fx.DbSID)
-	xCheckEqual(t, "", len(rows), 0)
+	XEqual(t, "", len(rows), 0)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline=meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline=meta", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -118,7 +119,7 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details?inline=meta",
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details?inline=meta",
 		`{"description":"testing xref"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -152,14 +153,14 @@ func TestXrefBasic(t *testing.T) {
 `)
 
 	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx", "/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xCheckEqual(t, "", fx.Get("description"), "testing xref")
+	XEqual(t, "", fx.Get("description"), "testing xref")
 
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v1$details",
 		`{"name":"v1 name"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -175,7 +176,7 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -277,15 +278,15 @@ func TestXrefBasic(t *testing.T) {
 `)
 
 	// Now clear xref and make sure a version is created
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null}`, 200, `*`)
 
 	rows = reg.Query("select * from Versions where ResourceSID=?",
 		fx.DbSID)
-	xCheckEqual(t, "", len(rows), 1)
+	XEqual(t, "", len(rows), 1)
 
 	meta, err = reg.FindXIDMeta("/dirs/d1/files/fx/meta", "/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	if meta.Get("createdat") != oldCreatedAt {
 		t.Errorf("CreatedAt has wrong value, should be %q, not %q",
@@ -293,7 +294,7 @@ func TestXrefBasic(t *testing.T) {
 		t.FailNow()
 	}
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -390,14 +391,14 @@ func TestXrefBasic(t *testing.T) {
 `)
 
 	// re-Set xref and make sure the version is deleted
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 200, `*`)
 
 	rows = reg.Query("select * from Versions where ResourceSID=?",
 		fx.DbSID)
-	xCheckEqual(t, "", len(rows), 0)
+	XEqual(t, "", len(rows), 0)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -499,12 +500,12 @@ func TestXrefBasic(t *testing.T) {
 `)
 
 	// Now clear xref and set some props at the same time
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details",
 		`{"meta":{"xref":null},
 		  "name": "fx name",
 		  "description": "very cool"}`, 200, `*`)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -615,25 +616,25 @@ func TestXrefErrors(t *testing.T) {
 
 	gm2, _ := reg.Model.AddGroupModel("bars", "bar")
 
-	xCheckErr(t, gm2.AddXImportResource("dirs/files"),
+	XCheckErr(t, gm2.AddXImportResource("dirs/files"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value \"dirs/files\" must start with /"
 }`)
-	xCheckErr(t, gm2.AddXImportResource("/dirs/files/versions"),
+	XCheckErr(t, gm2.AddXImportResource("/dirs/files/versions"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value of \"/dirs/files/versions\" must be of the form: /GROUPS/RESOURCES"
 }`)
-	xCheckErr(t, gm2.AddXImportResource("/dirs"),
+	XCheckErr(t, gm2.AddXImportResource("/dirs"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: 'ximportresources' value of \"/dirs\" must be of the form: /GROUPS/RESOURCES"
 }`)
-	xCheckErr(t, gm2.AddXImportResource("//files"),
+	XCheckErr(t, gm2.AddXImportResource("//files"),
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
@@ -641,13 +642,13 @@ func TestXrefErrors(t *testing.T) {
 }`)
 
 	// Now a good one
-	xNoErr(t, gm2.AddXImportResource("/dirs/files"))
+	XNoErr(t, gm2.AddXImportResource("/dirs/files"))
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	_, err := d.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx","fileid":"f2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
@@ -655,7 +656,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The specified \"file\" ID value (f2) needs to be \"f1\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx","epoch":5}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -663,7 +664,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The attribute \"epoch\" is not valid: value (5) doesn't match existing value (1)"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx", "modifiedat":"2025-01-01T12:00:00"}`,
 		400,
 		`{
@@ -672,7 +673,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The request cannot be processed as provided: extra attributes (modifiedat) in \"meta\" not allowed when \"xref\" is set"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"foo":"foo","xref": "/dirs/d1/files/fx"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -681,7 +682,7 @@ func TestXrefErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"meta": {"fileid":"f1", "xref":"/dirs/d1/files/f1"},"epoch":5, "description": "x"}`,
 		400,
 		`{
@@ -690,7 +691,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The request cannot be processed as provided: extra attributes (description,epoch) not allowed when \"xref\" is set"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"meta": {"fileid":"f1", "xref":"/dirs/d1/files/f1"},"epoch":5, "description": "x"}`,
 		400,
 		`{
@@ -700,7 +701,7 @@ func TestXrefErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"fileid": "f2", "meta": {"xref":"/dirs/d1/files/f1"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -708,7 +709,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"f2\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"meta": {"xref":"/dirs/d1/files/f1","epoch":6}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -716,7 +717,7 @@ func TestXrefErrors(t *testing.T) {
   "title": "The attribute \"epoch\" is not valid: value (6) doesn't match existing value (1)"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -727,7 +728,7 @@ func TestXrefErrors(t *testing.T) {
 
 	// actually it can point to itself since we just treat it like any other
 	// time we point to a Resource that's an xref
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2/meta",
 		`{"xref":"/dirs/d1/files/f2"}`, 201, `{
   "fileid": "f2",
   "self": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -736,7 +737,7 @@ func TestXrefErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
 		`{"xref":"/bars/b1/files/f1"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -745,7 +746,7 @@ func TestXrefErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
 		`{"xref":"/bars/b1/files/f2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -755,7 +756,7 @@ func TestXrefErrors(t *testing.T) {
 `)
 
 	// ok even if target is missing
-	xHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
 		`{"xref":"/dirs/dx/files/fx"}`, 201, `{
   "fileid": "f1",
   "self": "http://localhost:8181/bars/b1/files/f1/meta",
@@ -764,7 +765,7 @@ func TestXrefErrors(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/ff", `{}`, 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/ff", `{}`, 201, `{
   "fileid": "ff",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/ff",
@@ -782,7 +783,7 @@ func TestXrefErrors(t *testing.T) {
 `)
 
 	// Works!
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx", "epoch":1}`,
 		200,
 		`{
@@ -794,7 +795,7 @@ func TestXrefErrors(t *testing.T) {
 `)
 
 	// ximport Works!
-	xHTTP(t, reg, "PUT", "/bars/b1/files/f2?inline=meta",
+	XHTTP(t, reg, "PUT", "/bars/b1/files/f2?inline=meta",
 		`{"meta":{"xref": "/dirs/d1/files/ff"}}`,
 		201,
 		`{
@@ -838,7 +839,7 @@ func TestXrefRevert(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 	d, _ := reg.AddGroup("dirs", "d1")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v9",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v9",
 		`{"description":"hi"}`, 201, `{
   "fileid": "f1",
   "versionid": "v9",
@@ -855,7 +856,7 @@ func TestXrefRevert(t *testing.T) {
 
 	// Revert with no versions (create 2 files so we can grab the TS from f0)
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "POST", "/dirs/d1/files/?inline=meta",
+	XHTTP(t, reg, "POST", "/dirs/d1/files/?inline=meta",
 		`{"f0":{}, "fx":{"meta":{"xref":"/dirs/d1/files/f1"}}}`, 200, `{
   "f0": {
     "fileid": "f0",
@@ -922,14 +923,14 @@ func TestXrefRevert(t *testing.T) {
 
 	// Grab F0's timestamp so we can compare later
 	f0, err := d.FindResource("files", "f0", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	f0TS := f0.Get("createdat").(string)
-	xCheck(t, f0TS > "2024", "bad ts: %s", f0TS)
+	XCheck(t, f0TS > "2024", "bad ts: %s", f0TS)
 
 	// Notice epoch will be 2 not 1 since it's max(0,fx.epoch)+1
 	// Notice meta.createat == f0's createdat, others are now()
 	// Make sure we pick up def ver attrs
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "description": "hello",
   "meta":{"xref":null}
 } `, 200, `{
@@ -964,15 +965,15 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 	fx, err := d.FindResource("files", "fx", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	fxMeta, err := fx.FindMeta(false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	fxMetaTS := fxMeta.Get("createdat").(string)
-	xCheck(t, f0TS == fxMetaTS, "Bad ts: %s/%s", f0TS, fxMetaTS)
+	XCheck(t, f0TS == fxMetaTS, "Bad ts: %s/%s", f0TS, fxMetaTS)
 
 	// Revert with empty versions
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
 		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 200, `{
   "fileid": "fx",
   "versionid": "v9",
@@ -1006,7 +1007,7 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "meta":{"xref":null},
   "versions": {}
 } `, 200, `{
@@ -1039,14 +1040,14 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 	// Revert with one version
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
 		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 200, `{
   "fileid": "fx",
   "versionid": "v9",
@@ -1081,7 +1082,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// Notice "description:bye" is ignored
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "description": "bye",
   "meta":{"xref":null},
   "versions": { "v1": { "description": "ver1" } }
@@ -1117,14 +1118,14 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 	// Revert with two versions - no default
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
 		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 200, `{
   "fileid": "fx",
   "versionid": "v9",
@@ -1159,7 +1160,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// "description:bye" is ignored
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "description": "bye",
   "meta":{"xref":null},
   "versions": { "z1": {}, "a1": {} }
@@ -1194,14 +1195,14 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 	// Revert with two versions - w/default query param
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
 		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 200, `{
   "fileid": "fx",
   "versionid": "v9",
@@ -1237,7 +1238,7 @@ func TestXrefRevert(t *testing.T) {
 
 	// Not 100% this is legal per the spec, we should probably reject the
 	// query parameter since I think it's only allowed on 'POST /versions'
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta&setdefaultversionid=bb", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta&setdefaultversionid=bb", `{
   "meta":{"xref":null },
   "versions": { "z2": {}, "b3": {} }
 } `, 400, `{
@@ -1247,7 +1248,7 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta&setdefaultversionid=b3", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta&setdefaultversionid=b3", `{
   "meta":{"xref":null },
   "versions": { "z2": {}, "b3": {} }
 } `, 200, `{
@@ -1281,14 +1282,14 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 	// Revert with two versions - w/default in meta
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
 		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 200, `{
   "fileid": "fx",
   "versionid": "v9",
@@ -1322,7 +1323,7 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "meta":{"xref":null,
           "defaultversionid": "bb",
           "defaultversionsticky": true },
@@ -1334,7 +1335,7 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta", `{
   "meta":{"xref":null,
           "defaultversionid": "b3",
           "defaultversionsticky": true },
@@ -1369,14 +1370,14 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 2
 }
 `)
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 	// Revert via meta + default
 	////////////////////////////////////////////////////////
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 200, `{
   "fileid": "fx",
   "self": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -1395,7 +1396,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// defaultversionid is bad because we're not sticky
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null,
           "defaultversionid": "bb"}`, 400,
 		`{
@@ -1406,7 +1407,7 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// defaultversionid is bad
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null,
           "defaultversionid": "bb",
 		  "defaultversionsticky": true }`, 400,
@@ -1417,7 +1418,7 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null,
 		  "defaultversionsticky": true}`, 200, `{
   "fileid": "fx",
@@ -1435,10 +1436,10 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	xNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
-	xNoErr(t, fx.Refresh(registry.FOR_WRITE))
-	xCheckEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
-	xCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
+	XNoErr(t, fxMeta.Refresh(registry.FOR_WRITE))
+	XNoErr(t, fx.Refresh(registry.FOR_WRITE))
+	XEqual(t, "ts check", f0TS, fxMeta.Get("createdat").(string))
+	XCheckGreater(t, "ts check", fx.Get("createdat").(string), f0TS)
 
 }
 
@@ -1449,8 +1450,8 @@ func TestXrefDocs(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello world", 201, "hello world")
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details?inline=file",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello world", 201, "hello world")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details?inline=file",
 		`{"fileurl":"http://localhost:8282/EMPTY-URL"}`, 201, `{
   "fileid": "f2",
   "versionid": "1",
@@ -1469,7 +1470,7 @@ func TestXrefDocs(t *testing.T) {
   "versionscount": 1
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f3$details?inline=file",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3$details?inline=file",
 		`{"fileproxyurl":"http://localhost:8282/EMPTY-Proxy"}`, 201, `{
   "fileid": "f3",
   "versionid": "1",
@@ -1490,7 +1491,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `{
   "fileid": "fx",
   "self": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -1508,10 +1509,10 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 200, `hello world`)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx", "", 200, `hello world`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 200, `hello world`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx", "", 200, `hello world`)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "check xref header",
 		URL:        "/dirs/d1/files/fx",
 		Method:     "GET",
@@ -1540,82 +1541,82 @@ func TestXrefDocs(t *testing.T) {
 		ResBody: `hello world`,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1", "", 200, `hello world`)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/1", "", 200, `hello world`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1", "", 200, `hello world`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/1", "", 200, `hello world`)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx", `{"versions":{}}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx$details", `{"versions":{}}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details", `{"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2", `{}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx$details?setdefaultversionid=2",
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=2",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: Version \"2\" not found"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=1",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=1",
 		`{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"defaultversionid\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2",
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2",
 		``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", "{}", 200,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", "{}", 200,
 		"{}\n")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", `{"vv":{}}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", `{"vv":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1", "hi", 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1$details", "{}", 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions/1", "hi", 405,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions/1", "hi", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
@@ -1623,14 +1624,14 @@ func TestXrefDocs(t *testing.T) {
   "detail": "POST not allowed on a version"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2", "hi", 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2", "hi", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2$details", "{}", 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx",
@@ -1638,7 +1639,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -1646,7 +1647,7 @@ func TestXrefDocs(t *testing.T) {
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -1655,7 +1656,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/",
+	XHTTP(t, reg, "POST", "/dirs/d1/files/",
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -1663,7 +1664,7 @@ func TestXrefDocs(t *testing.T) {
   "title": "The request cannot be processed as provided: can't update \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/",
+	XHTTP(t, reg, "POST", "/dirs/d1/files/",
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -1672,7 +1673,7 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d2",
+	XHTTP(t, reg, "PUT", "/dirs/d2",
 		`{"files":{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -1681,14 +1682,14 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/1", ``,
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/1", ``,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
   "title": "The request cannot be processed as provided: can't delete \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/x", ``,
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/x", ``,
 		404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/x",
@@ -1696,19 +1697,19 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/", `{"1":{}}`,
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/", `{"1":{}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/fx/versions/1",
   "title": "The request cannot be processed as provided: can't delete \"versions\" of a Resource that uses \"xref\""
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/d1/files/fx", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx", ``, 204, ``)
 
 	// Now test stuff that use fileurl and fileproxy
 
 	// fileurl
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/fx/meta?doc",
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/fx/meta?doc",
 		`{"xref":"/dirs/d1/files/f2"}`, 201, `{
   "fileid": "fx",
   "self": "#/",
@@ -1716,7 +1717,7 @@ func TestXrefDocs(t *testing.T) {
   "xref": "/dirs/d1/files/f2"
 }
 `)
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "",
 		URL:    "/dirs/d1/files/fx",
 		Method: "GET",
@@ -1724,7 +1725,7 @@ func TestXrefDocs(t *testing.T) {
 		Code:       303,
 		ResHeaders: []string{"Location: http://localhost:8282/EMPTY-URL"},
 		ResBody:    ``})
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx$details", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx$details", ``, 200, `{
   "fileid": "fx",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/fx$details",
@@ -1744,7 +1745,7 @@ func TestXrefDocs(t *testing.T) {
 `)
 
 	// fileProxyURL
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/fx/meta?doc",
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/fx/meta?doc",
 		`{"xref":"/dirs/d1/files/f3"}`, 200, `{
   "fileid": "fx",
   "self": "#/",
@@ -1753,8 +1754,8 @@ func TestXrefDocs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx", ``, 200, "hello-Proxy\n")
-	xHTTP(t, reg, "GET", "/dirs/d1/files/fx$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx", ``, 200, "hello-Proxy\n")
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx$details?inline=file", ``, 200, `{
   "fileid": "fx",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/fx$details",

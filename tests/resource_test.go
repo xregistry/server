@@ -16,27 +16,27 @@ func TestCreateResource(t *testing.T) {
 	d1, _ := reg.AddGroup("dirs", "d1")
 
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
-	xCheck(t, f1 != nil && err == nil, "Creating f1 failed")
+	XNoErr(t, err)
+	XCheck(t, f1 != nil && err == nil, "Creating f1 failed")
 
 	ft, err := d1.AddResource("files", "f1", "v1")
-	xCheck(t, ft == nil && err != nil, "Dup f1 should have failed")
+	XCheck(t, ft == nil && err != nil, "Dup f1 should have failed")
 
 	v2, err := f1.AddVersion("v2")
-	xNoErr(t, err)
-	xCheck(t, v2 != nil && err == nil, "Creating v2 failed")
+	XNoErr(t, err)
+	XCheck(t, v2 != nil && err == nil, "Creating v2 failed")
 
 	vt, err := f1.AddVersion("v2")
-	xCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
+	XCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
 
 	vt, isNew, err := f1.UpsertVersion("v2")
-	xCheck(t, vt != nil && err == nil, "Update v2 should have worked")
-	xCheck(t, isNew == false, "Update v2 should have not been new")
-	xCheck(t, v2 == vt, "Should not be a new version")
+	XCheck(t, vt != nil && err == nil, "Update v2 should have worked")
+	XCheck(t, isNew == false, "Update v2 should have not been new")
+	XCheck(t, v2 == vt, "Should not be a new version")
 
 	d2, err := reg.AddGroup("dirs", "d2")
-	xNoErr(t, err)
-	xCheck(t, d2 != nil && err == nil, "Creating d2 failed")
+	XNoErr(t, err)
+	XCheck(t, d2 != nil && err == nil, "Creating d2 failed")
 
 	f2, _ := d2.AddResource("files", "f2", "v1")
 	f2.AddVersion("v1.1")
@@ -46,7 +46,7 @@ func TestCreateResource(t *testing.T) {
 	//      /d2/f2/v1
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/dirs/d1/files/f1$details",
+	XCheckGet(t, reg, "/dirs/d1/files/f1$details",
 		`{
   "fileid": "f1",
   "versionid": "v2",
@@ -63,26 +63,26 @@ func TestCreateResource(t *testing.T) {
   "versionscount": 2
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/xxx", `{
+	XCheckGet(t, reg, "/dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
 }
 `)
-	xCheckGet(t, reg, "dirs/d1/files/xxx", `{
+	XCheckGet(t, reg, "dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", `{
+	XCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
   "detail": "Expected \"versions\" or \"meta\", got: yyy"
 }
 `)
-	xCheckGet(t, reg, "dirs/d1/files/xxx/yyy", `{
+	XCheckGet(t, reg, "dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
@@ -91,25 +91,25 @@ func TestCreateResource(t *testing.T) {
 `)
 
 	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, ft != nil && err == nil, "Finding f1 failed")
+	XNoErr(t, err)
+	XCheck(t, ft != nil && err == nil, "Finding f1 failed")
 	ft.AccessMode = f1.AccessMode // little cheat
-	xJSONCheck(t, ft, f1)
+	XJSONCheck(t, ft, f1)
 
 	ft, err = d1.FindResource("files", "xxx", false, registry.FOR_WRITE)
-	xCheck(t, ft == nil && err == nil, "Find files/xxx should have failed")
+	XCheck(t, ft == nil && err == nil, "Find files/xxx should have failed")
 
 	ft, err = d1.FindResource("xxx", "xxx", false, registry.FOR_WRITE)
-	xCheck(t, ft == nil && err == nil, "Find xxx/xxx should have failed")
+	XCheck(t, ft == nil && err == nil, "Find xxx/xxx should have failed")
 
 	ft, err = d1.FindResource("xxx", "f1", false, registry.FOR_WRITE)
-	xCheck(t, ft == nil && err == nil, "Find xxx/f1 should have failed")
+	XCheck(t, ft == nil && err == nil, "Find xxx/f1 should have failed")
 
 	err = f1.Delete()
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	ft, err = d1.FindResource("files", "f1", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && ft == nil, "Finding delete resource failed")
+	XCheck(t, err == nil && ft == nil, "Finding delete resource failed")
 }
 
 func TestResourceSet(t *testing.T) {
@@ -123,31 +123,31 @@ func TestResourceSet(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
 	// /dirs/d1/f1/v1
 
-	xNoErr(t, f1.SetSaveDefault("name", "myName"))
-	xNoErr(t, f1.SetSaveDefault("epoch", 68))
-	xNoErr(t, f1.SetSaveDefault("ext1", "someext"))
-	xNoErr(t, f1.SetSaveDefault("ext2", 123))
+	XNoErr(t, f1.SetSaveDefault("name", "myName"))
+	XNoErr(t, f1.SetSaveDefault("epoch", 68))
+	XNoErr(t, f1.SetSaveDefault("ext1", "someext"))
+	XNoErr(t, f1.SetSaveDefault("ext2", 123))
 
 	// Make sure the props on the resource weren't set
-	xCheck(t, f1.Entity.Get("name") == nil, "name should be nil")
-	xCheck(t, f1.Entity.Get("epoch") == nil, "epoch should be nil")
-	xCheck(t, f1.Entity.Get("ext1") == nil, "ext1 should be nil")
-	xCheck(t, f1.Entity.Get("ext2") == nil, "ext2 should be nil")
+	XCheck(t, f1.Entity.Get("name") == nil, "name should be nil")
+	XCheck(t, f1.Entity.Get("epoch") == nil, "epoch should be nil")
+	XCheck(t, f1.Entity.Get("ext1") == nil, "ext1 should be nil")
+	XCheck(t, f1.Entity.Get("ext2") == nil, "ext2 should be nil")
 
 	ft, _ := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
 
-	xJSONCheck(t, ft, f1)
+	XJSONCheck(t, ft, f1)
 
 	// Make sure the version was set
 	vt, _ := ft.GetDefault(registry.FOR_WRITE)
-	xJSONCheck(t, vt.Get("name"), "myName")
-	xJSONCheck(t, vt.Get("epoch"), 68)
-	xJSONCheck(t, vt.Get("ext1"), "someext")
-	xJSONCheck(t, vt.Get("ext2"), 123)
+	XEqual(t, "", vt.Get("name"), "myName")
+	XEqual(t, "", vt.Get("epoch"), 68)
+	XEqual(t, "", vt.Get("ext1"), "someext")
+	XEqual(t, "", vt.Get("ext2"), 123)
 }
 
 func TestResourceRequiredFields(t *testing.T) {
@@ -161,14 +161,14 @@ func TestResourceRequiredFields(t *testing.T) {
 		Type:     STRING,
 		Required: true,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	group, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	_, err = group.AddResource("files", "f1", "v1")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
@@ -178,19 +178,19 @@ func TestResourceRequiredFields(t *testing.T) {
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
 		Object{"req": "test"}, false)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	f1.Refresh(registry.FOR_WRITE)
 	err = f1.SetSaveDefault("req", nil)
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
 	err = f1.SetSaveDefault("req", "again")
-	xNoErr(t, err)
+	XNoErr(t, err)
 }
 
 func TestResourceMaxVersions(t *testing.T) {
@@ -198,16 +198,16 @@ func TestResourceMaxVersions(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	d1, _ := reg.AddGroup("dirs", "d1")
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
 		Singular:    "file",
 		MaxVersions: PtrInt(-1),
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"maxversions\"(-1) must be >= 0"
@@ -220,7 +220,7 @@ func TestResourceMaxVersions(t *testing.T) {
 		Singular:    "file",
 		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: 'setdefaultversionsticky' must be 'false' since 'maxversions' is '1'"
@@ -234,92 +234,92 @@ func TestResourceMaxVersions(t *testing.T) {
 		MaxVersions:      PtrInt(1), // ONLY ALLOW 1 VERSION
 		SetDefaultSticky: PtrBool(false),
 	})
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
+	XCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
 	vers, err := f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 1, "Should be just one version")
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 1, "Should be just one version")
 
 	defaultV, err := f1.GetDefault(registry.FOR_WRITE)
-	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v1",
+	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v1",
 		"err: %q default: %s", err, ToJSON(defaultV))
 
 	// Create v2 and bump v1 out of the list
 	v2, err := f1.AddVersion("v2")
-	xCheck(t, v2 != nil && err == nil, "Creating v2 failed: %s", err)
+	XCheck(t, v2 != nil && err == nil, "Creating v2 failed: %s", err)
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
+	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q default: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
 
 	err = rm.SetMaxVersions(2)
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	// Create v3, but keep v2 as default
-	xNoErr(t, f1.SetDefault(v2))
+	XNoErr(t, f1.SetDefault(v2))
 	v3, err := f1.AddVersion("v3")
-	xCheck(t, v3 != nil && err == nil, "Creating v3 failed: %s", err)
+	XCheck(t, v3 != nil && err == nil, "Creating v3 failed: %s", err)
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
+	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 2, "Should be 2")
-	xCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
-	xCheck(t, vers[1].Object["versionid"] == "v3", "1=v3")
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 2, "Should be 2")
+	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
+	XCheck(t, vers[1].Object["versionid"] == "v3", "1=v3")
 
 	// Create v4, which should bump v3 out of the list, not v2 (default)
 	v4, err := f1.AddVersion("v4")
-	xCheck(t, v4 != nil && err == nil, "Creating v4 failed: %s", err)
+	XCheck(t, v4 != nil && err == nil, "Creating v4 failed: %s", err)
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
+	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 	vers, err = f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 2, "Should be 2, but is: %d", len(vers))
-	xCheck(t, len(vers) == 2, "Should be 2, but is: %s", ToJSON(vers))
-	xCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
-	xCheck(t, vers[1].Object["versionid"] == "v4", "1=v4")
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 2, "Should be 2, but is: %d", len(vers))
+	XCheck(t, len(vers) == 2, "Should be 2, but is: %s", ToJSON(vers))
+	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
+	XCheck(t, vers[1].Object["versionid"] == "v4", "1=v4")
 
 	err = rm.SetMaxVersions(0)
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	v5, err := f1.AddVersion("v5")
-	xNoErr(t, err)
-	xNoErr(t, f1.SetDefault(v5))
+	XNoErr(t, err)
+	XNoErr(t, f1.SetDefault(v5))
 	_, err = f1.AddVersion("v6")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = f1.AddVersion("v7")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = f1.AddVersion("v8")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = f1.AddVersion("v9")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	vers, err = f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 7, "Should be 7, but is: %d", len(vers))
-	xCheck(t, len(vers) == 7, "Should be 7, but is: %s", ToJSON(vers))
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 7, "Should be 7, but is: %d", len(vers))
+	XCheck(t, len(vers) == 7, "Should be 7, but is: %s", ToJSON(vers))
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	xCheck(t, defaultV != nil && err == nil && defaultV.UID == "v5",
+	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v5",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 
 	// Now set maxVer to 1 and just v5 should remain
 	err = rm.SetMaxVersions(1)
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	vers, err = f1.GetVersions()
-	xNoErr(t, err)
-	xCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
-	xCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
-	xCheck(t, vers[0].Object["versionid"] == "v5", "0=v5")
+	XNoErr(t, err)
+	XCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
+	XCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
+	XCheck(t, vers[0].Object["versionid"] == "v5", "0=v5")
 }
 
 func TestResourceDeprecated(t *testing.T) {
@@ -327,10 +327,10 @@ func TestResourceDeprecated(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModelSimple("files", "file")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {}
     }  `, 201, `{
   "fileid": "f1",
@@ -349,7 +349,7 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12:00:00+07:00",
         "removal": "2000-01-01T12:01:00+07",
@@ -382,7 +382,7 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12"
       }
@@ -393,7 +393,7 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12:00:00",
         "removal": "2123-01-01T12"

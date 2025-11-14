@@ -16,17 +16,17 @@ func TestModelLabels(t *testing.T) {
 	reg.Model.AddLabel("reg-label", "reg-value")
 
 	gm, err := reg.Model.AddGroupModel("gms1", "gm1")
-	xCheck(t, gm != nil && err == nil, "gm should have worked")
+	XCheck(t, gm != nil && err == nil, "gm should have worked")
 	gm.AddLabel("g-label", "g-value")
 
 	rm, err := gm.AddResourceModel("rms", "rm", 0, true, true, true)
-	xCheck(t, rm != nil && err == nil, "rm should have worked: %s", err)
+	XCheck(t, rm != nil && err == nil, "rm should have worked: %s", err)
 	rm.AddLabel("r-label", "r-value")
 
 	reg.SaveAllAndCommit()
 	reg.Refresh(registry.FOR_WRITE)
 
-	xCheckGet(t, reg, "/model", `{
+	XCheckGet(t, reg, "/model", `{
   "labels": {
     "reg-label": "reg-value"
   },
@@ -575,7 +575,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
 	reg.LoadModel()
 
 	gm = reg.Model.FindGroupModel(gm.Plural)
@@ -585,7 +585,7 @@ func TestModelLabels(t *testing.T) {
 	gm.RemoveLabel("g-label")
 	rm.RemoveLabel("r-label")
 
-	xCheckGet(t, reg, "/model", `{
+	XCheckGet(t, reg, "/model", `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -1125,7 +1125,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
   "labels": {
     "reg-label": "reg-value"
   },
@@ -1168,7 +1168,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", ``, 200, `{
+	XHTTP(t, reg, "GET", "/model", ``, 200, `{
   "labels": {
     "reg-label": "reg-value"
   },
@@ -1718,7 +1718,7 @@ func TestModelLabels(t *testing.T) {
 `)
 
 	// Now some errors
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "labels":{"bad one": "1"}
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -1727,7 +1727,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups":{
         "dirs": {
           "singular":"dir",
@@ -1739,7 +1739,7 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups":{
         "dirs": {
           "singular":"dir",
@@ -1769,7 +1769,7 @@ func TestUseSpecAttrs(t *testing.T) {
 
 	// Registry level
 	obj, err := reg.Model.AddAttrObj("obj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	vals := map[string]any{}
 
 	for _, prop := range registry.OrderedSpecProps {
@@ -1784,27 +1784,27 @@ func TestUseSpecAttrs(t *testing.T) {
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
-		xNoErr(t, err)
+		XNoErr(t, err)
 		vals["obj."+prop.Name] = v
 
 		if prop.Name == "id" {
 			_, err := obj.AddAttr("registryid", typ)
-			xNoErr(t, err)
+			XNoErr(t, err)
 			vals["obj.registryid"] = 10
 		}
 	}
 
 	for k, v := range vals {
-		xNoErr(t, reg.SetSave(k, v))
+		XNoErr(t, reg.SetSave(k, v))
 	}
 
 	// Group level
 	obj, err = gm.AddAttrObj("obj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	vals = map[string]any{}
 
 	d1, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	for _, prop := range registry.OrderedSpecProps {
 		if prop.Name[0] == '$' {
 			continue
@@ -1817,26 +1817,26 @@ func TestUseSpecAttrs(t *testing.T) {
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
-		xNoErr(t, err)
-		xNoErr(t, d1.SetSave("obj."+prop.Name, v))
+		XNoErr(t, err)
+		XNoErr(t, d1.SetSave("obj."+prop.Name, v))
 
 		if prop.Name == "id" {
 			_, err = obj.AddAttr("registryid", typ)
 			_, err = obj.AddAttr("dirid", typ)
 			_, err = obj.AddAttr("fileid", typ)
-			xNoErr(t, err)
-			xNoErr(t, d1.SetSave("obj.registryid", 10))
-			xNoErr(t, d1.SetSave("obj.dirid", 5))
-			xNoErr(t, d1.SetSave("obj.fileid", 6))
+			XNoErr(t, err)
+			XNoErr(t, d1.SetSave("obj.registryid", 10))
+			XNoErr(t, d1.SetSave("obj.dirid", 5))
+			XNoErr(t, d1.SetSave("obj.fileid", 6))
 		}
 	}
 
 	// Resource level
 	obj, err = rm.AddAttrObj("obj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	objMeta, err := rm.AddMetaAttrObj("obj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	vals = map[string]any{}
 
@@ -1852,10 +1852,10 @@ func TestUseSpecAttrs(t *testing.T) {
 			v = fmt.Sprintf("%d-%s", v, prop.Name)
 		}
 		_, err := obj.AddAttr(prop.Name, typ)
-		xNoErr(t, err)
+		XNoErr(t, err)
 
 		_, err = objMeta.AddAttr(prop.Name, typ)
-		xNoErr(t, err)
+		XNoErr(t, err)
 
 		vals["obj."+prop.Name] = v
 
@@ -1866,14 +1866,14 @@ func TestUseSpecAttrs(t *testing.T) {
 			_, err = obj.AddAttr("file", typ)
 			_, err = obj.AddAttr("filebase64", typ)
 			_, err = obj.AddAttr("fileurl", typ)
-			xNoErr(t, err)
+			XNoErr(t, err)
 			_, err = objMeta.AddAttr("registryid", typ)
 			_, err = objMeta.AddAttr("dirid", typ)
 			_, err = objMeta.AddAttr("fileid", typ)
 			_, err = objMeta.AddAttr("file", typ)
 			_, err = objMeta.AddAttr("filebase64", typ)
 			_, err = objMeta.AddAttr("fileurl", typ)
-			xNoErr(t, err)
+			XNoErr(t, err)
 			vals["obj.registryid"] = 10
 			vals["obj.dirid"] = 5
 			vals["obj.fileid"] = 6
@@ -1884,20 +1884,20 @@ func TestUseSpecAttrs(t *testing.T) {
 	}
 
 	r1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	v1, err := r1.FindVersion("v1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	meta, err := r1.FindMeta(false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	for k, v := range vals {
-		xNoErr(t, v1.SetSave(k, v))
-		xNoErr(t, meta.SetSave(k, v))
+		XNoErr(t, v1.SetSave(k, v))
+		XNoErr(t, meta.SetSave(k, v))
 	}
 
-	xHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
+	XHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestUseSpecAttrs",
   "self": "http://localhost:8181/",
@@ -3225,7 +3225,7 @@ func TestModelCompatibleWith(t *testing.T) {
 	reg := NewRegistry("TestModelCompatibleWith")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -3280,7 +3280,7 @@ func TestModelCompatibleWith(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", ``, 200, `{
+	XHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -4465,9 +4465,9 @@ func TestModelIncludes(t *testing.T) {
 
 	// First try w/o any includes
 	buf, err := os.ReadFile("files/sample-model.json")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
+	XHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
   "attributes": {
     "specversion": {
       "type": "string",
@@ -4822,7 +4822,7 @@ func TestModelIncludes(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", "", 200, `{
+	XHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -5363,9 +5363,9 @@ func TestModelIncludes(t *testing.T) {
 
 	// Now a simple $include that works
 	buf, err = os.ReadFile("files/dir/model-dirs-inc-docs.json")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
+	XHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -5380,7 +5380,7 @@ func TestModelIncludes(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", string(buf), 200, `{
+	XHTTP(t, reg, "GET", "/model", string(buf), 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -6373,7 +6373,7 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
+	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/",
@@ -6398,7 +6398,7 @@ func TestModelIncludes(t *testing.T) {
   }
 }
 `
-	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
+	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/",
@@ -6424,7 +6424,7 @@ func TestModelIncludes(t *testing.T) {
   }
 }
 `
-	xHTTP(t, reg, "PUT", "/modelsource", str, 400,
+	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "http://localhost:8181/",
@@ -6439,12 +6439,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+	XHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
   "$include": "http://localhost:8282/dir/model-dirs-inc-docs.json"
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", str, 200, `{
+	XHTTP(t, reg, "GET", "/model", str, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -7426,12 +7426,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+	XHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
   "$include": "http://localhost:8282/dir/model-dirs-inc-docs-indirect.json"
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", "", 200, `{
+	XHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -8413,12 +8413,12 @@ func TestModelIncludes(t *testing.T) {
 }
 `
 
-	xHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
+	XHTTP(t, reg, "PUT", "/modelsource", str, 200, `{
   "$include": "http://localhost:8282/dir/model-dirs-inc-docs-indirect2.json"
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", "", 200, `{
+	XHTTP(t, reg, "GET", "/model", "", 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
@@ -9400,7 +9400,7 @@ func TestModelMissingFields(t *testing.T) {
 	reg := NewRegistry("TestModelMissingFields")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "PUT", "/modelsource", `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
   "attributes": {
     "specversion": {
 	  "type": "string",
@@ -9505,7 +9505,7 @@ func TestModelMissingFields(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/model", ``, 200, `{
+	XHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",

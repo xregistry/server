@@ -15,22 +15,22 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// plural, singular, versions, verId bool, isDefault bool, hasDocument bool
 	_, err = gm.AddResourceModel("bars", "bar", 0, true, true, true)
 	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = rm.AddAttr("*", STRING)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details", `{}`, 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
@@ -38,7 +38,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 `)
 
 	// Not really a "hasdoc" test, but it has to go someplace :-)
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/bars",
 		Method: "POST",
 		ReqHeaders: []string{
@@ -56,7 +56,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	})
 
 	// Load up one that has hasdocument=true
-	xHTTP(t, reg, "PUT", "/dirs/d1/bars/b1$details", "{}", 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/bars/b1$details", "{}", 201, `{
   "barid": "b1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/bars/b1$details",
@@ -72,7 +72,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "versionscount": 1
 }
 `)
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files",
 		Method: "POST",
 		ReqBody: `{
@@ -103,7 +103,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 
 	// Make sure that each type of Resource (w/ and w/o hasdoc) has the
 	// correct self/defaultversionurl URL (meaing w/ and w/o $details)
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1?inline",
 		Method: "GET",
 
@@ -216,7 +216,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"foo":"test"}`, 201,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"foo":"test"}`, 201,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -236,7 +236,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 `)
 
 	// Make sure $details is ok on GET and not in response
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -256,7 +256,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 `)
 
 	// also make sure $details is ok on PUT
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"foo2":"test2"}`, 200,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"foo2":"test2"}`, 200,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -275,7 +275,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{"versionid":"2","foo2":"test2"}`, 201,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{"versionid":"2","foo2":"test2"}`, 201,
 		`{
   "fileid": "f1",
   "versionid": "2",
@@ -290,7 +290,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"3":{"versionid":"3","foo3":"test3"}}`, 200,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"3":{"versionid":"3","foo3":"test3"}}`, 200,
 		`{
   "3": {
     "fileid": "f1",
@@ -307,7 +307,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/3", `{"foo3_1":"test3.1"}`, 200,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/3", `{"foo3_1":"test3.1"}`, 200,
 		`{
   "fileid": "f1",
   "versionid": "3",
@@ -322,7 +322,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/4", `{"foo4":"test4"}`, 201,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/4", `{"foo4":"test4"}`, 201,
 		`{
   "fileid": "f1",
   "versionid": "4",
@@ -344,7 +344,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:           "files",
@@ -354,9 +354,9 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 		SetDefaultSticky: PtrBool(true),
 		HasDocument:      PtrBool(true),
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1", "{}", 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1", "{}", 201, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
@@ -370,16 +370,16 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 `)
 
 	d1, err := reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, d1 != nil, "d1 should not be nil")
+	XNoErr(t, err)
+	XCheck(t, d1 != nil, "d1 should not be nil")
 
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
-	xCheck(t, f1 != nil, "f1 should not be nil")
+	XNoErr(t, err)
+	XCheck(t, f1 != nil, "f1 should not be nil")
 
-	xNoErr(t, f1.SetSaveMeta("readonly", true))
+	XNoErr(t, f1.SetSaveMeta("readonly", true))
 
-	xHTTP(t, reg, "GET", "/dirs/dir1/files?inline=meta", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/dir1/files?inline=meta", "", 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -412,7 +412,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/dir1/files/f1/versions/v1$details", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/dir1/files/f1/versions/v1$details", "", 200, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/dir1/files/f1/versions/v1$details",
@@ -425,7 +425,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
@@ -433,35 +433,35 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "detail": "PATCH is not allowed on Resource documents"
 }
 `)
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", "{}", 400,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1", "", 400,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1", "", 400,
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f1", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f1/versions", "{}", 400,
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f1/versions", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
@@ -469,14 +469,14 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "detail": "PATCH is not allowed on Resource documents"
 }
 `)
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", "{}", 400,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", "{}", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", "", 400,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
@@ -484,7 +484,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/",
+	XHTTP(t, reg, "PUT", "/",
 		`{"dirs":{"dir1":{"files":{"f1":{}}}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
@@ -493,7 +493,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/",
+	XHTTP(t, reg, "PATCH", "/",
 		`{"dirs":{"dir1":{"files":{"f1":{}}}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
@@ -502,34 +502,34 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs/dir1", ``, 400,
+	XHTTP(t, reg, "DELETE", "/dirs/dir1", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1"
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files", ``, 400,
+	XHTTP(t, reg, "DELETE", "/dirs/dir1/files", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1", "", 400,
+	XHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1"
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions", "", 400, `{
+	XHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1/versions/v1"
 }
 `)
-	xHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions/v1", "", 400, `{
+	XHTTP(t, reg, "DELETE", "/dirs/dir1/files/f1/versions/v1", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#readonly",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
   "title": "Updating a read-only entity is not allowed: /dirs/dir1/files/f1/versions/v1"
@@ -544,7 +544,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "create res?setdefault=request",
 		URL:    "/dirs/d1/files/f1?setdefaultversionid=request",
 		Method: "PUT",
@@ -568,7 +568,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "create v2 - no setdef flag",
 		URL:    "/dirs/d1/files/f1/versions/2",
 		Method: "PUT",
@@ -589,7 +589,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "check v1",
 		URL:    "/dirs/d1/files/f1/versions/1",
 		Method: "GET",
@@ -609,32 +609,32 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "{}", 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid", "{}", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "{}", 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=", "{}", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: nan't use 'request' if a version wasn't processed"
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: \"setdefaultversionid\" must not be empty"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid=", "", 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid=", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
@@ -642,7 +642,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1?setdefaultversionid=request",
 		Method: "POST",
 		Code:   201,
@@ -661,7 +661,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 		},
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "POST",
 		Code:   201,
@@ -681,7 +681,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 	})
 
 	// Just move sticky ptr
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1$details",
 		Method:  "PATCH",
 		ReqBody: `{"meta":{"defaultversionid":"1","defaultversionsticky":true}}`,
@@ -705,14 +705,14 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 	})
 
 	// delete version that's default
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/versions/1",
 		Method:  "DELETE",
 		Code:    204,
 		ResBody: "",
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "check v1",
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "GET",
@@ -735,14 +735,14 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/versions/4?setdefaultversionid=2",
 		Method:  "DELETE",
 		Code:    204,
 		ResBody: "",
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "check v1",
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "GET",
@@ -776,7 +776,7 @@ func TestHTTPContent(t *testing.T) {
 	reg.AddGroup("dirs", "d1")
 
 	// Simple string
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -803,7 +803,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "GET",
 		Code:   200,
@@ -828,7 +828,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -848,7 +848,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// Escaped string
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -875,7 +875,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "GET",
 		Code:   200,
@@ -900,7 +900,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "\"hel\nlo",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -920,7 +920,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// Pure JSON - map
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -948,7 +948,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "GET",
 		Code:   200,
@@ -974,7 +974,7 @@ func TestHTTPContent(t *testing.T) {
   "foo": "bar"
 }`,
 	})
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -996,7 +996,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// Pure JSON - array
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1024,7 +1024,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "GET",
 		Code:   200,
@@ -1052,7 +1052,7 @@ func TestHTTPContent(t *testing.T) {
   5
 ]`,
 	})
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -1076,7 +1076,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// Pure JSON - numeric
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1104,7 +1104,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "GET",
 		Code:   200,
@@ -1128,7 +1128,7 @@ func TestHTTPContent(t *testing.T) {
 		},
 		ResBody: `123`,
 	})
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=file", "", 200, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -1148,7 +1148,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// base64 - string - with quotes
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1174,7 +1174,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1198,7 +1198,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// base64 - string - w/o quotes
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1224,7 +1224,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1248,7 +1248,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// base64 - json
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1274,7 +1274,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1298,7 +1298,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// base64 - empty
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1324,7 +1324,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1348,7 +1348,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// base64 - null
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1374,7 +1374,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1398,7 +1398,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// file - null
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1424,7 +1424,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "GET",
 		Code:   200,
@@ -1448,7 +1448,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// Pure JSON - error
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1464,7 +1464,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - empty string
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f11$details?inline=file",
 		Method: "PUT",
 		ReqBody: `{
@@ -1492,7 +1492,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f11",
 		Method: "GET",
 		Code:   200,
@@ -1518,7 +1518,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - obj
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f12$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1545,7 +1545,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f12",
 		Method: "GET",
 		Code:   200,
@@ -1573,7 +1573,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - numeric
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f13$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1600,7 +1600,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f13",
 		Method: "GET",
 		Code:   200,
@@ -1626,7 +1626,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - array
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f14$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1653,7 +1653,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f14",
 		Method: "GET",
 		Code:   200,
@@ -1682,7 +1682,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - bool
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f15$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1709,7 +1709,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f15",
 		Method: "GET",
 		Code:   200,
@@ -1735,7 +1735,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New implied json - string
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f16$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1762,7 +1762,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f16",
 		Method: "GET",
 		Code:   200,
@@ -1788,7 +1788,7 @@ func TestHTTPContent(t *testing.T) {
 	})
 
 	// New unknown type
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f17$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1816,7 +1816,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f17",
 		Method: "GET",
 		Code:   200,
@@ -1841,7 +1841,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "he\tllo",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f17$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f17$details?inline=file", ``, 200, `{
   "fileid": "f17",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f17$details",
@@ -1861,7 +1861,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// New unknown type - contenttype:null
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18$details",
 		Method: "PUT",
 		ReqBody: `{
@@ -1888,7 +1888,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
 		Code:   200,
@@ -1912,7 +1912,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "he\tllo",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
   "fileid": "f18",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f18$details",
@@ -1931,7 +1931,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// patch - contenttype:null
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18$details",
 		Method: "PATCH",
 		ReqBody: `{
@@ -1958,7 +1958,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
 		Code:   200,
@@ -1982,7 +1982,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "foo",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
   "fileid": "f18",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f18$details",
@@ -2001,7 +2001,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// patch - no ct saved, implied json, set ct
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18$details",
 		Method: "PATCH",
 		ReqBody: `{
@@ -2028,7 +2028,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
 		Code:   200,
@@ -2053,7 +2053,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "foo",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
   "fileid": "f18",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f18$details",
@@ -2073,7 +2073,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// patch - include odd ct
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18$details",
 		Method: "PATCH",
 		ReqBody: `{
@@ -2101,7 +2101,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
 		Code:   200,
@@ -2126,7 +2126,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "bar",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
   "fileid": "f18",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f18$details",
@@ -2146,7 +2146,7 @@ func TestHTTPContent(t *testing.T) {
 `)
 
 	// patch - has ct, set ct to null, file contents should remain
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18$details?inline=file",
 		Method: "PATCH",
 		ReqBody: `{
@@ -2173,7 +2173,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
 		Code:   200,
@@ -2197,7 +2197,7 @@ func TestHTTPContent(t *testing.T) {
 		ResBody: "bar",
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f18$details?inline=file", ``, 200, `{
   "fileid": "f18",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f18$details",
@@ -2226,7 +2226,7 @@ func TestHTTPContent2(t *testing.T) {
 
 	reg.AddGroup("dirs", "d1")
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
 		Method:  "PUT",
 		ReqBody: `hello world`,
@@ -2249,7 +2249,7 @@ func TestHTTPContent2(t *testing.T) {
 		ResBody: `hello world`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",
 		Method: "PUT",
 		ReqHeaders: []string{
@@ -2275,7 +2275,7 @@ func TestHTTPContent2(t *testing.T) {
 		ResBody: `hello world2`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files/f1",
 		Method:     "PUT",
 		ReqHeaders: []string{},
@@ -2299,7 +2299,7 @@ func TestHTTPContent2(t *testing.T) {
 		ResBody: `hello world3`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files/f2$details",
 		Method:     "PUT",
 		ReqHeaders: []string{},
@@ -2328,7 +2328,7 @@ func TestHTTPContent2(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files/f2$details",
 		Method:     "PUT",
 		ReqHeaders: []string{},
@@ -2355,7 +2355,7 @@ func TestHTTPContent2(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files",
 		Method:     "POST",
 		ReqHeaders: []string{},
@@ -2441,7 +2441,7 @@ func TestHTTPContent2(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files/fv/versions?setdefaultversionid=v3",
 		Method:     "POST",
 		ReqHeaders: []string{},
@@ -2519,7 +2519,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 	reg.AddGroup("dirs", "dir1")
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - {}",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2533,7 +2533,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - one, just id",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2567,7 +2567,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - one, just id",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2585,7 +2585,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - one, empty",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2617,7 +2617,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - one, update",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2652,7 +2652,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - two, update+create, bad ext",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2675,7 +2675,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - two, update+create",
 		URL:        "/dirs/dir1/files",
 		Method:     "POST",
@@ -2733,7 +2733,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f1$details - two, bad metadata",
 		URL:        "/dirs/dir1/files/f1$details",
 		Method:     "PUT",
@@ -2759,7 +2759,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f4$details - new resource - bad id",
 		URL:        "/dirs/dir1/files/f4$details",
 		Method:     "PUT",
@@ -2779,7 +2779,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f4$details - new resource",
 		URL:        "/dirs/dir1/files/f4$details",
 		Method:     "PUT",
@@ -2813,7 +2813,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET resources/f4 - check doc",
 		URL:        "/dirs/dir1/files/f4",
 		Method:     "GET",
@@ -2842,7 +2842,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f4$details - new resource - no id",
 		URL:        "/dirs/dir1/files/f5$details",
 		Method:     "PUT",
@@ -2873,7 +2873,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f6 - new res,version - no id",
 		URL:    "/dirs/dir1/files/f6",
 		Method: "POST",
@@ -2900,7 +2900,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f61 - new res,version - no id+setdef=null",
 		URL:    "/dirs/dir1/files/f61?setdefaultversionid=null",
 		Method: "POST",
@@ -2927,7 +2927,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f62 - new res,version - no id+setdef=request",
 		URL:    "/dirs/dir1/files/f62?setdefaultversionid=request",
 		Method: "POST",
@@ -2954,7 +2954,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f63 - new res,version - no id+setdef=1",
 		URL:    "/dirs/dir1/files/f63?setdefaultversionid=1",
 		Method: "POST",
@@ -2981,7 +2981,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f7 - new res,version - with id",
 		URL:    "/dirs/dir1/files/f7",
 		Method: "POST",
@@ -3009,7 +3009,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST resources/f8$details - new res,version - extra headers",
 		URL:    "/dirs/dir1/files/f8$details",
 		Method: "POST",
@@ -3027,7 +3027,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f9$details - new res,version - empty",
 		URL:        "/dirs/dir1/files/f9$details",
 		Method:     "POST",
@@ -3049,7 +3049,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f9$details - new res,version - empty",
 		URL:        "/dirs/dir1/files/f9$details",
 		Method:     "POST",
@@ -3071,7 +3071,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f99/versions - new res,version - empty",
 		URL:        "/dirs/dir1/files/f99/versions",
 		Method:     "POST",
@@ -3089,7 +3089,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f9/versions - new res,version-v1",
 		URL:        "/dirs/dir1/files/f9/versions",
 		Method:     "POST",
@@ -3117,7 +3117,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f10/versions - new res,version-2v,err",
 		URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=null",
 		Method:     "POST",
@@ -3138,7 +3138,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f10/versions - new res,version-2v,err",
 		URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=request",
 		Method:     "POST",
@@ -3159,7 +3159,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f10a/versions - new res,version-2v,err",
 		URL:        "/dirs/dir1/files/f10a/versions?setdefaultversionid=request",
 		Method:     "POST",
@@ -3185,7 +3185,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f99/versions - new res,version-2v,newest=alphabetical",
 		URL:        "/dirs/dir1/files/f99/versions",
 		Method:     "POST",
@@ -3234,7 +3234,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f10/versions - new res,version-1v",
 		URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=v3",
 		Method:     "POST",
@@ -3254,7 +3254,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f10/versions - new res,version-1v",
 		URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=v1",
 		Method:     "POST",
@@ -3282,7 +3282,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f11/versions - new res,version-2v",
 		URL:        "/dirs/dir1/files/f11/versions?setdefaultversionid=v1",
 		Method:     "POST",
@@ -3322,7 +3322,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f12/versions - new res,version-2v",
 		URL:        "/dirs/dir1/files/f12/versions?setdefaultversionid=v2",
 		Method:     "POST",
@@ -3362,7 +3362,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f12/versions - update,add v",
 		URL:        "/dirs/dir1/files/f12/versions?setdefaultversionid=v1",
 		Method:     "POST",
@@ -3418,7 +3418,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	})
 
 	// Make sure you can point to an existing version
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f12/versions - default=existing",
 		URL:        "/dirs/dir1/files/f12/versions?setdefaultversionid=v2",
 		Method:     "POST",
@@ -3448,7 +3448,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	})
 
 	// Make sure we error if versionid isn't there
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources/f12/versions - default=bad",
 		URL:        "/dirs/dir1/files/f12/versions?setdefaultversionid=vx",
 		Method:     "POST",
@@ -3466,7 +3466,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT resources/f13/versions - new v+doc, err",
 		URL:    "/dirs/dir1/files/f13/versions/3",
 		Method: "PUT",
@@ -3484,7 +3484,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT resources/f13/versions - new v+doc+id",
 		URL:    "/dirs/dir1/files/f13/versions/3",
 		Method: "PUT",
@@ -3510,7 +3510,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `v3`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f13/versions - new v+doc+no id",
 		URL:        "/dirs/dir1/files/f13/versions/4",
 		Method:     "PUT",
@@ -3534,7 +3534,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `v4`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f13/versions + meta - empty",
 		URL:        "/dirs/dir1/files/f13/versions/5$details",
 		Method:     "PUT",
@@ -3556,7 +3556,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f13/versions + meta - {}",
 		URL:        "/dirs/dir1/files/f13/versions/6$details",
 		Method:     "PUT",
@@ -3578,7 +3578,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f13/versions + meta - {} again",
 		URL:        "/dirs/dir1/files/f13/versions/6$details",
 		Method:     "PUT",
@@ -3600,7 +3600,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources/f13/versions + meta - bad id update",
 		URL:        "/dirs/dir1/files/f13/versions/7$details",
 		Method:     "PUT",
@@ -3633,7 +3633,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	g, _ := reg.AddGroup("dirs", "dir1")
 	f, err := g.AddResource("files", "f1", "v1")
 
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	reg.SaveAllAndCommit()
 	reg.Refresh(registry.FOR_WRITE)
@@ -3642,8 +3642,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	// Test PATCHing the Registry
 
-	// skip timestamp masking (the "--TS--")
-	xHTTP(t, reg, "GET", "/", ``, 200, `--TS--{
+	// skip timestamp masking
+	XHTTP(t, reg, "GET", "/", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
@@ -3655,9 +3655,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
 }
-`)
+`, NOMASK_TS)
 
-	xHTTP(t, reg, "PATCH", "/", `{}`, 200, `{
+	XHTTP(t, reg, "PATCH", "/", `{}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
@@ -3672,10 +3672,10 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	reg.Refresh(registry.FOR_WRITE)
-	xCheckEqual(t, "", reg.GetAsString("createdat"), regCre)
-	xCheckNotEqual(t, "", reg.GetAsString("modifiedat"), regMod)
+	XEqual(t, "", reg.GetAsString("createdat"), regCre)
+	XCheckNotEqual(t, "", reg.GetAsString("modifiedat"), regMod)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "description": "testing"
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3692,7 +3692,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "description": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3708,7 +3708,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "labels": {
 	    "foo": "bar"
 	  },
@@ -3730,7 +3730,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "labels": {}
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3747,7 +3747,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "labels": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3763,7 +3763,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "regext": "str"
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3780,7 +3780,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "regext": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -3796,7 +3796,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
 	  "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -3810,11 +3810,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	gmod := g.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs", `{}`, 200,
+	XHTTP(t, reg, "PATCH", "/dirs", `{}`, 200,
 		`{}
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{}`, 200, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
@@ -3828,9 +3828,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	g.Refresh(registry.FOR_WRITE)
-	xCheck(t, g.GetAsString("modifiedat") != gmod, "Should be diff")
+	XCheck(t, g.GetAsString("modifiedat") != gmod, "Should be diff")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "description": "testing"
 	}`, 200, `{
   "dirid": "dir1",
@@ -3846,7 +3846,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "description": null
 	}`, 200, `{
   "dirid": "dir1",
@@ -3861,7 +3861,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "labels": {
 	    "foo": "bar"
 	  },
@@ -3882,7 +3882,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "labels": {}
 	}`, 200, `{
   "dirid": "dir1",
@@ -3898,7 +3898,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "labels": null
 	}`, 200, `{
   "dirid": "dir1",
@@ -3913,7 +3913,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "gext": "str"
 	}`, 200, `{
   "dirid": "dir1",
@@ -3929,7 +3929,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "gext": null
 	}`, 200, `{
   "dirid": "dir1",
@@ -3944,7 +3944,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -3960,11 +3960,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	v, _ := f.GetDefault(registry.FOR_WRITE)
 	vmod := v.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 200,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 200,
 		`{}
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
   "subject": "http://localhost:8181/dirs/dir1/files/f1",
@@ -3973,7 +3973,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{}`, 200, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/dir1/files/f1$details",
@@ -3991,9 +3991,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	v.Refresh(registry.FOR_WRITE)
-	xCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
+	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "description": "testing"
 	}`, 200, `{
   "fileid": "f1",
@@ -4013,7 +4013,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "description": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4032,7 +4032,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "labels": {
 	    "foo": "bar"
 	  },
@@ -4057,7 +4057,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "labels": {}
 	}`, 200, `{
   "fileid": "f1",
@@ -4077,7 +4077,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "labels": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4096,7 +4096,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "rext": "str"
 	}`, 200, `{
   "fileid": "f1",
@@ -4116,7 +4116,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "rext": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4135,7 +4135,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -4151,11 +4151,11 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	v, _ = f.GetDefault(registry.FOR_WRITE)
 	vmod = v.GetAsString("modifiedat")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 200,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 200,
 		`{}
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
@@ -4164,7 +4164,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 200, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/dir1/files/f1/versions/v1$details",
@@ -4178,9 +4178,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	v.Refresh(registry.FOR_WRITE)
-	xCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
+	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "description": "testing"
 	}`, 200, `{
   "fileid": "f1",
@@ -4196,7 +4196,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "description": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4211,7 +4211,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "labels": {
 	    "foo": "bar"
 	  },
@@ -4232,7 +4232,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "labels": {}
 	}`, 200, `{
   "fileid": "f1",
@@ -4248,7 +4248,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "labels": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4263,7 +4263,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "rext": "str"
 	}`, 200, `{
   "fileid": "f1",
@@ -4279,7 +4279,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "rext": null
 	}`, 200, `{
   "fileid": "f1",
@@ -4294,7 +4294,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -4305,7 +4305,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	// Test that PATCH can be used to create stuff too
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir2", `{}`, 201, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir2", `{}`, 201, `{
   "dirid": "dir2",
   "self": "http://localhost:8181/dirs/dir2",
   "xid": "/dirs/dir2",
@@ -4318,7 +4318,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir2/files/f2$details", `{}`, 201, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir2/files/f2$details", `{}`, 201, `{
   "fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/dir2/files/f2$details",
@@ -4335,7 +4335,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir2/files/f2/versions/v2$details", `{}`, 201, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir2/files/f2/versions/v2$details", `{}`, 201, `{
   "fileid": "f2",
   "versionid": "v2",
   "self": "http://localhost:8181/dirs/dir2/files/f2/versions/v2$details",
@@ -4348,7 +4348,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir3/files/f3/versions/v3$details", `{}`, 201, `{
+	XHTTP(t, reg, "PATCH", "/dirs/dir3/files/f3/versions/v3$details", `{}`, 201, `{
   "fileid": "f3",
   "versionid": "v3",
   "self": "http://localhost:8181/dirs/dir3/files/f3/versions/v3$details",
@@ -4370,7 +4370,7 @@ func TestHTTPEpoch(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`,
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`,
 		201, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4384,7 +4384,7 @@ func TestHTTPEpoch(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1",
 		`{"epoch":null}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
@@ -4397,7 +4397,7 @@ func TestHTTPEpoch(t *testing.T) {
   "filescount": 1
 }
 `)
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
 		`{"epoch":null}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4414,7 +4414,7 @@ func TestHTTPEpoch(t *testing.T) {
   "versionscount": 1
 }
 `)
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details",
 		`{"epoch":null}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4440,10 +4440,10 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 	g, _ := reg.AddGroup("dirs", "dir1")
 	_, err := g.AddResource("files", "f1", "v1")
 
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Just double check $details on PATCH at the same time
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
 		`{"description": "desc"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4462,7 +4462,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1",
 		`{"description": null}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4481,7 +4481,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 `)
 
 	// check $details on request too at the same time
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details",
 		`{"description": "desc"}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4496,7 +4496,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1",
+	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1",
 		`{"description": null}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4520,7 +4520,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	// Files + empty
-	xHTTP(t, reg, "POST", "/dirs/dir1/files", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
 	  "f1": {},
 	  "f2": {}
 	}`, 200, `{
@@ -4558,7 +4558,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// Files + IDs
-	xHTTP(t, reg, "POST", "/dirs/dir1/files", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
 	  "f3": { "fileid": "f3" },
 	  "f4": { "fileid": "f4" }
 	}`, 200, `{
@@ -4596,7 +4596,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// Files + Bad IDs
-	xHTTP(t, reg, "POST", "/dirs/dir1/files", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
 	  "f5": { "fileid": "f5" },
 	  "f6": { "fileid": "ef6" }
 	}`, 400, `{
@@ -4607,7 +4607,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// via file, Versions + empty - new file
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v1", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v1", `{
 	  "versionid": "v1"
 	}`, 201, `{
   "fileid": "f7",
@@ -4623,7 +4623,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// via file, Versions + empty + existing file
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v2", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v2", `{
 	  "versionid": "v2"
 	}`, 201, `{
   "fileid": "f7",
@@ -4639,7 +4639,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// via file, Versions + empty + existing file + this
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
 	  "versionid": "v3"
 	}`, 201, `{
   "fileid": "f7",
@@ -4655,7 +4655,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// via file, Versions + empty + existing file + this + existing v
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
 	  "versionid": "v2"
 	}`, 200, `{
   "fileid": "f7",
@@ -4671,7 +4671,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// via file, Versions + empty + existing file + bad def + existing v
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=xxx", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=xxx", `{
 	  "versionid": "v2"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -4681,7 +4681,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// Versions + empty
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff1/versions?setdefaultversionid=v2", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff1/versions?setdefaultversionid=v2", `{
 	  "v1": {  },
 	  "v2": {  }
 	}`, 200, `{
@@ -4711,7 +4711,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// Versions + IDs
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff8/versions?setdefaultversionid=v2", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff8/versions?setdefaultversionid=v2", `{
 	  "v1": { "versionid": "v1" },
 	  "v2": { "versionid": "v2" }
 	}`, 200, `{
@@ -4741,7 +4741,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 `)
 
 	// Versions + bad IDs
-	xHTTP(t, reg, "POST", "/dirs/dir1/files/ff9/versions?setdefaultversionid=v2", `{
+	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff9/versions?setdefaultversionid=v2", `{
 	  "v1": { "versionid": "v1" },
 	  "v2": { "versionid": "ev2" }
 	}`, 400, `{
@@ -4759,7 +4759,7 @@ func TestHTTPmeta(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201,
 		`{
   "fileid": "f1",
   "versionid": "v1",
@@ -4773,64 +4773,64 @@ func TestHTTPmeta(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "/$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "/dirs$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/dir1$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/dir1/$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files$details", `{}`, 400, `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/dir1/files$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/$details", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/$details", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/dir1/files//meta",
   "title": "The attribute \"fileid\" is not valid: can't be an empty string"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions$details", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions$details", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions$details",
   "title": "The request cannot be processed as provided: $details isn't allowed in this context"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/$details", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/$details", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/$details",
   "title": "The request cannot be processed as provided: Version id in URL can't be blank"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1/$details", `{}`, 404,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1/$details", `{}`, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/dir1/files/f1/versions/v1/$details",
@@ -4850,7 +4850,7 @@ func TestHTTPURLs(t *testing.T) {
 	// work
 
 	// GET /
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /",
 		URL:        "/",
 		Method:     "GET",
@@ -4873,7 +4873,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /",
 		URL:        "/",
 		Method:     "PUT",
@@ -4899,7 +4899,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PATCH /
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /",
 		URL:        "/",
 		Method:     "PATCH",
@@ -4928,7 +4928,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS",
 		URL:        "/dirs",
 		Method:     "GET",
@@ -4940,7 +4940,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS",
 		URL:        "/dirs",
 		Method:     "PUT",
@@ -4958,7 +4958,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PATCH /GROUPS
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS",
 		URL:        "/dirs",
 		Method:     "PATCH",
@@ -4970,7 +4970,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// POST /GROUPS
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS",
 		URL:        "/dirs",
 		Method:     "POST",
@@ -4996,7 +4996,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS/GID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID",
 		URL:        "/dirs/d1",
 		Method:     "GET",
@@ -5018,7 +5018,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS/GID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID",
 		URL:        "/dirs/d2",
 		Method:     "PUT",
@@ -5043,7 +5043,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PATCH /GROUPS/GID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID",
 		URL:        "/dirs/d2",
 		Method:     "PATCH",
@@ -5071,7 +5071,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS/GID/RESOURCES
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES",
 		URL:        "/dirs/d2/files",
 		Method:     "GET",
@@ -5083,7 +5083,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS/GID/RESOURCES
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID/REOURCES",
 		URL:        "/dirs/d2/files",
 		Method:     "PUT",
@@ -5101,7 +5101,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PATCH /GROUPS/GID/RESOURCES
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID/RESOURCES",
 		URL:        "/dirs/d2/files",
 		Method:     "PATCH",
@@ -5113,7 +5113,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// POST /GROUPS/GID/RESOURCES
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS/GID/REOURCES",
 		URL:        "/dirs/d2/files",
 		Method:     "POST",
@@ -5148,7 +5148,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS/GID/RESOURCES/RID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES/RID",
 		URL:        "/dirs/d2/files/f1",
 		Method:     "GET",
@@ -5178,7 +5178,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PUT /GROUPS/GID/RESOURCES/RID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT /GROUPS/GID/REOURCES/RID",
 		URL:    "/dirs/d2/files/f1",
 		Method: "PUT",
@@ -5210,7 +5210,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PATCH /GROUPS/GID/REOURCES/RID",
 		URL:    "/dirs/d2/files/f1",
 		Method: "PATCH",
@@ -5230,7 +5230,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// POST /GROUPS/GID/RESOURCES/RID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST /GROUPS/GID/REOURCES/RID",
 		URL:    "/dirs/d2/files/f1",
 		Method: "POST",
@@ -5258,7 +5258,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// GET /GROUPS/GID/RESOURCES/RID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES/RID$details",
 		URL:        "/dirs/d2/files/f1$details",
 		Method:     "GET",
@@ -5285,7 +5285,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS/GID/RESOURCES/RID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID/REOURCES/RID$details",
 		URL:        "/dirs/d2/files/f1$details",
 		Method:     "PUT",
@@ -5312,7 +5312,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID/REOURCES/RID$details",
 		URL:        "/dirs/d2/files/f1$details",
 		Method:     "PATCH",
@@ -5342,7 +5342,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// POST /GROUPS/GID/RESOURCES/RID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS/GID/REOURCES/RID$details",
 		URL:        "/dirs/d2/files/f1$details",
 		Method:     "POST",
@@ -5369,7 +5369,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS/GID/RESOURCES/RID/versions
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES/RID$details",
 		URL:        "/dirs/d2/files/f1/versions",
 		Method:     "GET",
@@ -5423,7 +5423,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS/GID/RESOURCES/RID/versions
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID/REOURCES/RID/versions",
 		URL:        "/dirs/d2/files/f1/versions",
 		Method:     "PUT",
@@ -5441,7 +5441,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID/versions
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID/REOURCES/RID/versions",
 		URL:        "/dirs/d2/files/f1/versions",
 		Method:     "PATCH",
@@ -5453,7 +5453,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// POST /GROUPS/GID/RESOURCES/RID/versions
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS/GID/REOURCES/RID/versions",
 		URL:        "/dirs/d2/files/f1/versions?setdefaultversionid=v5",
 		Method:     "POST",
@@ -5489,7 +5489,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// GET /GROUPS/GID/RESOURCES/RID/versions/vID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES/RID/versions/vID",
 		URL:        "/dirs/d2/files/f1/versions/v5",
 		Method:     "GET",
@@ -5512,7 +5512,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PUT /GROUPS/GID/RESOURCES/RID/versions/vID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID/REOURCES/RID/versions/vID",
 		URL:        "/dirs/d2/files/f1/versions/v5",
 		Method:     "PUT",
@@ -5535,7 +5535,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID/versions/vID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID/REOURCES/RID/versions/vID",
 		URL:        "/dirs/d2/files/f1/versions/v5",
 		Method:     "PATCH",
@@ -5553,7 +5553,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// POST /GROUPS/GID/RESOURCES/RID/versions/vID
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS/GID/REOURCES/RID/versions/vID",
 		URL:        "/dirs/d2/files/f1/versions/v5",
 		Method:     "POST",
@@ -5571,7 +5571,7 @@ func TestHTTPURLs(t *testing.T) {
 	})
 
 	// GET /GROUPS/GID/RESOURCES/RID/versions/vID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /GROUPS/GID/REOURCES/RID/versions/vID$details",
 		URL:        "/dirs/d2/files/f1/versions/v5$details",
 		Method:     "GET",
@@ -5594,7 +5594,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PUT /GROUPS/GID/RESOURCES/RID/versions/vID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /GROUPS/GID/REOURCES/RID/versions/vID$details",
 		URL:        "/dirs/d2/files/f1/versions/v5$details",
 		Method:     "PUT",
@@ -5619,7 +5619,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// PATCH /GROUPS/GID/RESOURCES/RID/versions/vID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /GROUPS/GID/REOURCES/RID/versions/vID$details",
 		URL:        "/dirs/d2/files/f1/versions/v5$details",
 		Method:     "PATCH",
@@ -5647,7 +5647,7 @@ func TestHTTPURLs(t *testing.T) {
 `})
 
 	// POST /GROUPS/GID/RESOURCES/RID/versions/vID$details
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST /GROUPS/GID/REOURCES/RID/versions/vID$details",
 		URL:        "/dirs/d2/files/f1/versions/v5$details",
 		Method:     "POST",
@@ -5676,7 +5676,7 @@ func TestHTTPGroupResources(t *testing.T) {
 
 	// Upload some resources into a preexisting group
 	// First create the group
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -5692,12 +5692,12 @@ func TestHTTPGroupResources(t *testing.T) {
 `)
 
 	// Now do some "upload resources" tests
-	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{}}`, 200, `{
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{}}`, 200, `{
   "files": {}
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{}}}`, 200, `{
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{}}}`, 200, `{
   "files": {
     "f1": {
       "fileid": "f1",
@@ -5718,7 +5718,7 @@ func TestHTTPGroupResources(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{},"f2":{}}}`, 200, `{
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f1":{},"f2":{}}}`, 200, `{
   "files": {
     "f1": {
       "fileid": "f1",
@@ -5755,7 +5755,7 @@ func TestHTTPGroupResources(t *testing.T) {
 `)
 
 	// Make sure epoch is right
-	xHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -5770,7 +5770,7 @@ func TestHTTPGroupResources(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f3":{}},"datas":{}}`, 200, `{
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f3":{}},"datas":{}}`, 200, `{
   "datas": {},
   "files": {
     "f3": {
@@ -5792,7 +5792,7 @@ func TestHTTPGroupResources(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f4":{}},"datas":{"d1":{},"d2":{}}}`, 200, `{
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f4":{}},"datas":{"d1":{},"d2":{}}}`, 200, `{
   "datas": {
     "d1": {
       "dataid": "d1",
@@ -5846,7 +5846,7 @@ func TestHTTPGroupResources(t *testing.T) {
 `)
 
 	// Make sure epoch is right
-	xHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -5871,7 +5871,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	// Registry + Nested Groups
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / no groups",
 		URL:        "/",
 		Method:     "PUT",
@@ -5895,7 +5895,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + groups",
 		URL:        "/",
 		Method:     "PUT",
@@ -5924,7 +5924,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs", ``, 200,
 		`{
   "d1": {
     "dirid": "d1",
@@ -5940,7 +5940,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + groups+resources",
 		URL:        "/",
 		Method:     "PUT",
@@ -5974,7 +5974,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/?inline", ``, 200,
+	XHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
@@ -6050,7 +6050,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + groups+resources+versions",
 		URL:        "/",
 		Method:     "PUT",
@@ -6091,7 +6091,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/?inline", ``, 200,
+	XHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
@@ -6169,7 +6169,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + groups+resources+versions*2",
 		URL:        "/",
 		Method:     "PUT",
@@ -6218,7 +6218,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/?inline", ``, 200,
+	XHTTP(t, reg, "GET", "/?inline", ``, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPNestedRegistry",
@@ -6319,7 +6319,7 @@ func TestHTTPNestedResources(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
 	// Registry + Nested Groups
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + new",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6346,7 +6346,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -6395,7 +6395,7 @@ func TestHTTPNestedResources(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + bad defaultversionid",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6417,7 +6417,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky not bool",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6438,7 +6438,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky not bool and wrong vid",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6460,7 +6460,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky null",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6482,7 +6482,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky null",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6515,7 +6515,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky null",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6547,7 +6547,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky null",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6579,7 +6579,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
@@ -6595,7 +6595,7 @@ func TestHTTPNestedResources(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + missing sticky",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6616,7 +6616,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + just sticky",
 		URL:        "/dirs/d1/files/f1$details",
 		Method:     "PUT",
@@ -6648,7 +6648,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
@@ -6664,7 +6664,7 @@ func TestHTTPNestedResources(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + sticky",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PATCH",
@@ -6710,7 +6710,7 @@ func TestHTTPNestedResources(t *testing.T) {
 	})
 
 	// Epoch is bumped
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + new version",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PATCH",
@@ -6755,7 +6755,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200,
 		`{
   "fileid": "f1",
   "versionid": "1",
@@ -6816,7 +6816,7 @@ func TestHTTPNestedResources(t *testing.T) {
 }
 `)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + new version, non-sticky",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PATCH",
@@ -6863,7 +6863,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky old ver, add newV",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PUT",
@@ -6913,7 +6913,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + defaultversionid=newV",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PUT",
@@ -6963,7 +6963,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + defaultversionid=oldV",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PATCH",
@@ -7008,7 +7008,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + sticky-nochange",
 		URL:        "/dirs/d1/files/f1$details?inline=meta",
 		Method:     "PATCH",
@@ -7053,7 +7053,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + ignoredefaultversionsticky",
 		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionsticky&inline=meta",
 		Method:     "PATCH",
@@ -7098,7 +7098,7 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH /RID + ignoredefaultversionid",
 		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionid&inline=meta",
 		Method:     "PATCH",
@@ -7152,7 +7152,7 @@ func TestHTTPExport(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + init load",
 		URL:        "/",
 		Method:     "PUT",
@@ -7193,11 +7193,11 @@ func TestHTTPExport(t *testing.T) {
 	})
 
 	res, err := http.Get("http://localhost:8181/")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	body, err := io.ReadAll(res.Body)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + re-load, ok epoch",
 		URL:        "/",
 		Method:     "PUT",
@@ -7221,7 +7221,7 @@ func TestHTTPExport(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + re-load, bad epoch",
 		URL:        "/",
 		Method:     "PUT",
@@ -7237,7 +7237,7 @@ func TestHTTPExport(t *testing.T) {
 `,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + re-load, ignore epoch",
 		URL:        "/?ignoreepoch",
 		Method:     "PUT",
@@ -7270,7 +7270,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{}`, 201,
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{}`, 201,
 		`{
   "fileid": "f1",
   "versionid": "v1",
@@ -7284,7 +7284,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "f1",
 	  "versionid": "v1"
 	}`, 200,
@@ -7301,7 +7301,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	}`, 200,
 		`{
   "fileid": "f1",
@@ -7316,7 +7316,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "f1"
 	}`, 200,
 		`{
@@ -7332,7 +7332,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "versionid": "v1"
 	}`, 200,
 		`{
@@ -7348,7 +7348,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "fx",
 	  "versionid": "v1"
 	}`, 400, `{
@@ -7358,7 +7358,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "fx"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -7367,7 +7367,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "fileid": "f1",
 	  "versionid": "vx"
 	}`, 400, `{
@@ -7377,7 +7377,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
 	  "versionid": "vx"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -7396,7 +7396,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 
 	// Converting the RESOURCE attributes from JSON into byte array tests
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
   "dirs": {
     "d1": {
       "files": {
@@ -7438,7 +7438,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
@@ -7703,9 +7703,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "PATCH", "/", `{
+	XHTTP(t, reg, "PATCH", "/", `{
   "dirs": {
     "d1": {
       "files": {
@@ -7738,7 +7738,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
@@ -7863,9 +7863,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "POST", "/dirs", `{
+	XHTTP(t, reg, "POST", "/dirs", `{
   "d1": {
     "files": {
       "f1": {
@@ -7897,7 +7897,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs?inline", ``, 200, `{
   "d1": {
     "dirid": "d1",
     "self": "http://localhost:8181/dirs/d1",
@@ -8010,9 +8010,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{
   "files": {
     "f1": {
 	  "file": { "foo": "bar" },
@@ -8040,7 +8040,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?inline", ``, 200, `{
   "dirid": "d1",
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
@@ -8151,9 +8151,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files", `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{
   "f1": {
 	"file": { "foo": "bar" },
     "versions": {
@@ -8202,7 +8202,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?inline", ``, 200, `{
   "f1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -8302,9 +8302,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
   "file": { "foo": "bar" },
   "versions": {
 	"v1": {
@@ -8330,7 +8330,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline", ``, 200, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -8382,9 +8382,9 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
   "v1": {
 	"file": { "bar": "foo" }
   }
@@ -8405,7 +8405,7 @@ func TestHTTPRecursiveData(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?inline", ``, 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?inline", ``, 200, `{
   "v1": {
     "fileid": "f1",
     "versionid": "v1",
@@ -8433,7 +8433,7 @@ func TestHTTPDefVer(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModelSimple("files", "file")
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT file + versionid header",
 		URL:    "/dirs/d1/files/f1",
 		Method: "PUT",
@@ -8465,7 +8465,7 @@ func TestHTTPDefVer(t *testing.T) {
 		ResBody: `pick me`,
 	})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST file + versionid header",
 		URL:    "/dirs/d1/files",
 		Method: "POST",
@@ -8508,7 +8508,7 @@ func TestHTTPInvalidID(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModelSimple("files", "file")
 
-	xHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
+	XHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/",
@@ -8516,35 +8516,35 @@ func TestHTTPInvalidID(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1*", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1*", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1*",
   "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1", `{"dirid": "d1*" }`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"dirid": "d1*" }`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1",
   "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/", `{"d1*":{}}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/", `{"d1*":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1*",
   "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/", `{"d1*":{"dirid": "d1*" }}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/", `{"d1*":{"dirid": "d1*" }}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1*",
   "title": "The attribute \"dirid\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "POST", "/dirs/", `{"d1":{"dirid": "d2*" }}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/", `{"d1":{"dirid": "d2*" }}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1",
@@ -8552,21 +8552,21 @@ func TestHTTPInvalidID(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1*$details", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1*$details", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1/files/f1*/meta",
   "title": "The attribute \"fileid\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"fileid":"f1*"}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"fileid":"f1*"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The attribute \"fileid\" is not valid: must be set to \"f1\", not \"f1*\""
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"versionid":"v1*"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"versionid":"v1*"}`,
 		400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -8575,21 +8575,21 @@ func TestHTTPInvalidID(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v1*":{}}`, 400,
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v1*":{}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1*",
   "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1*", `{}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1*", `{}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1*",
   "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"versionid": "v1*"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -8597,7 +8597,7 @@ func TestHTTPInvalidID(t *testing.T) {
   "title": "The attribute \"versionid\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
 }
 `)
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"fileid": "f1*"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
@@ -8611,8 +8611,8 @@ func TestHTTPSpecVersion(t *testing.T) {
 	reg := NewRegistry("TestHTTPSpecVersion")
 	defer PassDeleteReg(t, reg)
 
-	xHTTP(t, reg, "GET", "?specversion="+SPECVERSION, "", 200, "*")
-	xHTTP(t, reg, "GET", "?specversion=0.x", "", 400,
+	XHTTP(t, reg, "GET", "?specversion="+SPECVERSION, "", 200, "*")
+	XHTTP(t, reg, "GET", "?specversion=0.x", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
   "subject": "http://localhost:8181/",
@@ -8628,7 +8628,7 @@ func TestHTTPMissingBody(t *testing.T) {
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)  //doc
 	_, err = gm.AddResourceModel("datas", "data", 0, true, true, false) //nodoc
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Just check for an error about a missing body based on the path + method
 
@@ -8641,57 +8641,57 @@ func TestHTTPMissingBody(t *testing.T) {
 		return xErr.ToUserJson("http://localhost:8181") + "\n"
 	}
 
-	xHTTP(t, reg, "PUT", "/", "", 400, fn("/"))
-	xHTTP(t, reg, "POST", "/", "", 400, fn("/"))
-	xHTTP(t, reg, "PATCH", "/", "", 400, fn("/"))
+	XHTTP(t, reg, "PUT", "/", "", 400, fn("/"))
+	XHTTP(t, reg, "POST", "/", "", 400, fn("/"))
+	XHTTP(t, reg, "PATCH", "/", "", 400, fn("/"))
 
-	xHTTP(t, reg, "PUT", "/dirs", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs", "", 400, fn("/dirs"))
-	xHTTP(t, reg, "PATCH", "/dirs", "", 400, fn("/dirs"))
+	XHTTP(t, reg, "PUT", "/dirs", "", 405, "*")
+	XHTTP(t, reg, "POST", "/dirs", "", 400, fn("/dirs"))
+	XHTTP(t, reg, "PATCH", "/dirs", "", 400, fn("/dirs"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1", "", 400, fn("/dirs/d1"))
-	xHTTP(t, reg, "POST", "/dirs/d1", "", 400, fn("/dirs/d1"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, fn("/dirs/d1"))
+	XHTTP(t, reg, "PUT", "/dirs/d1", "", 400, fn("/dirs/d1"))
+	XHTTP(t, reg, "POST", "/dirs/d1", "", 400, fn("/dirs/d1"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1", "", 400, fn("/dirs/d1"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/files", "", 405, "*")
+	XHTTP(t, reg, "POST", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files", "", 400, fn("/dirs/d1/files"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, "")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1", "", 201, "")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", "", 405, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, "")
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", "", 201, "")
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", "", 405, "*")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", "", 400, fn("/dirs/d1/files/f1$details"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions", "", 405, "*")
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions", "", 400, fn("/dirs/d1/files/f1/versions"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", "", 200, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1", "", 405, "*")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1", "", 405, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", "", 200, "*")
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1", "", 405, "*")
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1", "", 405, "*")
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
-	xHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1$details", "", 405, "*")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions/1$details", "", 405, "*")
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1$details", "", 400, fn("/dirs/d1/files/f1/versions/1$details"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas", "", 405, "*")
+	XHTTP(t, reg, "POST", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas", "", 400, fn("/dirs/d1/datas"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
-	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
+	XHTTP(t, reg, "POST", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1", "", 400, fn("/dirs/d1/datas/d1"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions", "", 405, "*")
-	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions", "", 405, "*")
+	XHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions", "", 400, fn("/dirs/d1/datas/d1/versions"))
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
-	xHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions/1", "", 405, "*")
-	xHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
+	XHTTP(t, reg, "POST", "/dirs/d1/datas/d1/versions/1", "", 405, "*")
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/d1/versions/1", "", 400, fn("/dirs/d1/datas/d1/versions/1"))
 }
 
 func TestHTTPJsonParsingErrors(t *testing.T) {
@@ -8736,18 +8736,18 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 			}}
 
 		req, err := http.NewRequest("PUT", "http://localhost:8181/", body)
-		xNoErr(t, err)
+		XNoErr(t, err)
 		res, err := client.Do(req)
-		xNoErr(t, err)
-		xCheckEqual(t, test.body, res.StatusCode, 400)
+		XNoErr(t, err)
+		XEqual(t, test.body, res.StatusCode, 400)
 
 		data, err := io.ReadAll(res.Body)
-		xNoErr(t, err)
+		XNoErr(t, err)
 		exp := test.msg
 		if exp[0] != '{' {
 			exp = m1 + test.msg + m2
 		}
-		xCheckEqual(t, test.body, string(data), exp)
+		XEqual(t, test.body, string(data), exp)
 	}
 }
 
@@ -8756,12 +8756,12 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", "", 201, "*")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", "", 201, "*")
 
 	// Test the 2 valid cases
-	xHTTP(t, reg, "GET", "?collections", "", 200, `{
+	XHTTP(t, reg, "GET", "?collections", "", 200, `{
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
     "d1": {
@@ -8826,7 +8826,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirs/d1?collections", "", 200, `{
+	XHTTP(t, reg, "GET", "/dirs/d1?collections", "", 200, `{
   "filesurl": "http://localhost:8181/dirs/d1/files",
   "files": {
     "f1": {
@@ -8879,56 +8879,56 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 `)
 
 	// And now the errors
-	xHTTP(t, reg, "GET", "/dirs?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/?collections", "", 400, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/?collections", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions",
   "title": "The specified flag (collections) is not allowed in this context",
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?collections", "", 400,
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1?collections", "", 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -8936,7 +8936,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
   "detail": "?collections is only allow on the Registry or Group instance level"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?collections",
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details?collections",
 		"", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -8945,20 +8945,20 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "GET", "/dirsx?collections", "", 404, `{
+	XHTTP(t, reg, "GET", "/dirsx?collections", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirsx",
   "title": "The specified entity cannot be found: /dirsx",
   "detail": "Unknown Group type: dirsx"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1x?collections", "", 404, `{
+	XHTTP(t, reg, "GET", "/dirs/d1x?collections", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1x",
   "title": "The specified entity cannot be found: /dirs/d1x"
 }
 `)
-	xHTTP(t, reg, "GET", "/dirs/d1/filesx?collections", "", 404, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/filesx?collections", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/filesx",
   "title": "The specified entity cannot be found: /dirs/d1/filesx",

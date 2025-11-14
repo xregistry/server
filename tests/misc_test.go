@@ -17,9 +17,9 @@ func TestDBRows(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`, 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`, 201, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -32,7 +32,7 @@ func TestDBRows(t *testing.T) {
 }
 `)
 
-	xHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref": "/dirs/d1/files/f1"}`, 201, `{
   "fileid": "fx",
   "self": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -76,7 +76,7 @@ func TestDBRows(t *testing.T) {
 	// - fx's #epoch is saved so we can calc the new epoch if xref is del'd
 	// - #nextversionid is what vID we should use on next system set vID
 	// - All entities need at least one Prop, so fx needs 'fileid'
-	xCheckEqual(t, "", result,
+	XEqual(t, "", result,
 		`: createdat, -> YYYY-MM-DDTHH:MM:01Z
 : epoch, -> 2
 : modifiedat, -> YYYY-MM-DDTHH:MM:02Z
@@ -114,7 +114,7 @@ func TestCORS(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddGroupModel("dirs", "dir")
-	// xHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
+	// XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
 
 	type Test struct {
 		method string
@@ -139,14 +139,14 @@ func TestCORS(t *testing.T) {
 		{"PATCH", "/dirs/d1", "", 400},
 	} {
 		t.Logf("Test: %s %s", test.method, test.url)
-		res := xDoHTTP(t, reg, test.method, test.url, test.body)
+		res := XDoHTTP(t, reg, test.method, test.url, test.body)
 		t.Logf("response body: %s", res.body)
 
-		xCheckEqual(t, "status code", res.StatusCode, test.code)
+		XEqual(t, "status code", res.StatusCode, test.code)
 
-		xCheckEqual(t, "cors header",
+		XEqual(t, "cors header",
 			res.Header.Get("Access-Control-Allow-Origin"), "*")
-		xCheckEqual(t, "cors header",
+		XEqual(t, "cors header",
 			res.Header.Get("Access-Control-Allow-Methods"),
 			"GET, PATCH, POST, PUT, DELETE")
 	}
@@ -232,28 +232,28 @@ func TestConcurrency(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	NewJob(t, "PATCH /", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PATCH", fmt.Sprintf("/"), "{}", 200, "*")
+		XHTTP(t, reg, "PATCH", fmt.Sprintf("/"), "{}", 200, "*")
 	})
 
 	NewJob(t, "PUT dx", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
 	})
 	NewJob(t, "PUT d1", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
 	})
 
 	NewJob(t, "PUT fx", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f%d", num), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f%d", num), "{}", 2, "*")
 	})
 	NewJob(t, "PUT f1", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1"), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1"), "{}", 2, "*")
 	})
 
 	NewJob(t, "PUT vx", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v%d", num), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v%d", num), "{}", 2, "*")
 	})
 	NewJob(t, "PUT v1", &startFlag, wg, 5, 10, func(num int) {
-		xHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v1"), "{}", 2, "*")
+		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v1"), "{}", 2, "*")
 	})
 
 	// log.SetVerbose(2) // To see server's activity
@@ -265,7 +265,7 @@ func TestConcurrency(t *testing.T) {
 	startFlag = true
 	wg.Wait()
 	t.Logf("DONE")
-	res := xDoHTTP(t, reg, "GET", "/?inline", "")
+	res := XDoHTTP(t, reg, "GET", "/?inline", "")
 
 	type tmp struct {
 		Epoch     int
@@ -291,8 +291,8 @@ func TestConcurrency(t *testing.T) {
 	t.Logf("Json: %s", ToJSON(data))
 
 	// May need to check for 20 here (see below)
-	xCheckEqual(t, "", data.Epoch, 21)
-	xCheckEqual(t, "", data.DirsCount, 10)
+	XEqual(t, "", data.Epoch, 21)
+	XEqual(t, "", data.DirsCount, 10)
 
 	// can be either depending on the order in which things are created
 	if data.Dirs["d1"].Epoch != 20 && data.Dirs["d1"].Epoch != 21 {
@@ -300,9 +300,9 @@ func TestConcurrency(t *testing.T) {
 			data.Dirs["d1"].Epoch)
 	}
 
-	xCheckEqual(t, "", data.Dirs["d1"].FilesCount, 10)
+	XEqual(t, "", data.Dirs["d1"].FilesCount, 10)
 
 	// version "1" may not exist if a PUT .../vX arrives before PUT .../f1
-	xCheckEqual(t, "", data.Dirs["d1"].Files["f1"].Meta.Epoch,
+	XEqual(t, "", data.Dirs["d1"].Files["f1"].Meta.Epoch,
 		data.Dirs["d1"].Files["f1"].VersionsCount)
 }

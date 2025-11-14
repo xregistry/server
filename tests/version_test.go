@@ -17,34 +17,34 @@ func TestCreateVersion(t *testing.T) {
 	d1, _ := reg.AddGroup("dirs", "d1")
 
 	f1, err := d1.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
-	xCheck(t, f1 != nil, "Creating f1 failed")
+	XNoErr(t, err)
+	XCheck(t, f1 != nil, "Creating f1 failed")
 
 	v2, err := f1.AddVersion("v2")
-	xNoErr(t, err)
-	xCheck(t, v2 != nil, "Creating v2 failed")
+	XNoErr(t, err)
+	XCheck(t, v2 != nil, "Creating v2 failed")
 
 	vt, err := f1.AddVersion("v2")
-	xCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
+	XCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
 
 	vt, isNew, err := f1.UpsertVersion("v2")
-	xCheck(t, vt != nil && err == nil, "Dup v2 should have worked")
-	xCheck(t, isNew == false, "Should not be new")
-	xCheck(t, vt == v2, "Should be the same")
+	XCheck(t, vt != nil && err == nil, "Dup v2 should have worked")
+	XCheck(t, isNew == false, "Should not be new")
+	XCheck(t, vt == v2, "Should be the same")
 
 	l, err := f1.GetDefault(registry.FOR_WRITE)
-	xNoErr(t, err)
-	xJSONCheck(t, l, v2)
+	XNoErr(t, err)
+	XJSONCheck(t, l, v2)
 
 	d2, err := reg.AddGroup("dirs", "d2")
-	xNoErr(t, err)
-	xCheck(t, d2 != nil && err == nil, "Creating d2 failed")
+	XNoErr(t, err)
+	XCheck(t, d2 != nil && err == nil, "Creating d2 failed")
 
 	f2, err := d2.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
-	xCheck(t, f2 != nil, "Creating d2/f1/v1 failed")
+	XNoErr(t, err)
+	XCheck(t, f2 != nil, "Creating d2/f1/v1 failed")
 	_, err = f2.AddVersion("v1.1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// /dirs/d1/f1/v1
 	//            /v2
@@ -52,7 +52,7 @@ func TestCreateVersion(t *testing.T) {
 	//      /d2/f1/v1.1
 
 	// Check basic GET first
-	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/v1$details",
+	XCheckGet(t, reg, "/dirs/d1/files/f1/versions/v1$details",
 		`{
   "fileid": "f1",
   "versionid": "v1",
@@ -65,69 +65,69 @@ func TestCreateVersion(t *testing.T) {
   "ancestor": "v1"
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", `{
+	XCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx"
 }
 `)
-	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx", `{
+	XCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx"
 }
 `)
-	xCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx/yyy", `{
+	XCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx/yyy"
 }
 `)
-	xCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx/yyy", `{
+	XCheckGet(t, reg, "dirs/d1/files/f1/versions/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1/versions/xxx/yyy",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/xxx/yyy"
 }
 `)
 
-	xCheckGet(t, reg, "?inline&oneline",
+	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
 	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, vt != nil, "Didn't find v2")
-	xJSONCheck(t, vt, v2)
+	XNoErr(t, err)
+	XCheck(t, vt != nil, "Didn't find v2")
+	XJSONCheck(t, vt, v2)
 
 	vt, err = f1.FindVersion("xxx", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, vt == nil, "Find version xxx should have failed")
+	XNoErr(t, err)
+	XCheck(t, vt == nil, "Find version xxx should have failed")
 
 	err = v2.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xCheckGet(t, reg, "?inline&oneline",
+	XNoErr(t, err)
+	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
 	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	xCheck(t, err == nil && vt == nil, "Finding delete version failed")
+	XCheck(t, err == nil && vt == nil, "Finding delete version failed")
 
 	// check that default == v1 now
 	// delete v1, check that f1 is deleted too
 	err = f1.Refresh(registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xJSONCheck(t, f1.Get("defaultversionid"), "v1")
+	XEqual(t, "", f1.Get("defaultversionid"), "v1")
 
 	vt, err = f1.AddVersion("v2")
-	xCheck(t, vt != nil && err == nil, "Adding v2 again")
+	XCheck(t, vt != nil && err == nil, "Adding v2 again")
 
 	vt, err = f1.AddVersion("v3")
-	xCheck(t, vt != nil && err == nil, "Added v3")
-	xNoErr(t, vt.SetDefault())
-	xJSONCheck(t, f1.Get("defaultversionid"), "v3")
+	XCheck(t, vt != nil && err == nil, "Added v3")
+	XNoErr(t, vt.SetDefault())
+	XEqual(t, "", f1.Get("defaultversionid"), "v3")
 
-	xCheckGet(t, reg, "?inline&oneline",
+	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{},"v3":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
-	xCheckGet(t, reg, "/dirs/d1/files/f1$details?inline=meta", `{
+	XCheckGet(t, reg, "/dirs/d1/files/f1$details?inline=meta", `{
   "fileid": "f1",
   "versionid": "v3",
   "self": "http://localhost:8181/dirs/d1/files/f1$details",
@@ -158,56 +158,56 @@ func TestCreateVersion(t *testing.T) {
 }
 `)
 	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = vt.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xJSONCheck(t, f1.Get("defaultversionid"), "v3")
+	XNoErr(t, err)
+	XEqual(t, "", f1.Get("defaultversionid"), "v3")
 
 	vt, err = f1.FindVersion("v3", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, vt != nil, "Can't be nil")
+	XNoErr(t, err)
+	XCheck(t, vt != nil, "Can't be nil")
 	err = vt.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xJSONCheck(t, f1.Get("defaultversionid"), "v1")
+	XNoErr(t, err)
+	XEqual(t, "", f1.Get("defaultversionid"), "v1")
 
 	f1, err = d2.FindResource("files", "f1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xNoErr(t, f1.SetDefault(v2))
+	XNoErr(t, err)
+	XNoErr(t, f1.SetDefault(v2))
 	_, err = f1.AddVersion("v3")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	vt, err = f1.FindVersion("v1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, vt != nil, "should not be nil")
+	XNoErr(t, err)
+	XCheck(t, vt != nil, "should not be nil")
 	err = vt.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xCheckGet(t, reg, "?inline&oneline",
+	XNoErr(t, err)
+	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1.1":{},"v3":{}}}}}}}`)
 
 	err = vt.DeleteSetNextVersion("v2")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d2/files/f1",
   "title": "The request cannot be processed as provided: can't find next default Version \"v2\""
 }`)
 
 	vt, err = f1.FindVersion("v1.1", false, registry.FOR_WRITE)
-	xNoErr(t, err)
-	xCheck(t, vt != nil, "should not be nil")
+	XNoErr(t, err)
+	XCheck(t, vt != nil, "should not be nil")
 
 	err = vt.DeleteSetNextVersion("v1.1")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d2/files/f1/versions/v1.1",
   "title": "The request cannot be processed as provided: can't set \"defaultversionid\" to a Version that is being deleted"
 }`)
 
 	vt, err = f1.AddVersion("v4")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	err = vt.DeleteSetNextVersion("v3")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
-	xCheckGet(t, reg, "dirs/d2/files?inline=meta",
+	XCheckGet(t, reg, "dirs/d2/files?inline=meta",
 		`{
   "f1": {
     "fileid": "f1",
@@ -254,7 +254,7 @@ func TestDefaultVersion(t *testing.T) {
 	v1, _ := f1.FindVersion("v1", false, registry.FOR_WRITE)
 	v2, _ := f1.AddVersion("v2")
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v2",
@@ -287,9 +287,9 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	// Doesn't change much, but does make it sticky
-	xNoErr(t, f1.SetDefault(v2))
+	XNoErr(t, f1.SetDefault(v2))
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v2",
@@ -323,7 +323,7 @@ func TestDefaultVersion(t *testing.T) {
 
 	v3, _ := f1.AddVersion("v3")
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v2",
@@ -356,8 +356,8 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	// Now unstick it and it default should be v3 now
-	xNoErr(t, f1.SetDefault(nil))
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XNoErr(t, f1.SetDefault(nil))
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v3",
@@ -390,10 +390,10 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	v4, _ := f1.AddVersion("v4")
-	xNoErr(t, f1.SetDefault(v4))
+	XNoErr(t, f1.SetDefault(v4))
 	v5, _ := f1.AddVersion("v5")
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v4",
@@ -426,8 +426,8 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	err := v1.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XNoErr(t, err)
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v4",
@@ -460,14 +460,14 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	err = v3.DeleteSetNextVersion("v1")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1/files/f1",
   "title": "The request cannot be processed as provided: can't find next default Version \"v1\""
 }`)
 	err = v3.DeleteSetNextVersion("v2")
-	xNoErr(t, err)
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XNoErr(t, err)
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v2",
@@ -500,8 +500,8 @@ func TestDefaultVersion(t *testing.T) {
 `)
 
 	err = v2.DeleteSetNextVersion("")
-	xNoErr(t, err)
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XNoErr(t, err)
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v5",
@@ -533,8 +533,8 @@ func TestDefaultVersion(t *testing.T) {
 }
 `)
 
-	xNoErr(t, v4.DeleteSetNextVersion(""))
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XNoErr(t, v4.DeleteSetNextVersion(""))
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v5",
@@ -566,8 +566,8 @@ func TestDefaultVersion(t *testing.T) {
 }
 `)
 
-	xNoErr(t, v5.DeleteSetNextVersion(""))
-	xCheckGet(t, reg, "dirs/d1/files/f1$details", `{
+	XNoErr(t, v5.DeleteSetNextVersion(""))
+	XCheckGet(t, reg, "dirs/d1/files/f1$details", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1$details",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1$details"
@@ -588,7 +588,7 @@ func TestDefaultVersionMaxVersions(t *testing.T) {
 	f1.AddVersion("v2")
 	f1.AddVersion("v3")
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v3",
@@ -622,7 +622,7 @@ func TestDefaultVersionMaxVersions(t *testing.T) {
 
 	v4, _ := f1.AddVersion("v4")
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=meta",
 		`{
   "fileid": "f1",
   "versionid": "v4",
@@ -654,7 +654,7 @@ func TestDefaultVersionMaxVersions(t *testing.T) {
 }
 `)
 
-	xNoErr(t, f1.SetDefault(v4))
+	XNoErr(t, f1.SetDefault(v4))
 	f1.AddVersion("v5") // v3,v4,v5
 	// check def = v4
 	f1.AddVersion("v6") // v4*,v5,v6
@@ -662,7 +662,7 @@ func TestDefaultVersionMaxVersions(t *testing.T) {
 	f1.AddVersion("v8") // v4*,v7,v8
 	// check def = v4    v8, v7, v4
 
-	xCheckGet(t, reg, "dirs/d1/files/f1$details?inline=versions,meta",
+	XCheckGet(t, reg, "dirs/d1/files/f1$details?inline=versions,meta",
 		`{
   "fileid": "f1",
   "versionid": "v4",
@@ -742,18 +742,18 @@ func TestVersionRequiredFields(t *testing.T) {
 		Type:     STRING,
 		Required: true,
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	group, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	f1, err := group.AddResourceWithObject("files", "f1", "v1",
 		Object{"req": "test"}, false)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	_, err = f1.AddVersion("v2")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1/files/f1/versions/v2",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
@@ -762,18 +762,18 @@ func TestVersionRequiredFields(t *testing.T) {
 	reg.Refresh(registry.FOR_WRITE)
 
 	v1, _, err := f1.UpsertVersionWithObject("v2", Object{"req": "test"}, registry.ADD_ADD, false)
-	xNoErr(t, err)
+	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
 	err = v1.SetSave("req", nil)
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
   "subject": "/dirs/d1/files/f1/versions/v2",
   "title": "The request cannot be processed as provided: required property \"req\" is missing"
 }`)
 
 	err = v1.SetSave("req", "again")
-	xNoErr(t, err)
+	XNoErr(t, err)
 }
 
 func TestVersionOrdering(t *testing.T) {
@@ -797,7 +797,7 @@ func TestVersionOrdering(t *testing.T) {
 	t1 := "2024-01-02T12:00:00Z"
 	t2 := "2023-11-22T01:02:03Z"
 	t9 := "2025-01-02T12:00:00Z"
-	xHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{
 	  "versions": {
 	    "z5": { "createdat": "`+t1+`","modifiedat":"`+t2+`" },
 	    "v2": { "createdat": "`+t1+`","modifiedat":"`+t2+`" },
@@ -807,7 +807,7 @@ func TestVersionOrdering(t *testing.T) {
 	    "v9": { "createdat": "`+t1+`","modifiedat":"`+t2+`" },
 	    "v5": { "createdat": "`+t1+`","modifiedat":"`+t2+`" }
 	  }
-    }`, 200, `--TS--{
+    }`, 200, `{
   "fileid": "f1",
   "versionid": "V1",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -822,11 +822,11 @@ func TestVersionOrdering(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 7
 }
-`)
+`, NOMASK_TS)
 	ids := []string{"V1", "z5", "Z1", "v9", "v5", "v2", "V3"}
 
 	for i, id := range ids {
-		xHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/"+id, ``, 204, ``)
+		XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/"+id, ``, 204, ``)
 		if i == len(ids)-1 {
 			break
 		}
@@ -836,7 +836,7 @@ func TestVersionOrdering(t *testing.T) {
 			ct = t0
 		}
 
-		xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200, fmt.Sprintf(`--TS--{
+		XHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200, fmt.Sprintf(`{
   "fileid": "f1",
   "versionid": "%s",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -851,10 +851,10 @@ func TestVersionOrdering(t *testing.T) {
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": %d
 }
-`, ids[i+1], ids[i+1], 6-i))
+`, ids[i+1], ids[i+1], 6-i), NOMASK_TS)
 	}
 
-	xHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 404, `{
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "subject": "http://localhost:8181/dirs/d1/files/f1",
   "title": "The specified entity cannot be found: /dirs/d1/files/f1"
@@ -874,7 +874,7 @@ func TestVersionOrdering2(t *testing.T) {
 
 	ts1 := "2020-01-02T12:00:00Z"
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		// URL:        "/dirs/d1/files/f1/versions?setdefaultversionid=v5",
 		URL:        "/dirs/d1/files/f1",
 		Method:     "PUT",
@@ -905,7 +905,7 @@ func TestVersionOrdering2(t *testing.T) {
 }
 `})
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1/meta",
 		Method: "GET",
 		Code:   200,
@@ -927,7 +927,7 @@ func TestVersionOrdering2(t *testing.T) {
 
 	ts2 := "2024-02-02T12:00:00Z"
 
-	xCheckHTTP(t, reg, &HTTPTest{
+	XCheckHTTP(t, reg, &HTTPTest{
 		URL:        "/dirs/d1/files/f1/versions/v3",
 		Method:     "PATCH",
 		ReqHeaders: []string{},

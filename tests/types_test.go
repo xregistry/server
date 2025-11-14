@@ -42,7 +42,7 @@ func TestBasicTypes(t *testing.T) {
 	reg.Model.AddAttrMap("regmapstring", registry.NewItemType(STRING))
 
 	attr, err := reg.Model.AddAttrObj("regobj")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	attr.AddAttr("objbool", BOOLEAN)
 	attr.AddAttr("objint", INTEGER)
 	attr2, _ := attr.AddAttrObj("objobj")
@@ -89,124 +89,124 @@ func TestBasicTypes(t *testing.T) {
 	rm.AddAttr("xidtype1", XIDTYPE)
 	rm.AddAttr("xidtype2", XIDTYPE)
 
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
 	/* no longer required
 	_, err = reg.Model.AddAttrXID("regptr_group", "")
-	xCheckErr(t, err, `"model.regptr_group" must have a "target" value since "type" is "xid"`)
+	XCheckErr(t, err, `"model.regptr_group" must have a "target" value since "type" is "xid"`)
 	*/
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe/")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", " /")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_reg", "/")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_reg\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" has an unknown Group type: \"xxxs\""
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs/")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/dirs")
-	xCheckErr(t, err, ``)
+	XCheckErr(t, err, ``)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/?")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"?\""
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/file")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"file\""
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/files")
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd?")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/versions")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	err = reg.SaveModel()
-	xCheckErr(t, err, ``)
+	XCheckErr(t, err, ``)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?asd")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?/")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files[/versions]")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver2", "/dirs/files[/versions]")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	// Model is fully defined, so save it
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel())
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -481,9 +481,9 @@ func TestBasicTypes(t *testing.T) {
 			if xErr != nil {
 				// t.Logf("xerr: %s", xErr)
 
-				// xCheckEqual(t, "eType", xErr.Type,
+				// XEqual(t, "eType", xErr.Type,
 				// Type2Error["invalid_attribute"].Type)
-				// xCheckEqual(t, "eSubject", xErr.Subject, "")
+				// XEqual(t, "eSubject", xErr.Subject, "")
 				if !strings.HasSuffix(xErr.GetTitle(), prop.ErrMsg) {
 					t.Errorf("Exp: %s", prop.ErrMsg)
 					t.Errorf("Got: %s", xErr.GetTitle())
@@ -522,7 +522,7 @@ func TestBasicTypes(t *testing.T) {
 		}
 	}
 
-	xCheckGet(t, reg, "?inline", `{
+	XCheckGet(t, reg, "?inline", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestBasicTypes",
   "self": "http://localhost:8181/",
@@ -728,33 +728,33 @@ func TestWildcardBoolTypes(t *testing.T) {
 	reg.Model.AddAttr("*", BOOLEAN)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
-	xNoErr(t, err)
-	xNoErr(t, reg.Model.Save())
+	XNoErr(t, err)
+	XNoErr(t, reg.Model.Save())
 
 	dir, err := reg.AddGroup("dirs", "d1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 	_, err = dir.AddResource("files", "f1", "v1")
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	err = reg.SetSave("bogus", "foo")
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"bogus\" is not valid: must be a boolean"
 }`)
 
 	err = reg.SetSave("ext1", true)
-	xCheck(t, err == nil, "set ext1: %s", err)
+	XCheck(t, err == nil, "set ext1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
-	xCheck(t, val == true, "get ext1: %v", val)
+	XCheck(t, val == true, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", false)
-	xCheck(t, err == nil, "set ext1-2: %s", err)
+	XCheck(t, err == nil, "set ext1-2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
-	xCheck(t, reg.Get("ext1") == false, "get ext1-2: %v", val)
+	XCheck(t, reg.Get("ext1") == false, "get ext1-2: %v", val)
 }
 
 func TestWildcardAnyTypes(t *testing.T) {
@@ -762,27 +762,27 @@ func TestWildcardAnyTypes(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", ANY)
-	xNoErr(t, reg.Model.Save())
+	XNoErr(t, reg.Model.Save())
 
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
-	xCheck(t, err == nil, "set ext1: %s", err)
+	XCheck(t, err == nil, "set ext1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("ext1")
-	xCheck(t, val == 5.5, "get ext1: %v", val)
+	XCheck(t, val == 5.5, "get ext1: %v", val)
 
 	err = reg.SetSave("ext1", "foo")
-	xCheck(t, err == nil, "set ext2: %s", err)
+	XCheck(t, err == nil, "set ext2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext1")
-	xCheck(t, val == "foo", "get ext2: %v", val)
+	XCheck(t, val == "foo", "get ext2: %v", val)
 
 	// Make sure we add one of a different type
 	err = reg.SetSave("ext2", true)
-	xCheck(t, err == nil, "set ext3 %s", err)
+	XCheck(t, err == nil, "set ext3 %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("ext2")
-	xCheck(t, val == true, "get ext3: %v", val)
+	XCheck(t, val == true, "get ext3: %v", val)
 }
 
 func TestWildcard2LayersTypes(t *testing.T) {
@@ -804,17 +804,17 @@ func TestWildcard2LayersTypes(t *testing.T) {
 			},
 		},
 	})
-	xCheck(t, err == nil, "")
-	xNoErr(t, reg.Model.Save())
+	XCheck(t, err == nil, "")
+	XNoErr(t, reg.Model.Save())
 
 	err = reg.SetSave("obj.map.k1", 5)
-	xCheck(t, err == nil, "set foo.k1: %s", err)
+	XCheck(t, err == nil, "set foo.k1: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val := reg.Get("obj.map.k1")
-	xCheck(t, val == 5, "get foo.k1: %v", val)
+	XCheck(t, val == 5, "get foo.k1: %v", val)
 
 	err = reg.SetSave("obj.map.foo.k1.k2", 5)
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"obj.map.foo\" is not valid: must be an integer"
@@ -822,12 +822,12 @@ func TestWildcard2LayersTypes(t *testing.T) {
 	// reg.Refresh(registry.FOR_WRITE) // clear bad data
 
 	err = reg.SetSave("obj.myany.foo.k1.k2", 5)
-	xCheck(t, err == nil, "set obj.myany.foo.k1.k2: %s", err)
+	XCheck(t, err == nil, "set obj.myany.foo.k1.k2: %s", err)
 	reg.Refresh(registry.FOR_WRITE)
 	val = reg.Get("obj.myany.foo.k1.k2")
-	xCheck(t, val == 5, "set obj.myany.foo.k1.k2: %v", val)
+	XCheck(t, val == 5, "set obj.myany.foo.k1.k2: %v", val)
 	val = reg.Get("obj.myany.bogus.k1.k2")
-	xCheck(t, val == nil, "set obj.myany.bogus.k1.k2: %v", val)
+	XCheck(t, val == nil, "set obj.myany.bogus.k1.k2: %v", val)
 
 }
 
@@ -845,7 +845,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
@@ -862,7 +862,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
@@ -888,7 +888,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"another-\" is not valid: while processing \"model.obj1.attr1.ifvalues.a1\", attribute name \"another-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
@@ -905,7 +905,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "subject": "/",
   "title": "There was an error in the model definition provided: while processing \"model.obj1\", map key name \"attr space\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
@@ -924,7 +924,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
@@ -948,7 +948,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xCheckErr(t, err, `{
+	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
   "subject": "/",
   "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.attr1.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
@@ -973,7 +973,7 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xNoErr(t, err)
+	XNoErr(t, err)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
@@ -1004,26 +1004,26 @@ func TestNameCharSet(t *testing.T) {
 			},
 		},
 	})
-	xNoErr(t, err)
-	xNoErr(t, reg.SaveModel())
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel())
 
 	err = reg.SetSave("obj1.attr1-", "a1")
-	xCheck(t, err == nil, "set foo.attr1-: %s", err)
+	XCheck(t, err == nil, "set foo.attr1-: %s", err)
 	err = reg.SetSave("obj1.attr1-id", "a1-id")
-	xCheck(t, err == nil, "set foo.attr1-id: %s", err)
+	XCheck(t, err == nil, "set foo.attr1-id: %s", err)
 	err = reg.SetSave("obj1.foo-bar", 5)
-	xCheck(t, err == nil, "set foo.foo-bar: %s", err)
+	XCheck(t, err == nil, "set foo.foo-bar: %s", err)
 
 	reg.Refresh(registry.FOR_WRITE)
 
 	val := reg.Get("obj1.attr1-")
-	xCheck(t, val == "a1", "set obj1.attr1-: %v", val)
+	XCheck(t, val == "a1", "set obj1.attr1-: %v", val)
 	val = reg.Get("obj1.attr1-id")
-	xCheck(t, val == "a1-id", "set obj1.attr1-id: %v", val)
+	XCheck(t, val == "a1-id", "set obj1.attr1-id: %v", val)
 	val = reg.Get("obj1.foo-bar")
-	xCheck(t, val == 5, "set obj1.foo-bar: %v", val)
+	XCheck(t, val == 5, "set obj1.foo-bar: %v", val)
 
-	xHTTP(t, reg, "GET", "/model", ``, 200, `{
+	XHTTP(t, reg, "GET", "/model", ``, 200, `{
   "attributes": {
     "specversion": {
       "name": "specversion",
