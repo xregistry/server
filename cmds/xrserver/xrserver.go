@@ -284,6 +284,11 @@ func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {
 	buf.WriteString(str)
 }
 
+func BufPrint(buf *strings.Builder, fmtStr string) {
+	str := fmt.Sprint(fmtStr)
+	buf.WriteString(str)
+}
+
 func wrap(str string, col int, indent string) string {
 	res := ""
 
@@ -355,7 +360,8 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 		if cmd.Hidden {
 			continue
 		}
-		BufPrintf(res, showAllHelp(cmd, indent)) // indent+"  "))
+
+		BufPrint(res, showAllHelp(cmd, indent)) // indent+"  "))
 	}
 
 	return res.String()
