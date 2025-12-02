@@ -410,8 +410,9 @@ func ProcessIncludes(file string, buf []byte, localFiles bool) ([]byte, *XRError
 	buf = RemoveComments(buf)
 
 	if err := Unmarshal(buf, &data); err != nil {
-		return nil, NewXRError("model_error", "/",
-			fmt.Sprintf("Error parsing JSON: %s", err))
+		return nil, NewXRError("model_error", "",
+			"error_detail="+
+				fmt.Sprintf("error parsing JSON: %s", err))
 	}
 
 	includeArgs := IncludeArgs{
@@ -423,16 +424,17 @@ func ProcessIncludes(file string, buf []byte, localFiles bool) ([]byte, *XRError
 	}
 
 	if err := IncludeTraverse(includeArgs, data); err != nil {
-		return nil, NewXRError("model_error", "/",
-			fmt.Sprintf("Error processing JSON: %s", err))
+		return nil, NewXRError("model_error", "",
+			"error_detail="+fmt.Sprintf("error processing JSON: %s", err))
 	}
 
 	// Convert back to byte
 	// buf, err := json.MarshalIndent(data, "", "  ")
 	buf, err := json.Marshal(data)
 	if err != nil {
-		return nil, NewXRError("model_error", "/",
-			fmt.Sprintf("Error generating JSON: %s", err))
+		return nil, NewXRError("model_error", "",
+			"error_detail="+
+				fmt.Sprintf("error generating JSON: %s", err))
 	}
 
 	return buf, nil
@@ -749,9 +751,10 @@ func IncomingObj2Map(incomingObj Object) (map[string]Object, *XRError) {
 			oV.Type().Key().Kind() != reflect.String {
 
 			return nil,
-				NewXRError("bad_request", "/",
-					fmt.Sprintf("Body must be a map of id->Entity, near %q",
-						id))
+				NewXRError("bad_request", "",
+					"error_detail="+
+						fmt.Sprintf("body must be a map of id->Entity, near %q",
+							id))
 		}
 		newObj := Object{}
 		for _, keyVal := range oV.MapKeys() {
@@ -1530,4 +1533,11 @@ func IsPortInUse(port int) bool {
 		conn.Close()
 	}
 	return err == nil
+}
+
+func Err2String(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }

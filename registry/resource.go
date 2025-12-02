@@ -161,16 +161,17 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 	}
 
 	if xref[0] != '/' {
-		return "", nil, NewXRError("bad_request", meta.Path,
-			fmt.Sprintf("'xref' %q must start with '/'",
-				tmp.(string)))
+		return "", nil, NewXRError("malformed_xref", meta.XID,
+			"xref="+xref,
+			"error_detail=must start with '/'")
 	}
 
 	parts := strings.Split(xref, "/")
 	if len(parts) != 5 || len(parts[0]) != 0 {
-		return "", nil, NewXRError("bad_request", meta.Path,
-			fmt.Sprintf("'xref' %q must be of the form: "+
-				"/GROUPS/GID/RESOURCES/RID", tmp.(string)))
+		return "", nil, NewXRError("malformed_xref", meta.XID,
+			"xref="+xref,
+			"error_detail=must be of the form: "+
+				"/GROUPS/GID/RESOURCES/RID", tmp.(string))
 	}
 
 	group, xErr := r.Registry.FindGroup(parts[1], parts[2], false, FOR_READ)
@@ -222,8 +223,10 @@ func (r *Resource) JustSetDefault(name string, val any) *XRError {
 	log.VPrintf(4, "JustSetDefault: r(%s).Set(%s,%v)", r.UID, name, val)
 
 	if r.IsXref() {
-		return NewXRError("bad_request", r.Path,
-			`can't update "defaultversionid" of a Resource that uses "xref"`)
+		return NewXRError("bad_request", r.XID,
+			"error_detail="+
+				fmt.Sprintf(`Can't update "defaultversionid" of a `+
+					`Resource (%s) that uses "xref"`, r.Path))
 	}
 
 	v, xErr := r.GetDefault(FOR_WRITE)
@@ -289,7 +292,7 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
 		anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.Path+"/meta").
+		return nil, NewXRError("server_error", r.XID+"/meta").
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s",
 				r.Path, xErr.GetTitle()))
 	}
@@ -324,7 +327,7 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
 		anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.Path+"/versions/"+id).
+		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s",
 				r.Path+"/versions/"+id, xErr.GetTitle()))
 	}
@@ -391,8 +394,10 @@ func (r *Resource) EnsureLatest() *XRError {
 // Note will set sticky if vID != ""
 func (r *Resource) SetDefaultID(vID string) *XRError {
 	if r.IsXref() {
-		return NewXRError("bad_request", r.Path,
-			`can't update "defaultversionid" of a Resource that uses "xref"`)
+		return NewXRError("bad_request", r.XID,
+			"error_detail="+
+				fmt.Sprintf(`Can't update "defaultversionid" of a `+
+					`Resource (%s) that uses "xref"`, r.Path))
 	}
 
 	var v *Version
@@ -411,8 +416,10 @@ func (r *Resource) SetDefaultID(vID string) *XRError {
 // Creating a new version should do this directly
 func (r *Resource) SetDefault(newDefault *Version) *XRError {
 	if r.IsXref() {
-		return NewXRError("bad_request", r.Path,
-			`can't update "defaultversionid" of a Resource that uses "xref"`)
+		return NewXRError("bad_request", r.XID,
+			"error_detail="+
+				fmt.Sprintf(`Can't update "defaultversionid" of a `+
+					`Resource (%s) that uses "xref"`, r.Path))
 	}
 
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
@@ -465,7 +472,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 		return nil, false, xErr
 	}
 
-	if xErr := CheckAttrs(obj); xErr != nil {
+	if xErr := CheckAttrs(obj, r.XID+"/meta"); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -473,14 +480,16 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
 	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", "/"+r.Path, "/"+r.Path)
+		return nil, false, NewXRError("readonly", r.XID)
 	}
 
 	if obj != nil {
 		if val, ok := obj[r.Singular+"id"]; ok {
 			if val != r.UID {
-				return nil, false, NewXRError("mismatched_id", meta.Path,
-					r.Singular, val, r.UID)
+				return nil, false, NewXRError("mismatched_id", meta.XID,
+					"singular="+r.Singular,
+					"invalid_id="+fmt.Sprintf("%v", val),
+					"expected_id="+r.UID)
 			}
 		}
 	}
@@ -577,25 +586,30 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 				xref, _ = xrefAny.(string)
 				xid, err := ParseXref(xref)
 				if err != nil {
-					return nil, false, NewXRError("bad_request", meta.Path,
-						fmt.Sprintf("error parsing 'xref': %s", err))
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail="+err.Error())
 				}
 				if xid.ResourceID == "" {
-					return nil, false, NewXRError("bad_request", meta.Path,
-						fmt.Sprintf("'xref' %q must be of the "+
-							"form: /GROUPS/GID/RESOURCES/RID", xref))
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail=must be of the "+
+							"form: /GROUPS/GID/RESOURCES/RID")
 				}
 				xrefAbsModel, err := Xid2Abstract(xref)
 				if err != nil {
-					return nil, false, NewXRError("bad_request", "/",
-						err.Error())
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail="+err.Error())
 				}
 				targetAbsModel := r.ResourceModel.GetOriginAbstractModel()
 				if xrefAbsModel != targetAbsModel {
-					return nil, false, NewXRError("bad_request", meta.Path,
-						fmt.Sprintf("'xref' %q must point to a Resource of "+
-							"type %q not %q",
-							xref, targetAbsModel, xrefAbsModel))
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail="+
+							fmt.Sprintf("must point to a Resource of "+
+								"type %q not %q",
+								targetAbsModel, xrefAbsModel))
 				}
 			}
 		}
@@ -618,6 +632,7 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 
 				Type:     ENTITY_META,
 				Path:     r.Path + "/meta",
+				XID:      r.XID + "/meta",
 				Abstract: r.Abstract + string(DB_IN) + "meta",
 			},
 			Resource: r,
@@ -730,10 +745,9 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 			}
 			if len(extraAttrs) > 0 {
 				sort.Strings(extraAttrs)
-				return nil, false, NewXRError("bad_request", meta.Path,
-					fmt.Sprintf("extra attributes (%s) in "+
-						"\"meta\" not allowed when \"xref\" is set",
-						strings.Join(extraAttrs, ",")))
+				return nil, false, NewXRError("invalid_attributes", meta.XID,
+					"list="+strings.Join(extraAttrs, ","),
+					"error_detail=not allowed in \"meta\" when \"xref\" is set")
 			}
 
 			if xErr = meta.JustSet("xref", xref); xErr != nil {
@@ -792,9 +806,9 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 
 	stickyAny := m.Get("defaultversionsticky")
 	if !IsNil(stickyAny) && stickyAny != true && stickyAny != false {
-		return NewXRError("bad_request", m.Path,
-			fmt.Sprintf("attribute \"defaultversionsticky\" must be a "+
-				"boolean"))
+		return NewXRError("invalid_attributes", m.XID,
+			"list=defaultversionsticky",
+			"error_detail=must be a boolean")
 	}
 	sticky := (stickyAny == true)
 
@@ -808,23 +822,23 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 		}
 	} else {
 		if tmp := reflect.ValueOf(verIDAny).Kind(); tmp != reflect.String {
-			return NewXRError("bad_request", m.Path,
-				fmt.Sprintf("attribute \"defaultversionid\" must be a string"))
+			return NewXRError("invalid_attributes", m.XID,
+				"list=defaultversionid",
+				"error_detail=must be a string")
 		}
 		defaultVersionID, _ = verIDAny.(string)
 		if defaultVersionID == "" {
-			return NewXRError("bad_request", m.Path,
-				fmt.Sprintf("attribute \"defaultversionid\" must not be "+
-					"an empty string"))
+			return NewXRError("invalid_attributes", m.XID,
+				"list=defaultversionid",
+				"error_detail=must not be an empty string")
 		}
 
 		if !sticky {
 			v, xErr := r.GetNewest()
 			Must(xErr)
 			if v != nil && v.UID != defaultVersionID {
-				return NewXRError("bad_request", m.Path,
-					fmt.Sprintf("attribute \"defaultversionid\" must be %q "+
-						"since \"defaultversionsticky\" is \"false\"", v.UID))
+				return NewXRError("wrong_defaultversionid", m.XID,
+					"id="+v.UID)
 			}
 		}
 	}
@@ -835,7 +849,9 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 		v, xErr := r.FindVersion(defaultVersionID, false, FOR_READ)
 		Must(xErr)
 		if IsNil(v) {
-			return NewXRError("unknown_id", m.Path, "Version", defaultVersionID)
+			return NewXRError("unknown_id", m.XID,
+				"singular=version",
+				"id="+defaultVersionID)
 		}
 
 		// Make sure we only "touch" meta if something changed. Calling this
@@ -873,7 +889,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", id, addType, more)
 	defer log.VPrintf(3, "<Exit: UpsertVersion")
 
-	if xErr := CheckAttrs(obj); xErr != nil {
+	if xErr := CheckAttrs(obj, r.XID+"/versions/"+id); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -881,13 +897,15 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
 	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", "/"+r.Path, "/"+r.Path)
+		return nil, false, NewXRError("readonly", r.XID)
 	}
 
 	if r.IsXref() {
 		return nil, false,
-			NewXRError("bad_request", r.Path,
-				`can't update "versions" of a Resource that uses "xref"`)
+			NewXRError("bad_request", r.XID,
+				"error_detail="+
+					fmt.Sprintf("Can't update \"versions\" of a Resource "+
+						"(%s) that uses \"xref\"", r.Path))
 	}
 
 	// Do some quick checks on the incoming obj
@@ -900,12 +918,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 			valStr, ok := val.(string)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attribute", r.Path,
-						"ancestor",
-						fmt.Sprintf(` must be a string, not %T`, val))
+					NewXRError("invalid_attributes", r.XID,
+						"list=ancestor",
+						"error_detail="+
+							fmt.Sprintf(`must be a string, not %T`, val))
 			}
 			if xErr = IsValidID(valStr, "ancestor"); xErr != nil {
-				xErr.Subject = r.Path
+				xErr.Subject = r.XID
 				return nil, false, xErr
 			}
 		}
@@ -938,16 +957,18 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 
 		if addType == ADD_ADD && v != nil {
 			return nil, false,
-				NewXRError("bad_request", v.Path,
-					fmt.Sprintf("Version %q already exists", id))
+				NewXRError("bad_request", v.XID,
+					"error_detail="+
+						fmt.Sprintf("Version %q already exists", id))
 		}
 
 		if v != nil && v.UID != id {
 			return nil, false,
-				NewXRError("bad_request", v.Path,
-					fmt.Sprintf("attempting to create a Version with "+
-						"a \"versionid\" of %q, when one already exists as %q",
-						id, v.UID))
+				NewXRError("bad_request", v.XID,
+					"error_detail="+
+						fmt.Sprintf("Attempting to create a Version with "+
+							"a \"versionid\" of %q, when one already "+
+							"exists as %q", id, v.UID))
 		}
 
 		if xErr != nil {
@@ -973,6 +994,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 
 				Type:     ENTITY_VERSION,
 				Path:     r.Group.Plural + "/" + r.Group.UID + "/" + r.Plural + "/" + r.UID + "/versions/" + id,
+				XID:      "/" + r.Group.Plural + "/" + r.Group.UID + "/" + r.Plural + "/" + r.UID + "/versions/" + id,
 				Abstract: r.Group.Plural + string(DB_IN) + r.Plural + string(DB_IN) + "versions",
 
 				GroupModel:    gm,
@@ -1042,7 +1064,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 					buf, err = json.MarshalIndent(data, "", "  ")
 					if err != nil {
 						return nil, false,
-							NewXRError("bad_request", r.Path, err.Error())
+							NewXRError("parsing_data", r.XID, err.Error())
 					}
 				case reflect.Invalid:
 					// I think this only happens when it's "null".
@@ -1070,9 +1092,9 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 					content, err := base64.StdEncoding.DecodeString(d.(string))
 					if err != nil {
 						return nil, false,
-							NewXRError("bad_request", r.Path,
-								fmt.Sprintf("Error decoding \"%sbase64\" "+
-									"attribute: "+"%s", r.Singular, err))
+							NewXRError("invalid_atributes", r.XID,
+								"list="+r.Singular+"base64",
+								"error_detail="+err.Error())
 					}
 					d = any(content)
 				}
@@ -1386,9 +1408,7 @@ func (r *Resource) EnsureSingleVersionRoot() *XRError {
 	}
 
 	if len(vIDs) > 1 {
-		return NewXRError("bad_request", r.Path,
-			fmt.Sprintf("%q has too many (%d) root versions",
-				r.Path, len(vIDs)))
+		return NewXRError("multiple_roots", r.XID, "plural="+r.Plural)
 	}
 
 	return nil
@@ -1442,7 +1462,7 @@ func (r *Resource) Delete() *XRError {
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
 	if meta.Get("readonly") == true {
-		return NewXRError("readonly", "/"+r.Path, "/"+r.Path)
+		return NewXRError("readonly", r.XID)
 	}
 
 	if xErr = meta.Delete(); xErr != nil {
@@ -1498,7 +1518,6 @@ func (r *Resource) GetHasDocument() bool {
 }
 
 func (r *Resource) CheckAncestors() *XRError {
-	danglingList := "" // list of Ver that point to non-existing Vers
 	newestVerID := ""
 
 	// Problematic versions are ones that have Ancestor=ANCESTOR_TBD or
@@ -1514,12 +1533,10 @@ func (r *Resource) CheckAncestors() *XRError {
 	// correctly.
 	for _, va := range badVAs {
 		if va.Ancestor != ANCESTOR_TBD {
-			// Must be pointing to a non-exiting version, so build error list
-			if len(danglingList) > 0 {
-				danglingList += ", "
-			}
-			danglingList += fmt.Sprintf("%s", va.Ancestor)
-			continue
+			// Must be pointing to a non-exiting version, so error
+			return NewXRError("unknown_id", r.XID,
+				"singular=version",
+				"id="+va.Ancestor)
 		}
 
 		// If Ancestor is ANCESTOR_TBD then assign it to the newest Ver
@@ -1563,11 +1580,6 @@ func (r *Resource) CheckAncestors() *XRError {
 		newestVerID = v.UID // This one is now the latest
 	}
 
-	if len(danglingList) != 0 {
-		return NewXRError("bad_request", r.Path,
-			fmt.Sprintf(`can't find "ancestor" Verison(s): %s`, danglingList))
-	}
-
 	return nil
 }
 
@@ -1586,9 +1598,7 @@ func (r *Resource) EnsureCircularReferences() *XRError {
 			}
 			list += vID
 		}
-		return NewXRError("bad_request", r.Path,
-			fmt.Sprintf(`circular "ancestor" references detected for `+
-				`Versions: %s`, list))
+		return NewXRError("ancestor_circular_reference", r.XID, "list="+list)
 	}
 
 	return nil

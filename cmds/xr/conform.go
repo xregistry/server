@@ -153,7 +153,10 @@ func (xr *XRegistry) LoadConfigFromFile(filename string) *XRError {
 	}
 	buf, err := os.ReadFile(filename)
 	if err != nil {
-		return NewXRError("bad_request", "/", err.Error())
+		return NewXRError("client_request", filename,
+			"error_detail="+
+				fmt.Sprintf("Error loading config file (%s): %s",
+					filename, err.Error()))
 	}
 	return xr.LoadConfigFromBuffer(string(buf))
 }
@@ -170,8 +173,9 @@ func (xr *XRegistry) LoadConfigFromBuffer(buffer string) *XRError {
 		}
 		name, value, _ := strings.Cut(line, ":")
 		if name == "" {
-			return NewXRError("bad_request", "/",
-				fmt.Sprintf("Error in config data - no name: %q", line))
+			return NewXRError("client_error", "",
+				"error_detail="+
+					fmt.Sprintf("Error in config data - no name: %q", line))
 		}
 		xr.SetConfig(name, value)
 	}
@@ -190,8 +194,9 @@ func (xr *XRegistry) SetConfig(name string, value string) *XRError {
 	value = strings.TrimSpace(value)
 
 	if name == "" {
-		return NewXRError("bad_request", "/",
-			fmt.Sprintf("Config name can't be blank"))
+		return NewXRError("client_error", "",
+			"error_detail="+
+				fmt.Sprintf("Config name can't be blank"))
 	}
 	if value == "" {
 		delete(xr.Config, name)
@@ -246,7 +251,9 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 
 	req, err := http.NewRequest(verb, xr.GetServerURL()+"/"+path, bodyReader)
 	if err != nil {
-		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
+		return &HTTPResponse{Error: NewXRError("talking_to_server",
+			xr.GetServerURL()+"/"+path,
+			"error_detail="+err.Error())}
 	}
 
 	for key, value := range xr.Config {
@@ -272,7 +279,9 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 
 	doRes, err := client.Do(req)
 	if err != nil || doRes == nil {
-		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
+		return &HTTPResponse{Error: NewXRError("talking_to_server",
+			xr.GetServerURL()+"/"+path,
+			"error_detail="+err.Error())}
 	}
 	defer doRes.Body.Close()
 
@@ -282,7 +291,9 @@ func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[strin
 	}
 	res.Body, err = io.ReadAll(doRes.Body)
 	if err != nil {
-		return &HTTPResponse{Error: NewXRError("bad_request", "/", err.Error())}
+		return &HTTPResponse{Error: NewXRError("parsing_response",
+			xr.GetServerURL()+"/"+path,
+			"error_detail="+err.Error())}
 	}
 
 	if len(res.Body) > 0 {

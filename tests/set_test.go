@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -30,50 +31,94 @@ func TestSetAttributeNames(t *testing.T) {
 		{"_123_", ""},
 		{"_123_", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: attribute \"_123_\" already exists.",
   "subject": "/",
-  "title": "There was an error in the model definition provided: attribute \"_123_\" already exists"
+  "args": {
+    "error_detail": "attribute \"_123_\" already exists"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:524"
 }`},
 		{"_", ""},
 		{"__", ""},
 		{"", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": ""
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{sixty + "1234", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"a234567890123456789012345678901234567890123456789012345678901234\" is not valid: attribute name \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "a234567890123456789012345678901234567890123456789012345678901234"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"1234", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"1234\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"1234\" is not valid: attribute name \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "1234"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"A", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"A\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"A\" is not valid: attribute name \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "A"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"aA", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"aA\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"aA\" is not valid: attribute name \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "aA"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"_A", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"_A\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"_A\" is not valid: attribute name \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "_A"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"_ _", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"_ _\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"_ _\" is not valid: attribute name \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "_ _"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 		{"#abc", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"#abc\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
-  "title": "The attribute \"#abc\" is not valid: attribute name \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "#abc"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`},
 	}
 
@@ -190,9 +235,14 @@ func TestSetDots(t *testing.T) {
 	// Nesting under labels should fail
 	xErr = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
 	XCheckErr(t, xErr, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"labels.xxx\" for \"/dirs/d1\" is not valid: must be a string.",
   "subject": "/dirs/d1",
-  "title": "The attribute \"labels.xxx\" is not valid: must be a string"
+  "args": {
+    "error_detail": "must be a string",
+    "list": "labels.xxx"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2522"
 }`)
 
 	// dots are ok as tag names
@@ -236,15 +286,23 @@ func TestSetDots(t *testing.T) {
 	xErr = dir.SetSave(NewPP().P("labels").P("xxx/yyy").UI(), nil)
 	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Bad attribute path in \"/dirs/d1\": Unexpected \"/\" in \"labels.xxx/yyy\" at pos 11.",
   "subject": "/dirs/d1",
-  "title": "The request cannot be processed as provided: Unexpected / in \"labels.xxx/yyy\" at pos 11"
+  "args": {
+    "error_detail": "Bad attribute path in \"/dirs/d1\": Unexpected \"/\" in \"labels.xxx/yyy\" at pos 11"
+  },
+  "source": "e4e59b8a76c4:registry:entity:389"
 }`)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("").P("abc").UI(), nil)
 	XCheckErr(t, xErr, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Bad attribute path in \"/dirs/d1\": Unexpected \".\" in \"labels..abc\" at pos 8.",
   "subject": "/dirs/d1",
-  "title": "The request cannot be processed as provided: Unexpected . in \"labels..abc\" at pos 8"
+  "args": {
+    "error_detail": "Bad attribute path in \"/dirs/d1\": Unexpected \".\" in \"labels..abc\" at pos 8"
+  },
+  "source": "e4e59b8a76c4:registry:entity:389"
 }`)
 
 	xErr = dir.SetSave(NewPP().P("labels").P("xxx.yyy").UI(), "xxx")
@@ -252,9 +310,13 @@ func TestSetDots(t *testing.T) {
 
 	xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
 	XCheckErr(t, xErr, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
+  "title": "Unknown extension attribute(s) (xxx) specified for: /dirs/d1.",
   "subject": "/dirs/d1",
-  "title": "The request cannot be processed as provided: invalid extension(s): xxx"
+  "args": {
+    "list": "xxx"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2203"
 }`)
 	XCheck(t, xErr != nil, "xxx.yyy=nil should fail")
 	xErr = dir.SetSave("xxx.", "xxx")
@@ -347,9 +409,14 @@ func TestSetLabels(t *testing.T) {
 	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"labels.vv\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: must be a string.",
   "subject": "/dirs/d1/files/f1/versions/v1",
-  "title": "The attribute \"labels.vv\" is not valid: must be a string"
+  "args": {
+    "error_detail": "must be a string",
+    "list": "labels.vv"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2522"
 }`)
 	// ver.Refresh(registry.FOR_WRITE) // undo the change, otherwise next Set() will fail
 
@@ -613,43 +680,14 @@ func TestSetNameUser(t *testing.T) {
 		msg  string
 	}{
 		{"a", ""},
-		{"", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"\" is not valid: attribute name \"\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
-		{"#a", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"#a\" is not valid: attribute name \"#a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
-		{"$a", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"$a\" is not valid: attribute name \"$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
-		{"a$a", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"a$a\" is not valid: attribute name \"a$a\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
-		{"a$", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"a$\" is not valid: attribute name \"a$\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
-		{"a.", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/",
-  "title": "The attribute \"a.\" is not valid: attribute name \"a.\" must match: ^[a-z_][a-z_0-9]{0,62}$"
-}
-`},
+		{"", `{err`},
+		{"#a", `{err`},
+		{"$a", `{err`},
+		{"a$a", `{err`},
+		{"a$", `{err`},
+		{"a.", `{err`},
 	} {
+
 		putFn := func(path string, name string, msg string) {
 			body := bytes.NewBuffer([]byte(fmt.Sprintf(`{"%s":"hi"}`, name)))
 			req, _ := http.NewRequest("PUT", base+path, body)
@@ -673,6 +711,15 @@ func TestSetNameUser(t *testing.T) {
 				t.Logf("Body:\n%s", string(resBody))
 				t.Fatalf("%q should have failed, but didn't", name)
 			}
+
+			if msg[0] == '{' {
+				tmpPath, _, _ := strings.Cut(path, "$")
+				xrErr := NewXRError("invalid_attributes", tmpPath,
+					"list="+name,
+					"error_detail=must match: ^[a-z_][a-z_0-9]{0,62}$")
+				msg = xrErr.String() + "\n"
+			}
+
 			XEqual(t, "", string(resBody), msg)
 		}
 		t.Logf("Name: %q", test.name)
@@ -726,15 +773,23 @@ func TestSetNameUser(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/", `{"mymap":{":bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \":bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \":bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/",
+  "args": {
+    "error_detail": "map key name \":bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
 	XHTTP(t, reg, "PUT", "/", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/",
+  "args": {
+    "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
@@ -744,8 +799,12 @@ func TestSetNameUser(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1", `{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/dirs/d1",
-  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/dirs/d1",
+  "args": {
+    "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"
@@ -757,8 +816,12 @@ func TestSetNameUser(t *testing.T) {
 		`{"mymap":{"@bar":"bar"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
-  "title": "There was an error in the model definition provided: while processing \"mymap\", map key name \"@bar\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "map key name \"@bar\" in \"mymap\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:entity:2287"
 }
 `)
 	// This is ok because "mymap" is under "ext" which is defined as "*"

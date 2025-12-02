@@ -200,7 +200,10 @@ func modelNormalizeFunc(cmd *cobra.Command, args []string) {
 	Error(xErr)
 
 	tmp := map[string]any{}
-	Error(Unmarshal(buf, &tmp))
+	if err := Unmarshal(buf, &tmp); err != nil {
+		Error(NewXRError("parsing_data", "",
+			"error_detail="+err.Error()))
+	}
 	fmt.Printf("%s\n", ToJSON(tmp))
 }
 
@@ -244,7 +247,8 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 	tmp := map[string]any{}
 	err := Unmarshal(buf, &tmp)
 	if err != nil {
-		return NewXRError("bad_request", "/", err.Error())
+		return NewXRError("parsing_data", fileName,
+			"error_detail="+err.Error())
 	}
 	delete(tmp, "$schema")
 	buf, _ = json.Marshal(tmp)
@@ -252,7 +256,8 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 	model := &xrlib.Model{}
 
 	if err := Unmarshal(buf, model); err != nil {
-		return NewXRError("bad_request", "/", err.Error())
+		return NewXRError("parsing_data", fileName,
+			"error_detail="+err.Error())
 		//Error("%s%s", fileName, err)
 	}
 

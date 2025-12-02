@@ -50,7 +50,7 @@ func GetRegistry(url string) (*Registry, *XRError) {
 
 	url = strings.TrimSpace(url)
 	if url == "" {
-		return nil, NewXRError("bad_request", "/", "No Server address provided")
+		return nil, NewXRError("client_error", "", "No Server address provided")
 	}
 
 	if !strings.HasPrefix(url, "http") {
@@ -97,9 +97,9 @@ func (reg *Registry) RefreshModel() *XRError {
 	}
 
 	if err := json.Unmarshal(res.Body, &reg.Model); err != nil {
-		return NewXRError("bad_request", "/",
-			fmt.Sprintf("Unable to parse registry model: %s\n%s",
-				err, string(res.Body)))
+		return NewXRError("parse_response", "/model",
+			"error_detail="+err.Error()).
+			SetDetailf("Response: %s", string(res.Body))
 	}
 	reg.Model.ApplyDefaults()
 	reg.Model.SetPointers()
@@ -113,9 +113,9 @@ func (reg *Registry) RefreshCapabilities() *XRError {
 	}
 
 	if err := json.Unmarshal(res.Body, &reg.Capabilities); err != nil {
-		return NewXRError("bad_request", "/",
-			fmt.Sprintf("Unable to parse registry capabilities: %s\n%s",
-				err, string(res.Body)))
+		return NewXRError("parse_response", "/capabilities",
+			"error_detail="+err.Error()).
+			SetDetailf("Response: %s", string(res.Body))
 	}
 	return nil
 }
@@ -162,7 +162,9 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 	if reg.Model.Source != "" {
 		err := Unmarshal([]byte(reg.Model.Source), &tmpModel)
 		if err != nil {
-			return nil, NewXRError("bad_request", "/", err.Error())
+			return nil, NewXRError("parse_response", "/modelsource",
+				"error_detail="+err.Error()).
+				SetDetailf("Response: %s", string(reg.Model.Source))
 		}
 	}
 	tmpModel.SetPointers()
@@ -190,9 +192,9 @@ func (reg *Registry) RefreshModelSource() *XRError {
 		srcModel := Model{}
 
 		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
-			return NewXRError("bad_request", "/",
-				fmt.Sprintf("Unable to parse registry modelsource: %s\n%s",
-					err, string(res.Body)))
+			return NewXRError("parse_response", "/modelsource",
+				"error_detail="+err.Error()).
+				SetDetailf("Response: %s", string(res.Body))
 		}
 		reg.Model.Source = string(res.Body)
 	}
@@ -278,7 +280,9 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, *XRError) {
 
 	u, err := url.Parse(path)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("client_error", path,
+			"error_detail="+
+				fmt.Sprintf("Error parsing url (%s): %s", path, err.Error()))
 	}
 
 	/*
@@ -295,7 +299,9 @@ func (reg *Registry) URLWithPath(path string) (*url.URL, *XRError) {
 func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", "",
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 	if xid.Resource == "" {
 		return nil, nil
@@ -306,13 +312,13 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XR
 		return nil, xErr
 	}
 	if gm == nil {
-		return nil, NewXRError("not_found", xid.Group, xid.Group).
+		return nil, NewXRError("not_found", xid.Group).
 			SetDetailf("Unknown Group type: %s", xid.Group)
 	}
 
 	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
-		return nil, NewXRError("not_found", xid.Resource, xid.Resource).
+		return nil, NewXRError("not_found", xid.Resource).
 			SetDetailf("Unknown Resource type: %s", xid.Group)
 	}
 	return rm, nil
@@ -399,8 +405,9 @@ func (reg *Registry) LoadConfigFromString(buffer string) *XRError {
 		}
 		name, value, _ := strings.Cut(line, ":")
 		if name == "" {
-			return NewXRError("bad_request", "/",
-				fmt.Sprintf("Error in config data - no name: %q", line))
+			return NewXRError("client_error", "",
+				"error_detail="+
+					fmt.Sprintf("Error in config data - no name: %q", line))
 		}
 		reg.SetConfig(name, value)
 	}

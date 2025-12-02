@@ -229,8 +229,9 @@ func TestNoModel(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/model/foo", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/model/foo",
-  "title": "The specified API is not supported: /model/foo"
+  "title": "The specified API is not supported: /model/foo.",
+  "subject": "/model/foo",
+  "source": "e4e59b8a76c4:registry:httpStuff:1308"
 }
 `)
 }

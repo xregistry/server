@@ -67,15 +67,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("Panic: %s", rec)
-			ShowStack()
+			// ShowStack() // Down via NewXRError below now
 
 			// If info isn't defined yet
 			if info == nil {
 				info = NewRequestInfo(w, r)
 			}
 
-			xErr := NewXRError("server_error", "/").SetDetail(
-				"An internal error occurred, contact the admin")
+			xErr := NewXRError("server_error", "/"+info.OriginalPath).
+				SetDetail("An internal error occurred, contact the admin.")
 			HTTPWriteError(info, xErr)
 		}
 
@@ -157,7 +157,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if sv := info.GetFlag("specversion"); sv != "" {
 		if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
 			xErr = NewXRError("unsupported_specversion",
-				info.OriginalPath, sv)
+				"/"+info.OriginalPath,
+				"specversion="+sv,
+				"list="+
+					strings.Join(info.Registry.Capabilities.SpecVersions, ","))
 		}
 	}
 
@@ -176,8 +179,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "DELETE":
 			xErr = HTTPDelete(info)
 		default:
-			xErr = NewXRError("action_not_supported", info.OriginalPath,
-				r.Method)
+			xErr = NewXRError("action_not_supported", "/"+info.OriginalPath,
+				"action="+r.Method)
 		}
 	}
 
@@ -1253,7 +1256,7 @@ func GetVersionModelInlines(rm *ResourceModel) []string {
 
 func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	buf := []byte(nil)
@@ -1269,7 +1272,8 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 
 	buf, err = json.MarshalIndent(cap, "", "  ")
 	if err != nil {
-		return NewXRError("server_error", "/").SetDetail(err.Error())
+		return NewXRError("server_error", "/").
+			SetDetailf("Error parsing capabilities: %s", err.Error())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1280,7 +1284,7 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 
 func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	buf := []byte(nil)
@@ -1289,7 +1293,8 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	offered := GetOffered()
 	buf, err = json.MarshalIndent(offered, "", "  ")
 	if err != nil {
-		return NewXRError("bad_request", "/capabilitiesofferd", err)
+		return NewXRError("server_error", "/capabilitiesoffered").
+			SetDetailf("Error parsing capabilitiesoffered: %s", err.Error())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1300,7 +1305,7 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 
 func HTTPGETModel(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	format := info.GetFlag("schema")
@@ -1315,7 +1320,8 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 
 	buf, xErr := model.SerializeForUser()
 	if xErr != nil {
-		return NewXRError("server_error", "/").SetDetail(xErr.GetTitle())
+		return NewXRError("server_error", "/"+info.OriginalPath).
+			SetDetail(xErr.GetTitle())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1326,7 +1332,7 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 
 func HTTPGETModelSource(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	model := info.Registry.Model
@@ -1340,7 +1346,8 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 
 	buf, err := PrettyPrintJSON([]byte(modelSrc), "", "  ")
 	if err != nil {
-		return NewXRError("bad_request", "/modelsource", err)
+		return NewXRError("server_error", "/modelsource").
+			SetDetailf("Error parsing modelsource: %s", err.Error())
 	}
 
 	info.AddHeader("Content-Type", "application/json")
@@ -1385,7 +1392,7 @@ FROM FullTree WHERE RegSID=? AND `
 			return NewXRError("server_error", "/"+path).SetDetailf(
 				"error loading entity: %s", xErr.GetTitle())
 		} else {
-			return NewXRError("not_found", "/"+path, "/"+path)
+			return NewXRError("not_found", "/"+path)
 		}
 	}
 
@@ -1400,17 +1407,17 @@ FROM FullTree WHERE RegSID=? AND `
 				info.GetParts(2)).SetDetailf("Error finding Group: %s", err)
 		}
 		if group == nil {
-			return NewXRError("not_found", info.GetParts(2), info.GetParts(2))
+			return NewXRError("not_found", info.GetParts(2))
 		}
 
 		resource, err := group.FindResource(info.ResourceType,
 			info.ResourceUID, false, FOR_READ)
 		if err != nil {
-			return NewXRError("server_error",
-				info.GetParts(4)).SetDetailf("Error finding Resource: %s", err)
+			return NewXRError("server_error", info.GetParts(4)).
+				SetDetailf("Error finding Resource: %s", err)
 		}
 		if resource == nil {
-			return NewXRError("not_found", info.GetParts(4), info.GetParts(4))
+			return NewXRError("not_found", info.GetParts(4))
 		}
 		meta, err := resource.FindMeta(false, FOR_READ)
 		PanicIf(err != nil, "%s", err)
@@ -1430,9 +1437,8 @@ FROM FullTree WHERE RegSID=? AND `
 			}
 
 			if v == nil && version == nil {
-				return NewXRError("server_error",
-					resource.Path+"/"+vID).SetDetailf(
-					"error finding Version: %s", err)
+				return NewXRError("server_error", resource.XID+"/versions/"+vID).
+					SetDetailf("Error finding Version: %s", err)
 			}
 			if v == nil {
 				break
@@ -1507,7 +1513,7 @@ FROM FullTree WHERE RegSID=? AND `
 			info.AddHeader("Location", url)
 		}
 		/*
-			http.Redirect(info.OriginalResponse, info.OriginalRequest, url,
+			http.Redirect(info.OriginalResponse, "/"+info.OriginalPath, url,
 				http.StatusSeeOther)
 		*/
 		return nil
@@ -1520,7 +1526,8 @@ FROM FullTree WHERE RegSID=? AND `
 		// Just act as a proxy and copy the remote resource as our response
 		resp, err := http.Get(url)
 		if err != nil {
-			return NewXRError("bad_request", "/", err)
+			return NewXRError("parsing_response", "/"+info.OriginalPath,
+				"error_detail="+err.Error())
 		}
 		if resp.StatusCode/100 != 2 {
 			info.StatusCode = resp.StatusCode
@@ -1536,7 +1543,8 @@ FROM FullTree WHERE RegSID=? AND `
 		// Now copy the body
 		_, err = io.Copy(info, resp.Body)
 		if err != nil {
-			return NewXRError("bad_request", "/", err)
+			return NewXRError("parsing_response", "/"+info.OriginalPath,
+				"error_detail="+err.Error())
 		}
 		return nil
 	}
@@ -1565,36 +1573,35 @@ func HTTPGet(info *RequestInfo) *XRError {
 
 	if info.RootPath == "model" {
 		if !info.APIEnabled("/model") {
-			return NewXRError("api_not_found", "/model", "/model")
+			return NewXRError("api_not_found", "/model")
 		}
 		return HTTPGETModel(info)
 	}
 
 	if info.RootPath == "modelsource" {
 		if !info.APIEnabled("/modelsource") {
-			return NewXRError("api_not_found", "/modelsource", "/modelsource")
+			return NewXRError("api_not_found", "/modelsource")
 		}
 		return HTTPGETModelSource(info)
 	}
 
 	if info.RootPath == "capabilities" {
 		if !info.APIEnabled("/capabilities") {
-			return NewXRError("api_not_found", "/capabilities", "/capabilities")
+			return NewXRError("api_not_found", "/capabilities")
 		}
 		return HTTPGETCapabilities(info)
 	}
 
 	if info.RootPath == "capabilitiesoffered" {
 		if !info.APIEnabled("/capabilitiesoffered") {
-			return NewXRError("api_not_found", "/capabilitiesoffered",
-				"/capabilitiesoffered")
+			return NewXRError("api_not_found", "/capabilitiesoffered")
 		}
 		return HTTPGETCapabilitiesOffered(info)
 	}
 
 	if info.RootPath == "export" {
 		if !info.APIEnabled("/export") {
-			return NewXRError("api_not_found", "/export", "/export")
+			return NewXRError("api_not_found", "/export")
 		}
 		return SerializeQuery(info, nil, "Registry", info.Filters)
 	}
@@ -1713,14 +1720,14 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
 					if entity != nil && !IsNil(entity.Object["xref"]) {
-						return NewXRError("bad_flag", info.OriginalPath,
-							"doc").SetDetail("'doc' flag is not allowed on " +
-							"xref'd Versions")
+						return NewXRError("bad_flag", "/"+info.OriginalPath,
+							"flag=doc").
+							SetDetail("'doc' flag is not allowed on " +
+								"xref'd Versions.")
 					}
 				}
 
-				return NewXRError("not_found", info.GetParts(0),
-					info.GetParts(0))
+				return NewXRError("not_found", info.GetParts(0))
 			}
 		}
 
@@ -1736,7 +1743,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 				return xErr
 			}
 			if IsNil(entity) {
-				return NewXRError("not_found", "/"+path, "/"+path)
+				return NewXRError("not_found", "/"+path)
 			}
 		}
 
@@ -1749,9 +1756,9 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
 			// Can copy the RawEntityFromPath... stuff above
-			return NewXRError("bad_flag", info.OriginalPath,
-				"doc").SetDetail("'doc' flag is not allowed on " +
-				"xref'd Versions")
+			return NewXRError("bad_flag", "/"+info.OriginalPath,
+				"flag=doc").SetDetail("'doc' flag is not allowed on " +
+				"xref'd Versions.")
 		}
 
 		// Only do this if we're adding the extra grouping wrapper
@@ -1825,20 +1832,21 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// Capabilities has its own special func
 	if info.RootPath == "capabilities" {
 		if !info.APIEnabled("/capabilities") {
-			return NewXRError("api_not_found", "/capabilities", "/capabilities")
+			return NewXRError("api_not_found", "/capabilities")
 		}
 		return HTTPPUTCapabilities(info)
 	}
 
 	if info.RootPath == "model" {
-		return NewXRError("bad_request", "/",
-			"use \"/modelsource\" instead of \"/model\"")
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action="+method).
+			SetDetail("Use \"/modelsource\" instead of \"/model\".")
 	}
 
 	// The model has its own special func
 	if info.RootPath == "modelsource" {
 		if !info.APIEnabled("/modelsource") {
-			return NewXRError("api_not_found", "/modelsource", "/modelsource")
+			return NewXRError("api_not_found", "/modelsource")
 		}
 		return HTTPPUTModelSource(info)
 	}
@@ -1847,8 +1855,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// //////////////////////////////////////////////////////
 	body, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return NewXRError("bad_request", info.OriginalPath,
-			fmt.Sprintf("Error reading body: %s", err))
+		return NewXRError("parsing_data", "/"+info.OriginalPath,
+			"error_detail="+err.Error())
 	}
 	if len(body) == 0 {
 		body = nil
@@ -1857,23 +1865,24 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// Check for some obvious high-level bad states up-front
 	// //////////////////////////////////////////////////////
 	if info.What == "Coll" && method == "PUT" {
-		return NewXRError("action_not_supported", info.OriginalPath,
-			method).SetDetail("PUT not allowed on collections")
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action="+method).SetDetail("PUT not allowed on collections.")
 	}
 
 	if numParts >= 5 && info.Parts[4] == "meta" && method == "POST" {
-		return NewXRError("action_not_supported", info.OriginalPath,
-			method).SetDetail("POST not allowed on a 'meta'")
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action="+method).SetDetail("POST not allowed on a 'meta'.")
 	}
 
 	if numParts == 6 && method == "POST" {
-		return NewXRError("action_not_supported", info.OriginalPath,
-			method).SetDetail("POST not allowed on a version")
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action="+method).
+			SetDetail("POST not allowed on a version.")
 	}
 
 	if (numParts == 4 || numParts == 6) && !metaInBody && method == "PATCH" {
-		return NewXRError("details_required", info.OriginalPath).SetDetail(
-			"PATCH is not allowed on Resource documents")
+		return NewXRError("details_required", "/"+info.OriginalPath).
+			SetDetail("PATCH is not allowed on Resource documents.")
 	}
 
 	// Ok, now start to deal with the incoming request
@@ -1915,9 +1924,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// Error on anything but a group type
 		for key, _ := range IncomingObj {
 			if info.Registry.Model.FindGroupModel(key) == nil {
-				return NewXRError("bad_request", "/",
-					fmt.Sprintf("'POST /' only allows Group types to be "+
-						"specified. %q is invalid", key))
+				return NewXRError("groups_only", "/"+info.OriginalPath,
+					"name="+key)
 			}
 		}
 
@@ -1931,8 +1939,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		for gType, gAny := range objMap {
 			// Should be caught above, but just in case
 			if info.Registry.Model.Groups[gType] == nil {
-				return NewXRError("bad_request", "/",
-					fmt.Sprintf("unknown Group type: %s", gType))
+				return NewXRError("not_found", "/"+gType).
+					SetDetailf("Unknown Group type: %s.", gType)
 			}
 
 			gMap, xErr := IncomingObj2Map(gAny)
@@ -2042,9 +2050,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		resPaths := map[string][]string{}
 		for rType, rAny := range objMap {
 			if info.GroupModel.FindResourceModel(rType) == nil {
-				return NewXRError("bad_request",
-					info.GetParts(2),
-					fmt.Sprintf("Unknown Resource type: %s", rType))
+				return NewXRError("not_found", info.GetParts(2)).
+					SetDetailf("Unknown Resource type: %s.", rType)
 			}
 
 			rMap, xErr := IncomingObj2Map(rAny)
@@ -2156,10 +2163,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		if propsID != "" && propsID != resourceUID {
-			return NewXRError("invalid_attribute", info.OriginalPath,
-				info.ResourceModel.Singular+"id",
-				fmt.Sprintf("must be set to %q, "+"not %q",
-					resourceUID, propsID))
+			return NewXRError("mismatched_id", "/"+info.OriginalPath,
+				"singular="+info.ResourceModel.Singular,
+				"invalid_id="+propsID,
+				"expected_id="+resourceUID)
 		}
 
 		if resource != nil {
@@ -2248,11 +2255,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			if propsID != "" && propsID != resourceUID {
-				return NewXRError("invalid_attribute",
-					info.GetParts(4),
-					info.ResourceModel.Singular+"id",
-					fmt.Sprintf("be set to %q, "+"not %q",
-						resourceUID, propsID))
+				return NewXRError("mismatched_id", info.GetParts(4),
+					"singular="+info.ResourceModel.Singular,
+					"invalid_id="+propsID,
+					"expected_id="+resourceUID)
 			}
 
 			// Implicitly create the resource
@@ -2292,9 +2298,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if info.ShowDetails && numParts == 5 {
 		// PATCH|POST GROUPs/gID/RESOURCEs/rID/versions$details - error
 		// TODO add a test for this
-		return NewXRError("bad_request", info.GetParts(5),
-			fmt.Sprintf("ese of \"$details\" on the \"versions\" "+
-				" collection is not allowed"))
+		panic("should never get here - info should catch this")
+		return NewXRError("bad_details", info.GetParts(5))
 	}
 
 	if numParts == 5 && (method == "POST" || method == "PATCH") {
@@ -2312,21 +2317,21 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		if resource == nil {
 			// Implicitly create the resource
 			if len(objMap) == 0 {
-				return NewXRError("bad_request", info.OriginalPath,
-					fmt.Sprintf("set of Versions to add can't be empty"))
+				return NewXRError("missing_versions", "/"+info.OriginalPath)
 			}
 
 			vID := info.GetFlag("setdefaultversionid")
-			if vID == "null" {
-				return NewXRError("bad_request", info.OriginalPath,
-					fmt.Sprintf("?setdefaultversionid can not be 'null'"))
-			}
+			/*
+				if vID == "null" {
+				return NewXRError("bad_defaultversionid", "/"+info.OriginalPath,
+				"value=null",
+				"error_detail=\"null\" is not allowed to be used")
+				}
+			*/
 
 			if vID == "request" {
 				if vID == "request" && len(objMap) > 1 {
-					return NewXRError("bad_request", info.OriginalPath,
-						fmt.Sprintf("?setdefaultversionid can not be "+
-							"'request'"))
+					return NewXRError("too_many_versions", "/"+info.OriginalPath)
 				}
 			}
 
@@ -2363,8 +2368,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			PanicIf(xErr != nil, "No meta %q: %s", resource.UID, xErr)
 
 			if meta.Get("readonly") == true {
-				return NewXRError("readonly", "/"+resource.Path,
-					"/"+resource.Path)
+				return NewXRError("readonly", resource.XID)
 			}
 
 			// Process the versions
@@ -2428,9 +2432,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				IncomingObj, ADD_UPSERT, false)
 		} else if !isNew {
 			if propsID != "" && propsID != version.UID {
-				return NewXRError("invalid_attribute", version.Path,
-					"versionid", fmt.Sprintf("must be set to %q, not %q",
-						version.UID, propsID))
+				return NewXRError("mismatched_id", version.XID,
+					"singular=version",
+					"invalid_id="+propsID,
+					"expected_id="+version.UID)
 			}
 
 			IncomingObj["versionid"] = version.UID
@@ -2498,18 +2503,20 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
 		info.StatusCode = http.StatusInternalServerError
-		return NewXRError("server_error", "/").SetDetailf("%s", err)
+		return NewXRError("parsing_data", info.GetParts(0),
+			"error_detail="+err.Error())
 	}
 
 	reqBody, err = RemoveSchema(reqBody)
 	if err != nil {
-		return NewXRError("bad_request", info.GetParts(0), err.Error())
+		return NewXRError("parsing_data", info.GetParts(0),
+			"error_detail="+err.Error())
 	}
 
 	cap := &Capabilities{}
@@ -2526,14 +2533,14 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 		// Now override wth anything new
 		err := Unmarshal(reqBody, &tmp)
 		if err != nil {
-			return NewXRError("bad_request", "/capabilities",
-				fmt.Sprintf("error parsing capabilities: %s", err))
+			return NewXRError("parsing_data", "/capabilities",
+				"error_detail="+err.Error())
 		}
 
 		reqBody, _ = json.Marshal(tmp)
 	} else {
-		return NewXRError("action_not_supported", info.OriginalPath,
-			info.OriginalRequest.Method)
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action="+info.OriginalRequest.Method)
 	}
 
 	cap, xErr := ParseCapabilitiesJSON(reqBody)
@@ -2555,18 +2562,18 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 
 func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("api_not_found", info.GetParts(0))
 	}
 
 	if info.OriginalRequest.Method != "PUT" {
 		return NewXRError("action_not_supported", "/modelsource",
-			info.OriginalRequest.Method)
+			"action="+info.OriginalRequest.Method)
 	}
 
 	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return NewXRError("server_error", info.GetParts(0)).
-			SetDetailf("error finding Version: %s", err)
+		return NewXRError("parsing_data", info.GetParts(0),
+			"error_detail="+err.Error())
 	}
 
 	xErr := info.Registry.Model.ApplyNewModelFromJSON(reqBody)
@@ -2587,15 +2594,16 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 	}
 
 	if info.ResourceModel.GetSetDefaultSticky() == false {
-		return NewXRError("defaultversionid_not_allowed", resource.Path,
-			info.ResourceModel.Plural)
+		return NewXRError("setdefaultversionid_not_allowed", resource.XID,
+			"singular="+info.ResourceModel.Singular)
 	}
 
 	vID := vIDs[0]
 
 	if vID == "" {
-		return NewXRError("bad_request", resource.Path,
-			`"setdefaultversionid" must not be empty`)
+		return NewXRError("bad_defaultversionid", resource.XID,
+			"value="+`""`,
+			"error_detail=value must not be empty")
 	}
 
 	// "null" and "request" have special meaning
@@ -2606,9 +2614,7 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 
 	if vID == "request" {
 		if version == nil {
-			return NewXRError("bad_request", resource.Path,
-				fmt.Sprintf("nan't use 'request' if a version wasn't "+
-					"processed"))
+			return NewXRError("defaultversionid_request", resource.XID)
 		}
 		// stick default version to current one we just processed
 		return resource.SetDefault(version)
@@ -2619,8 +2625,9 @@ func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, versi
 		return xErr
 	}
 	if version == nil {
-		return NewXRError("bad_request", resource.Path,
-			fmt.Sprintf("Version %q not found", vID))
+		return NewXRError("unknown_id", resource.XID,
+			"singular=version",
+			"id="+vID)
 	}
 
 	return resource.SetDefault(version)
@@ -2630,7 +2637,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 	// DELETE /...
 	if len(info.Parts) == 0 {
 		// DELETE /
-		return NewXRError("action_not_supported", "/", "DELETE")
+		return NewXRError("action_not_supported", "/", "action=DELETE")
 	}
 
 	var xErr *XRError
@@ -2640,15 +2647,17 @@ func HTTPDelete(info *RequestInfo) *XRError {
 	if epochStr != "" {
 		epochInt, err = strconv.Atoi(epochStr)
 		if err != nil || epochInt < 0 {
-			return NewXRError("invalid_attribute", info.OriginalPath,
-				"epoch", fmt.Sprintf("value (%s) must be a uinteger", epochStr))
+			return NewXRError("invalid_attributes", "/"+info.OriginalPath,
+				"list=epoch",
+				"error_detail="+
+					fmt.Sprintf("value (%s) must be a uinteger", epochStr))
 		}
 	}
 
 	// DELETE /GROUPs...
 	gm := info.Registry.Model.Groups[info.GroupType]
 	if gm == nil {
-		return NewXRError("not_found", info.GetParts(1), info.GetParts(1))
+		return NewXRError("not_found", info.GetParts(1))
 	}
 
 	if len(info.Parts) == 1 {
@@ -2667,15 +2676,16 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return xErr
 	}
 	if group == nil {
-		return NewXRError("not_found", info.GetParts(2), info.GetParts(2))
+		return NewXRError("not_found", info.GetParts(2))
 	}
 
 	if len(info.Parts) == 2 {
 		// DELETE /GROUPs/gID
 		if epochInt >= 0 {
 			if e := group.Get("epoch"); e != epochInt {
-				return NewXRError("mismatched_epoch", group.Path,
-					epochInt, e) // specified, current
+				return NewXRError("mismatched_epoch", group.XID,
+					"bad_epoch="+epochStr,
+					"epoch="+fmt.Sprintf("%d", e))
 			}
 		}
 		if xErr = group.Delete(); xErr != nil {
@@ -2690,7 +2700,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 
 	// DELETE /GROUPs/gID/RESOURCEs...
 	if rm := gm.FindResourceModel(info.ResourceType); rm == nil {
-		return NewXRError("not_found", info.GetParts(3), info.GetParts(3))
+		return NewXRError("not_found", info.GetParts(3))
 	}
 
 	if len(info.Parts) == 3 {
@@ -2710,7 +2720,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return xErr
 	}
 	if resource == nil {
-		return NewXRError("not_found", info.GetParts(4), info.GetParts(4))
+		return NewXRError("not_found", info.GetParts(4))
 	}
 
 	meta, xErr := resource.FindMeta(false, FOR_WRITE)
@@ -2722,8 +2732,9 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		// DELETE /GROUPs/gID/RESOURCEs/rID
 		if epochInt >= 0 {
 			if e := meta.Get("epoch"); e != epochInt {
-				return NewXRError("mismatched_epoch", meta.Path,
-					epochInt, e) // specified, current
+				return NewXRError("mismatched_epoch", meta.XID,
+					"bad_epoch="+epochStr,
+					"epoch="+fmt.Sprintf("%d", e))
 			}
 		}
 
@@ -2740,7 +2751,8 @@ func HTTPDelete(info *RequestInfo) *XRError {
 
 	if len(info.Parts) == 5 && info.Parts[4] == "meta" {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/meta
-		return NewXRError("action_not_supported", info.OriginalPath, "DELETE")
+		return NewXRError("action_not_supported", "/"+info.OriginalPath,
+			"action=DELETE")
 	}
 
 	if len(info.Parts) == 5 {
@@ -2760,16 +2772,16 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return xErr
 	}
 	if version == nil {
-		return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
+		return NewXRError("not_found", info.GetParts(0))
 	}
 
 	if len(info.Parts) == 6 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID
 		if epochInt >= 0 {
 			if e := version.Get("epoch"); e != epochInt {
-				return NewXRError("invalid_attribute", version.Path,
-					"epoch", fmt.Sprintf(`value must be %d not %d`,
-						e, epochInt))
+				return NewXRError("mismatched_epoch", version.XID,
+					"bad_epoch="+epochStr,
+					"epoch="+fmt.Sprintf("%d", e))
 			}
 		}
 		nextDefault := info.GetFlag("setdefaultversionid")
@@ -2784,7 +2796,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return nil
 	}
 
-	return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
+	return NewXRError("not_found", info.GetParts(0))
 }
 
 type EpochEntry map[string]any
@@ -2795,8 +2807,8 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 
 	body, err := io.ReadAll(info.OriginalRequest.Body)
 	if err != nil {
-		return nil, NewXRError("bad_request", info.OriginalPath,
-			fmt.Sprintf("error reading body: %s", err))
+		return nil, NewXRError("parsing_data", "/"+info.OriginalPath,
+			"error_detail="+err.Error())
 	}
 
 	bodyStr := strings.TrimSpace(string(body))
@@ -2804,8 +2816,8 @@ func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 	if len(bodyStr) > 0 {
 		err = Unmarshal([]byte(bodyStr), &res)
 		if err != nil {
-			return nil, NewXRError("bad_request", info.GetParts(0),
-				fmt.Sprintf("error parsing data: %s", err))
+			return nil, NewXRError("parsing_data", info.GetParts(0),
+				"error_detail="+err.Error())
 		}
 	} else {
 		// EpochEntryMap == nil mean no list at all, not same as empty list
@@ -2851,20 +2863,23 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return NewXRError("invalid_attribute", group.Path,
-					"epoch", "must be a uinteger")
+				return NewXRError("invalid_attributes", group.XID,
+					"list=epoch",
+					"error_detail=must be a uinteger")
 			}
 			if tmpInt != group.Get("epoch") {
-				return NewXRError("invalid_attribute", group.Path,
-					"epoch", fmt.Sprintf(`value must be %d not %d`,
-						group.Get("epoch"), tmpInt))
+				return NewXRError("mismatched_epoch", group.XID,
+					"bad_epoch="+fmt.Sprintf("%v", tmp),
+					"epoch="+fmt.Sprintf("%d", tmpInt))
 			}
 		}
 
 		singular := group.Singular + "id"
 		if tmp, ok := entry[singular]; ok && tmp != id {
-			return NewXRError("invalid_attribute", group.Path,
-				singular, fmt.Sprintf(`value must be %q not "%v"`, id, tmp))
+			return NewXRError("mismatched_id", group.XID,
+				"singular="+group.Singular,
+				"invalid_id="+fmt.Sprintf("%v", tmp),
+				"expected_id="+id)
 		}
 
 		xErr = group.Delete()
@@ -2928,39 +2943,45 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 			metaMap, ok := metaJSON.(map[string]any)
 			if !ok {
 				if xErr != nil { // makes no sense  TODO
-					return NewXRError("bad_request", resource.Path,
-						`"meta" isn't an object`)
+					return NewXRError("invalid_attributes", resource.XID,
+						"list=meta",
+						"error_detail="+
+							fmt.Sprintf("meta needs to be an object, "+
+								"not a \"%T\"", metaJSON))
 				}
 			}
 
 			if tmp, ok := metaMap[singular]; ok && tmp != id {
-				return NewXRError("mismatched_id", resource.Path,
-					resource.Singular, tmp, id)
+				return NewXRError("mismatched_id", resource.XID,
+					"singular="+resource.Singular,
+					"invalid_id="+fmt.Sprintf("%v", tmp),
+					"expected_id="+id)
 			}
 
 			if tmp, ok := metaMap["epoch"]; ok {
 				tmpInt, err := AnyToUInt(tmp)
 				if err != nil {
-					return NewXRError("invalid_attribute", meta.Path,
-						"epoch", "must be a uinteger")
+					return NewXRError("invalid_attributes", meta.XID,
+						"list=epoch",
+						"error_detail=must be a uinteger")
 				}
 				if tmpInt != meta.Get("epoch") {
-					return NewXRError("invalid_attribute", meta.Path,
-						"epoch", fmt.Sprintf(`value must be %d not %d`,
-							meta.Get("epoch"), tmpInt))
+					return NewXRError("mismatched_epoch", meta.XID,
+						"bad_epoch="+fmt.Sprintf("%v", tmp),
+						"epoch="+fmt.Sprintf("%d", meta.Get("epoch")))
 				}
 			}
 		} else {
 			if _, ok := entry["epoch"]; ok {
-				return NewXRError("invalid_attribute", resource.Path,
-					"epoch", "should be under a \"meta\" object")
+				return NewXRError("misplaced_epoch", resource.XID)
 			}
 		}
 
 		if tmp, ok := entry[singular]; ok && tmp != id {
-			return NewXRError("invalid_attribute", resource.Path,
-				singular, fmt.Sprintf(`value must be %q not "%v"`,
-					id, tmp))
+			return NewXRError("mismatched_id", resource.XID,
+				"singular="+resource.Singular,
+				"invalid_id="+fmt.Sprintf("%v", tmp),
+				"expected_id="+id)
 		}
 
 		xErr = resource.Delete()
@@ -3026,13 +3047,14 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return NewXRError("invalid_attribute", version.Path,
-					"epoch", `value must be a uinteger`)
+				return NewXRError("invalid_attributes", version.XID,
+					"list=epoch",
+					"error_detail=value must be a uinteger")
 			}
 			if tmpInt != version.Get("epoch") {
-				return NewXRError("invalid_attribute", version.Path,
-					"epoch", fmt.Sprintf(`value must be %d not %d`,
-						version.Get("epoch"), tmpInt))
+				return NewXRError("mismatched_epoch", version.XID,
+					"bad_epoch="+fmt.Sprintf("%v", tmp),
+					"epoch="+fmt.Sprintf("%d", tmpInt))
 			}
 		}
 
@@ -3040,11 +3062,11 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		// matches
 		singular := version.Singular + "id"
 		if tmp, ok := entry[singular]; ok && tmp != version.Get(singular) {
-			return NewXRError("invalid_attribute", version.Path,
-				singular, fmt.Sprintf(`value must be %q not "%v"`,
-					version.Get(singular), tmp))
+			return NewXRError("mismatched_id", version.XID,
+				"singular=version",
+				"invalid_id="+fmt.Sprintf("%v", tmp),
+				"expected_id="+fmt.Sprintf("%v", version.Get(singular)))
 		}
-
 	}
 
 	// Now we can actually delete each one
@@ -3094,8 +3116,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	}
 
 	if requireBody && len(body) == 0 {
-		return nil, NewXRError("bad_request", info.OriginalPath,
-			"an HTTP body must be specified, try {}")
+		return nil, NewXRError("bad_request", "/"+info.OriginalPath,
+			"error_detail=An HTTP body must be specified, try {}")
 	}
 
 	// len=5 is a special case where we know .../versions always has the
@@ -3112,21 +3134,27 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 			k := strings.ToLower(k)
 			if strings.HasPrefix(k, "xregistry-") {
 				if hasDoc == false {
-					return nil, NewXRError("bad_request", info.OriginalPath,
-						fmt.Sprintf("including \"xRegistry\" headers "+
-							"for a Resource that has the model "+
-							"\"hasdocument\" value of \"false\" is invalid"))
+					return nil, NewXRError("extra_xregistry_header",
+						"/"+info.OriginalPath,
+						"header_name="+k,
+						"error_detail="+
+							fmt.Sprintf("including \"xRegistry\" headers "+
+								"for a Resource that has the model "+
+								"\"hasdocument\" value of \"false\" is invalid"))
 				}
-				return nil, NewXRError("bad_request", info.OriginalPath,
-					fmt.Sprintf("including \"xRegistry\" HTTP headers "+
-						"when \"$details\" is used is not allowed"))
+				return nil, NewXRError("extra_xregistry_header",
+					"/"+info.OriginalPath,
+					"header_name="+k,
+					"error_detail="+
+						fmt.Sprintf("including \"xRegistry\" HTTP headers "+
+							"when \"$details\" is used is not allowed"))
 			}
 		}
 
 		err := Unmarshal(body, &IncomingObj)
 		if err != nil {
-			return nil, NewXRError("bad_request", info.GetParts(0),
-				fmt.Sprintf("error parsing data: %s", err))
+			return nil, NewXRError("parsing_data", info.GetParts(0),
+				"error_detail="+err.Error())
 		}
 
 		// "modelsource" is sooo special! Don't parse it into a golang type
@@ -3136,8 +3164,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				ModelSource json.RawMessage
 			}{}
 			if err := json.Unmarshal(body, &tmpReg); err != nil {
-				return nil, NewXRError("bad_request", info.GetParts(0),
-					fmt.Sprintf("error parsing data: %s", err))
+				return nil, NewXRError("parsing_data", info.GetParts(0),
+					"error_detail="+err.Error())
 			}
 			IncomingObj["modelsource"] = tmpReg.ModelSource
 		}
@@ -3182,16 +3210,18 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 			}
 
 			if key == resSingular || key == resSingular+"base64" {
-				return nil, NewXRError("bad_request", info.OriginalPath,
-					fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
-						"an HTTP header", key))
+				return nil, NewXRError("bad_request", "/"+info.OriginalPath,
+					"error_detail="+
+						fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
+							"an HTTP header", key))
 			}
 
 			if key == resSingular+"url" || key == resSingular+"proxyurl" {
 				if len(body) != 0 {
-					return nil, NewXRError("bad_request", info.OriginalPath,
-						fmt.Sprintf("'xRegistry-%s' HTTP header isn't allowed "+
-							"if there's a body", key))
+					return nil, NewXRError("extra_xregistry_header",
+						"/"+info.OriginalPath,
+						"header_name=xRegistry-"+key,
+						"error_detail=header isn't allowed if there's a body")
 				}
 			}
 
@@ -3238,8 +3268,9 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 						obj, ok = prop.(map[string]any)
 						if !ok {
 							return nil, NewXRError("bad_request", "/",
-								fmt.Sprintf("HTTP header %q should "+
-									"reference a map", key))
+								"error_detail="+
+									fmt.Sprintf("HTTP header %q should "+
+										"reference a map", key))
 						}
 					}
 				}
@@ -3336,7 +3367,8 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	var ok bool
 
 	if xErr, ok = errAny.(*XRError); !ok {
-		xErr = NewXRError("bad_request", info.OriginalPath, errAny)
+		xErr = NewXRError("bad_request", "/"+info.OriginalPath,
+			"error_detail="+fmt.Sprintf("%v", errAny))
 	}
 
 	info.StatusCode = xErr.Code
@@ -3346,5 +3378,5 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 		info.AddHeader(k, v)
 	}
 
-	info.Write([]byte(xErr.ToUserJson(info.BaseURL) + "\n"))
+	info.Write([]byte(xErr.ToJSON(info.BaseURL) + "\n"))
 }

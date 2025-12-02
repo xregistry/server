@@ -84,7 +84,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	dir := args[0]
 	stat, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stat.IsDir() {
-		Error(NewXRError("bad_request", "/",
+		Error(NewXRError("client_error", dir,
 			fmt.Sprintf("%q must be an existing directory", dir)))
 	}
 	args = args[1:]
@@ -148,10 +148,10 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		switch xid.Type {
 		case ENTITY_REGISTRY:
 			data, _ = Download(reg, xid.String())
-
-			Error(json.Unmarshal(data, &obj),
-				"%q doesn't appear to be an xRegistry server",
-				reg.GetServerURL())
+			if err := json.Unmarshal(data, &obj); err != nil {
+				Error(NewXRError("parsing_response", reg.GetServerURL(),
+					"error_detail="+err.Error()))
+			}
 
 			if host != "" {
 				obj["self"] = []byte(fmt.Sprintf("%q", host))
@@ -189,10 +189,18 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			data, _ = Download(reg, xid.String())
 
 			if host != "" {
-				Error(json.Unmarshal(data, &obj))
+				if err := json.Unmarshal(data, &obj); err != nil {
+					Error(NewXRError("parsing_response",
+						reg.GetServerURL()+xid.String(),
+						"error_detail="+err.Error()))
+				}
+
 				for k, d2 := range obj {
 					tmp := map[string]json.RawMessage{}
-					Error(json.Unmarshal(d2, &tmp))
+					if err := json.Unmarshal(d2, &tmp); err != nil {
+						Error(NewXRError("parsing_response", xid.String(),
+							"error_detail="+err.Error()))
+					}
 
 					self := host + xid.String()[1:] + "/" + k
 					tmp["self"] = []byte(fmt.Sprintf("%q", self))
@@ -224,7 +232,12 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			data, _ = Download(reg, xid.String())
 
 			if host != "" {
-				Error(json.Unmarshal(data, &obj))
+				if err := json.Unmarshal(data, &obj); err != nil {
+					Error(NewXRError("parsing_response",
+						reg.GetServerURL()+xid.String(),
+						"error_detail="+err.Error()))
+				}
+
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
 				gm, xErr := reg.FindGroupModel(xid.Group)
@@ -245,7 +258,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		case ENTITY_RESOURCE:
 			data, _ = Download(reg, xid.String()+"$details")
-			Error(json.Unmarshal(data, &obj))
+			if err := json.Unmarshal(data, &obj); err != nil {
+				Error(NewXRError("parsing_response",
+					reg.GetServerURL()+xid.String()+"$details",
+					"error_detail="+err.Error()))
+			}
 
 			if host != "" {
 				self := host + xid.String()[1:]
@@ -378,13 +395,21 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		case ENTITY_META:
 			data, _ = Download(reg, xid.String())
-			Error(json.Unmarshal(data, &obj))
+			if err := json.Unmarshal(data, &obj); err != nil {
+				Error(NewXRError("parsing_response",
+					reg.GetServerURL()+xid.String(),
+					"error_detail="+err.Error()))
+			}
 
 			if host != "" {
 				self := host + xid.String()[1:]
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
 				verid := ""
-				Error(json.Unmarshal(obj["defaultversionid"], &verid))
+				err := json.Unmarshal(obj["defaultversionid"], &verid)
+				if err != nil {
+					Error(NewXRError("parsing_response", xid.String(),
+						"error_detail="+err.Error()))
+				}
 				ver := fmt.Sprintf(`"%s/versions/%s"`, self[:len(self)-5],
 					verid)
 				obj["defaultversionurl"] = []byte(ver)
@@ -399,7 +424,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		case ENTITY_VERSION:
 			data, _ = Download(reg, xid.String()+"$details")
-			Error(json.Unmarshal(data, &obj))
+			if err := json.Unmarshal(data, &obj); err != nil {
+				Error(NewXRError("parsing_response",
+					reg.GetServerURL()+xid.String()+"$details",
+					"error_detail="+err.Error()))
+			}
 
 			if host != "" {
 				self := host + xid.String()[1:]
@@ -483,7 +512,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		// web site then we need to update them in the /export output too
 		if modCap {
 			tmpData := map[string]json.RawMessage(nil)
-			Error(json.Unmarshal(data, &tmpData))
+			if err := json.Unmarshal(data, &tmpData); err != nil {
+				Error(NewXRError("parsing_response",
+					reg.GetServerURL()+"/export",
+					"error_detail="+err.Error()))
+			}
 
 			caps, xErr := ParseCapabilitiesJSON(tmpData["capabilities"])
 			Error(xErr)
@@ -587,7 +620,11 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 		Error(xErr)
 
 		tmp := map[string]any{}
-		Error(json.Unmarshal([]byte(data), &tmp))
+		if err := json.Unmarshal([]byte(data), &tmp); err != nil {
+			Error(NewXRError("parsing_response",
+				reg.GetServerURL()+xid.String(),
+				"error_detail="+err.Error()))
+		}
 
 		vList := SortedKeys(tmp)
 		for _, vName := range vList {

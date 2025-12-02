@@ -25,7 +25,10 @@ export PKG            := github.com/xregistry/server
 export BUILDFLAGS     := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT)'
 export STATIC         := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT) \
                          -w -extldflags "-static"' -tags netgo,osusergo -a
-export GO_TEST        := go test $(BUILDFLAGS) -failfast
+ifdef TEST            # Just run tests that match this regex
+TEST:=-run $(TEST)
+endif
+export GO_TEST        := go test $(BUILDFLAGS) -failfast $(TEST)
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
@@ -38,8 +41,6 @@ cmds: .cmds
 
 docs: docs/xr_help.md docs/xrserver_help.md
 
-qtest: .test
-
 utest: .utest
 .utest: .cmds */*test.go
 	@make mysql waitformysql
@@ -51,26 +52,30 @@ utest: .utest
 	@echo
 	@touch .utest
 
-test: .test .testimages
-.test: .sharedfiles .cmds */*test.go
+qtest: .qtest
+.qtest: .sharedfiles .cmds */*test.go
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
 	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
 	@go clean -testcache
-	@echo "go test -failfast $(TESTDIRS)"
+	@echo "go test -failfast $(TESTDIRS) $(TEST)"
 	@for s in $(TESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done
 	@# go test -failfast $(TESTDIRS)
 	@echo
-	@echo "# Run again w/o deleting the Registry after each one"
+ifndef TEST
+    # If we asked for certain tests, don't touch the target file
+	@touch .qtest
+endif
+
+.fulltest: .sharedfiles .cmds */*test.go .qtest
+	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
 	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS)
-	@touch .test
+	@touch .fulltest
 
-unittest:
-	@echo go test -failfast ./registry
-	@$(GO_TEST) ./registry
+test: .qtest .fulltest .testimages
 
 .sharedfiles: common/shared*
 	@echo
@@ -298,7 +303,9 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .test .images .push .xr-all .xrserver-all
+	@rm -f .sharedfiles .utest .qtest .fulltest \
+		.testimages .devimage .images .push \
+		.xr-all .xrserver-all
 	@go clean -cache -testcache
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1

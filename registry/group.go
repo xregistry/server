@@ -39,7 +39,7 @@ func (g *Group) Delete() *XRError {
 
 	row := results.NextRow()
 	if NotNilInt(row[0]) != 0 {
-		return NewXRError("readonly", "/"+g.Path, "/"+g.Path)
+		return NewXRError("readonly", g.XID)
 	}
 
 	if g.Registry.Touch() {
@@ -68,7 +68,7 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 	ent, xErr := RawEntityFromPath(g.tx, g.Registry.DbSID,
 		g.Plural+"/"+g.UID+"/"+rType+"/"+id, anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", g.Path+"/"+rType+"/"+id).
+		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
 			SetDetail(fmt.Sprintf("Error finding Resource %q(%s): %s",
 				id, rType, xErr.GetTitle()))
 	}
@@ -110,14 +110,14 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// vID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
 
-	if xErr := CheckAttrs(obj); xErr != nil {
+	if xErr := CheckAttrs(obj, g.XID+"/"+rType+"/"+id); xErr != nil {
 		return nil, false, xErr
 	}
 
 	gModel := g.GetGroupModel()
 	rModel := gModel.FindResourceModel(rType)
 	if rModel == nil {
-		return nil, false, NewXRError("bad_request", g.Path,
+		return nil, false, NewXRError("bad_request", g.XID,
 			fmt.Sprintf("unknown Resource type (%s) for Group %q",
 				rType, g.Plural))
 	}
@@ -129,25 +129,27 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	// Can this ever happen??
 	if r != nil && r.UID != id {
-		return nil, false, NewXRError("bad_request", r.Path,
-			fmt.Sprintf("attempting to create a Resource with "+
-				"a \"%sid\" of %q, when one already exists as %q",
+		return nil, false, NewXRError("bad_request", r.XID,
+			"error_detail="+fmt.Sprintf("attempting to create a Resource "+
+				"with a \"%sid\" of %q, when one already exists as %q",
 				rModel.Singular, id, r.UID))
 	}
 
 	if obj != nil && !IsNil(obj[rModel.Singular+"id"]) && !objIsVer {
 		if id != obj[rModel.Singular+"id"] {
-			return nil, false, NewXRError("bad_request",
-				g.Path+"/"+rModel.Plural+"/"+id,
-				fmt.Sprintf(`the "%sid" attribute must be set to %q, not %q`,
-					rModel.Singular, id, obj[rModel.Singular+"id"]))
+			return nil, false, NewXRError("mismatched_id",
+				g.XID+"/"+rModel.Plural+"/"+id,
+				"singular="+rModel.Singular,
+				"invalid_id="+fmt.Sprintf("%v", obj[rModel.Singular+"id"]),
+				"expected_id="+id)
 		}
 	}
 
 	if addType == ADD_ADD && r != nil {
-		return nil, false, NewXRError("bad_request", r.Path,
-			fmt.Sprintf("resource %q of type %q already exists",
-				id, rType))
+		return nil, false, NewXRError("bad_request", r.XID,
+			"error_detail="+
+				fmt.Sprintf("resource %q of type %q already exists",
+					id, rType))
 	}
 
 	metaObj := (map[string]any)(nil)
@@ -161,8 +163,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		if objIsVer {
 			return nil, false, NewXRError("bad_request",
 				g.Path+"/"+rModel.Plural+"/"+id,
-				fmt.Sprintf("can't include a Version with a "+
-					"\"meta\" attribute"))
+				"error_detail="+
+					fmt.Sprintf("can't include a Version with a "+
+						"\"meta\" attribute"))
 		}
 
 		if IsNil(metaObjAny) {
@@ -185,10 +188,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		if !IsNil(val) {
 			versions, ok = val.(map[string]any)
 			if !ok {
-				return nil, false, NewXRError("invalid_attribute",
+				return nil, false, NewXRError("invalid_attributes",
 					g.Path+"/"+rModel.Plural+"/"+id,
-					"versions",
-					"it doesn't appear to be of a map of Versions")
+					"list=versions",
+					"error_detail=doesn't appear to be of a map of Versions")
 			}
 		}
 
@@ -200,19 +203,19 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		if _, ok := obj["versions"]; ok {
 			return nil, false, NewXRError("bad_request",
 				g.Path+"/"+rModel.Plural+"/"+id,
-				"can't create a Version with a "+
+				"error_detail=can't create a Version with a "+
 					"\"versions\" attribute")
 		}
 		if _, ok := obj["versionscount"]; ok {
 			return nil, false, NewXRError("bad_request",
 				g.Path+"/"+rModel.Plural+"/"+id,
-				"can't create a Version with a "+
+				"error_detail=can't create a Version with a "+
 					"\"versionscount\" attribute")
 		}
 		if _, ok := obj["versionsurl"]; ok {
 			return nil, false, NewXRError("bad_request",
 				g.Path+"/"+rModel.Plural+"/"+id,
-				"can't create a Version with a "+
+				"error_detail=can't create a Version with a "+
 					"\"versionsurl\" attribute")
 		}
 	}
@@ -237,6 +240,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 				Type:     ENTITY_RESOURCE,
 				Path:     g.Plural + "/" + g.UID + "/" + rType + "/" + id,
+				XID:      "/" + g.Plural + "/" + g.UID + "/" + rType + "/" + id,
 				Abstract: g.Plural + string(DB_IN) + rType,
 
 				GroupModel:    gModel,
@@ -302,6 +306,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 				Type:     ENTITY_META,
 				Path:     r.Path + "/meta",
+				XID:      r.XID + "/meta",
 				Abstract: r.Abstract + string(DB_IN) + "meta",
 
 				GroupModel:    gModel,
@@ -350,8 +355,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	if r.IsXref() && versions != nil {
 		return nil, false,
-			NewXRError("bad_request", r.Path,
-				`can't update "versions" of a Resource that uses "xref"`)
+			NewXRError("bad_request", r.XID,
+				"error_detail="+
+					`can't update "versions" of a Resource that uses "xref"`)
 	}
 
 	// If we're processing children, and have a versions collection, process it
@@ -365,9 +371,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			verObj, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("bad_request", r.Path,
-						fmt.Sprintf("key %q in attribute %q doesn't "+
-							"appear to be of type %q", verID, plural, singular))
+					NewXRError("bad_request", r.XID,
+						"error_detail="+
+							fmt.Sprintf("key %q in attribute %q doesn't "+
+								"appear to be of type %q", verID, plural, singular))
 			}
 
 			_, _, xErr := r.UpsertVersionWithObject(verID, verObj, addType,
@@ -400,7 +407,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	// Kind of late in the process but oh well
 	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", "/"+r.Path, "/"+r.Path)
+		return nil, false, NewXRError("readonly", r.XID)
 	}
 
 	if !IsNil(meta.Get("xref")) {
@@ -408,9 +415,10 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		delete(obj, r.Singular+"id")
 		if len(obj) > 0 {
 			return nil, false,
-				NewXRError("bad_request", r.Path,
-					fmt.Sprintf("extra attributes (%s) not allowed when "+
-						"\"xref\" is set", strings.Join(SortedKeys(obj), ",")))
+				NewXRError("bad_request", r.XID,
+					"error_detail="+
+						fmt.Sprintf("extra attributes (%s) not allowed when "+
+							"\"xref\" is set", strings.Join(SortedKeys(obj), ",")))
 		}
 
 		if xErr = g.ValidateAndSave(); xErr != nil {
@@ -443,7 +451,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	if !objIsVer && vID != "" && attrVersionID != "" {
 		return nil, false, NewXRError("mismatched_id",
 			r.Path+"/versions/"+vID,
-			"version", attrVersionID, vID).SetDetailf(
+			"singular=version",
+			"invalid_id="+attrVersionID,
+			"expected_id="+vID).SetDetailf(
 			"The desired \"versionid\"(%s) must "+
 				"match the \"versionid\" attribute(%s)", vID, attrVersionID)
 	}
@@ -459,10 +469,11 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	}
 
 	if defVerID != "" && attrVersionID != "" && attrVersionID != defVerID {
-		return nil, false, NewXRError("bad_request", r.Path,
-			fmt.Sprintf("when \"versionid\"(%s) is "+
-				"present it must match the \"defaultversionid\"(%s)",
-				attrVersionID, defVerID))
+		return nil, false, NewXRError("mismatched_id", r.XID,
+			"singular=version",
+			"invalid_id="+attrVersionID,
+			"expected_id="+defVerID).
+			SetDetail("Must match the \"defaultversionid\" value.")
 	}
 
 	// Update the appropriate Version (vID), but only if the versionID

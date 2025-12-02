@@ -183,7 +183,7 @@ func (tx *Tx) NewTx() *XRError {
 
 	if DB == nil {
 		if DB_Name == "" {
-			return NewXRError("server_error", "/").SetDetail("No DB_Name set")
+			return NewXRError("server_error", "/").SetDetail("No DB_Name set.")
 		}
 		xErr := OpenDB(DB_Name)
 		if xErr != nil {
@@ -199,7 +199,7 @@ func (tx *Tx) NewTx() *XRError {
 		&sql.TxOptions{sql.LevelReadCommitted, false})
 	if err != nil {
 		DB = nil
-		return NewXRError("server_error", "/").SetDetail(err.Error())
+		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		// panic("Error talking to the DB: %s", err)
 	}
 
@@ -463,7 +463,7 @@ func (tx *Tx) Prepare(query string) (*sql.Stmt, *XRError) {
 	}
 	ps, err := tx.tx.Prepare(query)
 	if err != nil {
-		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 
 	return ps, nil
@@ -900,13 +900,13 @@ func ListDBs() ([]string, *XRError) {
 	db, err := sql.Open("mysql",
 		DBUSER+":"+DBPASSWORD+"@tcp("+DBHOST+":"+DBPORT+")/")
 	if err != nil {
-		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	defer db.Close()
 
 	rows, err := db.Query("SHOW DATABASES")
 	if err != nil {
-		return nil, NewXRError("server_error", "/").SetDetail(err.Error())
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	defer rows.Close()
 
@@ -917,7 +917,7 @@ func ListDBs() ([]string, *XRError) {
 	for rows.Next() {
 		name := ""
 		if err := rows.Scan(&name); err != nil {
-			return nil, NewXRError("server_error", "/").SetDetail(err.Error())
+			return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 		}
 		if !ArrayContains(sysNames, name) {
 			names = append(names, name)

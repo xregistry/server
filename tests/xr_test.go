@@ -453,11 +453,11 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLIServer("localhost:8181")
 
 	XCLI(t, "create", "",
-		"", "To create a registry use the 'xrserver registry create' command\n",
+		"", "To create a registry use the 'xrserver registry create' command.\n",
 		false)
 
 	XCLI(t, "create /", "",
-		"", "To create a registry use the 'xrserver registry create' command\n",
+		"", "To create a registry use the 'xrserver registry create' command.\n",
 		false)
 
 	XCLI(t, "update", "", "", "", true)
@@ -505,7 +505,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 `, "", true)
 
 	XCLI(t, "update -o=json / --set name --set=description=5", "",
-		"", `The attribute "description" is not valid: must be a string
+		"", `The attribute(s) "description" for "/" is not valid: must be a string.
 `, false)
 
 	XCLI(t, "update -o=json / --set name --set=description=\"5\"", "",
@@ -523,7 +523,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 
 	XCLI(t, "update -o=json --set=labels.foo=5 --del description "+
 		"--del=labels", "",
-		"", `The attribute "labels.foo" is not valid: must be a string
+		"", `The attribute(s) "labels.foo" for "/" is not valid: must be a string.
 `, false)
 
 	XCLI(t, "update -o=json --set=labels.foo=\"5\" --del description "+
@@ -583,18 +583,18 @@ func TestXRGroupType(t *testing.T) {
 	XCLIServer("localhost:8181")
 
 	XCLI(t, "model group create", "",
-		"", "At least one Group type name must be specified\n", false)
+		"", "At least one Group type name must be specified.\n", false)
 
 	XCLI(t, "model group create dirs", "",
-		"", "Group type name must be of the form: PLURAL:SINGULAR\n", false)
+		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", false)
 
 	XCLI(t, "model group create dirs dir", "",
-		"", "Group type name must be of the form: PLURAL:SINGULAR\n", false)
+		"", "Group type name must be of the form: PLURAL:SINGULAR.\n", false)
 
 	XCLI(t, "model group create dirs:dir", "", "", "", true)
 
 	XCLI(t, "model group create dirs:dir", "", "",
-		"PLURAL value (dirs) conflicts with an existing Group PLURAL name\n",
+		"PLURAL value (dirs) conflicts with an existing Group PLURAL name.\n",
 		false)
 
 	XCLI(t, "model group create -o table -v dirs2:dir2", "",
@@ -741,7 +741,7 @@ func TestXRGroupType(t *testing.T) {
 `, "", true)
 
 	XCLI(t, "model group create -aro xxx dirs6:dir6", "",
-		"", "--output must be one of 'json', 'none', 'table'\n", false)
+		"", "--output must be one of 'json', 'none', 'table'.\n", false)
 
 	XCLI(t, "model group get dirs2", "", "GROUP: dirs2 / dir2\n", "", true)
 
@@ -1044,7 +1044,7 @@ GROUP: dirs / dir
 `, "Created Resource type: files2:file2\n", true)
 
 	XCLI(t, "model resource create -v -g dirs7 files2:file2 -o table", "",
-		``, "Group type \"dirs7\" does not exist\n", false)
+		``, "Group type \"dirs7\" does not exist.\n", false)
 
 	XCLI(t, "model resource create -v -g dirs7:dir7 files2:file2 -o table", "",
 		`RESOURCE: files2 / file2
@@ -1068,10 +1068,10 @@ dirs7 / dir7   1
 	XCLI(t, "model group list -o json", "", `*`, ``, true) // cheat
 
 	XCLI(t, "model resource list", "", "",
-		"A Group type name must be provided via the --group flag\n", false)
+		"A Group type name must be provided via the --group flag.\n", false)
 
 	XCLI(t, "model resource list files -g dirs", "", "",
-		"No arguments allowed\n", false)
+		"No arguments allowed.\n", false)
 
 	XCLI(t, "model resource list -g dirs7", "", `RESOURCE         HAS DOC   EXT ATTRS   DESCRIPTION
 files2 / file2   true      0

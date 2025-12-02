@@ -85,8 +85,9 @@ func ParseXidType(xidTypeStr string) (*XidType, error) {
 				} else if xidType.Version == "meta" {
 					xidType.Type = ENTITY_META
 				} else {
-					return nil, fmt.Errorf("references an unknown "+
-						"entity %q", xidType.Version)
+					return nil, fmt.Errorf("%q has %q at position 3, "+
+						"needs to be either \"versions\" or \"meta\"",
+						xidTypeStr, parts[2])
 				}
 				if len(parts) > 3 {
 					return nil, fmt.Errorf("XIDType is too long")
@@ -179,8 +180,9 @@ func ParseXid(xidStr string) (*Xid, error) {
 								return nil, fmt.Errorf("XID is too long")
 							}
 						} else {
-							return nil, fmt.Errorf("references an unknown "+
-								"entity %q", xid.Version)
+							return nil, fmt.Errorf("%q has %q at position 5, "+
+								"needs to be either \"versions\" or \"meta\"",
+								xidStr, parts[4])
 						}
 
 					}

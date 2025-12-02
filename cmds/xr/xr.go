@@ -33,13 +33,15 @@ func Error(obj any, args ...any) {
 	var xErr *XRError
 
 	if str, ok := obj.(string); ok {
-		xErr = NewXRError("bad_request", "/", fmt.Sprintf(str, args...))
+		xErr = NewXRError("client_error", "/",
+			"error_detail="+fmt.Sprintf(str, args...))
 	} else if xErr, ok = obj.(*XRError); ok {
 		// Use as is
 		PanicIf(len(args) > 0, "Extra args to Error(xErr): %v", args)
 	} else if err, ok := obj.(error); ok {
 		if len(args) == 0 {
-			xErr = NewXRError("bad_request", "/", err.Error())
+			xErr = NewXRError("client_error", "/",
+				"error_detail="+err.Error())
 		} else {
 			for i := 1; i < len(args); i++ {
 				if args[i] == "err" {
@@ -47,8 +49,8 @@ func Error(obj any, args ...any) {
 				}
 			}
 			str := args[0].(string)
-			xErr = NewXRError("bad_request", "/",
-				fmt.Sprintf(str, args[1:]...))
+			xErr = NewXRError("client_error", "/",
+				"error_detail="+fmt.Sprintf(str, args[1:]...))
 		}
 	}
 
@@ -59,10 +61,6 @@ func Error(obj any, args ...any) {
 		msg = xErr.String()
 	} else {
 		msg = xErr.GetTitle()
-		if xErr.IsType("bad_request") {
-			_, msg, _ = strings.Cut(msg, ": ")
-		}
-
 		if xErr.Detail != "" {
 			msg += ". " + xErr.Detail
 		}

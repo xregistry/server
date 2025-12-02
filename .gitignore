@@ -12,6 +12,8 @@
 /.cmds
 /.test
 /.utest
+/.qtest
+/.fulltest
 /.images
 /.testimages
 /.spec

@@ -83,9 +83,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "json" {
 		buf, err := PrettyPrintJSON(res.Body, "", "  ")
-		Error(err, NewXRError("bad_request", "/",
-			fmt.Sprintf("error parsing result json: %s\nResponse:\n%s", err,
-				string(res.Body))))
+		Error(err, NewXRError("parsing_response", "/",
+			"error_detail="+Err2String(err)).
+			SetDetail("Response: "+string(res.Body)))
 
 		fmt.Printf("%s\n", string(buf))
 		return
@@ -93,9 +93,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "table" {
 		err = json.Unmarshal(res.Body, &object)
-		Error(err, NewXRError("bad_request", "/",
-			fmt.Sprintf("error parsing result json: %s\nRespone:\n%s", err,
-				string(res.Body))))
+		Error(err, NewXRError("parsing_response", "/",
+			"error_detail="+Err2String(err)).
+			SetDetail("Response: "+string(res.Body)))
 		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
 		return
 	}

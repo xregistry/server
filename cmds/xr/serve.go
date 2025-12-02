@@ -36,7 +36,7 @@ func serveFunc(cmd *cobra.Command, args []string) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			Error(NewXRError("not_found", dir, dir).
+			Error(NewXRError("not_found", dir).
 				SetDetailf("Directory %q doesn't not exist", dir))
 		}
 		Error(err)

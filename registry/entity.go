@@ -83,7 +83,7 @@ func (e *Entity) ToString() string {
 // We use this just to make sure we can set NewObjectStack when we need to
 // debug stuff
 func (e *Entity) SetNewObject(newObj map[string]any) {
-	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.Path)
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 	e.NewObject = newObj
 
 	// Enable the next line when we need to debug when NewObject was created
@@ -100,7 +100,7 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 }
 
 func (e *Entity) ShowStack() {
-	log.Printf("Stack for NewObject (%s):", e.Path)
+	log.Printf("Stack for NewObject (%s):", e.XID)
 	for _, s := range e.NewObjectStack {
 		log.Printf("  %s", s)
 	}
@@ -386,12 +386,14 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
-		return NewXRError("bad_request", e.Path, err)
+		return NewXRError("bad_request", e.XID,
+			"error_detail="+
+				fmt.Sprintf("Bad attribute path in \"%s\": %s", e.XID, err))
 	}
 
 	// Set, Validate and Save
 	xErr := e.SetPP(pp, val)
-	return xErr.SetSubject(e.Path)
+	return xErr.SetSubject(e.XID)
 }
 
 // Set the prop in the Entity but don't Validate or Save to the DB
@@ -399,7 +401,7 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: JustSet([%d] %s.%s=%v)", e.Type, e.UID, pp.UI(), val)
 	defer log.VPrintf(3, "<Exit: JustSet")
 
-	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.Path)
+	PanicIf(e.AccessMode != FOR_WRITE, "ejustset: %q isn't FOR_WRITE", e.XID)
 
 	// Assume no other edits are pending
 	// e.Refresh() // trying not to have this here
@@ -454,7 +456,9 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 
 	err := ObjectSetProp(e.NewObject, pp, val)
 	if err != nil {
-		return NewXRError("bad_request", e.Path, err)
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+pp.UI(),
+			"error_detail="+err.Error())
 	}
 	return nil
 }
@@ -524,9 +528,11 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	name := pp.DB()
 
 	if len(name) > MAX_PROPNAME {
-		return NewXRError("invalid_attribute", e.Path,
-			name, fmt.Sprintf("attribute paths must not exceed %d chars",
-				MAX_PROPNAME))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+name,
+			"error_detail="+
+				fmt.Sprintf("attribute names must not exceed %d chars",
+					MAX_PROPNAME))
 	}
 
 	// Any prop with "dontStore"=true we skip
@@ -590,26 +596,31 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 		switch reflect.ValueOf(val).Kind() {
 		case reflect.String:
 			if reflect.ValueOf(val).Len() > MAX_VARCHAR {
-				return NewXRError("invalid_attribute", e.Path,
-					pp.UI(), fmt.Sprintf("must be less than %d chars",
-						MAX_VARCHAR+1))
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+pp.UI(),
+					"error_detail="+
+						fmt.Sprintf("must be less than %d chars",
+							MAX_VARCHAR+1))
 			}
 		case reflect.Slice:
 			if reflect.ValueOf(val).Len() > 0 {
-				return NewXRError("invalid_attribute", e.Path,
-					pp.UI(), "can't set non-empty arrays")
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+pp.UI(),
+					"error_detail=can't set non-empty arrays")
 			}
 			dbVal = ""
 		case reflect.Map:
 			if reflect.ValueOf(val).Len() > 0 {
-				return NewXRError("invalid_attribute", e.Path,
-					pp.UI(), "can't set non-empty maps")
+				return NewXRError("invalid_attributes", e.XID,
+					"list= "+pp.UI(),
+					"error_detail=can't set non-empty maps")
 			}
 			dbVal = ""
 		case reflect.Struct:
 			if reflect.ValueOf(val).NumField() > 0 {
-				return NewXRError("invalid_attribute", e.Path,
-					pp.UI(), "can't set non-empty objects")
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+pp.UI(),
+					"error_detail=can't set non-empty objects")
 			}
 			dbVal = ""
 		}
@@ -632,7 +643,8 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRErr
 	if val == nil {
 		err := ObjectSetProp(e.Object, pp, val)
 		if err != nil {
-			return NewXRError("bad_request", e.Path, err)
+			return NewXRError("bad_request", e.XID,
+				"error_detail=Error setting attribute: "+err.Error())
 		}
 		return nil
 	}
@@ -679,7 +691,8 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRErr
 	}
 
 	if err != nil {
-		return NewXRError("bad_request", e.Path, err)
+		return NewXRError("bad_request", e.XID,
+			"error_detail=Error setting attribute: "+err.Error())
 	}
 	return nil
 }
@@ -722,6 +735,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 
 				Type:     eType,
 				Path:     NotNilString(row[9]),
+				XID:      "/" + NotNilString(row[9]),
 				Abstract: NotNilString(row[10]),
 			}
 
@@ -768,8 +782,10 @@ var PropsFuncs = []*Attribute{
 			checkFn: func(e *Entity) *XRError {
 				tmp := e.NewObject["specversion"]
 				if !IsNil(tmp) && tmp != "" && tmp != SPECVERSION {
-					return NewXRError("invalid_attribute", e.Path,
-						"specversion", "invalid value: %s", tmp)
+					return NewXRError("invalid_attributes", e.XID,
+						"list=specversion",
+						"error_detail="+
+							fmt.Sprintf("invalid value: %v", tmp))
 				}
 				return nil
 			},
@@ -785,6 +801,7 @@ var PropsFuncs = []*Attribute{
 					_, rm := e.GetModels()
 					singular = rm.Singular
 				}
+				justSingular := singular
 				singular += "id"
 
 				oldID := any(e.UID)
@@ -800,19 +817,21 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if newID == "" {
-					return NewXRError("invalid_attribute", e.Path,
-						singular, fmt.Sprintf(`can't be an empty string`))
+					return NewXRError("invalid_attributes", e.XID,
+						"list="+singular,
+						"error_detail="+"can't be an empty string")
 				}
 
 				if xErr := IsValidID(newID.(string), singular); xErr != nil {
-					xErr.Subject = e.Path
+					xErr.Subject = e.XID
 					return xErr
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return NewXRError("invalid_attribute", e.Path,
-						singular, fmt.Sprintf(`must be set to `+
-							`%q, not %q`, oldID, newID))
+					return NewXRError("mismatched_id", e.XID,
+						"singular="+justSingular,
+						"expected_id="+fmt.Sprintf("%v", oldID),
+						"invalid_id="+fmt.Sprintf("%v", newID))
 				}
 				return nil
 			},
@@ -847,19 +866,21 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if newID == "" {
-					return NewXRError("invalid_attribute", e.Path,
-						"versionid", "can't be an empty string")
+					return NewXRError("invalid_attributes", e.XID,
+						"list=versionid",
+						"error_detail="+"can't be an empty string")
 				}
 
 				if xErr := IsValidID(newID.(string), "versionid"); xErr != nil {
-					xErr.Subject = e.Path
+					xErr.Subject = e.XID
 					return xErr
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return NewXRError("invalid_attribute", e.Path,
-						"versionid", fmt.Sprintf(`must be `+
-							`set to %q, not %q`, oldID, newID))
+					return NewXRError("mismatched_id", e.XID,
+						"singular=version",
+						"invalid_id="+fmt.Sprintf("%v", newID),
+						"expected_id="+fmt.Sprintf("%v", oldID))
 				}
 				return nil
 			},
@@ -975,14 +996,15 @@ var PropsFuncs = []*Attribute{
 
 				newEpoch, err := AnyToUInt(val)
 				if err != nil {
-					return NewXRError("invalid_attribute", e.Path,
-						"epoch", "must be a uinteger")
+					return NewXRError("invalid_attributes", e.XID,
+						"list=epoch",
+						"error_detail=must be a uinteger")
 				}
 
 				if !e.tx.IgnoreEpoch && oldEpoch != 0 && newEpoch != oldEpoch {
-					return NewXRError("invalid_attribute", e.Path,
-						"epoch", fmt.Sprintf("value (%d) doesn't match "+
-							"existing value (%d)", newEpoch, oldEpoch))
+					return NewXRError("mismatched_epoch", e.XID,
+						"bad_epoch="+fmt.Sprintf("%v", val),
+						"epoch="+fmt.Sprintf("%d", oldEpoch))
 				}
 				return nil
 			},
@@ -1554,7 +1576,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 			}
 		}
 
-		log.VPrintf(4, "Ser prop(%s): %q", e.Path, name)
+		log.VPrintf(4, "Ser prop(%s): %q", e.XID, name)
 
 		attr, ok := attrs[name]
 		if !ok {
@@ -1577,9 +1599,9 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 					if attr == nil {
 						attr = attrs["*"]
 						PanicIf(objKey[0] != '#' && attr == nil,
-							"Can't find attr for (%s) %q", e.Path, objKey)
+							"Can't find attr for (%s) %q", e.XID, objKey)
 					}
-					// log.Printf("Ser*ext(%s): %q", e.Path, objKey)
+					// log.Printf("Ser*ext(%s): %q", e.XID, objKey)
 
 					if xErr := fn(e, info, objKey, val, attr); xErr != nil {
 						return xErr
@@ -1637,7 +1659,7 @@ func (e *Entity) SerializeProps(info *RequestInfo,
 }
 
 func (e *Entity) Lock() bool { // did we lock it?
-	log.VPrintf(3, ">Enter: Lock(%s)", e.Path)
+	log.VPrintf(3, ">Enter: Lock(%s)", e.XID)
 	defer log.VPrintf(3, "<Exit: Lock")
 
 	if e.AccessMode == FOR_WRITE {
@@ -1652,13 +1674,13 @@ func (e *Entity) Save() *XRError {
 	log.VPrintf(3, ">Enter: Save(%s/%s)", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: Save")
 
-	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.Path)
+	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 
 	// TODO remove at some point when we're sure it's safe
 	if SpecProps["epoch"].InType(e.Type) && IsNil(e.NewObject["epoch"]) {
 		// Only an xref'd "meta" is allowed to not have an 'epoch'
 		if e.Type != ENTITY_META || IsNil(e.NewObject["xref"]) {
-			PanicIf(true, "Epoch is nil(%s):%s", e.Path, ToJSON(e.NewObject))
+			PanicIf(true, "Epoch is nil(%s):%s", e.XID, ToJSON(e.NewObject))
 		}
 	}
 
@@ -1695,10 +1717,11 @@ func (e *Entity) Save() *XRError {
 			count := 0
 			for _, keyValue := range keys {
 				if keyValue.Kind() != reflect.String {
-					return NewXRError("invalid_attribute", e.Path,
-						pp.RemoveLast().UI(),
-						fmt.Sprintf("map key (%s) needs to be a string, "+
-							"not %s", pp.Last().Text, keyValue.Kind().String()))
+					return NewXRError("invalid_attributes", e.XID,
+						"list="+pp.RemoveLast().UI(),
+						"error_detail="+
+							fmt.Sprintf("map key (%s) needs to be a string, "+
+								"not %s", pp.Last().Text, keyValue.Kind().String()))
 				}
 
 				k := keyValue.Interface().(string)
@@ -1944,6 +1967,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 	log.VPrintf(3, ">Enter: ValidateObject(path: %s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateObject")
 
+	PanicIf(e.XID != "/"+e.Path, "E:%s", ToJSON(e))
+
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, "Check Obj:\n%s", ToJSON(val))
 		log.VPrintf(0, "OrigAttrs:\n%s", ToJSON(SortedKeys(origAttrs)))
@@ -1953,8 +1978,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 	if valValue.Kind() != reflect.Map ||
 		valValue.Type().Key().Kind() != reflect.String {
 
-		return NewXRError("invalid_attribute", e.Path,
-			path.UI(), "must be a map[string] or object")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+path.UI(),
+			"error_detail="+"must be a map[string] or object")
 	}
 	newObj := val.(map[string]any)
 
@@ -2022,9 +2048,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 						if path.Len() > 0 {
 							if xErr := IsValidAttributeName(path.Bottom(), path.UI()); xErr != nil {
 			                    if xErr.Subject == "/" {
-			                        xErr.SetSubject(e.Path)
+			                        xErr.SetSubject(e.XID)
 			                    }
-								return xErr
+								return xErr.AddSource("")
 							}
 						}
 			*/
@@ -2056,12 +2082,13 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 					for _, newAttr := range ifValueData.SiblingAttributes {
 						if _, ok := allAttrNames[newAttr.Name]; ok {
-							return NewXRError("invalid_attribute", e.Path,
-								path.P(key).UI(),
-								fmt.Sprintf(`has an "ifvalues"`+
-									`(%s) that defines a conflictng `+
-									`siblingattribute: %s`,
-									valStr, newAttr.Name))
+							return NewXRError("invalid_attributes", e.XID,
+								"list="+path.P(key).UI(),
+								"error_detail="+
+									fmt.Sprintf(`has an "ifvalues"`+
+										`(%s) that defines a conflictng `+
+										`siblingattribute: %s`,
+										valStr, newAttr.Name))
 						}
 						// add new attr to the list so we can check its ifValues
 						if newAttr.Name == "*" {
@@ -2120,9 +2147,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 				}
 
 				if flagit {
-					return NewXRError("bad_request", e.Path,
-						fmt.Sprintf("required property %q is missing",
-							path.P(key).UI()))
+					return NewXRError("required_attribute_missing", e.XID,
+						"list="+path.P(key).UI())
 				}
 			}
 
@@ -2130,19 +2156,19 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// but only if it's actually present in the object.
 			if keyPresent {
 				if namecharset == "extended" {
-					if xErr := IsValidMapKey(key, path.UI()); xErr != nil {
-						xErr.Subject = e.Path
-						return xErr
+					if xErr := IsValidMapKey(key, e.XID, path.UI()); xErr != nil {
+						return xErr.AddSource("")
 					}
 				} else if namecharset == "" || namecharset == "strict" {
 					if xErr := IsValidAttributeName(key, path.UI()); xErr != nil {
-						xErr.Subject = e.Path
-						return xErr
+						xErr.Subject = e.XID
+						return xErr.AddSource("")
 					}
 				} else {
-					return NewXRError("bad_request", e.Path,
-						fmt.Sprintf("unknown \"namecharset\" value: %s",
-							namecharset))
+					return NewXRError("bad_request", e.XID,
+						"error_detail="+
+							fmt.Sprintf("Unknown \"namecharset\" value: %s",
+								namecharset))
 				}
 			}
 
@@ -2164,11 +2190,18 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 	if len(objKeys) != 0 {
 		where := path.UI()
 		if where != "" {
-			where = " in \"" + where + "\""
+			where += "."
 		}
-		return NewXRError("bad_request", e.Path,
-			fmt.Sprintf("invalid extension(s)%s: %s", where,
-				strings.Join(SortedKeys(objKeys), ",")))
+
+		list := ""
+		for i, k := range SortedKeys(objKeys) {
+			if i > 0 {
+				list += ","
+			}
+			list += where + k
+		}
+		return NewXRError("unknown_extensions", e.XID,
+			"list="+list)
 	}
 
 	return nil
@@ -2226,8 +2259,9 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
 
 	valValue := reflect.ValueOf(val)
 	if valValue.Kind() != reflect.Map {
-		return NewXRError("invalid_attribute", e.Path,
-			path.UI(), "must be a map")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+path.UI(),
+			"error_detail=must be a map")
 	}
 
 	// All values in the map must be of the same type
@@ -2239,18 +2273,18 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
 
 	for _, k := range valValue.MapKeys() {
 		if k.Kind() != reflect.String {
-			return NewXRError("invalid_attribute",
-				path.RemoveLast().UI(),
-				fmt.Sprintf("map key (%s) needs to be a string, "+
-					"not %s", path.Last().Text, k.Kind().String()))
+			return NewXRError("invalid_attributes",
+				"list="+path.RemoveLast().UI(),
+				"error_detail="+
+					fmt.Sprintf("map key (%s) needs to be a string, "+
+						"not %s", path.Last().Text, k.Kind().String()))
 		}
 
 		keyName := k.Interface().(string)
 
 		if path.Len() > 0 {
-			if xErr := IsValidMapKey(keyName, path.UI()); xErr != nil {
-				xErr.Subject = e.Path
-				return xErr
+			if xErr := IsValidMapKey(keyName, e.XID, path.UI()); xErr != nil {
+				return xErr.AddSource("")
 			}
 		}
 
@@ -2286,8 +2320,9 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 
 	valValue := reflect.ValueOf(val)
 	if valValue.Kind() != reflect.Slice {
-		return NewXRError("invalid_attribute", e.Path,
-			path.UI(), "must be an array")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+path.UI(),
+			"error_detail="+"must be an array")
 	}
 
 	// All values in the array must be of the same type
@@ -2329,24 +2364,28 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	switch attr.Type {
 	case BOOLEAN:
 		if valKind != reflect.Bool {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a boolean"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail=must be a boolean"), false, nil
 		}
 	case DECIMAL:
 		if valKind != reflect.Int && valKind != reflect.Float64 {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a decimal"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a decimal"), false, nil
 		}
 	case INTEGER:
 		if valKind == reflect.Float64 {
 			f := val.(float64)
 			if f != float64(int(f)) {
-				return NewXRError("invalid_attribute", e.Path,
-					path.UI(), "must be an integer"), false, nil
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+path.UI(),
+					"error_detail="+"must be an integer"), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be an integer"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be an integer"), false, nil
 		}
 	case UINTEGER:
 		i := 0
@@ -2354,27 +2393,32 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 			f := val.(float64)
 			i = int(f)
 			if f != float64(i) {
-				return NewXRError("invalid_attribute", e.Path,
-					path.UI(), "must be a uinteger"), false, nil
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+path.UI(),
+					"error_detail="+"must be a uinteger"), false, nil
 			}
 		} else if valKind != reflect.Int {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a uinteger"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a uinteger"), false, nil
 		} else {
 			i = val.(int)
 			if valKind != reflect.Int {
-				return NewXRError("invalid_attribute", e.Path,
-					path.UI(), "must be a uinteger"), false, nil
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+path.UI(),
+					"error_detail="+"must be a uinteger"), false, nil
 			}
 		}
 		if i < 0 {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a uinteger"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a uinteger"), false, nil
 		}
 	case XID:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be an xid"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be an xid"), false, nil
 		}
 		str := val.(string)
 
@@ -2383,116 +2427,139 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 			if xErr != nil {
 				return xErr, false, nil
 				/*
-					return NewXRError("invalid_attribute", e.Path,
-						path.UI(), err.Error()), false, nil
+					return NewXRError("invalid_attributes", e.XID,
+					"list=" + path.UI(),
+					"error_detail="+err.Error()), false, nil
 				*/
 			}
 		}
 
 		xid, err := ParseXid(str)
 		if err != nil {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), fmt.Sprintf("value (%s) isn't a valid xid, %s",
-					str, err)), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xid, %s",
+						str, err)), false, nil
 		}
 
 		if xid.VersionID != "" && xid.Version == "meta" {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), fmt.Sprintf("value (%s) isn't a valid xid, "+
-					"it must be in the form of: "+
-					"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
-					str)), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xid, "+
+						"it must be in the form of: "+
+						"/[GROUPS[/GID[/RESOURCES[/GID[/versions[/vid]]]]]]",
+						str)), false, nil
 		}
 
 		if xid.Type != ENTITY_REGISTRY {
 			gm := e.Registry.Model.FindGroupModel(xid.Group)
 			if gm == nil {
-				return NewXRError("invalid_attribute", e.Path,
-					path.UI(), fmt.Sprintf("value (%s) references an unknown "+
-						"Group type %q", str, xid.Group)), false, nil
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+path.UI(),
+					"error_detail="+
+						fmt.Sprintf("value (%s) references an unknown "+
+							"Group type %q", str, xid.Group)), false, nil
 			}
 
 			if xid.Resource != "" {
 				rm := gm.FindResourceModel(xid.Resource)
 				if rm == nil {
-					return NewXRError("invalid_attribute", e.Path,
-						path.UI(), fmt.Sprintf("value (%s) references an "+
-							"unknown Resource type %q", str,
-							xid.Resource)), false, nil
+					return NewXRError("invalid_attributes", e.XID,
+						"list="+path.UI(),
+						"error_detail="+
+							fmt.Sprintf("value (%s) references an "+
+								"unknown Resource type %q", str,
+								xid.Resource)), false, nil
 				}
 			}
 		}
 
 	case XIDTYPE:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-					path.UI(), fmt.Sprintf("value  must be an xidtype")),
-				false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value  must be an xidtype")), false, nil
 		}
 		str := val.(string)
 
 		xidType, err := ParseXidType(str)
 		if err != nil {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), fmt.Sprintf("value (%s) isn't a valid xidtype, %s",
-					str, err)), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%s) isn't a valid xidtype, %s",
+						str, err)), false, nil
 		}
 
 		if xidType.Group != "" {
 			gm := e.Registry.Model.FindGroupModel(xidType.Group)
 			if gm == nil {
-				return NewXRError("invalid_attribute", e.Path,
-					path.UI(), fmt.Sprintf("value (%s) references an unknown "+
-						"Group type %q", str, xidType.Group)), false, nil
+				return NewXRError("invalid_attributes", e.XID,
+					"list="+path.UI(),
+					"error_detail="+
+						fmt.Sprintf("value (%s) references an unknown "+
+							"Group type %q", str, xidType.Group)), false, nil
 			}
 
 			if xidType.Resource != "" {
 				rm := gm.FindResourceModel(xidType.Resource)
 				if rm == nil {
-					return NewXRError("invalid_attribute", e.Path,
-						path.UI(), fmt.Sprintf("value (%s) references an "+
-							"unknown Resource type %q", str,
-							xidType.Resource)), false, nil
+					return NewXRError("invalid_attributes", e.XID,
+						"list="+path.UI(),
+						"error_detail="+
+							fmt.Sprintf("value (%s) references an "+
+								"unknown Resource type %q", str,
+								xidType.Resource)), false, nil
 				}
 			}
 		}
 	case STRING:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a string"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a string"), false, nil
 		}
 	case URI:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a uri"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a uri"), false, nil
 		}
 	case URI_REFERENCE:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a uri-reference"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a uri-reference"), false, nil
 		}
 	case URI_TEMPLATE:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a uri-template"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a uri-template"), false, nil
 		}
 	case URL:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a url"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list= "+path.UI(),
+				"error_detail="+"must be a url"), false, nil
 		}
 	case TIMESTAMP:
 		if valKind != reflect.String {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "must be a timestamp"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"must be a timestamp"), false, nil
 		}
 		str := val.(string)
 
 		var err error
 		newValue, err = NormalizeStrTime(str)
 		if err != nil {
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), "is a malformed timestamp"), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+"is a malformed timestamp"), false, nil
 		}
 		replace = (newValue != str)
 	default:
@@ -2518,9 +2585,11 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 				}
 				valids += fmt.Sprintf("%v", v)
 			}
-			return NewXRError("invalid_attribute", e.Path,
-				path.UI(), fmt.Sprintf("value (%v) must be one of the enum "+
-					"values: %s", val, valids)), false, nil
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+path.UI(),
+				"error_detail="+
+					fmt.Sprintf("value (%v) must be one of the enum "+
+						"values: %s", val, valids)), false, nil
 		}
 	}
 
@@ -2562,93 +2631,122 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 	targetParts := targetRE.FindStringSubmatch(xid)
 
 	if len(str) == 0 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, "must be an xid, not empty")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail=must be an xid, not empty")
 	}
 	if str[0] != '/' {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, "must be an xid, and start with /")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail=must be an xid, and start with /")
 	}
 	strParts := strings.Split(str, "/")
 	if len(strParts) < 2 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, "must be a valid xid")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail=must be a valid xid")
 	}
 	if len(strParts[0]) > 0 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, "must be an xid, and start with /")
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail=must be an xid, and start with /")
 	}
 	if xid == "/" {
 		if str != "/" {
-			return NewXRError("invalid_attribute", e.Path,
-				attr, fmt.Sprintf("must match %q target", xid))
+			return NewXRError("invalid_attributes", e.XID,
+				"list="+attr,
+				"error_detail="+fmt.Sprintf("must match %q target", xid))
 		}
 		return nil
 	}
 	if targetParts[1] != strParts[1] { // works for "" too
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target", xid))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+fmt.Sprintf("must match %q target", xid))
 	}
 
 	gm := e.Registry.Model.Groups[targetParts[1]]
 	if gm == nil {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("uses an unknown group %q", targetParts[1]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("uses an unknown group %q", targetParts[1]))
 	}
 	if len(strParts) < 3 || len(strParts[2]) == 0 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
-				xid, str, gm.Singular))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+					xid, str, gm.Singular))
 	}
 	if xErr := IsValidID(strParts[2], attr); xErr != nil {
-		return xErr
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the %q ID is not valid: %s`,
+					gm.Singular, xErr.Args["error_detail"]))
 	}
 
 	if targetParts[2] == "" { // /GROUPS
 		if len(strParts) == 3 {
 			return nil
 		}
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, extra stuff after %q",
-				xid, strParts[2]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, extra stuff after %q",
+					xid, strParts[2]))
 	}
 
 	// targetParts has RESOURCES
 	if len(strParts) < 4 { //    /GROUPS/GID/RESOURCES
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing %q",
-				xid, str, targetParts[2]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing %q",
+					xid, str, targetParts[2]))
 	}
 
 	if targetParts[2] != strParts[3] {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing %q",
-				xid, str, targetParts[2]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing %q",
+					xid, str, targetParts[2]))
 	}
 
 	rm := gm.FindResourceModel(targetParts[2])
 	if rm == nil {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("uses an unknown resource %q", targetParts[2]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("uses an unknown resource %q", targetParts[2]))
 	}
 
 	if len(strParts) < 5 || len(strParts[4]) == 0 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
-				xid, str, rm.Singular))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"%sid\"",
+					xid, str, rm.Singular))
 	}
-	if xErr := IsValidID(strParts[4], ""); xErr != nil {
-		xErr.Subject = e.Path
-		return xErr
+	if xErr := IsValidID(strParts[4], attr); xErr != nil {
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the %q ID is not valid: %s`,
+					rm.Singular, xErr.Args["error_detail"]))
 	}
 
 	if targetParts[3] == "" && targetParts[4] == "" {
 		if len(strParts) == 5 {
 			return nil
 		}
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, extra stuff after %q",
-				xid, strParts[4]))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, extra stuff after %q",
+					xid, strParts[4]))
 
 	}
 
@@ -2660,24 +2758,33 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 	}
 
 	if len(strParts) < 6 || strParts[5] != "versions" {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing \"versions\"",
-				xid, str))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing \"versions\"",
+					xid, str))
 	}
 
 	if len(strParts) < 7 || len(strParts[6]) == 0 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, %q is missing a \"versionid\"",
-				xid, str))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, %q is missing a \"version\" ID",
+					xid, str))
 	}
-	if xErr := IsValidID(strParts[6], ""); xErr != nil {
-		xErr.Subject = e.Path
-		return xErr
+	if xErr := IsValidID(strParts[6], attr); xErr != nil {
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf(`the "version" ID is not valid: %s`,
+					xErr.Args["error_detail"]))
 	}
 
 	if len(strParts) > 7 {
-		return NewXRError("invalid_attribute", e.Path,
-			attr, fmt.Sprintf("must match %q target, too long", xid))
+		return NewXRError("invalid_attributes", e.XID,
+			"list="+attr,
+			"error_detail="+
+				fmt.Sprintf("must match %q target, too long", xid))
 	}
 
 	return nil
@@ -2693,15 +2800,15 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 // of logic - but it might actually make for a cleaner design to keep
 // system data out of the user data space, so worth considering in the future.
 // I really would prefer to push this down in the stack though.
-func CheckAttrs(obj map[string]any) *XRError {
+func CheckAttrs(obj map[string]any, path string) *XRError {
 	if obj == nil {
 		return nil
 	}
 	for k, _ := range obj {
-		if xErr := IsValidAttributeName(k, ""); xErr != nil {
+		if xErr := IsValidAttributeName(k, path); xErr != nil {
 			// log.Printf("Key: %q", k)
 			// ShowStack()
-			return xErr
+			return xErr.AddSource("")
 		}
 	}
 	return nil

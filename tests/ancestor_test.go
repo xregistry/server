@@ -99,17 +99,27 @@ func TestAncestorBasic(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": ""}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The attribute \"ancestor\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"ancestor\" for \"/dirs/d1/files/f2\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "error_detail": "value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
+    "list": "ancestor"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:71"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "vx"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): vx"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"vx\" cannot be found.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "id": "vx",
+    "singular": "version"
+  },
+  "source": ":registry:resource:1534"
 }
 `)
 
@@ -149,17 +159,27 @@ func TestAncestorBasic(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): 2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"2\" cannot be found.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "id": "2",
+    "singular": "version"
+  },
+  "source": ":registry:resource:1534"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): 2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"2\" cannot be found.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "id": "2",
+    "singular": "version"
+  },
+  "source": ":registry:resource:1534"
 }
 `)
 
@@ -317,18 +337,26 @@ func TestAncestorBasic(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f4/versions", `{
   "1": {"ancestor":"3"}, "2":{}, "3":{}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f4",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2, 3"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2, 3.",
+  "subject": "/dirs/d1/files/f4",
+  "args": {
+    "list": "1, 2, 3"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f4/versions", `{
   "1": {"ancestor":"2"}, "2":{}, "3":{}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f4",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2.",
+  "subject": "/dirs/d1/files/f4",
+  "args": {
+    "list": "1, 2"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
@@ -336,9 +364,13 @@ func TestAncestorBasic(t *testing.T) {
   "1":{"ancestor":"2"}, "2":{"ancestor":"1"},
   "3":{"ancestor":"4"}, "4":{"ancestor":"3"}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f4",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: 1, 2, 3, 4"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2, 3, 4.",
+  "subject": "/dirs/d1/files/f4",
+  "args": {
+    "list": "1, 2, 3, 4"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
@@ -665,9 +697,13 @@ func TestAncestorRoots(t *testing.T) {
 	rm.SetSingleVersionRoot(true)
 	err = reg.Model.VerifyAndSave()
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
   "subject": "/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }`)
 	reg.LoadModel()   // reset
 	rm = rm.Refresh() // reload
@@ -690,54 +726,78 @@ func TestAncestorRoots(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3",
 		`{"ancestor":"v3"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v3",
 		`{"ancestor":"v3"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions",
 		`{"v3":{"ancestor":"v3"}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1",
 		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f1\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2",
 		`{"versions":{"v1":{"ancestor":"v1"},"v3":{"ancestor":"v3"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: \"dirs/d1/files/f2\" has too many (2) root versions"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
+  "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f2\", which is not allowed for \"files\".",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:1408"
 }
 `)
 
@@ -758,18 +818,26 @@ func TestAncestorCircles(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1",
 		`{"versions":{"v1":{"ancestor":"v2"}}}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f1\", the request would create a circular list of ancestors: v1, v2.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "list": "v1, v2"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2",
 		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"}}}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f2\", the request would create a circular list of ancestors: v1, v2.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "list": "v1, v2"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
@@ -777,9 +845,13 @@ func TestAncestorCircles(t *testing.T) {
 		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"},
 		              "v3":{"ancestor":"v4"},"v4":{"ancestor":"v3"}}}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f2",
-  "title": "The request cannot be processed as provided: circular \"ancestor\" references detected for Versions: v1, v2, v3, v4"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
+  "title": "For \"/dirs/d1/files/f2\", the request would create a circular list of ancestors: v1, v2, v3, v4.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "list": "v1, v2, v3, v4"
+  },
+  "source": ":registry:resource:1598"
 }
 `)
 
@@ -910,9 +982,14 @@ func TestAncestorErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): v2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "id": "v2",
+    "singular": "version"
+  },
+  "source": ":registry:resource:1534"
 }
 `)
 
@@ -921,9 +998,14 @@ func TestAncestorErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1",
-  "title": "The request cannot be processed as provided: can't find \"ancestor\" Verison(s): v2"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "id": "v2",
+    "singular": "version"
+  },
+  "source": ":registry:resource:1534"
 }
 `)
 

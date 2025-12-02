@@ -301,9 +301,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline one level - invalid",
 			URL:  "?inline=xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: xxx"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /",
+  "subject": "/",
+  "args": {
+    "name": "xxx"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -311,9 +315,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline one level - invalid - bad case",
 			URL:  "?inline=Dirs",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: Dirs"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /",
+  "subject": "/",
+  "args": {
+    "name": "Dirs"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -321,9 +329,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline two levels - invalid first",
 			URL:  "?inline=xxx.files",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: xxx.files"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /",
+  "subject": "/",
+  "args": {
+    "name": "xxx.files"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -331,9 +343,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline two levels - invalid second",
 			URL:  "?inline=dirs.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.xxx"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.xxx"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -351,9 +367,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "get one level, inline one level - invalid",
 			URL:  "dirs?inline=dirs",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs",
+  "subject": "/dirs",
+  "args": {
+    "name": "dirs"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -371,9 +391,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "get one level, inline three levels",
 			URL:  "dirs?inline=files.versions.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: files.versions.xxx"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs",
+  "subject": "/dirs",
+  "args": {
+    "name": "files.versions.xxx"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -407,9 +431,13 @@ func TestInlineBasic(t *testing.T) {
 			Name: "inline 2 top, 1 and 2 levels - one err",
 			URL:  "?inline=dirs,dirs2.files.xxx",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs2.files.xxx"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs2.files.xxx"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -688,9 +716,13 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline xx",
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=XXversions.file",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/dirs/d1/files/f1-proxy$details",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.XXversions.file"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: /dirs/d1/files/f1-proxy$details",
+  "subject": "/dirs/d1/files/f1-proxy$details",
+  "args": {
+    "name": "dirs.files.XXversions.file"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -698,9 +730,13 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline yy",
 			URL:  "/?inline=dirs.files.yy",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.yy"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.yy"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -708,9 +744,13 @@ func TestInlineResource(t *testing.T) {
 			Name: "Bad inline vers.yy",
 			URL:  "/?inline=dirs.files.version.yy",
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.version.yy"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.version.yy"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `,
 		},
@@ -1308,122 +1348,199 @@ func TestInlineWildcards(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: Unexpected . in \".*\" at pos 1"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
+  "title": "An error was found in inline value (.*): Unexpected \".\" in \".*\" at pos 1.",
+  "subject": "/",
+  "args": {
+    "error_detail": "Unexpected \".\" in \".*\" at pos 1",
+    "inline_value": ".*"
+  },
+  "source": "e4e59b8a76c4:registry:info:75"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: foo.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "foo.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: foo*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (foo*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "foo*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.bad.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.bad.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.bad.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.bad.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.file*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.file.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.file.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.meta*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.meta.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.meta.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.versions.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.versions.file*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.versions.file.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: dirs.files.versions.file.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "dirs.files.versions.file.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 
 	XHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: model.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "model.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: model.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (model.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "model.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "capabilities.*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: invalid 'inline' value: capabilities.bad*"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
+  "title": "Attempting to inline a non-inlineable attribute (capabilities.bad*) on: /",
+  "subject": "/",
+  "args": {
+    "name": "capabilities.bad*"
+  },
+  "source": "e4e59b8a76c4:registry:info:146"
 }
 `)
 

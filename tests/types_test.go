@@ -9,8 +9,8 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestBasicTypes(t *testing.T) {
-	reg := NewRegistry("TestBasicTypes")
+func TestTypesBasic(t *testing.T) {
+	reg := NewRegistry("TestTypesBasic")
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("regbool1", BOOLEAN)
@@ -99,43 +99,67 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "qwe/")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", " /")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_reg", "/")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_reg\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_reg\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_reg\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_group\" has an unknown Group type: \"xxxs\""
+  "title": "There was an error in the model definition provided: \"regptr_group\" has an unknown Group type: \"xxxs\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_group\" has an unknown Group type: \"xxxs\""
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2881"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/xxxs/")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_group\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_group", "/dirs")
@@ -144,15 +168,23 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/?")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"?\""
+  "title": "There was an error in the model definition provided: \"regptr_res\" has an unknown Resource type: \"?\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_res\" has an unknown Resource type: \"?\""
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2888"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/file")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_res\" has an unknown Resource type: \"file\""
+  "title": "There was an error in the model definition provided: \"regptr_res\" has an unknown Resource type: \"file\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_res\" has an unknown Resource type: \"file\""
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2888"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/files")
@@ -162,22 +194,34 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/asd?")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/versions")
@@ -188,15 +232,23 @@ func TestBasicTypes(t *testing.T) {
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?asd")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?/")
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"model.regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  "title": "There was an error in the model definition provided: \"regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"regptr_res_ver\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:2872"
 }`)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files[/versions]")
@@ -232,12 +284,12 @@ func TestBasicTypes(t *testing.T) {
 
 	tests := []Test{
 		Test{reg, []Prop{
-			{"registryid", 66, nil, `must be a string`},
-			{"registryid", "*", nil, `The attribute "registryid" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"registryid", 66, nil, `The attribute(s) "registryid" for "/" is not valid: must be a string.`},
+			{"registryid", "*", nil, `The attribute(s) "registryid" for "/" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 
-			{"regarrayarrayint[1][1]", 66, nil, `The attribute "regarrayarrayint[1][0]" is not valid: must be an integer`},
+			{"regarrayarrayint[1][1]", 66, nil, `The attribute(s) "regarrayarrayint[1][0]" for "/" is not valid: must be an integer.`},
 			{"regarrayint[0]", 1, nil, ""},
-			{"regarrayint[2]", 3, nil, `The attribute "regarrayint[1]" is not valid: must be an integer`},
+			{"regarrayint[2]", 3, nil, `The attribute(s) "regarrayint[1]" for "/" is not valid: must be an integer.`},
 			{"regarrayint[1]", 2, nil, ""},
 			{"regarrayint[2]", 3, nil, ""},
 
@@ -278,105 +330,105 @@ func TestBasicTypes(t *testing.T) {
 			// Syntax checking
 			// {"MiXeD", 123,nil, ""},
 			{"regarrayint[~abc]", 123, nil,
-				`Unexpected ~ in "regarrayint[~abc]" at pos 13`},
+				`Bad attribute path in "/": Unexpected "~" in "regarrayint[~abc]" at pos 13.`},
 			{"regarrayint['~abc']", 123, nil,
-				`Unexpected ~ in "regarrayint['~abc']" at pos 14`},
+				`Bad attribute path in "/": Unexpected "~" in "regarrayint['~abc']" at pos 14.`},
 			{"regmapstring.~abc", 123, nil,
-				`Unexpected ~ in "regmapstring.~abc" at pos 14`},
+				`Bad attribute path in "/": Unexpected "~" in "regmapstring.~abc" at pos 14.`},
 			{"regmapstring[~abc]", 123, nil,
-				`Unexpected ~ in "regmapstring[~abc]" at pos 14`},
+				`Bad attribute path in "/": Unexpected "~" in "regmapstring[~abc]" at pos 14.`},
 			{"regmapstring['~abc']", 123, nil,
-				`Unexpected ~ in "regmapstring['~abc']" at pos 15`},
+				`Bad attribute path in "/": Unexpected "~" in "regmapstring['~abc']" at pos 15.`},
 
 			// Type checking
 			{"epoch", -123, nil,
-				`must be a uinteger`},
+				`The attribute(s) "epoch" for "/" is not valid: must be a uinteger.`},
 			{"regobj[1]", "", nil,
-				`attribute "regobj[1]" isn't an array`}, // Not an array
+				`The attribute(s) "regobj[1]" for "/" is not valid: attribute "regobj[1]" isn't an array.`}, // Not an array
 			{"regobj", []any{}, nil,
-				`must be a map[string] or object`}, // Not an array
+				`The attribute(s) "regobj" for "/" is not valid: must be a map[string] or object.`}, // Not an array
 			{"reganyobj2.str", "substr", nil,
-				`invalid extension(s): reganyobj2`}, // unknown attr
+				`Unknown extension attribute(s) (reganyobj2) specified for: /.`}, // unknown attr
 			{"regarrayarrayint[0][0]", "abc", nil,
-				`The attribute "regarrayarrayint[0][0]" is not valid: must be an integer`}, // bad type
+				`The attribute(s) "regarrayarrayint[0][0]" for "/" is not valid: must be an integer.`}, // bad type
 			{"regarrayint[2]", "abc", nil,
-				`The attribute "regarrayint[2]" is not valid: must be an integer`}, // bad type
+				`The attribute(s) "regarrayint[2]" for "/" is not valid: must be an integer.`}, // bad type
 			{"regbool1", "123", nil,
-				`The attribute "regbool1" is not valid: must be a boolean`}, // bad type
+				`The attribute(s) "regbool1" for "/" is not valid: must be a boolean.`}, // bad type
 			{"regdec1", "123", nil,
-				`The attribute "regdec1" is not valid: must be a decimal`}, // bad type
+				`The attribute(s) "regdec1" for "/" is not valid: must be a decimal.`}, // bad type
 			{"regint1", "123", nil,
-				`The attribute "regint1" is not valid: must be an integer`}, // bad type
+				`The attribute(s) "regint1" for "/" is not valid: must be an integer.`}, // bad type
 			{"regmapint", "123", nil,
-				`The attribute "regmapint" is not valid: must be a map`}, // must be empty
+				`The attribute(s) "regmapint" for "/" is not valid: must be a map.`}, // must be empty
 			{"regmapint.k1", "123", nil,
-				`The attribute "regmapint.k1" is not valid: must be an integer`}, // bad type
+				`The attribute(s) "regmapint.k1" for "/" is not valid: must be an integer.`}, // bad type
 			{"regmapstring.k1", 123, nil,
-				`The attribute "regmapstring.k1" is not valid: must be a string`}, // bad type
+				`The attribute(s) "regmapstring.k1" for "/" is not valid: must be a string.`}, // bad type
 			{"regstring1", 123, nil,
-				`The attribute "regstring1" is not valid: must be a string`}, // bad type
+				`The attribute(s) "regstring1" for "/" is not valid: must be a string.`}, // bad type
 			{"regtime1", "not a time", nil,
-				`The attribute "regtime1" is not valid: is a malformed timestamp`}, // bad format
+				`The attribute(s) "regtime1" for "/" is not valid: is a malformed timestamp.`}, // bad format
 			{"reguint1", -1, nil,
-				`The attribute "reguint1" is not valid: must be a uinteger`}, // bad uint
+				`The attribute(s) "reguint1" for "/" is not valid: must be a uinteger.`}, // bad uint
 			{"unknown_int", 123, nil,
-				`The request cannot be processed as provided: invalid extension(s): unknown_int`}, // unknown attr
+				`Unknown extension attribute(s) (unknown_int) specified for: /.`}, // unknown attr
 			{"unknown_str", "error", nil,
-				`The request cannot be processed as provided: invalid extension(s): unknown_str`}, // unknown attr
+				`Unknown extension attribute(s) (unknown_str) specified for: /.`}, // unknown attr
 
-			{"regptr_group", "", nil, `The attribute "regptr_group" is not valid: must be an xid, not empty`},
-			{"regptr_group", "/", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target`},
-			{"regptr_group", "/xxx", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target`},
-			{"regptr_group", "/dirs", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target, "/dirs" is missing "dirid"`},
-			{"regptr_group", "/dirs2", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target`},
-			{"regptr_group", "/dirs", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target, "/dirs" is missing "dirid"`},
-			{"regptr_group", "/dirs/*", nil, `The attribute "regptr_group" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
-			{"regptr_group", "/dirs/id/", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target, extra stuff after "id"`},
-			{"regptr_group", "/dirs/id/extra", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target, extra stuff after "id"`},
-			{"regptr_group", "/dirs/id/extra/", nil, `The attribute "regptr_group" is not valid: must match "/dirs" target, extra stuff after "id"`},
+			{"regptr_group", "", nil, `The attribute(s) "regptr_group" for "/" is not valid: must be an xid, not empty.`},
+			{"regptr_group", "/", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target.`},
+			{"regptr_group", "/xxx", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target.`},
+			{"regptr_group", "/dirs", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target, "/dirs" is missing "dirid".`},
+			{"regptr_group", "/dirs2", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target.`},
+			{"regptr_group", "/dirs", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target, "/dirs" is missing "dirid".`},
+			{"regptr_group", "/dirs/*", nil, `The attribute(s) "regptr_group" for "/" is not valid: the "dir" ID is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
+			{"regptr_group", "/dirs/id/", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target, extra stuff after "id".`},
+			{"regptr_group", "/dirs/id/extra", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target, extra stuff after "id".`},
+			{"regptr_group", "/dirs/id/extra/", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target, extra stuff after "id".`},
 			{"regptr_group", "/dirs/d1", nil, ``},
 
-			{"regptr_res", "/dirs/d1", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1" is missing "files"`},
-			{"regptr_res", "/dirs/d1/", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/" is missing "files"`},
-			{"regptr_res", "/dirs/d1/fff", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/fff" is missing "files"`},
-			{"regptr_res", "/dirs/d1/fff/", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/fff/" is missing "files"`},
-			{"regptr_res", "/dirs/d1/fff/f2", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/fff/f2" is missing "files"`},
-			{"regptr_res", "/dirs/*/files/f2", nil, `The attribute "regptr_res" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
-			{"regptr_res", "/dirs/d1/files", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/files" is missing "fileid"`},
-			{"regptr_res", "/dirs/d1/files/", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, "/dirs/d1/files/" is missing "fileid"`},
-			{"regptr_res", "/dirs/d1/files/*", nil, `The request cannot be processed as provided: ID value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
-			{"regptr_res", "/dirs/d1/files/f2/versions", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, extra stuff after "f2"`},
-			{"regptr_res", "/dirs/d1/files/f2/versions/v1", nil, `The attribute "regptr_res" is not valid: must match "/dirs/files" target, extra stuff after "f2"`},
+			{"regptr_res", "/dirs/d1", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1" is missing "files".`},
+			{"regptr_res", "/dirs/d1/", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/" is missing "files".`},
+			{"regptr_res", "/dirs/d1/fff", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/fff" is missing "files".`},
+			{"regptr_res", "/dirs/d1/fff/", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/fff/" is missing "files".`},
+			{"regptr_res", "/dirs/d1/fff/f2", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/fff/f2" is missing "files".`},
+			{"regptr_res", "/dirs/*/files/f2", nil, `The attribute(s) "regptr_res" for "/" is not valid: the "dir" ID is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
+			{"regptr_res", "/dirs/d1/files", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/files" is missing "fileid".`},
+			{"regptr_res", "/dirs/d1/files/", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, "/dirs/d1/files/" is missing "fileid".`},
+			{"regptr_res", "/dirs/d1/files/*", nil, `The attribute(s) "regptr_res" for "/" is not valid: the "file" ID is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
+			{"regptr_res", "/dirs/d1/files/f2/versions", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, extra stuff after "f2".`},
+			{"regptr_res", "/dirs/d1/files/f2/versions/v1", nil, `The attribute(s) "regptr_res" for "/" is not valid: must match "/dirs/files" target, extra stuff after "f2".`},
 			{"regptr_res", "/dirs/d1/files/f2", nil, ``},
 
-			{"regptr_ver", "/", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target`},
-			{"regptr_ver", "/dirs/d1/files/f2", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2" is missing "versions"`},
-			{"regptr_ver", "/dirs/d1/files/f2/vvv", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/vvv" is missing "versions"`},
-			{"regptr_ver", "/dirs/d1/files/f2/versions", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/versions" is missing a "versionid"`},
-			{"regptr_ver", "/dirs/d1/files/f2/versions/", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/versions/" is missing a "versionid"`},
-			{"regptr_ver", "/dirs/d1/files/f2/versions/v2/", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, too long`},
-			{"regptr_ver", "/dirs/d1/files/f2/versions/v2/xx", nil, `The attribute "regptr_ver" is not valid: must match "/dirs/files/versions" target, too long`},
-			{"regptr_ver", "/dirs/d1/files/f2/versions/v2?", nil, `The request cannot be processed as provided: ID value "v2?" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"regptr_ver", "/", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target.`},
+			{"regptr_ver", "/dirs/d1/files/f2", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2" is missing "versions".`},
+			{"regptr_ver", "/dirs/d1/files/f2/vvv", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/vvv" is missing "versions".`},
+			{"regptr_ver", "/dirs/d1/files/f2/versions", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/versions" is missing a "version" ID.`},
+			{"regptr_ver", "/dirs/d1/files/f2/versions/", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, "/dirs/d1/files/f2/versions/" is missing a "version" ID.`},
+			{"regptr_ver", "/dirs/d1/files/f2/versions/v2/", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, too long.`},
+			{"regptr_ver", "/dirs/d1/files/f2/versions/v2/xx", nil, `The attribute(s) "regptr_ver" for "/" is not valid: must match "/dirs/files/versions" target, too long.`},
+			{"regptr_ver", "/dirs/d1/files/f2/versions/v2?", nil, `The attribute(s) "regptr_ver" for "/" is not valid: the "version" ID is not valid: value "v2?" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 			{"regptr_ver", "/dirs/d1/files/f2/versions/v2", nil, ``},
 
-			{"regptr_res_ver", "/dirs/d1/files/", nil, `The attribute "regptr_res_ver" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/" is missing "fileid"`},
-			{"regptr_res_ver", "/dirs/d1/files//", nil, `The attribute "regptr_res_ver" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files//" is missing "fileid"`},
-			{"regptr_res_ver", "/dirs/d1/files/f2/", nil, `The attribute "regptr_res_ver" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/" is missing "versions"`},
-			{"regptr_res_ver", "/dirs/d1/files/f2/vers", nil, `The attribute "regptr_res_ver" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/vers" is missing "versions"`},
-			{"regptr_res_ver", "/dirs/d1/files/f2/vers/v1", nil, `The attribute "regptr_res_ver" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/vers/v1" is missing "versions"`},
-			{"regptr_res_ver", "/dirs/d1/files/f*/vers/v1", nil, `The request cannot be processed as provided: ID value "f*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"regptr_res_ver", "/dirs/d1/files/", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/" is missing "fileid".`},
+			{"regptr_res_ver", "/dirs/d1/files//", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files//" is missing "fileid".`},
+			{"regptr_res_ver", "/dirs/d1/files/f2/", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/" is missing "versions".`},
+			{"regptr_res_ver", "/dirs/d1/files/f2/vers", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/vers" is missing "versions".`},
+			{"regptr_res_ver", "/dirs/d1/files/f2/vers/v1", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/vers/v1" is missing "versions".`},
+			{"regptr_res_ver", "/dirs/d1/files/f*/vers/v1", nil, `The attribute(s) "regptr_res_ver" for "/" is not valid: the "file" ID is not valid: value "f*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 			{"regptr_res_ver", "/dirs/d1/files/f2", nil, ``},
 
-			{"regptr_res_ver2", "/dirs/d1/files/f2/versions", nil, `The attribute "regptr_res_ver2" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions" is missing a "versionid"`},
-			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/", nil, `The attribute "regptr_res_ver2" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions/" is missing a "versionid"`},
-			{"regptr_res_ver2", "/dirs/d1/files/f2/versions//v2", nil, `The attribute "regptr_res_ver2" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions//v2" is missing a "versionid"`},
-			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/v2/", nil, `The attribute "regptr_res_ver2" is not valid: must match "/dirs/files[/versions]" target, too long`},
-			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/v*", nil, `The request cannot be processed as provided: ID value "v*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"regptr_res_ver2", "/dirs/d1/files/f2/versions", nil, `The attribute(s) "regptr_res_ver2" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions" is missing a "version" ID.`},
+			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/", nil, `The attribute(s) "regptr_res_ver2" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions/" is missing a "version" ID.`},
+			{"regptr_res_ver2", "/dirs/d1/files/f2/versions//v2", nil, `The attribute(s) "regptr_res_ver2" for "/" is not valid: must match "/dirs/files[/versions]" target, "/dirs/d1/files/f2/versions//v2" is missing a "version" ID.`},
+			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/v2/", nil, `The attribute(s) "regptr_res_ver2" for "/" is not valid: must match "/dirs/files[/versions]" target, too long.`},
+			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/v*", nil, `The attribute(s) "regptr_res_ver2" for "/" is not valid: the "version" ID is not valid: value "v*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 			{"regptr_res_ver2", "/dirs/d1/files/f2/versions/v2", nil, ``},
 		}},
 		Test{dir, []Prop{
-			{"dirid", 66, nil, `The attribute "dirid" is not valid: must be a string`},
-			{"dirid", "*", nil, `The attribute "dirid" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"dirid", 66, nil, `The attribute(s) "dirid" for "/dirs/d1" is not valid: must be a string.`},
+			{"dirid", "*", nil, `The attribute(s) "dirid" for "/dirs/d1" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 
 			{"dirstring1", "str2", nil, ""},
 			{"dirstring2", "", nil, ""},
@@ -399,10 +451,10 @@ func TestBasicTypes(t *testing.T) {
 			{"dirobj", struct{}{}, map[string]any{}, ""},
 		}},
 		Test{file, []Prop{
-			{"fileid", 66, nil, `The attribute "fileid" is not valid: must be a string`},
-			{"fileid", "*", nil, `The attribute "fileid" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
-			{"versionid", 66, nil, `The attribute "versionid" is not valid: must be a string`},
-			{"versionid", "*", nil, `The attribute "versionid" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"fileid", 66, nil, `The attribute(s) "fileid" for "/dirs/d1/files/f1/versions/v1" is not valid: must be a string.`},
+			{"fileid", "*", nil, `The attribute(s) "fileid" for "/dirs/d1/files/f1/versions/v1" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
+			{"versionid", 66, nil, `The attribute(s) "versionid" for "/dirs/d1/files/f1/versions/v1" is not valid: must be a string.`},
+			{"versionid", "*", nil, `The attribute(s) "versionid" for "/dirs/d1/files/f1/versions/v1" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 
 			{"filestring1", "str3", nil, ""},
 			{"filestring2", "", nil, ""},
@@ -416,39 +468,64 @@ func TestBasicTypes(t *testing.T) {
 			{"filedec3", 346.0, nil, ""},
 			{"filedec4", 0.0, nil, ""},
 
-			{"xid1", "", nil, `The attribute "xid1" is not valid: value () isn't a valid xid, can't be an empty string`},
-			{"xid1", "//", nil, `The attribute "xid1" is not valid: value (//) isn't a valid xid, "//" has an empty part at position 1`},
-			{"xid1", "/dirs/d1/files/f1/versions/v1/xxx", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/versions/v1/xxx) isn't a valid xid, XID is too long`},
-			{"xid1", "/DIRS", nil, `The attribute "xid1" is not valid: value (/DIRS) references an unknown Group type "DIRS"`},
-			{"xid1", "/DIRS/d1", nil, `The attribute "xid1" is not valid: value (/DIRS/d1) references an unknown Group type "DIRS"`},
-			{"xid1", "/dirs/d1/FILES", nil, `The attribute "xid1" is not valid: value (/dirs/d1/FILES) references an unknown Resource type "FILES"`},
-			{"xid1", "/dirs/d1/FILES/f1", nil, `The attribute "xid1" is not valid: value (/dirs/d1/FILES/f1) references an unknown Resource type "FILES"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/VERSIONS) isn't a valid xid, references an unknown entity "VERSIONS"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/VERSIONS/v1) isn't a valid xid, references an unknown entity "VERSIONS"`},
-			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1/xxx", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/VERSIONS/v1/xxx) isn't a valid xid, references an unknown entity "VERSIONS"`},
-			{"xid1", "/dirs/d1/files/f1/META", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/META) isn't a valid xid, references an unknown entity "META"`},
-			{"xid1", "/dirs/d1/files/f1/META/xxx", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/META/xxx) isn't a valid xid, references an unknown entity "META"`},
-			{"xid1", "/dirs/d1/files/f1/meta/xxx", nil, `The attribute "xid1" is not valid: value (/dirs/d1/files/f1/meta/xxx) isn't a valid xid, XID is too long`},
+			{"xid1", "", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value () isn't a valid xid, can't be an empty string.`},
+			{"xid1", "//", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (//) isn't a valid xid, "//" has an empty part at position 1.`},
+			{"xid1", "/dirs/d1/files/f1/versions/v1/xxx", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/versions/v1/xxx) isn't a valid xid, XID is too long.`},
+			{"xid1", "/DIRS", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/DIRS) references an unknown Group type "DIRS".`},
+			{"xid1", "/DIRS/d1", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/DIRS/d1) references an unknown Group type "DIRS".`},
+			{"xid1", "/dirs/d1/FILES", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/FILES) references an unknown Resource type "FILES".`},
+			{"xid1", "/dirs/d1/FILES/f1", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/FILES/f1) references an unknown Resource type "FILES".`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/VERSIONS) isn't a valid xid, "/dirs/d1/files/f1/VERSIONS" has "VERSIONS" at position 5, needs to be either "versions" or "meta".`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/VERSIONS/v1) isn't a valid xid, "/dirs/d1/files/f1/VERSIONS/v1" has "VERSIONS" at position 5, needs to be either "versions" or "meta".`},
+			{"xid1", "/dirs/d1/files/f1/VERSIONS/v1/xxx", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/VERSIONS/v1/xxx) isn't a valid xid, "/dirs/d1/files/f1/VERSIONS/v1/xxx" has "VERSIONS" at position 5, needs to be either "versions" or "meta".`},
+			{"xid1", "/dirs/d1/files/f1/META", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/META) isn't a valid xid, "/dirs/d1/files/f1/META" has "META" at position 5, needs to be either "versions" or "meta".`},
+			{"xid1", "/dirs/d1/files/f1/META/xxx", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/META/xxx) isn't a valid xid, "/dirs/d1/files/f1/META/xxx" has "META" at position 5, needs to be either "versions" or "meta".`},
+			{"xid1", "/dirs/d1/files/f1/meta/xxx", nil,
+				`The attribute(s) "xid1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/d1/files/f1/meta/xxx) isn't a valid xid, XID is too long.`},
 			{"xid1", "/dirs/d1/files/f1/meta", nil, ""},
 			{"xid2", "/dirs/d1/files/f1/versions", nil, ""},
 			{"xid3", "/dirs/d1/files/f1/versions/v1", nil, ""},
 
-			{"xidtype1", "", nil, `The attribute "xidtype1" is not valid: value () isn't a valid xidtype, can't be an empty string`},
-			{"xidtype1", "//", nil, `The attribute "xidtype1" is not valid: value (//) isn't a valid xidtype, "//" has an empty part at position 1`},
-			{"xidtype1", "/dirs/files/versions/xxx", nil, `The attribute "xidtype1" is not valid: value (/dirs/files/versions/xxx) isn't a valid xidtype, XIDType is too long`},
-			{"xidtype1", "/DIRS", nil, `The attribute "xidtype1" is not valid: value (/DIRS) references an unknown Group type "DIRS"`},
-			{"xidtype1", "/DIRS/FILES", nil, `The attribute "xidtype1" is not valid: value (/DIRS/FILES) references an unknown Group type "DIRS"`},
-			{"xidtype1", "/dirs/FILES", nil, `The attribute "xidtype1" is not valid: value (/dirs/FILES) references an unknown Resource type "FILES"`},
-			{"xidtype1", "/dirs/files/xxx", nil, `The attribute "xidtype1" is not valid: value (/dirs/files/xxx) isn't a valid xidtype, references an unknown entity "xxx"`},
-			{"xidtype1", "/dirs/files/meta/xxx", nil, `The attribute "xidtype1" is not valid: value (/dirs/files/meta/xxx) isn't a valid xidtype, XIDType is too long`},
-			{"xidtype1", "/dirs/files/META", nil, `The attribute "xidtype1" is not valid: value (/dirs/files/META) isn't a valid xidtype, references an unknown entity "META"`},
-			{"xidtype1", "/dirs/files/VERSIONS", nil, `The attribute "xidtype1" is not valid: value (/dirs/files/VERSIONS) isn't a valid xidtype, references an unknown entity "VERSIONS"`},
+			{"xidtype1", "", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value () isn't a valid xidtype, can't be an empty string.`},
+			{"xidtype1", "//", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (//) isn't a valid xidtype, "//" has an empty part at position 1.`},
+			{"xidtype1", "/dirs/files/versions/xxx", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/files/versions/xxx) isn't a valid xidtype, XIDType is too long.`},
+			{"xidtype1", "/DIRS", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/DIRS) references an unknown Group type "DIRS".`},
+			{"xidtype1", "/DIRS/FILES", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/DIRS/FILES) references an unknown Group type "DIRS".`},
+			{"xidtype1", "/dirs/FILES", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/FILES) references an unknown Resource type "FILES".`},
+			{"xidtype1", "/dirs/files/xxx", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/files/xxx) isn't a valid xidtype, "/dirs/files/xxx" has "xxx" at position 3, needs to be either "versions" or "meta".`},
+			{"xidtype1", "/dirs/files/meta/xxx", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/files/meta/xxx) isn't a valid xidtype, XIDType is too long.`},
+			{"xidtype1", "/dirs/files/META", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/files/META) isn't a valid xidtype, "/dirs/files/META" has "META" at position 3, needs to be either "versions" or "meta".`},
+			{"xidtype1", "/dirs/files/VERSIONS", nil,
+				`The attribute(s) "xidtype1" for "/dirs/d1/files/f1/versions/v1" is not valid: value (/dirs/files/VERSIONS) isn't a valid xidtype, "/dirs/files/VERSIONS" has "VERSIONS" at position 3, needs to be either "versions" or "meta".`},
 			{"xidtype1", "/dirs/files/meta", nil, ``},
 			{"xidtype2", "/dirs/files/versions", nil, ``},
 		}},
 		Test{ver, []Prop{
-			{"versionid", 66, nil, `The attribute "versionid" is not valid: must be a string`},
-			{"versionid", "*", nil, `The attribute "versionid" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$`},
+			{"versionid", 66, nil,
+				`The attribute(s) "versionid" for "/dirs/d1/files/f1/versions/v1" is not valid: must be a string.`},
+			{"versionid", "*", nil,
+				`The attribute(s) "versionid" for "/dirs/d1/files/f1/versions/v1" is not valid: value "*" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\-~:@]{0,127}$.`},
 
 			{"filestring1", "str4", nil, ""},
 			{"filestring2", "", nil, ""},
@@ -482,11 +559,12 @@ func TestBasicTypes(t *testing.T) {
 				// t.Logf("xerr: %s", xErr)
 
 				// XEqual(t, "eType", xErr.Type,
-				// Type2Error["invalid_attribute"].Type)
+				// Type2Error["invalid_attributes"].Type)
 				// XEqual(t, "eSubject", xErr.Subject, "")
 				if !strings.HasSuffix(xErr.GetTitle(), prop.ErrMsg) {
 					t.Errorf("Exp: %s", prop.ErrMsg)
 					t.Errorf("Got: %s", xErr.GetTitle())
+					t.Errorf("Source: %s", xErr.Source)
 					t.FailNow()
 				}
 			}
@@ -524,7 +602,7 @@ func TestBasicTypes(t *testing.T) {
 
 	XCheckGet(t, reg, "?inline", `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestBasicTypes",
+  "registryid": "TestTypesBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 8,
@@ -721,8 +799,8 @@ func TestBasicTypes(t *testing.T) {
 `)
 }
 
-func TestWildcardBoolTypes(t *testing.T) {
-	reg := NewRegistry("TestWildcardBoolTypes")
+func TestTypesWildcardBool(t *testing.T) {
+	reg := NewRegistry("TestTypesWildcardBool")
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", BOOLEAN)
@@ -740,9 +818,14 @@ func TestWildcardBoolTypes(t *testing.T) {
 
 	err = reg.SetSave("bogus", "foo")
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"bogus\" for \"/\" is not valid: must be a boolean.",
   "subject": "/",
-  "title": "The attribute \"bogus\" is not valid: must be a boolean"
+  "args": {
+    "error_detail": "must be a boolean",
+    "list": "bogus"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2369"
 }`)
 
 	err = reg.SetSave("ext1", true)
@@ -757,8 +840,8 @@ func TestWildcardBoolTypes(t *testing.T) {
 	XCheck(t, reg.Get("ext1") == false, "get ext1-2: %v", val)
 }
 
-func TestWildcardAnyTypes(t *testing.T) {
-	reg := NewRegistry("TestWildcardAnyTypes")
+func TestTypesWildcardAny(t *testing.T) {
+	reg := NewRegistry("TestTypesWildcardAny")
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", ANY)
@@ -785,8 +868,8 @@ func TestWildcardAnyTypes(t *testing.T) {
 	XCheck(t, val == true, "get ext3: %v", val)
 }
 
-func TestWildcard2LayersTypes(t *testing.T) {
-	reg := NewRegistry("TestWildcardAnyTypes")
+func TestTypesWildcard2Layers(t *testing.T) {
+	reg := NewRegistry("TestTypesWildcardAny")
 	defer PassDeleteReg(t, reg)
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
@@ -815,9 +898,14 @@ func TestWildcard2LayersTypes(t *testing.T) {
 
 	err = reg.SetSave("obj.map.foo.k1.k2", 5)
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"obj.map.foo\" for \"/\" is not valid: must be an integer.",
   "subject": "/",
-  "title": "The attribute \"obj.map.foo\" is not valid: must be an integer"
+  "args": {
+    "error_detail": "must be an integer",
+    "list": "obj.map.foo"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2388"
 }`)
 	// reg.Refresh(registry.FOR_WRITE) // clear bad data
 
@@ -831,8 +919,8 @@ func TestWildcard2LayersTypes(t *testing.T) {
 
 }
 
-func TestNameCharSet(t *testing.T) {
-	reg := NewRegistry("TestNameCharSet")
+func TestTypesNameCharSet(t *testing.T) {
+	reg := NewRegistry("TestTypesNameCharSet")
 	defer PassDeleteReg(t, reg)
 
 	_, err := reg.Model.AddAttribute(&registry.Attribute{
@@ -846,9 +934,14 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "/",
-  "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"attr1-\" for \"/obj1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/obj1",
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "attr1-"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -863,9 +956,14 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "/",
-  "title": "The attribute \"attr1-\" is not valid: while processing \"model.obj1\", attribute name \"attr1-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"attr1-\" for \"/obj1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/obj1",
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "attr1-"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -889,9 +987,14 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "/",
-  "title": "The attribute \"another-\" is not valid: while processing \"model.obj1.attr1.ifvalues.a1\", attribute name \"another-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"another-\" for \"/obj1.attr1.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/obj1.attr1.ifvalues.a1",
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "another-"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -907,8 +1010,12 @@ func TestNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: while processing \"model.obj1\", map key name \"attr space\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"attr space\" in \"obj1\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "map key name \"attr space\" in \"obj1\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -925,9 +1032,14 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "/",
-  "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"bad-\" for \"/astring.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/astring.ifvalues.a1",
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "bad-"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47,registry:shared_model:2825"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -949,9 +1061,14 @@ func TestNameCharSet(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "/",
-  "title": "The attribute \"bad-\" is not valid: while processing \"model.astring.attr1.ifvalues.a1\", attribute name \"bad-\" must match: ^[a-z_][a-z_0-9]{0,62}$"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"bad-\" for \"/astring.attr1.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/astring.attr1.ifvalues.a1",
+  "args": {
+    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "list": "bad-"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:47,registry:shared_model:2825"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{

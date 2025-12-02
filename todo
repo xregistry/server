@@ -136,3 +136,6 @@ TODOs:
 - make model changes via API show up in modelsource
 - ban model changes that turn on hasDoc if Resources have RESOURCE* attribute
   extension names
+- support Link: <URL-TO-XREGISTRY-ROOT>;rel=xregistry-root http header
+- make sure ?defaultversionid only processed on write ops (bad_flag)
+- look for more bad_request error that we can specialize

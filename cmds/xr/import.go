@@ -66,33 +66,45 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if len(data) == 0 {
-		Error("Missing data")
+		Error("Missing 'data'")
 	}
 
 	obj := map[string]json.RawMessage{}
-	Error(json.Unmarshal([]byte(data), &obj))
+	if err := json.Unmarshal([]byte(data), &obj); err != nil {
+		Error(NewXRError("parsing_data", "", "error_detail="+err.Error()))
+	}
 
 	res, xErr := reg.HttpDo("POST", xid.String()+suffix, []byte(data))
 	Error(xErr)
 
 	obj = map[string]json.RawMessage{}
-	Error(json.Unmarshal(res.Body, &obj))
+	if err := json.Unmarshal(res.Body, &obj); err != nil {
+		Error(NewXRError("parsing_response", xid.String()+suffix,
+			"error_detail="+err.Error()))
+	}
 	subObj := (map[string]json.RawMessage)(nil)
 
 	switch xid.Type {
 	case ENTITY_REGISTRY:
 		for _, gType := range SortedKeys(obj) {
 			group := obj[gType]
-			Error(json.Unmarshal(group, &subObj),
-				"Error parsing response group collection %q: %s", gType, "err")
+			if err := json.Unmarshal(group, &subObj); err != nil {
+				Error(NewXRError("parsing_response", xid.String()+suffix,
+					"error_detail="+err.Error()).
+					SetDetailf("Error parsing response group collection %q",
+						gType))
+			}
 			Verbose("Imported: %d %s", len(subObj), gType)
 		}
 	case ENTITY_GROUP:
 		for _, rType := range SortedKeys(obj) {
 			resource := obj[rType]
-			Error(json.Unmarshal(resource, &subObj),
-				"Error parsing response resource collection %q: %s",
-				rType, "err")
+			if err := json.Unmarshal(resource, &subObj); err != nil {
+				Error(NewXRError("parsing_response", xid.String()+suffix,
+					"error_detail="+err.Error()).
+					SetDetailf("Error parsing response resource collection %q",
+						rType))
+			}
 			Verbose("Imported: %d %s", len(subObj), rType)
 		}
 	case ENTITY_RESOURCE:

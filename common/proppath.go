@@ -307,7 +307,8 @@ func PropPathFromUI(str string) (*PropPath, error) {
 						return nil,
 							fmt.Errorf("Unexpected end of property in %q", str)
 					} else {
-						return nil, fmt.Errorf("Unexpected %c in %q at pos %d",
+						return nil, fmt.Errorf("Unexpected \"%c\" in %q "+
+							"at pos %d",
 							ch, str, chIndex+1)
 					}
 				}

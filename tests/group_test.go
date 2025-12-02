@@ -60,28 +60,32 @@ func TestCreateGroup(t *testing.T) {
 `)
 	XCheckGet(t, reg, "/dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/xxx",
-  "title": "The specified entity cannot be found: /dirs/xxx"
+  "title": "The targeted entity (/dirs/xxx) cannot be found.",
+  "subject": "/dirs/xxx",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 	XCheckGet(t, reg, "dirs/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/xxx",
-  "title": "The specified entity cannot be found: /dirs/xxx"
+  "title": "The targeted entity (/dirs/xxx) cannot be found.",
+  "subject": "/dirs/xxx",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 	XCheckGet(t, reg, "/dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/xxx/yyy",
-  "title": "The specified entity cannot be found: /dirs/xxx/yyy",
-  "detail": "Unknown Resource type: yyy"
+  "title": "The targeted entity (/dirs/xxx/yyy) cannot be found.",
+  "detail": "Unknown Resource type: yyy.",
+  "subject": "/dirs/xxx/yyy",
+  "source": ":registry:info:595"
 }
 `)
 	XCheckGet(t, reg, "dirs/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/xxx/yyy",
-  "title": "The specified entity cannot be found: /dirs/xxx/yyy",
-  "detail": "Unknown Resource type: yyy"
+  "title": "The targeted entity (/dirs/xxx/yyy) cannot be found.",
+  "detail": "Unknown Resource type: yyy.",
+  "subject": "/dirs/xxx/yyy",
+  "source": ":registry:info:595"
 }
 `)
 
@@ -129,9 +133,13 @@ func TestGroupRequiredFields(t *testing.T) {
 
 	_, err = reg.AddGroup("dirs", "d1")
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
+  "title": "One or more mandatory attributes for \"/dirs/d1\" are missing: req.",
   "subject": "/dirs/d1",
-  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+  "args": {
+    "list": "req"
+  },
+  "source": ":registry:entity:2146"
 }`)
 	reg.Rollback()
 	reg.Refresh(registry.FOR_WRITE)
@@ -143,9 +151,13 @@ func TestGroupRequiredFields(t *testing.T) {
 
 	err = g1.SetSave("req", nil)
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
+  "title": "One or more mandatory attributes for \"/dirs/d1\" are missing: req.",
   "subject": "/dirs/d1",
-  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+  "args": {
+    "list": "req"
+  },
+  "source": ":registry:entity:2146"
 }`)
 
 	err = g1.SetSave("req", "again")

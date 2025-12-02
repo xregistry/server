@@ -1722,8 +1722,12 @@ func TestModelLabels(t *testing.T) {
       "labels":{"bad one": "1"}
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"bad one\" in \"labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "map key name \"bad one\" in \"labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65"
 }
 `)
 
@@ -1734,8 +1738,12 @@ func TestModelLabels(t *testing.T) {
           "labels":{"bad one": "1"}}}
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"bad one\" in \"groups.dirs.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "map key name \"bad one\" in \"groups.dirs.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:shared_model:2097"
 }
 `)
 
@@ -1749,8 +1757,12 @@ func TestModelLabels(t *testing.T) {
               "labels":{"bad one": "1"}}}}}
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: map key name \"bad one\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  "title": "There was an error in the model definition provided: map key name \"bad one\" in \"groups.dirs.resources.files.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "map key name \"bad one\" in \"groups.dirs.resources.files.labels\" must match: ^[a-z0-9][a-z0-9_.:\\-]{0,62}$"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:65,registry:shared_model:2402"
 }
 `)
 
@@ -1760,8 +1772,8 @@ func TestModelLabels(t *testing.T) {
 // Object w/o the code mucking with it. There are some spots in the code
 // where we'll do thinkg like skip certain attributes but we should only
 // do that at the top level of the entire, not within a nested object.
-func TestUseSpecAttrs(t *testing.T) {
-	reg := NewRegistry("TestUseSpecAttrs")
+func TestModelUseSpecAttrs(t *testing.T) {
+	reg := NewRegistry("TestModelUseSpecAttrs")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -1899,7 +1911,7 @@ func TestUseSpecAttrs(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestUseSpecAttrs",
+  "registryid": "TestModelUseSpecAttrs",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 1,
@@ -6376,8 +6388,11 @@ func TestModelIncludes(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: Error processing JSON: Not allowed to access file: ../foo.json"
+  "title": "There was an error in the model definition provided: error processing JSON: Not allowed to access file: ../foo.json.",
+  "args": {
+    "error_detail": "error processing JSON: Not allowed to access file: ../foo.json"
+  },
+  "source": "e4e59b8a76c4:common:utils:427"
 }
 `)
 
@@ -6401,8 +6416,11 @@ func TestModelIncludes(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: Error processing JSON: Not allowed to access file: /foo.json"
+  "title": "There was an error in the model definition provided: error processing JSON: Not allowed to access file: /foo.json.",
+  "args": {
+    "error_detail": "error processing JSON: Not allowed to access file: /foo.json"
+  },
+  "source": "e4e59b8a76c4:common:utils:427"
 }
 `)
 
@@ -6427,8 +6445,11 @@ func TestModelIncludes(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "http://localhost:8181/",
-  "title": "There was an error in the model definition provided: Error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host"
+  "title": "There was an error in the model definition provided: error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host.",
+  "args": {
+    "error_detail": "error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host"
+  },
+  "source": "e4e59b8a76c4:common:utils:427"
 }
 `)
 

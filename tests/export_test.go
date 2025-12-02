@@ -1275,18 +1275,26 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "subject": "http://localhost:8181/dirs/d1/files/fx/versions",
-  "title": "The specified flag (doc) is not allowed in this context",
-  "detail": "'doc' flag is not allowed on xref'd Versions"
+  "title": "The specified flag (doc) is not allowed in this context: /dirs/d1/files/fx/versions.",
+  "detail": "'doc' flag is not allowed on xref'd Versions.",
+  "subject": "/dirs/d1/files/fx/versions",
+  "args": {
+    "flag": "doc"
+  },
+  "source": ":registry:httpStuff:1759"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
-  "title": "The specified flag (doc) is not allowed in this context",
-  "detail": "'doc' flag is not allowed on xref'd Versions"
+  "title": "The specified flag (doc) is not allowed in this context: /dirs/d1/files/fx/versions/v1.",
+  "detail": "'doc' flag is not allowed on xref'd Versions.",
+  "subject": "/dirs/d1/files/fx/versions/v1",
+  "args": {
+    "flag": "doc"
+  },
+  "source": ":registry:httpStuff:1723"
 }
 `)
 
@@ -1483,8 +1491,9 @@ func TestExportBasic(t *testing.T) {
 	XEqual(t, "", fullBody, manualBody)
 	XEqual(t, "", fullBody, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 
@@ -1747,82 +1756,92 @@ func TestExportBasic(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1/foo",
-  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/v1/foo"
+  "title": "The targeted entity (/dirs/d1/files/f1/versions/v1/foo) cannot be found.",
+  "subject": "/dirs/d1/files/f1/versions/v1/foo",
+  "source": ":registry:info:678"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1/foo?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/fx/versions/v1/foo",
-  "title": "The specified entity cannot be found: /dirs/d1/files/fx/versions/v1/foo"
+  "title": "The targeted entity (/dirs/d1/files/fx/versions/v1/foo) cannot be found.",
+  "subject": "/dirs/d1/files/fx/versions/v1/foo",
+  "source": ":registry:info:678"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/vx",
-  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/vx"
+  "title": "The targeted entity (/dirs/d1/files/f1/versions/vx) cannot be found.",
+  "subject": "/dirs/d1/files/f1/versions/vx",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fz/versions?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/fz",
-  "title": "The specified entity cannot be found: /dirs/d1/files/fz"
+  "title": "The targeted entity (/dirs/d1/files/fz) cannot be found.",
+  "subject": "/dirs/d1/files/fz",
+  "source": ":registry:httpStuff:1746"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fz?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/fz",
-  "title": "The specified entity cannot be found: /dirs/d1/files/fz"
+  "title": "The targeted entity (/dirs/d1/files/fz) cannot be found.",
+  "subject": "/dirs/d1/files/fz",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/dx/files?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/dx",
-  "title": "The specified entity cannot be found: /dirs/dx"
+  "title": "The targeted entity (/dirs/dx) cannot be found.",
+  "subject": "/dirs/dx",
+  "source": ":registry:httpStuff:1746"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/filesx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/filesx",
-  "title": "The specified entity cannot be found: /dirs/d1/filesx",
-  "detail": "Unknown Resource type: filesx"
+  "title": "The targeted entity (/dirs/d1/filesx) cannot be found.",
+  "detail": "Unknown Resource type: filesx.",
+  "subject": "/dirs/d1/filesx",
+  "source": ":registry:info:595"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/dx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/dx",
-  "title": "The specified entity cannot be found: /dirs/dx"
+  "title": "The targeted entity (/dirs/dx) cannot be found.",
+  "subject": "/dirs/dx",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirsx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirsx",
-  "title": "The specified entity cannot be found: /dirsx",
-  "detail": "Unknown Group type: dirsx"
+  "title": "The targeted entity (/dirsx) cannot be found.",
+  "detail": "Unknown Group type: dirsx.",
+  "subject": "/dirsx",
+  "source": ":registry:info:562"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/dx/files/fz/versions/vx?doc", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/dx/files/fz/versions/vx",
-  "title": "The specified entity cannot be found: /dirs/dx/files/fz/versions/vx"
+  "title": "The targeted entity (/dirs/dx/files/fz/versions/vx) cannot be found.",
+  "subject": "/dirs/dx/files/fz/versions/vx",
+  "source": ":registry:httpStuff:1730"
 }
 `)
 

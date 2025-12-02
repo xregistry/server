@@ -154,9 +154,8 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 		arr[i] = s
 		if s == "*" {
 			if len(arr) != 1 {
-				return nil, NewXRError("capability_error", "/capabilities",
-					fmt.Sprintf(`"*" must be the only value `+
-						`specified for %q`, text))
+				return nil, NewXRError("capability_wildcard", "/capabilities",
+					"field="+text)
 			}
 			return full, nil
 		}
@@ -176,8 +175,10 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 		if as == fs {
 			ai--
 		} else if as > fs {
-			return nil, NewXRError("capability_error", "/capabilities",
-				fmt.Sprintf(`unknown %q value: %q`, text, as))
+			return nil, NewXRError("capability_value", "/capabilities",
+				"value="+as,
+				"field="+text,
+				"list="+strings.Join(full, ","))
 		}
 		fi--
 	}
@@ -185,7 +186,8 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 		return arr, nil
 	}
 	return nil, NewXRError("capability_error", "/capabilities",
-		fmt.Sprintf(`unknown %q value: %q`, text, arr[ai]))
+		"error_detail="+
+			fmt.Sprintf(`unknown %q value: %q`, text, arr[ai]))
 }
 
 func (c *Capabilities) Validate() *XRError {
@@ -211,8 +213,10 @@ func (c *Capabilities) Validate() *XRError {
 	}
 
 	if c.Pagination != false {
-		return NewXRError("capability_error", "/capabilities",
-			`"pagination" must be "false"`)
+		return NewXRError("capability_value", "/capabilities",
+			"value=true",
+			"field=pagination",
+			"list=false")
 	}
 
 	c.SpecVersions, xErr = CleanArray(c.SpecVersions, AllowableSpecVersions,
@@ -222,13 +226,15 @@ func (c *Capabilities) Validate() *XRError {
 	}
 
 	if c.ShortSelf != false {
-		return NewXRError("capability_error", "/capabilities",
-			`"shortself" must be "false"`)
+		return NewXRError("capability_value", "/capabilities",
+			"value=true",
+			"field=shortself",
+			"list=false")
 	}
 
 	if !ArrayContainsAnyCase(c.SpecVersions, SPECVERSION) {
-		return NewXRError("capability_error", "/capabilities",
-			fmt.Sprintf(`"specversions" must contain %q`, SPECVERSION))
+		return NewXRError("capability_missing_specversion", "/capabilities",
+			"value="+SPECVERSION)
 	}
 
 	if c.StickyVersions == nil {
@@ -245,11 +251,12 @@ func ParseCapabilitiesJSON(buf []byte) (*Capabilities, *XRError) {
 	err := Unmarshal(buf, &cap)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown field ") {
-			return nil, NewXRError("capability_error", "/capabilities",
-				fmt.Sprintf("unknown capability: %s", err.Error()[14:]))
+			field, _, _ := strings.Cut(err.Error()[15:], "\"")
+			return nil, NewXRError("capability_unknown", "/capabilities",
+				"field="+field)
 		}
 		return nil, NewXRError("capability_error", "/capabilities",
-			fmt.Sprintf("error parsing data: %s", err))
+			"error_detail="+fmt.Sprintf("error parsing data: %s", err))
 	}
 	return &cap, nil
 }

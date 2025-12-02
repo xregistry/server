@@ -72,7 +72,9 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
-		return NewXRError("bad_request", info.GetParts(0), err.Error())
+		return NewXRError("bad_inline", info.GetParts(0),
+			"inline_value="+path,
+			"error_detail="+err.Error())
 	}
 
 	storeInline := &Inline{
@@ -141,8 +143,7 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 		path = path[len(info.Abstract)+1:]
 	}
 
-	return NewXRError("bad_request", info.GetParts(0),
-		fmt.Sprintf("invalid 'inline' value: %s", path))
+	return NewXRError("inline_noninlineable", info.GetParts(0), "name="+path)
 }
 
 func (info *RequestInfo) IsInlineSet(entityPath string) bool {
@@ -301,17 +302,21 @@ func (info *RequestInfo) ParseFilters() *XRError {
 
 			pp, err := PropPathFromUI(path)
 			if err != nil {
-				return NewXRError("bad_request", info.GetParts(0),
-					err.Error())
+				return NewXRError("bad_filter", info.GetParts(0),
+					"filter_name="+path,
+					"error_detail="+err.Error())
 			}
 			path = pp.DB()
 
 			/*
-					if info.What != "Coll" && strings.Index(path, "/") < 0 {
-						return NewXRError("bad_request", info.GetParts(0),
-				        fmt.Sprintf("A filter with just an attribute name (%s) "+
-						"isn't allowed in this context", path))
-					}
+				if info.What != "Coll" && strings.Index(path, "/") < 0 {
+				return NewXRError("bad_filter", info.GetParts(0),
+				"filter_name=" + path,
+				"error_detail=" +
+				fmt.Sprintf("a filter with just an attribute " +
+				"name (%s) isn't allowed in this context",
+				path)
+				}
 			*/
 
 			if info.Abstract != "" {
@@ -390,8 +395,8 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 				SetDetail(xErr.GetTitle())
 		}
 		if reg == nil {
-			return NewXRError("bad_request", "/",
-				fmt.Sprintf("can't find registry %q", name))
+			return NewXRError("not_found", name).
+				SetDetailf("Can't find registry %q", name)
 		}
 		info.Registry = reg
 		info.tx.Registry = reg
@@ -444,12 +449,16 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 						absPP, err := PropPathFromPath(info.Abstract)
 						if err != nil {
 							return NewXRError("bad_request", info.GetParts(0),
-								err.Error())
+								"error_detail="+
+									fmt.Sprintf("Error processing path "+
+										"(%s): %s",
+										info.Abstract, err.Error()))
 						}
 						pPP, err := PropPathFromUI(p)
 						if err != nil {
-							return NewXRError("bad_request", info.GetParts(0),
-								err.Error())
+							return NewXRError("bad_inline", info.GetParts(0),
+								"inline_value="+p,
+								"error_detail="+err.Error())
 						}
 						p = absPP.Append(pPP).UI()
 					}
@@ -465,9 +474,10 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 	if info.HasFlag("collections") {
 		if !(info.GroupType == "" ||
 			(info.GroupUID != "" && info.ResourceType == "")) {
-			return NewXRError("bad_flag", info.OriginalPath,
-				"collections").SetDetail("?collections is only allow on the " +
-				"Registry or Group instance level")
+			return NewXRError("bad_flag", "/"+info.OriginalPath,
+				"flag=collections").
+				SetDetail("?collections is only allow on the " +
+					"Registry or Group instance level.")
 		}
 		// Force inline=* to be on
 		info.AddInline("*")
@@ -475,25 +485,30 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 
 	if info.HasFlag("sort") {
 		if info.What != "Coll" {
-			return NewXRError("bad_request", info.GetParts(0),
-				"can't sort on a non-collection results")
+			return NewXRError("sort_noncollection", info.GetParts(0))
 		}
 
 		sortStr := info.GetFlag("sort")
 		name, ascDesc, _ := strings.Cut(sortStr, "=")
 		if name == "" {
-			return NewXRError("bad_request", info.GetParts(0),
-				"Missing ?sort attribute name")
+			return NewXRError("bad_sort", info.GetParts(0),
+				"sort_value="+sortStr,
+				"error_detail=missing \"sort\" attribute name")
 		}
 		if ascDesc != "" && ascDesc != "asc" && ascDesc != "desc" {
-			return NewXRError("bad_request", info.GetParts(0),
-				fmt.Sprintf("Invalid ?sort order %q", ascDesc))
+			return NewXRError("bad_sort", info.GetParts(0),
+				"sort_value="+sortStr,
+				"error_detail="+
+					fmt.Sprintf("invalid \"sort\" order %q", ascDesc))
 		}
 		// info.SortKey = name
 		pp, err := PropPathFromUI(name)
 		if err != nil {
-			return NewXRError("bad_request", info.GetParts(0),
-				err.Error())
+			return NewXRError("bad_sort", info.GetParts(0),
+				"sort_value="+sortStr,
+				"error_detail="+
+					fmt.Sprintf("bad attribute name(%s): %s",
+						name, err.Error()))
 		}
 		info.SortKey = pp.DB()
 		if ascDesc == "desc" {
@@ -530,8 +545,7 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	// /GROUPs
 	if strings.HasSuffix(info.Parts[0], "$details") {
-		return NewXRError("bad_request", "/"+info.Parts[0],
-			"$details isn't allowed in this context")
+		return NewXRError("bad_details", "/"+info.Parts[0])
 	}
 
 	gModel := (*GroupModel)(nil)
@@ -541,13 +555,18 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 	if gModel == nil &&
 		(!ArrayContains(rootPaths, info.Parts[0]) || len(info.Parts) > 1) {
 
-		return NewXRError("not_found", info.GetParts(1), info.GetParts(1)).
-			SetDetailf("Unknown Group type: %s", info.Parts[0])
+		return NewXRError("not_found", info.GetParts(1)).
+			SetDetailf("Unknown Group type: %s.", info.Parts[0])
 	}
 	info.GroupModel = gModel
 	info.GroupType = info.Parts[0]
 	info.Root += info.Parts[0]
 	info.Abstract += info.Parts[0]
+
+	if info.GroupType == "" {
+		return NewXRError("bad_request", info.GetParts(1),
+			"error_detail=Group type in URL cannot be an empty string")
+	}
 
 	if len(info.Parts) == 1 {
 		info.What = "Coll"
@@ -556,13 +575,18 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	// /GROUPs/gID
 	if strings.HasSuffix(info.Parts[1], "$details") {
-		return NewXRError("bad_request",
-			"/"+strings.Join(info.Parts[:2], "/"),
-			"$details isn't allowed in this context")
+		return NewXRError("bad_details", info.GetParts(2))
 	}
 
 	info.GroupUID = info.Parts[1]
 	info.Root += "/" + info.Parts[1]
+
+	if info.GroupUID == "" {
+		return NewXRError("bad_request", info.GetParts(2),
+			"error_detail="+
+				fmt.Sprintf("\"%sid\" value in URL cannot be an empty string",
+					info.GroupModel.Singular))
+	}
 
 	if len(info.Parts) == 2 {
 		info.What = "Entity"
@@ -571,15 +595,18 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	// /GROUPs/gID/RESOURCEs
 	if strings.HasSuffix(info.Parts[2], "$details") {
-		return NewXRError("bad_request",
-			"/"+strings.Join(info.Parts[:3], "/"),
-			"$details isn't allowed in this context")
+		return NewXRError("bad_details", info.GetParts(3))
+	}
+
+	if info.Parts[2] == "" {
+		return NewXRError("bad_request", info.GetParts(3),
+			"error_detail=Resource type in URL cannot be an empty string")
 	}
 
 	rModel := gModel.FindResourceModel(info.Parts[2])
 	if rModel == nil {
-		return NewXRError("not_found", info.GetParts(3), info.GetParts(3)).
-			SetDetailf("Unknown Resource type: %s", info.Parts[2])
+		return NewXRError("not_found", info.GetParts(3)).
+			SetDetailf("Unknown Resource type: %s.", info.Parts[2])
 	}
 	info.ResourceModel = rModel
 	info.ResourceType = info.Parts[2]
@@ -597,6 +624,13 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	info.Root += "/" + info.ResourceUID
 
+	if info.ResourceUID == "" {
+		return NewXRError("bad_request", info.GetParts(4),
+			"error_detail="+
+				fmt.Sprintf("\"%sid\" value in URL cannot be an empty string",
+					info.ResourceModel.Singular))
+	}
+
 	// GROUPs/gID/RESOURCEs/rID
 	if len(info.Parts) == 4 {
 		info.Parts[3] = info.ResourceUID
@@ -606,19 +640,15 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	// GROUPs/gID/RESOURCEs/rID/???
 	if info.ShowDetails {
-		return NewXRError("bad_request",
-			"/"+strings.Join(info.Parts[:4], "/"),
-			"$details isn't allowed in this context")
+		return NewXRError("bad_details", info.GetParts(4))
 	}
 
 	if strings.HasSuffix(info.Parts[4], "$details") {
-		return NewXRError("bad_request",
-			"/"+strings.Join(info.Parts[:5], "/"),
-			"$details isn't allowed in this context")
+		return NewXRError("bad_details", info.GetParts(5))
 	}
 
 	if info.Parts[4] != "versions" && info.Parts[4] != "meta" {
-		return NewXRError("not_found", info.GetParts(5), info.GetParts(5)).
+		return NewXRError("not_found", info.GetParts(5)).
 			SetDetailf("Expected \"versions\" or \"meta\", got: %s",
 				info.Parts[4])
 	}
@@ -628,8 +658,7 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 		if info.Parts[4] == "meta" {
 			if len(info.Parts) > 5 {
 				// GROUPs/gID/RESOURCEs/rID/meta/???
-				return NewXRError("not_found", info.GetParts(0),
-					info.GetParts(0))
+				return NewXRError("not_found", info.GetParts(0))
 			}
 
 			// GROUPs/gID/RESOURCEs/rID/meta
@@ -655,18 +684,19 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	info.Root += "/" + info.VersionUID
 
-	if len(info.Parts) == 6 {
-		if info.VersionUID == "" {
-			return NewXRError("bad_request", path,
-				"Version id in URL can't be blank")
-		}
+	if info.VersionUID == "" {
+		return NewXRError("bad_request", info.GetParts(6),
+			"error_detail="+
+				fmt.Sprintf("\"versionid\" value in URL cannot be an empty string"))
+	}
 
+	if len(info.Parts) == 6 {
 		info.Parts[5] = info.VersionUID
 		info.What = "Entity"
 		return nil
 	}
 
-	return NewXRError("not_found", info.GetParts(0), info.GetParts(0))
+	return NewXRError("not_found", info.GetParts(0))
 }
 
 // Get query parameter value

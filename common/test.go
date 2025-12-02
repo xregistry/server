@@ -9,19 +9,23 @@ import (
 	"testing"
 )
 
+// Flags
 var NOMASK_TS = "NoMaskTS"
 var MASK_SERVER = "MaskServer"
+var NOMASK_INSTANCE = "NoMaskInstance"
 
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
 var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
 var REG_DBHOST = `DB server: .*`
+var REG_INSTANCE = `"source": "[^"]*"`
 
 var SavedREs = map[string]*regexp.Regexp{
-	REG_RFC3339: regexp.MustCompile(REG_RFC3339),
-	REG_TSSLASH: regexp.MustCompile(REG_TSSLASH),
-	REG_COMMIT:  regexp.MustCompile(REG_COMMIT),
-	REG_DBHOST:  regexp.MustCompile(REG_DBHOST),
+	REG_RFC3339:  regexp.MustCompile(REG_RFC3339),
+	REG_TSSLASH:  regexp.MustCompile(REG_TSSLASH),
+	REG_COMMIT:   regexp.MustCompile(REG_COMMIT),
+	REG_DBHOST:   regexp.MustCompile(REG_DBHOST),
+	REG_INSTANCE: regexp.MustCompile(REG_INSTANCE),
 }
 
 // Mask timestamps, but if (for the same input) the same TS is used, make sure
@@ -49,6 +53,8 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	exp := fmt.Sprintf("%v", expAny)
 	got := fmt.Sprintf("%v", gotAny)
 
+	orig := "\nOrigGot: " + got + "\n"
+
 	if exp == "*" {
 		return
 	}
@@ -75,6 +81,11 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		exp = SavedREs[REG_DBHOST].ReplaceAllString(exp, "DB server: host:port")
 	}
 
+	if !flagsMap[NOMASK_INSTANCE] {
+		got = SavedREs[REG_INSTANCE].ReplaceAllString(got, `"source": "xxx"`)
+		exp = SavedREs[REG_INSTANCE].ReplaceAllString(exp, `"source": "xxx"`)
+	}
+
 	for pos < len(got) && pos < len(exp) && got[pos] == exp[pos] {
 		pos++
 	}
@@ -83,7 +94,7 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	}
 
 	if pos == len(got) {
-		t.Fatalf(extra+
+		t.Fatalf(extra+orig+
 			"\nExpected:\n"+exp+
 			"\nGot:\n"+got+
 			"\nGot ended early at(%d)[%02X]:\n%q",
@@ -91,7 +102,7 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	}
 
 	if pos == len(exp) {
-		t.Fatalf(extra+
+		t.Fatalf(extra+orig+
 			"\nExpected:\n"+exp+
 			"\nGot:\n"+got+
 			"\nExp ended early at(%d)[%02X]:\n"+got[pos:],
@@ -103,7 +114,7 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		expMax = len(exp)
 	}
 
-	t.Fatalf(extra+
+	t.Fatalf(extra+orig+
 		"\nExpected:\n"+exp+
 		"\nGot:\n"+got+
 		"\nDiff at(%d)[x%0x/x%0x]:"+
@@ -202,3 +213,30 @@ func XJSONCheck(t *testing.T, gotObj any, expObj any) {
 	exp := ToJSON(expObj)
 	XEqual(t, "", got, exp)
 }
+
+/*
+func XErrDiff(t *testing.T, gotErrAny any, expErrAny any) {
+	var gotErr *XRError
+	var expErr *XRError
+
+	if str, ok := gotErrAny.(string); ok {
+		if err := json.Unmarshal([]byte(str), &gotErr); err != nil {
+			panic("Should be a json err: " + str + ":" + err.Error())
+		}
+	} else if gotErr, ok = gotErrAny.(*XRError); !ok {
+		panic("Unknown gotErrAny:" + fmt.Sprintf("%v", gotErrAny))
+	}
+
+	if str, ok := expErrAny.(string); ok {
+		if err := json.Unmarshal([]byte(str), &expErr); err != nil {
+			panic("Should be a json err: " + str + ":" + err.Error())
+		}
+	} else if gotErr, ok = gotErrAny.(*XRError); !ok {
+		panic("Unknown expErrAny:" + fmt.Sprintf("%v", expErrAny))
+	}
+
+	XEqual(t, "Err.Type", gotErr.Type, expErr.Type)
+	XEqual(t, "Err.Title", gotErr.Title, expErr.Title)
+    ...
+}
+*/

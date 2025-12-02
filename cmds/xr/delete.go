@@ -62,7 +62,9 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 			data = string(buf)
 		}
 
-		Error(json.Unmarshal([]byte(data), &objects))
+		if err := json.Unmarshal([]byte(data), &objects); err != nil {
+			Error(NewXRError("parsing_data", "error_detail="+err.Error()))
+		}
 	} else {
 		for _, arg := range args {
 			objects[arg] = nil
@@ -71,10 +73,8 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 
 	if !force {
 		for id, _ := range objects {
-			if _, xErr := reg.HttpDo("GET", id, nil); xErr != nil {
-				Error(NewXRError("not_found", id, id).
-					SetDetailf("%q does not exist", id))
-			}
+			_, xErr := reg.HttpDo("GET", id, nil)
+			Error(xErr)
 		}
 	}
 

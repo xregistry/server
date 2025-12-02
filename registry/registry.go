@@ -113,7 +113,8 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	}
 	if r != nil {
 		return nil, NewXRError("bad_request", "/",
-			fmt.Sprintf("a registry with ID %q already exists", id))
+			"error_detail="+
+				fmt.Sprintf("A registry with ID %q already exists", id))
 	}
 
 	dbSID := NewUUID()
@@ -135,6 +136,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 
 			Type:     ENTITY_REGISTRY,
 			Path:     "",
+			XID:      "/",
 			Abstract: "",
 		},
 	}
@@ -395,17 +397,19 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 			res.Body.Close()
 
 			if res.StatusCode/100 != 2 {
-				return NewXRError("bad_request", "/",
-					fmt.Sprintf("Error getting model from %q: %s\n%s",
-						file, res.Status, string(buf)))
+				return NewXRError("parsing_data", file,
+					"error_detail="+
+						fmt.Sprintf("error getting model from %q: %s\n%s",
+							file, res.Status, string(buf)))
 			}
 		}
 	} else {
 		buf, err = os.ReadFile(file)
 	}
 	if err != nil {
-		return NewXRError("bad_request", "/",
-			fmt.Sprintf("processing %q: %s", file, err))
+		return NewXRError("parsing_data", file,
+			"error_detail="+
+				fmt.Sprintf("processing %q: %s", file, err))
 	}
 
 	buf, xErr = ProcessIncludes(file, buf, true)
@@ -415,8 +419,9 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 
 	model, xErr := ParseModel(buf)
 	if xErr != nil {
-		return NewXRError("bad_request", "/",
-			fmt.Sprintf("processing %q: %s", file, err))
+		return NewXRError("parsing_data", file,
+			"error_detail="+
+				fmt.Sprintf("processing %q: %s", file, err))
 	}
 
 	model.Registry = reg
@@ -434,7 +439,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
-	if xErr := CheckAttrs(obj); xErr != nil {
+	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
 	}
 
@@ -460,7 +465,8 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 			rawJson = val.(json.RawMessage)
 			rawJson, err = RemoveSchema(rawJson)
 			if err != nil {
-				return NewXRError("bad_request", "/", err.Error())
+				return NewXRError("bad_request", "/",
+					"error_detail="+err.Error())
 			}
 		}
 
@@ -490,16 +496,19 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		}
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
-			return NewXRError("invalid_attribute", "/", plural,
-				fmt.Sprintf("doesn't appear to be of a "+
+			return NewXRError("invalid_attributes", "/",
+				"list="+plural,
+				"error_detail="+fmt.Sprintf("doesn't appear to be of a "+
 					"map of %q", plural))
 		}
 		for key, val := range collMap {
 			_, ok := val.(map[string]any)
 			if !ok {
-				return NewXRError("invalid_attribute", "/", plural,
-					fmt.Sprintf("key %q doesn't appear to be of type %q",
-						key, singular))
+				return NewXRError("invalid_attributes", "/",
+					"list="+plural,
+					"error_detail="+
+						fmt.Sprintf("key %q doesn't appear to be of type %q",
+							key, singular))
 			}
 		}
 
@@ -593,13 +602,13 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		return nil, false, xErr
 	}
 
-	if xErr := CheckAttrs(obj); xErr != nil {
+	if xErr := CheckAttrs(obj, "/"+gType+"/"+id); xErr != nil {
 		return nil, false, xErr
 	}
 
 	gm := reg.Model.Groups[gType]
 	if gm == nil {
-		return nil, false, NewXRError("not_found", "/"+gType, "/"+gType)
+		return nil, false, NewXRError("not_found", "/"+gType)
 	}
 
 	if id == "" {
@@ -616,16 +625,18 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	if g != nil && g.UID != id {
 		return nil, false,
 			NewXRError("bad_request", "/"+g.UID,
-				fmt.Sprintf("attempting to create a Group "+
-					"with a \"%sid\" of %q, when one already exists as %q",
-					gm.Singular, id, g.UID))
+				"error_detail="+
+					fmt.Sprintf("Attempting to create a Group "+
+						"with a \"%sid\" of %q, when one already exists as %q",
+						gm.Singular, id, g.UID))
 	}
 
 	if addType == ADD_ADD && g != nil {
 		return nil, false,
 			NewXRError("bad_request", "/"+id,
-				fmt.Sprintf("Group %q of type %q already exists",
-					id, gType))
+				"error_detail="+
+					fmt.Sprintf("Group %q of type %q already exists",
+						id, gType))
 	}
 
 	for g == nil {
@@ -645,6 +656,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 				Type:     ENTITY_GROUP,
 				Path:     gType + "/" + id,
+				XID:      "/" + gType + "/" + id,
 				Abstract: gType,
 
 				GroupModel: gm,
@@ -687,18 +699,21 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
 			return nil, false,
-				NewXRError("invalid_attribute", "/"+gType+"/"+id, plural,
-					fmt.Sprintf("doesn't appear to be of a "+
-						"map of %q", plural))
+				NewXRError("invalid_attributes", "/"+gType+"/"+id,
+					"list="+plural,
+					"error_detail="+
+						fmt.Sprintf("doesn't appear to be of a "+
+							"map of %q", plural))
 		}
 		for key, val := range collMap {
 			_, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attribute", "/"+plural,
-						plural,
-						fmt.Sprintf("Key %q doesn't appear to be of type %q",
-							key, singular))
+					NewXRError("invalid_attributes", "/"+plural,
+						"list="+plural,
+						"error_detail="+
+							fmt.Sprintf("Key %q doesn't appear to be of "+
+								"type %q", key, singular))
 			}
 		}
 
@@ -757,8 +772,9 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	args := []any{}
 
 	if sortKey != "" && what != "Coll" {
-		return "", nil, NewXRError("bad_request", "/",
-			"can't sort on a non-collection results")
+		return "", nil, NewXRError("bad_sort", "",
+			"sort_value="+sortKey,
+			"error_detail=can't sort on a non-collection results")
 	}
 
 	ascDesc := "ASC"
@@ -1034,7 +1050,9 @@ func WildcardIt(str string) (string, bool) {
 func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 
 	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
@@ -1042,17 +1060,18 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 		return nil, xErr
 	}
 	if g == nil {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("Cant find Group %q from xid %q", xid.Group,
-				xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+fmt.Sprintf("cant find Group %q", xid.Group))
 	}
 	if xid.Type == ENTITY_GROUP {
 		return &g.Entity, nil
 	}
 
 	if xid.IsEntity == false || xid.Type == ENTITY_META {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("%q isn't an xid", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+fmt.Sprintf("%q isn't an xid", xidStr))
 	}
 
 	res, xErr := g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
@@ -1061,9 +1080,9 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 	}
 
 	if res == nil {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("can't find Resource %q from xid %q",
-				xid.Resource, xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+fmt.Sprintf("unknown Resource %q", xid.Resource))
 	}
 	if xid.Type == ENTITY_RESOURCE {
 		return &res.Entity, nil
@@ -1074,26 +1093,30 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 		return nil, xErr
 	}
 	if v == nil {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("can't find Version %q from xid %q",
-				xid.VersionID, xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+fmt.Sprintf("unknown Version %q", xid.VersionID))
 	}
 	if xid.Type == ENTITY_VERSION {
 		return &v.Entity, nil
 	}
 
-	return nil, NewXRError("bad_request", path,
-		fmt.Sprintf("xid %q isn't valid", xidStr))
+	return nil, NewXRError("malformed_xid", path,
+		"xid="+xidStr,
+		"error_detail=not a valid XID")
 }
 
 func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"groupid\"")
 	}
 
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
@@ -1102,15 +1125,19 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"groupid\"")
 	}
 	if xid.ResourceID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"resourceid\"")
 	}
 	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if xErr != nil || g == nil {
@@ -1122,23 +1149,29 @@ func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XR
 func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"groupid\"")
 	}
 	if xid.ResourceID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"resourceid\"")
 	}
 	if xid.VersionID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"versionid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"versionid\"")
 	}
 	if xid.Version != "versions" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is \"versions\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=not a \"versions\" XID")
 	}
 	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if xErr != nil || g == nil {
@@ -1155,19 +1188,24 @@ func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRErro
 func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail="+err.Error())
 	}
 	if xid.GroupID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"groupid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"groupid\"")
 	}
 	if xid.ResourceID == "" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is missing a \"resourceid\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=missing a \"resourceid\"")
 	}
 	if xid.Version != "meta" {
-		return nil, NewXRError("bad_request", path,
-			fmt.Sprintf("XID %q is \"meta\"", xidStr))
+		return nil, NewXRError("malformed_xid", path,
+			"xid="+xidStr,
+			"error_detail=not a \"meta\" XID")
 	}
 	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 	if !IsNil(err) || g == nil {
@@ -1187,8 +1225,9 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	// Download model
 	data, err := DownloadURL(host + "/model")
 	if err != nil {
-		return nil, NewXRError("bad_request", "/",
-			fmt.Sprintf("Error getting model (%s/model): %s", host, err))
+		return nil, NewXRError("bad_request", host+"/model",
+			"error_detail="+
+				fmt.Sprintf("Error getting model (%s/model): %s", host, err))
 	}
 
 	var xErr *XRError
@@ -1207,9 +1246,10 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 			return nil, xErr
 		}
 	} else {
-		return nil, NewXRError("bad_request", "/",
-			fmt.Sprintf("Error getting capabilities "+
-				"(%s/capabilities): %s", host, err))
+		return nil, NewXRError("bad_request", host+"/capabilities",
+			"error_detail="+
+				fmt.Sprintf("Error getting capabilities "+
+					"(%s/capabilities): %s", host, err))
 	}
 
 	return reg, nil

@@ -214,9 +214,10 @@ func (m *Model) ApplyNewModel(newM *Model, src string) *XRError {
 		// Note: gm.Plural might be ""
 		if oldGM := m.FindGroupModel(gmPlural); oldGM != nil {
 			if oldGM.Singular != gm.Singular {
-				return NewXRError("model_error", "/",
-					fmt.Sprintf("changing the singular name of Group %q "+
-						"is not allowed", gmPlural))
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("changing the singular name of Group %q "+
+							"is not allowed", gmPlural))
 			}
 			gm.SID = oldGM.SID
 
@@ -224,9 +225,10 @@ func (m *Model) ApplyNewModel(newM *Model, src string) *XRError {
 				// Note: rm.Plural might be ""
 				if oldRM := oldGM.FindResourceModel(rmPlural); oldRM != nil {
 					if oldRM.Singular != rm.Singular {
-						return NewXRError("model_error", "/",
-							fmt.Sprintf("changing the singular name of "+
-								"Resource %q is not allowed", rmPlural))
+						return NewXRError("model_error", "/model",
+							"error_detail="+
+								fmt.Sprintf("changing the singular name of "+
+									"Resource %q is not allowed", rmPlural))
 					}
 					rm.SID = oldRM.SID
 				}
@@ -326,7 +328,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 func (m *Model) SerializeForUser() ([]byte, *XRError) {
 	buf, err := json.MarshalIndent((*UserModel)(m), "", "  ")
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
 	}
 	return buf, nil
 }

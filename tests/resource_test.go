@@ -7,8 +7,8 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestCreateResource(t *testing.T) {
-	reg := NewRegistry("TestCreateResource")
+func TestResourceCreate(t *testing.T) {
+	reg := NewRegistry("TestResourceCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -65,28 +65,32 @@ func TestCreateResource(t *testing.T) {
 `)
 	XCheckGet(t, reg, "/dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/xxx",
-  "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
+  "title": "The targeted entity (/dirs/d1/files/xxx) cannot be found.",
+  "subject": "/dirs/d1/files/xxx",
+  "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
 	XCheckGet(t, reg, "dirs/d1/files/xxx", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/xxx",
-  "title": "The specified entity cannot be found: /dirs/d1/files/xxx"
+  "title": "The targeted entity (/dirs/d1/files/xxx) cannot be found.",
+  "subject": "/dirs/d1/files/xxx",
+  "source": "e4e59b8a76c4:registry:httpStuff:1395"
 }
 `)
 	XCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
-  "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
-  "detail": "Expected \"versions\" or \"meta\", got: yyy"
+  "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
+  "detail": "Expected \"versions\" or \"meta\", got: yyy",
+  "subject": "/dirs/d1/files/xxx/yyy",
+  "source": "e4e59b8a76c4:registry:info:651"
 }
 `)
 	XCheckGet(t, reg, "dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/xxx/yyy",
-  "title": "The specified entity cannot be found: /dirs/d1/files/xxx/yyy",
-  "detail": "Expected \"versions\" or \"meta\", got: yyy"
+  "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
+  "detail": "Expected \"versions\" or \"meta\", got: yyy",
+  "subject": "/dirs/d1/files/xxx/yyy",
+  "source": "e4e59b8a76c4:registry:info:651"
 }
 `)
 
@@ -169,9 +173,13 @@ func TestResourceRequiredFields(t *testing.T) {
 
 	_, err = group.AddResource("files", "f1", "v1")
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
+  "title": "One or more mandatory attributes for \"/dirs/d1/files/f1/versions/v1\" are missing: req.",
   "subject": "/dirs/d1/files/f1/versions/v1",
-  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+  "args": {
+    "list": "req"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2149"
 }`)
 	reg.Rollback()
 	reg.Refresh(registry.FOR_WRITE)
@@ -184,9 +192,13 @@ func TestResourceRequiredFields(t *testing.T) {
 	f1.Refresh(registry.FOR_WRITE)
 	err = f1.SetSaveDefault("req", nil)
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
+  "title": "One or more mandatory attributes for \"/dirs/d1/files/f1/versions/v1\" are missing: req.",
   "subject": "/dirs/d1/files/f1/versions/v1",
-  "title": "The request cannot be processed as provided: required property \"req\" is missing"
+  "args": {
+    "list": "req"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2149"
 }`)
 
 	err = f1.SetSaveDefault("req", "again")
@@ -209,8 +221,12 @@ func TestResourceMaxVersions(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: \"maxversions\"(-1) must be >= 0"
+  "title": "There was an error in the model definition provided: \"maxversions\"(-1) must be >= 0.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"maxversions\"(-1) must be >= 0"
+  },
+  "source": "e4e59b8a76c4:registry:shared_model:1010"
 }`)
 	// reg.LoadModel()
 
@@ -221,9 +237,10 @@ func TestResourceMaxVersions(t *testing.T) {
 		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
 	})
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: 'setdefaultversionsticky' must be 'false' since 'maxversions' is '1'"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
+  "title": "The model attribute \"setdefaultversionsticky\" needs to be \"false\" since \"maxversions\" is \"1\".",
+  "subject": "/model",
+  "source": "e4e59b8a76c4:registry:shared_model:1017"
 }`)
 	// reg.LoadModel()
 
@@ -387,9 +404,14 @@ func TestResourceDeprecated(t *testing.T) {
         "effective": "2123-01-01T12"
       }
     }  `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "title": "The attribute \"deprecated.effective\" is not valid: is a malformed timestamp"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"deprecated.effective\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "is a malformed timestamp",
+    "list": "deprecated.effective"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2561"
 }
 `)
 
@@ -399,9 +421,14 @@ func TestResourceDeprecated(t *testing.T) {
         "removal": "2123-01-01T12"
       }
     }  `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "title": "The attribute \"deprecated.removal\" is not valid: is a malformed timestamp"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
+  "title": "The attribute(s) \"deprecated.removal\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "is a malformed timestamp",
+    "list": "deprecated.removal"
+  },
+  "source": "e4e59b8a76c4:registry:entity:2561"
 }
 `)
 }

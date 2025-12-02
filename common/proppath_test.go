@@ -45,13 +45,13 @@ func TestParseUI(t *testing.T) {
 		{"a1[2][3]", `{[{"a1",-1},{"2",2},{"3",3}]}`},
 
 		// Errors
-		{".prop", `Unexpected . in ".prop" at pos 1`},
-		{".*", `Unexpected . in ".*" at pos 1`},
-		{"1", `Unexpected 1 in "1" at pos 1`},
-		{"_#1", `Unexpected # in "_#1" at pos 2`},
-		{"a1..a2", `Unexpected . in "a1..a2" at pos 4`},
-		{"a1.[a]", `Unexpected [ in "a1.[a]" at pos 4`},
-		{"[2]", `Unexpected 2 in "[2]" at pos 2`},
+		{".prop", `Unexpected "." in ".prop" at pos 1`},
+		{".*", `Unexpected "." in ".*" at pos 1`},
+		{"1", `Unexpected "1" in "1" at pos 1`},
+		{"_#1", `Unexpected "#" in "_#1" at pos 2`},
+		{"a1..a2", `Unexpected "." in "a1..a2" at pos 4`},
+		{"a1.[a]", `Unexpected "[" in "a1.[a]" at pos 4`},
+		{"[2]", `Unexpected "2" in "[2]" at pos 2`},
 		{"[prop1.prop2]", `Expecting a ' at pos 2 in "[prop1.prop2]"`},
 
 		{"a1.", `Unexpected end of property in "a1."`},
@@ -60,9 +60,9 @@ func TestParseUI(t *testing.T) {
 		{"a1['a'", `Unexpected end of property in "a1['a'"`},
 		{"a1[1", `Unexpected end of property in "a1[1"`},
 
-		{"a1[]", `Unexpected ] in "a1[]" at pos 4`},
-		{"a1['']", `Unexpected ' in "a1['']" at pos 5`},
-		{"a1[']", `Unexpected ] in "a1[']" at pos 5`},
+		{"a1[]", `Unexpected "]" in "a1[]" at pos 4`},
+		{"a1['']", `Unexpected "'" in "a1['']" at pos 5`},
+		{"a1[']", `Unexpected "]" in "a1[']" at pos 5`},
 	}
 
 	for _, test := range tests {

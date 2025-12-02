@@ -11,9 +11,9 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-func TestDBRows(t *testing.T) {
+func TestMiscDBRows(t *testing.T) {
 	// Make sure we don't create extra extra stuff in the DB.
-	reg := NewRegistry("TestDBRows")
+	reg := NewRegistry("TestMiscDBRows")
 	defer PassDeleteReg(t, reg)
 
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
@@ -80,7 +80,7 @@ func TestDBRows(t *testing.T) {
 		`: createdat, -> YYYY-MM-DDTHH:MM:01Z
 : epoch, -> 2
 : modifiedat, -> YYYY-MM-DDTHH:MM:02Z
-: registryid, -> TestDBRows
+: registryid, -> TestMiscDBRows
 dirs/d1: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1: dirid, -> d1
 dirs/d1: epoch, -> 2
@@ -109,8 +109,8 @@ dirs/d1/files/fx/meta: xref, -> /dirs/d1/files/f1
 `)
 }
 
-func TestCORS(t *testing.T) {
-	reg := NewRegistry("TestCORS")
+func TestMiscCORS(t *testing.T) {
+	reg := NewRegistry("TestMiscCORS")
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddGroupModel("dirs", "dir")
@@ -126,8 +126,8 @@ func TestCORS(t *testing.T) {
 	for _, test := range []Test{
 		{"GET", "/", "", 200},
 		{"GET", "/?ui", "", 200},
-		{"GET", "/proxy?host=xregistry.io/xreg", "", 200},
-		{"GET", "/reg-TestCORS", "", 200},
+		{"GET", "/proxy?host=http://xregistry.io/xreg", "", 200},
+		{"GET", "/reg-TestMiscCORS", "", 200},
 		{"DELETE", "/", "", 405},
 		{"PUT", "/dirs/d1", "{}", 201},
 		{"PUT", "/dirs/d1", "", 400},
@@ -220,8 +220,8 @@ func NewJob(test *testing.T, name string, sf *bool, wg *sync.WaitGroup, p int, t
 	return j
 }
 
-func TestConcurrency(t *testing.T) {
-	reg := NewRegistry("TestConcurrency")
+func TestMiscConcurrency(t *testing.T) {
+	reg := NewRegistry("TestMiscConcurrency")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")

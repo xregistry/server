@@ -258,7 +258,7 @@ func TestProcessIncludes(t *testing.T) {
 			"simple": `{"foo":"bar"}`,
 		}
 	*/
-	dir, _ := os.MkdirTemp("", "xreg")
+	dir, _ := os.MkdirTemp("", "test_xreg")
 	defer func() {
 		os.RemoveAll(dir)
 	}()
@@ -280,7 +280,14 @@ func TestProcessIncludes(t *testing.T) {
 	}
 
 	tests := []Test{
-		{"empty", `Error parsing JSON: path '': unexpected end of input`},
+		{"empty", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error parsing JSON: path '': unexpected end of input.",
+  "args": {
+    "error_detail": "error parsing JSON: path '': unexpected end of input"
+  },
+  "source": "xxx"
+}`},
 		{"emptyjson", "{}"},
 
 		{"onelevel", httpPaths["/onelevel"]},
@@ -311,23 +318,53 @@ func TestProcessIncludes(t *testing.T) {
 
 		{"nest7", `{}`},
 
-		{"nest7.err1", `In "tmp/xreg1/nest7.err1", $include value isn't a string`},
-		{"nest7.err2", `In "tmp/xreg1/nest7.err2", $includes contains a non-string value (1)`},
-		{"nest7.err3", `In "tmp/xreg1/nest7.err3", both $include and $includes is not allowed`},
-		{"http:/nest7.err1", `Error processing JSON: In "http://localhost:4567/nest7.err1", $include value isn't a string`},
+		{"nest7.err1", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error processing JSON: In \"/tmp/nest7.err1\", $include value isn't a string.",
+  "args": {
+    "error_detail": "error processing JSON: In \"/tmp/nest7.err1\", $include value isn't a string"
+  },
+  "source": "xxx"
+}`},
+		{"nest7.err2", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error processing JSON: In \"/tmp/nest7.err2\", $includes contains a non-string value (1).",
+  "args": {
+    "error_detail": "error processing JSON: In \"/tmp/nest7.err2\", $includes contains a non-string value (1)"
+  },
+  "source": "xxx"
+}`},
+		{"nest7.err3", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error processing JSON: In \"/tmp/nest7.err3\", both $include and $includes is not allowed.",
+  "args": {
+    "error_detail": "error processing JSON: In \"/tmp/nest7.err3\", both $include and $includes is not allowed"
+  },
+  "source": "xxx"
+}`},
+		{"http:/nest7.err1", `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error processing JSON: In \"http://localhost:4567/nest7.err1\", $include value isn't a string.",
+  "args": {
+    "error_detail": "error processing JSON: In \"http://localhost:4567/nest7.err1\", $include value isn't a string"
+  },
+  "source": "xxx"
+}`},
 
 		{"nest8", `{"foo":"bar","foo6":666}`},
 		{"nest9", `{"foo":"xxx","foo6":666}`},
 		{"nest10", `{"bar":"zzz","foo":"xxx","foo6":666}`},
 	}
 
-	mask := regexp.MustCompile(`".*/xreg[^/]*`)
-	m1 := `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "subject": "/",
-  "title": "There was an error in the model definition provided: `
-	m2 := `"
-}`
+	mask := regexp.MustCompile(`"[^"]*/test_xreg[^/]*`)
+	/*
+			m1 := `{
+		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+		  "subject": "/",
+		  "title": "There was an error in the model definition provided: `
+			m2 := `"
+		}`
+	*/
 
 	for i, test := range tests {
 		t.Logf("Test #: %d", i)
@@ -358,13 +395,15 @@ func TestProcessIncludes(t *testing.T) {
 			buf = []byte(xErr.String())
 		}
 		exp := test.Result
-		if exp[0] != '{' {
-			exp = m1 + JSONEscape(test.Result) + m2
-		}
-		exp = string(mask.ReplaceAll([]byte(exp), []byte("tmp")))
-		buf = mask.ReplaceAll(buf, []byte("tmp"))
+		/*
+			if exp[0] != '{' {
+				exp = m1 + JSONEscape(test.Result) + m2
+			}
+		*/
+		exp = string(mask.ReplaceAll([]byte(exp), []byte("\"/tmp")))
+		buf = mask.ReplaceAll(buf, []byte("\"/tmp"))
 
-		XEqual(t, test.Path, string(buf), exp)
+		XEqual(t, test.Path+" Orig: "+string(buf), string(buf), exp)
 		/*
 			if string(buf) != exp {
 				t.Fatalf("\nPath: %s\nExp: %s<<\nGot: %s<<",

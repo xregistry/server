@@ -23,6 +23,7 @@ type Entity struct {
 	// struct for traversing the SQL results
 	Type     int    // ENTITY_REGISTRY(0)/GROUP(1)/RESOURCE(2)/VERSION(3)/...
 	Path     string // [GROUPS/GID[/RESOURCES/RID[/versions/vID]]]
+	XID      string // /[GROUPS[/GID[/RESOURCES[/RID[/versions[/vID]]]]]]
 	Abstract string // [GROUPS[/RESOURCES[/versions]]]
 	EpochSet bool   `json:"-"` // Has epoch changed this tx?
 	ModSet   bool   `json:"-"` // Has modifiedat changed this tx?

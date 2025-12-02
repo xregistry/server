@@ -71,6 +71,7 @@ func Verbose(args ...any) {
 
 type HttpResponse struct {
 	Code   int
+	Status string
 	Body   []byte
 	Header http.Header
 }
@@ -87,7 +88,8 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 
 	req, err := http.NewRequest(verb, url, bodyReader)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("talking_to_server", url,
+			"error_detail="+err.Error())
 	}
 
 	Debug("Request: %s %s", verb, url)
@@ -98,13 +100,15 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("talking_to_server", url,
+			"error_detail="+err.Error())
 	}
 
 	body, err = io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return nil, NewXRError("bad_request", "/", err.Error())
+		return nil, NewXRError("parsing_response", url,
+			"error_detail="+err.Error())
 	}
 
 	var xErr *XRError
@@ -119,20 +123,22 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 		// If response has no body then we need to say something back to
 		// the user. A non-zero exit code w/o any text isn't helpful.
 		if tmp == "" {
-			return nil, NewXRError("bad_request", "/",
-				fmt.Sprintf("An error occurred: %s"+res.Status))
+			return nil, NewXRError("talking_to_server", url,
+				"error_detail="+res.Status)
 		} else {
 			// If we 'think' it's an XRError then return it, else just
 			// return the raw data
 			err := json.Unmarshal([]byte(tmp), &xErr)
 			if (err == nil && xErr.Type == "") || err != nil {
-				xErr = NewXRError("bad_request", "/", tmp)
+				xErr = NewXRError("talking_to_server", url,
+					"error_detail="+tmp)
 			}
 		}
 	}
 
 	httpRes := &HttpResponse{
 		Code:   res.StatusCode,
+		Status: res.Status,
 		Body:   body,
 		Header: res.Header,
 	}
@@ -172,32 +178,36 @@ func ReadFile(fileName string) ([]byte, *XRError) {
 	if fileName == "" || fileName == "-" {
 		buf, err = io.ReadAll(os.Stdin)
 		if err != nil {
-			return nil, NewXRError("bad_request", "/",
-				fmt.Sprintf("Error reading from stdin: %s", err.Error()))
+			return nil, NewXRError("client_error", fileName,
+				"error_detail="+
+					"Error reading from stdin: "+err.Error()+".")
+
 		}
 	} else if strings.HasPrefix(fileName, "http") {
 		res, err := http.Get(fileName)
 		if err != nil {
-			return nil, NewXRError("bad_request", "/", err.Error())
+			return nil, NewXRError("talking_to_server", fileName,
+				"error_detail="+err.Error())
 		}
 
 		buf, err = io.ReadAll(res.Body)
 		res.Body.Close()
 
 		if err != nil {
-			return nil, NewXRError("bad_request", "/", err.Error())
+			return nil, NewXRError("parsing_response", fileName,
+				"error_detail="+err.Error()+".")
 		}
 
 		if res.StatusCode/100 != 2 {
-			return nil, NewXRError("bad_request", "/",
-				fmt.Sprintf("Error downloading %q: %s\n%s",
-					fileName, res.Status, string(buf)))
+			return nil, NewXRError("talking_to_server", fileName,
+				"error_detail="+fmt.Sprintf("%s : %s", res.Status, string(buf)))
 		}
 	} else {
 		buf, err = os.ReadFile(fileName)
 		if err != nil {
-			return nil, NewXRError("bad_request", "/",
-				fmt.Sprintf("Error reading file %q: %s", fileName, err))
+			return nil, NewXRError("client_error", fileName,
+				"error_detail="+
+					fmt.Sprintf("Error reading file %q: %s", fileName, err))
 		}
 	}
 
@@ -242,7 +252,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 		}
 	}
 	if gm == nil {
-		return NewXRError("not_found", xid.Group, xid.Group).
+		return NewXRError("not_found", xid.Group).
 			SetDetailf("Unknown Group type: %s", xid.Group)
 	}
 
@@ -260,13 +270,13 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 		}
 	}
 	if rm == nil {
-		return NewXRError("not_found", xid.Resource, xid.Resource).
+		return NewXRError("not_found", xid.Resource).
 			SetDetailf("Unknown Resource type: %s", xid.Resource)
 	}
 
 	if xid.Version != "" {
 		if xid.Version != "versions" && (!allowSingular || xid.Version != "version") {
-			return NewXRError("bad_request", "/",
+			return NewXRError("malformed_xid", xid.String(),
 				fmt.Sprintf("expected %q not %q", "versions", xid.Version))
 		}
 	}
@@ -283,13 +293,13 @@ func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
 		return nil, xErr
 	}
 	if gm == nil {
-		return nil, NewXRError("not_found", xid.Group, xid.Group).
+		return nil, NewXRError("not_found", xid.Group).
 			SetDetailf("Unknown group type: %s", xid.Group)
 	}
 
 	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
-		return nil, NewXRError("bad_request", xid.Resource, xid.Resource).
+		return nil, NewXRError("not_found", "/"+xid.Group+"/"+xid.Resource).
 			SetDetailf("Unknown resource type: %s", xid.Resource)
 	}
 	return rm, nil
@@ -455,15 +465,17 @@ func DownloadObject(urlPath string) (map[string]any, *XRError) {
 		return nil, xErr
 	}
 	if res.Code != 200 {
-		return nil, NewXRError("bad_request", "/",
-			fmt.Sprintf("Error downloading %q: %s %s", urlPath,
-				res.Code, res.Body))
+		return nil, NewXRError("talking_to_server", urlPath,
+			"error_detail="+
+				fmt.Sprintf("%s: %s", res.Status, res.Body))
 	}
 
 	object := map[string]any(nil)
 	err := json.Unmarshal(res.Body, &object)
 	if err != nil {
-		return object, NewXRError("bad_request", "/", err.Error())
+		return object, NewXRError("parsing_response", urlPath,
+			"error_detail="+err.Error()).
+			SetDetail("Response: " + string(res.Body))
 	}
 	return object, nil
 }

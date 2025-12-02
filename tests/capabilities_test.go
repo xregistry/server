@@ -14,8 +14,9 @@ func TestCapabilitySimple(t *testing.T) {
 	XHTTP(t, reg, "GET", "/capabilities/foo", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/capabilities/foo",
-  "title": "The specified API is not supported: /capabilities/foo"
+  "title": "The specified API is not supported: /capabilities/foo.",
+  "subject": "/capabilities/foo",
+  "source": ":registry:httpStuff:1258"
 }
 `)
 
@@ -199,27 +200,43 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "star mutable-bad",
 			Cap:  `{"mutable":["model","*"]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"mutable\" includes a value of \"*\" then no other values are allowed.",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: \"*\" must be the only value specified for \"mutable\""
+  "args": {
+    "field": "mutable"
+  },
+  "source": ":common:capabilities:157"
 }`,
 		},
 		{
 			Name: "bad mutable-1",
 			Cap:  `{"mutable":["xx"]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"xx\""
+  "args": {
+    "field": "mutable",
+    "list": "capabilities,entities,model",
+    "value": "xx"
+  },
+  "source": ":common:capabilities:178"
 }`,
 		},
 		{
 			Name: "bad mutable-2",
 			Cap:  `{"mutable":["model", "xx"]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"xx\""
+  "args": {
+    "field": "mutable",
+    "list": "capabilities,entities,model",
+    "value": "xx"
+  },
+  "source": ":common:capabilities:178"
 }`,
 		},
 		{
@@ -227,17 +244,27 @@ func TestCapabilitySimple(t *testing.T) {
 			Cap:  `{"mutable":["aa", "model"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"aa\".",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"aa\""
+  "args": {
+    "error_detail": "unknown \"mutable\" value: \"aa\""
+  },
+  "source": ":common:capabilities:188"
 }`,
 		},
 		{
 			Name: "bad mutable-4",
 			Cap:  `{"mutable":["entities", "ff", "model"]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (ff) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"ff\""
+  "args": {
+    "field": "mutable",
+    "list": "capabilities,entities,model",
+    "value": "ff"
+  },
+  "source": ":common:capabilities:178"
 }`,
 		},
 
@@ -245,9 +272,13 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "missing specversion",
 			Cap:  `{"specversions":[]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: \"specversions\" must contain \"` + SPECVERSION + `\""
+  "args": {
+    "value": "1.0-rc2"
+  },
+  "source": ":common:capabilities:232"
 }`,
 		},
 
@@ -255,9 +286,13 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "extra key",
 			Cap:  `{"pagination": true, "bad": true}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_unknown",
+  "title": "Unknown capability specified: bad.",
   "subject": "/capabilities",
-  "title": "There was an error in the capabilities provided: unknown capability: \"bad\" at path '.bad'"
+  "args": {
+    "field": "bad"
+  },
+  "source": ":common:capabilities:251"
 }`,
 		},
 	}
@@ -353,8 +388,9 @@ func TestCapabilityPath(t *testing.T) {
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "The specified API is not supported: /capabilities"
+  "title": "The specified API is not supported: /capabilities.",
+  "subject": "/capabilities",
+  "source": ":registry:httpStuff:1589"
 }
 `)
 
@@ -596,17 +632,41 @@ func TestCapabilityPath(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/capabilities", `{"pagination":true}`, 400,
 		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (true) specified for capability \"pagination\". Allowable values include: false.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "pagination",
+    "list": "false",
+    "value": "true"
+  },
+  "source": ":common:capabilities:216"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/capabilities", `{"pagination":"false"}`, 400,
+		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: \"pagination\" must be \"false\""
+  "title": "There was an error in the capabilities provided: error parsing data: path '.pagination': expected \"bool\", got \"string\".",
+  "subject": "/capabilities",
+  "args": {
+    "error_detail": "error parsing data: path '.pagination': expected \"bool\", got \"string\""
+  },
+  "source": ":common:capabilities:256"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/capabilities", `{"shortself":true}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: \"shortself\" must be \"false\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (true) specified for capability \"shortself\". Allowable values include: false.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "shortself",
+    "list": "false",
+    "value": "true"
+  },
+  "source": ":common:capabilities:229"
 }
 `)
 
@@ -614,18 +674,26 @@ func TestCapabilityPath(t *testing.T) {
 	// asked - which is different from "null"/absent - which means "default"
 	XHTTP(t, reg, "PUT", "/capabilities", `{ "specversions": [] }`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: \"specversions\" must contain \"`+SPECVERSION+`\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
+  "subject": "/capabilities",
+  "args": {
+    "value": "1.0-rc2"
+  },
+  "source": ":common:capabilities:236"
 }
 `)
 
 	// Unknown key
 	XHTTP(t, reg, "PUT", "/capabilities", `{ "foo": [] }`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: unknown capability: \"foo\" at path '.foo'"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_unknown",
+  "title": "Unknown capability specified: foo.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "foo"
+  },
+  "source": ":common:capabilities:255"
 }
 `)
 }
@@ -832,9 +900,13 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"specversions": [] }}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: \"specversions\" must contain \"`+SPECVERSION+`\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
+  "subject": "/capabilities",
+  "args": {
+    "value": "1.0-rc2"
+  },
+  "source": ":common:capabilities:236"
 }
 `)
 
@@ -842,9 +914,13 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"foo": [] }}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: unknown capability: \"foo\" at path '.foo'"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_unknown",
+  "title": "Unknown capability specified: foo.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "foo"
+  },
+  "source": ":common:capabilities:255"
 }
 `)
 
@@ -1068,36 +1144,41 @@ func TestCapabilityAPIs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "The specified API is not supported: /capabilities"
+  "title": "The specified API is not supported: /capabilities.",
+  "subject": "/capabilities",
+  "source": ":registry:httpStuff:1589"
 }
 `)
 	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/capabilitiesoffered",
-  "title": "The specified API is not supported: /capabilitiesoffered"
+  "title": "The specified API is not supported: /capabilitiesoffered.",
+  "subject": "/capabilitiesoffered",
+  "source": ":registry:httpStuff:1596"
 }
 `)
 	XHTTP(t, reg, "GET", "/export", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/export",
-  "title": "The specified API is not supported: /export"
+  "title": "The specified API is not supported: /export.",
+  "subject": "/export",
+  "source": ":registry:httpStuff:1603"
 }
 `)
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/model",
-  "title": "The specified API is not supported: /model"
+  "title": "The specified API is not supported: /model.",
+  "subject": "/model",
+  "source": ":registry:httpStuff:1575"
 }
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/modelsource",
-  "title": "The specified API is not supported: /modelsource"
+  "title": "The specified API is not supported: /modelsource.",
+  "subject": "/modelsource",
+  "source": ":registry:httpStuff:1582"
 }
 `)
 
@@ -1152,38 +1233,58 @@ func TestCapabilityAPIs(t *testing.T) {
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/model",
-  "title": "The specified API is not supported: /model"
+  "title": "The specified API is not supported: /model.",
+  "subject": "/model",
+  "source": ":registry:httpStuff:1575"
 }
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "subject": "http://localhost:8181/modelsource",
-  "title": "The specified API is not supported: /modelsource"
+  "title": "The specified API is not supported: /modelsource.",
+  "subject": "/modelsource",
+  "source": ":registry:httpStuff:1582"
 }
 `)
 
 	// Some errors
 	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/foo"]}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"apis\" value: \"/foo\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (/foo) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "apis",
+    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
+    "value": "/foo"
+  },
+  "source": ":common:capabilities:178"
 }
 `)
 	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["foo"]}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"apis\" value: \"foo\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (foo) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "apis",
+    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
+    "value": "foo"
+  },
+  "source": ":common:capabilities:178"
 }
 `)
 	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["export"]}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "There was an error in the capabilities provided: unknown \"apis\" value: \"export\""
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+  "title": "Invalid value (export) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "apis",
+    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
+    "value": "export"
+  },
+  "source": ":common:capabilities:178"
 }
 `)
 
@@ -1318,16 +1419,24 @@ func TestCapabilityPost(t *testing.T) {
 	XHTTP(t, reg, "POST", "/capabilities", `{}`, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#action_not_supported",
-  "subject": "http://localhost:8181/capabilities",
-  "title": "The specified action (POST) is not supported"
+  "title": "The specified action (POST) is not supported for: /capabilities.",
+  "subject": "/capabilities",
+  "args": {
+    "action": "POST"
+  },
+  "source": ":registry:httpStuff:2540"
 }
 `)
 	XHTTP(t, reg, "POST", "/", `{
   "capabilities": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "subject": "http://localhost:8181/",
-  "title": "The request cannot be processed as provided: 'POST /' only allows Group types to be specified. \"capabilities\" is invalid"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#groups_only",
+  "title": "Attribute \"capabilities\" is invalid. Only Group types are allowed to be specified on this request: /.",
+  "subject": "/",
+  "args": {
+    "name": "capabilities"
+  },
+  "source": ":registry:httpStuff:1927"
 }
 `)
 

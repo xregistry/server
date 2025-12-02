@@ -93,8 +93,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing matched so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -110,8 +111,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing, matched, so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -138,8 +140,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing, matched, so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1",
-  "title": "The specified entity cannot be found: /dirs/d1"
+  "title": "The targeted entity (/dirs/d1) cannot be found.",
+  "subject": "/dirs/d1",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -155,8 +158,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing, matched, so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1",
-  "title": "The specified entity cannot be found: /dirs/d1"
+  "title": "The targeted entity (/dirs/d1) cannot be found.",
+  "subject": "/dirs/d1",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -193,8 +197,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing, matched, so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
-  "title": "The specified entity cannot be found: /dirs/d1/files/f1/versions/v1$details"
+  "title": "The targeted entity (/dirs/d1/files/f1/versions/v1$details) cannot be found.",
+  "subject": "/dirs/d1/files/f1/versions/v1$details",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -206,8 +211,9 @@ func TestFiltersBasic(t *testing.T) {
 			// Nothing, matched, so 404
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -353,8 +359,9 @@ func TestFiltersBasic(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.labels.file1=",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -363,8 +370,9 @@ func TestFiltersBasic(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.labels.xxx=",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -373,8 +381,9 @@ func TestFiltersBasic(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.labels.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -539,8 +548,9 @@ func TestFiltersANDOR(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.fileid=f1,dirs.files.name=f2",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -712,8 +722,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=g\\*d",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -737,8 +748,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=f*x",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -747,8 +759,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=*f",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -757,8 +770,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=z*",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -767,8 +781,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=*z*",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -777,8 +792,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.name=**z**",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -787,8 +803,9 @@ func TestFiltersWildcards(t *testing.T) {
 			URL:  "?inline&filter=dirs.files.description=*",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -930,8 +947,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj1",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -940,8 +958,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj1!=null",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -966,8 +985,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj2=null",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -981,8 +1001,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj2.bool",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -996,8 +1017,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj2.bool!=null",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -1006,8 +1028,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj1.bool!=null",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},
@@ -1022,8 +1045,9 @@ func TestFiltersObjs(t *testing.T) {
 			URL:  "?inline&filter=regobj3.bool=null",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
-  "subject": "http://localhost:8181/",
-  "title": "The specified entity cannot be found: /"
+  "title": "The targeted entity (/) cannot be found.",
+  "subject": "/",
+  "source": ":registry:httpStuff:1730"
 }
 `,
 		},

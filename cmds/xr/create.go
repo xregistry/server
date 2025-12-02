@@ -177,7 +177,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 		}
 
 		if len(data) > 0 {
-			Error(json.Unmarshal([]byte(data), &dataMap))
+			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
+				Error(NewXRError("parsing_data",
+					"error_detail="+err.Error()))
+			}
 		}
 
 		setsIndex := len(dels)
@@ -303,25 +306,25 @@ func createFunc(cmd *cobra.Command, args []string) {
 		if !force && action != "upsert" {
 			res, xErr := reg.HttpDo("GET", xid.String(), nil)
 			if xErr != nil && res == nil {
-				Error(xErr, NewXRError("bad_request", "/",
-					fmt.Sprintf("Can't connect to server: %s",
-						reg.GetServerURL())))
+				Error(xErr)
 			}
 			if action == "create" && xErr == nil {
-				Error(xErr, NewXRError("bad_request", "/",
-					fmt.Sprintf("%q already exists", xid.String())))
+				Error(xErr, NewXRError("exists", xid.String()))
 			}
 			if action == "update" && res != nil && res.Code == 404 {
-				Error(NewXRError("not_found", xid.String(), xid.String()))
+				Error(NewXRError("not_found", xid.String()))
 			}
 		}
 		IDs = xid.String()
 	} else {
 		if len(data) == 0 {
-			Error("Missing data")
+			Error("Missing 'data'")
 		}
 
-		Error(json.Unmarshal([]byte(data), &objects))
+		if err := json.Unmarshal([]byte(data), &objects); err != nil {
+			Error(NewXRError("parsing_data", "",
+				"error_detail="+err.Error()))
+		}
 
 		for i, id := range SortedKeys(objects) {
 			if i != 0 {
@@ -331,13 +334,9 @@ func createFunc(cmd *cobra.Command, args []string) {
 			if !force && action != "upsert" {
 				id = xid.String() + "/" + id
 				_, xErr = reg.HttpDo("GET", id, nil)
-				if action == "create" && xErr == nil {
-					Error(NewXRError("bad_request", id,
-						fmt.Sprintf("%q already exists", id)))
-				}
+				Error(xErr)
 				if action == "update" && xErr != nil {
-					Error(NewXRError("not_found", id, id).
-						SetDetailf("%q doesn't exists", id))
+					Error(NewXRError("not_found", id))
 				}
 			}
 		}
@@ -376,7 +375,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	// TODO allow for GET output to be shown via -o and inline/doc/filter...
 	if xid.ResourceID == "" || isMetadata {
-		Error(json.Unmarshal(res.Body, &objects))
+		if err := json.Unmarshal(res.Body, &objects); err != nil {
+			Error(NewXRError("parsing_response", path,
+				"error_detail="+err.Error()))
+		}
 
 		if output == "json" {
 			fmt.Printf("%s\n", xrlib.PrettyPrint(objects, "", "  "))

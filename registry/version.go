@@ -39,7 +39,7 @@ func (v *Version) JustDelete() *XRError {
 	}
 
 	if meta.Get("readonly") == true {
-		return NewXRError("readonly", "/"+v.Path, "/"+v.Path)
+		return NewXRError("readonly", v.XID)
 	}
 
 	// Zero is ok if it's already been deleted
@@ -53,13 +53,16 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 	defer log.VPrintf(3, "<Exit: Version.Delete")
 
 	if v.Resource.IsXref() {
-		return NewXRError("bad_request", v.Path,
-			`can't delete "versions" of a Resource that uses "xref"`)
+		return NewXRError("bad_request", v.XID,
+			"error_detail="+
+				fmt.Sprintf(`can't delete "versions" of a Resource `+
+					`(/%s) that uses "xref"`, v.Resource.Path))
 	}
 
 	if nextVersionID == v.UID {
-		return NewXRError("bad_request", v.Path,
-			"can't set \"defaultversionid\" to a Version that is being deleted")
+		return NewXRError("bad_request", v.XID,
+			"error_detail=Can't set \"defaultversionid\" to a Version that "+
+				"is being deleted")
 	}
 
 	vers, xErr := v.Resource.GetChildVersionIDs(v.UID)
@@ -111,9 +114,10 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 			return xErr
 		}
 		if nextVersion == nil {
-			return NewXRError("bad_request", v.Resource.Path,
-				fmt.Sprintf("can't find next default Version %q",
-					nextVersionID))
+			return NewXRError("unknown_id", v.Resource.XID,
+				"singular=version",
+				"id="+nextVersionID).
+				SetDetailf("Can't find next default Version %q.", nextVersionID)
 		}
 
 		if xErr = v.Resource.SetDefault(nextVersion); xErr != nil {
