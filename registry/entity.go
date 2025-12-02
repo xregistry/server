@@ -2045,14 +2045,11 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			}
 
 			/* Not sure what this was for :-)  save for now
-						if path.Len() > 0 {
-							if xErr := IsValidAttributeName(path.Bottom(), path.UI()); xErr != nil {
-			                    if xErr.Subject == "/" {
-			                        xErr.SetSubject(e.XID)
-			                    }
-								return xErr.AddSource("")
-							}
-						}
+			if path.Len() > 0 {
+				if xErr := IsValidAttributeName(path.Bottom(), e.XID, path.UI()); xErr != nil {
+					return xErr.AddSource("")
+				}
+			}
 			*/
 
 			// Based on the attribute's type check the incoming 'val'.
@@ -2160,8 +2157,8 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 						return xErr.AddSource("")
 					}
 				} else if namecharset == "" || namecharset == "strict" {
-					if xErr := IsValidAttributeName(key, path.UI()); xErr != nil {
-						xErr.Subject = e.XID
+					if xErr := IsValidAttributeName(key, e.XID, path.UI()); xErr != nil {
+						ShowStack()
 						return xErr.AddSource("")
 					}
 				} else {
@@ -2193,15 +2190,20 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			where += "."
 		}
 
-		list := ""
-		for i, k := range SortedKeys(objKeys) {
-			if i > 0 {
-				list += ","
+		return NewXRError("unknown_attribute", e.XID,
+			"name="+where+SortedKeys(objKeys)[0])
+
+		/*
+			list := ""
+			for i, k := range SortedKeys(objKeys) {
+				if i > 0 {
+					list += ","
+				}
+				list += where + k
 			}
-			list += where + k
-		}
-		return NewXRError("unknown_extensions", e.XID,
-			"list="+list)
+			return NewXRError("unknown_attribute", e.XID,
+				"list="+list)
+		*/
 	}
 
 	return nil
@@ -2800,12 +2802,12 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 // of logic - but it might actually make for a cleaner design to keep
 // system data out of the user data space, so worth considering in the future.
 // I really would prefer to push this down in the stack though.
-func CheckAttrs(obj map[string]any, path string) *XRError {
+func CheckAttrs(obj map[string]any, source string) *XRError {
 	if obj == nil {
 		return nil
 	}
 	for k, _ := range obj {
-		if xErr := IsValidAttributeName(k, path); xErr != nil {
+		if xErr := IsValidAttributeName(k, source, ""); xErr != nil {
 			// log.Printf("Key: %q", k)
 			// ShowStack()
 			return xErr.AddSource("")

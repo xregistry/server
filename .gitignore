@@ -10,6 +10,7 @@
 
 # Makefile semi-targets
 /.cmds
+/.errors
 /.test
 /.utest
 /.qtest

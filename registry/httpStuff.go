@@ -3116,8 +3116,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 	}
 
 	if requireBody && len(body) == 0 {
-		return nil, NewXRError("bad_request", "/"+info.OriginalPath,
-			"error_detail=An HTTP body must be specified, try {}")
+		return nil, NewXRError("missing_body", "/"+info.OriginalPath)
 	}
 
 	// len=5 is a special case where we know .../versions always has the

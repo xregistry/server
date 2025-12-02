@@ -1,0 +1,84 @@
+#!/bin/bash
+
+echo "Checking common/error.go against the spec's error definitions"
+
+declare -A codeMap
+declare -A specMap
+
+echo "> Making sure all defined errors are used"
+while read line ; do
+  # Find the start of a new error definition
+  # [[ ! "$line" =~ $regexp ]] && continue
+  [[ ! "$line" =~ \"[a-z][a-z0-9_]*\":\ \&XRError\{ ]] && continue
+
+  id=$( echo $line | sed "s/.*\"\(.*\)\":.*/\1/" )
+  code=""
+  title=""
+
+  while read line ; do
+    [[ "$line" == "}," ]] && break
+
+    [[ "$line" == *"Code:"* ]] && \
+      code=$(echo $line | sed 's/.*Code: *\([0-9]\+\),.*/\1/')
+    [[ "$line" == *"Title:"* ]] && \
+      title=$(echo $line | sed 's/.*Title: *`\([^`]*\).*/\1/')
+  done
+
+  [[ "$code" == "" ]] && echo "Code is missing for: $id" && exit 1
+  [[ "$title" == "" ]] && echo "Title is missing for: $id" && exit 1
+
+  if ! grep -lr "NewXRError.*\"$id\"" cmds common registry > /dev/null ; then
+    echo "- \"$id\" appears to be unused"
+    rc=1
+  fi
+
+  codeMap[$id]="$code: $title"
+done < common/error.go
+
+specURL="https://raw.githubusercontent.com/xregistry/spec/refs/heads/main"
+specCmd="curl -s ${specURL}"
+if [[ "$XR_SPEC" != "" ]]; then
+  specCmd="cat ${XR_SPEC}"
+fi
+
+for file in $* ; do
+  echo "> Processing spec file: $file"
+  id=""
+  while read line ; do
+    [[ ! "$line" =~ .*start-err-def.* ]] && continue
+  
+    while read line ; do
+      if [[ "$line" == "#"* ]] || [[ "$line" =~ .*end-err-def.* ]] ; then
+        if [[ "$id" != "" ]]; then
+          if [[ "$type" != *"$id" ]]; then
+            echo "$id : doesn't match type: $type" && exit 1
+          fi
+          # echo "$id->$code : $title"
+  
+          if [[ "${codeMap[$id]}" != "$code: $title" ]]; then
+            echo "    ** Diff for ID: $id"
+            echo "    code: ${codeMap[$id]}"
+            echo "    spec: $code: $title"
+            rc=1
+          fi
+        fi
+        id=$(echo $line | sed "s/.*##*\s*\([a-z][a-z0-9_]*\).*/\1/")
+        type=""
+        title=""
+        code=""
+      fi
+  
+      [[ "$line" =~ .*end-err-def.* ]] && break
+  
+      [[ "$line" == *"Type:"* ]] && \
+        type=$(echo $line | sed 's/.*Type:.*`\(.*\)`.*/\1/')
+      [[ "$line" == *"Code:"* ]] && \
+        code=$(echo $line | sed 's/.*Code:.*`\([0-9]\+\) .*/\1/')
+      [[ "$line" == *"Title:"* ]] && \
+        title=$(echo $line | sed 's/.*Title:.*`\([^`]*\)`.*/\1/')
+  
+    done
+  done < <(${specCmd}/$file)
+done
+
+exit $rc

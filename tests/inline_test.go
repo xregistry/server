@@ -302,7 +302,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (xxx) on: /.",
   "subject": "/",
   "args": {
     "name": "xxx"
@@ -316,7 +316,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=Dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (Dirs) on: /.",
   "subject": "/",
   "args": {
     "name": "Dirs"
@@ -330,7 +330,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=xxx.files",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (xxx.files) on: /.",
   "subject": "/",
   "args": {
     "name": "xxx.files"
@@ -344,7 +344,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.xxx) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.xxx"
@@ -368,7 +368,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=dirs",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs",
+  "title": "Attempting to inline a non-inlineable attribute (dirs) on: /dirs.",
   "subject": "/dirs",
   "args": {
     "name": "dirs"
@@ -392,7 +392,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "dirs?inline=files.versions.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs",
+  "title": "Attempting to inline a non-inlineable attribute (files.versions.xxx) on: /dirs.",
   "subject": "/dirs",
   "args": {
     "name": "files.versions.xxx"
@@ -432,7 +432,7 @@ func TestInlineBasic(t *testing.T) {
 			URL:  "?inline=dirs,dirs2.files.xxx",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs2.files.xxx) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs2.files.xxx"
@@ -717,7 +717,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/dirs/d1/files/f1-proxy$details?inline=XXversions.file",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: /dirs/d1/files/f1-proxy$details",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.XXversions.file) on: /dirs/d1/files/f1-proxy$details.",
   "subject": "/dirs/d1/files/f1-proxy$details",
   "args": {
     "name": "dirs.files.XXversions.file"
@@ -731,7 +731,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.yy) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.yy"
@@ -745,7 +745,7 @@ func TestInlineResource(t *testing.T) {
 			URL:  "/?inline=dirs.files.version.yy",
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.version.yy) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.version.yy"
@@ -1360,7 +1360,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=foo.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (foo.*) on: /.",
   "subject": "/",
   "args": {
     "name": "foo.*"
@@ -1370,7 +1370,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=foo*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (foo*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (foo*) on: /.",
   "subject": "/",
   "args": {
     "name": "foo*"
@@ -1381,7 +1381,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=dirs.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.bad*"
@@ -1391,7 +1391,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.bad.*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.bad.*"
@@ -1402,7 +1402,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.bad*"
@@ -1412,7 +1412,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.bad.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.bad.*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.bad.*"
@@ -1422,7 +1422,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.file*"
@@ -1432,7 +1432,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.file.*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.file.*"
@@ -1443,7 +1443,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.meta*"
@@ -1453,7 +1453,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.meta.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.meta.*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.meta.*"
@@ -1464,7 +1464,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.versions.bad*"
@@ -1474,7 +1474,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.versions.file*"
@@ -1484,7 +1484,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.versions.file.*"
@@ -1494,7 +1494,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=dirs.files.versions.file.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (dirs.files.versions.file.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "dirs.files.versions.file.bad*"
@@ -1505,7 +1505,7 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=model.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (model.*) on: /.",
   "subject": "/",
   "args": {
     "name": "model.*"
@@ -1515,7 +1515,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=model.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (model.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (model.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "model.bad*"
@@ -1525,7 +1525,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (capabilities.*) on: /.",
   "subject": "/",
   "args": {
     "name": "capabilities.*"
@@ -1535,7 +1535,7 @@ func TestInlineWildcards(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "?inline=capabilities.bad*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#inline_noninlineable",
-  "title": "Attempting to inline a non-inlineable attribute (capabilities.bad*) on: /",
+  "title": "Attempting to inline a non-inlineable attribute (capabilities.bad*) on: /.",
   "subject": "/",
   "args": {
     "name": "capabilities.bad*"

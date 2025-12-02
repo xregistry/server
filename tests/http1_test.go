@@ -2894,11 +2894,11 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"myobj2": { "ext": 123 } }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (myobj2.ext) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (myobj2.ext) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "myobj2.ext"
+    "name": "myobj2.ext"
   },
   "source": ":registry:entity:2202"
 }
@@ -2991,11 +2991,11 @@ func TestHTTPRegistry(t *testing.T) {
 		// response: `attribute "mymapuint.asd" must be a uinteger`},
 		{request: `{"myarrayemptyobj": [ { "asd": true } ] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (myarrayemptyobj[0].asd) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (myarrayemptyobj[0].asd) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "myarrayemptyobj[0].asd"
+    "name": "myarrayemptyobj[0].asd"
   },
   "source": ":registry:entity:2202"
 }
@@ -3026,11 +3026,11 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"mymapobj": { "asd" : { "qwe" : true } } }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (mymapobj.asd.qwe) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (mymapobj.asd.qwe) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "mymapobj.asd.qwe"
+    "name": "mymapobj.asd.qwe"
   },
   "source": ":registry:entity:2202"
 }
@@ -3871,12 +3871,9 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "An HTTP body must be specified, try {}.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
+  "title": "The request is missing an HTTP body - try '{}'.",
   "subject": "/",
-  "args": {
-    "error_detail": "An HTTP body must be specified, try {}"
-  },
   "source": ":registry:httpStuff:3119"
 }
 `})
@@ -4226,11 +4223,11 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (foo) specified for: /foos/f2.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (foo) was specified for \"/foos/f2\".",
   "subject": "/foos/f2",
   "args": {
-    "list": "foo"
+    "name": "foo"
   },
   "source": ":registry:entity:2202"
 }
@@ -5864,11 +5861,11 @@ func TestHTTPVersions(t *testing.T) {
 	// Quick test to make sure body is a Resource and not a collection
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
 		`{ "x": {"fileid":"x"}}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (x) specified for: /dirs/d1/files/f1/versions/1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (x) was specified for \"/dirs/d1/files/f1/versions/1\".",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
-    "list": "x"
+    "name": "x"
   },
   "source": ":registry:entity:2203"
 }
@@ -7816,11 +7813,11 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (myext) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (myext) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "myext"
+    "name": "myext"
   },
   "source": ":registry:entity:2203"
 }
@@ -7883,11 +7880,11 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (myext) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (myext) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "myext"
+    "name": "myext"
   },
   "source": ":registry:entity:2203"
 }
@@ -8100,11 +8097,11 @@ func TestHTTPIfValue(t *testing.T) {
 	   }`,
 		Code: 400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (myint7) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (myint7) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "myint7"
+    "name": "myint7"
   },
   "source": ":registry:entity:2203"
 }
@@ -8425,11 +8422,11 @@ func TestHTTPResources(t *testing.T) {
   "mystring": "hello",
   "object": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (file,object) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (file) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "file,object"
+    "name": "file"
   },
   "source": ":registry:entity:2203"
 }
@@ -8440,11 +8437,11 @@ func TestHTTPResources(t *testing.T) {
   "mystring": "hello",
   "object": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (filebase64,object) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (filebase64) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "filebase64,object"
+    "name": "filebase64"
   },
   "source": ":registry:entity:2203"
 }
@@ -8455,11 +8452,11 @@ func TestHTTPResources(t *testing.T) {
   "mystring": "hello",
   "object": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (fileurl,object) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fileurl) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "fileurl,object"
+    "name": "fileurl"
   },
   "source": ":registry:entity:2203"
 }
@@ -8470,11 +8467,11 @@ func TestHTTPResources(t *testing.T) {
   "mystring": "hello",
   "object": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (fileproxyurl,object) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fileproxyurl) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "fileproxyurl,object"
+    "name": "fileproxyurl"
   },
   "source": ":registry:entity:2203"
 }
@@ -8488,11 +8485,11 @@ func TestHTTPResources(t *testing.T) {
   "mystring": "hello",
   "object": {}
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (file,filebase64,fileproxyurl,fileurl,object) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (file) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "file,filebase64,fileproxyurl,fileurl,object"
+    "name": "file"
   },
   "source": ":registry:entity:2203"
 }
@@ -8526,11 +8523,11 @@ func TestHTTPResources(t *testing.T) {
     "objint": 5
   }
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (object.objint) specified for: /dirs/d1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (object.objint) was specified for \"/dirs/d1/files/f1/versions/v1\".",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
-    "list": "object.objint"
+    "name": "object.objint"
   },
   "source": ":registry:entity:2203"
 }

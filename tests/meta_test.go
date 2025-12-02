@@ -415,13 +415,13 @@ func TestMetaSimple(t *testing.T) {
 		ReqBody: `{ "fff": "zzz"}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (fff) specified for: /dirs/d1/files/f1/meta.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fff) was specified for \"/dirs/d1/files/f1/meta\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "list": "fff"
+    "name": "fff"
   },
-  "source": "e4e59b8a76c4:registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
 	})
@@ -433,13 +433,13 @@ func TestMetaSimple(t *testing.T) {
 		ReqBody: `{"fff":"aaa"}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (fff) specified for: /dirs/d1/files/f21/meta.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fff) was specified for \"/dirs/d1/files/f21/meta\".",
   "subject": "/dirs/d1/files/f21/meta",
   "args": {
-    "list": "fff"
+    "name": "fff"
   },
-  "source": "e4e59b8a76c4:registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
 	})
@@ -1003,13 +1003,13 @@ func TestMetaCombos(t *testing.T) {
 		ReqBody: `{"defaultversionid": "v1.0","defaultversionsticky":true}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (defaultversionid,defaultversionsticky) specified for: /dirs/d1/files/f1/versions/v2.0.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (defaultversionid) was specified for \"/dirs/d1/files/f1/versions/v2.0\".",
   "subject": "/dirs/d1/files/f1/versions/v2.0",
   "args": {
-    "list": "defaultversionid,defaultversionsticky"
+    "name": "defaultversionid"
   },
-  "source": "e4e59b8a76c4:registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
 	})

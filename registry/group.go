@@ -202,19 +202,19 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	} else {
 		if _, ok := obj["versions"]; ok {
 			return nil, false, NewXRError("bad_request",
-				g.Path+"/"+rModel.Plural+"/"+id,
+				g.XID+"/"+rModel.Plural+"/"+id,
 				"error_detail=can't create a Version with a "+
 					"\"versions\" attribute")
 		}
 		if _, ok := obj["versionscount"]; ok {
 			return nil, false, NewXRError("bad_request",
-				g.Path+"/"+rModel.Plural+"/"+id,
+				g.XID+"/"+rModel.Plural+"/"+id,
 				"error_detail=can't create a Version with a "+
 					"\"versionscount\" attribute")
 		}
 		if _, ok := obj["versionsurl"]; ok {
 			return nil, false, NewXRError("bad_request",
-				g.Path+"/"+rModel.Plural+"/"+id,
+				g.XID+"/"+rModel.Plural+"/"+id,
 				"error_detail=can't create a Version with a "+
 					"\"versionsurl\" attribute")
 		}
@@ -460,6 +460,8 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	// If the passed-in vID is empty, and we're new, look for "versionid"
 	if vID == "" && isNew && attrVersionID != "" {
+		// The call to create the version will complain about passing in a vid
+		// if SetVersionID is 'false'. No need to check here too
 		vID = attrVersionID
 	}
 

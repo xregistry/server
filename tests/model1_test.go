@@ -4353,7 +4353,7 @@ func TestResourceModelCreate(t *testing.T) {
 						Plural:            "files",
 						Singular:          "file",
 						MaxVersions:       PtrInt(6),
-						SetVersionId:      PtrBool(false),
+						SetVersionId:      PtrBool(true),
 						SetDefaultSticky:  PtrBool(false),
 						HasDocument:       PtrBool(false),
 						SingleVersionRoot: PtrBool(false),
@@ -4616,7 +4616,7 @@ func TestResourceModelCreate(t *testing.T) {
           "plural": "files",
           "singular": "file",
           "maxversions": 6,
-          "setversionid": false,
+          "setversionid": true,
           "setdefaultversionsticky": false,
           "hasdocument": false,
           "singleversionroot": false,
@@ -4911,7 +4911,8 @@ func TestResourceModelCreate(t *testing.T) {
 
 	g, err := reg.AddGroup("dirs", "dir1")
 	XNoErr(t, err)
-	g.AddResource("files", "f1", "v1")
+	_, err = g.AddResource("files", "f1", "v1")
+	XNoErr(t, err)
 
 	XCheckGet(t, reg, "?inline=model,dirs.files", `{
   "specversion": "`+SPECVERSION+`",
@@ -5174,7 +5175,7 @@ func TestResourceModelCreate(t *testing.T) {
             "plural": "files",
             "singular": "file",
             "maxversions": 6,
-            "setversionid": false,
+            "setversionid": true,
             "setdefaultversionsticky": false,
             "hasdocument": false,
             "singleversionroot": false,
@@ -5494,7 +5495,7 @@ func TestResourceModelCreate(t *testing.T) {
 						Plural:            "files2",
 						Singular:          "file",
 						MaxVersions:       PtrInt(6),
-						SetVersionId:      PtrBool(false),
+						SetVersionId:      PtrBool(true),
 						SetDefaultSticky:  PtrBool(false),
 						HasDocument:       PtrBool(false),
 						SingleVersionRoot: PtrBool(false),
@@ -5762,7 +5763,7 @@ func TestResourceModelCreate(t *testing.T) {
             "plural": "files2",
             "singular": "file",
             "maxversions": 6,
-            "setversionid": false,
+            "setversionid": true,
             "setdefaultversionsticky": false,
             "hasdocument": false,
             "singleversionroot": false,
@@ -8200,6 +8201,7 @@ func TestModelAPI(t *testing.T) {
 
 	m := reg.LoadModel()
 	XJSONCheck(t, m, reg.Model)
+	XNoErr(t, reg.SaveAllAndCommit())
 }
 
 func TestMultModel2Create(t *testing.T) {
@@ -8220,9 +8222,10 @@ func TestMultModel2Create(t *testing.T) {
 	f.AddVersion("v1.1")
 
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, false, true, true)
+	gm2.AddResourceModel("files", "file", 0, true, true, true)
 	d2, _ := reg.AddGroup("dirs2", "d2")
-	d2.AddResource("files", "f2", "v1")
+	_, err := d2.AddResource("files", "f2", "v1")
+	XNoErr(t, err)
 
 	// /dirs1/d1/f1/v1
 	//            /v2
@@ -8922,7 +8925,7 @@ func TestMultModel2Create(t *testing.T) {
             "plural": "files",
             "singular": "file",
             "maxversions": 0,
-            "setversionid": false,
+            "setversionid": true,
             "setdefaultversionsticky": true,
             "hasdocument": true,
             "singleversionroot": false,

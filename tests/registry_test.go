@@ -304,10 +304,10 @@ func TestRegistryDefaultFields(t *testing.T) {
 	err = reg.SaveModel()
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.myobj.defint\" \"default\" value must be of type \"integer\".",
+  "title": "There was an error in the model definition provided: \"myobj.defint\" \"default\" value must be of type \"integer\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.myobj.defint\" \"default\" value must be of type \"integer\""
+    "error_detail": "\"myobj.defint\" \"default\" value must be of type \"integer\""
   },
   "source": "e4e59b8a76c4:registry:shared_model:2960"
 }`)
@@ -324,10 +324,10 @@ func TestRegistryDefaultFields(t *testing.T) {
 	err = reg.SaveModel()
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_scalar_default",
-  "title": "Model attribute \"model.myobj.defint\" is not allowed to have a default value since it is not a scalar.",
+  "title": "Model attribute \"myobj.defint\" is not allowed to have a default value since it is not a scalar.",
   "subject": "/model",
   "args": {
-    "name": "model.myobj.defint"
+    "name": "myobj.defint"
   },
   "source": "e4e59b8a76c4:registry:shared_model:2954"
 }`)

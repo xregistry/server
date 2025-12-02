@@ -962,6 +962,11 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 						fmt.Sprintf("Version %q already exists", id))
 		}
 
+		if v == nil && rm.GetSetVersionId() == false {
+			return nil, false, NewXRError("versionid_not_allowed", r.XID,
+				"plural="+r.Plural)
+		}
+
 		if v != nil && v.UID != id {
 			return nil, false,
 				NewXRError("bad_request", v.XID,

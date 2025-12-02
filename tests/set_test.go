@@ -42,83 +42,83 @@ func TestSetAttributeNames(t *testing.T) {
 		{"__", ""},
 		{"", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"\" for \"/\" is not valid: \"\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": ""
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{sixty + "1234", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/\" is not valid: \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "a234567890123456789012345678901234567890123456789012345678901234"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"1234", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"1234\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"1234\" for \"/\" is not valid: \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "1234"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"A", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"A\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"A\" for \"/\" is not valid: \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"A\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "A"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"aA", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"aA\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"aA\" for \"/\" is not valid: \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "aA"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"_A", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"_A\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"_A\" for \"/\" is not valid: \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "_A"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"_ _", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"_ _\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"_ _\" for \"/\" is not valid: \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "_ _"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"#abc", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"#abc\" for \"/\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"#abc\" for \"/\" is not valid: \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "#abc"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 	}
 
@@ -310,13 +310,13 @@ func TestSetDots(t *testing.T) {
 
 	xErr = dir.SetSave(NewPP().P("xxx.yyy").UI(), nil)
 	XCheckErr(t, xErr, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (xxx) specified for: /dirs/d1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (xxx) was specified for \"/dirs/d1\".",
   "subject": "/dirs/d1",
   "args": {
-    "list": "xxx"
+    "name": "xxx"
   },
-  "source": "e4e59b8a76c4:registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }`)
 	XCheck(t, xErr != nil, "xxx.yyy=nil should fail")
 	xErr = dir.SetSave("xxx.", "xxx")
@@ -716,7 +716,7 @@ func TestSetNameUser(t *testing.T) {
 				tmpPath, _, _ := strings.Cut(path, "$")
 				xrErr := NewXRError("invalid_attributes", tmpPath,
 					"list="+name,
-					"error_detail=must match: ^[a-z_][a-z_0-9]{0,62}$")
+					"error_detail=\""+name+"\" must match: ^[a-z_][a-z_0-9]{0,62}$")
 				msg = xrErr.String() + "\n"
 			}
 

@@ -35,18 +35,25 @@ func IsValidModelName(name string) *XRError {
 			RegexpModelName.String()))
 }
 
-func IsValidAttributeName(name string, errLocation string) *XRError {
+func IsValidAttributeName(name string, subject string, attrPath string) *XRError {
 	if RegexpPropName.MatchString(name) {
 		return nil
 	}
 
-	if errLocation == "" {
-		errLocation = "/model"
+	/*
+		if subject == "" {
+			subject = "/model"
+		}
+	*/
+
+	if attrPath != "" {
+		attrPath = fmt.Sprintf("in %q ", attrPath)
 	}
 
-	return NewXRError("invalid_attributes", errLocation,
+	return NewXRError("invalid_attributes", subject,
 		"list="+name,
-		"error_detail="+fmt.Sprintf("must match: %s", RegexpPropName.String()))
+		"error_detail="+fmt.Sprintf("%q %smust match: %s",
+			name, attrPath, RegexpPropName.String()))
 }
 
 func IsValidMapKey(key string, subject string, attrPath string) *XRError {
@@ -54,9 +61,11 @@ func IsValidMapKey(key string, subject string, attrPath string) *XRError {
 		return nil
 	}
 
-	if subject == "" {
-		subject = "/model"
-	}
+	/*
+		if subject == "" {
+			subject = "/model"
+		}
+	*/
 
 	if attrPath != "" {
 		attrPath = fmt.Sprintf("in %q ", attrPath)
@@ -518,7 +527,7 @@ func (m *Model) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	}
 
 	if attr.Name != "*" {
-		if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+		if xErr := IsValidAttributeName(attr.Name, "/", ""); xErr != nil {
 			return nil, xErr.AddSource("")
 		}
 	}
@@ -776,7 +785,7 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr.Name != "*" {
 		if i.Type == OBJECT {
 			if i.NameCharSet == "extended" {
-				if xErr := IsValidMapKey(attr.Name, "", ""); xErr != nil {
+				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
 					return nil,
 						NewXRError("model_error", "/model",
 							"error_detail="+
@@ -785,7 +794,7 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 									RegexpMapKey.String()))
 				}
 			} else if i.NameCharSet == "strict" || i.NameCharSet == "" {
-				if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+				if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 					return nil, xErr.AddSource("")
 				}
 			} else {
@@ -933,7 +942,7 @@ func (gm *GroupModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	}
 
 	if attr.Name != "*" {
-		if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 			return nil, xErr.AddSource("")
 		}
 	}
@@ -1350,7 +1359,7 @@ func (rm *ResourceModel) AddResourceAttribute(attr *Attribute) (*Attribute, *XRE
 	}
 
 	if attr.Name != "*" {
-		if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 			return nil, xErr.AddSource("")
 		}
 	}
@@ -1390,7 +1399,7 @@ func (rm *ResourceModel) AddMetaAttribute(attr *Attribute) (*Attribute, *XRError
 	}
 
 	if attr.Name != "*" {
-		if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 			return nil, xErr.AddSource("")
 		}
 	}
@@ -1442,7 +1451,7 @@ func (rm *ResourceModel) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	}
 
 	if attr.Name != "*" {
-		if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+		if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 			return nil, xErr.AddSource("")
 		}
 	}
@@ -1647,14 +1656,14 @@ func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr.Name != "*" {
 		if a.Type == OBJECT {
 			if a.NameCharSet == "extended" {
-				if xErr := IsValidMapKey(attr.Name, "", ""); xErr != nil {
+				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
 					return nil, NewXRError("model_error", "/model",
 						"error_detail="+
 							fmt.Sprintf("invalid attribute name %q must "+
 								"match: %s", attr.Name, RegexpMapKey.String()))
 				}
 			} else if a.NameCharSet == "strict" || a.NameCharSet == "" {
-				if xErr := IsValidAttributeName(attr.Name, "/"); xErr != nil {
+				if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 					return nil, xErr.AddSource("")
 				}
 			} else {
@@ -1827,7 +1836,7 @@ func (m *Model) Verify() *XRError {
 
 	// Now check Registry attributes for correctness
 	for key, _ := range m.Labels {
-		if xErr := IsValidMapKey(key, "", "labels"); xErr != nil {
+		if xErr := IsValidMapKey(key, "/model", "labels"); xErr != nil {
 			return xErr.AddSource("")
 		}
 	}
@@ -1835,7 +1844,7 @@ func (m *Model) Verify() *XRError {
 	ld := &LevelData{
 		Model:     m,
 		AttrNames: map[string]bool{},
-		Path:      NewPPP("model"),
+		Path:      NewPPP(""), // was "model"
 	}
 	if xErr := m.Attributes.Verify("strict", ld); xErr != nil {
 		return xErr
@@ -2093,7 +2102,7 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 	}
 
 	for key, _ := range gm.Labels {
-		if err := IsValidMapKey(key, "", ld.Path.P("labels").UI()); err != nil {
+		if err := IsValidMapKey(key, "/model", ld.Path.P("labels").UI()); err != nil {
 			return err.AddSource("")
 		}
 	}
@@ -2398,7 +2407,7 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 	}
 
 	for key, _ := range rm.Labels {
-		if xErr := IsValidMapKey(key, "", ld.Path.P("labels").UI()); xErr != nil {
+		if xErr := IsValidMapKey(key, "/model", ld.Path.P("labels").UI()); xErr != nil {
 			return xErr.AddSource("")
 		}
 	}
@@ -2785,8 +2794,8 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		if attr == nil {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
-					fmt.Sprintf("while processing %q, "+
-						"attribute %q can't be empty", "/"+ld.Path.UI(), name))
+					fmt.Sprintf(
+						"attribute %q can't be empty", ld.Path.P(name).UI()))
 		}
 		if name == "" { // attribute key empty?
 			return NewXRError("model_error", "/model",
@@ -2810,7 +2819,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		// to be a valid name/string so we should be ok
 		if name != "*" && SpecProps[name] == nil {
 			if namecharset == "extended" {
-				if xErr := IsValidMapKey(name, "", ld.Path.UI()); xErr != nil {
+				if xErr := IsValidMapKey(name, "/model", ld.Path.UI()); xErr != nil {
 					return xErr.AddSource("")
 					/*
 						return NewXRError("model_error", "/model",
@@ -2820,7 +2829,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 					*/
 				}
 			} else if namecharset == "strict" || namecharset == "" {
-				xErr := IsValidAttributeName(name, "/"+ld.Path.UI())
+				xErr := IsValidAttributeName(name, "/model", ld.Path.UI())
 				if xErr != nil {
 					return xErr.AddSource("")
 				}

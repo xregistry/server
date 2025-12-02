@@ -2723,13 +2723,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (foo) specified for: /dirs/dir1/files/f3/versions/1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (foo) was specified for \"/dirs/dir1/files/f3/versions/1\".",
   "subject": "/dirs/dir1/files/f3/versions/1",
   "args": {
-    "list": "foo"
+    "name": "foo"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `,
 	})
@@ -2812,13 +2812,13 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"Content-Type:application/json; charset=utf-8",
 		},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (f2,f3) specified for: /dirs/dir1/files/f1/versions/1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (f2) was specified for \"/dirs/dir1/files/f1/versions/1\".",
   "subject": "/dirs/dir1/files/f1/versions/1",
   "args": {
-    "list": "f2,f3"
+    "name": "f2"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `})
 
@@ -3899,13 +3899,13 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/", `{
 	  "badext": "str"
 	}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (badext) specified for: /.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (badext) was specified for \"/\".",
   "subject": "/",
   "args": {
-    "list": "badext"
+    "name": "badext"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
 
@@ -4051,13 +4051,13 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
 	  "badext": "str"
 	}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (badext) specified for: /dirs/dir1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (badext) was specified for \"/dirs/dir1\".",
   "subject": "/dirs/dir1",
   "args": {
-    "list": "badext"
+    "name": "badext"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
 
@@ -4247,13 +4247,13 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
 	  "badext": "str"
 	}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (badext) specified for: /dirs/dir1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (badext) was specified for \"/dirs/dir1/files/f1/versions/v1\".",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "args": {
-    "list": "badext"
+    "name": "badext"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
 
@@ -4411,13 +4411,13 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
 	  "badext": "str"
 	}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_extensions",
-  "title": "Unknown extension attribute(s) (badext) specified for: /dirs/dir1/files/f1/versions/v1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (badext) was specified for \"/dirs/dir1/files/f1/versions/v1\".",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "args": {
-    "list": "badext"
+    "name": "badext"
   },
-  "source": ":registry:entity:2203"
+  "source": "186f71c5fb29:registry:entity:2192"
 }
 `)
 
@@ -8930,13 +8930,10 @@ func TestHTTPMissingBody(t *testing.T) {
 
 	fn := func(i string) string {
 		xErr := &XRError{
-			Type:    "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+			Type:    "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
 			Subject: i,
-			Title:   "An HTTP body must be specified, try {}.",
-			Args: map[string]string{
-				"error_detail": "An HTTP body must be specified, try {}",
-			},
-			Source: "xyz",
+			Title:   "The request is missing an HTTP body - try '{}'.",
+			Source:  "xyz",
 		}
 		return xErr.ToJSON("http://localhost:8181") + "\n"
 	}
@@ -9021,12 +9018,9 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 		{`{}{}`, `Error parsing json: extra data possibly near position 3: {`},
 		{`[]`, `path '': expected \"map\", got \"array\"`},
 		{``, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "An HTTP body must be specified, try {}.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
+  "title": "The request is missing an HTTP body - try '{}'.",
   "subject": "/",
-  "args": {
-    "error_detail": "An HTTP body must be specified, try {}"
-  },
   "source": ":registry:httpStuff:3119"
 }
 `},

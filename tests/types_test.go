@@ -348,7 +348,7 @@ func TestTypesBasic(t *testing.T) {
 			{"regobj", []any{}, nil,
 				`The attribute(s) "regobj" for "/" is not valid: must be a map[string] or object.`}, // Not an array
 			{"reganyobj2.str", "substr", nil,
-				`Unknown extension attribute(s) (reganyobj2) specified for: /.`}, // unknown attr
+				`An unknown attribute (reganyobj2) was specified for "/".`}, // unknown attr
 			{"regarrayarrayint[0][0]", "abc", nil,
 				`The attribute(s) "regarrayarrayint[0][0]" for "/" is not valid: must be an integer.`}, // bad type
 			{"regarrayint[2]", "abc", nil,
@@ -372,9 +372,9 @@ func TestTypesBasic(t *testing.T) {
 			{"reguint1", -1, nil,
 				`The attribute(s) "reguint1" for "/" is not valid: must be a uinteger.`}, // bad uint
 			{"unknown_int", 123, nil,
-				`Unknown extension attribute(s) (unknown_int) specified for: /.`}, // unknown attr
+				`An unknown attribute (unknown_int) was specified for "/".`}, // unknown attr
 			{"unknown_str", "error", nil,
-				`Unknown extension attribute(s) (unknown_str) specified for: /.`}, // unknown attr
+				`An unknown attribute (unknown_str) was specified for "/".`}, // unknown attr
 
 			{"regptr_group", "", nil, `The attribute(s) "regptr_group" for "/" is not valid: must be an xid, not empty.`},
 			{"regptr_group", "/", nil, `The attribute(s) "regptr_group" for "/" is not valid: must match "/dirs" target.`},
@@ -935,13 +935,13 @@ func TestTypesNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"attr1-\" for \"/obj1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
-  "subject": "/obj1",
+  "title": "The attribute(s) \"attr1-\" for \"/model\" is not valid: \"attr1-\" in \"obj1\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"attr1-\" in \"obj1\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "attr1-"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -957,13 +957,13 @@ func TestTypesNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"attr1-\" for \"/obj1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
-  "subject": "/obj1",
+  "title": "The attribute(s) \"attr1-\" for \"/model\" is not valid: \"attr1-\" in \"obj1\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"attr1-\" in \"obj1\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "attr1-"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -988,13 +988,13 @@ func TestTypesNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"another-\" for \"/obj1.attr1.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
-  "subject": "/obj1.attr1.ifvalues.a1",
+  "title": "The attribute(s) \"another-\" for \"/model\" is not valid: \"another-\" in \"obj1.attr1.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"another-\" in \"obj1.attr1.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "another-"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -1033,13 +1033,13 @@ func TestTypesNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"bad-\" for \"/astring.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
-  "subject": "/astring.ifvalues.a1",
+  "title": "The attribute(s) \"bad-\" for \"/model\" is not valid: \"bad-\" in \"astring.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"bad-\" in \"astring.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "bad-"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47,registry:shared_model:2825"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
@@ -1062,13 +1062,13 @@ func TestTypesNameCharSet(t *testing.T) {
 	})
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"bad-\" for \"/astring.attr1.ifvalues.a1\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
-  "subject": "/astring.attr1.ifvalues.a1",
+  "title": "The attribute(s) \"bad-\" for \"/model\" is not valid: \"bad-\" in \"astring.attr1.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"bad-\" in \"astring.attr1.ifvalues.a1\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "bad-"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:47,registry:shared_model:2825"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`)
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{

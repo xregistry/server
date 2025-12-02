@@ -822,7 +822,7 @@ func DoOneTwo(tx *Tx, cmd string, args ...interface{}) {
 
 func DoZeroTwo(tx *Tx, cmd string, args ...interface{}) {
 	count := doCount(tx, cmd, args...)
-	PanicIf(count != 1 && count != 2,
+	PanicIf(count != 0 && count != 2,
 		"DoOne:Error DB(%s) didn't change exactly 0/2 row(%d)",
 		SubQuery(cmd, args), count)
 }

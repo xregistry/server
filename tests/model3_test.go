@@ -1438,6 +1438,147 @@ func TestModelResourceAttrs(t *testing.T) {
 }
 */
 
+func TestModelSetDefaultVersionID(t *testing.T) {
+	reg := NewRegistry("TestModelSetDefaultVersionID")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "setversionid": false
+              }
+            }
+          }
+        }
+      }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "versionid": "v1"
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f1\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:group:464"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "versions": {
+                "v1": {}
+              }
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f1\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:group:464"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+  "versions": { "v1": {} }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f1\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:957"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f1\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:957"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `hello`, 201, `hello`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `bye`, 200, `bye`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{}`, 201, `*`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f4$details", `{}`, 201, `*`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f5", `hello`, 201, `*`)
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f6$details", `{}`, 201, `*`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f7/versions", `{"v1":{}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f7\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f7",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:966"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f7/versions/v1", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f7\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f7",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:966"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f7/versions/v1$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f7\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f7",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:966"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f7/versions/v1$details", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#versionid_not_allowed",
+  "title": "While creating a new Version for \"/dirs/d1/files/f7\", a \"versionid\" was specified but the \"setversionid\" model aspect for entities of type \"files\" is \"false\".",
+  "subject": "/dirs/d1/files/f7",
+  "args": {
+    "plural": "files"
+  },
+  "source": ":registry:resource:966"
+}
+`)
+}
+
 func TestModelFullModel(t *testing.T) {
 	reg := NewRegistry("TestModelFullModel")
 	defer PassDeleteReg(t, reg)
@@ -1493,7 +1634,7 @@ func TestModelFullModel(t *testing.T) {
                 "modelversion": "rmv1",
                 "compatiblewith": "rcw1",
                 "maxversions": 5,
-                "setversionid": false,
+                "setversionid": true,
                 "setdefaultversionsticky": false,
                 "hasdocument": false,
                 "singleversionroot": true,
@@ -1855,7 +1996,7 @@ func TestModelFullModel(t *testing.T) {
             "modelversion": "rmv1",
             "compatiblewith": "rcw1",
             "maxversions": 5,
-            "setversionid": false,
+            "setversionid": true,
             "setdefaultversionsticky": false,
             "hasdocument": false,
             "singleversionroot": true,

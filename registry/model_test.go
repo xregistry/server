@@ -254,10 +254,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Attributes: Attributes{"myint": {Name: "bad"}},
 			}, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.myint\" must have a \"name\" set to \"myint\".",
+  "title": "There was an error in the model definition provided: \"myint\" must have a \"name\" set to \"myint\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.myint\" must have a \"name\" set to \"myint\""
+    "error_detail": "\"myint\" must have a \"name\" set to \"myint\""
   },
   "source": ":registry:shared_model:2830"
 }`},
@@ -265,10 +265,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"myint": {Name: "myint"}},
 		}, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.myint\" is missing a \"type\".",
+  "title": "There was an error in the model definition provided: \"myint\" is missing a \"type\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.myint\" is missing a \"type\""
+    "error_detail": "\"myint\" is missing a \"type\""
   },
   "source": ":registry:shared_model:2836"
 }`},
@@ -283,17 +283,17 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		/* no longer required
 		{"err - type - xid - missing target", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID}}},
-			`"model.x" must have a "target" value since "type" is "xid"`},
+			`"x" must have a "target" value since "type" is "xid"`},
 		*/
 
 		{"err - type - xid - extra target", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: STRING, Target: "/"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" must not have a \"target\" value since \"type\" is not \"xid\".",
+  "title": "There was an error in the model definition provided: \"x\" must not have a \"target\" value since \"type\" is not \"xid\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" must not have a \"target\" value since \"type\" is not \"xid\""
+    "error_detail": "\"x\" must not have a \"target\" value since \"type\" is not \"xid\""
   },
   "source": ":registry:shared_model:2891"
 }`},
@@ -302,10 +302,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Target: "xx/"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "title": "There was an error in the model definition provided: \"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+    "error_detail": "\"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
   },
   "source": ":registry:shared_model:2865"
 }`},
@@ -314,10 +314,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Target: "/xx/"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "title": "There was an error in the model definition provided: \"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+    "error_detail": "\"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
   },
   "source": ":registry:shared_model:2865"
 }`},
@@ -326,10 +326,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Target: "/  xx"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" has an unknown Group type: \"  xx\".",
+  "title": "There was an error in the model definition provided: \"x\" has an unknown Group type: \"  xx\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" has an unknown Group type: \"  xx\""
+    "error_detail": "\"x\" has an unknown Group type: \"  xx\""
   },
   "source": ":registry:shared_model:2874"
 }`},
@@ -339,10 +339,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Groups: groups},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" has an unknown Group type: \"badg\".",
+  "title": "There was an error in the model definition provided: \"x\" has an unknown Group type: \"badg\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" has an unknown Group type: \"badg\""
+    "error_detail": "\"x\" has an unknown Group type: \"badg\""
   },
   "source": ":registry:shared_model:2874"
 }`,
@@ -353,10 +353,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Groups: groups},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" has an unknown Resource type: \"badr\".",
+  "title": "There was an error in the model definition provided: \"x\" has an unknown Resource type: \"badr\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" has an unknown Resource type: \"badr\""
+    "error_detail": "\"x\" has an unknown Resource type: \"badr\""
   },
   "source": ":registry:shared_model:2881"
 }`},
@@ -381,17 +381,17 @@ func TestModelVerifyRegAttr(t *testing.T) {
 		{"type - xid - reg - ''", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: ""}}, Groups: groups},
-			`"model.x" must have a "target" value since "type" is "xid"`},
+			`"x" must have a "target" value since "type" is "xid"`},
 		*/
 		{"type - xid - reg - /", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
 				Target: "/"}}, Groups: groups},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
+  "title": "There was an error in the model definition provided: \"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]].",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
+    "error_detail": "\"x\" \"target\" must be of the form: /GROUPS[/RESOURCES[/versions | \\[/versions\\] ]]"
   },
   "source": ":registry:shared_model:2865"
 }`},
@@ -440,10 +440,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				NameCharSet: "foo"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" has an invalid \"namecharset\" value: foo.",
+  "title": "There was an error in the model definition provided: \"x\" has an invalid \"namecharset\" value: foo.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" has an invalid \"namecharset\" value: foo"
+    "error_detail": "\"x\" has an invalid \"namecharset\" value: foo"
   },
   "source": ":registry:shared_model:2969"
 }`},
@@ -451,71 +451,71 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{".foo": {Name: ".foo", Type: ANY}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \".foo\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \".foo\" for \"/model\" is not valid: \".foo\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\".foo\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": ".foo"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`},
 		{"type - attr - err2", Model{
 			Attributes: Attributes{"foo.bar": {}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"foo.bar\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"foo.bar\" for \"/model\" is not valid: \"foo.bar\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"foo.bar\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "foo.bar"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`},
 		{"type - attr - err3", Model{
 			Attributes: Attributes{"foo": nil}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: while processing \"/model\", attribute \"foo\" can't be empty.",
+  "title": "There was an error in the model definition provided: attribute \"foo\" can't be empty.",
   "subject": "/model",
   "args": {
-    "error_detail": "while processing \"/model\", attribute \"foo\" can't be empty"
+    "error_detail": "attribute \"foo\" can't be empty"
   },
-  "source": ":registry:shared_model:2774"
+  "source": "e4e59b8a76c4:registry:shared_model:2791"
 }`},
 		{"type - attr - err4", Model{
 			Attributes: Attributes{"FOO": {}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"FOO\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"FOO\" for \"/model\" is not valid: \"FOO\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"FOO\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "FOO"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`},
 		{"type - attr - err5", Model{
 			Attributes: Attributes{"9foo": {}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"9foo\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"9foo\" for \"/model\" is not valid: \"9foo\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"9foo\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "9foo"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`},
 		{"type - attr - err6", Model{
 			Attributes: Attributes{"": {}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: while processing \"/model\", it has an empty attribute key.",
+  "title": "There was an error in the model definition provided: while processing \"/\", it has an empty attribute key.",
   "subject": "/model",
   "args": {
-    "error_detail": "while processing \"/model\", it has an empty attribute key"
+    "error_detail": "while processing \"/\", it has an empty attribute key"
   },
-  "source": ":registry:shared_model:2780"
+  "source": "e4e59b8a76c4:registry:shared_model:2797"
 }`},
 		{"type - attr - ok1", Model{
 			Attributes: Attributes{"a23456789012345678901234567890123456789012345678901234567890123": {Name: "a23456789012345678901234567890123456789012345678901234567890123", Type: STRING}}},
@@ -524,23 +524,23 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"a234567890123456789012345678901234567890123456789012345678901234": {Name: "a234567890123456789012345678901234567890123456789012345678901234", Type: STRING}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/model\" is not valid: \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "a234567890123456789012345678901234567890123456789012345678901234"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:2834"
 }`},
 
 		{"type - array - missing item", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: ARRAY}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" must have an \"item\" section.",
+  "title": "There was an error in the model definition provided: \"x\" must have an \"item\" section.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" must have an \"item\" section"
+    "error_detail": "\"x\" must have an \"item\" section"
   },
   "source": ":registry:shared_model:2904"
 }`},
@@ -548,10 +548,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"x": {Name: "x", Type: MAP}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" must have an \"item\" section.",
+  "title": "There was an error in the model definition provided: \"x\" must have an \"item\" section.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" must have an \"item\" section"
+    "error_detail": "\"x\" must have an \"item\" section"
   },
   "source": ":registry:shared_model:2904"
 }`},
@@ -562,10 +562,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"x": {Name: "x", Type: "urlx"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" has an invalid type: urlx.",
+  "title": "There was an error in the model definition provided: \"x\" has an invalid type: urlx.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" has an invalid type: urlx"
+    "error_detail": "\"x\" has an invalid type: urlx"
   },
   "source": ":registry:shared_model:2841"
 }`},
@@ -578,10 +578,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Item: &Item{}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" must not have an \"item\" section.",
+  "title": "There was an error in the model definition provided: \"x\" must not have an \"item\" section.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" must not have an \"item\" section"
+    "error_detail": "\"x\" must not have an \"item\" section"
   },
   "source": ":registry:shared_model:2976"
 }`},
@@ -612,10 +612,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Item: &Item{Type: MAP, Attributes: Attributes{}}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.m.item\" must not have \"attributes\".",
+  "title": "There was an error in the model definition provided: \"m.item\" must not have \"attributes\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.m.item\" must not have \"attributes\""
+    "error_detail": "\"m.item\" must not have \"attributes\""
   },
   "source": ":registry:shared_model:3078"
 }`},
@@ -624,10 +624,10 @@ func TestModelVerifyRegAttr(t *testing.T) {
 				Item: &Item{Type: ARRAY, Attributes: Attributes{}}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.m.item\" must not have \"attributes\".",
+  "title": "There was an error in the model definition provided: \"m.item\" must not have \"attributes\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.m.item\" must not have \"attributes\""
+    "error_detail": "\"m.item\" must not have \"attributes\""
   },
   "source": ":registry:shared_model:3078"
 }`},
@@ -676,10 +676,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: OBJECT, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
   },
   "source": ":registry:shared_model:2926"
 }`},
@@ -687,10 +687,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: ARRAY, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
   },
   "source": ":registry:shared_model:2926"
 }`},
@@ -698,10 +698,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: MAP, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
+  "title": "There was an error in the model definition provided: \"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
+    "error_detail": "\"x\" is not a scalar, or an array of scalars, so \"enum\" is not allowed"
   },
   "source": ":registry:shared_model:2926"
 }`},
@@ -709,10 +709,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: ANY, Enum: []any{}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" specifies an \"enum\" but it is empty.",
+  "title": "There was an error in the model definition provided: \"x\" specifies an \"enum\" but it is empty.",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" specifies an \"enum\" but it is empty"
+    "error_detail": "\"x\" specifies an \"enum\" but it is empty"
   },
   "source": ":registry:shared_model:2913"
 }`},
@@ -725,10 +725,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{true, ""}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"\" must be of type \"boolean\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"\" must be of type \"boolean\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"\" must be of type \"boolean\""
+    "error_detail": "\"x\" enum value \"\" must be of type \"boolean\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -736,10 +736,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{5.5}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"boolean\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"5.5\" must be of type \"boolean\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"5.5\" must be of type \"boolean\""
+    "error_detail": "\"x\" enum value \"5.5\" must be of type \"boolean\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -747,10 +747,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{map[string]string{}}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"map[]\" must be of type \"boolean\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"map[]\" must be of type \"boolean\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"map[]\" must be of type \"boolean\""
+    "error_detail": "\"x\" enum value \"map[]\" must be of type \"boolean\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -763,10 +763,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: DECIMAL, Enum: []any{true, 5}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"true\" must be of type \"decimal\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"true\" must be of type \"decimal\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"true\" must be of type \"decimal\""
+    "error_detail": "\"x\" enum value \"true\" must be of type \"decimal\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -779,10 +779,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: INTEGER, Enum: []any{-1, 1, 3.1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"3.1\" must be of type \"integer\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"3.1\" must be of type \"integer\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"3.1\" must be of type \"integer\""
+    "error_detail": "\"x\" enum value \"3.1\" must be of type \"integer\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -790,10 +790,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: INTEGER, Enum: []any{[]int{}}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"[]\" must be of type \"integer\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"[]\" must be of type \"integer\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"[]\" must be of type \"integer\""
+    "error_detail": "\"x\" enum value \"[]\" must be of type \"integer\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -806,10 +806,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: STRING, Enum: []any{"a", 0}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"0\" must be of type \"string\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"0\" must be of type \"string\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"0\" must be of type \"string\""
+    "error_detail": "\"x\" enum value \"0\" must be of type \"string\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -817,10 +817,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: STRING, Enum: []any{"a", struct{}{}}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"{}\" must be of type \"string\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"{}\" must be of type \"string\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"{}\" must be of type \"string\""
+    "error_detail": "\"x\" enum value \"{}\" must be of type \"string\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -837,10 +837,10 @@ func TestModelVerifyEnum(t *testing.T) {
 				Enum: []any{"2024-01-02T12:01:02Z", "bad"}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"bad\" must be of type \"timestamp\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"bad\" must be of type \"timestamp\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"bad\" must be of type \"timestamp\""
+    "error_detail": "\"x\" enum value \"bad\" must be of type \"timestamp\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -849,10 +849,10 @@ func TestModelVerifyEnum(t *testing.T) {
 				Enum: []any{"2024-01-02T12:01:02Z", 5.5}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"timestamp\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"5.5\" must be of type \"timestamp\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"5.5\" must be of type \"timestamp\""
+    "error_detail": "\"x\" enum value \"5.5\" must be of type \"timestamp\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -866,10 +866,10 @@ func TestModelVerifyEnum(t *testing.T) {
 			"x": {Name: "x", Type: UINTEGER, Enum: []any{2, -1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"-1\" must be of type \"uinteger\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"-1\" must be of type \"uinteger\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"-1\" must be of type \"uinteger\""
+    "error_detail": "\"x\" enum value \"-1\" must be of type \"uinteger\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -878,10 +878,10 @@ func TestModelVerifyEnum(t *testing.T) {
 				Enum: []any{5.5}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"model.x\" enum value \"5.5\" must be of type \"uinteger\".",
+  "title": "There was an error in the model definition provided: \"x\" enum value \"5.5\" must be of type \"uinteger\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"model.x\" enum value \"5.5\" must be of type \"uinteger\""
+    "error_detail": "\"x\" enum value \"5.5\" must be of type \"uinteger\""
   },
   "source": ":registry:shared_model:2934"
 }`},
@@ -1071,83 +1071,83 @@ func TestValidChars(t *testing.T) {
 	}{
 		{"", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"\" for \"/model\" is not valid: \"\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": ""
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"A", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"A\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"A\" for \"/model\" is not valid: \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"A\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "A"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"*", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"*\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"*\" for \"/model\" is not valid: \"*\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"*\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "*"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"@", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"@\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"@\" for \"/model\" is not valid: \"@\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"@\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "@"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"0", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"0\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"0\" for \"/model\" is not valid: \"0\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"0\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "0"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"0a", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"0a\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"0a\" for \"/model\" is not valid: \"0a\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"0a\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "0a"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"aZ", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"aZ\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"aZ\" for \"/model\" is not valid: \"aZ\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"aZ\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "aZ"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{a64, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"a234567890a234567890a234567890a234567890a234567890a2345678901234\" for \"/model\" is not valid: must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "title": "The attribute(s) \"a234567890a234567890a234567890a234567890a234567890a2345678901234\" for \"/model\" is not valid: \"a234567890a234567890a234567890a234567890a234567890a2345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/model",
   "args": {
-    "error_detail": "must match: ^[a-z_][a-z_0-9]{0,62}$",
+    "error_detail": "\"a234567890a234567890a234567890a234567890a234567890a2345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
     "list": "a234567890a234567890a234567890a234567890a234567890a2345678901234"
   },
-  "source": ":registry:shared_model:47"
+  "source": "e4e59b8a76c4:registry:shared_model:53"
 }`},
 		{"a", ``},
 		{"_", ``},
@@ -1159,7 +1159,7 @@ func TestValidChars(t *testing.T) {
 		{"a9", ``},
 		{a63, ``},
 	} {
-		xErr := IsValidAttributeName(test.input, "/model")
+		xErr := IsValidAttributeName(test.input, "/model", "")
 		got := ""
 		if xErr != nil {
 			got = xErr.String()

@@ -3,11 +3,17 @@
 TMP=/tmp/output$RANDOM
 trap 'rm -f $TMP' EXIT
 
+# If what want to show is different from the actual comment then make the
+# first args the command to show prefixed with a "-"
 if [[ "$1" == "-"* ]]; then
-    echo "${1:1}"
-    shift
+    echo "${1:1}"   # remove the "-" and echo it
+    shift           # skip over this arg
+elif [[ "$1" == "@"* ]]; then
+    args=("$@")
+    set -- "${1:1}" "${args[@]:1}"
+    # Don't echo any cmd if it starts with "@"
 else
-    echo "$@"
+    echo "$@"      # echo the command as is
 fi
 
 echo -e '$' "$@\n" > $TMP 2>&1

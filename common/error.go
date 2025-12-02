@@ -94,6 +94,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Use of "$details" in this context is not allowed: <subject>.`,
 	},
+	"bad_filter": &XRError{
+		Code:  400,
+		Title: `An error was found in filter (<filter_name>): <error_detail>.`,
+	},
 	"bad_flag": &XRError{
 		Code:  400,
 		Title: `The specified flag (<flag>) is not allowed in this context: <subject>.`,
@@ -152,7 +156,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"inline_noninlineable": &XRError{
 		Code:  400,
-		Title: `Attempting to inline a non-inlineable attribute (<name>) on: <subject>`,
+		Title: `Attempting to inline a non-inlineable attribute (<name>) on: <subject>.`,
 	},
 	"invalid_attributes": &XRError{
 		Code:  400,
@@ -247,7 +251,7 @@ var Type2Error = map[string]*XRError{
 		Title: `Can't sort on a non-collection result set. Query path: <subject>.`,
 	},
 	"too_large": &XRError{
-		Code:  400,
+		Code:  406,
 		Title: `The size of the response is too large to return in a single response.`,
 	},
 	"too_many_versions": &XRError{
@@ -257,10 +261,6 @@ var Type2Error = map[string]*XRError{
 	"unknown_attribute": &XRError{
 		Code:  400,
 		Title: `An unknown attribute (<name>) was specified for "<subject>".`,
-	},
-	"unknown_extensions": &XRError{
-		Code:  400,
-		Title: `Unknown extension attribute(s) (<list>) specified for: <subject>.`,
 	},
 	"unknown_id": &XRError{
 		Code:  400,

@@ -1,4 +1,4 @@
-all: mysql cmds docs test images run
+all: mysql cmds docs test errors images run
 
 cmds-all: xr-all xrserver-all
 
@@ -40,6 +40,13 @@ cmds: .cmds
 	@touch .cmds
 
 docs: docs/xr_help.md docs/xrserver_help.md
+
+errors: .errors
+.errors: .cmds misc/checkerrors
+	@echo
+	@echo "# Checking the errors"
+	-@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
+	@touch .errors
 
 utest: .utest
 .utest: .cmds */*test.go
@@ -303,7 +310,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .utest .qtest .fulltest \
+	@rm -f .sharedfiles .errors .utest .qtest .fulltest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache

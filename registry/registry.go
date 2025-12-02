@@ -451,6 +451,9 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	reg.Lock()
 	reg.SetNewObject(obj)
 
+	// Ignore any incoming "model" attribute
+	delete(reg.NewObject, "model")
+
 	// Need to do it here instead of under the checkFn because doing it
 	// in checkfn causes a circular reference that golang doesn't like
 	val, ok := reg.NewObject["modelsource"]
