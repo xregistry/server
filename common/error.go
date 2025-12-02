@@ -162,10 +162,6 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The attribute(s) "<list>" for "<subject>" is not valid: <error_detail>.`,
 	},
-	"invalid_data": &XRError{
-		Code:  400,
-		Title: `The data provided for "<subject>" in "<name>" is invalid: <error_detail>.`,
-	},
 	"malformed_id": &XRError{
 		Code:  400,
 		Title: `The specified ID value (<id>) is malformed: <error_detail>.`,

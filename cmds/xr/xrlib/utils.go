@@ -277,7 +277,9 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	if xid.Version != "" {
 		if xid.Version != "versions" && (!allowSingular || xid.Version != "version") {
 			return NewXRError("malformed_xid", xid.String(),
-				fmt.Sprintf("expected %q not %q", "versions", xid.Version))
+				"xid="+xid.String(),
+				"error_detail="+
+					fmt.Sprintf("expected %q not %q", "versions", xid.Version))
 		}
 	}
 	return nil

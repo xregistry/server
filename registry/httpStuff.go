@@ -1720,10 +1720,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 					// then the Resource doesn't exist, so a 404 really is the
 					// best response in those cases, so skip the 400
 					if entity != nil && !IsNil(entity.Object["xref"]) {
-						return NewXRError("bad_flag", "/"+info.OriginalPath,
-							"flag=doc").
-							SetDetail("'doc' flag is not allowed on " +
-								"xref'd Versions.")
+						return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
 					}
 				}
 
@@ -1756,9 +1753,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 			// when xref is set. If this is not longer true then we'll need to
 			// check this Resource's xref to see if it's set.
 			// Can copy the RawEntityFromPath... stuff above
-			return NewXRError("bad_flag", "/"+info.OriginalPath,
-				"flag=doc").SetDetail("'doc' flag is not allowed on " +
-				"xref'd Versions.")
+			return NewXRError("cannot_doc_xref", "/"+info.OriginalPath)
 		}
 
 		// Only do this if we're adding the extra grouping wrapper

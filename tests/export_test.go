@@ -1274,27 +1274,19 @@ func TestExportBasic(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions?doc", ``, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "title": "The specified flag (doc) is not allowed in this context: /dirs/d1/files/fx/versions.",
-  "detail": "'doc' flag is not allowed on xref'd Versions.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#cannot_doc_xref",
+  "title": "Retrieving the document view of a Version for \"/dirs/d1/files/fx/versions\" is not allowed because it uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions",
-  "args": {
-    "flag": "doc"
-  },
-  "source": ":registry:httpStuff:1759"
+  "source": "e4e59b8a76c4:registry:httpStuff:1756"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/dirs/d1/files/fx/versions/v1?doc", ``, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
-  "title": "The specified flag (doc) is not allowed in this context: /dirs/d1/files/fx/versions/v1.",
-  "detail": "'doc' flag is not allowed on xref'd Versions.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#cannot_doc_xref",
+  "title": "Retrieving the document view of a Version for \"/dirs/d1/files/fx/versions/v1\" is not allowed because it uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions/v1",
-  "args": {
-    "flag": "doc"
-  },
-  "source": ":registry:httpStuff:1723"
+  "source": "e4e59b8a76c4:registry:httpStuff:1723"
 }
 `)
 
