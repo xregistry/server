@@ -4342,11 +4342,11 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
-  "title": "xRegistry HTTP header \"file\" is not allowed on this request: 'xRegistry-file' isn't allowed as an HTTP header.",
+  "title": "xRegistry HTTP header \"xRegistry-file\" is not allowed on this request: 'xRegistry-file' isn't allowed as an HTTP header.",
   "subject": "/dirs/dir1/files/f1",
   "args": {
     "error_detail": "'xRegistry-file' isn't allowed as an HTTP header",
-    "name": "file"
+    "name": "xRegistry-file"
   },
   "source": ":registry:httpStuff:3207"
 }
@@ -4365,11 +4365,11 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
-  "title": "xRegistry HTTP header \"filebase64\" is not allowed on this request: 'xRegistry-filebase64' isn't allowed as an HTTP header.",
+  "title": "xRegistry HTTP header \"xRegistry-filebase64\" is not allowed on this request: 'xRegistry-filebase64' isn't allowed as an HTTP header.",
   "subject": "/dirs/dir1/files/f1",
   "args": {
     "error_detail": "'xRegistry-filebase64' isn't allowed as an HTTP header",
-    "name": "filebase64"
+    "name": "xRegistry-filebase64"
   },
   "source": ":registry:httpStuff:3207"
 }
@@ -5007,6 +5007,30 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 	})
 
 	// Some errors
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad type - no name",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-: foo",
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#header_error",
+  "title": "There was an error processing HTTP header \"xRegistry-\": missing an attribute name after the \"-\".",
+  "subject": "/dirs/dir1/files/f1",
+  "args": {
+    "error_detail": "missing an attribute name after the \"-\"",
+    "name": "xRegistry-"
+  },
+  "source": ":registry:httpStuff:3203"
+}
+`,
+	})
+
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "Bad type",
 		URL:    "/dirs/dir1/files/f1",

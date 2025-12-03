@@ -3200,13 +3200,15 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 
 			key = strings.TrimSpace(key[10:]) // remove xRegistry-
 			if key == "" {
-				continue
+				return nil, NewXRError("header_error", "/"+info.OriginalPath,
+					"name=xRegistry-",
+					`error_detail=missing an attribute name after the "-"`)
 			}
 
 			if key == resSingular || key == resSingular+"base64" {
 				return nil, NewXRError("extra_xregistry_header",
 					"/"+info.OriginalPath,
-					"name="+key,
+					"name=xRegistry-"+key,
 					"error_detail="+
 						fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
 							"an HTTP header", key))
