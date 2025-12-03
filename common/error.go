@@ -158,9 +158,9 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Attempting to inline a non-inlineable attribute (<name>) on: <subject>.`,
 	},
-	"invalid_attributes": &XRError{
+	"invalid_attribute": &XRError{
 		Code:  400,
-		Title: `The attribute(s) "<list>" for "<subject>" is not valid: <error_detail>.`,
+		Title: `The attribute "<name>" for "<subject>" is not valid: <error_detail>.`,
 	},
 	"malformed_id": &XRError{
 		Code:  400,
@@ -216,7 +216,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"one_resource": &XRError{
 		Code:  400,
-		Title: `Only one "<list>" attributes can be present at a time for: <subject>.`,
+		Title: `Only one attribute from "<list>" can be present at a time for: <subject>.`,
 	},
 	"parsing_data": &XRError{
 		Code:  400,
@@ -288,11 +288,11 @@ var Type2Error = map[string]*XRError{
 	},
 	"extra_xregistry_header": &XRError{
 		Code:  400,
-		Title: `xRegistry HTTP header "<header_name>" is not allowed on this request: <error_detail>.`,
+		Title: `xRegistry HTTP header "<name>" is not allowed on this request: <error_detail>.`,
 	},
-	"header_decoding_error": &XRError{
+	"header_error": &XRError{
 		Code:  400,
-		Title: `The value (<header_value) of the HTTP "<header_name>" header cannot be decoded.`,
+		Title: `There was an error processing HTTP header "<name>": <error_detail>.`,
 	},
 	"missing_body": &XRError{
 		Code:  400,
@@ -511,4 +511,20 @@ func (xErr *XRError) AddSource(src string) *XRError {
 		xErr.Source += "," + src
 	}
 	return xErr
+}
+
+// Add the caller's parent func to the Source.
+// Used by popular util func to add parent to the Source's stack trace
+func (xErr *XRError) AddSourceParent() *XRError {
+	src := "<na>"
+	pc, file, lineNum, ok := runtime.Caller(2)
+	if ok {
+		pkg, _, _ := strings.Cut(path.Base(runtime.FuncForPC(pc).Name()), ".")
+		file, _, _ = strings.Cut(path.Base(file), ".")
+		if xErr.Source == "" {
+			xErr.Source = fmt.Sprintf("%.12s:", GitCommit)
+		}
+		src = fmt.Sprintf("%s:%s:%d", pkg, file, lineNum)
+	}
+	return xErr.AddSource(src)
 }

@@ -505,7 +505,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 `, "", true)
 
 	XCLI(t, "update -o=json / --set name --set=description=5", "",
-		"", `The attribute(s) "description" for "/" is not valid: must be a string.
+		"", `The attribute "description" for "/" is not valid: must be a string.
 `, false)
 
 	XCLI(t, "update -o=json / --set name --set=description=\"5\"", "",
@@ -523,7 +523,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 
 	XCLI(t, "update -o=json --set=labels.foo=5 --del description "+
 		"--del=labels", "",
-		"", `The attribute(s) "labels.foo" for "/" is not valid: must be a string.
+		"", `The attribute "labels.foo" for "/" is not valid: must be a string.
 `, false)
 
 	XCLI(t, "update -o=json --set=labels.foo=\"5\" --del description "+

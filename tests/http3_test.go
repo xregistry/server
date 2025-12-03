@@ -2404,12 +2404,12 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"strs\" for \"/dirs/d1\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"strs\" for \"/dirs/d1\" is not valid: must be an integer.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "must be an integer",
-    "list": "strs"
+    "name": "strs"
   },
   "source": "e4e59b8a76c4:registry:entity:2387"
 }
@@ -2466,12 +2466,12 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"strs[0]\" for \"/dirs/d1\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"strs[0]\" for \"/dirs/d1\" is not valid: must be an integer.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "must be an integer",
-    "list": "strs[0]"
+    "name": "strs[0]"
   },
   "source": "e4e59b8a76c4:registry:entity:2387"
 }
@@ -2499,12 +2499,12 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"strs\" for \"/dirs/d1\" is not valid: must be an array.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"strs\" for \"/dirs/d1\" is not valid: must be an array.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "must be an array",
-    "list": "strs"
+    "name": "strs"
   },
   "source": "e4e59b8a76c4:registry:entity:2324"
 }
@@ -2556,12 +2556,12 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"strs[0]\" for \"/dirs/d1\" is not valid: value (2) must be one of the enum values: 1.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"strs[0]\" for \"/dirs/d1\" is not valid: value (2) must be one of the enum values: 1.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "value (2) must be one of the enum values: 1",
-    "list": "strs[0]"
+    "name": "strs[0]"
   },
   "source": "e4e59b8a76c4:registry:entity:2589"
 }

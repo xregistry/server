@@ -2,6 +2,10 @@
 
 echo "Checking common/error.go against the spec's error definitions"
 
+# If XR_SPEC is set then it must point to the location of the spec files,
+# so it must be a dir name (w/o trailing /). If not set then this will use
+# the specs from the github repo - via "curl URL"
+
 declare -A codeMap
 declare -A specMap
 
@@ -27,8 +31,8 @@ while read line ; do
   [[ "$code" == "" ]] && echo "Code is missing for: $id" && exit 1
   [[ "$title" == "" ]] && echo "Title is missing for: $id" && exit 1
 
-  if ! grep -lr "NewXRError.*\"$id\"" cmds common registry > /dev/null ; then
-    echo "- \"$id\" appears to be unused"
+  if ! grep -qlr "NewXRError.*\"$id\"" cmds common registry > /dev/null ; then
+    echo "  - \"$id\" appears to be unused"
     rc=1
   fi
 

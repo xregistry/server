@@ -499,16 +499,16 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		}
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
-			return NewXRError("invalid_attributes", "/",
-				"list="+plural,
+			return NewXRError("invalid_attribute", "/",
+				"name="+plural,
 				"error_detail="+fmt.Sprintf("doesn't appear to be of a "+
 					"map of %q", plural))
 		}
 		for key, val := range collMap {
 			_, ok := val.(map[string]any)
 			if !ok {
-				return NewXRError("invalid_attributes", "/",
-					"list="+plural,
+				return NewXRError("invalid_attribute", "/",
+					"name="+plural,
 					"error_detail="+
 						fmt.Sprintf("key %q doesn't appear to be of type %q",
 							key, singular))
@@ -702,8 +702,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		collMap, ok := collVal.(map[string]any)
 		if !ok {
 			return nil, false,
-				NewXRError("invalid_attributes", "/"+gType+"/"+id,
-					"list="+plural,
+				NewXRError("invalid_attribute", "/"+gType+"/"+id,
+					"name="+plural,
 					"error_detail="+
 						fmt.Sprintf("doesn't appear to be of a "+
 							"map of %q", plural))
@@ -712,8 +712,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			_, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attributes", "/"+plural,
-						"list="+plural,
+					NewXRError("invalid_attribute", "/"+plural,
+						"name="+plural,
 						"error_detail="+
 							fmt.Sprintf("Key %q doesn't appear to be of "+
 								"type %q", key, singular))

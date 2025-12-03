@@ -55,7 +55,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "subject": "/dirs/d1/bars",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
-    "header_name": "xregistry-barid"
+    "name": "xregistry-barid"
   },
   "source": ":registry:httpStuff:3145"
 }
@@ -3094,7 +3094,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "subject": "/dirs/dir1/files/f8$details",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
-    "header_name": "xregistry-description"
+    "name": "xregistry-description"
   },
   "source": ":registry:httpStuff:3145"
 }
@@ -6609,12 +6609,12 @@ func TestHTTPNestedResources(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: must be a boolean.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: must be a boolean.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "must be a boolean",
-    "list": "defaultversionsticky"
+    "name": "defaultversionsticky"
   },
   "source": ":registry:resource:809"
 }
@@ -6636,12 +6636,12 @@ func TestHTTPNestedResources(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: must be a boolean.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: must be a boolean.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "must be a boolean",
-    "list": "defaultversionsticky"
+    "name": "defaultversionsticky"
   },
   "source": ":registry:resource:809"
 }
@@ -8735,12 +8735,12 @@ func TestHTTPInvalidID(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"registryid\" for \"/\" is not valid: value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"registryid\" for \"/\" is not valid: value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/",
   "args": {
     "error_detail": "value \"*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "registryid"
+    "name": "registryid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8748,60 +8748,60 @@ func TestHTTPInvalidID(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1*", `{}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1*",
   "args": {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "dirid"
+    "name": "dirid"
   },
   "source": ":registry:shared_model:71"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1", `{"dirid": "d1*" }`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"dirid\" for \"/dirs/d1\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"dirid\" for \"/dirs/d1\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "dirid"
+    "name": "dirid"
   },
   "source": ":registry:shared_model:71"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/", `{"d1*":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1*",
   "args": {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "dirid"
+    "name": "dirid"
   },
   "source": ":registry:shared_model:71"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/", `{"d1*":{"dirid": "d1*" }}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"dirid\" for \"/dirs/d1*\" is not valid: value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1*",
   "args": {
     "error_detail": "value \"d1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "dirid"
+    "name": "dirid"
   },
   "source": ":registry:shared_model:71"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/", `{"d1":{"dirid": "d2*" }}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"dirid\" for \"/dirs/d1\" is not valid: value \"d2*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"dirid\" for \"/dirs/d1\" is not valid: value \"d2*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "value \"d2*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "dirid"
+    "name": "dirid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8809,12 +8809,12 @@ func TestHTTPInvalidID(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1*$details", `{}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"fileid\" for \"/dirs/d1/files/f1*/meta\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"fileid\" for \"/dirs/d1/files/f1*/meta\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1*/meta",
   "args": {
     "error_detail": "value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "fileid"
+    "name": "fileid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8835,12 +8835,12 @@ func TestHTTPInvalidID(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"versionid":"v1*"}`,
 		400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1/versions/v1*",
   "args": {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "versionid"
+    "name": "versionid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8848,24 +8848,24 @@ func TestHTTPInvalidID(t *testing.T) {
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v1*":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1/versions/v1*",
   "args": {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "versionid"
+    "name": "versionid"
   },
   "source": ":registry:shared_model:71"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1*", `{}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionid\" for \"/dirs/d1/files/f1/versions/v1*\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1/versions/v1*",
   "args": {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "versionid"
+    "name": "versionid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8873,12 +8873,12 @@ func TestHTTPInvalidID(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"versionid": "v1*"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"versionid\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionid\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "error_detail": "value \"v1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "versionid"
+    "name": "versionid"
   },
   "source": ":registry:shared_model:71"
 }
@@ -8886,12 +8886,12 @@ func TestHTTPInvalidID(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"fileid": "f1*"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"fileid\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"fileid\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "error_detail": "value \"f1*\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "fileid"
+    "name": "fileid"
   },
   "source": ":registry:shared_model:71"
 }

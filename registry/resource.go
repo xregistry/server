@@ -745,8 +745,8 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 			}
 			if len(extraAttrs) > 0 {
 				sort.Strings(extraAttrs)
-				return nil, false, NewXRError("invalid_attributes", meta.XID,
-					"list="+strings.Join(extraAttrs, ","),
+				return nil, false, NewXRError("invalid_attribute", meta.XID,
+					"name="+strings.Join(extraAttrs, ","),
 					"error_detail=not allowed in \"meta\" when \"xref\" is set")
 			}
 
@@ -806,8 +806,8 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 
 	stickyAny := m.Get("defaultversionsticky")
 	if !IsNil(stickyAny) && stickyAny != true && stickyAny != false {
-		return NewXRError("invalid_attributes", m.XID,
-			"list=defaultversionsticky",
+		return NewXRError("invalid_attribute", m.XID,
+			"name=defaultversionsticky",
 			"error_detail=must be a boolean")
 	}
 	sticky := (stickyAny == true)
@@ -822,14 +822,14 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 		}
 	} else {
 		if tmp := reflect.ValueOf(verIDAny).Kind(); tmp != reflect.String {
-			return NewXRError("invalid_attributes", m.XID,
-				"list=defaultversionid",
+			return NewXRError("invalid_attribute", m.XID,
+				"name=defaultversionid",
 				"error_detail=must be a string")
 		}
 		defaultVersionID, _ = verIDAny.(string)
 		if defaultVersionID == "" {
-			return NewXRError("invalid_attributes", m.XID,
-				"list=defaultversionid",
+			return NewXRError("invalid_attribute", m.XID,
+				"name=defaultversionid",
 				"error_detail=must not be an empty string")
 		}
 
@@ -918,8 +918,8 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 			valStr, ok := val.(string)
 			if !ok {
 				return nil, false,
-					NewXRError("invalid_attributes", r.XID,
-						"list=ancestor",
+					NewXRError("invalid_attribute", r.XID,
+						"name=ancestor",
 						"error_detail="+
 							fmt.Sprintf(`must be a string, not %T`, val))
 			}

@@ -41,82 +41,82 @@ func TestSetAttributeNames(t *testing.T) {
 		{"_", ""},
 		{"__", ""},
 		{"", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"\" for \"/\" is not valid: \"\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"\" for \"/\" is not valid: \"\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": ""
+    "name": ""
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{sixty + "1234", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/\" is not valid: \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"a234567890123456789012345678901234567890123456789012345678901234\" for \"/\" is not valid: \"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"a234567890123456789012345678901234567890123456789012345678901234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "a234567890123456789012345678901234567890123456789012345678901234"
+    "name": "a234567890123456789012345678901234567890123456789012345678901234"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"1234", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"1234\" for \"/\" is not valid: \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"1234\" for \"/\" is not valid: \"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"1234\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "1234"
+    "name": "1234"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"A", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"A\" for \"/\" is not valid: \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"A\" for \"/\" is not valid: \"A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"A\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "A"
+    "name": "A"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"aA", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"aA\" for \"/\" is not valid: \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"aA\" for \"/\" is not valid: \"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"aA\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "aA"
+    "name": "aA"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"_A", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"_A\" for \"/\" is not valid: \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"_A\" for \"/\" is not valid: \"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"_A\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "_A"
+    "name": "_A"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"_ _", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"_ _\" for \"/\" is not valid: \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"_ _\" for \"/\" is not valid: \"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"_ _\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "_ _"
+    "name": "_ _"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
 		{"#abc", `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"#abc\" for \"/\" is not valid: \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"#abc\" for \"/\" is not valid: \"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$.",
   "subject": "/",
   "args": {
     "error_detail": "\"#abc\" must match: ^[a-z_][a-z_0-9]{0,62}$",
-    "list": "#abc"
+    "name": "#abc"
   },
   "source": "e4e59b8a76c4:registry:shared_model:53,registry:shared_model:531"
 }`},
@@ -235,12 +235,12 @@ func TestSetDots(t *testing.T) {
 	// Nesting under labels should fail
 	xErr = dir.SetSave(labels.P("xxx").P("yyy").UI(), "xy")
 	XCheckErr(t, xErr, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"labels.xxx\" for \"/dirs/d1\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"labels.xxx\" for \"/dirs/d1\" is not valid: must be a string.",
   "subject": "/dirs/d1",
   "args": {
     "error_detail": "must be a string",
-    "list": "labels.xxx"
+    "name": "labels.xxx"
   },
   "source": "e4e59b8a76c4:registry:entity:2522"
 }`)
@@ -409,12 +409,12 @@ func TestSetLabels(t *testing.T) {
 	ver2.Refresh(registry.FOR_WRITE) // very important since ver2 is not stale
 	err = ver.SetSave(labels.P("vv").UI(), 987.234)
 	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"labels.vv\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"labels.vv\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: must be a string.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "error_detail": "must be a string",
-    "list": "labels.vv"
+    "name": "labels.vv"
   },
   "source": "e4e59b8a76c4:registry:entity:2522"
 }`)
@@ -714,8 +714,8 @@ func TestSetNameUser(t *testing.T) {
 
 			if msg[0] == '{' {
 				tmpPath, _, _ := strings.Cut(path, "$")
-				xrErr := NewXRError("invalid_attributes", tmpPath,
-					"list="+name,
+				xrErr := NewXRError("invalid_attribute", tmpPath,
+					"name="+name,
 					"error_detail=\""+name+"\" must match: ^[a-z_][a-z_0-9]{0,62}$")
 				msg = xrErr.String() + "\n"
 			}

@@ -99,12 +99,12 @@ func TestAncestorBasic(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": ""}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"ancestor\" for \"/dirs/d1/files/f2\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"ancestor\" for \"/dirs/d1/files/f2\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f2",
   "args": {
     "error_detail": "value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "list": "ancestor"
+    "name": "ancestor"
   },
   "source": "e4e59b8a76c4:registry:shared_model:71"
 }

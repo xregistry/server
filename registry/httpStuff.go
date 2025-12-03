@@ -2642,8 +2642,8 @@ func HTTPDelete(info *RequestInfo) *XRError {
 	if epochStr != "" {
 		epochInt, err = strconv.Atoi(epochStr)
 		if err != nil || epochInt < 0 {
-			return NewXRError("invalid_attributes", "/"+info.OriginalPath,
-				"list=epoch",
+			return NewXRError("invalid_attribute", "/"+info.OriginalPath,
+				"name=epoch",
 				"error_detail="+
 					fmt.Sprintf("value (%s) must be a uinteger", epochStr))
 		}
@@ -2858,8 +2858,8 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return NewXRError("invalid_attributes", group.XID,
-					"list=epoch",
+				return NewXRError("invalid_attribute", group.XID,
+					"name=epoch",
 					"error_detail=must be a uinteger")
 			}
 			if tmpInt != group.Get("epoch") {
@@ -2938,8 +2938,8 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 			metaMap, ok := metaJSON.(map[string]any)
 			if !ok {
 				if xErr != nil { // makes no sense  TODO
-					return NewXRError("invalid_attributes", resource.XID,
-						"list=meta",
+					return NewXRError("invalid_attribute", resource.XID,
+						"name=meta",
 						"error_detail="+
 							fmt.Sprintf("meta needs to be an object, "+
 								"not a \"%T\"", metaJSON))
@@ -2956,8 +2956,8 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 			if tmp, ok := metaMap["epoch"]; ok {
 				tmpInt, err := AnyToUInt(tmp)
 				if err != nil {
-					return NewXRError("invalid_attributes", meta.XID,
-						"list=epoch",
+					return NewXRError("invalid_attribute", meta.XID,
+						"name=epoch",
 						"error_detail=must be a uinteger")
 				}
 				if tmpInt != meta.Get("epoch") {
@@ -3042,8 +3042,8 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		if tmp, ok := entry["epoch"]; ok {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
-				return NewXRError("invalid_attributes", version.XID,
-					"list=epoch",
+				return NewXRError("invalid_attribute", version.XID,
+					"name=epoch",
 					"error_detail=value must be a uinteger")
 			}
 			if tmpInt != version.Get("epoch") {
@@ -3130,7 +3130,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				if hasDoc == false {
 					return nil, NewXRError("extra_xregistry_header",
 						"/"+info.OriginalPath,
-						"header_name="+k,
+						"name="+k,
 						"error_detail="+
 							fmt.Sprintf("including \"xRegistry\" headers "+
 								"for a Resource that has the model "+
@@ -3138,7 +3138,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				}
 				return nil, NewXRError("extra_xregistry_header",
 					"/"+info.OriginalPath,
-					"header_name="+k,
+					"name="+k,
 					"error_detail="+
 						fmt.Sprintf("including \"xRegistry\" HTTP headers "+
 							"when \"$details\" is used is not allowed"))
@@ -3204,7 +3204,9 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 			}
 
 			if key == resSingular || key == resSingular+"base64" {
-				return nil, NewXRError("bad_request", "/"+info.OriginalPath,
+				return nil, NewXRError("extra_xregistry_header",
+					"/"+info.OriginalPath,
+					"name="+key,
 					"error_detail="+
 						fmt.Sprintf("'xRegistry-%s' isn't allowed as "+
 							"an HTTP header", key))
@@ -3214,7 +3216,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				if len(body) != 0 {
 					return nil, NewXRError("extra_xregistry_header",
 						"/"+info.OriginalPath,
-						"header_name=xRegistry-"+key,
+						"name=xRegistry-"+key,
 						"error_detail=header isn't allowed if there's a body")
 				}
 			}
@@ -3260,12 +3262,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 						obj = map[string]any(tmpO)
 					} else {
 						obj, ok = prop.(map[string]any)
-						if !ok {
-							return nil, NewXRError("bad_request", "/",
-								"error_detail="+
-									fmt.Sprintf("HTTP header %q should "+
-										"reference a map", key))
-						}
+						PanicIf(!ok, "Prop isn't map: %#v", prop)
 					}
 				}
 			} else {
@@ -3281,6 +3278,11 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 					}
 				} else {
 					IncomingObj[key] = val
+					// However, if there's a real (non-nil) value for 'key'
+					// and we've seen this key as a map, delete the fact we've
+					// seen this map/key before so it'll be created if we do
+					// see a map entry again
+					delete(seenMaps, key)
 				}
 			}
 		}

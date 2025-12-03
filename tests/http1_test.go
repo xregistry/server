@@ -2211,12 +2211,12 @@ func TestHTTPModel(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/", `{"description": "testing"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"description\" for \"/\" is not valid: value (testing) must be one of the enum values: one, two.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"description\" for \"/\" is not valid: value (testing) must be one of the enum values: one, two.",
   "subject": "/",
   "args": {
     "error_detail": "value (testing) must be one of the enum values: one, two",
-    "list": "description"
+    "name": "description"
   },
   "source": ":registry:entity:2581"
 }
@@ -2325,12 +2325,12 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"registryid\" for \"/\" is not valid: can't be an empty string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"registryid\" for \"/\" is not valid: can't be an empty string.",
   "subject": "/",
   "args": {
     "error_detail": "can't be an empty string",
-    "list": "registryid"
+    "name": "registryid"
   },
   "source": ":registry:entity:819"
 }
@@ -2535,12 +2535,12 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mymapobj.mapobj_int\" for \"/\" is not valid: must be a map[string] or object.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mymapobj.mapobj_int\" for \"/\" is not valid: must be a map[string] or object.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map[string] or object",
-    "list": "mymapobj.mapobj_int"
+    "name": "mymapobj.mapobj_int"
   },
   "source": ":registry:entity:1979"
 }
@@ -2618,276 +2618,276 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"epoch":-123}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:entity:2405"
 }
 `},
 		{request: `{"epoch":"asd"}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:entity:2393"
 }
 `},
 		{request: `{"mybool":123}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mybool\" for \"/\" is not valid: must be a boolean.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mybool\" for \"/\" is not valid: must be a boolean.",
   "subject": "/",
   "args": {
     "error_detail": "must be a boolean",
-    "list": "mybool"
+    "name": "mybool"
   },
   "source": ":registry:entity:2359"
 }
 `},
 		{request: `{"mybool":"False"}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mybool\" for \"/\" is not valid: must be a boolean.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mybool\" for \"/\" is not valid: must be a boolean.",
   "subject": "/",
   "args": {
     "error_detail": "must be a boolean",
-    "list": "mybool"
+    "name": "mybool"
   },
   "source": ":registry:entity:2359"
 }
 `},
 		{request: `{"mydec":[ 1 ]}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mydec\" for \"/\" is not valid: must be a decimal.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mydec\" for \"/\" is not valid: must be a decimal.",
   "subject": "/",
   "args": {
     "error_detail": "must be a decimal",
-    "list": "mydec"
+    "name": "mydec"
   },
   "source": ":registry:entity:2365"
 }
 `},
 		{request: `{"mydec": "asd" }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mydec\" for \"/\" is not valid: must be a decimal.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mydec\" for \"/\" is not valid: must be a decimal.",
   "subject": "/",
   "args": {
     "error_detail": "must be a decimal",
-    "list": "mydec"
+    "name": "mydec"
   },
   "source": ":registry:entity:2365"
 }
 `},
 		{request: `{"myint": 1.01 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myint\" for \"/\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myint\" for \"/\" is not valid: must be an integer.",
   "subject": "/",
   "args": {
     "error_detail": "must be an integer",
-    "list": "myint"
+    "name": "myint"
   },
   "source": ":registry:entity:2373"
 }
 `},
 		{request: `{"myint": {} }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myint\" for \"/\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myint\" for \"/\" is not valid: must be an integer.",
   "subject": "/",
   "args": {
     "error_detail": "must be an integer",
-    "list": "myint"
+    "name": "myint"
   },
   "source": ":registry:entity:2378"
 }
 `},
 		{request: `{"mystr": {} }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mystr\" for \"/\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mystr\" for \"/\" is not valid: must be a string.",
   "subject": "/",
   "args": {
     "error_detail": "must be a string",
-    "list": "mystr"
+    "name": "mystr"
   },
   "source": ":registry:entity:2513"
 }
 `},
 		{request: `{"mystr": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mystr\" for \"/\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mystr\" for \"/\" is not valid: must be a string.",
   "subject": "/",
   "args": {
     "error_detail": "must be a string",
-    "list": "mystr"
+    "name": "mystr"
   },
   "source": ":registry:entity:2513"
 }
 `},
 		{request: `{"mystr": true }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mystr\" for \"/\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mystr\" for \"/\" is not valid: must be a string.",
   "subject": "/",
   "args": {
     "error_detail": "must be a string",
-    "list": "mystr"
+    "name": "mystr"
   },
   "source": ":registry:entity:2513"
 }
 `},
 		{request: `{"mytime": true }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mytime\" for \"/\" is not valid: must be a timestamp.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mytime\" for \"/\" is not valid: must be a timestamp.",
   "subject": "/",
   "args": {
     "error_detail": "must be a timestamp",
-    "list": "mytime"
+    "name": "mytime"
   },
   "source": ":registry:entity:2543"
 }
 `},
 		{request: `{"mytime": "12-12-12" }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mytime\" for \"/\" is not valid: is a malformed timestamp.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mytime\" for \"/\" is not valid: is a malformed timestamp.",
   "subject": "/",
   "args": {
     "error_detail": "is a malformed timestamp",
-    "list": "mytime"
+    "name": "mytime"
   },
   "source": ":registry:entity:2552"
 }
 `},
 		{request: `{"myuint": "str" }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuint\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuint\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myuint"
+    "name": "myuint"
   },
   "source": ":registry:entity:2393"
 }
 `},
 		{request: `{"myuint": "123" }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuint\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuint\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myuint"
+    "name": "myuint"
   },
   "source": ":registry:entity:2393"
 }
 `},
 		{request: `{"myuint": -123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuint\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuint\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myuint"
+    "name": "myuint"
   },
   "source": ":registry:entity:2405"
 }
 `},
 		{request: `{"myuri": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuri\" for \"/\" is not valid: must be a uri.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuri\" for \"/\" is not valid: must be a uri.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uri",
-    "list": "myuri"
+    "name": "myuri"
   },
   "source": ":registry:entity:2519"
 }
 `},
 		{request: `{"myuriref": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuriref\" for \"/\" is not valid: must be a uri-reference.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuriref\" for \"/\" is not valid: must be a uri-reference.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uri-reference",
-    "list": "myuriref"
+    "name": "myuriref"
   },
   "source": ":registry:entity:2525"
 }
 `},
 		{request: `{"myuritemplate": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myuritemplate\" for \"/\" is not valid: must be a uri-template.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myuritemplate\" for \"/\" is not valid: must be a uri-template.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uri-template",
-    "list": "myuritemplate"
+    "name": "myuritemplate"
   },
   "source": ":registry:entity:2531"
 }
 `},
 		{request: `{"myurl": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \" myurl\" for \"/\" is not valid: must be a url.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \" myurl\" for \"/\" is not valid: must be a url.",
   "subject": "/",
   "args": {
     "error_detail": "must be a url",
-    "list": " myurl"
+    "name": " myurl"
   },
   "source": ":registry:entity:2537"
 }
 `},
 		{request: `{"myobj1": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myobj1\" for \"/\" is not valid: must be a map[string] or object.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myobj1\" for \"/\" is not valid: must be a map[string] or object.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map[string] or object",
-    "list": "myobj1"
+    "name": "myobj1"
   },
   "source": ":registry:entity:1979"
 }
 `},
 		{request: `{"myobj1": [ 123 ] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myobj1\" for \"/\" is not valid: must be a map[string] or object.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myobj1\" for \"/\" is not valid: must be a map[string] or object.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map[string] or object",
-    "list": "myobj1"
+    "name": "myobj1"
   },
   "source": ":registry:entity:1979"
 }
 `},
 		{request: `{"myobj1": { "mystr1": 123 } }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myobj1.mystr1\" for \"/\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myobj1.mystr1\" for \"/\" is not valid: must be a string.",
   "subject": "/",
   "args": {
     "error_detail": "must be a string",
-    "list": "myobj1.mystr1"
+    "name": "myobj1.mystr1"
   },
   "source": ":registry:entity:2513"
 }
@@ -2905,84 +2905,84 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"myobj2": { "myobj2_1": { "ext": "str" } } }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myobj2.myobj2_1.ext\" for \"/\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myobj2.myobj2_1.ext\" for \"/\" is not valid: must be an integer.",
   "subject": "/",
   "args": {
     "error_detail": "must be an integer",
-    "list": "myobj2.myobj2_1.ext"
+    "name": "myobj2.myobj2_1.ext"
   },
   "source": ":registry:entity:2378"
 }
 `},
 		{request: `{"myarrayuint": [ 123, -123 ] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myarrayuint[1]\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myarrayuint[1]\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myarrayuint[1]"
+    "name": "myarrayuint[1]"
   },
   "source": ":registry:entity:2405"
 }
 `},
 		{request: `{"myarrayuint": [ "asd" ] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myarrayuint[0]\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myarrayuint[0]\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myarrayuint[0]"
+    "name": "myarrayuint[0]"
   },
   "source": ":registry:entity:2393"
 }
 `},
 		{request: `{"myarrayuint": [ 123, null] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myarrayuint[1]\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myarrayuint[1]\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "myarrayuint[1]"
+    "name": "myarrayuint[1]"
   },
   "source": ":registry:entity:2393"
 }
 `},
 		{request: `{"myarrayuint": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myarrayuint\" for \"/\" is not valid: must be an array.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myarrayuint\" for \"/\" is not valid: must be an array.",
   "subject": "/",
   "args": {
     "error_detail": "must be an array",
-    "list": "myarrayuint"
+    "name": "myarrayuint"
   },
   "source": ":registry:entity:2315"
 }
 `},
 		{request: `{"mymapuint": 123 }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mymapuint\" for \"/\" is not valid: must be a map.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mymapuint\" for \"/\" is not valid: must be a map.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map",
-    "list": "mymapuint"
+    "name": "mymapuint"
   },
   "source": ":registry:entity:2253"
 }
 `},
 		{request: `{"mymapuint": { "asd" : -123 }}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mymapuint.asd\" for \"/\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mymapuint.asd\" for \"/\" is not valid: must be a uinteger.",
   "subject": "/",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "mymapuint.asd"
+    "name": "mymapuint.asd"
   },
   "source": ":registry:entity:2405"
 }
@@ -3002,24 +3002,24 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"myarrayemptyobj": [ [ true ] ] }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myarrayemptyobj[0]\" for \"/\" is not valid: must be a map[string] or object.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myarrayemptyobj[0]\" for \"/\" is not valid: must be a map[string] or object.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map[string] or object",
-    "list": "myarrayemptyobj[0]"
+    "name": "myarrayemptyobj[0]"
   },
   "source": ":registry:entity:1979"
 }
 `},
 		{request: `{"mymapobj": { "asd" : { "mapobj_int" : true } } }`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mymapobj.asd.mapobj_int\" for \"/\" is not valid: must be an integer.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mymapobj.asd.mapobj_int\" for \"/\" is not valid: must be an integer.",
   "subject": "/",
   "args": {
     "error_detail": "must be an integer",
-    "list": "mymapobj.asd.mapobj_int"
+    "name": "mymapobj.asd.mapobj_int"
   },
   "source": ":registry:entity:2386"
 }
@@ -3037,12 +3037,12 @@ func TestHTTPRegistry(t *testing.T) {
 `},
 		{request: `{"mymapobj": [ true ]}`,
 			response: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mymapobj\" for \"/\" is not valid: must be a map.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mymapobj\" for \"/\" is not valid: must be a map.",
   "subject": "/",
   "args": {
     "error_detail": "must be a map",
-    "list": "mymapobj"
+    "name": "mymapobj"
   },
   "source": ":registry:entity:2261"
 }
@@ -3075,12 +3075,12 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \" self\" for \"/\" is not valid: must be a url.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \" self\" for \"/\" is not valid: must be a url.",
   "subject": "/",
   "args": {
     "error_detail": "must be a url",
-    "list": " self"
+    "name": " self"
   },
   "source": ":registry:entity:2545"
 }
@@ -3098,12 +3098,12 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"xid\" for \"/\" is not valid: must be an xid.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"xid\" for \"/\" is not valid: must be an xid.",
   "subject": "/",
   "args": {
     "error_detail": "must be an xid",
-    "list": "xid"
+    "name": "xid"
   },
   "source": ":registry:entity:2419"
 }
@@ -3121,12 +3121,12 @@ func TestHTTPRegistry(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"registryid\" for \"/\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"registryid\" for \"/\" is not valid: must be a string.",
   "subject": "/",
   "args": {
     "error_detail": "must be a string",
-    "list": "registryid"
+    "name": "registryid"
   },
   "source": ":registry:entity:2521"
 }
@@ -4331,6 +4331,52 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/dir1/files", "{}", 200, "{}\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT resources - w/bad header - file",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-file: hello",
+		},
+		ReqBody:    "My cool doc",
+		Code:       400,
+		ResHeaders: []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "title": "xRegistry HTTP header \"file\" is not allowed on this request: 'xRegistry-file' isn't allowed as an HTTP header.",
+  "subject": "/dirs/dir1/files/f1",
+  "args": {
+    "error_detail": "'xRegistry-file' isn't allowed as an HTTP header",
+    "name": "file"
+  },
+  "source": ":registry:httpStuff:3207"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT resources - w/bad header - filebase64",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-filebase64: aGVsbG8=",
+		},
+		ReqBody:    "My cool doc",
+		Code:       400,
+		ResHeaders: []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "title": "xRegistry HTTP header \"filebase64\" is not allowed on this request: 'xRegistry-filebase64' isn't allowed as an HTTP header.",
+  "subject": "/dirs/dir1/files/f1",
+  "args": {
+    "error_detail": "'xRegistry-filebase64' isn't allowed as an HTTP header",
+    "name": "filebase64"
+  },
+  "source": ":registry:httpStuff:3207"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT resources - w/doc",
 		URL:        "/dirs/dir1/files/f1",
 		Method:     "PUT",
@@ -4634,7 +4680,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
   "subject": "/dirs/dir1/files/f3",
   "args": {
     "error_detail": "header isn't allowed if there's a body",
-    "header_name": "xRegistry-fileurl"
+    "name": "xRegistry-fileurl"
   },
   "source": ":registry:httpStuff:3219"
 }
@@ -4958,6 +5004,137 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody:     resBody,
+	})
+
+	// Some errors
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad type",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-name-key: foo",
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"name\" for \"/dirs/dir1/files/f1/versions/1\" is not valid: must be a string.",
+  "subject": "/dirs/dir1/files/f1/versions/1",
+  "args": {
+    "error_detail": "must be a string",
+    "name": "name"
+  },
+  "source": ":registry:entity:2523"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "unknwon attr",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-foo: foo",
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (foo) was specified for \"/dirs/dir1/files/f1/versions/1\".",
+  "subject": "/dirs/dir1/files/f1/versions/1",
+  "args": {
+    "name": "foo"
+  },
+  "source": ":registry:entity:2193"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad type",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-meta: foo",
+		},
+		ReqBody:     "",
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "\"meta\" must be an object.",
+  "subject": "/dirs/dir1/files/f1",
+  "args": {
+    "error_detail": "\"meta\" must be an object"
+  },
+  "source": ":registry:group:178"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad type - label",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-labels: foo",
+		},
+		ReqBody:     ``,
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"labels\" for \"/dirs/dir1/files/f1/versions/1\" is not valid: must be a map.",
+  "subject": "/dirs/dir1/files/f1/versions/1",
+  "args": {
+    "error_detail": "must be a map",
+    "name": "labels"
+  },
+  "source": ":registry:entity:2264"
+}
+`,
+	})
+
+	// This one used to randomlay fail based on the order in which the
+	// headers were processed. It would sometimes create a map, erase it with
+	// a string and then see another map entry - and that would cause
+	// an error because it can't add a map entry to a string.
+	// However, that should be fixed and will panic if the code is messed-up.
+	// Leaving this test here in case it breaks again - it'll only randomly
+	// fail though. Very hard to for the order of processing in this case.
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "Bad type",
+		URL:    "/dirs/dir1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-foo: foo",
+			"xRegistry-foo: foo",
+			"xRegistry-foo: foo",
+			"xRegistry-foo-bar-car: foo",
+			"xRegistry-foo-bar-dar: foo",
+			"xRegistry-foo-bar-far: foo",
+			"xRegistry-foo-bar-gar: foo",
+		},
+		ReqBody:     ``,
+		Code:        400,
+		HeaderMasks: []string{},
+		ResHeaders:  []string{},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (foo) was specified for \"/dirs/dir1/files/f1/versions/1\".",
+  "subject": "/dirs/dir1/files/f1/versions/1",
+  "args": {
+    "name": "foo"
+  },
+  "source": ":registry:entity:2193"
+}
+`,
 	})
 }
 
@@ -6222,7 +6399,7 @@ func TestHTTPVersions(t *testing.T) {
 		ResHeaders:  []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#one_resource",
-  "title": "Only one \"file,fileurl,filebase64,fileproxyurl\" attributes can be present at a time for: /dirs/d1/files/f1-proxy.",
+  "title": "Only one attribute from \"file,fileurl,filebase64,fileproxyurl\" can be present at a time for: /dirs/d1/files/f1-proxy.",
   "subject": "/dirs/d1/files/f1-proxy",
   "args": {
     "list": "file,fileurl,filebase64,fileproxyurl"
@@ -6247,7 +6424,7 @@ func TestHTTPVersions(t *testing.T) {
 		ResHeaders:  []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#one_resource",
-  "title": "Only one \"file,fileurl,filebase64,fileproxyurl\" attributes can be present at a time for: /dirs/d1/files/f1-proxy.",
+  "title": "Only one attribute from \"file,fileurl,filebase64,fileproxyurl\" can be present at a time for: /dirs/d1/files/f1-proxy.",
   "subject": "/dirs/d1/files/f1-proxy",
   "args": {
     "list": "file,fileurl,filebase64,fileproxyurl"
@@ -7510,12 +7687,12 @@ func TestHTTPEnum(t *testing.T) {
 }`,
 		Code: 400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"myint\" for \"/\" is not valid: value (4) must be one of the enum values: 1, 2, 3.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myint\" for \"/\" is not valid: value (4) must be one of the enum values: 1, 2, 3.",
   "subject": "/",
   "args": {
     "error_detail": "value (4) must be one of the enum values: 1, 2, 3",
-    "list": "myint"
+    "name": "myint"
   },
   "source": ":registry:entity:2589"
 }
@@ -8730,12 +8907,12 @@ func TestHTTPNonStrings(t *testing.T) {
 		ReqBody: `hello`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mystr\" for \"/dirs/d1/files/f1/versions/1\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mystr\" for \"/dirs/d1/files/f1/versions/1\" is not valid: must be a string.",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
     "error_detail": "must be a string",
-    "list": "mystr"
+    "name": "mystr"
   },
   "source": ":registry:entity:2522"
 }
@@ -8753,12 +8930,12 @@ func TestHTTPNonStrings(t *testing.T) {
 		ReqBody: `hello`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"mystr\" for \"/dirs/d1/files/f1/versions/1\" is not valid: must be a string.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"mystr\" for \"/dirs/d1/files/f1/versions/1\" is not valid: must be a string.",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
     "error_detail": "must be a string",
-    "list": "mystr"
+    "name": "mystr"
   },
   "source": ":registry:entity:2522"
 }
@@ -9193,7 +9370,7 @@ func TestHTTPDefault(t *testing.T) {
   "subject": "/dirs/d1/files/f1$details",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
-    "header_name": "xregistry-versionid"
+    "name": "xregistry-versionid"
   },
   "source": ":registry:httpStuff:3145"
 }
@@ -9251,7 +9428,7 @@ func TestHTTPDefault(t *testing.T) {
   "subject": "/dirs/d1/files/f1$details",
   "args": {
     "error_detail": "including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed",
-    "header_name": "xregistry-versionid"
+    "name": "xregistry-versionid"
   },
   "source": ":registry:httpStuff:3145"
 }
@@ -9378,12 +9555,12 @@ func TestHTTPDelete(t *testing.T) {
 	})
 
 	XHTTP(t, reg, "DELETE", "/dirs/d3?epoch=2x", "", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d3\" is not valid: value (2x) must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d3\" is not valid: value (2x) must be a uinteger.",
   "subject": "/dirs/d3",
   "args": {
     "error_detail": "value (2x) must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:2650"
 }
@@ -9469,12 +9646,12 @@ func TestHTTPDelete(t *testing.T) {
 		ReqBody: `{"d4":{"epoch":"1x"}}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d4\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d4\" is not valid: must be a uinteger.",
   "subject": "/dirs/d4",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:2866"
 }
@@ -9702,12 +9879,12 @@ func TestHTTPDelete(t *testing.T) {
 	// DELETE /dirs/d1/files/f1?epoch=...
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f3?epoch=2x", "", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d1/files/f3\" is not valid: value (2x) must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d1/files/f3\" is not valid: value (2x) must be a uinteger.",
   "subject": "/dirs/d1/files/f3",
   "args": {
     "error_detail": "value (2x) must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:2650"
 }
@@ -9813,12 +9990,12 @@ func TestHTTPDelete(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files",
 		`{"f2":{"meta":{"epoch":"1x"}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d1/files/f2/meta\" is not valid: must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d1/files/f2/meta\" is not valid: must be a uinteger.",
   "subject": "/dirs/d1/files/f2/meta",
   "args": {
     "error_detail": "must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:2964"
 }
@@ -9949,12 +10126,12 @@ func TestHTTPDelete(t *testing.T) {
 	// DELETE /dirs/d1/files/f1?epoch=...
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v2?epoch=2x", "", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d1/files/f1/versions/v2\" is not valid: value (2x) must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d1/files/f1/versions/v2\" is not valid: value (2x) must be a uinteger.",
   "subject": "/dirs/d1/files/f1/versions/v2",
   "args": {
     "error_detail": "value (2x) must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:2650"
 }
@@ -9977,12 +10154,12 @@ func TestHTTPDelete(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions",
 		`{"v4":{"epoch":"1x"}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"epoch\" for \"/dirs/d1/files/f1/versions/v4\" is not valid: value must be a uinteger.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"epoch\" for \"/dirs/d1/files/f1/versions/v4\" is not valid: value must be a uinteger.",
   "subject": "/dirs/d1/files/f1/versions/v4",
   "args": {
     "error_detail": "value must be a uinteger",
-    "list": "epoch"
+    "name": "epoch"
   },
   "source": ":registry:httpStuff:3050"
 }

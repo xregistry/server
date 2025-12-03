@@ -161,8 +161,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	if hasMeta {
 		if objIsVer {
-			return nil, false, NewXRError("bad_request",
-				g.Path+"/"+rModel.Plural+"/"+id,
+			return nil, false, NewXRError("bad_request", r.XID,
 				"error_detail="+
 					fmt.Sprintf("can't include a Version with a "+
 						"\"meta\" attribute"))
@@ -173,7 +172,12 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			metaObjAny = map[string]any{}
 		}
 
-		metaObj = metaObjAny.(map[string]any)
+		var ok bool
+		metaObj, ok = metaObjAny.(map[string]any)
+		if !ok {
+			return nil, false, NewXRError("bad_request", r.XID,
+				"error_detail=\"meta\" must be an object")
+		}
 	}
 
 	// List of versions in the incoming request
@@ -188,9 +192,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		if !IsNil(val) {
 			versions, ok = val.(map[string]any)
 			if !ok {
-				return nil, false, NewXRError("invalid_attributes",
+				return nil, false, NewXRError("invalid_attribute",
 					g.Path+"/"+rModel.Plural+"/"+id,
-					"list=versions",
+					"name=versions",
 					"error_detail=doesn't appear to be of a map of Versions")
 			}
 		}

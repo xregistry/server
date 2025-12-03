@@ -1,7 +1,5 @@
 all: mysql cmds docs test errors images run
 
-cmds-all: xr-all xrserver-all
-
 MAKEFLAGS  += --no-print-directory
 
 # Notes:
@@ -39,13 +37,15 @@ cmds: .cmds
 .cmds: xrserver xr
 	@touch .cmds
 
+cmds-all: xr-all xrserver-all
+
 docs: docs/xr_help.md docs/xrserver_help.md
 
 errors: .errors
 .errors: .cmds misc/checkerrors
 	@echo
 	@echo "# Checking the errors"
-	-@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
+	@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
 	@touch .errors
 
 utest: .utest

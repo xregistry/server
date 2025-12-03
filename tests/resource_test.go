@@ -404,12 +404,12 @@ func TestResourceDeprecated(t *testing.T) {
         "effective": "2123-01-01T12"
       }
     }  `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"deprecated.effective\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"deprecated.effective\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "is a malformed timestamp",
-    "list": "deprecated.effective"
+    "name": "deprecated.effective"
   },
   "source": "e4e59b8a76c4:registry:entity:2561"
 }
@@ -421,12 +421,12 @@ func TestResourceDeprecated(t *testing.T) {
         "removal": "2123-01-01T12"
       }
     }  `, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"deprecated.removal\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"deprecated.removal\" for \"/dirs/d1/files/f1/meta\" is not valid: is a malformed timestamp.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "is a malformed timestamp",
-    "list": "deprecated.removal"
+    "name": "deprecated.removal"
   },
   "source": "e4e59b8a76c4:registry:entity:2561"
 }

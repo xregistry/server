@@ -705,12 +705,12 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref": "/dirs/d1/files/fx", "modifiedat":"2025-01-01T12:00:00"}`,
 		400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "not allowed in \"meta\" when \"xref\" is set",
-    "list": "modifiedat"
+    "name": "modifiedat"
   },
   "source": "e4e59b8a76c4:registry:resource:748"
 }
@@ -718,12 +718,12 @@ func TestXrefErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"foo":"foo","xref": "/dirs/d1/files/fx"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"foo\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"foo\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "not allowed in \"meta\" when \"xref\" is set",
-    "list": "foo"
+    "name": "foo"
   },
   "source": "e4e59b8a76c4:registry:resource:748"
 }
@@ -786,12 +786,12 @@ func TestXrefErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attributes",
-  "title": "The attribute(s) \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
     "error_detail": "not allowed in \"meta\" when \"xref\" is set",
-    "list": "modifiedat"
+    "name": "modifiedat"
   },
   "source": "e4e59b8a76c4:registry:resource:748"
 }
