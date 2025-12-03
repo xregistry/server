@@ -2702,3 +2702,77 @@ func TestHTTPBinaryFlag(t *testing.T) {
 }
 `)
 }
+
+func TestHTTPVersWithResLevel(t *testing.T) {
+	reg := NewRegistry("TestHTTPVersWithResLevel")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	XNoErr(t, err)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	XNoErr(t, err)
+
+	// baseline
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "xid": "/dirs/d1/files/f1/versions/1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-12-03T17:53:46.352304439Z",
+  "modifiedat": "2025-12-03T17:53:46.352304439Z",
+  "ancestor": "1"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versions": { "v1": {}},
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 1
+    }`, 201, `{
+  "fileid": "f1",
+  "versionid": "2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/2",
+  "xid": "/dirs/d1/files/f1/versions/2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-12-03T17:55:48.017636397Z",
+  "modifiedat": "2025-12-03T17:55:48.017636397Z",
+  "ancestor": "1"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{
+      "versionid": "2",
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versions": { "v1": {}},
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 1
+    }`, 200, `{
+  "fileid": "f1",
+  "versionid": "2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/2",
+  "xid": "/dirs/d1/files/f1/versions/2",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-12-03T17:55:48.017636397Z",
+  "modifiedat": "2025-12-03T17:55:48.017636399Z",
+  "ancestor": "1"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{
+      "foo": "http://localhost:8181/dirs/d1/files/f1/meta"
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (foo) was specified for \"/dirs/d1/files/f1/versions/3\".",
+  "subject": "/dirs/d1/files/f1/versions/3",
+  "args": {
+    "name": "foo"
+  },
+  "source": ":registry:entity:2198"
+}
+`)
+}

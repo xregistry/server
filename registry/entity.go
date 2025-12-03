@@ -1916,6 +1916,12 @@ func (e *Entity) GetBaseAttributes() Attributes {
 	}
 
 	if e.Type == ENTITY_VERSION {
+		// This seems to work for now.
+		// At some point we may want to have it only include version-level
+		// attributes and not resource-level ones - like versionscount.
+		// At which point we may need to add back in the code that removes
+		// those resource-level attributes before we create/update a Version
+		// (e.g. POST .../rID)
 		return rm.GetBaseAttributes()
 	}
 

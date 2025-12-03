@@ -199,29 +199,6 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			}
 		}
 
-		// Remove the "versions" collection attributes
-		delete(obj, "versions")
-		delete(obj, "versionscount")
-		delete(obj, "versionsurl")
-	} else {
-		if _, ok := obj["versions"]; ok {
-			return nil, false, NewXRError("bad_request",
-				g.XID+"/"+rModel.Plural+"/"+id,
-				"error_detail=can't create a Version with a "+
-					"\"versions\" attribute")
-		}
-		if _, ok := obj["versionscount"]; ok {
-			return nil, false, NewXRError("bad_request",
-				g.XID+"/"+rModel.Plural+"/"+id,
-				"error_detail=can't create a Version with a "+
-					"\"versionscount\" attribute")
-		}
-		if _, ok := obj["versionsurl"]; ok {
-			return nil, false, NewXRError("bad_request",
-				g.XID+"/"+rModel.Plural+"/"+id,
-				"error_detail=can't create a Version with a "+
-					"\"versionsurl\" attribute")
-		}
 	}
 
 	isNew := false
