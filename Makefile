@@ -1,4 +1,4 @@
-all: mysql cmds docs test errors images run
+all: mysql cmds docs test images run
 
 MAKEFLAGS  += --no-print-directory
 
@@ -82,7 +82,7 @@ endif
 	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS)
 	@touch .fulltest
 
-test: .qtest .fulltest .testimages
+test: .qtest .fulltest .errors .testimages
 
 .sharedfiles: common/shared*
 	@echo
