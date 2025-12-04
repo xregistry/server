@@ -2776,3 +2776,34 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 }
 `)
 }
+
+func TestHTTPLinkHeader(t *testing.T) {
+	reg := NewRegistry("TestHTTPLinkHeader")
+	defer PassDeleteReg(t, reg)
+
+	// Test Link header on registry root GET
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Link header on registry root",
+		URL:        "/",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code:       200,
+		ResHeaders: []string{"Link:<http://localhost:8181>;rel=xregistry-root"},
+		ResBody:    "*",
+	})
+
+	// Test Link header on error response
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Link header on error",
+		URL:        "/notfound",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code:       404,
+		ResHeaders: []string{"Link:<http://localhost:8181>;rel=xregistry-root"},
+		ResBody:    "*",
+	})
+}
