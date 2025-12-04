@@ -3355,7 +3355,6 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Methods",
 		"GET, PATCH, POST, PUT, DELETE")
-	// Add Link header pointing to the local server root
 	w.Header().Add("Link", fmt.Sprintf("<http://%s>;rel=xregistry-root", r.Host))
 
 	html := GenerateUI(info, data)
@@ -3373,7 +3372,6 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 
 	info.StatusCode = xErr.Code
 	info.AddHeader("Content-Type", "application/json; charset=utf-8")
-	// Ensure Link header is set for errors too
 	info.AddHeader("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
 
 	for k, v := range xErr.Headers {
