@@ -3371,6 +3371,8 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 
 	info.StatusCode = xErr.Code
 	info.AddHeader("Content-Type", "application/json; charset=utf-8")
+	// Ensure Link header is set for errors too
+	info.AddHeader("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
 
 	for k, v := range xErr.Headers {
 		info.AddHeader(k, v)
