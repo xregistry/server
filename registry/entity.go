@@ -1937,7 +1937,9 @@ func (e *Entity) GetBaseAttributes() Attributes {
 func (e *Entity) Validate() *XRError {
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
-	log.VPrintf(4, "In Validate - Attrs:\n%s", ToJSON(attrs))
+	if log.GetVerbose() > 3 {
+		log.Printf("In Validate - Attrs:\n%s", ToJSON(attrs))
+	}
 
 	if e.Type == ENTITY_RESOURCE {
 		// Skip Resources // TODO DUG - would prefer to not do this

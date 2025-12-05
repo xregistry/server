@@ -169,8 +169,10 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 
 	for _, inline := range info.Inlines {
 		iPP := inline.PP
-		log.VPrintf(4, "Inline cmp: %q in %q",
-			ePP.DB(), inline.PP.DB())
+		if log.GetVerbose() > 3 {
+			log.Printf("Inline cmp: %q in %q",
+				ePP.DB(), inline.PP.DB())
+		}
 
 		// * doesn't include "model"... because they're special, they need to
 		// be explicit if they want to include those
@@ -187,8 +189,10 @@ func (info *RequestInfo) ShouldInline(entityPath string) bool {
 			(inline.NonWild != nil && ePP.HasPrefix(inline.NonWild)) {
 			// (iPP.Len() > 1 && iPP.Bottom() == "*" && ePP.HasPrefix(iPP.RemoveLast())) {
 
-			log.VPrintf(4, "   match: %q in %q",
-				ePP.DB(), inline.PP.DB())
+			if log.GetVerbose() > 3 {
+				log.Printf("   match: %q in %q",
+					ePP.DB(), inline.PP.DB())
+			}
 			return true
 		}
 	}
@@ -264,7 +268,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		"GET, PATCH, POST, PUT, DELETE")
 
 	if log.GetVerbose() > 2 {
-		defer func() { log.VPrintf(3, "Info:\n%s\n", ToJSON(info)) }()
+		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
 	}
 
 	if tmp := r.Header.Get("xRegistry~User"); tmp != "" {
@@ -277,7 +281,9 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		return info, xErr
 	}
 
-	log.VPrintf(4, "Info: %s", ToJSON(info))
+	if log.GetVerbose() > 3 {
+		log.Printf("Info: %s", ToJSON(info))
+	}
 
 	return info, nil
 }
@@ -423,8 +429,10 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 }
 
 func (info *RequestInfo) ParseRequestURL() *XRError {
-	log.VPrintf(4, "ParseRequestURL:\n%s", ToJSON(info))
-	log.VPrintf(4, "Req: %#v", info.OriginalRequest.URL)
+	if log.GetVerbose() > 3 {
+		log.Printf("ParseRequestURL:\n%s", ToJSON(info))
+		log.Printf("Req: %#v", info.OriginalRequest.URL)
+	}
 
 	// Notice boolean flags end up with "" as a value.
 	// Flags has just ONE of the query param values. To get all of them
@@ -473,7 +481,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 									strings.Join(info.Registry.Capabilities.Ignores,
 										",")))
 					}
-					info.Ignores[strings.ToLower(val)] = true
+					info.Ignores[val] = true
 				}
 			}
 		}
@@ -775,7 +783,7 @@ func (info *RequestInfo) GetFlagValues(name string) []string {
 
 func (info *RequestInfo) HasIgnore(name string) bool {
 	return info != nil && info.Ignores != nil &&
-		(info.Ignores[strings.ToLower(name)] || info.Ignores["*"])
+		(info.Ignores[name] || info.Ignores["*"])
 }
 
 func (info *RequestInfo) HasFlag(name string) bool {

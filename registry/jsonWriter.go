@@ -241,10 +241,10 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 	addSpace := false // Add space before next attribute?
 
 	if log.GetVerbose() > 3 {
-		log.VPrintf(0, "eType: %d", myType)
-		log.VPrintf(0, "JW:\n%s\n", ToJSON(jw))
-		log.VPrintf(0, "JW.Obj:\n%s\n", ToJSON(jw.Entity.Object))
-		log.VPrintf(0, "JW.NObj:\n%s\n", ToJSON(jw.Entity.NewObject))
+		log.Printf("eType: %d", myType)
+		log.Printf("JW:\n%s\n", ToJSON(jw))
+		log.Printf("JW.Obj:\n%s\n", ToJSON(jw.Entity.Object))
+		log.Printf("JW.NObj:\n%s\n", ToJSON(jw.Entity.NewObject))
 	}
 
 	jw.Printf("{")

@@ -283,19 +283,19 @@ func ParseCapabilitiesJSON(buf []byte) (*Capabilities, *XRError) {
 }
 
 func (c *Capabilities) APIEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.APIs, str)
+	return ArrayContains(c.APIs, str)
 }
 
 func (c *Capabilities) FlagEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Flags, str)
+	return ArrayContains(c.Flags, str)
 }
 
 func (c *Capabilities) IgnoresEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Ignores, str)
+	return ArrayContains(c.Ignores, str)
 }
 
 func (c *Capabilities) MutableEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Mutable, str)
+	return ArrayContains(c.Mutable, str)
 }
 
 func (c *Capabilities) PaginationEnabled() bool {
@@ -307,7 +307,7 @@ func (c *Capabilities) ShortSelfEnabled(str string) bool {
 }
 
 func (c *Capabilities) SpecVersionEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.SpecVersions, str)
+	return ArrayContains(c.SpecVersions, str)
 }
 
 func (c *Capabilities) StickyVersionsEnabled() bool {
