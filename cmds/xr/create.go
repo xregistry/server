@@ -309,7 +309,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 				Error(xErr)
 			}
 			if action == "create" && xErr == nil {
-				Error(xErr, NewXRError("exists", xid.String()))
+				Error(NewXRError("exists", xid.String()))
 			}
 			if action == "update" && res != nil && res.Code == 404 {
 				Error(NewXRError("not_found", xid.String()))
