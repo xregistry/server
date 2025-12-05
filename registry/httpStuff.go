@@ -154,15 +154,17 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info.HTTPWriter = NewBufferedWriter(info)
 	}
 
-	if sv := info.GetFlag("specversion"); sv != "" {
-		if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
-			xErr = NewXRError("unsupported_specversion",
-				"/"+info.OriginalPath,
-				"specversion="+sv,
-				"list="+
-					strings.Join(info.Registry.Capabilities.SpecVersions, ","))
+	/*
+		if sv := info.GetFlag("specversion"); sv != "" {
+			if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
+				xErr = NewXRError("unsupported_specversion",
+					"/"+info.OriginalPath,
+					"specversion="+sv,
+					"list="+
+						strings.Join(info.Registry.Capabilities.SpecVersions, ","))
+			}
 		}
-	}
+	*/
 
 	if xErr == nil {
 		// These should only return an error if they didn't already
@@ -193,7 +195,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type HTTPWriter interface {
 	Write([]byte) (int, error)
+	SetHeader(string, string)
 	AddHeader(string, string)
+	GetHeader(string) string
+	GetHeaderValues(string) []string
 	Done()
 }
 
@@ -223,8 +228,30 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 	return dw.Info.OriginalResponse.Write(b)
 }
 
-func (dw *DefaultWriter) AddHeader(name, value string) {
+var stacks = map[string]string{}
+
+func (dw *DefaultWriter) SetHeader(name, value string) {
+	// Make sure we don't add the same header more than once, that's a sign
+	// we're doing something weong.
+	// At some point we may need to add a new func (AddHeader) to append a
+	// value to the end of the current one (if there)
+	PanicIf(dw.Info.OriginalResponse.Header().Get(name) != "", "%s\nPrev:\n%s\n---", name, stacks[name])
+	// Uncomment when we need to debug the PanicIf
+	// stacks[name] = GetStackAsString()
+
 	dw.Info.OriginalResponse.Header()[name] = []string{value}
+}
+
+func (dw *DefaultWriter) AddHeader(name string, value string) {
+	dw.Info.OriginalResponse.Header().Add(name, value)
+}
+
+func (dw *DefaultWriter) GetHeader(name string) string {
+	return dw.Info.OriginalResponse.Header().Get(name)
+}
+
+func (dw *DefaultWriter) GetHeaderValues(name string) []string {
+	return dw.Info.OriginalResponse.Header()[name]
 }
 
 func (dw *DefaultWriter) Done() {
@@ -234,7 +261,7 @@ func (dw *DefaultWriter) Done() {
 type BufferedWriter struct {
 	Info      *RequestInfo
 	OldWriter HTTPWriter
-	Headers   *map[string]string
+	Headers   *map[string][]string
 	Buffer    *bytes.Buffer
 }
 
@@ -242,7 +269,7 @@ func NewBufferedWriter(info *RequestInfo) *BufferedWriter {
 	return &BufferedWriter{
 		Info:      info,
 		OldWriter: info.HTTPWriter,
-		Headers:   &map[string]string{},
+		Headers:   &map[string][]string{},
 		Buffer:    &bytes.Buffer{},
 	}
 }
@@ -251,19 +278,37 @@ func (bw *BufferedWriter) Write(b []byte) (int, error) {
 	return bw.Buffer.Write(b)
 }
 
+func (bw *BufferedWriter) SetHeader(name, value string) {
+	(*bw.Headers)[name] = []string{value}
+}
+
 func (bw *BufferedWriter) AddHeader(name, value string) {
-	(*bw.Headers)[name] = value
+	(*bw.Headers)[name] = append((*bw.Headers)[name], value)
+}
+
+func (bw *BufferedWriter) GetHeader(name string) string {
+	vals := (*bw.Headers)[name]
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
+}
+
+func (bw *BufferedWriter) GetHeaderValues(name string) []string {
+	return (*bw.Headers)[name]
 }
 
 func (bw *BufferedWriter) Done() {
 	req := bw.Info.OriginalRequest
 	if req.URL.Query().Has("html") {
 		// Override content-type
-		bw.AddHeader("Content-Type", "text/html")
+		bw.SetHeader("Content-Type", "text/html")
 	}
 
-	for k, v := range *bw.Headers {
-		bw.OldWriter.AddHeader(k, v)
+	for k, values := range *bw.Headers {
+		for _, val := range values {
+			bw.OldWriter.AddHeader(k, val)
+		}
 	}
 
 	buf := bw.Buffer.Bytes()
@@ -276,16 +321,19 @@ func (bw *BufferedWriter) Done() {
 
 type DiscardWriter struct{}
 
-func (dw *DiscardWriter) Write(b []byte) (int, error)  { return len(b), nil }
-func (dw *DiscardWriter) AddHeader(name, value string) {}
-func (dw *DiscardWriter) Done()                        {}
+func (dw *DiscardWriter) Write(b []byte) (int, error)          { return len(b), nil }
+func (dw *DiscardWriter) SetHeader(name, value string)         {}
+func (dw *DiscardWriter) AddHeader(name, value string)         {}
+func (dw *DiscardWriter) GetHeader(name string) string         { return "" }
+func (dw *DiscardWriter) GetHeaderValues(name string) []string { return nil }
+func (dw *DiscardWriter) Done()                                {}
 
 var DefaultDiscardWriter = &DiscardWriter{}
 
 type PageWriter struct {
 	Info      *RequestInfo
 	OldWriter HTTPWriter
-	Headers   *map[string]string
+	Headers   *map[string][]string
 	Buffer    *bytes.Buffer
 }
 
@@ -293,7 +341,7 @@ func NewPageWriter(info *RequestInfo) *PageWriter {
 	return &PageWriter{
 		Info:      info,
 		OldWriter: info.HTTPWriter,
-		Headers:   &map[string]string{},
+		Headers:   &map[string][]string{},
 		Buffer:    &bytes.Buffer{},
 	}
 }
@@ -302,15 +350,33 @@ func (pw *PageWriter) Write(b []byte) (int, error) {
 	return pw.Buffer.Write(b)
 }
 
+func (pw *PageWriter) SetHeader(name, value string) {
+	(*pw.Headers)[name] = []string{value}
+}
+
 func (pw *PageWriter) AddHeader(name, value string) {
-	(*pw.Headers)[name] = value
+	(*pw.Headers)[name] = append((*pw.Headers)[name], value)
+}
+
+func (pw *PageWriter) GetHeader(name string) string {
+	vals := (*pw.Headers)[name]
+	if len(vals) == 0 {
+		return ""
+	}
+	return vals[0]
+}
+
+func (pw *PageWriter) GetHeaderValues(name string) []string {
+	return (*pw.Headers)[name]
 }
 
 func (pw *PageWriter) Done() {
-	pw.AddHeader("Content-Type", "text/html")
+	pw.SetHeader("Content-Type", "text/html")
 
-	for k, v := range *pw.Headers {
-		pw.OldWriter.AddHeader(k, v)
+	for k, values := range *pw.Headers {
+		for _, val := range values {
+			pw.OldWriter.AddHeader(k, val)
+		}
 	}
 
 	if !pw.Info.SentStatus {
@@ -1276,7 +1342,7 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing capabilities: %s", err.Error())
 	}
 
-	info.AddHeader("Content-Type", "application/json")
+	info.SetHeader("Content-Type", "application/json")
 	info.Write(buf)
 	info.Write([]byte("\n"))
 	return nil
@@ -1297,7 +1363,7 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing capabilitiesoffered: %s", err.Error())
 	}
 
-	info.AddHeader("Content-Type", "application/json")
+	info.SetHeader("Content-Type", "application/json")
 	info.Write(buf)
 	info.Write([]byte("\n"))
 	return nil
@@ -1324,7 +1390,7 @@ func HTTPGETModel(info *RequestInfo) *XRError {
 			SetDetail(xErr.GetTitle())
 	}
 
-	info.AddHeader("Content-Type", "application/json")
+	info.SetHeader("Content-Type", "application/json")
 	info.Write(buf)
 	info.Write([]byte("\n"))
 	return nil
@@ -1350,7 +1416,7 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 			SetDetailf("Error parsing modelsource: %s", err.Error())
 	}
 
-	info.AddHeader("Content-Type", "application/json")
+	info.SetHeader("Content-Type", "application/json")
 	info.Write(buf)
 	info.Write([]byte("\n"))
 	return nil
@@ -1465,7 +1531,8 @@ FROM FullTree WHERE RegSID=? AND `
 
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
-				info.AddHeader("xRegistry-"+key+"-"+name,
+				// Should only ever be one of each xRegistry header
+				info.SetHeader("xRegistry-"+key+"-"+name,
 					fmt.Sprintf("%v", value))
 			}
 			return nil
@@ -1483,6 +1550,7 @@ FROM FullTree WHERE RegSID=? AND `
 		}
 
 		str := fmt.Sprintf("%v", val)
+		// As above, should only ever be one of these
 		info.AddHeader(headerName, str)
 
 		return nil
@@ -1494,23 +1562,24 @@ FROM FullTree WHERE RegSID=? AND `
 	}
 
 	if info.VersionUID == "" {
-		info.AddHeader("xRegistry-versionscount",
+		info.SetHeader("xRegistry-versionscount",
 			fmt.Sprintf("%d", versionsCount))
-		info.AddHeader("xRegistry-versionsurl",
+		info.SetHeader("xRegistry-versionsurl",
 			info.BaseURL+"/"+entity.Path+"/versions")
 	}
-	info.AddHeader("Content-Location", info.BaseURL+"/"+version.Path)
-	info.AddHeader("Content-Disposition", info.ResourceUID)
+	info.SetHeader("Content-Location", info.BaseURL+"/"+version.Path)
+	info.SetHeader("Content-Disposition", info.ResourceUID)
 
 	url := ""
 	singular := info.ResourceModel.Singular
 	if url = entity.GetAsString(singular + "url"); url != "" {
-		info.AddHeader("xRegistry-"+singular+"url", url)
+		// Should already be serialzied as a header
+		// info.SetHeader("xRegistry-"+singular+"url", url)
 
 		if info.StatusCode == 0 {
 			// If we set it during a PUT/POST, don't override the 201
 			info.StatusCode = http.StatusSeeOther
-			info.AddHeader("Location", url)
+			info.SetHeader("Location", url)
 		}
 		/*
 			http.Redirect(info.OriginalResponse, "/"+info.OriginalPath, url,
@@ -1668,7 +1737,7 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		info.AddInline("modelsource")
 	}
 
-	info.AddHeader("Content-Type", "application/json")
+	info.SetHeader("Content-Type", "application/json")
 	var jw *JsonWriter
 	hasData := false
 	keys := SortedKeys(resPaths)
@@ -2021,7 +2090,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			if isNew { // 201, else let it default to 200
-				info.AddHeader("Location", info.BaseURL+"/"+group.Path)
+				info.SetHeader("Location", info.BaseURL+"/"+group.Path)
 				info.StatusCode = http.StatusCreated
 			}
 
@@ -2275,7 +2344,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Return HTTP GET of 'meta'
 		if isNew { // 201, else let it default to 200
-			info.AddHeader("Location", info.BaseURL+"/"+meta.Path)
+			info.SetHeader("Location", info.BaseURL+"/"+meta.Path)
 			info.StatusCode = http.StatusCreated
 		}
 
@@ -2363,7 +2432,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			PanicIf(xErr != nil, "No meta %q: %s", resource.UID, xErr)
 
 			if meta.Get("readonly") == true {
-				return NewXRError("readonly", resource.XID)
+				if resource.tx.RequestInfo.HasIgnore("readonly") {
+					// ?ignore=readonly so just stop w/o error
+					// Force an empty collection to be returned
+					paths = []string{"!"}
+					resPaths := map[string][]string{"": paths}
+					return SerializeQuery(info, resPaths, "Coll", info.Filters)
+				} else {
+					return NewXRError("readonly", resource.XID)
+				}
 			}
 
 			// Process the versions
@@ -2478,7 +2555,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	if isNew { // 201, else let it default to 200
-		info.AddHeader("Location", location)
+		info.SetHeader("Location", location)
 		info.StatusCode = http.StatusCreated
 	}
 
@@ -3370,7 +3447,11 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	}
 
 	info.StatusCode = xErr.Code
-	info.AddHeader("Content-Type", "application/json; charset=utf-8")
+	// If header not already set, set it. This will likely only happen
+	// when the error happens very very very early in our processing
+	if info.GetHeader("Content-Type") == "" {
+		info.SetHeader("Content-Type", "application/json; charset=utf-8")
+	}
 
 	for k, v := range xErr.Headers {
 		info.AddHeader(k, v)

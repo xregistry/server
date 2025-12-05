@@ -140,3 +140,6 @@ TODOs:
 - make sure ?defaultversionid only processed on write ops (bad_flag)
 - look for more bad_request error that we can specialize
 - add tests for setting modelsource with $include stuff - and upload data at the same time
+- support/test ignore=readonly
+- test ignore=epoch on delete
+- defaultversionsticky should be set AFTER we process all versions

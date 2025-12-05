@@ -1001,7 +1001,7 @@ var PropsFuncs = []*Attribute{
 						"error_detail=must be a uinteger")
 				}
 
-				if !e.tx.IgnoreEpoch && oldEpoch != 0 && newEpoch != oldEpoch {
+				if !e.tx.RequestInfo.HasIgnore("epoch") && oldEpoch != 0 && newEpoch != oldEpoch {
 					return NewXRError("mismatched_epoch", e.XID,
 						"bad_epoch="+fmt.Sprintf("%v", val),
 						"epoch="+fmt.Sprintf("%d", oldEpoch))

@@ -435,7 +435,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/dir1/files/f1.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
   "source": ":registry:httpStuff:1884"
@@ -476,7 +476,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/dir1/files/f1/versions/v1.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "source": ":registry:httpStuff:1884"
@@ -4075,7 +4075,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/dir1/files/f1.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
   "source": ":registry:httpStuff:1884"
@@ -4271,7 +4271,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/dir1/files/f1/versions/v1.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "source": ":registry:httpStuff:1884"
@@ -5381,7 +5381,7 @@ func TestHTTPURLs(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/d2/files/f1.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/d2/files/f1",
   "source": ":registry:httpStuff:1884"
@@ -5709,7 +5709,7 @@ func TestHTTPURLs(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
-  "title": "$details suffix is needed when using PATCH for entity: /dirs/d2/files/f1/versions/v5.",
+  "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1/versions/v5.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/d2/files/f1/versions/v5",
   "source": ":registry:httpStuff:1884"
@@ -7250,8 +7250,8 @@ func TestHTTPNestedResources(t *testing.T) {
 	})
 
 	XCheckHTTP(t, reg, &HTTPTest{
-		Name:       "PATCH /RID + ignoredefaultversionsticky",
-		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionsticky&inline=meta",
+		Name:       "PATCH /RID + ignore=defaultversionsticky",
+		URL:        "/dirs/d1/files/f1$details?ignore=defaultversionsticky&inline=meta",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -7295,8 +7295,8 @@ func TestHTTPNestedResources(t *testing.T) {
 	})
 
 	XCheckHTTP(t, reg, &HTTPTest{
-		Name:       "PATCH /RID + ignoredefaultversionid",
-		URL:        "/dirs/d1/files/f1$details?ignoredefaultversionid&inline=meta",
+		Name:       "PATCH /RID + ignore=defaultversionid",
+		URL:        "/dirs/d1/files/f1$details?ignore=defaultversionid&inline=meta",
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -7440,7 +7440,7 @@ func TestHTTPExport(t *testing.T) {
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + re-load, ignore epoch",
-		URL:        "/?ignoreepoch",
+		URL:        "/?ignore=epoch",
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody:    string(body),

@@ -2107,6 +2107,7 @@ func TestHTTPJsonSchema(t *testing.T) {
     "/modelsource"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -2131,6 +2132,7 @@ func TestHTTPJsonSchema(t *testing.T) {
     "/modelsource"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -2775,4 +2777,192 @@ func TestHTTPVersWithResLevel(t *testing.T) {
   "source": ":registry:entity:2198"
 }
 `)
+}
+
+func TestHTTPIgnore(t *testing.T) {
+	reg := NewRegistry("TestHTTPIgnore")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	XNoErr(t, err)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	XNoErr(t, err)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `*`)
+
+	// capabilities, defaultversionid, defaultversionsticky, epoch,
+	// modelsource, readonly
+
+	// Make sure things will fails w/o ?ignore
+	XHTTP(t, reg, "PATCH", "/", `{"capabilities": 123}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"capabilities\" for \"/\" is not valid: must be a map[string] or object.",
+  "subject": "/",
+  "args": {
+    "error_detail": "must be a map[string] or object",
+    "name": "capabilities"
+  },
+  "source": ":registry:entity:1987"
+}
+`)
+	XHTTP(t, reg, "PATCH", "/", `{"modelsource": 123}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: error parsing JSON: path '': expected \"map\", got \"number\".",
+  "args": {
+    "error_detail": "error parsing JSON: path '': expected \"map\", got \"number\""
+  },
+  "source": ":common:utils:413"
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/?ignore=capabilities", `{"capabilities": 123}`,
+		200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPIgnore",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2025-12-05T16:07:11.927880184Z",
+  "modifiedat": "2025-12-05T16:07:12.001535569Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+	XHTTP(t, reg, "PATCH", "/?ignore=modelsource", `{"modelsource": 123}`,
+		200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPIgnore",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2025-12-05T16:07:11.927880184Z",
+  "modifiedat": "2025-12-05T16:07:12.001535569Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// Make sure we don't ignore defaultversionid first
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1",
+		`{
+           "meta": {
+             "defaultversionid": "1"
+           },
+           "versions": {
+             "v2": {}
+           }
+         }`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-12-05T16:13:41.780574738Z",
+  "modifiedat": "2025-12-05T16:13:41.863143679Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	// Now test it ignoring it (and make sure we don't ignore sticky)
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta&ignore=defaultversionid",
+		`{
+           "meta": {
+             "defaultversionid": "v2",
+             "defaultversionsticky": false
+           },
+           "versions": {
+             "v3": {}
+           }
+         }`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-12-05T16:20:10.050593114Z",
+  "modifiedat": "2025-12-05T16:20:10.050593114Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 3,
+    "createdat": "YYYY-MM-DDTHH:MM:02Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v3",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	// Now test ignore defaultversionsticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta&ignore=defaultversionsticky",
+		`{
+           "meta": {
+             "defaultversionsticky": true
+           },
+           "versions": {"v4":{}}
+         }`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-12-05T17:01:19.90283273Z",
+  "modifiedat": "2025-12-05T17:01:19.90283273Z",
+  "ancestor": "v3",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 4,
+    "createdat": "2025-12-05T17:01:19.742647723Z",
+    "modifiedat": "2025-12-05T17:01:19.90283273Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v4",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 4
+}
+`)
+
+	// Test setting sticky and adding a version - default=previous default
+	/*
+			XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta",
+				`{
+		           "meta": {
+		             "defaultversionsticky": true
+		           },
+		           "versions": {"v5":{}}
+		         }`,
+				200, `{
+		}
+		`)
+	*/
 }

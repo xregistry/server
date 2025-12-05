@@ -1349,11 +1349,11 @@ func TestInlineWildcards(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "?inline=.*", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_inline",
-  "title": "An error was found in inline value (.*): Unexpected \".\" in \".*\" at pos 1.",
+  "title": "An error was found in \"inline\" value (.*): Unexpected \".\" in \".*\" at pos 1.",
   "subject": "/",
   "args": {
     "error_detail": "Unexpected \".\" in \".*\" at pos 1",
-    "inline_value": ".*"
+    "value": ".*"
   },
   "source": "e4e59b8a76c4:registry:info:75"
 }

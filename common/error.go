@@ -96,15 +96,19 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_filter": &XRError{
 		Code:  400,
-		Title: `An error was found in filter (<filter_name>): <error_detail>.`,
+		Title: `An error was found in "filter" value (<value>): <error_detail>.`,
 	},
 	"bad_flag": &XRError{
 		Code:  400,
 		Title: `The specified flag (<flag>) is not allowed in this context: <subject>.`,
 	},
+	"bad_ignore": &XRError{
+		Code:  400,
+		Title: `An error was found in "ignore" value (<value>): <error_detail>.`,
+	},
 	"bad_inline": &XRError{
 		Code:  400,
-		Title: `An error was found in inline value (<inline_value>): <error_detail>.`,
+		Title: `An error was found in "inline" value (<value>): <error_detail>.`,
 	},
 	"bad_request": &XRError{
 		Code:  400,
@@ -112,7 +116,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"bad_sort": &XRError{
 		Code:  400,
-		Title: `An error was found in sort value (<sort_value>): <error_detail>.`,
+		Title: `An error was found in "sort" value (<value>): <error_detail>.`,
 	},
 	"cannot_doc_xref": &XRError{
 		Code:  400,
@@ -140,7 +144,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"compatibility_violation": &XRError{
 		Code:  400,
-		Title: `The request would cause one or more Versions of "<subject>" to violate its compatibility rule (<compatibility_value>).`,
+		Title: `The request would cause one or more Versions of "<subject>" to violate its compatibility rule (<value>).`,
 	},
 	"data_retrieval_error": &XRError{
 		Code:  500,
@@ -284,7 +288,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"details_required": &XRError{
 		Code:  405,
-		Title: `$details suffix is needed when using PATCH for entity: <subject>.`,
+		Title: `$details suffix is needed when using PATCH for the entity: <subject>.`,
 	},
 	"extra_xregistry_header": &XRError{
 		Code:  400,

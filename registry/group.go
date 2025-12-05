@@ -127,6 +127,19 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		return nil, false, xErr
 	}
 
+	if r != nil {
+		meta, xErr := r.FindMeta(false, FOR_READ)
+		PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+		if meta.Get("readonly") == true {
+			if r.tx.RequestInfo.HasIgnore("readonly") {
+				// Ignoring that it's read-only but also stopping
+				return r, false, nil
+			} else {
+				return nil, false, NewXRError("readonly", r.XID)
+			}
+		}
+	}
+
 	// Can this ever happen??
 	if r != nil && r.UID != id {
 		return nil, false, NewXRError("bad_request", r.XID,
@@ -386,10 +399,12 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	meta, xErr = r.FindMeta(false, FOR_READ)
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
-	// Kind of late in the process but oh well
-	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", r.XID)
-	}
+	/*
+		// Kind of late in the process but oh well
+		if meta.Get("readonly") == true {
+			return nil, false, NewXRError("readonly", r.XID)
+		}
+	*/
 
 	if !IsNil(meta.Get("xref")) {
 		delete(obj, "meta")
@@ -463,8 +478,8 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// doesn't match a Version ID from the "versions" collection (if there).
 	// If both Resource attrs and Version attrs are present, use the Version's
 	vObj := maps.Clone(obj)
-
 	if vID != "" {
+		// Skip if vID is in "versions" collection
 		if _, ok := versions[defVerID]; !ok {
 			RemoveResourceAttributes(rModel, vObj)
 			_, _, xErr := r.UpsertVersionWithObject(vID, vObj, addType, false)
@@ -473,6 +488,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			}
 		}
 	} else {
+		// Creating a new version w/o an ID, must be a new resource
 		RemoveResourceAttributes(rModel, vObj)
 		_, _, xErr := r.UpsertVersionWithObject(vID, vObj, addType, false)
 		if xErr != nil {

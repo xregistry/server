@@ -480,7 +480,11 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
 	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", r.XID)
+		if r.tx.RequestInfo.HasIgnore("readonly") {
+			return meta, false, nil
+		} else {
+			return nil, false, NewXRError("readonly", r.XID)
+		}
 	}
 
 	if obj != nil {
@@ -513,10 +517,10 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 	}
 	attrsToKeep[r.Singular+"id"] = true
 
-	if r.tx.IgnoreDefaultVersionID && !IsNil(obj) {
+	if r.tx.RequestInfo.HasIgnore("defaultversionid") && !IsNil(obj) {
 		delete(obj, "defaultversionid")
 	}
-	if r.tx.IgnoreDefaultVersionSticky && !IsNil(obj) {
+	if r.tx.RequestInfo.HasIgnore("defaultversionsticky") && !IsNil(obj) {
 		delete(obj, "defaultversionsticky")
 	}
 
@@ -897,7 +901,11 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
 	if meta.Get("readonly") == true {
-		return nil, false, NewXRError("readonly", r.XID)
+		if r.tx.RequestInfo.HasIgnore("readonly") {
+			return nil, false, nil
+		} else {
+			return nil, false, NewXRError("readonly", r.XID)
+		}
 	}
 
 	if r.IsXref() {

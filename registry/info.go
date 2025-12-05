@@ -29,6 +29,7 @@ type RequestInfo struct {
 	VersionUID       string
 	What             string            // Registry, Coll, Entity
 	Flags            map[string]string // Query params (and str value, if there)
+	Ignores          map[string]bool   // key=ignore-value
 	Inlines          []*Inline
 	Filters          [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
 	ShowDetails      bool            //	is $details present
@@ -73,7 +74,7 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 	pp, err := PropPathFromUI(path)
 	if err != nil {
 		return NewXRError("bad_inline", info.GetParts(0),
-			"inline_value="+path,
+			"value="+path,
 			"error_detail="+err.Error())
 	}
 
@@ -198,8 +199,20 @@ func (ri *RequestInfo) Write(b []byte) (int, error) {
 	return ri.HTTPWriter.Write(b)
 }
 
+func (ri *RequestInfo) SetHeader(name, value string) {
+	ri.HTTPWriter.SetHeader(name, value)
+}
+
 func (ri *RequestInfo) AddHeader(name, value string) {
 	ri.HTTPWriter.AddHeader(name, value)
+}
+
+func (ri *RequestInfo) GetHeader(name string) string {
+	return ri.HTTPWriter.GetHeader(name)
+}
+
+func (ri *RequestInfo) GetHeaderValues(name string) []string {
+	return ri.HTTPWriter.GetHeaderValues(name)
 }
 
 type FilterExpr struct {
@@ -263,6 +276,8 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	if xErr != nil {
 		return info, xErr
 	}
+
+	log.VPrintf(4, "Info: %s", ToJSON(info))
 
 	return info, nil
 }
@@ -411,7 +426,9 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 	log.VPrintf(4, "ParseRequestURL:\n%s", ToJSON(info))
 	log.VPrintf(4, "Req: %#v", info.OriginalRequest.URL)
 
-	// Notice boolean flags end up with "" as a value
+	// Notice boolean flags end up with "" as a value.
+	// Flags has just ONE of the query param values. To get all of them
+	// use GetFlagValues instead of GetFlag
 	info.Flags = map[string]string{}
 	params := info.OriginalRequest.URL.Query()
 	for _, flag := range AllowableFlags {
@@ -429,40 +446,70 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 	// group/resource info is setup - for verification
 
 	// Let's do some query parameter stuff.
-	// It's ok for tx to be nil, but only when we're doing a read operation
-	if info.tx != nil {
-		info.tx.IgnoreEpoch = info.HasFlag("ignoreepoch")
-		info.tx.IgnoreDefaultVersionSticky = info.HasFlag("ignoredefaultversionsticky")
-		info.tx.IgnoreDefaultVersionID = info.HasFlag("ignoredefaultversionid")
+
+	if info.HasFlag("ignore") {
+		info.Ignores = map[string]bool{}
+		for _, value := range info.GetFlagValues("ignore") {
+			if value == "" {
+				info.Ignores["*"] = true
+			} else {
+				for _, val := range strings.Split(value, ",") {
+					val = strings.TrimSpace(val)
+					if val == "" {
+						continue
+						/*
+							return NewXRError("bad_ignore", "/"+info.OriginalPath,
+								"value="+value,
+								"error_detail="+
+									fmt.Sprintf("misplaced comma(,)"))
+						*/
+					}
+					if val != "*" && !info.Registry.Capabilities.IgnoresEnabled(val) {
+						return NewXRError("bad_ignore", "/"+info.OriginalPath,
+							"value="+val,
+							"error_detail="+
+								fmt.Sprintf("value not supported; allowed "+
+									"values: %s",
+									strings.Join(info.Registry.Capabilities.Ignores,
+										",")))
+					}
+					info.Ignores[strings.ToLower(val)] = true
+				}
+			}
+		}
 	}
 
 	if info.HasFlag("inline") {
 		for _, value := range info.GetFlagValues("inline") {
-			for _, p := range strings.Split(value, ",") {
-				if p == "" || p == "*" {
-					p = "*"
-				} else {
-					// if we're not at the root then we need to twiddle
-					// the inline path to add the HTTP Path as a prefix
-					if info.Abstract != "" {
-						// want: p = info.Abstract + "." + p  in UI format
-						absPP, err := PropPathFromPath(info.Abstract)
-						if err != nil {
-							return NewXRError("bad_request", info.GetParts(0),
-								"error_detail="+
-									fmt.Sprintf("Error processing path "+
-										"(%s): %s",
-										info.Abstract, err.Error()))
-						}
-						pPP, err := PropPathFromUI(p)
-						if err != nil {
-							return NewXRError("bad_inline", info.GetParts(0),
-								"inline_value="+p,
-								"error_detail="+err.Error())
-						}
-						p = absPP.Append(pPP).UI()
-					}
+			if value == "" || value == "*" {
+				if xErr := info.AddInline("*"); xErr != nil {
+					return xErr
 				}
+				continue
+			}
+			for _, p := range strings.Split(value, ",") {
+				if p == "" {
+					continue
+				}
+				// if we're not at the root then we need to twiddle
+				// the inline path to add the HTTP Path as a prefix
+				if info.Abstract != "" {
+					// want: p = info.Abstract + "." + p  in UI format
+					absPP, err := PropPathFromPath(info.Abstract)
+					if err != nil {
+						return NewXRError("bad_inline", info.GetParts(0),
+							"value="+info.Abstract,
+							"error_detail="+err.Error())
+					}
+					pPP, err := PropPathFromUI(p)
+					if err != nil {
+						return NewXRError("bad_inline", info.GetParts(0),
+							"value="+p,
+							"error_detail="+err.Error())
+					}
+					p = absPP.Append(pPP).UI()
+				}
+
 				if xErr := info.AddInline(p); xErr != nil {
 					return xErr
 				}
@@ -492,12 +539,12 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		name, ascDesc, _ := strings.Cut(sortStr, "=")
 		if name == "" {
 			return NewXRError("bad_sort", info.GetParts(0),
-				"sort_value="+sortStr,
+				"value="+sortStr,
 				"error_detail=missing \"sort\" attribute name")
 		}
 		if ascDesc != "" && ascDesc != "asc" && ascDesc != "desc" {
 			return NewXRError("bad_sort", info.GetParts(0),
-				"sort_value="+sortStr,
+				"value="+sortStr,
 				"error_detail="+
 					fmt.Sprintf("invalid \"sort\" order %q", ascDesc))
 		}
@@ -505,7 +552,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		pp, err := PropPathFromUI(name)
 		if err != nil {
 			return NewXRError("bad_sort", info.GetParts(0),
-				"sort_value="+sortStr,
+				"value="+sortStr,
 				"error_detail="+
 					fmt.Sprintf("bad attribute name(%s): %s",
 						name, err.Error()))
@@ -513,6 +560,16 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		info.SortKey = pp.DB()
 		if ascDesc == "desc" {
 			info.SortKey = "-" + info.SortKey
+		}
+	}
+
+	if sv := info.GetFlag("specversion"); sv != "" {
+		if !info.Registry.Capabilities.SpecVersionEnabled(sv) {
+			return NewXRError("unsupported_specversion",
+				"/"+info.OriginalPath,
+				"specversion="+sv,
+				"list="+
+					strings.Join(info.Registry.Capabilities.SpecVersions, ","))
 		}
 	}
 
@@ -714,6 +771,11 @@ func (info *RequestInfo) GetFlagValues(name string) []string {
 		return nil
 	}
 	return info.OriginalRequest.URL.Query()[name]
+}
+
+func (info *RequestInfo) HasIgnore(name string) bool {
+	return info != nil && info.Ignores != nil &&
+		(info.Ignores[strings.ToLower(name)] || info.Ignores["*"])
 }
 
 func (info *RequestInfo) HasFlag(name string) bool {
