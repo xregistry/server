@@ -117,9 +117,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	gModel := g.GetGroupModel()
 	rModel := gModel.FindResourceModel(rType)
 	if rModel == nil {
-		return nil, false, NewXRError("bad_request", g.XID,
-			fmt.Sprintf("unknown Resource type (%s) for Group %q",
-				rType, g.Plural))
+		return nil, false, NewXRError("unknown_resource_type", g.XID,
+			"group="+g.Plural,
+			"name="+rType)
 	}
 
 	r, xErr := g.FindResource(rType, id, true, FOR_WRITE)

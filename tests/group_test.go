@@ -8,12 +8,23 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestCreateGroup(t *testing.T) {
-	reg := NewRegistry("TestCreateGroup")
+func TestGroupCreate(t *testing.T) {
+	reg := NewRegistry("TestGroupCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	_, err := reg.AddGroup("foos", "d1")
+	XCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_group_type",
+  "title": "An unknown Group type (foos) was specified in \"/foos\".",
+  "subject": "/foos",
+  "args": {
+    "name": "foos"
+  },
+  "source": ":registry:registry:622"
+}`)
 
 	d1, err := reg.AddGroup("dirs", "d1")
 	XNoErr(t, err)

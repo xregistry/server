@@ -619,7 +619,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	gm := reg.Model.Groups[gType]
 	if gm == nil {
-		return nil, false, NewXRError("not_found", "/"+gType)
+		return nil, false, NewXRError("unknown_group_type", "/"+gType,
+			"name="+gType)
 	}
 
 	if id == "" {

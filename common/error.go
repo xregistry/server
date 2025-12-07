@@ -262,9 +262,17 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `An unknown attribute (<name>) was specified for "<subject>".`,
 	},
+	"unknown_group_type": &XRError{
+		Code:  400,
+		Title: `An unknown Group type (<name>) was specified in "<subject>".`,
+	},
 	"unknown_id": &XRError{
 		Code:  400,
 		Title: `While processing "<subject>", the "<singular>" with a "<singular>id" value of "<id>" cannot be found.`,
+	},
+	"unknown_resource_type": &XRError{
+		Code:  400,
+		Title: `An unknown Resource type (<name>) was specified for Group type "<group>".`,
 	},
 	"unsupported_specversion": &XRError{
 		Code:  400,
