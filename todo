@@ -143,3 +143,4 @@ TODOs:
 - support/test ignore=readonly
 - test ignore=epoch on delete
 - defaultversionsticky should be set AFTER we process all versions
+- make sure we can't create a version with resource attrs - e.g. "meta"
