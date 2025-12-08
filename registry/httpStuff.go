@@ -2726,6 +2726,10 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		}
 	}
 
+	if info.HasIgnore("epoch") {
+		epochInt = -1
+	}
+
 	// DELETE /GROUPs...
 	gm := info.Registry.Model.Groups[info.GroupType]
 	if gm == nil {
@@ -2932,7 +2936,7 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 			continue
 		}
 
-		if tmp, ok := entry["epoch"]; ok {
+		if tmp, ok := entry["epoch"]; ok && !info.HasIgnore("epoch") {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
 				return NewXRError("invalid_attribute", group.XID,
@@ -3030,7 +3034,7 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 					"expected_id="+id)
 			}
 
-			if tmp, ok := metaMap["epoch"]; ok {
+			if tmp, ok := metaMap["epoch"]; ok && !info.HasIgnore("epoch") {
 				tmpInt, err := AnyToUInt(tmp)
 				if err != nil {
 					return NewXRError("invalid_attribute", meta.XID,
@@ -3116,7 +3120,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 		vers = append(vers, version)
 
 		// check epoch
-		if tmp, ok := entry["epoch"]; ok {
+		if tmp, ok := entry["epoch"]; ok && !info.HasIgnore("epoch") {
 			tmpInt, err := AnyToUInt(tmp)
 			if err != nil {
 				return NewXRError("invalid_attribute", version.XID,

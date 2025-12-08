@@ -2952,17 +2952,458 @@ func TestHTTPIgnore(t *testing.T) {
 }
 `)
 
+	// Now test ignore epoch
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", `{
+      "epoch": 5
+    }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (2).",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "bad_epoch": "5",
+    "epoch": "2"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1?ignore=epoch", `{
+      "epoch":5
+    }`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "xid": "/dirs/d1/files/f1/versions/1",
+  "epoch": 3,
+  "isdefault": false,
+  "createdat": "2025-12-08T20:17:53.420127887Z",
+  "modifiedat": "2025-12-08T20:17:53.616724998Z",
+  "ancestor": "1"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v4?epoch=99", ``,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (1).",
+  "subject": "/dirs/d1/files/f1/versions/v4",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "1"
+  },
+  "source": ":registry:httpStuff:2854"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v3?epoch=99&ignore=epoch", ``,
+		204, ``)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+       "v1": { "epoch": 97 },
+       "v2": { "epoch": 99 }
+    }`, // notice 'v1' is new
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v2\" does not match its current value (1).",
+  "subject": "/dirs/d1/files/f1/versions/v2",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "1"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+       "1": { "epoch": 97 },
+       "v2": { "epoch": 1 }
+    }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (97) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (3).",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "bad_epoch": "97",
+    "epoch": "3"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?ignore=epoch", `{
+       "1": { "epoch": 97 },
+       "v2": { "epoch": 1 }
+    }`,
+		200, `{
+  "1": {
+    "fileid": "f1",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "xid": "/dirs/d1/files/f1/versions/1",
+    "epoch": 4,
+    "isdefault": false,
+    "createdat": "2025-12-08T20:22:59.455521175Z",
+    "modifiedat": "2025-12-08T20:22:59.702769064Z",
+    "ancestor": "1"
+  },
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 2,
+    "isdefault": true,
+    "createdat": "2025-12-08T20:22:59.538173885Z",
+    "modifiedat": "2025-12-08T20:22:59.702769064Z",
+    "ancestor": "1"
+  }
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions", `{
+      "1":{"epoch": 55},
+      "v3":{"epoch": 2}
+    }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (55) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (55).",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "bad_epoch": "55",
+    "epoch": "55"
+  },
+  "source": ":registry:httpStuff:3131"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions?ignore=epoch", `{
+      "1":{"epoch": 55},
+      "v3":{"epoch": 2}
+    }`,
+		204, ``)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+      "epoch": 5
+    }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/v2\" does not match its current value (3).",
+  "subject": "/dirs/d1/files/f1/versions/v2",
+  "args": {
+    "bad_epoch": "5",
+    "epoch": "3"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?ignore=epoch", `{
+      "epoch": 5
+    }`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-12-08T22:18:22.918241199Z",
+  "modifiedat": "2025-12-08T22:18:22.990276877Z",
+  "ancestor": "v4",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3", `{}`, 201, "*")
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f3?epoch=55", ``,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (55) for \"/dirs/d1/files/f3/meta\" does not match its current value (1).",
+  "subject": "/dirs/d1/files/f3/meta",
+  "args": {
+    "bad_epoch": "55",
+    "epoch": "1"
+  },
+  "source": ":registry:httpStuff:2811"
+}
+`)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f3?epoch=55&ignore=epoch", ``,
+		204, ``)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{
+      "f1": { "epoch": 99 },
+      "f2": { "epoch": 100 }
+    }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (2).",
+  "subject": "/dirs/d1/files/f1/versions/v4",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "2"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files?ignore=epoch", `{
+      "f1": { "epoch": 99 },
+      "f2": { "epoch": 100 }
+    }`,
+		200, `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "v4",
+    "self": "http://localhost:8181/dirs/d1/files/f1",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 3,
+    "isdefault": true,
+    "createdat": "2025-12-08T22:20:35.236037978Z",
+    "modifiedat": "2025-12-08T22:20:35.469669475Z",
+    "ancestor": "v4",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 2
+  },
+  "f2": {
+    "fileid": "f2",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d1/files/f2",
+    "xid": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2025-12-08T22:20:35.469669475Z",
+    "modifiedat": "2025-12-08T22:20:35.469669475Z",
+    "ancestor": "1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+    "versionscount": 1
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3", `{}`, 201, "*")
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files", `{
+      "f3": { "epoch": 55 }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#misplaced_epoch",
+  "title": "The specified \"epoch\" value for \"/dirs/d1/files/f3\" needs to be within a \"meta\" entity.",
+  "subject": "/dirs/d1/files/f3",
+  "source": ":registry:httpStuff:3052"
+}
+`)
+
+	// Even if ignore, it's still bad
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files?ignore=epoch", `{
+      "f3": { "epoch": 55 }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#misplaced_epoch",
+  "title": "The specified \"epoch\" value for \"/dirs/d1/files/f3\" needs to be within a \"meta\" entity.",
+  "subject": "/dirs/d1/files/f3",
+  "source": ":registry:httpStuff:3052"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files", `{
+      "f3": { "meta": { "epoch": 55 } }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (55) for \"/dirs/d1/files/f3/meta\" does not match its current value (1).",
+  "subject": "/dirs/d1/files/f3/meta",
+  "args": {
+    "bad_epoch": "55",
+    "epoch": "1"
+  },
+  "source": ":registry:httpStuff:3045"
+}
+`)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files?ignore=epoch", `{
+      "f3": { "meta": { "epoch": 55 } }
+    }`, 204, ``)
+
+	XHTTP(t, reg, "POST", "/dirs/d1", `{
+      "files": { "f1": { "epoch": 99 } }
+    }
+    `,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (3).",
+  "subject": "/dirs/d1/files/f1/versions/v4",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "3"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1?ignore=epoch", `{
+      "files": { "f1": { "epoch": 99 } }
+    }
+    `,
+		200, `{
+  "files": {
+    "f1": {
+      "fileid": "f1",
+      "versionid": "v4",
+      "self": "http://localhost:8181/dirs/d1/files/f1",
+      "xid": "/dirs/d1/files/f1",
+      "epoch": 4,
+      "isdefault": true,
+      "createdat": "2025-12-08T22:21:30.042516157Z",
+      "modifiedat": "2025-12-08T22:21:30.331699755Z",
+      "ancestor": "v4",
+
+      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+      "versionscount": 2
+    }
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d3", `{}`, 201, `*`)
+	XHTTP(t, reg, "DELETE", "/dirs/d3?epoch=55", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (55) for \"/dirs/d3\" does not match its current value (1).",
+  "subject": "/dirs/d3",
+  "args": {
+    "bad_epoch": "55",
+    "epoch": "1"
+  },
+  "source": ":registry:httpStuff:2762"
+}
+`)
+	XHTTP(t, reg, "DELETE", "/dirs/d3?epoch=55&ignore=epoch", `{
+      "epoch": 55
+    }`, 204, ``)
+
+	XHTTP(t, reg, "POST", "/dirs", `{
+      "d1": { "epoch": 99 },
+      "d2": { "epoch": 66 }
+    }
+    `,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1\" does not match its current value (6).",
+  "subject": "/dirs/d1",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "6"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs?ignore=epoch", `{
+      "d1": { "epoch": 99 },
+      "d2": { "epoch": 66 }
+    }
+    `,
+		200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 7,
+    "createdat": "2025-12-08T22:31:21.035152366Z",
+    "modifiedat": "2025-12-08T22:31:21.686598709Z",
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "2025-12-08T22:31:21.686598709Z",
+    "modifiedat": "2025-12-08T22:31:21.686598709Z",
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d3", `{}`, 201, `*`)
+	XHTTP(t, reg, "DELETE", "/dirs", `{
+      "d3": { "epoch": 55 },
+      "d4": { "epoch": 5 }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (55) for \"/dirs/d3\" does not match its current value (55).",
+  "subject": "/dirs/d3",
+  "args": {
+    "bad_epoch": "55",
+    "epoch": "55"
+  },
+  "source": ":registry:httpStuff:2947"
+}
+`)
+	XHTTP(t, reg, "DELETE", "/dirs?ignore=epoch", `{
+      "d3": { "epoch": 55 },
+      "d4": { "epoch": 5 }
+    }`, 204, ``)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "epoch": 22,
+      "dirs": {
+        "d1": { "epoch": 99 }
+      }
+    }
+    `,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
+  "title": "The specified epoch value (99) for \"/dirs/d1\" does not match its current value (7).",
+  "subject": "/dirs/d1",
+  "args": {
+    "bad_epoch": "99",
+    "epoch": "7"
+  },
+  "source": ":registry:entity:1005"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/?ignore=epoch", `{
+      "epoch": 22,
+      "dirs": {
+        "d1": { "epoch": 99 }
+      }
+    }
+    `,
+		200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPIgnore",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "2025-12-08T20:36:43.903572833Z",
+  "modifiedat": "2025-12-08T20:36:44.386384641Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
 	// Test setting sticky and adding a version - default=previous default
-	/*
-			XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta",
-				`{
-		           "meta": {
-		             "defaultversionsticky": true
-		           },
-		           "versions": {"v5":{}}
-		         }`,
-				200, `{
-		}
-		`)
+	/* TODO
+		XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta",
+			`{
+	           "meta": {
+	             "defaultversionsticky": true
+	           },
+	           "versions": {"v5":{}}
+	         }`,
+			200, `{
+	}
+	`)
 	*/
 }
