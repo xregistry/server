@@ -3457,7 +3457,9 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	if info.GetHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
-  info.AddHeader("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
+	if info.GetHeader("Link") == "" {
+		info.AddHeader("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
+	}
 
 	for k, v := range xErr.Headers {
 		info.AddHeader(k, v)
