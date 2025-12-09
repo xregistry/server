@@ -3457,17 +3457,28 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	if info.GetHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
-	// Add Link header with xregistry-root rel if not already present
-	// Check all Link header values to avoid duplicating the xregistry-root link
+	// Add or replace Link header with xregistry-root rel
+	// Check if there's already a Link header with rel=xregistry-root
 	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
+	existingLinks := info.GetHeaderValues("Link")
 	hasXRegistryLink := false
-	for _, v := range info.GetHeaderValues("Link") {
-		if v == linkValue {
+	for i, v := range existingLinks {
+		// Check if this Link header has rel=xregistry-root
+		if strings.Contains(v, "rel=xregistry-root") || strings.Contains(v, "rel=\"xregistry-root\"") {
+			// Replace it with the current value
+			existingLinks[i] = linkValue
 			hasXRegistryLink = true
 			break
 		}
 	}
-	if !hasXRegistryLink {
+	if hasXRegistryLink {
+		// Clear all Link headers and re-add them with the updated value
+		info.OriginalResponse.Header().Del("Link")
+		for _, v := range existingLinks {
+			info.AddHeader("Link", v)
+		}
+	} else {
+		// No existing xregistry-root link, just add it
 		info.AddHeader("Link", linkValue)
 	}
 
