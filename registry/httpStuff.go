@@ -3457,8 +3457,18 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	if info.GetHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
 	}
-	if info.GetHeader("Link") == "" {
-		info.AddHeader("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
+	// Add Link header with xregistry-root rel if not already present
+	// Check all Link header values to avoid duplicating the xregistry-root link
+	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
+	hasXRegistryLink := false
+	for _, v := range info.GetHeaderValues("Link") {
+		if v == linkValue {
+			hasXRegistryLink = true
+			break
+		}
+	}
+	if !hasXRegistryLink {
+		info.AddHeader("Link", linkValue)
 	}
 
 	for k, v := range xErr.Headers {
