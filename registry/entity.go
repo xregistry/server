@@ -1001,7 +1001,7 @@ var PropsFuncs = []*Attribute{
 						"error_detail=must be a uinteger")
 				}
 
-				if !e.tx.IgnoreEpoch && oldEpoch != 0 && newEpoch != oldEpoch {
+				if !e.tx.RequestInfo.HasIgnore("epoch") && oldEpoch != 0 && newEpoch != oldEpoch {
 					return NewXRError("mismatched_epoch", e.XID,
 						"bad_epoch="+fmt.Sprintf("%v", val),
 						"epoch="+fmt.Sprintf("%d", oldEpoch))
@@ -1937,7 +1937,9 @@ func (e *Entity) GetBaseAttributes() Attributes {
 func (e *Entity) Validate() *XRError {
 	// Don't touch what was passed in
 	attrs := e.GetAttributes(e.NewObject)
-	log.VPrintf(4, "In Validate - Attrs:\n%s", ToJSON(attrs))
+	if log.GetVerbose() > 3 {
+		log.Printf("In Validate - Attrs:\n%s", ToJSON(attrs))
+	}
 
 	if e.Type == ENTITY_RESOURCE {
 		// Skip Resources // TODO DUG - would prefer to not do this

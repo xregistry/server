@@ -12,6 +12,7 @@ import (
 type Capabilities struct {
 	APIs           []string `json:"apis"`           // must not have omitempty
 	Flags          []string `json:"flags"`          // must not have omitempty
+	Ignores        []string `json:"ignores"`        // must not have omitempty
 	Mutable        []string `json:"mutable"`        // must not have omitempty
 	Pagination     bool     `json:"pagination"`     // must not have omitempty
 	ShortSelf      bool     `json:"shortself"`      // must not have omitempty
@@ -35,6 +36,7 @@ type OfferedItem struct {
 type Offered struct {
 	APIs           OfferedCapability `json:"apis,omitempty"`
 	Flags          OfferedCapability `json:"flags,omitempty"`
+	Ignores        OfferedCapability `json:"ignores,omitempty"`
 	Mutable        OfferedCapability `json:"mutable,omitempty"`
 	Pagination     OfferedCapability `json:"pagination,omitempty"`
 	ShortSelf      OfferedCapability `json:"shortself,omitempty"`
@@ -47,10 +49,12 @@ var AllowableAPIs = ArrayToLower([]string{
 	"/model", "/modelsource"})
 
 var AllowableFlags = ArrayToLower([]string{
-	"binary", "collections", "doc", "epoch", "filter",
-	"ignoredefaultversionid", "ignoredefaultversionsticky",
-	"ignoreepoch", "ignorereadonly", "inline",
+	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
 	"setdefaultversionid", "sort", "specversion"})
+
+var AllowableIgnores = ArrayToLower([]string{
+	"capabilities", "defaultversionid", "defaultversionsticky", "epoch",
+	"modelsource", "readonly"})
 
 var AllowableMutable = ArrayToLower([]string{
 	"capabilities", "entities", "model"})
@@ -58,14 +62,17 @@ var AllowableMutable = ArrayToLower([]string{
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
 var SupportedFlags = ArrayToLower([]string{
-	"binary", "collections", "doc", "epoch", "filter",
-	"ignoredefaultversionid", "ignoredefaultversionsticky",
-	"ignoreepoch", "ignorereadonly", "inline",
+	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
 	"setdefaultversionid", "sort", "specversion"})
+
+var SupportedIgnores = ArrayToLower([]string{
+	"capabilities", "defaultversionid", "defaultversionsticky", "epoch",
+	"modelsource", "readonly"})
 
 var DefaultCapabilities = &Capabilities{
 	APIs:           AllowableAPIs,
 	Flags:          SupportedFlags,
+	Ignores:        SupportedIgnores,
 	Mutable:        AllowableMutable,
 	Pagination:     false,
 	ShortSelf:      false,
@@ -76,10 +83,12 @@ var DefaultCapabilities = &Capabilities{
 func init() {
 	sort.Strings(AllowableAPIs)
 	sort.Strings(AllowableFlags)
+	sort.Strings(AllowableIgnores)
 	sort.Strings(AllowableMutable)
 	sort.Strings(AllowableSpecVersions)
 
 	sort.Strings(SupportedFlags)
+	sort.Strings(SupportedIgnores)
 
 	Must(DefaultCapabilities.Validate())
 }
@@ -109,6 +118,13 @@ func GetOffered() *Offered {
 				Type: "string",
 			},
 			Enum: String2AnySlice(SupportedFlags),
+		},
+		Ignores: OfferedCapability{
+			Type: "array",
+			Item: &OfferedItem{
+				Type: "string",
+			},
+			Enum: String2AnySlice(SupportedIgnores),
 		},
 		Mutable: OfferedCapability{
 			Type: "string",
@@ -207,6 +223,11 @@ func (c *Capabilities) Validate() *XRError {
 		return xErr
 	}
 
+	c.Ignores, xErr = CleanArray(c.Ignores, AllowableIgnores, "ignores")
+	if xErr != nil {
+		return xErr
+	}
+
 	c.Mutable, xErr = CleanArray(c.Mutable, AllowableMutable, "mutable")
 	if xErr != nil {
 		return xErr
@@ -262,15 +283,19 @@ func ParseCapabilitiesJSON(buf []byte) (*Capabilities, *XRError) {
 }
 
 func (c *Capabilities) APIEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.APIs, str)
+	return ArrayContains(c.APIs, str)
 }
 
 func (c *Capabilities) FlagEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Flags, str)
+	return ArrayContains(c.Flags, str)
+}
+
+func (c *Capabilities) IgnoresEnabled(str string) bool {
+	return ArrayContains(c.Ignores, str)
 }
 
 func (c *Capabilities) MutableEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.Mutable, str)
+	return ArrayContains(c.Mutable, str)
 }
 
 func (c *Capabilities) PaginationEnabled() bool {
@@ -282,7 +307,7 @@ func (c *Capabilities) ShortSelfEnabled(str string) bool {
 }
 
 func (c *Capabilities) SpecVersionEnabled(str string) bool {
-	return ArrayContainsAnyCase(c.SpecVersions, str)
+	return ArrayContains(c.SpecVersions, str)
 }
 
 func (c *Capabilities) StickyVersionsEnabled() bool {

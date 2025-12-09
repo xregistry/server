@@ -123,15 +123,12 @@ func (fp *FilterPProf) Write(p []byte) (n int, err error) {
 // changes that are going on. Maybe one day convert this to a Context where
 // Tx is just as apsect of it.
 type Tx struct {
-	tx                         *sql.Tx
-	Registry                   *Registry
-	CreateTime                 string // use for entity timestamps too
-	User                       string
-	IgnoreEpoch                bool
-	IgnoreDefaultVersionSticky bool
-	IgnoreDefaultVersionID     bool
-	RequestInfo                *RequestInfo
-	ClearFullTree              bool
+	tx            *sql.Tx
+	Registry      *Registry
+	CreateTime    string // use for entity timestamps too
+	User          string
+	RequestInfo   *RequestInfo
+	ClearFullTree bool
 
 	// Cache of entities this Tx is dealing with. Things can get funky if
 	// we have more than one instance of the same entity in memory.

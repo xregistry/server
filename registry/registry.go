@@ -454,6 +454,14 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	// Ignore any incoming "model" attribute
 	delete(reg.NewObject, "model")
 
+	if reg.tx.RequestInfo.HasIgnore("capabilities") && !IsNil(reg.NewObject) {
+		delete(reg.NewObject, "capabilities")
+	}
+
+	if reg.tx.RequestInfo.HasIgnore("modelsource") && !IsNil(reg.NewObject) {
+		delete(reg.NewObject, "modelsource")
+	}
+
 	// Need to do it here instead of under the checkFn because doing it
 	// in checkfn causes a circular reference that golang doesn't like
 	val, ok := reg.NewObject["modelsource"]
@@ -611,7 +619,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 
 	gm := reg.Model.Groups[gType]
 	if gm == nil {
-		return nil, false, NewXRError("not_found", "/"+gType)
+		return nil, false, NewXRError("unknown_group_type", "/"+gType,
+			"name="+gType)
 	}
 
 	if id == "" {

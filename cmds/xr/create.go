@@ -71,7 +71,7 @@ Notes:
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	upsertCmd.Flags().StringP("data", "d", "",
 		"Data, @FILE, @URL, @-(stdin)")
-	upsertCmd.Flags().BoolP("replace ", "r", false,
+	upsertCmd.Flags().BoolP("replace", "r", false,
 		"Replace entire entity (all attributes)")
 	upsertCmd.Flags().BoolP("force", "f", false,
 		"Skip pre-flight checks")
@@ -276,7 +276,12 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	// If we have doc + ../rID or ../vID then...
 	if xid.ResourceID != "" {
-		if isMetadata {
+		rm, xErr := xrlib.GetResourceModelFrom(xid, reg)
+		Error(xErr)
+
+		if !rm.GetHasDocument() {
+			isMetadata = true
+		} else if isMetadata {
 			suffix = "$details"
 
 			// If not uploading a domain doc then make sure data has something
@@ -309,7 +314,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 				Error(xErr)
 			}
 			if action == "create" && xErr == nil {
-				Error(xErr, NewXRError("exists", xid.String()))
+				Error(NewXRError("exists", xid.String()))
 			}
 			if action == "update" && res != nil && res.Code == 404 {
 				Error(NewXRError("not_found", xid.String()))

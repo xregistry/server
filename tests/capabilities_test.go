@@ -34,14 +34,19 @@ func TestCapabilitySimple(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -80,14 +85,19 @@ func TestCapabilitySimple(t *testing.T) {
       "doc",
       "epoch",
       "filter",
-      "ignoredefaultversionid",
-      "ignoredefaultversionsticky",
-      "ignoreepoch",
-      "ignorereadonly",
+      "ignore",
       "inline",
       "setdefaultversionid",
       "sort",
       "specversion"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "modelsource",
+      "readonly"
     ],
     "mutable": [
       "capabilities",
@@ -115,6 +125,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Exp: `{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -130,6 +141,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Exp: `{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -149,6 +161,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Exp: `{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -168,6 +181,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Exp: `{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -187,6 +201,7 @@ func TestCapabilitySimple(t *testing.T) {
 			Exp: `{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -331,14 +346,19 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -373,6 +393,7 @@ func TestCapabilityPath(t *testing.T) {
   "flags": [
     "inline"
   ],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -409,6 +430,7 @@ func TestCapabilityPath(t *testing.T) {
       "/capabilities"
     ],
     "flags": [],
+    "ignores": [],
     "mutable": [],
     "pagination": false,
     "shortself": false,
@@ -437,6 +459,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -451,6 +474,7 @@ func TestCapabilityPath(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/capabilities", `{
   "apis": ["/capabilities"],
   "flags": null,
+  "ignores": null,
   "mutable": null,
   "pagination": null,
   "shortself": null,
@@ -461,6 +485,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -476,6 +501,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -492,11 +518,11 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities", "/capabilitiesoffered", "/export", "/model", "/modelsource"
   ],
   "flags": [
-    "binary", "collections", "doc", "epoch", "filter", "inline",
-    "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
-    "ignorereadonly", "setdefaultversionid", "sort",
-    "specversion"
+    "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
+    "setdefaultversionid", "sort", "specversion"
   ],
+  "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
+    "epoch", "modelsource", "readonly" ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
   "shortself": false,
@@ -517,14 +543,19 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -554,14 +585,19 @@ func TestCapabilityPath(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -584,6 +620,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -599,6 +636,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -620,6 +658,7 @@ func TestCapabilityPath(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -731,6 +770,7 @@ func TestCapabilityAttr(t *testing.T) {
       "/capabilities"
     ],
     "flags": [],
+    "ignores": [],
     "mutable": [],
     "pagination": false,
     "shortself": false,
@@ -747,6 +787,7 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "apis": ["/capabilities"],
   "flags": null,
+  "ignores": null,
   "mutable": null,
   "pagination": null,
   "shortself": null,
@@ -769,6 +810,7 @@ func TestCapabilityAttr(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -785,10 +827,12 @@ func TestCapabilityAttr(t *testing.T) {
   "apis": ["/export", "/model", "/modelsource", "/capabilities",
     "/capabilitiesoffered"],
   "flags": [
-    "binary", "collections", "doc", "epoch", "filter", "inline",
-    "ignoredefaultversionid", "ignoredefaultversionsticky", "ignoreepoch",
-    "ignorereadonly", "setdefaultversionid", "sort",
-    "specversion"
+    "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
+    "setdefaultversionid", "sort", "specversion"
+  ],
+  "ignores": [
+    "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
+    "modelsource", "readonly"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -821,14 +865,19 @@ func TestCapabilityAttr(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -849,6 +898,7 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "apis":["/capabilities"],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -869,6 +919,7 @@ func TestCapabilityAttr(t *testing.T) {
       "/capabilities"
     ],
     "flags": [],
+    "ignores": [],
     "mutable": [],
     "pagination": false,
     "shortself": false,
@@ -885,6 +936,7 @@ func TestCapabilityAttr(t *testing.T) {
     "/capabilities"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -926,10 +978,8 @@ func TestCapabilityAttr(t *testing.T) {
 
 }
 
-// "binary", "collections", "doc", "epoch", "filter", "inline",
-// "ignoredefaultversionid", "ignoredefaultversionsticky",
-// "ignoreepoch", "ignorereadonly", "setdefaultversionid",
-// "sort", "specversion"})
+// "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
+// "setdefaultversionid", "sort", "specversion"})
 
 func TestCapabilityFlagsOff(t *testing.T) {
 	reg := NewRegistry("TestCapabilityFlags")
@@ -945,6 +995,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
     "/model"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [
     "capabilities",
     "entities",
@@ -1042,8 +1093,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	// Test ?specversion
 	XHTTP(t, reg, "GET", "/model?specversion=foo", ``, 200, `*`)
 
-	// TODO ignoredefaultversionid, ignoredefaultversionsticky,
-	// ignoreepoch, ignorereadonly
+	// TODO ignore
 }
 
 func TestCapabilityOffered(t *testing.T) {
@@ -1075,14 +1125,25 @@ func TestCapabilityOffered(t *testing.T) {
       "doc",
       "epoch",
       "filter",
-      "ignoredefaultversionid",
-      "ignoredefaultversionsticky",
-      "ignoreepoch",
-      "ignorereadonly",
+      "ignore",
       "inline",
       "setdefaultversionid",
       "sort",
       "specversion"
+    ]
+  },
+  "ignores": {
+    "type": "array",
+    "item": {
+      "type": "string"
+    },
+    "enum": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "modelsource",
+      "readonly"
     ]
   },
   "mutable": {
@@ -1131,6 +1192,7 @@ func TestCapabilityAPIs(t *testing.T) {
 		`{
   "apis": [],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -1193,6 +1255,7 @@ func TestCapabilityAPIs(t *testing.T) {
     "/export"
   ],
   "flags": [],
+  "ignores": [],
   "mutable": [],
   "pagination": false,
   "shortself": false,
@@ -1219,6 +1282,7 @@ func TestCapabilityAPIs(t *testing.T) {
       "/export"
     ],
     "flags": [],
+    "ignores": [],
     "mutable": [],
     "pagination": false,
     "shortself": false,
@@ -1320,14 +1384,19 @@ func TestCapabilityAPIs(t *testing.T) {
     "doc",
     "epoch",
     "filter",
-    "ignoredefaultversionid",
-    "ignoredefaultversionsticky",
-    "ignoreepoch",
-    "ignorereadonly",
+    "ignore",
     "inline",
     "setdefaultversionid",
     "sort",
     "specversion"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
   ],
   "mutable": [
     "capabilities",
@@ -1364,6 +1433,14 @@ func TestCapabilityPatch(t *testing.T) {
   "flags": [
     "inline"
   ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "modelsource",
+    "readonly"
+  ],
   "mutable": [
     "capabilities",
     "entities",
@@ -1398,6 +1475,7 @@ func TestCapabilityPatch(t *testing.T) {
       "filter",
       "inline"
     ],
+    "ignores": [],
     "mutable": [],
     "pagination": false,
     "shortself": false,

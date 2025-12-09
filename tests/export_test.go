@@ -52,14 +52,19 @@ func TestExportBasic(t *testing.T) {
       "doc",
       "epoch",
       "filter",
-      "ignoredefaultversionid",
-      "ignoredefaultversionsticky",
-      "ignoreepoch",
-      "ignorereadonly",
+      "ignore",
       "inline",
       "setdefaultversionid",
       "sort",
       "specversion"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "modelsource",
+      "readonly"
     ],
     "mutable": [
       "capabilities",
@@ -297,14 +302,19 @@ func TestExportBasic(t *testing.T) {
       "doc",
       "epoch",
       "filter",
-      "ignoredefaultversionid",
-      "ignoredefaultversionsticky",
-      "ignoreepoch",
-      "ignorereadonly",
+      "ignore",
       "inline",
       "setdefaultversionid",
       "sort",
       "specversion"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "modelsource",
+      "readonly"
     ],
     "mutable": [
       "capabilities",

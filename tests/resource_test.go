@@ -15,6 +15,18 @@ func TestResourceCreate(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 	d1, _ := reg.AddGroup("dirs", "d1")
 
+	_, err := d1.AddResource("foos", "f1", "v1")
+	XCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_resource_type",
+  "title": "An unknown Resource type (foos) was specified for Group type \"dirs\".",
+  "subject": "/dirs/d1",
+  "args": {
+    "group": "dirs",
+    "name": "foos"
+  },
+  "source": ":registry:group:120"
+}`)
+
 	f1, err := d1.AddResource("files", "f1", "v1")
 	XNoErr(t, err)
 	XCheck(t, f1 != nil && err == nil, "Creating f1 failed")
