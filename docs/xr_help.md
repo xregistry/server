@@ -21,7 +21,7 @@ xr conform
   -l, --logs            Show logs on success
   -t, --tdDebug         td debug
 
-xr create [ XID ]
+xr create XID
   # Create a new entity in the registry
       --add stringArray   Add to an attribute: --add NAME[=(VALUE | "STRING")]
   -d, --data string       Data, @FILE, @URL, @-(stdin)
@@ -33,12 +33,12 @@ xr create [ XID ]
   -r, --replace           Replace entire entity (all attributes) when -f used
       --set stringArray   Set an attribute: --set NAME[=(VALUE | "STRING")]
 
-xr delete [ XID ... ]
+xr delete XID ...
   # Delete an entity from the registry
   -d, --data string   Data(json), @FILE, @URL, @-(stdin)
   -f, --force         Don't error if doesn't exist
 
-xr download DIR [ XID...]
+xr download DIR XID...
   # Download entities from registry as individual files
   -c, --capabilities              Modify capabilities for static site
   -i, --index string              Directory index file name (default
@@ -128,7 +128,7 @@ xr serve DIR
   # Run an HTTP file server for a directory
   -a, --address string   address:port of listener (default "0.0.0.0:8080")
 
-xr update [ XID ]
+xr update XID
   # Update an entity in the registry
       --add stringArray   Add to an attribute
   -d, --data string       Data, @FILE, @URL, @-(stdin)
@@ -141,7 +141,7 @@ xr update [ XID ]
   -r, --replace           Replace entire entity (all attributes)
       --set stringArray   Set an attribute
 
-xr upsert [ XID ]
+xr upsert XID
   # UPdate, or inSERT as appropriate, an entity in the registry
       --add stringArray   Add to an attribute
   -d, --data string       Data, @FILE, @URL, @-(stdin)

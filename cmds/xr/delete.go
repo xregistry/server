@@ -13,7 +13,7 @@ import (
 
 func addDeleteCmd(parent *cobra.Command) {
 	deleteCmd := &cobra.Command{
-		Use:     "delete [ XID ... ]",
+		Use:     "delete XID ...",
 		Short:   "Delete an entity from the registry",
 		Run:     deleteFunc,
 		GroupID: "Entities",
@@ -37,13 +37,18 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 	data, _ := cmd.Flags().GetString("data")
 
 	if len(args) == 0 {
-		args = []string{"/"}
+		Error("Must specify the XID of an entity")
 	}
 
 	objects := map[string]json.RawMessage{}
 
+	xidStr := args[0]
+	if len(xidStr) > 0 && xidStr[0] != '/' {
+		xidStr = "/" + xidStr
+	}
+
 	// For now only look at the first one
-	xid, err := ParseXid(args[0])
+	xid, err := ParseXid(xidStr)
 	Error(err)
 
 	if len(data) > 0 {
@@ -67,6 +72,9 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 		}
 	} else {
 		for _, arg := range args {
+			if len(arg) > 0 && arg[0] != '/' {
+				arg = "/" + arg
+			}
 			objects[arg] = nil
 		}
 	}

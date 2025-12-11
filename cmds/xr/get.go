@@ -46,6 +46,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
+	if len(xidStr) > 0 && xidStr[0] != '/' {
+		xidStr = "/" + xidStr
+	}
 	object := any(nil)
 	xid, err := ParseXid(xidStr)
 	Error(err)

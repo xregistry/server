@@ -42,7 +42,7 @@ var md = goldmark.New(
 
 func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd := &cobra.Command{
-		Use:     "download DIR [ XID...]",
+		Use:     "download DIR XID...",
 		Short:   "Download entities from registry as individual files",
 		Run:     downloadFunc,
 		GroupID: "Entities",
@@ -500,6 +500,9 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	}()
 
 	for _, xidStr := range args {
+		if len(xidStr) > 0 && xidStr[0] != '/' {
+			xidStr = "/" + xidStr
+		}
 		xid, err := ParseXid(xidStr)
 		Error(err)
 		Error(traverseFromXid(reg, xid, dir, downloadXidFn))

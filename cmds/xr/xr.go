@@ -48,9 +48,13 @@ func Error(obj any, args ...any) {
 					args[i] = err.Error()
 				}
 			}
-			str := args[0].(string)
-			xErr = NewXRError("client_error", "/",
-				"error_detail="+fmt.Sprintf(str, args[1:]...))
+			if xErr, ok = (args[0]).(*XRError); ok {
+				// Use it
+			} else {
+				str := args[0].(string)
+				xErr = NewXRError("client_error", "/",
+					"error_detail="+fmt.Sprintf(str, args[1:]...))
+			}
 		}
 	}
 

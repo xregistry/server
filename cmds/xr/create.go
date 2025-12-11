@@ -16,7 +16,7 @@ import (
 
 func addCreateCmd(parent *cobra.Command) {
 	createCmd := &cobra.Command{
-		Use:     "create [ XID ]",
+		Use:     "create XID",
 		Short:   "Create a new entity in the registry",
 		Run:     createFunc,
 		GroupID: "Entities",
@@ -51,7 +51,7 @@ Notes:
 
 func addUpsertCmd(parent *cobra.Command) {
 	upsertCmd := &cobra.Command{
-		Use:     "upsert [ XID ]",
+		Use:     "upsert XID",
 		Short:   "UPdate, or inSERT as appropriate, an entity in the registry",
 		Run:     createFunc,
 		GroupID: "Entities",
@@ -84,7 +84,7 @@ Notes:
 
 func addUpdateCmd(parent *cobra.Command) {
 	updateCmd := &cobra.Command{
-		Use:     "update [ XID ]",
+		Use:     "update XID",
 		Short:   "Update an entity in the registry",
 		Run:     createFunc,
 		GroupID: "Entities",
@@ -127,7 +127,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	Error(xErr)
 
 	if len(args) == 0 {
-		args = []string{"/"}
+		Error("Must specify the XID of an entity")
 	}
 
 	if len(args) > 1 {
@@ -139,6 +139,9 @@ func createFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
+	if len(xidStr) > 0 && xidStr[0] != '/' {
+		xidStr = "/" + xidStr
+	}
 	// object := any(nil)
 	xid, err := ParseXid(xidStr)
 	Error(err)

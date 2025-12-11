@@ -38,6 +38,9 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
+	if len(xidStr) > 0 && xidStr[0] != '/' {
+		xidStr = "/" + xidStr
+	}
 	xid, err := ParseXid(xidStr)
 	Error(err)
 	suffix := ""

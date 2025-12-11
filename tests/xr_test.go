@@ -453,22 +453,21 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLIServer("localhost:8181")
 
 	XCLI(t, "create", "",
-		"", "To create a registry use the 'xrserver registry create' command.\n",
+		"", "Must specify the XID of an entity.\n",
 		false)
 
 	XCLI(t, "create /", "",
 		"", "To create a registry use the 'xrserver registry create' command.\n",
 		false)
 
-	XCLI(t, "update", "", "", "", true)
-	XCLI(t, "update -v", "", "", "Updated: /\n", true)
+	XCLI(t, "update", "", "", "Must specify the XID of an entity.\n", false)
 	XCLI(t, "update /", "", "", "", true)
 	XCLI(t, "update -v /", "", "", "Updated: /\n", true)
 
 	XCLI(t, "update -vo json /", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 6,
+  "epoch": 4,
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
@@ -480,7 +479,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -o=json / --set name=myreg", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 7,
+  "epoch": 5,
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "name": "myreg",
   "registryid": "TestXRUpdateRegistry",
@@ -494,7 +493,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "description": "cool",
-  "epoch": 8,
+  "epoch": 6,
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "name": "",
   "registryid": "TestXRUpdateRegistry",
@@ -512,7 +511,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "description": "5",
-  "epoch": 9,
+  "epoch": 7,
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
@@ -521,16 +520,16 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "", true)
 
-	XCLI(t, "update -o=json --set=labels.foo=5 --del description "+
+	XCLI(t, "update / -o=json --set=labels.foo=5 --del description "+
 		"--del=labels", "",
 		"", `The attribute "labels.foo" for "/" is not valid: must be a string.
 `, false)
 
-	XCLI(t, "update -o=json --set=labels.foo=\"5\" --del description "+
+	XCLI(t, "update / -o=json --set=labels.foo=\"5\" --del description "+
 		"--del=labels", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 10,
+  "epoch": 8,
   "labels": {
     "foo": "5"
   },
@@ -542,10 +541,10 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "", true)
 
-	XCLI(t, "update -o=json --add=labels.bar=zzz", "",
+	XCLI(t, "update / -o=json --add=labels.bar=zzz", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 11,
+  "epoch": 9,
   "labels": {
     "bar": "zzz",
     "foo": "5"
@@ -558,10 +557,10 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "", true)
 
-	XCLI(t, "update -o=json --add=labels.yyy=yay --del=labels.foo", "",
+	XCLI(t, "update / -o=json --add=labels.yyy=yay --del=labels.foo", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 12,
+  "epoch": 10,
   "labels": {
     "bar": "zzz",
     "yyy": "yay"
