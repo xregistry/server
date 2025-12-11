@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	// "text/tabwriter"
 
 	// log "github.com/duglin/dlog"
@@ -46,6 +47,10 @@ func getFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr := args[0]
+	xidStr, queryParams, _ := strings.Cut(xidStr, "?")
+	if queryParams != "" {
+		queryParams = "?" + queryParams
+	}
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
@@ -69,7 +74,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	res, xErr := reg.HttpDo("GET", xid.String()+suffix, nil)
+	res, xErr := reg.HttpDo("GET", xid.String()+suffix+queryParams, nil)
 	Error(xErr)
 
 	if !resIsJSON {

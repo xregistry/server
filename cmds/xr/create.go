@@ -138,7 +138,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 		Error("To create a registry use the 'xrserver registry create' command")
 	}
 
-	xidStr := args[0]
+	xidStr, queryParams, _ := strings.Cut(args[0], "?")
+	if queryParams != "" {
+		queryParams = "?" + queryParams
+	}
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
@@ -361,6 +364,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 	path := xid.String()
 	if xid.IsEntity {
 		path += suffix
+	}
+
+	if queryParams != "" {
+		path += "?" + queryParams
 	}
 
 	if ignoreEpoch {

@@ -295,7 +295,7 @@ func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
 		return nil, xErr
 	}
 	if gm == nil {
-		return nil, NewXRError("not_found", xid.Group).
+		return nil, NewXRError("not_found", "/"+xid.Group).
 			SetDetailf("Unknown group type: %s", xid.Group)
 	}
 

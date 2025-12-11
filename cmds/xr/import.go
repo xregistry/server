@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
@@ -37,7 +38,10 @@ func importFunc(cmd *cobra.Command, args []string) {
 		Error("Only one XID is allowed to be specified")
 	}
 
-	xidStr := args[0]
+	xidStr, queryParams, _ := strings.Cut(args[0], "?")
+	if queryParams != "" {
+		queryParams = "?" + queryParams
+	}
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
@@ -77,12 +81,13 @@ func importFunc(cmd *cobra.Command, args []string) {
 		Error(NewXRError("parsing_data", "", "error_detail="+err.Error()))
 	}
 
-	res, xErr := reg.HttpDo("POST", xid.String()+suffix, []byte(data))
+	path := xid.String() + queryParams + suffix
+	res, xErr := reg.HttpDo("POST", path, []byte(data))
 	Error(xErr)
 
 	obj = map[string]json.RawMessage{}
 	if err := json.Unmarshal(res.Body, &obj); err != nil {
-		Error(NewXRError("parsing_response", xid.String()+suffix,
+		Error(NewXRError("parsing_response", path,
 			"error_detail="+err.Error()))
 	}
 	subObj := (map[string]json.RawMessage)(nil)
@@ -92,7 +97,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 		for _, gType := range SortedKeys(obj) {
 			group := obj[gType]
 			if err := json.Unmarshal(group, &subObj); err != nil {
-				Error(NewXRError("parsing_response", xid.String()+suffix,
+				Error(NewXRError("parsing_response", path,
 					"error_detail="+err.Error()).
 					SetDetailf("Error parsing response group collection %q",
 						gType))
@@ -103,7 +108,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 		for _, rType := range SortedKeys(obj) {
 			resource := obj[rType]
 			if err := json.Unmarshal(resource, &subObj); err != nil {
-				Error(NewXRError("parsing_response", xid.String()+suffix,
+				Error(NewXRError("parsing_response", path,
 					"error_detail="+err.Error()).
 					SetDetailf("Error parsing response resource collection %q",
 						rType))
