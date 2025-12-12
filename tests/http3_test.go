@@ -2729,11 +2729,24 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{
+      "meta": {},
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
       "versions": { "v1": {}},
       "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
       "versionscount": 1
-    }`, 201, `{
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (meta) was specified for \"/dirs/d1/files/f1/versions/2\".",
+  "detail": "Full list: meta,metaurl,versions,versionscount,versionsurl.",
+  "subject": "/dirs/d1/files/f1/versions/2",
+  "args": {
+    "name": "meta"
+  },
+  "source": "65b92b8c0e3b:registry:entity:2201"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{}`, 201, `{
   "fileid": "f1",
   "versionid": "2",
   "self": "http://localhost:8181/dirs/d1/files/f1/versions/2",
@@ -2747,11 +2760,7 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{
-      "versionid": "2",
-      "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-      "versions": { "v1": {}},
-      "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-      "versionscount": 1
+      "versionid": "2"
     }`, 200, `{
   "fileid": "f1",
   "versionid": "2",

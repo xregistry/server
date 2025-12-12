@@ -29,7 +29,7 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	err := Type2Error[daType]
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
-	LogPanicIf(subject != "" && !strings.HasPrefix(subject, "http") &&
+	TestPanicIf(subject != "" && !strings.HasPrefix(subject, "http") &&
 		subject[0] != '/', "start with / : %s", subject)
 
 	if daType == "server_error" {
@@ -345,7 +345,7 @@ func (xErr *XRError) SetSubject(s string) *XRError {
 func (xErr *XRError) SetTitle(t string) *XRError {
 	if xErr != nil {
 		xErr.Title = t
-		LogPanicIf(!strings.HasSuffix(t, "."),
+		TestPanicIf(!strings.HasSuffix(t, "."),
 			"Missing trailing period: %s", GetStackAsString())
 	}
 	return xErr
@@ -362,11 +362,11 @@ func (xErr *XRError) SetArgs(args ...string) *XRError {
 	argMap := map[string]string{}
 	for _, arg := range args {
 		name, value, found := strings.Cut(arg, "=")
-		LogPanicIf(!found, "Arg value %q is missing a \"=\".\nTitle: %s", arg,
+		TestPanicIf(!found, "Arg value %q is missing a \"=\".\nTitle: %s", arg,
 			xErr.Title)
-		LogPanicIf(!argNameRE.MatchString(name), "Arg name %q isn't valid",
+		TestPanicIf(!argNameRE.MatchString(name), "Arg name %q isn't valid",
 			name)
-		LogPanicIf(!strings.Contains(xErr.Title, "<"+name+">"),
+		TestPanicIf(!strings.Contains(xErr.Title, "<"+name+">"),
 			"Arg %q isn't in title ("+xErr.Type+")", name)
 
 		argMap[name] = value
@@ -375,10 +375,10 @@ func (xErr *XRError) SetArgs(args ...string) *XRError {
 	for _, name := range argSpotRE.FindAllString(xErr.Title, -1) {
 		name = name[1 : len(name)-1] // remove <>'s
 		if name == "subject" {
-			LogPanicIf(xErr.Subject == "", "Subject is used but not set")
+			TestPanicIf(xErr.Subject == "", "Subject is used but not set")
 		} else {
 			_, ok := argMap[name]
-			LogPanicIf(!ok, "%q is in Title but not provided as an arg",
+			TestPanicIf(!ok, "%q is in Title but not provided as an arg",
 				name)
 		}
 	}
@@ -391,7 +391,7 @@ func (xErr *XRError) SetArgs(args ...string) *XRError {
 func (xErr *XRError) SetDetail(msg string) *XRError {
 	if xErr != nil {
 		xErr.Detail = msg
-		LogPanicIf(!strings.HasSuffix(msg, "."),
+		TestPanicIf(!strings.HasSuffix(msg, "."),
 			"Missing trailing period: %s", GetStackAsString())
 	}
 	return xErr

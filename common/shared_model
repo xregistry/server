@@ -2499,6 +2499,24 @@ func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 	return attrs
 }
 
+func (rm *ResourceModel) GetBaseVersionAttributes() Attributes {
+	attrs := Attributes{}
+	maps.Copy(attrs, rm.VersionAttributes)
+
+	// Add xReg defined attributes
+	// TODO Check for conflicts
+	propsOrdered, _ := rm.GetVersionPropsOrdered()
+	for _, specProp := range propsOrdered {
+		if IsNil(attrs[specProp.Name]) {
+			attrs[specProp.Name] = specProp
+		} else {
+			attrs[specProp.Name].internals = specProp.internals
+		}
+	}
+
+	return attrs
+}
+
 func EnsureJustOneRESOURCE(e *Entity, obj map[string]any, singular string) *XRError {
 	count := 0
 	list := []string{"", "url", "base64", "proxyurl"}

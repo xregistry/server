@@ -16,6 +16,7 @@ export DBUSER         ?= root
 export DBPASSWORD     ?= password
 export XR_IMAGE       ?= $(DOCKERHUB)xr
 export XRSERVER_IMAGE ?= $(DOCKERHUB)xrserver
+export MYSQL_IMAGE    ?= mysql:8
 export TAG            ?= $(shell date "+%Y%m%d-$$(git rev-parse --short HEAD)")
 export XR_SPEC        ?= $(HOME)/go/src/github.com/xregistry/spec
 export GIT_COMMIT     ?= $(shell git rev-list -1 HEAD)
@@ -27,6 +28,8 @@ ifdef TEST            # Just run tests that match this regex
 TEST:=-run $(TEST)
 endif
 export GO_TEST        := go test $(BUILDFLAGS) -failfast $(TEST)
+# Remove indentation from "go test" output - make copy-n-paste hard
+export SED            ?= | sed "s/^        //"
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
@@ -55,7 +58,7 @@ utest: .utest
 	@echo "# Unit Testing"
 	@go clean -testcache
 	@echo "go test -failfast $(UTESTDIRS)"
-	@for s in $(UTESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done
+	@for s in $(UTESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
 	@echo
 	@touch .utest
 
@@ -68,7 +71,7 @@ qtest: .qtest
 	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
 	@go clean -testcache
 	@echo "go test -failfast $(TESTDIRS) $(TEST)"
-	@for s in $(TESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done
+	@for s in $(TESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
 	@# go test -failfast $(TESTDIRS)
 	@echo
 ifndef TEST
@@ -80,7 +83,7 @@ endif
 	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
-	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS)
+	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS) $(SED)
 	@touch .fulltest
 
 test: .qtest .fulltest .errors .testimages
@@ -225,12 +228,12 @@ mysql:
 	@docker container inspect mysql > /dev/null 2>&1 || \
 	(echo && echo "# Starting mysql" && \
 	docker run -d --rm -ti -e MYSQL_ROOT_PASSWORD="$(DBPASSWORD)" \
-		-p $(DBPORT):$(DBPORT) --name mysql mysql \
+		-p $(DBPORT):$(DBPORT) --name mysql $(MYSQL_IMAGE) \
 		--port $(DBPORT) > /dev/null )
 		@ # -e MYSQL_USER=$(DBUSER) \
 
 waitformysql:
-	@while ! docker run --network host mysql mysqladmin \
+	@while ! docker run --network host $(MYSQL_IMAGE) mysqladmin \
 		-h $(DBHOST) -P $(DBPORT) -s ping ;\
 	do \
 		echo "Waiting for mysql" ; \
@@ -241,7 +244,7 @@ mysql-client: mysql waitformysql
 	@(docker container inspect mysql-client > /dev/null 2>&1 && \
 		echo "Attaching to existing client... (press enter for prompt)" && \
 		docker attach mysql-client) || \
-	docker run -ti --rm --network host --name mysql-client mysql \
+	docker run -ti --rm --network host --name mysql-client $(MYSQL_IMAGE) \
 		mysql --host $(DBHOST) --port $(DBPORT) \
 		--user $(DBUSER) --password="$(DBPASSWORD)" \
 		--protocol tcp || \
@@ -318,5 +321,5 @@ clean:
 	@-! which k3d > /dev/null || k3d cluster delete xreg > /dev/null 2>&1
 	@-docker rm -f mysql mysql-client > /dev/null 2>&1
 	@# do "sleep" so that "docker system prune" won't delete the mysql image
-	@-docker run -d -ti --rm mysql sleep 5 > /dev/null 2>&1
+	@-docker run -d -ti --rm $(MYSQL_IMAGE) sleep 5 > /dev/null 2>&1
 	@-docker system prune -f -a --volumes > /dev/null

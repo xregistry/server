@@ -127,6 +127,9 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		return nil, false, xErr
 	}
 
+	// calc rXID so we can use it even if r == nil
+	rXID := g.XID + "/" + rType + "/" + id
+
 	if r != nil {
 		meta, xErr := r.FindMeta(false, FOR_READ)
 		PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
@@ -143,7 +146,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// Can this ever happen??
 	if r != nil && r.UID != id {
 		return nil, false, NewXRError("bad_request", r.XID,
-			"error_detail="+fmt.Sprintf("attempting to create a Resource "+
+			"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
 				"with a \"%sid\" of %q, when one already exists as %q",
 				rModel.Singular, id, r.UID))
 	}
@@ -161,7 +164,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	if addType == ADD_ADD && r != nil {
 		return nil, false, NewXRError("bad_request", r.XID,
 			"error_detail="+
-				fmt.Sprintf("resource %q of type %q already exists",
+				fmt.Sprintf("Resource %q of type %q already exists",
 					id, rType))
 	}
 
@@ -173,13 +176,6 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	}
 
 	if hasMeta {
-		if objIsVer {
-			return nil, false, NewXRError("bad_request", r.XID,
-				"error_detail="+
-					fmt.Sprintf("can't include a Version with a "+
-						"\"meta\" attribute"))
-		}
-
 		if IsNil(metaObjAny) {
 			// Convert "null" to empty {}
 			metaObjAny = map[string]any{}
@@ -188,7 +184,8 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		var ok bool
 		metaObj, ok = metaObjAny.(map[string]any)
 		if !ok {
-			return nil, false, NewXRError("bad_request", r.XID,
+			return nil, false, NewXRError("invalid_attribute", rXID,
+				"name=meta",
 				"error_detail=\"meta\" must be an object")
 		}
 	}
@@ -363,10 +360,12 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			verObj, ok := val.(map[string]any)
 			if !ok {
 				return nil, false,
-					NewXRError("bad_request", r.XID,
+					NewXRError("invalid_attribute", r.XID,
+						"name="+plural,
 						"error_detail="+
 							fmt.Sprintf("key %q in attribute %q doesn't "+
-								"appear to be of type %q", verID, plural, singular))
+								"appear to be of type %q", verID, plural,
+								singular))
 			}
 
 			_, _, xErr := r.UpsertVersionWithObject(verID, verObj, addType,

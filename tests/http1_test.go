@@ -5090,13 +5090,14 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "\"meta\" must be an object.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"meta\" for \"/dirs/dir1/files/f1\" is not valid: \"meta\" must be an object.",
   "subject": "/dirs/dir1/files/f1",
   "args": {
-    "error_detail": "\"meta\" must be an object"
+    "error_detail": "\"meta\" must be an object",
+    "name": "meta"
   },
-  "source": ":registry:group:178"
+  "source": "65b92b8c0e3b:registry:group:196"
 }
 `,
 	})
@@ -5569,10 +5570,10 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/F1$details", `{ "fileid": "F1" }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
+  "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
+    "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
   "source": ":registry:group:132"
 }
@@ -5604,10 +5605,10 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/F1$details", `{ "fileid": "F1" }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
+  "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
+    "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
   "source": ":registry:group:132"
 }
@@ -5666,10 +5667,10 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/F1/versions/v1$details",
 		`{ "versionid": "V1" }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
+  "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
+    "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
   "source": ":registry:group:132"
 }
@@ -5752,10 +5753,10 @@ func TestHTTPCases(t *testing.T) {
 	// Resource
 	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"F1":{"fileid":"F1"}}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
+  "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
+    "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
   "source": ":registry:group:132"
 }
@@ -5775,10 +5776,10 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"F1":{"fileid":"f1"}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
+  "title": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
+    "error_detail": "Attempting to create a Resource with a \"fileid\" of \"F1\", when one already exists as \"f1\""
   },
   "source": ":registry:group:132"
 }

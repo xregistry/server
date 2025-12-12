@@ -1922,7 +1922,7 @@ func (e *Entity) GetBaseAttributes() Attributes {
 		// At which point we may need to add back in the code that removes
 		// those resource-level attributes before we create/update a Version
 		// (e.g. POST .../rID)
-		return rm.GetBaseAttributes()
+		return rm.GetBaseVersionAttributes()
 	}
 
 	panic(fmt.Sprintf("Bad type: %v", e.Type))

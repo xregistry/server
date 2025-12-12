@@ -1857,10 +1857,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/1", ``,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\".",
+  "title": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions/1",
   "args": {
-    "error_detail": "can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
+    "error_detail": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
   },
   "source": "e4e59b8a76c4:registry:version:56"
 }
@@ -1877,10 +1877,10 @@ func TestXrefDocs(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/fx/versions/", `{"1":{}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\".",
+  "title": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\".",
   "subject": "/dirs/d1/files/fx/versions/1",
   "args": {
-    "error_detail": "can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
+    "error_detail": "Can't delete \"versions\" of a Resource (/dirs/d1/files/fx) that uses \"xref\""
   },
   "source": "e4e59b8a76c4:registry:version:56"
 }

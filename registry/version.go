@@ -55,7 +55,7 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 	if v.Resource.IsXref() {
 		return NewXRError("bad_request", v.XID,
 			"error_detail="+
-				fmt.Sprintf(`can't delete "versions" of a Resource `+
+				fmt.Sprintf(`Can't delete "versions" of a Resource `+
 					`(/%s) that uses "xref"`, v.Resource.Path))
 	}
 
