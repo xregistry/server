@@ -458,7 +458,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 // w/o the surrounding Resource object. AND, for now, we only do it when
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
-func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersion bool, processVersionInfo bool) (*Meta, bool, *XRError) {
+func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, processVersionInfo bool) (*Meta, bool, *XRError) {
 	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, addType, createVersion, processVersionInfo)
 	defer log.VPrintf(3, "<Exit: UpsertMeta")
 

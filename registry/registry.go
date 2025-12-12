@@ -763,8 +763,16 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	for plural, daMap := range objColls {
 		for key, val := range daMap {
 			valObj, _ := val.(map[string]any)
-			_, _, xErr := g.UpsertResourceWithObject(plural, key, "",
-				valObj, addType, false)
+			_, _, xErr := g.UpsertResource(&ResourceUpsert{
+				rType:            plural,
+				id:               key,
+				vID:              "",
+				obj:              valObj,
+				addType:          addType,
+				objIsVer:         false,
+				defaultVersionID: "",
+			})
+
 			if xErr != nil {
 				return nil, false, xErr
 			}

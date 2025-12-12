@@ -88,47 +88,59 @@ func (g *Group) AddResource(rType string, id string, vID string) (*Resource, *XR
 }
 
 func (g *Group) AddResourceWithObject(rType string, id string, vID string, obj Object, objIsVer bool) (*Resource, *XRError) {
-
-	r, _, xErr := g.UpsertResourceWithObject(rType, id, vID, obj,
-		ADD_ADD, objIsVer)
+	r, _, xErr := g.UpsertResource(&ResourceUpsert{
+		rType:            rType,
+		id:               id,
+		vID:              vID,
+		obj:              obj,
+		addType:          ADD_ADD,
+		objIsVer:         objIsVer,
+		defaultVersionID: "",
+	})
 	return r, xErr
 }
 
-func (g *Group) UpsertResource(rType string, id string, vID string) (*Resource, bool, *XRError) {
-	return g.UpsertResourceWithObject(rType, id, vID, nil, ADD_ADD, false)
+type ResourceUpsert struct {
+	rType            string
+	id               string
+	vID              string
+	obj              Object
+	addType          AddType
+	objIsVer         bool
+	defaultVersionID string
 }
 
 // Return: *Resource, isNew, error
-func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, obj Object, addType AddType, objIsVer bool) (*Resource, bool, *XRError) {
-	log.VPrintf(3, ">Enter: UpsertResourceWithObject(%s,%s)", rType, id)
-	defer log.VPrintf(3, "<Exit: UpsertResourceWithObject")
+func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
+	log.VPrintf(3, ">Enter: UpsertResource(%s,%s)", ru.rType, ru.id)
+	defer log.VPrintf(3, "<Exit: UpsertResource")
 
 	if xErr := g.Registry.SaveModel(); xErr != nil {
 		return nil, false, xErr
 	}
 
-	// vID is the version ID we want to use for the update/create.
+	// ru.vID is the version ID we want to use for the update/create.
 	// A value of "" means just use the default Version
 
-	if xErr := CheckAttrs(obj, g.XID+"/"+rType+"/"+id); xErr != nil {
+	if xErr := CheckAttrs(ru.obj, g.XID+"/"+ru.rType+"/"+ru.id); xErr != nil {
 		return nil, false, xErr
 	}
 
 	gModel := g.GetGroupModel()
-	rModel := gModel.FindResourceModel(rType)
+	rModel := gModel.FindResourceModel(ru.rType)
 	if rModel == nil {
 		return nil, false, NewXRError("unknown_resource_type", g.XID,
 			"group="+g.Plural,
-			"name="+rType)
+			"name="+ru.rType)
 	}
 
-	r, xErr := g.FindResource(rType, id, true, FOR_WRITE)
+	r, xErr := g.FindResource(ru.rType, ru.id, true, FOR_WRITE)
 	if xErr != nil {
 		return nil, false, xErr
 	}
 
 	// calc rXID so we can use it even if r == nil
-	rXID := g.XID + "/" + rType + "/" + id
+	rXID := g.XID + "/" + ru.rType + "/" + ru.id
 
 	if r != nil {
 		meta, xErr := r.FindMeta(false, FOR_READ)
@@ -144,35 +156,35 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	}
 
 	// Can this ever happen??
-	if r != nil && r.UID != id {
+	if r != nil && r.UID != ru.id {
 		return nil, false, NewXRError("bad_request", r.XID,
 			"error_detail="+fmt.Sprintf("Attempting to create a Resource "+
 				"with a \"%sid\" of %q, when one already exists as %q",
-				rModel.Singular, id, r.UID))
+				rModel.Singular, ru.id, r.UID))
 	}
 
-	if obj != nil && !IsNil(obj[rModel.Singular+"id"]) && !objIsVer {
-		if id != obj[rModel.Singular+"id"] {
+	if ru.obj != nil && !IsNil(ru.obj[rModel.Singular+"id"]) && !ru.objIsVer {
+		if ru.id != ru.obj[rModel.Singular+"id"] {
 			return nil, false, NewXRError("mismatched_id",
-				g.XID+"/"+rModel.Plural+"/"+id,
+				g.XID+"/"+rModel.Plural+"/"+ru.id,
 				"singular="+rModel.Singular,
-				"invalid_id="+fmt.Sprintf("%v", obj[rModel.Singular+"id"]),
-				"expected_id="+id)
+				"invalid_id="+fmt.Sprintf("%v", ru.obj[rModel.Singular+"id"]),
+				"expected_id="+ru.id)
 		}
 	}
 
-	if addType == ADD_ADD && r != nil {
+	if ru.addType == ADD_ADD && r != nil {
 		return nil, false, NewXRError("bad_request", r.XID,
 			"error_detail="+
 				fmt.Sprintf("Resource %q of type %q already exists",
-					id, rType))
+					ru.id, ru.rType))
 	}
 
 	metaObj := (map[string]any)(nil)
-	metaObjAny, hasMeta := obj["meta"]
+	metaObjAny, hasMeta := ru.obj["meta"]
 
-	if hasMeta && !objIsVer {
-		delete(obj, "meta")
+	if hasMeta && !ru.objIsVer {
+		delete(ru.obj, "meta")
 	}
 
 	if hasMeta {
@@ -193,17 +205,17 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	// List of versions in the incoming request
 	versions := map[string]any(nil)
 
-	if !objIsVer {
-		// If obj is for the resource then save and delete the versions
+	if !ru.objIsVer {
+		// If ru.obj is for the resource then save and delete the versions
 		// collection (and it's attributes) so we don't try to save them
 		// as extensions on the Resource
 		var ok bool
-		val, _ := obj["versions"]
+		val, _ := ru.obj["versions"]
 		if !IsNil(val) {
 			versions, ok = val.(map[string]any)
 			if !ok {
 				return nil, false, NewXRError("invalid_attribute",
-					g.Path+"/"+rModel.Plural+"/"+id,
+					g.Path+"/"+rModel.Plural+"/"+ru.id,
 					"name=versions",
 					"error_detail=doesn't appear to be of a map of Versions")
 			}
@@ -225,14 +237,14 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 				Registry: g.Registry,
 				DbSID:    NewUUID(),
-				Plural:   rType,
+				Plural:   ru.rType,
 				Singular: rModel.Singular,
-				UID:      id,
+				UID:      ru.id,
 
 				Type:     ENTITY_RESOURCE,
-				Path:     g.Plural + "/" + g.UID + "/" + rType + "/" + id,
-				XID:      "/" + g.Plural + "/" + g.UID + "/" + rType + "/" + id,
-				Abstract: g.Plural + string(DB_IN) + rType,
+				Path:     g.Path + "/" + ru.rType + "/" + ru.id,
+				XID:      g.XID + "/" + ru.rType + "/" + ru.id,
+				Abstract: g.Plural + string(DB_IN) + ru.rType,
 
 				GroupModel:    gModel,
 				ResourceModel: rModel,
@@ -263,7 +275,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			r.Plural, r.Singular,
 
 			g.Registry.DbSID, g.Registry.DbSID, g.Plural,
-			rType)
+			ru.rType)
 		// When we delete entities due to their model def being deleted
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
@@ -330,7 +342,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	var meta *Meta
 
 	if !IsNil(metaObj) {
-		meta, _, xErr = r.UpsertMetaWithObject(metaObj, addType, false, false)
+		meta, _, xErr = r.UpsertMeta(metaObj, ru.addType, false, false)
 		if xErr != nil {
 			return nil, false, xErr
 		}
@@ -368,7 +380,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 								singular))
 			}
 
-			_, _, xErr := r.UpsertVersionWithObject(verID, verObj, addType,
+			_, _, xErr := r.UpsertVersionWithObject(verID, verObj, ru.addType,
 				count != len(versions))
 			if xErr != nil {
 				return nil, false, xErr
@@ -404,14 +416,14 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	*/
 
 	if !IsNil(meta.Get("xref")) {
-		delete(obj, "meta")
-		delete(obj, r.Singular+"id")
-		if len(obj) > 0 {
+		delete(ru.obj, "meta")
+		delete(ru.obj, r.Singular+"id")
+		if len(ru.obj) > 0 {
 			xErr := NewXRError("extra_xref_attribute", r.XID,
-				"name="+SortedKeys(obj)[0])
-			if len(obj) > 1 {
+				"name="+SortedKeys(ru.obj)[0])
+			if len(ru.obj) > 1 {
 				xErr.SetDetailf("Full list: %s.",
-					strings.Join(SortedKeys(obj), ","))
+					strings.Join(SortedKeys(ru.obj), ","))
 			}
 			return nil, false, xErr
 		}
@@ -430,39 +442,39 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	defVerID := meta.GetAsString("defaultversionid")
 
-	if !objIsVer {
+	if !ru.objIsVer {
 		// Clear any ID there since it's the Resource's
-		delete(obj, r.Singular+"id")
+		delete(ru.obj, r.Singular+"id")
 	}
 
 	attrVersionID := ""
-	if val, ok := obj["versionid"]; ok {
+	if val, ok := ru.obj["versionid"]; ok {
 		attrVersionID = NotNilString(&val)
 	}
 
-	// If both vID and attrVersionID are set, they MUST match if obj is
+	// If both ru.vID and attrVersionID are set, they MUST match if ru.obj is
 	// the Resource, not a new Version.
 	// Not sure this can ever happen, but just in case...
-	if !objIsVer && vID != "" && attrVersionID != "" {
+	if !ru.objIsVer && ru.vID != "" && attrVersionID != "" {
 		return nil, false, NewXRError("mismatched_id",
-			r.Path+"/versions/"+vID,
+			r.Path+"/versions/"+ru.vID,
 			"singular=version",
 			"invalid_id="+attrVersionID,
-			"expected_id="+vID).SetDetailf(
+			"expected_id="+ru.vID).SetDetailf(
 			"The desired \"versionid\"(%s) must "+
-				"match the \"versionid\" attribute(%s).", vID, attrVersionID)
+				"match the \"versionid\" attribute(%s).", ru.vID, attrVersionID)
 	}
 
-	// If the passed-in vID is empty, and we're new, look for "versionid"
-	if vID == "" && isNew && attrVersionID != "" {
+	// If the passed-in ru.vID is empty, and we're new, look for "versionid"
+	if ru.vID == "" && isNew && attrVersionID != "" {
 		// The call to create the version will complain about passing in a vid
 		// if SetVersionID is 'false'. No need to check here too
-		vID = attrVersionID
+		ru.vID = attrVersionID
 	}
 
-	// if vID is still empty, then use the defaultversionid
-	if vID == "" {
-		vID = defVerID
+	// if ru.vID is still empty, then use the defaultversionid
+	if ru.vID == "" {
+		ru.vID = defVerID
 	}
 
 	if defVerID != "" && attrVersionID != "" && attrVersionID != defVerID {
@@ -473,15 +485,15 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			SetDetail("Must match the \"defaultversionid\" value.")
 	}
 
-	// Update the appropriate Version (vID), but only if the versionID
+	// Update the appropriate Version (ru.vID), but only if the versionID
 	// doesn't match a Version ID from the "versions" collection (if there).
 	// If both Resource attrs and Version attrs are present, use the Version's
-	vObj := maps.Clone(obj)
-	if vID != "" {
-		// Skip if vID is in "versions" collection
+	vObj := maps.Clone(ru.obj)
+	if ru.vID != "" {
+		// Skip if ru.vID is in "versions" collection
 		if _, ok := versions[defVerID]; !ok {
 			RemoveResourceAttributes(rModel, vObj)
-			_, _, xErr := r.UpsertVersionWithObject(vID, vObj, addType, false)
+			_, _, xErr := r.UpsertVersionWithObject(ru.vID, vObj, ru.addType, false)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -489,15 +501,15 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 	} else {
 		// Creating a new version w/o an ID, must be a new resource
 		RemoveResourceAttributes(rModel, vObj)
-		_, _, xErr := r.UpsertVersionWithObject(vID, vObj, addType, false)
+		_, _, xErr := r.UpsertVersionWithObject(ru.vID, vObj, ru.addType, false)
 		if xErr != nil {
 			return nil, false, xErr
 		}
 	}
 
 	/* If we ever have extension resourceattributes
-	RemoveVersionAttributes(rModel, obj)
-	r.SetNewObject(obj)
+	RemoveVersionAttributes(rModel, ru.obj)
+	r.SetNewObject(ru.obj)
 	xErr = r.SetSaveResource(r.Singular+"id", r.UID)
 	if xErr != nil {
 		return nil, false, xErr

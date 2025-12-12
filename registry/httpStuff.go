@@ -2124,8 +2124,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			for id, obj := range rMap {
-				r, _, xErr := group.UpsertResourceWithObject(rType,
-					id, "", obj, ADD_UPDATE, false)
+				r, _, xErr := group.UpsertResource(&ResourceUpsert{
+					rType:            rType,
+					id:               id,
+					vID:              "",
+					obj:              obj,
+					addType:          ADD_UPDATE,
+					objIsVer:         false,
+					defaultVersionID: "",
+				})
 				if xErr != nil {
 					return xErr
 				}
@@ -2189,8 +2196,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		for id, obj := range objMap {
-			r, _, xErr := group.UpsertResourceWithObject(info.ResourceType,
-				id, "", obj, addType, false)
+			r, _, xErr := group.UpsertResource(&ResourceUpsert{
+				rType:            info.ResourceType,
+				id:               id,
+				vID:              "",
+				obj:              obj,
+				addType:          addType,
+				objIsVer:         false,
+				defaultVersionID: "",
+			})
 			if xErr != nil {
 				return xErr
 			}
@@ -2244,9 +2258,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if method == "PATCH" || !metaInBody {
 				addType = ADD_PATCH
 			}
-			resource, _, xErr = group.UpsertResourceWithObject(
-				info.ResourceType, resourceUID, "" /*versionUID*/, IncomingObj,
-				addType, false)
+			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
+				rType:            info.ResourceType,
+				id:               resourceUID,
+				vID:              "",
+				obj:              IncomingObj,
+				addType:          addType,
+				objIsVer:         false,
+				defaultVersionID: info.GetFlag("setdefaultversionid"),
+			})
 			if xErr != nil {
 				return xErr
 			}
@@ -2254,14 +2274,23 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
-			delete(IncomingObj, info.ResourceModel.Singular+"id") // ID is the Resource's delete it
+
+			// ID is the Resource's delete it
+			delete(IncomingObj, info.ResourceModel.Singular+"id")
+
 			addType := ADD_UPSERT
 			if method == "PATCH" {
 				addType = ADD_PATCH
 			}
-			resource, isNew, xErr = group.UpsertResourceWithObject(
-				info.ResourceType, resourceUID, "" /*versionUID*/, IncomingObj,
-				addType, false)
+			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
+				rType:            info.ResourceType,
+				id:               resourceUID,
+				vID:              "",
+				obj:              IncomingObj,
+				addType:          addType,
+				objIsVer:         false,
+				defaultVersionID: info.GetFlag("setdefaultversionid"),
+			})
 			if xErr != nil {
 				return xErr
 			}
@@ -2284,9 +2313,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if resource == nil {
 			// Implicitly create the resource
-			resource, isNew, xErr = group.UpsertResourceWithObject(
-				info.ResourceType, resourceUID, propsID, IncomingObj,
-				ADD_ADD, true)
+			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
+				rType:            info.ResourceType,
+				id:               resourceUID,
+				vID:              propsID,
+				obj:              IncomingObj,
+				addType:          ADD_ADD,
+				objIsVer:         true,
+				defaultVersionID: info.GetFlag("setdefaultversionid"),
+			})
 			if xErr != nil {
 				return xErr
 			}
@@ -2326,17 +2361,23 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			// Implicitly create the resource
-			resource, _, xErr = group.UpsertResourceWithObject(
+			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
 				// TODO check to see if "" should be propsID
-				info.ResourceType, resourceUID, "", map[string]any{},
-				ADD_ADD, false)
+				rType:            info.ResourceType,
+				id:               resourceUID,
+				vID:              "",
+				obj:              map[string]any{},
+				addType:          ADD_ADD,
+				objIsVer:         false,
+				defaultVersionID: info.GetFlag("setdefaultversionid"),
+			})
 			if xErr != nil {
 				return xErr
 			}
 		}
 
 		// Technically, this will always "update" not "insert"
-		meta, _, xErr := resource.UpsertMetaWithObject(IncomingObj, addType,
+		meta, _, xErr := resource.UpsertMeta(IncomingObj, addType,
 			true, true)
 		if xErr != nil {
 			return xErr
@@ -2408,8 +2449,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				addType = ADD_PATCH
 			}
 
-			resource, _, xErr = group.UpsertResourceWithObject(info.ResourceType,
-				resourceUID, "", tmpObj, addType, false)
+			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
+				rType:            info.ResourceType,
+				id:               resourceUID,
+				vID:              "",
+				obj:              tmpObj,
+				addType:          addType,
+				objIsVer:         false,
+				defaultVersionID: info.GetFlag("setdefaultversionid"),
+			})
 
 			if xErr != nil {
 				return xErr
