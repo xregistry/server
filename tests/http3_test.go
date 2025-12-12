@@ -2788,6 +2788,59 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 `)
 }
 
+func TestHTTPLinkHeader(t *testing.T) {
+	reg := NewRegistry("TestHTTPLinkHeader")
+	defer PassDeleteReg(t, reg)
+
+	// Test Link header on registry root GET
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Link header on registry root",
+		URL:        "/",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code:       200,
+		ResHeaders: []string{"Link:<http://localhost:8181>;rel=xregistry-root"},
+		ResBody:    "*",
+	})
+
+	// Test Link header on error response
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Link header on error",
+		URL:        "/notfound",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code:       404,
+		ResHeaders: []string{"Link:<http://localhost:8181>;rel=xregistry-root"},
+		ResBody:    "*",
+	})
+
+	// Test Link header with non-default registry (reg- prefix)
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "Link header with reg- prefix",
+		URL:        "/reg-TestHTTPLinkHeader",
+		Method:     "GET",
+		ReqHeaders: []string{},
+		ReqBody:    "",
+
+		Code:       200,
+		ResHeaders: []string{"Link:<http://localhost:8181/reg-TestHTTPLinkHeader>;rel=xregistry-root"},
+		ResBody:    "*",
+	})
+
+	// Test to ensure Link header doesn't appear twice in error cases
+	res := XDoHTTP(t, reg, "GET", "/notfound", "")
+	linkHeaders := res.Header.Values("Link")
+	XCheck(t, len(linkHeaders) == 1,
+		"Link header should appear exactly once, got %d occurrences: %v",
+		len(linkHeaders), linkHeaders)
+	XEqual(t, "Link header value",
+		linkHeaders[0], "<http://localhost:8181>;rel=xregistry-root")
+}
+
 func TestHTTPIgnore(t *testing.T) {
 	reg := NewRegistry("TestHTTPIgnore")
 	defer PassDeleteReg(t, reg)

@@ -149,6 +149,16 @@ func TestMiscCORS(t *testing.T) {
 		XEqual(t, "cors header",
 			res.Header.Get("Access-Control-Allow-Methods"),
 			"GET, PATCH, POST, PUT, DELETE")
+
+		linkHeader := res.Header.Get("Link")
+		XCheck(t, linkHeader != "", "Link header should be present for %s %s", test.method, test.url)
+		
+		expectedURL := "http://localhost:8181"
+		if test.url == "/reg-TestMiscCORS" {
+			expectedURL = "http://localhost:8181/reg-TestMiscCORS"
+		}
+		XEqual(t, "link header",
+			linkHeader, fmt.Sprintf("<%s>;rel=xregistry-root", expectedURL))
 	}
 }
 

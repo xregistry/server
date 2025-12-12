@@ -3484,6 +3484,7 @@ func HTTPProxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Methods",
 		"GET, PATCH, POST, PUT, DELETE")
+	w.Header().Add("Link", fmt.Sprintf("<http://%s>;rel=xregistry-root", r.Host))
 
 	html := GenerateUI(info, data)
 	w.Write(html)
@@ -3503,6 +3504,30 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	// when the error happens very very very early in our processing
 	if info.GetHeader("Content-Type") == "" {
 		info.SetHeader("Content-Type", "application/json; charset=utf-8")
+	}
+	// Add or replace Link header with xregistry-root rel
+	// Check if there's already a Link header with rel=xregistry-root
+	linkValue := fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL)
+	existingLinks := info.GetHeaderValues("Link")
+	hasXRegistryLink := false
+	for i, v := range existingLinks {
+		// Check if this Link header has rel=xregistry-root
+		if strings.Contains(v, "rel=xregistry-root") || strings.Contains(v, "rel=\"xregistry-root\"") {
+			// Replace it with the current value
+			existingLinks[i] = linkValue
+			hasXRegistryLink = true
+			break
+		}
+	}
+	if hasXRegistryLink {
+		// Clear all Link headers and re-add them with the updated value
+		info.OriginalResponse.Header().Del("Link")
+		for _, v := range existingLinks {
+			info.AddHeader("Link", v)
+		}
+	} else {
+		// No existing xregistry-root link, just add it
+		info.AddHeader("Link", linkValue)
 	}
 
 	for k, v := range xErr.Headers {
