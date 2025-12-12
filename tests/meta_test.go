@@ -554,6 +554,24 @@ func TestMetaSimple(t *testing.T) {
 `,
 	})
 
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f9/meta", `{
+      "meta": {},
+      "metaurl": "http://localhost:8181/dirs/d1/files/f9/meta",
+      "versions": { "v1": {}},
+      "versionsurl": "http://localhost:8181/dirs/d1/files/f0/versions",
+      "versionscount": 1
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (meta) was specified for \"/dirs/d1/files/f9/meta\".",
+  "detail": "Full list: meta,metaurl,versions,versionscount,versionsurl.",
+  "subject": "/dirs/d1/files/f9/meta",
+  "args": {
+    "name": "meta"
+  },
+  "source": "65b92b8c0e3b:registry:entity:2201"
+}
+`)
+
 }
 
 func TestMetaCombos(t *testing.T) {
