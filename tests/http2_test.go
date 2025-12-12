@@ -2814,6 +2814,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (f2) was specified for \"/dirs/dir1/files/f1/versions/1\".",
+  "detail": "Full list: f2,f3.",
   "subject": "/dirs/dir1/files/f1/versions/1",
   "args": {
     "name": "f2"

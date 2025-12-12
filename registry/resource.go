@@ -223,10 +223,8 @@ func (r *Resource) JustSetDefault(name string, val any) *XRError {
 	log.VPrintf(4, "JustSetDefault: r(%s).Set(%s,%v)", r.UID, name, val)
 
 	if r.IsXref() {
-		return NewXRError("bad_request", r.XID,
-			"error_detail="+
-				fmt.Sprintf(`Can't update "defaultversionid" of a `+
-					`Resource (%s) that uses "xref"`, r.Path))
+		return NewXRError("extra_xref_attribute", r.XID,
+			"name=defaultversionid")
 	}
 
 	v, xErr := r.GetDefault(FOR_WRITE)
@@ -293,7 +291,7 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 		anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/meta").
-			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s",
+			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
 				r.Path, xErr.GetTitle()))
 	}
 	if ent == nil {
@@ -328,7 +326,7 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 		anyCase, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
-			SetDetail(fmt.Sprintf("Error finding Version %s: %s",
+			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
 				r.Path+"/versions/"+id, xErr.GetTitle()))
 	}
 	if ent == nil {
@@ -394,10 +392,8 @@ func (r *Resource) EnsureLatest() *XRError {
 // Note will set sticky if vID != ""
 func (r *Resource) SetDefaultID(vID string) *XRError {
 	if r.IsXref() {
-		return NewXRError("bad_request", r.XID,
-			"error_detail="+
-				fmt.Sprintf(`Can't update "defaultversionid" of a `+
-					`Resource (%s) that uses "xref"`, r.Path))
+		return NewXRError("extra_xref_attribute", r.XID,
+			"name=defaultversionid")
 	}
 
 	var v *Version
@@ -416,10 +412,8 @@ func (r *Resource) SetDefaultID(vID string) *XRError {
 // Creating a new version should do this directly
 func (r *Resource) SetDefault(newDefault *Version) *XRError {
 	if r.IsXref() {
-		return NewXRError("bad_request", r.XID,
-			"error_detail="+
-				fmt.Sprintf(`Can't update "defaultversionid" of a `+
-					`Resource (%s) that uses "xref"`, r.Path))
+		return NewXRError("extra_xref_attribute", r.XID,
+			"name=defaultversionid")
 	}
 
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
@@ -749,9 +743,13 @@ func (r *Resource) UpsertMetaWithObject(obj Object, addType AddType, createVersi
 			}
 			if len(extraAttrs) > 0 {
 				sort.Strings(extraAttrs)
-				return nil, false, NewXRError("invalid_attribute", meta.XID,
-					"name="+strings.Join(extraAttrs, ","),
-					"error_detail=not allowed in \"meta\" when \"xref\" is set")
+				xErr := NewXRError("extra_xref_attribute", meta.XID,
+					"name="+extraAttrs[0])
+				if len(extraAttrs) > 1 {
+					xErr.SetDetailf("Full list: %s.",
+						strings.Join(extraAttrs, ","))
+				}
+				return nil, false, xErr
 			}
 
 			if xErr = meta.JustSet("xref", xref); xErr != nil {
@@ -910,10 +908,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 
 	if r.IsXref() {
 		return nil, false,
-			NewXRError("bad_request", r.XID,
-				"error_detail="+
-					fmt.Sprintf("Can't update \"versions\" of a Resource "+
-						"(%s) that uses \"xref\"", r.Path))
+			NewXRError("extra_xref_attribute", r.XID, "name=versions")
 	}
 
 	// Do some quick checks on the incoming obj

@@ -257,7 +257,7 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	ent, xErr := RawEntityFromPath(tx, sid, "", false, accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s", sid, xErr.GetTitle())
+			"Error finding Registry %q: %s.", sid, xErr.GetTitle())
 	}
 	if ent == nil {
 		return nil, nil
@@ -336,7 +336,7 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 			tx.Rollback()
 		}
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Registry %q: %s", id, xErr.GetTitle())
+			"Error finding Registry %q: %s.", id, xErr.GetTitle())
 	}
 
 	PanicIf(ent == nil, "No entity but we found a reg")
@@ -570,7 +570,7 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 		accessMode)
 	if xErr != nil {
 		return nil, NewXRError("server_error", "/").SetDetailf(
-			"Error finding Group %q(%s): %s", id, gType, xErr.GetTitle())
+			"Error finding Group %q(%s): %s.", id, gType, xErr.GetTitle())
 	}
 	if ent == nil {
 		log.VPrintf(3, "None found")

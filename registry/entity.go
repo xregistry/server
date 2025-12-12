@@ -2198,8 +2198,13 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			where += "."
 		}
 
-		return NewXRError("unknown_attribute", e.XID,
+		xErr := NewXRError("unknown_attribute", e.XID,
 			"name="+where+SortedKeys(objKeys)[0])
+		if len(objKeys) > 1 {
+			xErr.SetDetailf("Full list: %s.",
+				strings.Join(SortedKeys(objKeys), ","))
+		}
+		return xErr
 
 		/*
 			list := ""

@@ -92,7 +92,7 @@ func TestResourceCreate(t *testing.T) {
 	XCheckGet(t, reg, "/dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
-  "detail": "Expected \"versions\" or \"meta\", got: yyy",
+  "detail": "Expected \"versions\" or \"meta\", got: yyy.",
   "subject": "/dirs/d1/files/xxx/yyy",
   "source": "e4e59b8a76c4:registry:info:651"
 }
@@ -100,7 +100,7 @@ func TestResourceCreate(t *testing.T) {
 	XCheckGet(t, reg, "dirs/d1/files/xxx/yyy", `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/xxx/yyy) cannot be found.",
-  "detail": "Expected \"versions\" or \"meta\", got: yyy",
+  "detail": "Expected \"versions\" or \"meta\", got: yyy.",
   "subject": "/dirs/d1/files/xxx/yyy",
   "source": "e4e59b8a76c4:registry:info:651"
 }

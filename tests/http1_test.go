@@ -5302,7 +5302,7 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/Versions", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
-  "detail": "Expected \"versions\" or \"meta\", got: Versions",
+  "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
   "source": ":registry:info:631"
 }
@@ -5374,7 +5374,7 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/Versions/V1", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
-  "detail": "Expected \"versions\" or \"meta\", got: Versions",
+  "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
   "source": ":registry:info:631"
 }
@@ -5422,7 +5422,7 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/Versions/v1", "", 404, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_found",
   "title": "The targeted entity (/dirs/d1/files/f1/Versions) cannot be found.",
-  "detail": "Expected \"versions\" or \"meta\", got: Versions",
+  "detail": "Expected \"versions\" or \"meta\", got: Versions.",
   "subject": "/dirs/d1/files/f1/Versions",
   "source": ":registry:info:631"
 }
@@ -8625,6 +8625,7 @@ func TestHTTPResources(t *testing.T) {
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (file) was specified for \"/dirs/d1/files/f1/versions/v1\".",
+  "detail": "Full list: file,object.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "name": "file"
@@ -8640,6 +8641,7 @@ func TestHTTPResources(t *testing.T) {
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (filebase64) was specified for \"/dirs/d1/files/f1/versions/v1\".",
+  "detail": "Full list: filebase64,object.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "name": "filebase64"
@@ -8655,6 +8657,7 @@ func TestHTTPResources(t *testing.T) {
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (fileurl) was specified for \"/dirs/d1/files/f1/versions/v1\".",
+  "detail": "Full list: fileurl,object.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "name": "fileurl"
@@ -8670,6 +8673,7 @@ func TestHTTPResources(t *testing.T) {
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (fileproxyurl) was specified for \"/dirs/d1/files/f1/versions/v1\".",
+  "detail": "Full list: fileproxyurl,object.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "name": "fileproxyurl"
@@ -8688,6 +8692,7 @@ func TestHTTPResources(t *testing.T) {
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (file) was specified for \"/dirs/d1/files/f1/versions/v1\".",
+  "detail": "Full list: file,filebase64,fileproxyurl,fileurl,object.",
   "subject": "/dirs/d1/files/f1/versions/v1",
   "args": {
     "name": "file"

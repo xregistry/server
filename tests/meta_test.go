@@ -1005,6 +1005,7 @@ func TestMetaCombos(t *testing.T) {
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (defaultversionid) was specified for \"/dirs/d1/files/f1/versions/v2.0\".",
+  "detail": "Full list: defaultversionid,defaultversionsticky.",
   "subject": "/dirs/d1/files/f1/versions/v2.0",
   "args": {
     "name": "defaultversionid"

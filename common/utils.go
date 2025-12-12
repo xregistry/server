@@ -42,6 +42,21 @@ func Must(err any) {
 	}
 }
 
+// LogPanicIf will always log the error but will only panic if the
+// "PANICLOG" env var is set. This allows us to detect non-serious
+// errors during testing but not in production
+var PanicLogSet = (os.Getenv("PANICLOG") != "")
+
+func LogPanicIf(b bool, msg string, args ...any) {
+	if b {
+		if PanicLogSet {
+			Panicf(msg, args...)
+		} else {
+			log.Printf(msg, args...)
+		}
+	}
+}
+
 func PanicIf(b bool, msg string, args ...any) {
 	if b {
 		Panicf(msg, args...)

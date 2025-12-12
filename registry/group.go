@@ -349,9 +349,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 
 	if r.IsXref() && versions != nil {
 		return nil, false,
-			NewXRError("bad_request", r.XID,
-				"error_detail="+
-					`can't update "versions" of a Resource that uses "xref"`)
+			NewXRError("extra_xref_attribute", r.XID, "name=versions")
 	}
 
 	// If we're processing children, and have a versions collection, process it
@@ -410,11 +408,13 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 		delete(obj, "meta")
 		delete(obj, r.Singular+"id")
 		if len(obj) > 0 {
-			return nil, false,
-				NewXRError("bad_request", r.XID,
-					"error_detail="+
-						fmt.Sprintf("extra attributes (%s) not allowed when "+
-							"\"xref\" is set", strings.Join(SortedKeys(obj), ",")))
+			xErr := NewXRError("extra_xref_attribute", r.XID,
+				"name="+SortedKeys(obj)[0])
+			if len(obj) > 1 {
+				xErr.SetDetailf("Full list: %s.",
+					strings.Join(SortedKeys(obj), ","))
+			}
+			return nil, false, xErr
 		}
 
 		if xErr = g.ValidateAndSave(); xErr != nil {
@@ -451,7 +451,7 @@ func (g *Group) UpsertResourceWithObject(rType string, id string, vID string, ob
 			"invalid_id="+attrVersionID,
 			"expected_id="+vID).SetDetailf(
 			"The desired \"versionid\"(%s) must "+
-				"match the \"versionid\" attribute(%s)", vID, attrVersionID)
+				"match the \"versionid\" attribute(%s).", vID, attrVersionID)
 	}
 
 	// If the passed-in vID is empty, and we're new, look for "versionid"

@@ -93,7 +93,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 		buf, err := PrettyPrintJSON(res.Body, "", "  ")
 		Error(err, NewXRError("parsing_response", "/",
 			"error_detail="+Err2String(err)).
-			SetDetail("Response: "+string(res.Body)))
+			SetDetail("Response: "+string(res.Body)+"."))
 
 		fmt.Printf("%s\n", string(buf))
 		return
@@ -103,7 +103,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 		err = json.Unmarshal(res.Body, &object)
 		Error(err, NewXRError("parsing_response", "/",
 			"error_detail="+Err2String(err)).
-			SetDetail("Response: "+string(res.Body)))
+			SetDetail("Response: "+string(res.Body)+"."))
 		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))
 		return
 	}

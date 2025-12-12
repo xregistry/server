@@ -417,7 +417,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 		}
 		if reg == nil {
 			return NewXRError("not_found", name).
-				SetDetailf("Can't find registry %q", name)
+				SetDetailf("Can't find registry %q.", name)
 		}
 		info.Registry = reg
 		info.tx.Registry = reg
@@ -714,7 +714,7 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 
 	if info.Parts[4] != "versions" && info.Parts[4] != "meta" {
 		return NewXRError("not_found", info.GetParts(5)).
-			SetDetailf("Expected \"versions\" or \"meta\", got: %s",
+			SetDetailf("Expected \"versions\" or \"meta\", got: %s.",
 				info.Parts[4])
 	}
 

@@ -685,7 +685,7 @@ func TestXrefErrors(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "source": "e4e59b8a76c4:registry:resource:489"
+  "source": "0018b4bbf02e:registry:resource:487"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
@@ -705,27 +705,25 @@ func TestXrefErrors(t *testing.T) {
 		`{"xref": "/dirs/d1/files/fx", "modifiedat":"2025-01-01T12:00:00"}`,
 		400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"modifiedat\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "error_detail": "not allowed in \"meta\" when \"xref\" is set",
     "name": "modifiedat"
   },
-  "source": "e4e59b8a76c4:registry:resource:748"
+  "source": "0018b4bbf02e:registry:resource:746"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"foo":"foo","xref": "/dirs/d1/files/fx"}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"foo\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"foo\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "error_detail": "not allowed in \"meta\" when \"xref\" is set",
     "name": "foo"
   },
-  "source": "e4e59b8a76c4:registry:resource:748"
+  "source": "0018b4bbf02e:registry:resource:746"
 }
 `)
 
@@ -733,26 +731,28 @@ func TestXrefErrors(t *testing.T) {
 		`{"meta": {"fileid":"f1", "xref":"/dirs/d1/files/f1"},"epoch":5, "description": "x"}`,
 		400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "extra attributes (description,epoch) not allowed when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"description\" is not allowed to be present since the Resource (/dirs/d1/files/f1) uses \"xref\".",
+  "detail": "Full list: description,epoch.",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "extra attributes (description,epoch) not allowed when \"xref\" is set"
+    "name": "description"
   },
-  "source": "e4e59b8a76c4:registry:group:418"
+  "source": "0018b4bbf02e:registry:group:411"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"meta": {"fileid":"f1", "xref":"/dirs/d1/files/f1"},"epoch":5, "description": "x"}`,
 		400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "extra attributes (description,epoch) not allowed when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"description\" is not allowed to be present since the Resource (/dirs/d1/files/f1) uses \"xref\".",
+  "detail": "Full list: description,epoch.",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "extra attributes (description,epoch) not allowed when \"xref\" is set"
+    "name": "description"
   },
-  "source": "e4e59b8a76c4:registry:group:418"
+  "source": "0018b4bbf02e:registry:group:411"
 }
 `)
 
@@ -786,14 +786,13 @@ func TestXrefErrors(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"fileid": "f1", "meta": {"xref":"/dirs/d1/files/f1","modifiedat":"2025-01-01-T:12:00:00"}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"modifiedat\" for \"/dirs/d1/files/f1/meta\" is not valid: not allowed in \"meta\" when \"xref\" is set.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"modifiedat\" is not allowed to be present since the Resource (/dirs/d1/files/f1/meta) uses \"xref\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "error_detail": "not allowed in \"meta\" when \"xref\" is set",
     "name": "modifiedat"
   },
-  "source": "e4e59b8a76c4:registry:resource:748"
+  "source": "0018b4bbf02e:registry:resource:746"
 }
 `)
 
@@ -1646,46 +1645,46 @@ func TestXrefDocs(t *testing.T) {
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx", `{"versions":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details", `{"versions":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2", `{}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx$details?setdefaultversionid=2",
 		`{}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=2",
@@ -1702,59 +1701,59 @@ func TestXrefDocs(t *testing.T) {
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx$details?setdefaultversionid=1",
 		`{}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"defaultversionid\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"defaultversionid\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"defaultversionid\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "defaultversionid"
   },
-  "source": "e4e59b8a76c4:registry:resource:419"
+  "source": "0018b4bbf02e:registry:resource:415"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx?setdefaultversionid=2",
 		``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", "{}", 200,
 		"{}\n")
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions", `{"vv":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1", "hi", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/1$details", "{}", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/fx/versions/1", "hi", 405,
@@ -1771,87 +1770,87 @@ func TestXrefDocs(t *testing.T) {
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2", "hi", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/versions/2$details", "{}", 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fx) uses \"xref\".",
   "subject": "/dirs/d1/files/fx",
   "args": {
-    "error_detail": "Can't update \"versions\" of a Resource (dirs/d1/files/fx) that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:resource:905"
+  "source": "0018b4bbf02e:registry:resource:906"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't update \"versions\" of a Resource that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "error_detail": "can't update \"versions\" of a Resource that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:group:358"
+  "source": "0018b4bbf02e:registry:group:351"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy$details?doc&inline",
 		`{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't update \"versions\" of a Resource that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "error_detail": "can't update \"versions\" of a Resource that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:group:358"
+  "source": "0018b4bbf02e:registry:group:351"
 }
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/",
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't update \"versions\" of a Resource that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "error_detail": "can't update \"versions\" of a Resource that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:group:358"
+  "source": "0018b4bbf02e:registry:group:351"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files/",
 		`{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{"2":{},"3":{}}}}`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't update \"versions\" of a Resource that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d1/files/fy) uses \"xref\".",
   "subject": "/dirs/d1/files/fy",
   "args": {
-    "error_detail": "can't update \"versions\" of a Resource that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:group:358"
+  "source": "0018b4bbf02e:registry:group:351"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d2",
 		`{"files":{"fy":{"meta":{"xref":"/dirs/d1/files/f1"},"versions":{}}}}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "can't update \"versions\" of a Resource that uses \"xref\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xref_attribute",
+  "title": "Attribute \"versions\" is not allowed to be present since the Resource (/dirs/d2/files/fy) uses \"xref\".",
   "subject": "/dirs/d2/files/fy",
   "args": {
-    "error_detail": "can't update \"versions\" of a Resource that uses \"xref\""
+    "name": "versions"
   },
-  "source": "e4e59b8a76c4:registry:group:358"
+  "source": "0018b4bbf02e:registry:group:351"
 }
 `)
 

@@ -60,6 +60,7 @@ utest: .utest
 	@touch .utest
 
 qtest: .qtest
+.qtest: export PANICLOG=true
 .qtest: .sharedfiles .cmds */*test.go
 	@make mysql waitformysql
 	@echo
