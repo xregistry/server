@@ -354,11 +354,13 @@ func (tx *Tx) IsCacheDirty() bool {
 
 func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
-		PanicIf(!force && e.NewObject != nil, "Entity %s/%q not saved",
-			e.Singular, e.UID)
-		if !force && e.NewObject != nil {
-			log.Printf("%s: %s", e.Singular, e.UID)
-			ShowStack()
+		if true { // !force {
+			PanicIf(e.NewObject != nil, "Entity %s/%q not saved",
+				e.Singular, e.UID)
+			if e.NewObject != nil {
+				log.Printf("%s: %s", e.Singular, e.UID)
+				ShowStack()
+			}
 		}
 		if xErr := e.ValidateAndSave(); xErr != nil {
 			return xErr

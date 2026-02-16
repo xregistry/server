@@ -7541,6 +7541,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "d1": {
               "files": {
 	            "f1": {
+                  "versionid": "v1",
                   "versions": {
                     "v1": {},
                     "v2": {}
@@ -9183,7 +9184,7 @@ func TestHTTPDefault(t *testing.T) {
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:    "POST file f1?setdefault= not allowed",
-		URL:     "/dirs/d1/files/f1?setdefaultversionid",
+		URL:     "/dirs/d1/files/f1?setdefaultversionid=x",
 		Method:  "POST",
 		ReqBody: "{}",
 		Code:    400,
@@ -9201,7 +9202,7 @@ func TestHTTPDefault(t *testing.T) {
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:    "POST file f1$details?setdefault= not allowed",
-		URL:     "/dirs/d1/files/f1$details?setdefaultversionid",
+		URL:     "/dirs/d1/files/f1$details?setdefaultversionid=x",
 		Method:  "POST",
 		ReqBody: "{}",
 		Code:    400,
@@ -9265,12 +9266,12 @@ func TestHTTPDefault(t *testing.T) {
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
   "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/f1$details",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": ":registry:httpStuff:2604"
+  "source": "396100315a6e:registry:info:586"
 }
 `,
 	})
@@ -9284,12 +9285,12 @@ func TestHTTPDefault(t *testing.T) {
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
   "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
-  "subject": "/dirs/d1/files/f1",
+  "subject": "/dirs/d1/files/f1$details",
   "args": {
     "error_detail": "value must not be empty",
     "value": "\"\""
   },
-  "source": ":registry:httpStuff:2604"
+  "source": "396100315a6e:registry:info:586"
 }
 `,
 	})
@@ -9416,8 +9417,8 @@ func TestHTTPDefault(t *testing.T) {
 		ResHeaders: []string{"Content-Type: application/json; charset=utf-8"},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
-  "title": "While processing \"/dirs/dx/files/f11\", the \"version\" with a \"versionid\" value of \"6\" cannot be found.",
-  "subject": "/dirs/dx/files/f11",
+  "title": "While processing \"/dirs/dx/files/f11/meta\", the \"version\" with a \"versionid\" value of \"6\" cannot be found.",
+  "subject": "/dirs/dx/files/f11/meta",
   "args": {
     "id": "6",
     "singular": "version"
@@ -9616,11 +9617,11 @@ func TestHTTPDelete(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (2) for \"/dirs/d3\" does not match its current value (2).",
+  "title": "The specified epoch value (2) for \"/dirs/d3\" does not match its current value (1).",
   "subject": "/dirs/d3",
   "args": {
     "bad_epoch": "2",
-    "epoch": "2"
+    "epoch": "1"
   },
   "source": ":registry:httpStuff:2871"
 }
@@ -10198,11 +10199,11 @@ func TestHTTPDelete(t *testing.T) {
 		`{"v4":{"epoch":2}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (2) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (2).",
+  "title": "The specified epoch value (2) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (1).",
   "subject": "/dirs/d1/files/f1/versions/v4",
   "args": {
     "bad_epoch": "2",
-    "epoch": "2"
+    "epoch": "1"
   },
   "source": ":registry:httpStuff:3055"
 }
@@ -10238,11 +10239,11 @@ func TestHTTPDelete(t *testing.T) {
 		`{"v6":{},"v7":{"epoch":3}}`, // v6 will still be around
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (3) for \"/dirs/d1/files/f1/versions/v7\" does not match its current value (3).",
+  "title": "The specified epoch value (3) for \"/dirs/d1/files/f1/versions/v7\" does not match its current value (1).",
   "subject": "/dirs/d1/files/f1/versions/v7",
   "args": {
     "bad_epoch": "3",
-    "epoch": "3"
+    "epoch": "1"
   },
   "source": ":registry:httpStuff:3055"
 }

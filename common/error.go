@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
 	"path"
 	"regexp"
 	"runtime"
@@ -43,7 +44,6 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 		log.Printf(">>> System Error <<<")
 		ShowStack()
 	}
-	// ShowStack()
 
 	// Format "source" as "gitCommit:package:fileName:lineNumber"
 	source := ""
@@ -67,7 +67,15 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 		Headers: maps.Clone(err.Headers),
 	}
 
-	return tmpXErr.SetArgs(args...)
+	tmpXErr.SetArgs(args...)
+
+	// ShowStack()
+	if os.Getenv("SHOWSTACK") != "" {
+		log.Printf("Error: %s", tmpXErr.GetTitle())
+		ShowStack()
+	}
+
+	return tmpXErr
 }
 
 var Type2Error = map[string]*XRError{
@@ -120,9 +128,9 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `There was an error in the capabilities provided: <error_detail>.`,
 	},
-	"capability_missing_specversion": &XRError{
+	"capability_missing_value": &XRError{
 		Code:  400,
-		Title: `The "specversions" capability needs to contain "<value>".`,
+		Title: `The "<name>" capability needs to contain "<value>".`,
 	},
 	"capability_unknown": &XRError{
 		Code:  400,

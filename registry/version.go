@@ -44,7 +44,11 @@ func (v *Version) JustDelete() *XRError {
 
 	// Zero is ok if it's already been deleted
 	DoZeroOne(v.tx, `DELETE FROM Versions WHERE SID=?`, v.DbSID)
+
+	// Delete any pending changes so dirty check doesn't fail
+	v.NewObject = nil
 	v.tx.RemoveFromCache(&v.Entity)
+
 	return nil
 }
 
@@ -65,18 +69,9 @@ func (v *Version) DeleteSetNextVersion(nextVersionID string) *XRError {
 				"is being deleted")
 	}
 
-	vers, xErr := v.Resource.GetChildVersionIDs(v.UID)
-	if xErr != nil {
+	// Let the Ancestor processing fix-up stuff, if needed
+	if xErr := v.Resource.WillDelete(v.UID); xErr != nil {
 		return xErr
-	}
-
-	// Before we delete it, make all versions that point to this one "roots"
-	for _, vid := range vers {
-		childVersion, xErr := v.Resource.FindVersion(vid, false, FOR_WRITE)
-		if xErr != nil {
-			return xErr
-		}
-		childVersion.SetSave("ancestor", childVersion.UID)
 	}
 
 	// delete it!

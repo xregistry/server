@@ -241,8 +241,11 @@ func (reg *Registry) Delete() *XRError {
 	reg.Lock()
 	DoOne(reg.tx, `DELETE FROM Registries WHERE SID=?`, reg.DbSID)
 
+	// Delete any pending changes so dirty check doesn't fail
+	reg.NewObject = nil
 	reg.tx.EraseCache()
 	reg.tx.Registry = nil
+
 	return nil
 }
 
@@ -764,13 +767,13 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		for key, val := range daMap {
 			valObj, _ := val.(map[string]any)
 			_, _, xErr := g.UpsertResource(&ResourceUpsert{
-				rType:            plural,
-				id:               key,
-				vID:              "",
-				obj:              valObj,
-				addType:          addType,
-				objIsVer:         false,
-				defaultVersionID: "",
+				RType:            plural,
+				Id:               key,
+				VID:              "",
+				Obj:              valObj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: "",
 			})
 
 			if xErr != nil {

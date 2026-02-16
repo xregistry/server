@@ -18,6 +18,7 @@ type Capabilities struct {
 	ShortSelf      bool     `json:"shortself"`      // must not have omitempty
 	SpecVersions   []string `json:"specversions"`   // must not have omitempty
 	StickyVersions *bool    `json:"stickyversions"` // must not have omitempty
+	VersionModes   []string `json:"versionmodes"`   // must not have omitempty
 }
 
 type OfferedCapability struct {
@@ -42,6 +43,7 @@ type Offered struct {
 	ShortSelf      OfferedCapability `json:"shortself,omitempty"`
 	SpecVersions   OfferedCapability `json:"specversions,omitempty"`
 	StickyVersions OfferedCapability `json:"stickyversions,omitempty"`
+	VersionModes   OfferedCapability `json:"versionmodes,omitempty"`
 }
 
 var AllowableAPIs = ArrayToLower([]string{
@@ -61,6 +63,8 @@ var AllowableMutable = ArrayToLower([]string{
 
 var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
+var AllowableVersionModes = ArrayToLower([]string{"manual", "createdat"})
+
 var SupportedFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
 	"setdefaultversionid", "sort", "specversion"})
@@ -78,6 +82,7 @@ var DefaultCapabilities = &Capabilities{
 	ShortSelf:      false,
 	SpecVersions:   AllowableSpecVersions,
 	StickyVersions: PtrBool(true),
+	VersionModes:   AllowableVersionModes,
 }
 
 func init() {
@@ -86,6 +91,7 @@ func init() {
 	sort.Strings(AllowableIgnores)
 	sort.Strings(AllowableMutable)
 	sort.Strings(AllowableSpecVersions)
+	sort.Strings(AllowableVersionModes)
 
 	sort.Strings(SupportedFlags)
 	sort.Strings(SupportedIgnores)
@@ -139,12 +145,22 @@ func GetOffered() *Offered {
 			Enum: []any{false},
 		},
 		SpecVersions: OfferedCapability{
-			Type: "string",
+			Type: "array",
+			Item: &OfferedItem{
+				Type: "string",
+			},
 			Enum: String2AnySlice(AllowableSpecVersions),
 		},
 		StickyVersions: OfferedCapability{
 			Type: "boolean",
 			Enum: []any{false, true},
+		},
+		VersionModes: OfferedCapability{
+			Type: "array",
+			Item: &OfferedItem{
+				Type: "string",
+			},
+			Enum: String2AnySlice(AllowableVersionModes),
 		},
 	}
 
@@ -209,10 +225,6 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 func (c *Capabilities) Validate() *XRError {
 	var xErr *XRError
 
-	if c.SpecVersions == nil {
-		c.SpecVersions = []string{SPECVERSION}
-	}
-
 	c.APIs, xErr = CleanArray(c.APIs, AllowableAPIs, "apis")
 	if xErr != nil {
 		return xErr
@@ -240,12 +252,6 @@ func (c *Capabilities) Validate() *XRError {
 			"list=false")
 	}
 
-	c.SpecVersions, xErr = CleanArray(c.SpecVersions, AllowableSpecVersions,
-		"specversions")
-	if xErr != nil {
-		return xErr
-	}
-
 	if c.ShortSelf != false {
 		return NewXRError("capability_value", "/capabilities",
 			"value=true",
@@ -253,13 +259,40 @@ func (c *Capabilities) Validate() *XRError {
 			"list=false")
 	}
 
+	if c.SpecVersions == nil {
+		c.SpecVersions = []string{SPECVERSION}
+	}
+
+	c.SpecVersions, xErr = CleanArray(c.SpecVersions, AllowableSpecVersions,
+		"specversions")
+	if xErr != nil {
+		return xErr
+	}
+
 	if !ArrayContainsAnyCase(c.SpecVersions, SPECVERSION) {
-		return NewXRError("capability_missing_specversion", "/capabilities",
+		return NewXRError("capability_missing_value", "/capabilities",
+			"name="+"specversions",
 			"value="+SPECVERSION)
 	}
 
 	if c.StickyVersions == nil {
 		c.StickyVersions = DefaultCapabilities.StickyVersions
+	}
+
+	if c.VersionModes == nil {
+		c.VersionModes = []string{VERSIONMODE}
+	}
+
+	c.VersionModes, xErr = CleanArray(c.VersionModes, AllowableVersionModes,
+		"versionmodes")
+	if xErr != nil {
+		return xErr
+	}
+
+	if !ArrayContainsAnyCase(c.VersionModes, VERSIONMODE) {
+		return NewXRError("capability_missing_value", "/capabilities",
+			"name=versionmodes",
+			"value="+VERSIONMODE)
 	}
 
 	return nil
@@ -312,4 +345,8 @@ func (c *Capabilities) SpecVersionEnabled(str string) bool {
 
 func (c *Capabilities) StickyVersionsEnabled() bool {
 	return c.StickyVersions != nil && (*c.StickyVersions) == true
+}
+
+func (c *Capabilities) VersionModeEnabled(str string) bool {
+	return ArrayContains(c.VersionModes, str)
 }

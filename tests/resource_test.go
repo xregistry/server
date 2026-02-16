@@ -444,3 +444,2934 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 }
+
+func TestResourceSamples(t *testing.T) {
+	reg := NewRegistry("TestResourceSamples")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) //hasdoc=false
+	rm.SetVersionMode("createdat")
+
+	// Create single Resource with empty content - PUT
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T20:39:34.121124603Z",
+  "modifiedat": "2026-02-04T20:39:34.121124603Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:39:34.121124603Z",
+    "modifiedat": "2026-02-04T20:39:34.121124603Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create single Resource with empty content - PATCH
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=meta", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T20:39:34.121124603Z",
+  "modifiedat": "2026-02-04T20:39:34.121124603Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:39:34.121124603Z",
+    "modifiedat": "2026-02-04T20:39:34.121124603Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource via the "files" collection
+	XHTTP(t, reg, "POST", "/dirs/d1/files?inline=meta", `{
+  "f1": {
+    "name": "my file"
+  }
+}
+`, 200, `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d1/files/f1",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "name": "my file",
+    "isdefault": true,
+    "createdat": "2026-02-04T20:45:06.826527109Z",
+    "modifiedat": "2026-02-04T20:45:06.826527109Z",
+    "ancestor": "1",
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "meta": {
+      "fileid": "f1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+      "xid": "/dirs/d1/files/f1/meta",
+      "epoch": 1,
+      "createdat": "2026-02-04T20:45:06.826527109Z",
+      "modifiedat": "2026-02-04T20:45:06.826527109Z",
+      "readonly": false,
+      "compatibility": "none",
+
+      "defaultversionid": "1",
+      "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "defaultversionsticky": false
+    },
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 1
+  }
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with some Versions, no defaultversionid - PUT
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "versions": {
+    "v1": {},
+    "v2": {}
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T20:54:11.336910391Z",
+  "modifiedat": "2026-02-04T20:54:11.336910391Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:54:11.336910391Z",
+    "modifiedat": "2026-02-04T20:54:11.336910391Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with some Versions, no defaultversionid - PATCH
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "versions": {
+    "v1": {},
+    "v2": {}
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T20:54:11.336910391Z",
+  "modifiedat": "2026-02-04T20:54:11.336910391Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:54:11.336910391Z",
+    "modifiedat": "2026-02-04T20:54:11.336910391Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with Versions and defaultversionid
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {
+      "createdat": "3030-01-01T12:00:00"
+    },
+    "v3": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "3030-01-01T12:00:00Z",
+  "modifiedat": "2026-02-04T20:59:37.791374128Z",
+  "ancestor": "v3",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:59:37.791374128Z",
+    "modifiedat": "2026-02-04T20:59:37.791374128Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-04T20:59:37.791374128Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "3030-01-01T12:00:00Z",
+      "modifiedat": "2026-02-04T20:59:37.791374128Z",
+      "ancestor": "v3"
+    },
+    "v3": {
+      "fileid": "f1",
+      "versionid": "v3",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+      "xid": "/dirs/d1/files/f1/versions/v3",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:59:37.791374128Z",
+      "modifiedat": "2026-02-04T20:59:37.791374128Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with defaultversionid
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "foo",
+  "isdefault": true,
+  "createdat": "2026-02-04T21:04:14.240631033Z",
+  "modifiedat": "2026-02-04T21:04:14.240631033Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T21:04:14.240631033Z",
+    "modifiedat": "2026-02-04T21:04:14.240631033Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": true,
+      "createdat": "2026-02-04T21:04:14.240631033Z",
+      "modifiedat": "2026-02-04T21:04:14.240631033Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with versionid and Versions
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v0",
+  "name": "foo",
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T21:06:12.940653748Z",
+  "modifiedat": "2026-02-04T21:06:12.940653748Z",
+  "ancestor": "v0",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T21:06:12.940653748Z",
+    "modifiedat": "2026-02-04T21:06:12.940653748Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v0": {
+      "fileid": "f1",
+      "versionid": "v0",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+      "xid": "/dirs/d1/files/f1/versions/v0",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-04T21:06:12.940653748Z",
+      "modifiedat": "2026-02-04T21:06:12.940653748Z",
+      "ancestor": "v1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-04T21:06:12.940653748Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-04T21:06:12.940653748Z",
+      "modifiedat": "2026-02-04T21:06:12.940653748Z",
+      "ancestor": "v0"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with new Versions and sticky default Version
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v0",
+  "createdat": "2021-01-01T12:00:00",
+  "modifiedat": "2021-01-01T12:00:00",
+  "meta": {
+    "createdat": "2021-01-01T12:00:00",
+    "modifiedat": "2021-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v0",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2021-01-01T12:00:00Z",
+  "modifiedat": "2021-01-01T12:00:00Z",
+  "ancestor": "v0",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2021-01-01T12:00:00Z",
+    "modifiedat": "2021-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v0",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v0": {
+      "fileid": "f1",
+      "versionid": "v0",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+      "xid": "/dirs/d1/files/f1/versions/v0",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2021-01-01T12:00:00Z",
+      "modifiedat": "2021-01-01T12:00:00Z",
+      "ancestor": "v0"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	// Note that v0 will be updated with Resource level attributes because
+	// v0 is the current default version, we don't use meta.defaultvid to
+	// determine what the current default version is when the Resource already
+	// exists
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "createdat": "2021-01-01T12:00:00",
+  "meta": {
+    "defaultversionid": "v1",
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {}
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2020-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T12:15:38.555135964Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2021-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T12:15:38.555135964Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v0": {
+      "fileid": "f1",
+      "versionid": "v0",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+      "xid": "/dirs/d1/files/f1/versions/v0",
+      "epoch": 2,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2021-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v0"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with Versions and sticky default Version
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v0",
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1",
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2020-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T12:15:38.555135964Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T12:15:38.555135964Z",
+    "modifiedat": "2026-02-11T12:15:38.555135964Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v0": {
+      "fileid": "f1",
+      "versionid": "v0",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+      "xid": "/dirs/d1/files/f1/versions/v0",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v0"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with versionid and defaultversionid
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v0",
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-11T12:15:38.555135964Z",
+  "modifiedat": "2026-02-11T12:15:38.555135964Z",
+  "ancestor": "v0",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T12:15:38.555135964Z",
+    "modifiedat": "2026-02-11T12:15:38.555135964Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v0": {
+      "fileid": "f1",
+      "versionid": "v0",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
+      "xid": "/dirs/d1/files/f1/versions/v0",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v0"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with sticky defaultversionid
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "v1",
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2020-01-01T12:00:00"
+    },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2020-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T12:15:38.555135964Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T12:15:38.555135964Z",
+    "modifiedat": "2026-02-11T12:15:38.555135964Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-11T12:15:38.555135964Z",
+      "modifiedat": "2026-02-11T12:15:38.555135964Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with non-sticky bad defaultversionid
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v1",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00",
+    "defaultversionid": "v1",
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v2": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "abc"
+  },
+  "versions": {
+    "v2": {
+      "createdat": "2020-01-01T12:00:00"
+    }
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "foo",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T12:54:32.492627638Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T12:54:32.492627638Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 2,
+      "name": "foo",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:54:32.492627638Z",
+      "ancestor": "v2"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 2,
+      "isdefault": false,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T12:54:32.492627638Z",
+      "ancestor": "v2"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with sticky non-specified defaultversionid
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v2",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    },
+    "v2": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v2": {
+      "createdat": "2020-01-01T12:00:00"
+    }
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:45:16.34043263Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T15:45:16.34043263Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:45:16.34043263Z",
+      "ancestor": "v2"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 2,
+      "isdefault": false,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:45:16.34043263Z",
+      "ancestor": "v2"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch Resource with Versions and defaultversionsticky
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v2",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    },
+    "v2": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v2": {
+      "createdat": "2020-01-01T12:00:00"
+    }
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2020-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:52:51.187504012Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T15:52:51.187504012Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 2,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:52:51.187504012Z",
+      "ancestor": "v2"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2020-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:52:51.187504012Z",
+      "ancestor": "v2"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with empty content
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch new Resource with empty content
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with new description
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "description": "very cool"
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "description": "very cool",
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "isdefault": true,
+      "description": "very cool",
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch Resource's description field
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "description": "very cool"
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "my file",
+  "isdefault": true,
+  "description": "very cool",
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "name": "my file",
+      "isdefault": true,
+      "description": "very cool",
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with non-specified defaultversionsticky
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionsticky": true
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T15:57:59.428348579Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch Resource with defaultversionsticky
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "name": "my file",
+  "createdat": "2025-01-01T12:00:00",
+  "modifiedat": "2025-01-01T12:00:00",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionsticky": true
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T15:57:59.428348579Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T15:57:59.428348579Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T15:57:59.428348579Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch Resource with sticky defaultversionid
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v2",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    },
+    "v2": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta?inline=*", `{
+  "defaultversionid": "v1",
+  "defaultversionsticky": true
+}
+`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T16:45:28.200011152Z",
+  "readonly": false,
+  "compatibility": "none",
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "defaultversionsticky": true
+}
+`)
+
+	// Check all data
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=*", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T16:46:02.002688282Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Patch Resource with bad defaultversionid
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "1": {
+      "name": "my file",
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "foo"
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1/meta\", the \"version\" with a \"versionid\" value of \"foo\" cannot be found.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "id": "foo",
+    "singular": "version"
+  },
+  "source": "396100315a6e:registry:entity:1442"
+}
+`)
+
+	// Bonus points - make sure PUT would have worked though
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "foo"
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T17:02:26.753415624Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T17:02:26.753415624Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T17:02:26.753415624Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with bad sticky defaultversionid
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "1",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "1": {
+      "name": "my file",
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "my file",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 1,
+      "name": "my file",
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "foo",
+    "defaultversionsticky": true
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1/meta\", the \"version\" with a \"versionid\" value of \"foo\" cannot be found.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "id": "foo",
+    "singular": "version"
+  },
+  "source": "396100315a6e:registry:entity:1442"
+}
+`)
+
+	// Bonus - make sure sticky=false would have worked
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "foo",
+    "defaultversionsticky": false
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T17:06:48.948313868Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T17:06:48.948313868Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "1": {
+      "fileid": "f1",
+      "versionid": "1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+      "xid": "/dirs/d1/files/f1/versions/1",
+      "epoch": 2,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T17:06:48.948313868Z",
+      "ancestor": "1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Update Resource with non-specified sticky default Version
+
+	// First the set-up
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v1",
+  "meta": {
+    "createdat": "2025-01-01T12:00:00",
+    "modifiedat": "2025-01-01T12:00:00"
+  },
+  "versions": {
+    "v1": {
+      "createdat": "2025-01-01T12:00:00",
+      "modifiedat": "2025-01-01T12:00:00"
+    }
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:00Z",
+  "modifiedat": "2025-01-01T12:00:00Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2025-01-01T12:00:00Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2025-01-01T12:00:00Z",
+      "modifiedat": "2025-01-01T12:00:00Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "createdat": "1999-01-01T12:00:00",
+  "meta": {
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v2": {
+      "createdat": "1998-01-01T12:00:00"
+    }
+  }
+}
+`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "foo",
+  "isdefault": true,
+  "createdat": "1999-01-01T12:00:00Z",
+  "modifiedat": "2026-02-11T18:07:21.627075803Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2025-01-01T12:00:00Z",
+    "modifiedat": "2026-02-11T18:07:21.627075803Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 2,
+      "name": "foo",
+      "isdefault": true,
+      "createdat": "1999-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T18:07:21.627075803Z",
+      "ancestor": "v2"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "1998-01-01T12:00:00Z",
+      "modifiedat": "2026-02-11T18:07:21.627075803Z",
+      "ancestor": "v2"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with conflicting default Version attributes - variant 1
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v1",
+  "name": "foo",
+  "meta": {
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v1": { "name": "abc" },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-11T18:11:11.509170139Z",
+  "modifiedat": "2026-02-11T18:11:11.509170139Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T18:11:11.509170139Z",
+    "modifiedat": "2026-02-11T18:11:11.509170139Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "abc",
+      "isdefault": false,
+      "createdat": "2026-02-11T18:11:11.509170139Z",
+      "modifiedat": "2026-02-11T18:11:11.509170139Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-11T18:11:11.509170139Z",
+      "modifiedat": "2026-02-11T18:11:11.509170139Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with conflicting default Version attributes - variant 2
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "meta": {
+    "defaultversionid": "v1"
+  },
+  "versions": {
+    "v1": { "name": "abc" },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-11T18:13:29.243111729Z",
+  "modifiedat": "2026-02-11T18:13:29.243111729Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T18:13:29.243111729Z",
+    "modifiedat": "2026-02-11T18:13:29.243111729Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "abc",
+      "isdefault": false,
+      "createdat": "2026-02-11T18:13:29.243111729Z",
+      "modifiedat": "2026-02-11T18:13:29.243111729Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-11T18:13:29.243111729Z",
+      "modifiedat": "2026-02-11T18:13:29.243111729Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with conflicting default Version attributes - variant 3
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "versionid": "v1",
+  "versions": {
+    "v1": { "name": "abc" },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-11T18:15:05.715666555Z",
+  "modifiedat": "2026-02-11T18:15:05.715666555Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T18:15:05.715666555Z",
+    "modifiedat": "2026-02-11T18:15:05.715666555Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "abc",
+      "isdefault": false,
+      "createdat": "2026-02-11T18:15:05.715666555Z",
+      "modifiedat": "2026-02-11T18:15:05.715666555Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-11T18:15:05.715666555Z",
+      "modifiedat": "2026-02-11T18:15:05.715666555Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with SetDefaultVersionID flag
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1&inline=*", `{
+  "versions": {
+    "v1": { "name": "abc" },
+    "v2": {}
+  }
+}
+`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "abc",
+  "isdefault": true,
+  "createdat": "2026-02-11T18:15:05.715666555Z",
+  "modifiedat": "2026-02-11T18:15:05.715666555Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-11T18:15:05.715666555Z",
+    "modifiedat": "2026-02-11T18:15:05.715666555Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "abc",
+      "isdefault": true,
+      "createdat": "2026-02-11T18:15:05.715666555Z",
+      "modifiedat": "2026-02-11T18:15:05.715666555Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-11T18:15:05.715666555Z",
+      "modifiedat": "2026-02-11T18:15:05.715666555Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with SetDefaultVersionID flag via /versions
+
+	// Now the real test
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=v1&inline=*", `{
+  "v1": { "name": "abc" },
+  "v2": {}
+}
+`, 200, `{
+  "v1": {
+    "fileid": "f1",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "xid": "/dirs/d1/files/f1/versions/v1",
+    "epoch": 1,
+    "name": "abc",
+    "isdefault": true,
+    "createdat": "2026-02-12T14:10:25.20755952Z",
+    "modifiedat": "2026-02-12T14:10:25.20755952Z",
+    "ancestor": "v1"
+  },
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-02-12T14:10:25.20755952Z",
+    "modifiedat": "2026-02-12T14:10:25.20755952Z",
+    "ancestor": "v1"
+  }
+}
+`)
+
+	// Verify full resource
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=*", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "abc",
+  "isdefault": true,
+  "createdat": "2026-02-12T14:11:41.527893268Z",
+  "modifiedat": "2026-02-12T14:11:41.527893268Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-12T14:11:41.527893268Z",
+    "modifiedat": "2026-02-12T14:11:41.527893268Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "abc",
+      "isdefault": true,
+      "createdat": "2026-02-12T14:11:41.527893268Z",
+      "modifiedat": "2026-02-12T14:11:41.527893268Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-12T14:11:41.527893268Z",
+      "modifiedat": "2026-02-12T14:11:41.527893268Z",
+      "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+}

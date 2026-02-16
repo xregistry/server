@@ -76,7 +76,11 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
   },
   "modelsource": {},
 
@@ -326,7 +330,11 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
   },
 
   "dirsurl": "http://localhost:8181/dirs",

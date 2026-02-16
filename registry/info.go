@@ -581,6 +581,15 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 		}
 	}
 
+	if info.HasFlag("setdefaultversionid") {
+		if def := info.GetFlag("setdefaultversionid"); def == "" {
+			return NewXRError("bad_defaultversionid",
+				"/"+info.OriginalPath,
+				"error_detail=value must not be empty",
+				"value=\"\"")
+		}
+	}
+
 	return info.ParseFilters()
 }
 

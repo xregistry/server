@@ -200,7 +200,11 @@ func (r *Resource) IsXref() bool {
 
 	PanicIf(meta == nil, "%s: meta is gone", r.UID)
 
-	return !IsNil(meta.Get("xref"))
+	// DUG
+	// return !IsNil(meta.Get("xref"))
+	tmp := meta.Get("xref")
+	return !IsNil(tmp) && tmp != ""
+	// return meta.Get("xref") == true
 }
 
 func (m *Meta) JustSet(name string, val any) *XRError {
@@ -349,14 +353,16 @@ func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
 	return r.FindVersion(val, false, accessMode)
 }
 
-func (r *Resource) GetNewestVersionID() (string, *XRError) {
-	vers, xErr := r.GetOrderedVersionIDs()
-	Must(xErr)
+func (r *Resource) GetVersionMode() VersionMode {
+	vm := r.ResourceModel.GetVersionMode()
+	apis, ok := VersionModes[vm]
+	PanicIf(!ok, "Missing versionmode(%s) for: %s", vm, r.UID)
 
-	if len(vers) > 0 {
-		return vers[len(vers)-1].VID, nil
-	}
-	return "", nil
+	return apis
+}
+
+func (r *Resource) GetNewestVersionID() (string, *XRError) {
+	return r.GetVersionMode().NewestVersionID(r)
 }
 
 func (r *Resource) GetNewest() (*Version, *XRError) {
@@ -371,22 +377,41 @@ func (r *Resource) EnsureLatest() *XRError {
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
 
-	// If it's sticky, just exit. Nothing to check
-	if meta.Get("defaultversionsticky") == true {
-		return nil
-	}
-
-	newDefault, xErr := r.GetNewestVersionID()
-	Must(xErr)
-	PanicIf(newDefault == "", "No versions")
-
 	currentDefault := meta.GetAsString("defaultversionid")
-	if currentDefault == newDefault {
-		// Already set
-		return nil
-	}
 
-	return meta.SetSave("defaultversionid", newDefault)
+	// log.Printf("In %s.ensurelatest, defID: %q", r.UID, currentDefault)
+
+	if meta.Get("defaultversionsticky") != true || currentDefault == "" {
+		newDefault, xErr := r.GetNewestVersionID()
+		Must(xErr)
+		PanicIf(newDefault == "", "No versions")
+
+		// Only update if it changed
+		if currentDefault != newDefault {
+			// log.Printf("  Setting def to: %q", newDefault)
+			return meta.SetSave("defaultversionid", newDefault)
+		}
+	}
+	return nil
+	/*
+
+		// If it's sticky, just exit. Nothing to check
+		if meta.Get("defaultversionsticky") == true {
+			return nil
+		}
+
+		newDefault, xErr := r.GetNewestVersionID()
+		Must(xErr)
+		PanicIf(newDefault == "", "No versions")
+
+		currentDefault := meta.GetAsString("defaultversionid")
+		if currentDefault == newDefault {
+			// Already set
+			return nil
+		}
+
+		return meta.SetSave("defaultversionid", newDefault)
+	*/
 }
 
 // Note will set sticky if vID != ""
@@ -403,6 +428,12 @@ func (r *Resource) SetDefaultID(vID string) *XRError {
 		v, xErr = r.FindVersion(vID, false, FOR_WRITE)
 		if xErr != nil {
 			return xErr
+		}
+
+		if IsNil(v) {
+			return NewXRError("unknown_id", r.XID,
+				"singular=version",
+				"id="+vID)
 		}
 	}
 	return r.SetDefault(v)
@@ -452,21 +483,31 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 	return meta.SetSave("defaultversionid", newDefaultID)
 }
 
+type MetaUpsert struct {
+	obj                Object
+	addType            AddType
+	createVersion      bool
+	processVersionInfo bool
+	more               bool
+}
+
 // returns *Meta, isNew, error
 // "createVersion" means we should create a version if there isn't already
 // one there. This will only happen when the client talks directly to "meta"
 // w/o the surrounding Resource object. AND, for now, we only do it when
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
-func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, processVersionInfo bool) (*Meta, bool, *XRError) {
-	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, addType, createVersion, processVersionInfo)
+func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
+	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, mu.addType, mu.createVersion, mu.processVersionInfo)
 	defer log.VPrintf(3, "<Exit: UpsertMeta")
+
+	// log.Printf("UpsertMeta: OBJ: %s", ToJSON(mu.obj))
 
 	if xErr := r.Registry.SaveModel(); xErr != nil {
 		return nil, false, xErr
 	}
 
-	if xErr := CheckAttrs(obj, r.XID+"/meta"); xErr != nil {
+	if xErr := CheckAttrs(mu.obj, r.XID+"/meta"); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -481,22 +522,31 @@ func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, p
 		}
 	}
 
-	if obj != nil {
-		if val, ok := obj[r.Singular+"id"]; ok {
-			if val != r.UID {
-				return nil, false, NewXRError("mismatched_id", meta.XID,
-					"singular="+r.Singular,
-					"invalid_id="+fmt.Sprintf("%v", val),
-					"expected_id="+r.UID)
-			}
+	PanicIf(mu.obj == nil, "obj is nil")
+	if val, ok := mu.obj[r.Singular+"id"]; ok {
+		if val != r.UID {
+			return nil, false, NewXRError("mismatched_id", meta.XID,
+				"singular="+r.Singular,
+				"invalid_id="+fmt.Sprintf("%v", val),
+				"expected_id="+r.UID)
 		}
 	}
 
 	// Just in case we need it, save the Resource's epoch value. If this
-	// is an xref'd Resource then it'll actually be the target's epoch
+	// is an xref'd Resource then it'll actually be the target's epoch.
+	// Use meta.Object because it's possible that upsertResource changed
+	// meta.NewObject["xref"] to null and we need the xref value prior to
+	// any changes due to the current operation.
 	targetEpoch := 0
-	if meta.Object["xref"] != nil {
-		targetEpochAny := r.Get("epoch")
+	if targetXref := meta.Object["xref"]; targetXref != nil {
+		// if meta.Get("xref") != nil {  // DUG
+		// targetEpochAny := r.Get("epoch")
+		tStr := targetXref.(string)
+		tgtR, xErr := meta.Registry.FindResourceByXID(tStr, meta.XID)
+		if xErr != nil {
+			return nil, false, xErr
+		}
+		targetEpochAny := tgtR.Get("epoch")
 		targetEpoch = NotNilInt(&targetEpochAny)
 	}
 
@@ -511,23 +561,23 @@ func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, p
 	}
 	attrsToKeep[r.Singular+"id"] = true
 
-	if r.tx.RequestInfo.HasIgnore("defaultversionid") && !IsNil(obj) {
-		delete(obj, "defaultversionid")
+	if r.tx.RequestInfo.HasIgnore("defaultversionid") && !IsNil(mu.obj) {
+		delete(mu.obj, "defaultversionid")
 	}
-	if r.tx.RequestInfo.HasIgnore("defaultversionsticky") && !IsNil(obj) {
-		delete(obj, "defaultversionsticky")
+	if r.tx.RequestInfo.HasIgnore("defaultversionsticky") && !IsNil(mu.obj) {
+		delete(mu.obj, "defaultversionsticky")
 	}
 
 	// Apply properties
 	existingNewObj := meta.NewObject // Should be nil when using http
-	meta.SetNewObject(obj)
+	meta.SetNewObject(mu.obj)
 	meta.Entity.EnsureNewObject()
 
 	// Get new values for easy reference
 	newStickyAny, newStickyok := meta.NewObject["defaultversionsticky"]
 	newVerIDAny, newVerIDok := meta.NewObject["defaultversionid"]
 
-	if meta.NewObject != nil && addType == ADD_PATCH {
+	if meta.NewObject != nil && mu.addType == ADD_PATCH {
 		// Do some spec checks and tweaks
 		if newVerIDok && !newStickyok {
 			// Just defaultversionid is present
@@ -575,7 +625,7 @@ func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, p
 		meta.JustSet(r.Singular+"id", r.UID)
 	}
 
-	if obj != nil {
+	if mu.obj != nil {
 		xrefAny, hasXref = meta.NewObject["xref"]
 		if hasXref {
 			if IsNil(xrefAny) {
@@ -687,9 +737,9 @@ func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, p
 				meta.Object["createdat"] = meta.Object["#createdat"]
 			}
 
-			// if createVersion is true, make sure we have at least one
+			// if mu.createVersion is true, make sure we have at least one
 			// version
-			if createVersion {
+			if mu.createVersion {
 				numVers, xErr := r.GetNumberOfVersions()
 				if xErr != nil {
 					return nil, false, xErr
@@ -776,7 +826,25 @@ func (r *Resource) UpsertMeta(obj Object, addType AddType, createVersion bool, p
 		}
 	}
 
-	if processVersionInfo {
+	// log.Printf("in meta.upsert sticky=%v", meta.Object["defaultversionsticky"])
+	oldSticky := meta.Object["defaultversionsticky"]
+	newDefID := meta.NewObject["defaultversionid"]
+	if IsNil(newDefID) {
+		newDefID = ""
+	}
+
+	if oldSticky != true && newDefID == "" {
+		/*
+			vID, xErr := r.GetNewestVersionID()
+			if xErr != nil {
+				return nil, false, xErr
+			}
+			meta.JustSet("defaultversionid", vID)
+		*/
+		meta.JustSet("defaultversionid", "")
+	}
+
+	if mu.processVersionInfo {
 		if xErr = r.ProcessVersionInfo(); xErr != nil {
 			return nil, false, xErr
 		}
@@ -814,15 +882,30 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 	}
 	sticky := (stickyAny == true)
 
+	/*
+		log.Printf("-----")
+		log.Printf("In processversioninfoi: meta.old: %s", ToJSON(m.Object))
+		log.Printf("In processversioninfoi: meta.new: %s", ToJSON(m.NewObject))
+		ShowStack()
+	*/
+
 	defaultVersionID := ""
 	verIDAny := m.Get("defaultversionid")
-	if IsNil(verIDAny) {
+	verID := m.GetAsString("defaultversionid")
+	// if IsNil(verIDAny) || verIDAny == "" || !sticky {
+	if verID == "" || !sticky {
+		// log.Printf("getting newest")
+		// vs, _ := r.GetOrderedVersionIDs()
+		// log.Printf("  ORDER: %v", ToJSON(vs))
+
 		v, xErr := r.GetNewest()
 		Must(xErr)
 		if v != nil {
 			defaultVersionID = v.UID
+			// log.Printf("  newest: %s", v.UID)
 		}
 	} else {
+		// log.Printf("sticky!!")
 		if tmp := reflect.ValueOf(verIDAny).Kind(); tmp != reflect.String {
 			return NewXRError("invalid_attribute", m.XID,
 				"name=defaultversionid",
@@ -835,6 +918,7 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 				"error_detail=must not be an empty string")
 		}
 
+		/* DUG remove error
 		if !sticky {
 			v, xErr := r.GetNewest()
 			Must(xErr)
@@ -843,6 +927,7 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 					"id="+v.UID)
 			}
 		}
+		*/
 	}
 
 	if defaultVersionID != "" {
@@ -871,28 +956,54 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 		// so just return (and skip ValidateAndSave) for now. We should call
 		// this func again later in the processing though
 		return nil
+
+		// DUG do we need this "else" any more ??
 	}
 
 	return m.ValidateAndSave()
 }
 
 func (r *Resource) UpsertVersion(id string) (*Version, bool, *XRError) {
-	return r.UpsertVersionWithObject(id, nil, ADD_UPSERT, false)
+	return r.UpsertVersionWithObject(&VersionUpsert{
+		Id:               id,
+		Obj:              nil,
+		AddType:          ADD_UPSERT,
+		More:             false,
+		DefaultVersionID: "",
+	})
+}
+
+type VersionUpsert struct {
+	Id               string
+	Obj              Object
+	AddType          AddType
+	More             bool
+	DefaultVersionID string
 }
 
 // *Version, isNew, error
-func (r *Resource) UpsertVersionWithObject(id string, obj Object,
-	addType AddType, more bool) (*Version, bool, *XRError) {
+func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *XRError) {
+
+	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", vu.Id, vu.AddType, vu.More)
+	defer log.VPrintf(3, "<Exit: UpsertVersion")
+
+	// DUG can delete when done
+	if vu.Id == "request" {
+		log.Printf("upsertver.vu: %s", ToJSON(vu))
+		ShowStack()
+	}
 
 	if xErr := r.Registry.SaveModel(); xErr != nil {
 		return nil, false, xErr
 	}
 
-	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", id, addType, more)
-	defer log.VPrintf(3, "<Exit: UpsertVersion")
-
-	if xErr := CheckAttrs(obj, r.XID+"/versions/"+id); xErr != nil {
+	if xErr := CheckAttrs(vu.Obj, r.XID+"/versions/"+vu.Id); xErr != nil {
 		return nil, false, xErr
+	}
+
+	if vu.DefaultVersionID != "" && !r.ResourceModel.GetSetDefaultSticky() {
+		return nil, false, NewXRError("setdefaultversionid_not_allowed", r.XID,
+			"singular="+r.ResourceModel.Singular)
 	}
 
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
@@ -906,17 +1017,23 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 		}
 	}
 
+	// log.Printf("%s is xref: %v", r.XID, r.IsXref())
+	// log.Printf("meta.old: %v", ToJSON(meta.Object))
+	// log.Printf("meta.new: %v", ToJSON(meta.NewObject))  //DUG
 	if r.IsXref() {
 		return nil, false,
-			NewXRError("extra_xref_attribute", r.XID, "name=versions")
+			// NewXRError("extra_xref_attribute", r.XID, "name=versions")
+			NewXRError("bad_request", r.XID,
+				"error_detail=Cannot update Resource \""+r.XID+
+					"\" in this way since it uses \"xref\"")
 	}
 
-	// Do some quick checks on the incoming obj
-	if obj != nil {
+	// Do some quick checks on the incoming vu.Obj
+	if vu.Obj != nil {
 		// We check for ancestor stuff here instead of in the checkFn
 		// so that we allow for ANCESTOR_TBD by the system w/o allowing the
 		// user to use it
-		val, ok := obj["ancestor"]
+		val, ok := vu.Obj["ancestor"]
 		if ok && !IsNil(val) {
 			valStr, ok := val.(string)
 			if !ok {
@@ -936,13 +1053,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	var v *Version
 	gm, rm := r.GetModels()
 
-	if id == "" {
+	if vu.Id == "" {
 		// No versionID provided so grab the next available one
 		tmp := meta.Get("#nextversionid")
 		nextID := NotNilInt(&tmp)
 		for {
-			id = strconv.Itoa(nextID)
-			v, xErr = r.FindVersion(id, false, FOR_WRITE)
+			vu.Id = strconv.Itoa(nextID)
+			v, xErr = r.FindVersion(vu.Id, false, FOR_WRITE)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -956,13 +1073,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 			}
 		}
 	} else {
-		v, xErr = r.FindVersion(id, true, FOR_WRITE)
+		v, xErr = r.FindVersion(vu.Id, true, FOR_WRITE)
 
-		if addType == ADD_ADD && v != nil {
+		if vu.AddType == ADD_ADD && v != nil {
 			return nil, false,
 				NewXRError("bad_request", v.XID,
 					"error_detail="+
-						fmt.Sprintf("Version %q already exists", id))
+						fmt.Sprintf("Version %q already exists", vu.Id))
 		}
 
 		if v == nil && rm.GetSetVersionId() == false {
@@ -970,13 +1087,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 				"plural="+r.Plural)
 		}
 
-		if v != nil && v.UID != id {
+		if v != nil && v.UID != vu.Id {
 			return nil, false,
 				NewXRError("bad_request", v.XID,
 					"error_detail="+
 						fmt.Sprintf("Attempting to create a Version with "+
 							"a \"versionid\" of %q, when one already "+
-							"exists as %q", id, v.UID))
+							"exists as %q", vu.Id, v.UID))
 		}
 
 		if xErr != nil {
@@ -998,11 +1115,11 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 				DbSID:    NewUUID(),
 				Plural:   "versions",
 				Singular: "version",
-				UID:      id,
+				UID:      vu.Id,
 
 				Type:     ENTITY_VERSION,
-				Path:     r.Group.Plural + "/" + r.Group.UID + "/" + r.Plural + "/" + r.UID + "/versions/" + id,
-				XID:      "/" + r.Group.Plural + "/" + r.Group.UID + "/" + r.Plural + "/" + r.UID + "/versions/" + id,
+				Path:     r.Path + "/versions/" + vu.Id,
+				XID:      r.XID + "/versions/" + vu.Id,
 				Abstract: r.Group.Plural + string(DB_IN) + r.Plural + string(DB_IN) + "versions",
 
 				GroupModel:    gm,
@@ -1015,13 +1132,13 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 		DoOne(r.tx, `
         INSERT INTO Versions(SID, UID, RegistrySID, ResourceSID, Path, Abstract)
         VALUES(?,?,?,?,?,?)`,
-			v.DbSID, id, r.Registry.DbSID, r.DbSID,
+			v.DbSID, vu.Id, r.Registry.DbSID, r.DbSID,
 			r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+v.UID,
 			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
 
 		v.tx.AddVersion(v)
 
-		if xErr = v.JustSet("versionid", id); xErr != nil {
+		if xErr = v.JustSet("versionid", vu.Id); xErr != nil {
 			return nil, false, xErr
 		}
 
@@ -1034,17 +1151,17 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	}
 
 	// Apply properties
-	if obj != nil {
+	if vu.Obj != nil {
 
 		// Do some special processing when the Resource has a Doc
 		if rm.GetHasDocument() == true {
 			// Rename "RESOURCE" attrs, only if hasDoc=true
-			xErr = EnsureJustOneRESOURCE(&r.Entity, obj, r.Singular)
+			xErr = EnsureJustOneRESOURCE(&r.Entity, vu.Obj, r.Singular)
 			if xErr != nil {
 				return nil, false, xErr
 			}
 
-			data, ok := obj[r.Singular]
+			data, ok := vu.Obj[r.Singular]
 			// If there's data and it's not already just an array of bytes
 			// then convert it. This is for cases where the data is raw JSON
 			// and so we may need to tweak it
@@ -1081,21 +1198,21 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 					str := fmt.Sprintf("%s", data)
 					buf = []byte(str)
 				}
-				obj[rm.Singular] = buf
+				vu.Obj[rm.Singular] = buf
 
 				// If there's a doc but no "contenttype" value then:
 				// - if existing entity doesn't have one, set it
 				// - if existing entity does have one then only override it
 				//   if we're not doing PATCH (PUT/POST are compelte overrides)
-				if _, ok := obj["contenttype"]; !ok {
+				if _, ok := vu.Obj["contenttype"]; !ok {
 					val := v.Get("contenttype")
-					if IsNil(val) || addType != ADD_PATCH {
-						obj["contenttype"] = "application/json"
+					if IsNil(val) || vu.AddType != ADD_PATCH {
+						vu.Obj["contenttype"] = "application/json"
 					}
 				}
 			}
 
-			if d, ok := obj[r.Singular+"base64"]; ok {
+			if d, ok := vu.Obj[r.Singular+"base64"]; ok {
 				if !IsNil(d) {
 					content, err := base64.StdEncoding.DecodeString(d.(string))
 					if err != nil {
@@ -1106,14 +1223,14 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 					}
 					d = any(content)
 				}
-				obj[r.Singular] = d
-				delete(obj, r.Singular+"base64")
+				vu.Obj[r.Singular] = d
+				delete(vu.Obj, r.Singular+"base64")
 			}
 		}
 
-		v.SetNewObject(obj)
+		v.SetNewObject(vu.Obj)
 
-		if addType == ADD_PATCH {
+		if vu.AddType == ADD_PATCH {
 			// Copy existing props over if the incoming obj doesn't set them
 			for k, val := range v.Object {
 				if _, ok := v.NewObject[k]; !ok {
@@ -1121,7 +1238,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 				}
 			}
 		} else {
-			// Just for full obj replacement.
+			// Just for full vu.Obj replacement.
 			// the contents of any possible doc are special in that if the
 			// client doesn't include it in the update we won't touch it, so
 			// we need to copy it forward
@@ -1133,7 +1250,7 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 		}
 
 		if IsNil(v.NewObject["versionid"]) {
-			v.NewObject["versionid"] = id
+			v.NewObject["versionid"] = vu.Id
 		}
 	}
 
@@ -1166,8 +1283,23 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 	// If there are no more versions to be processed for this Resource in
 	// this transaction, go ahead and clean-up the versions wrt the latest
 	// and ancestor pointers
-	if !more {
-		if xErr = r.CompleteUpsertVersions(); xErr != nil {
+	if !vu.More {
+		if vu.DefaultVersionID == "null" {
+			if xErr := r.SetDefaultID(""); xErr != nil {
+				return nil, false, xErr
+			}
+		} else if vu.DefaultVersionID == "request" {
+			// Not sure this is 100% ok but assume request==this version
+			if xErr := r.SetDefaultID(v.UID); xErr != nil {
+				return nil, false, xErr
+			}
+		} else if vu.DefaultVersionID != "" {
+			if xErr := r.SetDefaultID(vu.DefaultVersionID); xErr != nil {
+				return nil, false, xErr
+			}
+		}
+
+		if xErr = r.ValidateResource(); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -1179,7 +1311,17 @@ func (r *Resource) UpsertVersionWithObject(id string, obj Object,
 // done in the case where we're uploading more than one version within the
 // same tx. The "more" flag on the call to Upsert will tell us whether to
 // call this func or not (more=false -> call it)
-func (r *Resource) CompleteUpsertVersions() *XRError {
+func (r *Resource) ValidateResource() *XRError {
+	meta, xErr := r.FindMeta(false, FOR_WRITE)
+	if xErr != nil {
+		return xErr
+	}
+
+	// If xref is set then we don't need to check anything
+	if meta.GetAsString("xref") != "" {
+		return nil
+	}
+
 	// Clean-up and verify all Ancestor attributes before we continue
 	if xErr := r.CheckAncestors(); xErr != nil {
 		return xErr
@@ -1195,7 +1337,7 @@ func (r *Resource) CompleteUpsertVersions() *XRError {
 		return xErr
 	}
 
-	// Flag it if we have more than one root & the reosurce doesn't allow it
+	// Flag it if we have more than one root & the resource doesn't allow it
 	if xErr := r.EnsureSingleVersionRoot(); xErr != nil {
 		return xErr
 	}
@@ -1205,10 +1347,8 @@ func (r *Resource) CompleteUpsertVersions() *XRError {
 		return xErr
 	}
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	if xErr != nil {
-		return xErr
-	}
+	// vs, _ := r.GetOrderedVersionIDs()
+	// log.Printf("r.ancestors: %v", ToJSON(vs))
 
 	// Only validate meta if there's a defaultversionid. Assume that
 	// if it's missing then we're in the middle of recreating things
@@ -1222,12 +1362,24 @@ func (r *Resource) CompleteUpsertVersions() *XRError {
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {
-	v, _, xErr := r.UpsertVersionWithObject(id, nil, ADD_ADD, false)
+	v, _, xErr := r.UpsertVersionWithObject(&VersionUpsert{
+		Id:               id,
+		Obj:              nil,
+		AddType:          ADD_ADD,
+		More:             false,
+		DefaultVersionID: "",
+	})
 	return v, xErr
 }
 
 func (r *Resource) AddVersionWithObject(id string, obj Object) (*Version, *XRError) {
-	v, _, xErr := r.UpsertVersionWithObject(id, obj, ADD_ADD, false)
+	v, _, xErr := r.UpsertVersionWithObject(&VersionUpsert{
+		Id:               id,
+		Obj:              obj,
+		AddType:          ADD_ADD,
+		More:             false,
+		DefaultVersionID: "",
+	})
 	return v, xErr
 }
 
@@ -1236,41 +1388,6 @@ type VersionAncestor struct {
 	Ancestor  string
 	CreatedAt string
 	Pos       string // 0-root, 1-middle, 2-leaf
-}
-
-// Get the list of Version IDs for this resource.
-// The list is sorted such that:
-// - the roots are first
-// - then non-roots and non-leaves
-// - then leaves
-// Within each group if there's more than one then it's sorted as:
-// - newest (lowest) createdat timestamp first
-// If more than one share the same timestamp, then it's sorted as:
-// - lowest alphabetically (case insensitive) first
-func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, *XRError) {
-	results := Query(r.tx, `
-            SELECT VersionUID, Ancestor, Pos, Time FROM VersionAncestors
-			WHERE RegistrySID=? AND ResourceSID=? AND
-			  Ancestor<>'`+ANCESTOR_TBD+`'
-			ORDER BY Pos ASC, Time ASC, VersionUID ASC`,
-		r.Registry.DbSID, r.DbSID)
-	defer results.Close()
-
-	vers := []*VersionAncestor{}
-	for {
-		row := results.NextRow()
-		if row == nil {
-			break
-		}
-		vers = append(vers, &VersionAncestor{
-			VID:       NotNilString(row[0]),
-			Ancestor:  NotNilString(row[1]),
-			Pos:       NotNilString(row[2]),
-			CreatedAt: NotNilString(row[3]),
-		})
-	}
-
-	return vers, nil
 }
 
 func (r *Resource) GetVersionIDs() ([]string, *XRError) {
@@ -1351,7 +1468,8 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 }
 
 func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, *XRError) {
-	// Find all versions that point 'parentVID'
+	// Find all versions that point 'parentVID'.
+	// Note that roots will include themselves - not sure if this is ok or not
 	results := Query(r.tx, `
 			SELECT UID FROM Versions
 			WHERE RegistrySID=? AND ResourceSID=? AND Ancestor=?`,
@@ -1439,6 +1557,13 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 
 	tmp := r.Get("defaultversionid")
 	defaultID := NotNilString(&tmp)
+	PanicIf(defaultID == "", "No defaultid set!!")
+
+	/*
+		log.Printf("ensuremax: defID: %s", defaultID)
+		log.Printf("ensuremax: sticky: %v", r.Get("defalutversionsticky"))
+		log.Printf("ensuremax: ancestors: %s", ToJSON(verIDs))
+	*/
 
 	// Starting with the oldest, keep deleting until we reach the max
 	// number of Versions allowed. Technically, this should always just
@@ -1451,6 +1576,8 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 			if xErr != nil {
 				return xErr
 			}
+			// log.Printf("  ensuremax: Deleting: %s", v.XID)
+			// ShowStack()
 			xErr = v.DeleteSetNextVersion("")
 			if xErr != nil {
 				return xErr
@@ -1484,7 +1611,11 @@ func (r *Resource) Delete() *XRError {
 	}
 
 	DoOne(r.tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
+
+	// Delete any pending changes so dirty check doesn't fail
+	r.NewObject = nil
 	r.tx.RemoveFromCache(&r.Entity)
+
 	return nil
 }
 
@@ -1495,7 +1626,11 @@ func (m *Meta) Delete() *XRError {
 	// Can't use a trigger to do this because we get recusive triggers
 	Do(m.tx, `DELETE FROM Props WHERE EntitySID=?`, m.DbSID)
 	DoOne(m.tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
+
+	// Delete any pending changes so dirty check doesn't fail
+	m.NewObject = nil
 	m.tx.RemoveFromCache(&m.Entity)
+
 	return nil
 }
 
@@ -1526,69 +1661,7 @@ func (r *Resource) GetHasDocument() bool {
 }
 
 func (r *Resource) CheckAncestors() *XRError {
-	newestVerID := ""
-
-	// Problematic versions are ones that have Ancestor=ANCESTOR_TBD or
-	// point to a non-existing Version
-	badVAs, xErr := r.GetProblematicVersions()
-	if xErr != nil {
-		return xErr
-	}
-
-	// Loop over the problem versions, checking/fixing each.
-	// Note that we're processing them from oldest to newest so that
-	// if we need to assign them a parent/ancestor, they'll be ordered
-	// correctly.
-	for _, va := range badVAs {
-		if va.Ancestor != ANCESTOR_TBD {
-			// Must be pointing to a non-exiting version, so error
-			return NewXRError("unknown_id", r.XID,
-				"singular=version",
-				"id="+va.Ancestor)
-		}
-
-		// If Ancestor is ANCESTOR_TBD then assign it to the newest Ver
-		if newestVerID == "" {
-			// First time thru, grab the Resource's newest versionID.
-			// Didn't need to get all attributes, just its ID
-			VIDs, xErr := r.GetOrderedVersionIDs()
-			if xErr != nil {
-				return xErr
-			}
-
-			if len(VIDs) > 0 {
-				// Grab oldest non-TBD version
-				for i := len(VIDs) - 1; i >= 0; i-- {
-					av := VIDs[len(VIDs)-1]
-					if av.Ancestor == ANCESTOR_TBD {
-						continue
-					}
-					newestVerID = av.VID // grab its versionID
-					break
-				}
-			}
-
-			if newestVerID == "" {
-				// No existing version is lates, so make this one a root/latest
-				newestVerID = va.VID
-			}
-		}
-
-		v, xErr := r.FindVersion(va.VID, false, FOR_WRITE)
-		if xErr != nil {
-			return xErr
-		}
-		PanicIf(v == nil, "Didn't find version %q", va.VID)
-		if v.EpochSet == false {
-			ShowStack()
-			panic("probably bad")
-		}
-
-		v.SetSave("ancestor", newestVerID)
-		newestVerID = v.UID // This one is now the latest
-	}
-
-	return nil
+	return r.GetVersionMode().CheckAncestors(r)
 }
 
 func (r *Resource) EnsureCircularReferences() *XRError {
@@ -1597,17 +1670,31 @@ func (r *Resource) EnsureCircularReferences() *XRError {
 		return xErr
 	}
 
-	sort.Strings(vIDs)
-	if len(vIDs) > 0 {
-		list := ""
-		for i, vID := range vIDs {
-			if i > 0 {
-				list += ", "
-			}
-			list += vID
-		}
-		return NewXRError("ancestor_circular_reference", r.XID, "list="+list)
+	if len(vIDs) == 0 {
+		return nil
 	}
 
-	return nil
+	list := ""
+	sort.Strings(vIDs)
+	for i, vID := range vIDs {
+		if i > 0 {
+			list += ", "
+		}
+		list += vID
+	}
+	return NewXRError("ancestor_circular_reference", r.XID, "list="+list)
+}
+
+func (r *Resource) WillDelete(vID string) *XRError {
+	return r.GetVersionMode().WillDelete(r, vID)
+}
+
+func (r *Resource) GetOrderedVersionIDs() ([]*VersionAncestor, *XRError) {
+	return r.GetVersionMode().GetOrderedVersionIDs(r)
+}
+
+func (r *Resource) DumpOrderedVersions() {
+	vs, xErr := r.GetOrderedVersionIDs()
+	Must(xErr)
+	log.Printf("Resource(%s).OrderedVersions:\n%s", r.XID, ToJSON(vs))
 }

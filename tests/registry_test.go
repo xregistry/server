@@ -347,6 +347,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 	// Commit before we call Set below otherwise the Tx will be rolled back
 	reg.Refresh(registry.FOR_WRITE)
 	reg.Touch() // Force a validation which will set all defaults
+	reg.ValidateAndSave()
 
 	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",

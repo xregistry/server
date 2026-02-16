@@ -11,6 +11,7 @@ const MAXVERSIONS = 0
 const SETVERSIONID = true
 const SETDEFAULTSTICKY = true
 const HASDOCUMENT = true
+const VERSIONMODE = "manual"
 const SINGLEVERSIONROOT = false
 const READONLY = false
 

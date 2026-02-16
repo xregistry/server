@@ -58,7 +58,11 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -109,7 +113,11 @@ func TestCapabilitySimple(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
   }
 }
 `)
@@ -132,7 +140,10 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }`,
 		},
 		{
@@ -152,7 +163,10 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }`,
 		},
 		{
@@ -172,7 +186,10 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }`,
 		},
 		{
@@ -192,7 +209,10 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }`,
 		},
 		{
@@ -208,7 +228,10 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }`,
 		},
 		{
@@ -287,10 +310,11 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "missing specversion",
 			Cap:  `{"specversions":[]}`,
 			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
   "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
   "subject": "/capabilities",
   "args": {
+    "name": "specversions",
     "value": "1.0-rc2"
   },
   "source": ":common:capabilities:232"
@@ -370,7 +394,11 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -400,7 +428,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -437,7 +468,10 @@ func TestCapabilityPath(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
   }
 }
 `)
@@ -466,7 +500,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -492,7 +529,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -508,7 +548,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -527,7 +570,8 @@ func TestCapabilityPath(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [ "createdat", "manual" ]
 }`, 200,
 		`{
   "apis": [
@@ -567,7 +611,11 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -609,7 +657,11 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -627,7 +679,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -643,7 +698,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -665,7 +723,10 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false
+  "stickyversions": false,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -713,10 +774,11 @@ func TestCapabilityPath(t *testing.T) {
 	// asked - which is different from "null"/absent - which means "default"
 	XHTTP(t, reg, "PUT", "/capabilities", `{ "specversions": [] }`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
   "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
   "subject": "/capabilities",
   "args": {
+    "name": "specversions",
     "value": "1.0-rc2"
   },
   "source": ":common:capabilities:236"
@@ -777,7 +839,10 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
   }
 }
 `)
@@ -792,7 +857,8 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": null,
   "shortself": null,
   "specversions": null,
-  "stickyversions": null
+  "stickyversions": null,
+  "versionmodes": null
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -817,7 +883,10 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -838,7 +907,8 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "stickyversions": false
+  "stickyversions": false,
+  "versionmodes": [ "createdat", "manual" ]
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -889,7 +959,11 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -903,7 +977,8 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": ["`+SPECVERSION+`"],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [ "manual" ]
 }}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
@@ -926,7 +1001,10 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
   }
 }
 `)
@@ -943,7 +1021,10 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -952,10 +1033,11 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities":
 	    {"specversions": [] }}`,
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_specversion",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
   "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
   "subject": "/capabilities",
   "args": {
+    "name": "specversions",
     "value": "1.0-rc2"
   },
   "source": ":common:capabilities:236"
@@ -1006,7 +1088,10 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -1167,7 +1252,10 @@ func TestCapabilityOffered(t *testing.T) {
     ]
   },
   "specversions": {
-    "type": "string",
+    "type": "array",
+    "item": {
+      "type": "string"
+    },
     "enum": [
       "`+SPECVERSION+`"
     ]
@@ -1177,6 +1265,16 @@ func TestCapabilityOffered(t *testing.T) {
     "enum": [
       false,
       true
+    ]
+  },
+  "versionmodes": {
+    "type": "array",
+    "item": {
+      "type": "string"
+    },
+    "enum": [
+      "createdat",
+      "manual"
     ]
   }
 }
@@ -1199,7 +1297,10 @@ func TestCapabilityAPIs(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -1262,7 +1363,10 @@ func TestCapabilityAPIs(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -1289,7 +1393,10 @@ func TestCapabilityAPIs(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
   },
   "modelsource": {}
 }
@@ -1408,7 +1515,11 @@ func TestCapabilityAPIs(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -1451,7 +1562,11 @@ func TestCapabilityPatch(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
 }
 `)
 
@@ -1482,7 +1597,10 @@ func TestCapabilityPatch(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
   }
 }
 `)

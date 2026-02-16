@@ -1429,6 +1429,26 @@ var PropsFuncs = []*Attribute{
 						e.NewObject["defaultversionid"] = oldVal
 					}
 				*/
+
+				// non-xRef resources MUST have a valid defaultversionid
+				if IsNil(xRef) {
+					meta, ok := e.Self.(*Meta)
+					PanicIf(!ok, "e isn't a meta: %#v", e)
+
+					val := meta.GetAsString("defaultversionid")
+					ver, xErr := meta.Resource.FindVersion(val, false, FOR_READ)
+					if xErr != nil {
+						return xErr
+					}
+					if IsNil(ver) {
+						// ShowStack()
+						// meta.Resource.DumpOrderedVersions()
+						return NewXRError("unknown_id", meta.XID,
+							"singular=version",
+							"id="+val)
+					}
+				}
+
 				return nil
 			},
 		},

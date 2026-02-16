@@ -198,6 +198,7 @@ type ResourceModel struct {
 	SetVersionId      *bool             `json:"setversionid,omitempty"`
 	SetDefaultSticky  *bool             `json:"setdefaultversionsticky,omitempty"`
 	HasDocument       *bool             `json:"hasdocument,omitempty"`
+	VersionMode       string            `json:"versionmode,omitempty"`
 	SingleVersionRoot *bool             `json:"singleversionroot,omitempty"`
 	TypeMap           map[string]string `json:"typemap,omitempty"`
 
@@ -285,6 +286,9 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
 	}
+    if r.VersionMode = "" {
+        r.VersionMode = VERSIONMODE
+    }
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 	}
@@ -322,6 +326,9 @@ func (r *ResourceModel) ApplyDefaults() {
 	}
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
+	}
+	if r.VersionMode == "" {
+		r.VersionMode = VERSIONMODE
 	}
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
@@ -980,6 +987,7 @@ func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*Resource
 		SetVersionId:      PtrBool(SETVERSIONID),
 		SetDefaultSticky:  PtrBool(SETDEFAULTSTICKY),
 		HasDocument:       PtrBool(HASDOCUMENT),
+		VersionMode:       VERSIONMODE,
 		SingleVersionRoot: PtrBool(SINGLEVERSIONROOT),
 	})
 }
@@ -992,6 +1000,7 @@ func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersio
 		SetVersionId:     PtrBool(setVerId),
 		SetDefaultSticky: PtrBool(setDefaultSticky),
 		HasDocument:      PtrBool(hasDocument),
+		VersionMode:      VERSIONMODE,
 	})
 }
 
@@ -1305,6 +1314,7 @@ func (rm *ResourceModel) Dump(indents ...string) {
 	indent := strings.Join(indents, "")
 	log.Printf("%sRM: %s/%s", indent, rm.Plural, rm.Singular)
 	log.Printf("%s  - HasDoc: %v", indent, rm.GetHasDocument())
+	log.Printf("%s  - VerMode: %v", indent, rm.VersionMode)
 	log.Printf("%s  - Attributes:", indent)
 	for _, attr := range rm.VersionAttributes {
 		attr.Dump(indent + "  ")
@@ -2417,6 +2427,21 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 		if xErr := rm.VerifyData(); xErr != nil {
 			return xErr
 		}
+
+		// Validate "versionmode"
+		if rm.VersionMode == "" {
+			rm.VersionMode = VERSIONMODE
+		}
+
+		// Should we be able to verify this when Registry is nil ?
+		if !rm.GroupModel.Model.Registry.Capabilities.VersionModeEnabled(rm.VersionMode) {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource %q has an invalid 'versionmode' value "+
+						"(%s). Must be one of: %s",
+						rmName, rm.VersionMode,
+						strings.Join(AllowableVersionModes, ",")))
+		}
 	}
 
 	// Make sure the typemap's values are just certain strings
@@ -2666,6 +2691,15 @@ func (rm *ResourceModel) SetCompatibleWith(val string) {
 
 func (rm *ResourceModel) GetCompatibleWith() string {
 	return rm.CompatibleWith
+}
+
+func (rm *ResourceModel) SetVersionMode(val string) {
+	rm.VersionMode = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetVersionMode() string {
+	return rm.VersionMode
 }
 
 // Map incoming "contentType" (ct) to its typemap value.

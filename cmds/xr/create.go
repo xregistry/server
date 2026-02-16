@@ -36,7 +36,7 @@ Notes:
 	createCmd.Flags().StringP("data", "d", "",
 		"Data, @FILE, @URL, @-(stdin)")
 	createCmd.Flags().BoolP("replace", "r", false,
-		"Replace entire entity (all attributes) when -f used")
+		"Replace entire entity (all attributes)")
 	createCmd.Flags().BoolP("force", "f", false,
 		"Force an 'update' if exist, skip pre-flight checks")
 	createCmd.Flags().StringArray("set", nil,
@@ -139,9 +139,6 @@ func createFunc(cmd *cobra.Command, args []string) {
 	}
 
 	xidStr, queryParams, _ := strings.Cut(args[0], "?")
-	if queryParams != "" {
-		queryParams = "?" + queryParams
-	}
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
@@ -366,9 +363,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 		path += suffix
 	}
 
-	if queryParams != "" {
-		path += "?" + queryParams
-	}
+	path = AddQuery(path, queryParams)
 
 	if ignoreEpoch {
 		path = AddQuery(path, "ignoreepoch")

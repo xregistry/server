@@ -65,6 +65,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var tx *Tx
 
 	defer func() {
+		// If we haven't written anything, this will force the HTTP status code
+		// to be written and not default to 200
+		if info != nil {
+			info.HTTPWriter.Done()
+		}
+	}()
+
+	defer func() {
 		if rec := recover(); rec != nil {
 			log.Printf("Panic: %s", rec)
 			// ShowStack() // Down via NewXRError below now
@@ -139,12 +147,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		HTTPWriteError(info, xErr)
 		return
 	}
-
-	defer func() {
-		// If we haven't written anything, this will force the HTTP status code
-		// to be written and not default to 200
-		info.HTTPWriter.Done()
-	}()
 
 	if r.URL.Query().Has("ui") { // Wrap in html page
 		info.HTTPWriter = NewPageWriter(info)
@@ -2125,13 +2127,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 			for id, obj := range rMap {
 				r, _, xErr := group.UpsertResource(&ResourceUpsert{
-					rType:            rType,
-					id:               id,
-					vID:              "",
-					obj:              obj,
-					addType:          ADD_UPDATE,
-					objIsVer:         false,
-					defaultVersionID: "",
+					RType:            rType,
+					Id:               id,
+					VID:              "",
+					Obj:              obj,
+					AddType:          ADD_UPDATE,
+					ObjIsVer:         false,
+					DefaultVersionID: "",
 				})
 				if xErr != nil {
 					return xErr
@@ -2171,6 +2173,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	version := (*Version)(nil)
 	resourceUID := info.ResourceUID
 	versionUID := info.VersionUID
+	setDefVerID := info.GetFlag("setdefaultversionid")
 
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
@@ -2197,13 +2200,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		for id, obj := range objMap {
 			r, _, xErr := group.UpsertResource(&ResourceUpsert{
-				rType:            info.ResourceType,
-				id:               id,
-				vID:              "",
-				obj:              obj,
-				addType:          addType,
-				objIsVer:         false,
-				defaultVersionID: "",
+				RType:            info.ResourceType,
+				Id:               id,
+				VID:              "",
+				Obj:              obj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: "",
 			})
 			if xErr != nil {
 				return xErr
@@ -2259,13 +2262,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				addType = ADD_PATCH
 			}
 			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
-				rType:            info.ResourceType,
-				id:               resourceUID,
-				vID:              "",
-				obj:              IncomingObj,
-				addType:          addType,
-				objIsVer:         false,
-				defaultVersionID: info.GetFlag("setdefaultversionid"),
+				RType:            info.ResourceType,
+				Id:               resourceUID,
+				VID:              "",
+				Obj:              IncomingObj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: setDefVerID,
 			})
 			if xErr != nil {
 				return xErr
@@ -2283,13 +2286,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				addType = ADD_PATCH
 			}
 			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
-				rType:            info.ResourceType,
-				id:               resourceUID,
-				vID:              "",
-				obj:              IncomingObj,
-				addType:          addType,
-				objIsVer:         false,
-				defaultVersionID: info.GetFlag("setdefaultversionid"),
+				RType:            info.ResourceType,
+				Id:               resourceUID,
+				VID:              "",
+				Obj:              IncomingObj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: setDefVerID,
 			})
 			if xErr != nil {
 				return xErr
@@ -2314,21 +2317,26 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		if resource == nil {
 			// Implicitly create the resource
 			resource, isNew, xErr = group.UpsertResource(&ResourceUpsert{
-				rType:            info.ResourceType,
-				id:               resourceUID,
-				vID:              propsID,
-				obj:              IncomingObj,
-				addType:          ADD_ADD,
-				objIsVer:         true,
-				defaultVersionID: info.GetFlag("setdefaultversionid"),
+				RType:            info.ResourceType,
+				Id:               resourceUID,
+				VID:              propsID,
+				Obj:              IncomingObj,
+				AddType:          ADD_ADD,
+				ObjIsVer:         true,
+				DefaultVersionID: setDefVerID,
 			})
 			if xErr != nil {
 				return xErr
 			}
 			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
-			version, isNew, xErr = resource.UpsertVersionWithObject(propsID,
-				IncomingObj, ADD_UPSERT, false)
+			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+				Id:               propsID,
+				Obj:              IncomingObj,
+				AddType:          ADD_UPSERT,
+				More:             false,
+				DefaultVersionID: setDefVerID,
+			})
 		}
 		if xErr != nil {
 			return xErr
@@ -2363,22 +2371,34 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			// Implicitly create the resource
 			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
 				// TODO check to see if "" should be propsID
-				rType:            info.ResourceType,
-				id:               resourceUID,
-				vID:              "",
-				obj:              map[string]any{},
-				addType:          ADD_ADD,
-				objIsVer:         false,
-				defaultVersionID: info.GetFlag("setdefaultversionid"),
+				RType:            info.ResourceType,
+				Id:               resourceUID,
+				VID:              "",
+				Obj:              map[string]any{},
+				AddType:          ADD_ADD,
+				ObjIsVer:         false,
+				DefaultVersionID: setDefVerID,
 			})
 			if xErr != nil {
 				return xErr
 			}
 		}
 
+		// DUG do we still need this? I think so
+		if setDefVerID != "" {
+			IncomingObj["defaultversionid"] = setDefVerID
+			IncomingObj["defaultversionsticky"] = true
+		}
+
 		// Technically, this will always "update" not "insert"
-		meta, _, xErr := resource.UpsertMeta(IncomingObj, addType,
-			true, true)
+		meta, _, xErr := resource.UpsertMeta(&MetaUpsert{
+			obj:                IncomingObj,
+			addType:            addType,
+			createVersion:      true,
+			processVersionInfo: true,
+			more:               false,
+		})
+
 		if xErr != nil {
 			return xErr
 		}
@@ -2425,23 +2445,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				return NewXRError("missing_versions", "/"+info.OriginalPath)
 			}
 
-			vID := info.GetFlag("setdefaultversionid")
-			/*
-				if vID == "null" {
-				return NewXRError("bad_defaultversionid", "/"+info.OriginalPath,
-				"value=null",
-				"error_detail=\"null\" is not allowed to be used")
-				}
-			*/
-
-			if vID == "request" {
-				if vID == "request" && len(objMap) > 1 {
-					return NewXRError("too_many_versions", "/"+info.OriginalPath)
-				}
-			}
-
+			tmpVID := SortedKeys(IncomingObj)[0]
 			tmpObj := map[string]any{
-				"versions": (map[string]any)(IncomingObj),
+				// Just grab any vID from the collection to make sure we
+				// don't create a version with an ID of "1" by default
+				"versionid": tmpVID,
+				"versions":  (map[string]any)(IncomingObj),
 			}
 
 			addType := ADD_UPSERT
@@ -2450,13 +2459,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 
 			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
-				rType:            info.ResourceType,
-				id:               resourceUID,
-				vID:              "",
-				obj:              tmpObj,
-				addType:          addType,
-				objIsVer:         false,
-				defaultVersionID: info.GetFlag("setdefaultversionid"),
+				RType:            info.ResourceType,
+				Id:               resourceUID,
+				VID:              tmpVID, // setDefVerID, // was ""
+				Obj:              tmpObj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: setDefVerID,
 			})
 
 			if xErr != nil {
@@ -2499,8 +2508,21 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			count := 0
 			for id, obj := range objMap {
 				count++
-				v, _, xErr := resource.UpsertVersionWithObject(id, obj, addType,
-					count != len(objMap))
+
+				defv := ""
+				more := true
+				if count == len(objMap) {
+					more = false
+					defv = setDefVerID
+				}
+
+				v, _, xErr := resource.UpsertVersionWithObject(&VersionUpsert{
+					Id:               id,
+					Obj:              obj,
+					AddType:          addType,
+					More:             more,
+					DefaultVersionID: defv,
+				})
 				if xErr != nil {
 					return xErr
 				}
@@ -2509,6 +2531,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 		}
 
+		// DUG do we still need this given what we do above?
 		xErr = ProcessSetDefaultVersionIDFlag(info, resource, thisVersion)
 		if xErr != nil {
 			return xErr
@@ -2548,8 +2571,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if version == nil {
 			// We have a Resource, so add a new Version based on IncomingObj
-			version, isNew, xErr = resource.UpsertVersionWithObject(versionUID,
-				IncomingObj, ADD_UPSERT, false)
+			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+				Id:               versionUID,
+				Obj:              IncomingObj,
+				AddType:          ADD_UPSERT,
+				More:             false,
+				DefaultVersionID: setDefVerID,
+			})
 		} else if !isNew {
 			if propsID != "" && propsID != version.UID {
 				return NewXRError("mismatched_id", version.XID,
@@ -2563,8 +2591,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if method == "PATCH" || !metaInBody {
 				addType = ADD_PATCH
 			}
-			version, _, xErr = resource.UpsertVersionWithObject(version.UID,
-				IncomingObj, addType, false)
+			version, _, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
+				Id:               version.UID,
+				Obj:              IncomingObj,
+				AddType:          addType,
+				More:             false,
+				DefaultVersionID: setDefVerID,
+			})
 		}
 		if xErr != nil {
 			return xErr
@@ -2708,46 +2741,53 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 // "resource" is the resource we're processing
 // "version" is the version that was processed
 func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, version *Version) *XRError {
+	return nil
 	vIDs := info.GetFlagValues("setdefaultversionid")
 	if len(vIDs) == 0 {
 		return nil
 	}
 
-	if info.ResourceModel.GetSetDefaultSticky() == false {
-		return NewXRError("setdefaultversionid_not_allowed", resource.XID,
-			"singular="+info.ResourceModel.Singular)
-	}
-
-	vID := vIDs[0]
-
-	if vID == "" {
-		return NewXRError("bad_defaultversionid", resource.XID,
-			"value="+`""`,
-			"error_detail=value must not be empty")
-	}
-
-	// "null" and "request" have special meaning
-	if vID == "null" {
-		// Unstick the default version and go back to newest=default
-		return resource.SetDefault(nil)
-	}
-
-	if vID == "request" {
-		if version == nil {
-			return NewXRError("defaultversionid_request", resource.XID)
+	/*
+		if info.ResourceModel.GetSetDefaultSticky() == false {
+			return NewXRError("setdefaultversionid_not_allowed", resource.XID,
+				"singular="+info.ResourceModel.Singular)
 		}
-		// stick default version to current one we just processed
-		return resource.SetDefault(version)
-	}
+	*/
 
-	version, xErr := resource.FindVersion(vID, false, FOR_READ)
-	if xErr != nil {
-		return xErr
-	}
-	if version == nil {
-		return NewXRError("unknown_id", resource.XID,
-			"singular=version",
-			"id="+vID)
+	if len(info.Parts) >= 5 {
+		vID := vIDs[0]
+
+		/*
+			if vID == "" {
+				return NewXRError("bad_defaultversionid", resource.XID,
+					"value="+`""`,
+					"error_detail=value must not be empty")
+			}
+		*/
+
+		// "null" and "request" have special meaning
+		if vID == "null" {
+			// Unstick the default version and go back to newest=default
+			return resource.SetDefault(nil)
+		}
+
+		if vID == "request" {
+			if version == nil {
+				return NewXRError("defaultversionid_request", resource.XID)
+			}
+			// stick default version to current one we just processed
+			return resource.SetDefault(version)
+		}
+
+		version, xErr := resource.FindVersion(vID, false, FOR_READ)
+		if xErr != nil {
+			return xErr
+		}
+		if version == nil {
+			return NewXRError("unknown_id", resource.XID,
+				"singular=version",
+				"id="+vID)
+		}
 	}
 
 	return resource.SetDefault(version)
@@ -2994,7 +3034,7 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 			if tmpInt != group.Get("epoch") {
 				return NewXRError("mismatched_epoch", group.XID,
 					"bad_epoch="+fmt.Sprintf("%v", tmp),
-					"epoch="+fmt.Sprintf("%d", tmpInt))
+					"epoch="+fmt.Sprintf("%d", group.Get("epoch")))
 			}
 		}
 
@@ -3175,10 +3215,10 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 					"name=epoch",
 					"error_detail=value must be a uinteger")
 			}
-			if tmpInt != version.Get("epoch") {
+			if tmpInt != version.GetAsInt("epoch") {
 				return NewXRError("mismatched_epoch", version.XID,
 					"bad_epoch="+fmt.Sprintf("%v", tmp),
-					"epoch="+fmt.Sprintf("%d", tmpInt))
+					"epoch="+fmt.Sprintf("%d", version.GetAsInt("epoch")))
 			}
 		}
 

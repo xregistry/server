@@ -176,7 +176,17 @@ func TestVersionCreate(t *testing.T) {
 
 	f1, err = d2.FindResource("files", "f1", false, registry.FOR_WRITE)
 	XNoErr(t, err)
-	XNoErr(t, f1.SetDefault(v2))
+	err = f1.SetDefault(v2)
+	XCheckErr(t, err, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d2/files/f1/meta\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
+  "subject": "/dirs/d2/files/f1/meta",
+  "args": {
+    "id": "v2",
+    "singular": "version"
+  },
+  "source": "396100315a6e:registry:entity:1446"
+}`)
 	_, err = f1.AddVersion("v3")
 	XNoErr(t, err)
 	vt, err = f1.FindVersion("v1", false, registry.FOR_WRITE)
@@ -786,7 +796,13 @@ func TestVersionRequiredFields(t *testing.T) {
 	reg.Rollback()
 	reg.Refresh(registry.FOR_WRITE)
 
-	v1, _, err := f1.UpsertVersionWithObject("v2", Object{"req": "test"}, registry.ADD_ADD, false)
+	v1, _, err := f1.UpsertVersionWithObject(&registry.VersionUpsert{
+		Id:               "v2",
+		Obj:              Object{"req": "test"},
+		AddType:          registry.ADD_ADD,
+		More:             false,
+		DefaultVersionID: "",
+	})
 	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
@@ -909,12 +925,14 @@ func TestVersionOrdering2(t *testing.T) {
 		URL:        "/dirs/d1/files/f1",
 		Method:     "PUT",
 		ReqHeaders: []string{},
-		ReqBody: `{  "versions": {
-				    "v1": { "createdat": "` + ts1 + `","ancestor":"v1"},
-				    "v2": { "createdat": "` + ts1 + `","ancestor":"v2"},
-				    "v3": { "createdat": "` + ts1 + `","ancestor":"v3"},
-				    "v4": { "createdat": "` + ts1 + `","ancestor":"v4"},
-				    "v5": { "createdat": "` + ts1 + `","ancestor":"v5"}
+		ReqBody: `{
+  "versionid": "v1",
+  "versions": {
+    "v1": { "createdat": "` + ts1 + `","ancestor":"v1"},
+    "v2": { "createdat": "` + ts1 + `","ancestor":"v2"},
+    "v3": { "createdat": "` + ts1 + `","ancestor":"v3"},
+    "v4": { "createdat": "` + ts1 + `","ancestor":"v4"},
+    "v5": { "createdat": "` + ts1 + `","ancestor":"v5"}
 		}}`,
 
 		Code: 201,

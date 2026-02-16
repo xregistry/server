@@ -583,8 +583,10 @@ func TestAncestorOrdering(t *testing.T) {
 	XNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
 
-	// Timestamps should be the determining factor
+	// Timestamps should be the determining factor.
+	// "versionsid" make sure we don't create the implied Version "1"
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "versionid": "v1",
   "versions": {
     "v1": { "createdat": "2025-01-01T12:00:00" },
     "v2": { "createdat": "2024-01-01T12:00:00" },
@@ -675,8 +677,10 @@ func TestAncestorRoots(t *testing.T) {
 
 	// Start with singlversionroot=default (which should be 'false')
 
-	// Timestamps should be the determining factor
+	// Timestamps should be the determining factor.
+	// "versions" makes sure we don't create the implied Version "1"
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "versionid": "v1",
   "versions": {
     "v1": { "createdat": "2025-01-01T12:00:00", "ancestor":"v1" },
     "v2": { "createdat": "2024-01-01T12:00:00", "ancestor":"v2" }
@@ -870,8 +874,13 @@ func TestAncestorMaxVersions(t *testing.T) {
 
 	// the circular ref shouldn't be an issue because we'll delete the
 	// oldest one due to maxversions
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"}}}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "versionid": "v1",
+  "versions":{
+    "v1":{"ancestor":"v2"},
+    "v2":{"ancestor":"v1"}
+  }
+}`,
 		201, `{
   "fileid": "f1",
   "versionid": "v2",

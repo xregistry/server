@@ -382,6 +382,7 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 		headerReplace = append(headerReplace, replace)
 	}
 
+	list := ToJSON(resHeaders)
 	for name, value := range testHeaders {
 		if name == "*" {
 			continue
@@ -422,7 +423,8 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 		}
 
 		// t.Logf("Body: %s", string(resBody))
-		XEqual(t, "Header:"+name+"\n", resValue, value, flags...)
+		XEqual(t, "Headers:\n"+list+"\n\nBad Header:"+name+"\n",
+			resValue, value, flags...)
 		// Delete the response header so we'll know if there are any
 		// unexpected xregistry- headers left around
 		delete(resHeaders, name)

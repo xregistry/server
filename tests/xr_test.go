@@ -1085,6 +1085,7 @@ files2 / file2   true      0
     "setversionid": true,
     "setdefaultversionsticky": true,
     "hasdocument": true,
+    "versionmode": "manual",
     "singleversionroot": false,
     "attributes": {
       "ancestor": {

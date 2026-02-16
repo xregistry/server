@@ -30,7 +30,7 @@ xr create XID
   -f, --force             Force an 'update' if exist, skip pre-flight checks
   -o, --output string     Output format (none, json) when xReg metadata
                           (default "none")
-  -r, --replace           Replace entire entity (all attributes) when -f used
+  -r, --replace           Replace entire entity (all attributes)
       --set stringArray   Set an attribute: --set NAME[=(VALUE | "STRING")]
 
 xr delete XID ...

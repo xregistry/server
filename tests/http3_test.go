@@ -20,6 +20,7 @@ func TestHTTPMixedCase(t *testing.T) {
     "Dir1": {
       "files": {
         "File1": {
+          "versionid": "_",
           "versions": {
             "_": {
               "contenttype": "application/json",
@@ -1143,6 +1144,7 @@ func TestHTTPSort(t *testing.T) {
       "files": {
         "f1": {
           "name": "d1-f1",
+          "versionid": "v1",
           "versions": {
             "v1": { "name": "d1-f1-v1", "mybool": false },
             "v2": { "mybool": true },
@@ -1151,6 +1153,7 @@ func TestHTTPSort(t *testing.T) {
         },
         "f2": {
           "name": "d1-f2",
+          "versionid": "v2",
           "versions": {
             "v2": { "name": "d1-f2-v2" },
             "v1": { "name": "zzzzzzzz" },
@@ -2118,7 +2121,10 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -2143,7 +2149,10 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
 }
 `)
 
@@ -2967,11 +2976,11 @@ func TestHTTPIgnore(t *testing.T) {
     }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (2).",
+  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (3).",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
     "bad_epoch": "5",
-    "epoch": "2"
+    "epoch": "3"
   },
   "source": ":registry:entity:1005"
 }
@@ -2985,7 +2994,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
   "xid": "/dirs/d1/files/f1/versions/1",
-  "epoch": 3,
+  "epoch": 4,
   "isdefault": false,
   "createdat": "2025-12-08T20:17:53.420127887Z",
   "modifiedat": "2025-12-08T20:17:53.616724998Z",
@@ -3031,11 +3040,11 @@ func TestHTTPIgnore(t *testing.T) {
     }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (97) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (3).",
+  "title": "The specified epoch value (97) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (4).",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
     "bad_epoch": "97",
-    "epoch": "3"
+    "epoch": "4"
   },
   "source": ":registry:entity:1005"
 }
@@ -3051,7 +3060,7 @@ func TestHTTPIgnore(t *testing.T) {
     "versionid": "1",
     "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
     "xid": "/dirs/d1/files/f1/versions/1",
-    "epoch": 4,
+    "epoch": 5,
     "isdefault": false,
     "createdat": "2025-12-08T20:22:59.455521175Z",
     "modifiedat": "2025-12-08T20:22:59.702769064Z",
@@ -3077,11 +3086,11 @@ func TestHTTPIgnore(t *testing.T) {
     }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (55) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (55).",
+  "title": "The specified epoch value (55) for \"/dirs/d1/files/f1/versions/1\" does not match its current value (5).",
   "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
     "bad_epoch": "55",
-    "epoch": "55"
+    "epoch": "5"
   },
   "source": ":registry:httpStuff:3131"
 }
@@ -3348,11 +3357,11 @@ func TestHTTPIgnore(t *testing.T) {
       "d4": { "epoch": 5 }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (55) for \"/dirs/d3\" does not match its current value (55).",
+  "title": "The specified epoch value (55) for \"/dirs/d3\" does not match its current value (1).",
   "subject": "/dirs/d3",
   "args": {
     "bad_epoch": "55",
-    "epoch": "55"
+    "epoch": "1"
   },
   "source": ":registry:httpStuff:2947"
 }

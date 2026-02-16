@@ -538,10 +538,11 @@ SELECT
     v.SID AS VersionSID,
     v.UID AS VersionUID,
     v.Ancestor AS Ancestor,
-    v.CreatedAt AS Time,
+    v.CreatedAt AS CTime,
     CASE
         WHEN v.UID=v.Ancestor THEN '0-root'
         WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                    # v2.RegistrySID=v2.ResistrySID AND
                     v2.ResourceSID=v.ResourceSID AND v2.Ancestor=v.UID)
              THEN '1-middle'
         ELSE '2-leaf'

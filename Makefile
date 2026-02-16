@@ -1,6 +1,7 @@
 all: mysql cmds docs test images run
 
 MAKEFLAGS  += --no-print-directory
+SHELL      := /bin/bash -o pipefail
 
 # Notes:
 # export XR_VERBOSE=[0-9]

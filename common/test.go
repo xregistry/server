@@ -53,7 +53,7 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	exp := fmt.Sprintf("%v", expAny)
 	got := fmt.Sprintf("%v", gotAny)
 
-	orig := "\nOrigGot: " + got + "\n"
+	orig := "\nRawGot: " + got + "\n"
 
 	if exp == "*" {
 		return
