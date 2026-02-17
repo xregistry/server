@@ -200,11 +200,8 @@ func (r *Resource) IsXref() bool {
 
 	PanicIf(meta == nil, "%s: meta is gone", r.UID)
 
-	// DUG
-	// return !IsNil(meta.Get("xref"))
 	tmp := meta.Get("xref")
 	return !IsNil(tmp) && tmp != ""
-	// return meta.Get("xref") == true
 }
 
 func (m *Meta) JustSet(name string, val any) *XRError {
@@ -393,25 +390,6 @@ func (r *Resource) EnsureLatest() *XRError {
 		}
 	}
 	return nil
-	/*
-
-		// If it's sticky, just exit. Nothing to check
-		if meta.Get("defaultversionsticky") == true {
-			return nil
-		}
-
-		newDefault, xErr := r.GetNewestVersionID()
-		Must(xErr)
-		PanicIf(newDefault == "", "No versions")
-
-		currentDefault := meta.GetAsString("defaultversionid")
-		if currentDefault == newDefault {
-			// Already set
-			return nil
-		}
-
-		return meta.SetSave("defaultversionid", newDefault)
-	*/
 }
 
 // Note will set sticky if vID != ""
@@ -539,8 +517,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	// any changes due to the current operation.
 	targetEpoch := 0
 	if targetXref := meta.Object["xref"]; targetXref != nil {
-		// if meta.Get("xref") != nil {  // DUG
-		// targetEpochAny := r.Get("epoch")
 		tStr := targetXref.(string)
 		tgtR, xErr := meta.Registry.FindResourceByXID(tStr, meta.XID)
 		if xErr != nil {
@@ -757,14 +733,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 					meta.JustSet("defaultversionid", defVer)
 				}
 			}
-
-			/*
-				defVerIDany := meta.NewObject["defaultversionid"]
-				xErr = r.SetDefaultID(NotNilString(&defVerIDany))
-				if xErr != nil {
-					return nil, false, xErr
-				}
-			*/
 		} else {
 			// Clear all existing attributes except ID
 			oldEpoch := meta.Object["epoch"]
@@ -826,7 +794,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 	}
 
-	// log.Printf("in meta.upsert sticky=%v", meta.Object["defaultversionsticky"])
 	oldSticky := meta.Object["defaultversionsticky"]
 	newDefID := meta.NewObject["defaultversionid"]
 	if IsNil(newDefID) {
@@ -834,13 +801,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	if oldSticky != true && newDefID == "" {
-		/*
-			vID, xErr := r.GetNewestVersionID()
-			if xErr != nil {
-				return nil, false, xErr
-			}
-			meta.JustSet("defaultversionid", vID)
-		*/
 		meta.JustSet("defaultversionid", "")
 	}
 
@@ -882,30 +842,17 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 	}
 	sticky := (stickyAny == true)
 
-	/*
-		log.Printf("-----")
-		log.Printf("In processversioninfoi: meta.old: %s", ToJSON(m.Object))
-		log.Printf("In processversioninfoi: meta.new: %s", ToJSON(m.NewObject))
-		ShowStack()
-	*/
-
 	defaultVersionID := ""
 	verIDAny := m.Get("defaultversionid")
 	verID := m.GetAsString("defaultversionid")
 	// if IsNil(verIDAny) || verIDAny == "" || !sticky {
 	if verID == "" || !sticky {
-		// log.Printf("getting newest")
-		// vs, _ := r.GetOrderedVersionIDs()
-		// log.Printf("  ORDER: %v", ToJSON(vs))
-
 		v, xErr := r.GetNewest()
 		Must(xErr)
 		if v != nil {
 			defaultVersionID = v.UID
-			// log.Printf("  newest: %s", v.UID)
 		}
 	} else {
-		// log.Printf("sticky!!")
 		if tmp := reflect.ValueOf(verIDAny).Kind(); tmp != reflect.String {
 			return NewXRError("invalid_attribute", m.XID,
 				"name=defaultversionid",
@@ -917,17 +864,6 @@ func (r *Resource) ProcessVersionInfo() *XRError {
 				"name=defaultversionid",
 				"error_detail=must not be an empty string")
 		}
-
-		/* DUG remove error
-		if !sticky {
-			v, xErr := r.GetNewest()
-			Must(xErr)
-			if v != nil && v.UID != defaultVersionID {
-				return NewXRError("wrong_defaultversionid", m.XID,
-					"id="+v.UID)
-			}
-		}
-		*/
 	}
 
 	if defaultVersionID != "" {
@@ -987,12 +923,6 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", vu.Id, vu.AddType, vu.More)
 	defer log.VPrintf(3, "<Exit: UpsertVersion")
 
-	// DUG can delete when done
-	if vu.Id == "request" {
-		log.Printf("upsertver.vu: %s", ToJSON(vu))
-		ShowStack()
-	}
-
 	if xErr := r.Registry.SaveModel(); xErr != nil {
 		return nil, false, xErr
 	}
@@ -1017,12 +947,8 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		}
 	}
 
-	// log.Printf("%s is xref: %v", r.XID, r.IsXref())
-	// log.Printf("meta.old: %v", ToJSON(meta.Object))
-	// log.Printf("meta.new: %v", ToJSON(meta.NewObject))  //DUG
 	if r.IsXref() {
 		return nil, false,
-			// NewXRError("extra_xref_attribute", r.XID, "name=versions")
 			NewXRError("bad_request", r.XID,
 				"error_detail=Cannot update Resource \""+r.XID+
 					"\" in this way since it uses \"xref\"")

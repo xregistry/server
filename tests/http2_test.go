@@ -6673,34 +6673,6 @@ func TestHTTPNestedResources(t *testing.T) {
 `,
 	})
 
-	/*  DUG - old semantics
-		XCheckHTTP(t, reg, &HTTPTest{
-			Name:       "PUT /RID + sticky null",
-			URL:        "/dirs/d1/files/f1$details",
-			Method:     "PUT",
-			ReqHeaders: []string{},
-			ReqBody: `{
-	          "description": "f1.2",
-			  "meta": {
-			    "defaultversionsticky": null,
-			    "defaultversionid": "v3"
-			  }
-	        }`,
-			Code:       400,
-			ResHeaders: []string{},
-			ResBody: `{
-	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#wrong_defaultversionid",
-	  "title": "For \"/dirs/d1/files/f1/meta\", the \"defaultversionid\" needs to be \"1\" since \"defaultversionsticky\" is \"false\".",
-	  "subject": "/dirs/d1/files/f1/meta",
-	  "args": {
-	    "id": "1"
-	  },
-	  "source": ":registry:resource:840"
-	}
-	`,
-		})
-	*/
-
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + sticky null",
 		URL:        "/dirs/d1/files/f1$details",
@@ -6813,33 +6785,6 @@ func TestHTTPNestedResources(t *testing.T) {
   "defaultversionsticky": false
 }
 `)
-
-	/* DUG old semantics
-		XCheckHTTP(t, reg, &HTTPTest{
-			Name:       "PUT /RID + missing sticky",
-			URL:        "/dirs/d1/files/f1$details",
-			Method:     "PUT",
-			ReqHeaders: []string{},
-			ReqBody: `{
-	          "description": "f1.3",
-			  "meta": {
-			    "defaultversionid": "v3"
-			  }
-	        }`,
-			Code:       400,
-			ResHeaders: []string{},
-			ResBody: `{
-	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#wrong_defaultversionid",
-	  "title": "For \"/dirs/d1/files/f1/meta\", the \"defaultversionid\" needs to be \"1\" since \"defaultversionsticky\" is \"false\".",
-	  "subject": "/dirs/d1/files/f1/meta",
-	  "args": {
-	    "id": "1"
-	  },
-	  "source": ":registry:resource:840"
-	}
-	`,
-		})
-	*/
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT /RID + just sticky",

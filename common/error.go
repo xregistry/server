@@ -288,10 +288,6 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `While creating a new Version for "<subject>", a "versionid" was specified but the "setversionid" model aspect for entities of type "<plural>" is "false".`,
 	},
-	"wrong_defaultversionid": &XRError{
-		Code:  400,
-		Title: `For "<subject>", the "defaultversionid" needs to be "<id>" since "defaultversionsticky" is "false".`,
-	},
 
 	// MODEL SPEC
 

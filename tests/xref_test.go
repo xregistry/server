@@ -1491,23 +1491,6 @@ func TestXrefRevert(t *testing.T) {
 }
 `)
 
-	// defaultversionid is bad because we're not sticky
-	/*  DUG old semantics
-		XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
-			`{"xref":null,
-	          "defaultversionid": "bb"}`, 400,
-			`{
-	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#wrong_defaultversionid",
-	  "title": "For \"/dirs/d1/files/fx/meta\", the \"defaultversionid\" needs to be \"1\" since \"defaultversionsticky\" is \"false\".",
-	  "subject": "/dirs/d1/files/fx/meta",
-	  "args": {
-	    "id": "1"
-	  },
-	  "source": "e4e59b8a76c4:registry:resource:840"
-	}
-	`)
-	*/
-
 	// defaultversionid is bad
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":null,

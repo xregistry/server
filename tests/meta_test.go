@@ -1211,27 +1211,6 @@ func TestMetaCombos(t *testing.T) {
 `,
 	})
 
-	// Update/PUT - update it via 'defverid' - should err since not sticky
-	// except bump epoch
-	/* DUG old semantics
-		XCheckHTTP(t, reg, &HTTPTest{
-			URL:     "/dirs/d1/files/f1/meta",
-			Method:  "PUT",
-			ReqBody: `{"defaultversionid":"v1.0"}`,
-			Code:    400,
-			ResBody: `{
-	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#wrong_defaultversionid",
-	  "title": "For \"/dirs/d1/files/f1/meta\", the \"defaultversionid\" needs to be \"1\" since \"defaultversionsticky\" is \"false\".",
-	  "subject": "/dirs/d1/files/f1/meta",
-	  "args": {
-	    "id": "1"
-	  },
-	  "source": "e4e59b8a76c4:registry:resource:840"
-	}
-	`,
-		})
-	*/
-
 	// Update/PUT - stick it via 'defverid' AND sticky
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
@@ -1291,30 +1270,6 @@ func TestMetaCombos(t *testing.T) {
 }
 `,
 	})
-
-	// Update/PUT - change defverid/unstick - error
-	// Include extension
-	/* DUG OLD SEMANTICS
-		XCheckHTTP(t, reg, &HTTPTest{
-			URL:    "/dirs/d1/files/f1/meta",
-			Method: "PUT",
-			ReqBody: `{
-			  "defaultversionid":"v2.0",
-			  "defaultversionsticky":null,
-			  "foo":"bar"}`,
-			Code: 400,
-			ResBody: `{
-	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#wrong_defaultversionid",
-	  "title": "For \"/dirs/d1/files/f1/meta\", the \"defaultversionid\" needs to be \"1\" since \"defaultversionsticky\" is \"false\".",
-	  "subject": "/dirs/d1/files/f1/meta",
-	  "args": {
-	    "id": "1"
-	  },
-	  "source": "e4e59b8a76c4:registry:resource:840"
-	}
-	`,
-		})
-	*/
 
 	// Update/PUT - unstick
 	// Include extension

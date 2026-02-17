@@ -252,22 +252,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 	}
 
-	if ru.DefaultVersionID == "request" {
-		if len(versions) == 0 && r != nil { // DUG not sure what this is
-			/*
-				meta, xErr := r.FindMeta(false, FOR_READ)
-				PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
-				ru.DefaultVersionID = meta.GetAsString("defaultversionid")
-			*/
-			/*
-				return nil, false, NewXRError("defaultversionid_request",
-					g.XID+"/"+rModel.Plural+"/"+ru.Id)
-			*/
-		}
-		if len(versions) > 1 {
-			return nil, false, NewXRError("too_many_versions",
-				g.XID+"/"+rModel.Plural+"/"+ru.Id)
-		}
+	if ru.DefaultVersionID == "request" && len(versions) > 1 {
+		return nil, false, NewXRError("too_many_versions",
+			g.XID+"/"+rModel.Plural+"/"+ru.Id)
 	}
 
 	// Set incoming metaObj defaultversionid base on ru.DefaultVersionID
@@ -344,11 +331,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		if xErr != nil {
 			return nil, false, xErr
 		}
-
-		/*
-			meta, xErr = r.FindMeta(false, FOR_WRITE)
-			PanicIf(meta != nil, "Should not be nil")
-		*/
 
 		meta = &Meta{
 			Entity: Entity{
@@ -462,19 +444,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			meta.JustSet("xref", objXref)
 		}
 	}
-	// log.Printf("hasxref: %v", hasXref)
-	// log.Printf("   xref: %v", objXref)
 
 	if hasXref { // DUG!! may need these checks
-		/* Should be covered by the stuff below
-		if versions != nil {
-			return nil, false,
-				NewXRError("extra_xref_attribute", r.XID, "name=versions")
-		}
-		*/
-
-		// delete(ru.Obj, "meta")          // DUG commented out
-		delete(ru.Obj, r.Singular+"id") // DUG commented out
+		delete(ru.Obj, r.Singular+"id")
 		if len(ru.Obj) > 0 {
 			xErr := NewXRError("extra_xref_attribute", r.XID,
 				"name="+SortedKeys(ru.Obj)[0])
@@ -484,19 +456,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			}
 			return nil, false, xErr
 		}
-
-		/*
-			if xErr = g.ValidateAndSave(); xErr != nil {
-				return nil, false, xErr
-			}
-
-			if xErr = r.ProcessVersionInfo(); xErr != nil {
-				return nil, false, xErr
-			}
-
-			// All versions should have been deleted already so just return
-			return r, isNew, nil
-		*/
 	}
 
 	defaultVersion := (*Version)(nil)
@@ -539,71 +498,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				defaultVersion = v
 			}
 		}
-
-		/*
-			if xErr := r.EnsureLatest(); xErr != nil {
-				return nil, false, xErr
-			}
-		*/
 	}
-
-	/*
-		// Process the "meta" sub-object if there
-		if !IsNil(metaObj) {
-			xErr := r.ProcessVersionInfo()
-			if xErr != nil {
-				if isNew {
-					// Needed if doing local func calls to create the Resource
-					// and we don't commit/rollback the tx upon failure
-					r.Delete()
-				}
-				return nil, false, xErr
-			}
-		}
-	*/
-
-	/* Should be old
-	meta, xErr = r.FindMeta(false, FOR_READ)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
-	*/
-
-	/*
-		// Kind of late in the process but oh well
-		if meta.Get("readonly") == true {
-			return nil, false, NewXRError("readonly", r.XID)
-		}
-	*/
-
-	// old: defVerID := meta.GetAsString("defaultversionid")
 
 	if !ru.ObjIsVer {
 		// Clear any ID there since it's the Resource's
 		delete(ru.Obj, r.Singular+"id")
 	}
-
-	// If both ru.VID and objVersionID are set, they MUST match if ru.Obj is
-	// the Resource, not a new Version.
-	// Not sure this can ever happen, but just in case...
-	/* OLD check
-	if !ru.ObjIsVer && ru.VID != "" && objVersionID != "" && ru.VID != objVersionID {
-		return nil, false, NewXRError("mismatched_id",
-			r.XID+"/versions/"+ru.VID,
-			"singular=version",
-			"invalid_id="+objVersionID,
-			"expected_id="+ru.VID).SetDetailf(
-			"The desired \"versionid\"(%s) must "+
-				"match the \"versionid\" attribute(%s).", ru.VID, objVersionID)
-	}
-	*/
-
-	// If the passed-in ru.VID is empty, and we're new, look for "versionid"
-	/* OLD?
-	if ru.VID == "" && isNew && resourceDefaultVersionID != "" { // objVersionID != "" {
-		// The call to create the version will complain about passing in a vid
-		// if SetVersionID is 'false'. No need to check here too
-		ru.VID = resourceDefaultVersionID // objVersionID
-	}
-	*/
 
 	if !IsNil(metaObj) {
 		// Skip "request" for now
@@ -618,20 +518,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 	}
 
-	// log.Printf("ru: %s", ToJSON(ru))
-	// log.Printf("metaobj: %s", ToJSON(metaObj))
-	// log.Printf("resourceDefaultVersionID: %s", resourceDefaultVersionID)
-
 	if ru.VID == "" {
 		// ru.VID = defVerID
 		ru.VID = resourceDefaultVersionID // objVersionID
-
-		// If still "" then it must be new, look for meta.defaultversionid
-		/*
-			if ru.VID == "" {
-				ru.VID = ru.DefaultVersionID
-			}
-		*/
 
 		// If still "", look for meta.defaultversionid
 		if ru.VID == "" && !IsNil(metaObj) {
@@ -654,10 +543,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// If both Resource attrs and Version attrs are present, use the Version's
 	vObj := maps.Clone(ru.Obj)
 
-	// log.Printf("ru: %s", ToJSON(ru))
-	// log.Printf("resdefverid: %s", resourceDefaultVersionID)
-	// log.Printf("objVersionID: %s", objVersionID)
-	// ShowStack()
 	if !hasXref && ru.VID != "" { // DUG clean-up this use of hasXref - it's hacky
 		// Skip if ru.VID is in "versions" collection
 		if _, ok := versions[ru.VID]; !ok {
@@ -686,11 +571,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		if xErr != nil {
 			return nil, false, xErr
 		}
-		// log.Printf("Created a new version.obj: %s", ToJSON(defaultVersion.Object))
-		// log.Printf("Created a new version.new: %s", ToJSON(defaultVersion.NewObject))
 	}
-	// vs, _ := r.GetVersionIDs()
-	// log.Printf("r.vers: %s", ToJSON(vs))
 
 	if !IsNil(metaObj) {
 		if ru.DefaultVersionID == "null" {
@@ -728,31 +609,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 	*/
 
-	// Process the "meta" sub-object if there
-	// OLD: if !IsNil(metaObj) {
-	/*
-		xErr = r.ProcessVersionInfo()
-		if xErr != nil {
-			if isNew {
-				// Needed if doing local func calls to create the Resource
-				// and we don't commit/rollback the tx upon failure
-				r.Delete()
-			}
-			return nil, false, xErr
-		}
-	*/
-	// OLD: }
-
 	if xErr = g.ValidateAndSave(); xErr != nil {
 		return nil, false, xErr
 	}
-
-	// Re-process the defaultversion info in case things changed
-	/*
-		if xErr = r.ProcessVersionInfo(); xErr != nil {
-			return nil, false, xErr
-		}
-	*/
 
 	if xErr = r.ValidateResource(); xErr != nil {
 		return nil, false, xErr
