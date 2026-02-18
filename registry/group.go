@@ -551,7 +551,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				Id:               ru.VID,
 				Obj:              vObj,
 				AddType:          ru.AddType,
-				More:             true, // false,
+				More:             true,
 				DefaultVersionID: "",
 			})
 			if xErr != nil {
@@ -565,7 +565,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			Id:               ru.VID,
 			Obj:              vObj,
 			AddType:          ru.AddType,
-			More:             true, // false,
+			More:             true,
 			DefaultVersionID: "",
 		})
 		if xErr != nil {
@@ -588,11 +588,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 
 		// Uncommented
 		meta, _, xErr = r.UpsertMeta(&MetaUpsert{
-			obj:                metaObj,
-			addType:            metaAddType, // ru.AddType,
-			createVersion:      false,
-			processVersionInfo: false,
-			more:               true,
+			obj:           metaObj,
+			addType:       metaAddType, // ru.AddType,
+			createVersion: false,
+			more:          true,
 		})
 
 		if xErr != nil {
@@ -613,7 +612,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	if xErr = r.ValidateResource(); xErr != nil {
+	if xErr = r.ValidateResource(false); xErr != nil {
 		return nil, false, xErr
 	}
 

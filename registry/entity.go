@@ -106,6 +106,11 @@ func (e *Entity) ShowStack() {
 	}
 }
 
+func (e *Entity) WasTouched() bool {
+	log.VPrintf(3, "WasTouch: %s/%s", e.Singular, e.UID)
+	return e.EpochSet
+}
+
 func (e *Entity) Touch() bool {
 	log.VPrintf(3, "Touch: %s/%s", e.Singular, e.UID)
 

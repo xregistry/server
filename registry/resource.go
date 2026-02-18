@@ -462,11 +462,10 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 }
 
 type MetaUpsert struct {
-	obj                Object
-	addType            AddType
-	createVersion      bool
-	processVersionInfo bool
-	more               bool
+	obj           Object
+	addType       AddType
+	createVersion bool
+	more          bool
 }
 
 // returns *Meta, isNew, error
@@ -476,7 +475,7 @@ type MetaUpsert struct {
 // we're removing the 'xref' attr. Other cases, the http layer would have
 // already create the Resource and default version for us.
 func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
-	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, mu.addType, mu.createVersion, mu.processVersionInfo)
+	log.VPrintf(3, ">Enter: UpsertMeta(%s,%v,%v,%v)", r.UID, mu.addType, mu.createVersion, mu.more)
 	defer log.VPrintf(3, "<Exit: UpsertMeta")
 
 	// log.Printf("UpsertMeta: OBJ: %s", ToJSON(mu.obj))
@@ -804,99 +803,13 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		meta.JustSet("defaultversionid", "")
 	}
 
-	if mu.processVersionInfo {
-		if xErr = r.ProcessVersionInfo(); xErr != nil {
-			return nil, false, xErr
-		}
-
-		// Only validate if we processed the version info since if we didn't
-		// process the version info then it means we're not done setting up
-		// the meta stuff yet.
-		// We may not need this since ProcessVersionInfo will validate/save
-		// too, but if PVI returns w/o calling save() then we should make sure
-		// it is called
-		if xErr = meta.ValidateAndSave(); xErr != nil {
+	if !mu.more {
+		if xErr = r.ValidateResource(true); xErr != nil {
 			return nil, false, xErr
 		}
 	}
 
 	return meta, isNew, nil
-}
-
-func (r *Resource) ProcessVersionInfo() *XRError {
-	m, xErr := r.FindMeta(false, FOR_WRITE)
-	Must(xErr)
-
-	if !IsNil(m.Get("xref")) {
-		// If xref set then don't touch any of the defaultversion stuff
-		return nil
-	}
-
-	// Process "defaultversion" attributes
-
-	stickyAny := m.Get("defaultversionsticky")
-	if !IsNil(stickyAny) && stickyAny != true && stickyAny != false {
-		return NewXRError("invalid_attribute", m.XID,
-			"name=defaultversionsticky",
-			"error_detail=must be a boolean")
-	}
-	sticky := (stickyAny == true)
-
-	defaultVersionID := ""
-	verIDAny := m.Get("defaultversionid")
-	verID := m.GetAsString("defaultversionid")
-	// if IsNil(verIDAny) || verIDAny == "" || !sticky {
-	if verID == "" || !sticky {
-		v, xErr := r.GetNewest()
-		Must(xErr)
-		if v != nil {
-			defaultVersionID = v.UID
-		}
-	} else {
-		if tmp := reflect.ValueOf(verIDAny).Kind(); tmp != reflect.String {
-			return NewXRError("invalid_attribute", m.XID,
-				"name=defaultversionid",
-				"error_detail=must be a string")
-		}
-		defaultVersionID, _ = verIDAny.(string)
-		if defaultVersionID == "" {
-			return NewXRError("invalid_attribute", m.XID,
-				"name=defaultversionid",
-				"error_detail=must not be an empty string")
-		}
-	}
-
-	if defaultVersionID != "" {
-		// It's ok for defVerID to be "", it means we're in the middle of
-		// creating a new Resource but no versions are there yet
-		v, xErr := r.FindVersion(defaultVersionID, false, FOR_READ)
-		Must(xErr)
-		if IsNil(v) {
-			return NewXRError("unknown_id", m.XID,
-				"singular=version",
-				"id="+defaultVersionID)
-		}
-
-		// Make sure we only "touch" meta if something changed. Calling this
-		// func needs to be idempotent
-		if m.Get(r.Singular+"id") != r.UID {
-			m.JustSet(r.Singular+"id", r.UID)
-		}
-		if m.Get("defaultversionid") != defaultVersionID {
-			m.JustSet("defaultversionid", defaultVersionID)
-		}
-	} else {
-		// Bold assumption that no defaultversionid means that we're still
-		// in the process of creating things (or converting from an xRef
-		// resource to a non-xref resource) and the version isn't there yet
-		// so just return (and skip ValidateAndSave) for now. We should call
-		// this func again later in the processing though
-		return nil
-
-		// DUG do we need this "else" any more ??
-	}
-
-	return m.ValidateAndSave()
 }
 
 func (r *Resource) UpsertVersion(id string) (*Version, bool, *XRError) {
@@ -1225,7 +1138,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			}
 		}
 
-		if xErr = r.ValidateResource(); xErr != nil {
+		if xErr = r.ValidateResource(false); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -1233,11 +1146,14 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	return v, isNew, nil
 }
 
-// This is called after all of the calls to UpsertVersionWithObject are
-// done in the case where we're uploading more than one version within the
-// same tx. The "more" flag on the call to Upsert will tell us whether to
-// call this func or not (more=false -> call it)
-func (r *Resource) ValidateResource() *XRError {
+// Run all constrait check on the Resource - see:
+//
+//	spec.md#resource-processing-algorithm
+func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
+	// onlyMetaChanged indicates whether we need to do ALL checks or just
+	// ones that might have changed due to a meta.* attribute.
+	// If any Version actually changed we should run all checks.
+
 	meta, xErr := r.FindMeta(false, FOR_WRITE)
 	if xErr != nil {
 		return xErr
@@ -1249,8 +1165,10 @@ func (r *Resource) ValidateResource() *XRError {
 	}
 
 	// Clean-up and verify all Ancestor attributes before we continue
-	if xErr := r.CheckAncestors(); xErr != nil {
-		return xErr
+	if !onlyMetaChanged {
+		if xErr := r.CheckAncestors(); xErr != nil {
+			return xErr
+		}
 	}
 
 	// Make sure latest is set properly
@@ -1258,33 +1176,31 @@ func (r *Resource) ValidateResource() *XRError {
 		return xErr
 	}
 
-	// If we've reached the maximum # of Versions, then delete oldest
-	if xErr := r.EnsureMaxVersions(); xErr != nil {
-		return xErr
-	}
+	if !onlyMetaChanged {
+		// Check version compatibility here when we add support
 
-	// Flag it if we have more than one root & the resource doesn't allow it
-	if xErr := r.EnsureSingleVersionRoot(); xErr != nil {
-		return xErr
-	}
+		// If we've reached the maximum # of Versions, then delete oldest
+		if xErr := r.EnsureMaxVersions(); xErr != nil {
+			return xErr
+		}
 
-	// Flag it if we're left with any circular references of ancestors
-	if xErr := r.EnsureCircularReferences(); xErr != nil {
-		return xErr
-	}
+		// Flag it if we have more than one root & the resource doesn't allow it
+		if xErr := r.EnsureSingleVersionRoot(); xErr != nil {
+			return xErr
+		}
 
-	// vs, _ := r.GetOrderedVersionIDs()
-	// log.Printf("r.ancestors: %v", ToJSON(vs))
-
-	// Only validate meta if there's a defaultversionid. Assume that
-	// if it's missing then we're in the middle of recreating things
-	if meta.GetAsString("defaultversionid") != "" {
-		if xErr = meta.ValidateAndSave(); xErr != nil {
+		// Flag it if we're left with any circular references of ancestors
+		if xErr := r.EnsureCircularReferences(); xErr != nil {
 			return xErr
 		}
 	}
 
-	return nil
+	// Save meta if needed
+	if xErr = meta.ValidateAndSave(); xErr != nil {
+		return xErr
+	}
+
+	return r.ValidateAndSave()
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {

@@ -2392,11 +2392,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Technically, this will always "update" not "insert"
 		meta, _, xErr := resource.UpsertMeta(&MetaUpsert{
-			obj:                IncomingObj,
-			addType:            addType,
-			createVersion:      true,
-			processVersionInfo: true,
-			more:               false,
+			obj:           IncomingObj,
+			addType:       addType,
+			createVersion: true,
+			more:          false,
 		})
 
 		if xErr != nil {
