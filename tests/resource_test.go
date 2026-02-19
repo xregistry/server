@@ -566,7 +566,7 @@ func TestResourceSamples(t *testing.T) {
 	// Clean-up
 	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
 
-	// Create Resource with some Versions, no defaultversionid - PUT
+	// Create Resource with Versions, no defaultversionid - PUT
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
   "name": "foo",
   "versions": {
@@ -601,18 +601,6 @@ func TestResourceSamples(t *testing.T) {
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
-    "1": {
-      "fileid": "f1",
-      "versionid": "1",
-      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
-      "xid": "/dirs/d1/files/f1/versions/1",
-      "epoch": 1,
-      "name": "foo",
-      "isdefault": false,
-      "createdat": "2026-02-04T20:54:11.336910391Z",
-      "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "1"
-    },
     "v1": {
       "fileid": "f1",
       "versionid": "v1",
@@ -622,7 +610,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "1"
+      "ancestor": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -636,14 +624,14 @@ func TestResourceSamples(t *testing.T) {
       "ancestor": "v1"
     }
   },
-  "versionscount": 3
+  "versionscount": 2
 }
 `)
 
 	// Clean-up
 	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
 
-	// Create Resource with some Versions, no defaultversionid - PATCH
+	// Create Resource with Versions, no defaultversionid - PATCH
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
   "name": "foo",
   "versions": {
@@ -678,18 +666,6 @@ func TestResourceSamples(t *testing.T) {
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versions": {
-    "1": {
-      "fileid": "f1",
-      "versionid": "1",
-      "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
-      "xid": "/dirs/d1/files/f1/versions/1",
-      "epoch": 1,
-      "name": "foo",
-      "isdefault": false,
-      "createdat": "2026-02-04T20:54:11.336910391Z",
-      "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "1"
-    },
     "v1": {
       "fileid": "f1",
       "versionid": "v1",
@@ -699,7 +675,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "1"
+      "ancestor": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -711,6 +687,167 @@ func TestResourceSamples(t *testing.T) {
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
       "ancestor": "v1"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with Versions and unique defaultversionid - PUT
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1"
+  },
+  "versions": {
+    "v2": {},
+    "v3": {}
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-02-04T20:54:11.336910391Z",
+  "modifiedat": "2026-02-04T20:54:11.336910391Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:54:11.336910391Z",
+    "modifiedat": "2026-02-04T20:54:11.336910391Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v3",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    },
+    "v3": {
+      "fileid": "f1",
+      "versionid": "v3",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+      "xid": "/dirs/d1/files/f1/versions/v3",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v2"
+    }
+  },
+  "versionscount": 3
+}
+`)
+
+	// Clean-up
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+
+	// Create Resource with Versions and unique defaultversionid - PATCH
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1?inline=*", `{
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v1"
+  },
+  "versions": {
+    "v2": {},
+    "v3": {}
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "foo",
+  "isdefault": true,
+  "createdat": "2026-02-04T20:54:11.336910391Z",
+  "modifiedat": "2026-02-04T20:54:11.336910391Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-02-04T20:54:11.336910391Z",
+    "modifiedat": "2026-02-04T20:54:11.336910391Z",
+    "readonly": false,
+    "compatibility": "none",
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "name": "foo",
+      "isdefault": true,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v1"
+    },
+    "v3": {
+      "fileid": "f1",
+      "versionid": "v3",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+      "xid": "/dirs/d1/files/f1/versions/v3",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-02-04T20:54:11.336910391Z",
+      "modifiedat": "2026-02-04T20:54:11.336910391Z",
+      "ancestor": "v2"
     }
   },
   "versionscount": 3
@@ -1876,7 +2013,7 @@ func TestResourceSamples(t *testing.T) {
 	// Clean-up
 	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
 
-	// Patch new Resource with empty content
+	// Patch Resource with empty content
 
 	// First the set-up
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=*", `{
@@ -3371,7 +3508,43 @@ func TestResourceSamples(t *testing.T) {
 }
 `)
 
-	// Clean-up
-	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, ``)
+}
+
+// More tests that are kind of related to the previous func's
+func TestResourceFlow(t *testing.T) {
+	reg := NewRegistry("TestResourceFlow")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) //hasdoc=false
+	rm.SetVersionMode("createdat")
+
+	// NOT PART OF THE resource.md doc
+
+	// Invalid meta.defaultversionid
+
+	// Now the real test
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "versionid": "v1",
+  "name": "foo",
+  "meta": {
+    "defaultversionid": "v2",
+    "defaultversionsticky": true
+  },
+  "versions": {
+    "v3": {}
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1/meta\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "id": "v2",
+    "singular": "version"
+  },
+  "source": "55cdbec617b8:registry:entity:1451"
+}
+`)
 
 }

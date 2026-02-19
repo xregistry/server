@@ -559,17 +559,25 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			}
 		}
 	} else if !hasXref { // DUG clean-up this use of hasXref - it's hacky
-		// Creating a new version w/o an ID, must be a new resource
-		RemoveResourceAttributes(rModel, vObj)
-		defaultVersion, _, xErr = r.UpsertVersionWithObject(&VersionUpsert{
-			Id:               ru.VID,
-			Obj:              vObj,
-			AddType:          ru.AddType,
-			More:             true,
-			DefaultVersionID: "",
-		})
-		if xErr != nil {
-			return nil, false, xErr
+		// Creating a new version w/o an ID, must be a new resource.
+		// Only create it though if "versions" was empty/missing.
+		// If we ru.VID=="" then there must not be a Resource.versionid
+		// or a meta.defaultversionid, so we should only create a version
+		// with a server generated versionid IFF versions is empty.
+		// If len(versions) > 0 then we do nothing and one of them will
+		// become the default version
+		if len(versions) == 0 {
+			RemoveResourceAttributes(rModel, vObj)
+			defaultVersion, _, xErr = r.UpsertVersionWithObject(&VersionUpsert{
+				Id:               ru.VID,
+				Obj:              vObj,
+				AddType:          ru.AddType,
+				More:             true,
+				DefaultVersionID: "",
+			})
+			if xErr != nil {
+				return nil, false, xErr
+			}
 		}
 	}
 
