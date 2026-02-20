@@ -27,9 +27,11 @@ export STATIC         := -ldflags '-X=$(PKG)/common.GitCommit=$(GIT_COMMIT) \
                          -w -extldflags "-static"' -tags netgo,osusergo -a
 ifdef TEST            # Just run tests that match this regex
 TEST:=-run $(TEST)
+.PHONY: bogus
+FORCETEST=bogus
 endif
 export GO_TEST        := go test $(BUILDFLAGS) -failfast $(TEST)
-# Remove indentation from "go test" output - make copy-n-paste hard
+# Remove indentation from "go test" output - make copy-n-paste easier
 export SED            ?= | sed "s/^        //"
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
@@ -65,7 +67,7 @@ utest: .utest
 
 qtest: .qtest
 .qtest: export PANICLOG=true
-.qtest: .sharedfiles .cmds */*test.go
+.qtest: .sharedfiles .cmds */*test.go $(FORCETEST)
 	@make mysql waitformysql
 	@echo
 	@echo "# Testing"
