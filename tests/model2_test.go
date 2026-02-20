@@ -6442,8 +6442,14 @@ func TestModelIncludes(t *testing.T) {
   }
 }
 `
-	XHTTP(t, reg, "PUT", "/modelsource", str, 400,
-		`{
+	// mask: [0-9]+\.[0-9]*\.[0-9]\.||xxx
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:       "/modelsource",
+		Method:    "PUT",
+		ReqBody:   str,
+		Code:      400,
+		BodyMasks: []string{`[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:[0-9]+)?||xxx`},
+		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: error processing JSON: Get \"http://bogus.bogus.bogus.bogus.com/bogus.json\": dial tcp: lookup bogus.bogus.bogus.bogus.com on 127.0.0.53:53: no such host.",
   "args": {
@@ -6451,7 +6457,9 @@ func TestModelIncludes(t *testing.T) {
   },
   "source": "e4e59b8a76c4:common:utils:427"
 }
-`)
+`,
+		ResHeaders: []string{"*"},
+	})
 
 	// nested include with http ref
 	str = `
