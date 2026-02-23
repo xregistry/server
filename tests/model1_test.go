@@ -1468,7 +1468,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -1877,7 +1877,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -2444,7 +2444,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -3101,7 +3101,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -3733,7 +3733,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -4273,7 +4273,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -4828,7 +4828,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -5387,7 +5387,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },
@@ -5975,7 +5975,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },
@@ -7109,7 +7109,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -7399,7 +7399,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -7834,7 +7834,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -8124,7 +8124,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -8744,7 +8744,7 @@ func TestMultModel2Create(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },
@@ -9153,7 +9153,7 @@ func TestMultModel2Create(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },

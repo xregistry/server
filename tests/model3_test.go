@@ -792,7 +792,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -1371,7 +1371,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -2215,7 +2215,7 @@ func TestModelFullModel(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },

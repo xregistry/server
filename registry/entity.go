@@ -125,6 +125,13 @@ func (e *Entity) Touch() bool {
 }
 
 func (e *Entity) EnsureNewObject() bool {
+	// Save pre-Tx values in case we need to diff. NewObject will be erased
+	// and Object will be updated during a Save() so we can't diff NewObject
+	// vs Object
+	if e.OriginObject == nil {
+		e.OriginObject = maps.Clone(e.Object)
+	}
+
 	if e.NewObject == nil {
 		if e.Object == nil {
 			e.SetNewObject(map[string]any{})
@@ -134,6 +141,26 @@ func (e *Entity) EnsureNewObject() bool {
 		return true
 	}
 	return false
+}
+
+func (e *Entity) GetOrigin(path string) any {
+	// Note this will NOT do any special processing for things like
+	// Resources that Get() does - we may need to do that one day
+	pp, err := PropPathFromUI(path)
+	PanicIf(err != nil, "%s", err)
+
+	var val any
+	if e.OriginObject != nil {
+		var ok bool
+		val, ok, _ = ObjectGetProp(e.OriginObject, pp)
+		if !ok {
+			// TODO: DUG - we should not need this
+			// val, _, _ = ObjectGetProp(e.Object, pp)
+		}
+	} else {
+		val, _, _ = ObjectGetProp(e.Object, pp)
+	}
+	return val
 }
 
 func (e *Entity) Get(path string) any {
@@ -1256,8 +1283,18 @@ var PropsFuncs = []*Attribute{
 				if IsNil(compat) || isDefault {
 					delete(e.NewObject, "compatibilityauthority")
 				} else {
-					e.NewObject["compatibilityauthority"] = "external"
+					val := e.GetAsString("compatibilityauthority")
+					if val != "" && val != "external" && val != "server" {
+						return NewXRError("bad_request", e.XID,
+							"error_detail="+
+								fmt.Sprintf("Unknown \"compatibilityauthority\" value: %s",
+									val))
+					}
+					if val == "" {
+						e.NewObject["compatibilityauthority"] = "external"
+					}
 				}
+
 				return nil
 			},
 		},

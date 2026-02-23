@@ -834,7 +834,7 @@ func TestExportBasic(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },

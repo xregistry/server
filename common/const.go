@@ -41,3 +41,6 @@ const UX_IN = '.'
 // If DB_IN changes then DefaultProps in init.sql needs to change too
 const DB_IN = ','
 const DB_INDEX = '#'
+
+// Entity.Stuff keys
+const STUFF_COMPAT_ALL_VERSIONS = "compat_all_versions"

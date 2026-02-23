@@ -511,7 +511,7 @@ func TestModelLabels(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -1061,7 +1061,7 @@ func TestModelLabels(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -1653,7 +1653,7 @@ func TestModelLabels(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -2816,7 +2816,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": false,
+                "strict": true,
                 "required": true,
                 "default": "none"
               },
@@ -3823,7 +3823,7 @@ func TestModelCompatibleWith(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -4115,7 +4115,7 @@ func TestModelCompatibleWith(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -4406,7 +4406,7 @@ func TestModelCompatibleWith(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -5894,7 +5894,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -6303,7 +6303,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -6975,7 +6975,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -7384,7 +7384,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -7962,7 +7962,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -8371,7 +8371,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -8949,7 +8949,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -9358,7 +9358,7 @@ func TestModelIncludes(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -10022,7 +10022,7 @@ func TestModelMissingFields(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },

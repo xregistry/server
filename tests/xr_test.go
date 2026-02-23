@@ -1264,7 +1264,7 @@ files2 / file2   true      0
           "full",
           "full_transitive"
         ],
-        "strict": false,
+        "strict": true,
         "required": true,
         "default": "none"
       },

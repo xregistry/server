@@ -176,7 +176,9 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 		if len(dels) > 0 || len(adds) > 0 {
 			oldData, xErr = reg.DownloadObject(xid.String())
-			Error(xErr)
+			if !xErr.IsType("not_found") {
+				Error(xErr)
+			}
 		}
 
 		if len(data) > 0 {

@@ -29,8 +29,7 @@ func (v *Version) Delete() *XRError {
 // "defaultversionid" manipulation.
 // Used when xref on the Resource is set and we need to clear existing vers
 func (v *Version) JustDelete() *XRError {
-	meta, xErr := v.Resource.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "%s", xErr)
+	meta := v.Resource.MustFindMeta(false, FOR_WRITE)
 
 	if v.Resource.Touch() {
 		if xErr := meta.ValidateAndSave(); xErr != nil {

@@ -175,7 +175,7 @@ func ParseXid(xidStr string) (*Xid, error) {
 							}
 						} else if xid.Version == "meta" {
 							xid.Type = ENTITY_META
-							xid.IsEntity = false
+							xid.IsEntity = true
 							if len(parts) > 5 {
 								return nil, fmt.Errorf("XID is too long")
 							}

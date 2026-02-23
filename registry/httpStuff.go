@@ -1487,8 +1487,7 @@ FROM FullTree WHERE RegSID=? AND `
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
 		}
-		meta, err := resource.FindMeta(false, FOR_READ)
-		PanicIf(err != nil, "%s", err)
+		meta := resource.MustFindMeta(false, FOR_READ)
 
 		vID := meta.GetAsString("defaultversionid")
 		for {
@@ -2484,8 +2483,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 					"/"))
 			}
 		} else {
-			meta, xErr := resource.FindMeta(false, FOR_WRITE)
-			PanicIf(xErr != nil, "No meta %q: %s", resource.UID, xErr)
+			meta := resource.MustFindMeta(false, FOR_WRITE)
 
 			if meta.Get("readonly") == true {
 				if resource.tx.RequestInfo.HasIgnore("readonly") {
@@ -2886,10 +2884,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return NewXRError("not_found", info.GetParts(4))
 	}
 
-	meta, xErr := resource.FindMeta(false, FOR_WRITE)
-	if xErr != nil {
-		return xErr
-	}
+	meta := resource.MustFindMeta(false, FOR_WRITE)
 
 	if len(info.Parts) == 4 {
 		// DELETE /GROUPs/gID/RESOURCEs/rID
@@ -3095,10 +3090,7 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 			continue
 		}
 
-		meta, xErr := resource.FindMeta(false, FOR_WRITE)
-		if xErr != nil {
-			return xErr
-		}
+		meta := resource.MustFindMeta(false, FOR_WRITE)
 
 		singular := resource.Singular + "id"
 

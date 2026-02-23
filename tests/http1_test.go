@@ -955,7 +955,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -1536,7 +1536,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -2144,7 +2144,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": false,
+              "strict": true,
               "required": true,
               "default": "none"
             },
@@ -7833,21 +7833,37 @@ func TestHTTPCompatility(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
-		`{"compatibility":"mine"}`, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 4,
-  "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:02Z",
-  "readonly": false,
-  "compatibility": "mine",
-  "compatibilityauthority": "external",
+	/* old semantics
+		XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+			`{"compatibility":"mine"}`, 200, `{
+	  "fileid": "f1",
+	  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+	  "xid": "/dirs/d1/files/f1/meta",
+	  "epoch": 4,
+	  "createdat": "2025-01-01T12:00:01Z",
+	  "modifiedat": "2025-01-01T12:00:02Z",
+	  "readonly": false,
+	  "compatibility": "mine",
+	  "compatibilityauthority": "external",
 
-  "defaultversionid": "1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
-  "defaultversionsticky": false
+	  "defaultversionid": "1",
+	  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+	  "defaultversionsticky": false
+	}
+	`)
+	*/
+
+	// New semantics
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"compatibility":"mine"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"compatibility\" for \"/dirs/d1/files/f1/meta\" is not valid: value (mine) must be one of the enum values: none, backward, backward_transitive, forward, forward_transitive, full, full_transitive.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (mine) must be one of the enum values: none, backward, backward_transitive, forward, forward_transitive, full, full_transitive",
+    "name": "compatibility"
+  },
+  "source": "dea6f3070dde:registry:entity:2665"
 }
 `)
 

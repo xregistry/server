@@ -11,13 +11,19 @@ import (
 type Entity struct {
 	EntityExtensions
 
-	Registry  *Registry `json:"-"`
-	DbSID     string    // Entity's SID
-	Plural    string
-	Singular  string
-	UID       string         // Entity's UID
-	Object    map[string]any `json:"-"`
-	NewObject map[string]any `json:"-"` // updated version, save() will store
+	Registry     *Registry `json:"-"`
+	DbSID        string    // Entity's SID
+	Plural       string
+	Singular     string
+	UID          string         // Entity's UID
+	Object       map[string]any `json:"-"`
+	NewObject    map[string]any `json:"-"` // updated version, save() will store
+	OriginObject map[string]any `json:"-"` // pre-Tx values
+	// I'm not sure if OriginObject is the best way to go. I added it so that
+	// EnsureCompat could view the original value of "compat" but I also could
+	// have just set a flag on Meta when "compat" changed (via the
+	// updateFn(), and then avoid cloning the entire Object. Just something
+	// to think about for the future
 
 	// These were added just for convenience and so we can use the same
 	// struct for traversing the SQL results
@@ -321,7 +327,7 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 		Enum: []any{"none", "backward", "backward_transitive", "forward",
 			"forward_transitive", "full", "full_transitive"},
-		Strict:   PtrBool(false),
+		Strict:   PtrBool(true),
 		Required: true,
 		Default:  "none",
 

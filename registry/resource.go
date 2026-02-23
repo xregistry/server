@@ -117,8 +117,7 @@ var _ EntitySetter = &Meta{}
 func (r *Resource) Get(name string) any {
 	log.VPrintf(4, "Get: r(%s).Get(%s)", r.UID, name)
 
-	meta, xErr := r.FindMeta(false, FOR_READ)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_READ)
 
 	xrefStr, xref, xErr := r.GetXref()
 	Must(xErr)
@@ -146,8 +145,7 @@ func (r *Resource) Get(name string) any {
 }
 
 func (r *Resource) GetXref() (string, *Resource, *XRError) {
-	meta, xErr := r.FindMeta(false, FOR_READ)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_READ)
 
 	tmp := meta.Get("xref")
 	if IsNil(tmp) {
@@ -195,12 +193,7 @@ func (r *Resource) GetXref() (string, *Resource, *XRError) {
 }
 
 func (r *Resource) IsXref() bool {
-	meta, xErr := r.FindMeta(false, FOR_READ)
-	Must(xErr)
-
-	PanicIf(meta == nil, "%s: meta is gone", r.UID)
-
-	tmp := meta.Get("xref")
+	tmp := r.MustFindMeta(false, FOR_READ).Get("xref")
 	return !IsNil(tmp) && tmp != ""
 }
 
@@ -211,8 +204,7 @@ func (m *Meta) JustSet(name string, val any) *XRError {
 
 func (r *Resource) JustSetMeta(name string, val any) *XRError {
 	log.VPrintf(4, "JustSetMeta: r(%s).Set(%s,%v)", r.UID, name, val)
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 	return meta.Entity.eJustSet(NewPPP(name), val)
 }
 
@@ -241,8 +233,7 @@ func (m *Meta) SetSave(name string, val any) *XRError {
 func (r *Resource) SetSaveMeta(name string, val any) *XRError {
 	log.VPrintf(4, "SetSaveMeta: r(%s).Set(%s,%v)", r.UID, name, val)
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "%s", xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 	return meta.Entity.eSetSave(name, val)
 }
 
@@ -269,11 +260,18 @@ func (r *Resource) SetSaveDefault(name string, val any) *XRError {
 }
 
 func (r *Resource) Touch() bool {
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
+	return r.MustFindMeta(false, FOR_WRITE).Touch()
+}
+
+func (r *Resource) MustFindMeta(anyCase bool, accessMode int) *Meta {
+	meta, xErr := r.FindMeta(anyCase, accessMode)
 	if xErr != nil {
 		panic(xErr)
 	}
-	return meta.Touch()
+	if IsNil(meta) {
+		panic("Meta is missing:" + r.UID)
+	}
+	return meta
 }
 
 func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
@@ -371,8 +369,7 @@ func (r *Resource) GetNewest() (*Version, *XRError) {
 }
 
 func (r *Resource) EnsureLatest() *XRError {
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	currentDefault := meta.GetAsString("defaultversionid")
 
@@ -425,8 +422,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 			"name=defaultversionid")
 	}
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	newDefaultID := ""
 	if newDefault != nil {
@@ -442,6 +438,7 @@ func (r *Resource) SetDefault(newDefault *Version) *XRError {
 		return nil
 	}
 
+	var xErr *XRError
 	if newDefaultID == "" {
 		if xErr := meta.JustSet("defaultversionsticky", nil); xErr != nil {
 			return xErr
@@ -488,8 +485,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	if meta.Get("readonly") == true {
 		if r.tx.RequestInfo.HasIgnore("readonly") {
@@ -669,13 +665,13 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
-		if xErr = meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
+		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
 		}
 
 		r.tx.AddMeta(meta)
 
-		if xErr = meta.SetSave("#nextversionid", 1); xErr != nil {
+		if xErr := meta.SetSave("#nextversionid", 1); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -696,7 +692,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.Object["epoch"] = newEpoch
 
 			delete(meta.NewObject, "xref")
-			if xErr = meta.JustSet("xref", nil); xErr != nil {
+			if xErr := meta.JustSet("xref", nil); xErr != nil {
 				return nil, false, xErr
 			}
 
@@ -769,7 +765,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				return nil, false, xErr
 			}
 
-			if xErr = meta.JustSet("xref", xref); xErr != nil {
+			if xErr := meta.JustSet("xref", xref); xErr != nil {
 				return nil, false, xErr
 			}
 
@@ -804,7 +800,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	if !mu.more {
-		if xErr = r.ValidateResource(true); xErr != nil {
+		if xErr := r.ValidateResource(true); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -849,8 +845,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			"singular="+r.ResourceModel.Singular)
 	}
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	if meta.Get("readonly") == true {
 		if r.tx.RequestInfo.HasIgnore("readonly") {
@@ -882,7 +877,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 						"error_detail="+
 							fmt.Sprintf(`must be a string, not %T`, val))
 			}
-			if xErr = IsValidID(valStr, "ancestor"); xErr != nil {
+			if xErr := IsValidID(valStr, "ancestor"); xErr != nil {
 				xErr.Subject = r.XID
 				return nil, false, xErr
 			}
@@ -892,13 +887,15 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	var v *Version
 	gm, rm := r.GetModels()
 
+	var xErr *XRError
+
 	if vu.Id == "" {
 		// No versionID provided so grab the next available one
 		tmp := meta.Get("#nextversionid")
 		nextID := NotNilInt(&tmp)
 		for {
 			vu.Id = strconv.Itoa(nextID)
-			v, xErr = r.FindVersion(vu.Id, false, FOR_WRITE)
+			v, xErr := r.FindVersion(vu.Id, false, FOR_WRITE)
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -1138,6 +1135,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			}
 		}
 
+		/*
+			if xErr = meta.ValidateAndSave(); xErr != nil {
+				return nil, false, xErr
+			}
+		*/
+
 		if xErr = r.ValidateResource(false); xErr != nil {
 			return nil, false, xErr
 		}
@@ -1154,10 +1157,10 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 	// ones that might have changed due to a meta.* attribute.
 	// If any Version actually changed we should run all checks.
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	if xErr != nil {
-		return xErr
-	}
+	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v)", r.UID, onlyMetaChanged)
+	defer log.VPrintf(3, "<Exit: ValiateResource")
+
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	// If xref is set then we don't need to check anything
 	if meta.GetAsString("xref") != "" {
@@ -1176,9 +1179,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 		return xErr
 	}
 
-	if !onlyMetaChanged {
-		// Check version compatibility here when we add support
+	// Validate compat between Versions if needed
+	if xErr := r.EnsureCompat(); xErr != nil {
+		return xErr
+	}
 
+	if !onlyMetaChanged {
 		// If we've reached the maximum # of Versions, then delete oldest
 		if xErr := r.EnsureMaxVersions(); xErr != nil {
 			return xErr
@@ -1196,7 +1202,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 	}
 
 	// Save meta if needed
-	if xErr = meta.ValidateAndSave(); xErr != nil {
+	if xErr := meta.ValidateAndSave(); xErr != nil {
 		return xErr
 	}
 
@@ -1435,19 +1441,18 @@ func (r *Resource) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Resource.Delete(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: Resource.Delete")
 
-	meta, xErr := r.FindMeta(false, FOR_WRITE)
-	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	if meta.Get("readonly") == true {
 		return NewXRError("readonly", r.XID)
 	}
 
-	if xErr = meta.Delete(); xErr != nil {
+	if xErr := meta.Delete(); xErr != nil {
 		return xErr
 	}
 
 	if r.Group.Touch() {
-		if xErr = r.Group.ValidateAndSave(); xErr != nil {
+		if xErr := r.Group.ValidateAndSave(); xErr != nil {
 			return xErr
 		}
 	}
@@ -1539,4 +1544,207 @@ func (r *Resource) DumpOrderedVersions() {
 	vs, xErr := r.GetOrderedVersionIDs()
 	Must(xErr)
 	log.Printf("Resource(%s).OrderedVersions:\n%s", r.XID, ToJSON(vs))
+}
+
+func (r *Resource) EnsureCompat() *XRError {
+	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
+	defer log.VPrintf(3, "<Exit: EnsureCompat")
+
+	meta := r.MustFindMeta(false, FOR_READ)
+
+	/*
+		compat := meta.Get("compatibility")
+		if compat == "none" {
+			return nil
+		}
+	*/
+
+	// Check all versions, not just changed ones?
+	doAll := false
+
+	/*
+		oldCompat := meta.Object["compatibility"]
+		oldAuth := meta.Object["compatibilityauthority"]
+		newCompat := meta.NewObject["compatibility"]
+		newAuth := meta.NewObject["compatibilityauthority"]
+	*/
+	oldCompat := meta.GetOrigin("compatibility")
+	oldAuth := meta.GetOrigin("compatibilityauthority")
+	newCompat := meta.GetAsString("compatibility")
+	newAuth := meta.Get("compatibilityauthority")
+
+	compat := newCompat
+	if compat == "none" || compat == "" {
+		return nil
+	}
+
+	// Check all versions if auth=server is new, or we've changed compat
+	if (oldAuth != newAuth && newAuth == "server") || oldCompat != newCompat {
+		doAll = true
+	}
+
+	// Get the complete list of Versions and ancestor orders.
+	// We'll use this to build our easy look-ups as we process things.
+	orderedVAs, xErr := r.GetOrderedVersionIDs()
+	if xErr != nil {
+		return xErr
+	}
+
+	// 1 or 0 Versions - just stop, gotta be ok
+	// If we ever need to check for valid format then we need to change this
+	if len(orderedVAs) < 2 {
+		log.Printf("Less than 2 versions, so no check needed")
+		return nil
+	}
+
+	childrenMap := map[string][]string{} // v.UID -> []child.UID
+	changedVersions := []string{}        // v.UID    (*Version){}
+	doneChecks := map[string]bool{}      // "newID">"oldID" -> true
+	ancestorMap := map[string]string{}   // v.UID -> v.ancestorUID
+
+	doCheck := func(oldVID string, newVID string) *XRError {
+		PanicIf(oldVID == "", "can't be empty")
+		PanicIf(newVID == "", "can't be empty")
+
+		// I'm always compatible with myself. Just in case caller doesn't check
+		if oldVID == newVID {
+			return nil
+		}
+
+		key := newVID + ">" + oldVID
+		if doneChecks[key] {
+			// Already checked
+			return nil
+		}
+		oldV, xErr := r.FindVersion(oldVID, false, FOR_READ)
+		PanicIf(!IsNil(xErr) || IsNil(oldV), "%s: %s", oldVID, ToJSON(xErr))
+		newV, xErr := r.FindVersion(newVID, false, FOR_READ)
+		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
+
+		// Do actual check here
+		log.Printf("Compat check: old(%s) new(%s)", oldV.UID, newV.UID)
+
+		doneChecks[key] = true
+		return nil
+	}
+
+	// Loop over all of the Resource's Versions
+	for _, va := range orderedVAs {
+		// For each Version, save it's list of ancestors for easy lookup later.
+		// Note that we may need this even if the Version didn't change
+		oldList := childrenMap[va.Ancestor]
+		childrenMap[va.Ancestor] = append(oldList, va.VID)
+
+		// Save for easy look-up later
+		ancestorMap[va.VID] = va.Ancestor
+		PanicIf(va.Ancestor == "", "Not good")
+
+		// Calc all changed versions - the ones we want to check.
+		// Unless we're checking all Versions, if it's not in the cache
+		// then it didn't change
+		ver := r.tx.GetVersion(r, va.VID)
+		if !doAll && IsNil(ver) {
+			continue
+		}
+
+		// Build our list of changed Versions.
+		// doAll would be true in cases like turns on compat checking
+		if doAll || ver.EpochSet {
+			changedVersions = append(changedVersions, va.VID)
+		}
+	}
+
+	// for all changed versions do compat checking
+	compatFound := false
+	for _, verID := range changedVersions {
+		if compat == "backward" || compat == "full" {
+			compatFound = true
+			// compatible w/ the next oldest Ver
+			if xErr := doCheck(ancestorMap[verID], verID); xErr != nil {
+				return xErr
+			}
+
+			for _, childUID := range childrenMap[verID] {
+				if xErr := doCheck(verID, childUID); xErr != nil {
+					return xErr
+				}
+			}
+		}
+
+		if compat == "backward_transitive" || compat == "full_transitive" {
+			compatFound = true
+			// compatible w/ all older Ver
+			currentID := verID
+			for {
+				prevID := ancestorMap[currentID]
+				if prevID == currentID { // root, so stop
+					break
+				}
+
+				if xErr := doCheck(prevID, currentID); xErr != nil {
+					return xErr
+				}
+				currentID = prevID
+			}
+
+			// Make sure we didn't break our children's compat
+			for _, childUID := range childrenMap[verID] {
+				if xErr := doCheck(verID, childUID); xErr != nil {
+					return xErr
+				}
+			}
+		}
+
+		if compat == "forward" || compat == "full" {
+			compatFound = true
+			// compatible w/ the next newest Ver
+			for _, childUID := range childrenMap[verID] {
+				if xErr := doCheck(childUID, verID); xErr != nil {
+					return xErr
+				}
+			}
+
+			if xErr := doCheck(verID, ancestorMap[verID]); xErr != nil {
+				return xErr
+			}
+		}
+
+		if compat == "forward_transitive" || compat == "full_transivite" {
+			compatFound = true
+			// compatible w/ all newer Versions
+			list := [][2]string{} // [old,new]
+			// Start our psuedo-recursive list of old/new pairs to check
+			for _, childID := range childrenMap[verID] {
+				list = append(list, [2]string{verID, childID})
+			}
+
+			for len(list) != 0 {
+				item := list[0] // [old,new]
+				list = list[1:]
+
+				if xErr := doCheck(item[1], item[0]); xErr != nil { // reverse
+					return xErr
+				}
+
+				// Now be recursive by adding this item's children to "list"
+				for _, childID := range childrenMap[item[1]] {
+					list = append(list, [2]string{item[1], childID})
+				}
+			}
+
+			// Now check our ancestor
+			if xErr := doCheck(verID, ancestorMap[verID]); xErr != nil {
+				return xErr
+			}
+		}
+
+		if !compatFound {
+			// Should never get here
+			return NewXRError("server_error", r.XID+"/meta").
+				SetDetail(fmt.Sprintf("Unknown \"compatibility\" value: %s.",
+					compat))
+		}
+	}
+
+	return nil
 }

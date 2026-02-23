@@ -153,8 +153,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
 
 	if r != nil {
-		meta, xErr := r.FindMeta(false, FOR_READ)
-		PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+		meta := r.MustFindMeta(false, FOR_READ)
 		if meta.Get("readonly") == true {
 			if r.tx.RequestInfo.HasIgnore("readonly") {
 				// Ignoring that it's read-only but also stopping
@@ -390,9 +389,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// If still not found/set then leave it blank since "" will use
 		// #nextversionid automatically when we create the new version
 	} else {
-		meta, xErr = r.FindMeta(false, FOR_WRITE)
-		PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
-
+		meta = r.MustFindMeta(false, FOR_WRITE)
 		resourceDefaultVersionID = meta.GetAsString("defaultversionid")
 	}
 
