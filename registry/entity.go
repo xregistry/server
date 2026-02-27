@@ -1275,25 +1275,27 @@ var PropsFuncs = []*Attribute{
 		Name: "compatibilityauthority",
 		internals: &AttrInternals{
 			updateFn: func(e *Entity) *XRError {
-				if !IsNil(e.NewObject["xref"]) {
-					return nil
-				}
-				compat, _ := e.NewObject["compatibility"]
-				isDefault := (compat == SpecProps["compatibility"].Default)
-				if IsNil(compat) || isDefault {
-					delete(e.NewObject, "compatibilityauthority")
-				} else {
-					val := e.GetAsString("compatibilityauthority")
-					if val != "" && val != "external" && val != "server" {
-						return NewXRError("bad_request", e.XID,
-							"error_detail="+
-								fmt.Sprintf("Unknown \"compatibilityauthority\" value: %s",
-									val))
+				/*
+					if !IsNil(e.NewObject["xref"]) {
+						return nil
 					}
-					if val == "" {
-						e.NewObject["compatibilityauthority"] = "external"
+					compat, _ := e.NewObject["compatibility"]
+					isDefault := (compat == SpecProps["compatibility"].Default)
+					if IsNil(compat) || isDefault {
+						// delete(e.NewObject, "compatibilityauthority")
+					} else {
+						val := e.GetAsString("compatibilityauthority")
+						if val != "" && val != "external" && val != "server" {
+							return NewXRError("bad_request", e.XID,
+								"error_detail="+
+									fmt.Sprintf("Unknown \"compatibilityauthority\" value: %s",
+										val))
+						}
+						if val == "" {
+							e.NewObject["compatibilityauthority"] = "external"
+						}
 					}
-				}
+				*/
 
 				return nil
 			},

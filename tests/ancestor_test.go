@@ -545,6 +545,7 @@ func TestAncestorWithSicky(t *testing.T) {
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",

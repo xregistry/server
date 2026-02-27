@@ -191,7 +191,7 @@ GROUP: dirs / dir
 
     META ATTRIBUTES:           TYPE        REQ   RO   MUT   DEFAULT
     ├ compatibility            string      y     -    y     "none"
-    ├ compatibilityauthority   string      -     -    y
+    ├ compatibilityauthority   string      y     -    y     "external"
     ├ createdat                timestamp   y     -    y
     ├ defaultversionid         string      y     -    y
     ├ defaultversionsticky     boolean     y     -    y     false
@@ -1275,7 +1275,9 @@ files2 / file2   true      0
           "external",
           "server"
         ],
-        "strict": false
+        "strict": true,
+        "required": true,
+        "default": "external"
       },
       "createdat": {
         "name": "createdat",

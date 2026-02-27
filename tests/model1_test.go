@@ -1479,7 +1479,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -1888,7 +1890,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -2455,7 +2459,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -3112,7 +3118,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -3744,7 +3752,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -4284,7 +4294,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -4839,7 +4851,9 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -5398,7 +5412,9 @@ func TestResourceModelCreate(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -5986,7 +6002,9 @@ func TestResourceModelCreate(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -7120,7 +7138,9 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -7410,7 +7430,9 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -7845,7 +7867,9 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -8135,7 +8159,9 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -8755,7 +8781,9 @@ func TestMultModel2Create(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -9164,7 +9192,9 @@ func TestMultModel2Create(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -9250,6 +9280,7 @@ func TestMultModel2Create(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs1/d1/files/f1/versions/v2$details",
@@ -9319,6 +9350,7 @@ func TestMultModel2Create(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1.1",
             "defaultversionurl": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1$details",
@@ -9392,6 +9424,7 @@ func TestMultModel2Create(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",

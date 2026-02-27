@@ -304,7 +304,9 @@
             },
             "compatibilityauthority": {
               "type": "string",
-              "enum": [ "external", "server" ]
+              "enum": [ "external", "server" ],
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "type": "object",

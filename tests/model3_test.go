@@ -803,7 +803,9 @@ func TestModelResourceAttrs(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -1382,7 +1384,9 @@ func TestModelResourceAttrs(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -2226,7 +2230,9 @@ func TestModelFullModel(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",

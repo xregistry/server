@@ -111,6 +111,7 @@ func TestExportBasic(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -215,6 +216,7 @@ func TestExportBasic(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -845,7 +847,9 @@ func TestExportBasic(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -929,6 +933,7 @@ func TestExportBasic(t *testing.T) {
           "modifiedat": "2025-01-01T12:00:04Z",
           "readonly": false,
           "compatibility": "none",
+          "compatibilityauthority": "external",
 
           "defaultversionid": "v2",
           "defaultversionurl": "#/d1/files/f1/versions/v2",
@@ -1013,6 +1018,7 @@ func TestExportBasic(t *testing.T) {
         "modifiedat": "2025-01-01T12:00:04Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "v2",
         "defaultversionurl": "#/files/f1/versions/v2",
@@ -1087,6 +1093,7 @@ func TestExportBasic(t *testing.T) {
       "modifiedat": "2025-01-01T12:00:04Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "v2",
       "defaultversionurl": "#/f1/versions/v2",
@@ -1158,6 +1165,7 @@ func TestExportBasic(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:04Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "#/versions/v2",
@@ -1209,6 +1217,7 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:04Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "v2",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1350,6 +1359,7 @@ func TestExportBasic(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1394,6 +1404,7 @@ func TestExportBasic(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "#/versions/v2",
@@ -1466,6 +1477,7 @@ func TestExportBasic(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -1575,6 +1587,7 @@ func TestExportBasic(t *testing.T) {
       "modifiedat": "2025-01-01T12:00:02Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "v2",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1690,6 +1703,7 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "v2",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -2069,6 +2083,7 @@ func TestExportURLs(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2176,6 +2191,7 @@ func TestExportURLs(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
@@ -2223,6 +2239,7 @@ func TestExportURLs(t *testing.T) {
       "modifiedat": "2025-01-01T12:00:03Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "#/f1/versions/1",
@@ -2263,6 +2280,7 @@ func TestExportURLs(t *testing.T) {
       "modifiedat": "2025-01-01T12:00:03Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2336,6 +2354,7 @@ func TestExportURLs(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2416,6 +2435,7 @@ func TestExportURLs(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:03Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2507,6 +2527,7 @@ func TestExportURLs(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
@@ -2591,6 +2612,7 @@ func TestExportNoDoc(t *testing.T) {
     "modifiedat": "2025-01-23T23:07:14.527627972Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -2617,6 +2639,7 @@ func TestExportNoDoc(t *testing.T) {
     "modifiedat": "2025-01-23T23:08:08.330305606Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "#/versions/v1",

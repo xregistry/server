@@ -370,6 +370,7 @@ func TestResourceDeprecated(t *testing.T) {
   "modifiedat": "2025-06-12T15:43:53.756277894Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
   "deprecated": {},
 
   "defaultversionid": "1",
@@ -396,6 +397,7 @@ func TestResourceDeprecated(t *testing.T) {
   "modifiedat": "2025-06-12T15:43:53.2Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
   "deprecated": {
     "effective": "2123-01-01T12:00:00.3Z",
     "removal": "2000-01-01T12:01:00.4Z",
@@ -475,6 +477,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:39:34.121124603Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -510,6 +513,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:39:34.121124603Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -552,6 +556,7 @@ func TestResourceSamples(t *testing.T) {
       "modifiedat": "2026-02-04T20:45:06.826527109Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -594,6 +599,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:54:11.336910391Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -659,6 +665,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:54:11.336910391Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -727,6 +734,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:54:11.336910391Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
@@ -808,6 +816,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:54:11.336910391Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -894,6 +903,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T20:59:37.791374128Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -971,6 +981,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T21:04:14.240631033Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1030,6 +1041,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-04T21:06:12.940653748Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -1111,6 +1123,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2021-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v0",
@@ -1174,6 +1187,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T12:15:38.555135964Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1259,6 +1273,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T12:15:38.555135964Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1343,6 +1358,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T12:15:38.555135964Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -1426,6 +1442,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T12:15:38.555135964Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1504,6 +1521,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1572,6 +1590,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T12:54:32.492627638Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1653,6 +1672,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -1720,6 +1740,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T15:45:16.34043263Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -1800,6 +1821,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -1867,6 +1889,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T15:52:51.187504012Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -1939,6 +1962,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -1987,6 +2011,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2048,6 +2073,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2097,6 +2123,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2159,6 +2186,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2209,6 +2237,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2271,6 +2300,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2322,6 +2352,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2385,6 +2416,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2436,6 +2468,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T15:57:59.428348579Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2497,6 +2530,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2549,6 +2583,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T15:57:59.428348579Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2617,6 +2652,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -2665,6 +2701,7 @@ func TestResourceSamples(t *testing.T) {
   "modifiedat": "2026-02-11T16:45:28.200011152Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "v1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -2694,6 +2731,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T16:46:02.002688282Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -2770,6 +2808,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2839,6 +2878,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T17:02:26.753415624Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2904,6 +2944,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -2975,6 +3016,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T17:06:48.948313868Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -3038,6 +3080,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -3096,6 +3139,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T18:07:21.627075803Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -3169,6 +3213,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T18:11:11.509170139Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -3240,6 +3285,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T18:13:29.243111729Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -3309,6 +3355,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T18:15:05.715666555Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
@@ -3378,6 +3425,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-11T18:15:05.715666555Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -3473,6 +3521,7 @@ func TestResourceSamples(t *testing.T) {
     "modifiedat": "2026-02-12T14:11:41.527893268Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",

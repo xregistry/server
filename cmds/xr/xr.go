@@ -66,7 +66,10 @@ func Error(obj any, args ...any) {
 	} else {
 		msg = xErr.GetTitle()
 		if xErr.Detail != "" {
-			msg += ". " + xErr.Detail
+			if !strings.HasSuffix(msg, ".") {
+				msg += "."
+			}
+			msg += " " + xErr.Detail
 		}
 	}
 

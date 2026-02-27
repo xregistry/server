@@ -65,6 +65,7 @@ func TestHTTPMixedCase(t *testing.T) {
             "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "_",
             "defaultversionurl": "#/dirs/Dir1/files/File1/versions/_",
@@ -118,6 +119,7 @@ func TestHTTPMixedCase(t *testing.T) {
             "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "666",
             "defaultversionurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
@@ -710,7 +712,9 @@ func TestHTTPModelSource(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -2921,6 +2925,7 @@ func TestHTTPIgnore(t *testing.T) {
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
@@ -2960,6 +2965,7 @@ func TestHTTPIgnore(t *testing.T) {
     "modifiedat": "2025-12-05T17:01:19.90283273Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4",

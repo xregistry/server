@@ -152,6 +152,7 @@ func TestVersionCreate(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
@@ -254,6 +255,7 @@ func TestVersionCreate(t *testing.T) {
       "modifiedat": "2024-01-01T12:00:03Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "v3",
       "defaultversionurl": "http://localhost:8181/dirs/d2/files/f1/versions/v3$details",
@@ -300,6 +302,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -335,6 +338,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -369,6 +373,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -403,6 +408,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
@@ -439,6 +445,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
@@ -473,6 +480,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
@@ -519,6 +527,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -553,6 +562,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v5",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
@@ -586,6 +596,7 @@ func TestVersionDefault(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v5",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
@@ -641,6 +652,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
@@ -675,6 +687,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
@@ -715,6 +728,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
@@ -966,6 +980,7 @@ func TestVersionOrdering2(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "v5",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5",

@@ -147,6 +147,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
         "modifiedat": "2024-01-01T12:00:01Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/bars/b1/versions/1$details",
@@ -195,6 +196,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
         "modifiedat": "2024-01-01T12:00:02Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/files/ff1/versions/1",
@@ -408,6 +410,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": true,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/dir1/files/f1/versions/v1$details",
@@ -6218,6 +6221,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6336,6 +6340,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:04Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6463,6 +6468,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "2",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/2$details",
@@ -6568,6 +6574,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:00Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6779,6 +6786,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6827,6 +6835,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
   "compatibility": "none",
+  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6868,6 +6877,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6914,6 +6924,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -6949,6 +6960,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -7022,6 +7034,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
@@ -7071,6 +7084,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2026-02-12T16:26:27.376620896Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7170,6 +7184,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2026-02-12T16:31:35.370152691Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v5",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
@@ -7277,6 +7292,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2026-02-12T16:33:53.773201679Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7384,6 +7400,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2026-02-12T16:35:12.335927456Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7429,6 +7446,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7474,6 +7492,7 @@ func TestHTTPNestedResources(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7856,6 +7875,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -7904,6 +7924,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
@@ -7950,6 +7971,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3/versions/1$details",
@@ -7998,6 +8020,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f4/versions/1$details",
@@ -8045,6 +8068,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f5/versions/1$details",
@@ -8157,6 +8181,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -8205,6 +8230,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
@@ -8307,6 +8333,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "modifiedat": "2024-01-01T12:00:01Z",
           "readonly": false,
           "compatibility": "none",
+          "compatibilityauthority": "external",
 
           "defaultversionid": "v1",
           "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -8355,6 +8382,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "modifiedat": "2024-01-01T12:00:01Z",
           "readonly": false,
           "compatibility": "none",
+          "compatibilityauthority": "external",
 
           "defaultversionid": "1",
           "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
@@ -8450,6 +8478,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "modifiedat": "2024-01-01T12:00:01Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "v1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -8498,6 +8527,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "modifiedat": "2024-01-01T12:00:01Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
@@ -8604,6 +8634,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -8652,6 +8683,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
       "compatibility": "none",
+      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1$details",
@@ -8732,6 +8764,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
     "compatibility": "none",
+    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -9251,6 +9284,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
             "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -9306,6 +9340,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
         "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "v1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",

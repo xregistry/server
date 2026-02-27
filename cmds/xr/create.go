@@ -174,7 +174,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 		oldData := map[string]any(nil)
 		dataMap := map[string]any{}
 
-		if len(dels) > 0 || len(adds) > 0 {
+		if (len(dels) > 0 || len(adds) > 0) && action == "update" {
 			oldData, xErr = reg.DownloadObject(xid.String())
 			if !xErr.IsType("not_found") {
 				Error(xErr)
@@ -286,7 +286,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 		if !rm.GetHasDocument() {
 			isMetadata = true
-		} else if isMetadata {
+		} else if isMetadata && xid.Type != ENTITY_META {
 			suffix = "$details"
 
 			// If not uploading a domain doc then make sure data has something

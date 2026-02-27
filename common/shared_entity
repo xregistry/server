@@ -336,10 +336,12 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:   "compatibilityauthority",
-		Type:   STRING,
-		Enum:   []any{"external", "server"},
-		Strict: PtrBool(false),
+		Name:     "compatibilityauthority",
+		Type:     STRING,
+		Enum:     []any{"external", "server"},
+		Strict:   PtrBool(true),
+		Required: true,
+		Default:  "external",
 
 		internals: &AttrInternals{
 			types: StrTypes(ENTITY_META),

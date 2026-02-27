@@ -522,7 +522,9 @@ func TestModelLabels(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -1072,7 +1074,9 @@ func TestModelLabels(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -1664,7 +1668,9 @@ func TestModelLabels(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -2827,7 +2833,9 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": false
+                "strict": true,
+                "required": true,
+                "default": "external"
               },
               "deprecated": {
                 "name": "deprecated",
@@ -3129,6 +3137,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
             "obj": {
               "ancestor": 8,
               "capabilities": 12,
@@ -3834,7 +3843,9 @@ func TestModelCompatibleWith(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -4126,7 +4137,9 @@ func TestModelCompatibleWith(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -4417,7 +4430,9 @@ func TestModelCompatibleWith(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -4790,7 +4805,9 @@ func TestModelIncludes(t *testing.T) {
               "enum": [
                 "external",
                 "server"
-              ]
+              ],
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "type": "object",
@@ -5320,7 +5337,9 @@ func TestModelIncludes(t *testing.T) {
               "enum": [
                 "external",
                 "server"
-              ]
+              ],
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -5905,7 +5924,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -6314,7 +6335,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -6986,7 +7009,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -7395,7 +7420,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -7973,7 +8000,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -8382,7 +8411,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -8960,7 +8991,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -9369,7 +9402,9 @@ func TestModelIncludes(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",
@@ -10033,7 +10068,9 @@ func TestModelMissingFields(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": false
+              "strict": true,
+              "required": true,
+              "default": "external"
             },
             "deprecated": {
               "name": "deprecated",

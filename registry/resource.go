@@ -1546,40 +1546,59 @@ func (r *Resource) DumpOrderedVersions() {
 	log.Printf("Resource(%s).OrderedVersions:\n%s", r.XID, ToJSON(vs))
 }
 
+type FormatChecker interface {
+	IsValid(version *Version) *XRError
+	IsCompatible(oldVersion, newVersion *Version) *XRError
+}
+
+var SupportedFormats = map[string]FormatChecker{}
+
+func RegisterFormat(name string, format FormatChecker) {
+	SupportedFormats[name] = format
+}
+
 func (r *Resource) EnsureCompat() *XRError {
 	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: EnsureCompat")
 
 	meta := r.MustFindMeta(false, FOR_READ)
 
-	/*
-		compat := meta.Get("compatibility")
-		if compat == "none" {
-			return nil
-		}
-	*/
+	format := meta.GetAsString("format")
+
+	if format == "" {
+		return nil
+	}
+
+	checker := SupportedFormats[format]
+	if IsNil(checker) {
+		return NewXRError("bad_request", r.XID,
+			"error_detail="+
+				fmt.Sprintf("Unknown format for %s: %s", r.XID, format)).
+			SetSubject(r.XID)
+	}
 
 	// Check all versions, not just changed ones?
 	doAll := false
 
-	/*
-		oldCompat := meta.Object["compatibility"]
-		oldAuth := meta.Object["compatibilityauthority"]
-		newCompat := meta.NewObject["compatibility"]
-		newAuth := meta.NewObject["compatibilityauthority"]
-	*/
 	oldCompat := meta.GetOrigin("compatibility")
 	oldAuth := meta.GetOrigin("compatibilityauthority")
 	newCompat := meta.GetAsString("compatibility")
 	newAuth := meta.Get("compatibilityauthority")
 
 	compat := newCompat
-	if compat == "none" || compat == "" {
+	/*
+		if compat == "none" || compat == "" {
+			return nil
+		}
+	*/
+
+	if newAuth != "server" {
 		return nil
 	}
 
 	// Check all versions if auth=server is new, or we've changed compat
-	if (oldAuth != newAuth && newAuth == "server") || oldCompat != newCompat {
+	if (oldAuth != newAuth && newAuth == "server") ||
+		(oldCompat != newCompat && newCompat != "none") {
 		doAll = true
 	}
 
@@ -1592,10 +1611,12 @@ func (r *Resource) EnsureCompat() *XRError {
 
 	// 1 or 0 Versions - just stop, gotta be ok
 	// If we ever need to check for valid format then we need to change this
-	if len(orderedVAs) < 2 {
-		log.Printf("Less than 2 versions, so no check needed")
-		return nil
-	}
+	/*
+		if len(orderedVAs) < 2 {
+			log.Printf("Less than 2 versions, so no check needed")
+			return nil
+		}
+	*/
 
 	childrenMap := map[string][]string{} // v.UID -> []child.UID
 	changedVersions := []string{}        // v.UID    (*Version){}
@@ -1622,7 +1643,9 @@ func (r *Resource) EnsureCompat() *XRError {
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
 		// Do actual check here
-		log.Printf("Compat check: old(%s) new(%s)", oldV.UID, newV.UID)
+		if xErr = checker.IsCompatible(oldV, newV); xErr != nil {
+			return xErr
+		}
 
 		doneChecks[key] = true
 		return nil
@@ -1643,14 +1666,34 @@ func (r *Resource) EnsureCompat() *XRError {
 		// Unless we're checking all Versions, if it's not in the cache
 		// then it didn't change
 		ver := r.tx.GetVersion(r, va.VID)
+
+		if doAll && IsNil(ver) {
+			// If we're checking all Version, make sure Ver is loaded
+			ver, xErr = r.FindVersion(va.VID, false, FOR_READ)
+			if xErr != nil {
+				return xErr
+			}
+		}
+
 		if !doAll && IsNil(ver) {
+			// Not doing all so if ver==nil then it didn't change, skip it
 			continue
 		}
 
 		// Build our list of changed Versions.
-		// doAll would be true in cases like turns on compat checking
+		// So, either doAll=true, or version's epoch was changed, otherwise
+		// skip it, it didn't change.
+		// doAll would be true in cases like turning on compat checking.
 		if doAll || ver.EpochSet {
-			changedVersions = append(changedVersions, va.VID)
+			// Validate that the Version is valid per the "format"
+			if xErr := checker.IsValid(ver); xErr != nil {
+				return xErr
+			}
+
+			// Only add to the list if we're checking for compat
+			if compat != "none" && compat != "" {
+				changedVersions = append(changedVersions, va.VID)
+			}
 		}
 	}
 

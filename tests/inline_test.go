@@ -105,6 +105,7 @@ func TestInlineBasic(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -174,6 +175,7 @@ func TestInlineBasic(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1.1",
             "defaultversionurl": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
@@ -247,6 +249,7 @@ func TestInlineBasic(t *testing.T) {
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
@@ -775,6 +778,7 @@ func TestInlineResource(t *testing.T) {
 			`"metaurl"`,
 			`"readonly"`,
 			`"compatibility"`,
+			`"compatibilityauthority"`,
 			`"defaultversionurl"`,
 			`"defaultversionsticky"`,
 			`"createdat"`,
@@ -857,6 +861,7 @@ func TestInlineWildcards(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -937,6 +942,7 @@ func TestInlineWildcards(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -1017,6 +1023,7 @@ func TestInlineWildcards(t *testing.T) {
             "modifiedat": "2025-01-01T12:00:02Z",
             "readonly": false,
             "compatibility": "none",
+            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -1201,6 +1208,7 @@ func TestInlineWildcards(t *testing.T) {
           "modifiedat": "2025-01-01T12:00:02Z",
           "readonly": false,
           "compatibility": "none",
+          "compatibilityauthority": "external",
 
           "defaultversionid": "v1",
           "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -1317,6 +1325,7 @@ func TestInlineWildcards(t *testing.T) {
         "modifiedat": "2025-01-01T12:00:02Z",
         "readonly": false,
         "compatibility": "none",
+        "compatibilityauthority": "external",
 
         "defaultversionid": "v1",
         "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",

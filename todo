@@ -142,3 +142,5 @@ TODOs:
 - add tests for setting modelsource with $include stuff - and upload data at the same time
 - support/test ignore=readonly
 - test ?setdefaultversionid in all resource (and deeper) APIs
+- add more tests for our resource processing logic
+- fix 'xr' so that they can use --data to upload doc & --add for xreg meteadata
