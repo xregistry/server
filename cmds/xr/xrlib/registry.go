@@ -99,7 +99,7 @@ func (reg *Registry) RefreshModel() *XRError {
 	if err := json.Unmarshal(res.Body, &reg.Model); err != nil {
 		return NewXRError("parse_response", "/model",
 			"error_detail="+err.Error()).
-			SetDetailf("Response: %s", string(res.Body))
+			SetDetailf("Response: %s.", string(res.Body))
 	}
 	reg.Model.ApplyDefaults()
 	reg.Model.SetPointers()
@@ -115,7 +115,7 @@ func (reg *Registry) RefreshCapabilities() *XRError {
 	if err := json.Unmarshal(res.Body, &reg.Capabilities); err != nil {
 		return NewXRError("parse_response", "/capabilities",
 			"error_detail="+err.Error()).
-			SetDetailf("Response: %s", string(res.Body))
+			SetDetailf("Response: %s.", string(res.Body))
 	}
 	return nil
 }
@@ -164,7 +164,7 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 		if err != nil {
 			return nil, NewXRError("parse_response", "/modelsource",
 				"error_detail="+err.Error()).
-				SetDetailf("Response: %s", string(reg.Model.Source))
+				SetDetailf("Response: %s.", string(reg.Model.Source))
 		}
 	}
 	tmpModel.SetPointers()
@@ -194,7 +194,7 @@ func (reg *Registry) RefreshModelSource() *XRError {
 		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
 			return NewXRError("parse_response", "/modelsource",
 				"error_detail="+err.Error()).
-				SetDetailf("Response: %s", string(res.Body))
+				SetDetailf("Response: %s.", string(res.Body))
 		}
 		reg.Model.Source = string(res.Body)
 	}
@@ -313,13 +313,13 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XR
 	}
 	if gm == nil {
 		return nil, NewXRError("not_found", xid.Group).
-			SetDetailf("Unknown Group type: %s", xid.Group)
+			SetDetailf("Unknown Group type: %s.", xid.Group)
 	}
 
 	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
 		return nil, NewXRError("not_found", xid.Resource).
-			SetDetailf("Unknown Resource type: %s", xid.Group)
+			SetDetailf("Unknown Resource type: %s.", xid.Group)
 	}
 	return rm, nil
 }

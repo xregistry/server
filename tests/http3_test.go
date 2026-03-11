@@ -64,8 +64,6 @@ func TestHTTPMixedCase(t *testing.T) {
             "createdat": "YYYY-MM-DDTHH:MM:01Z",
             "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "_",
             "defaultversionurl": "#/dirs/Dir1/files/File1/versions/_",
@@ -118,8 +116,6 @@ func TestHTTPMixedCase(t *testing.T) {
             "createdat": "YYYY-MM-DDTHH:MM:01Z",
             "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "666",
             "defaultversionurl": "#/dirs/DiR2_.-~@DiR/files/FiLe2_.-~@FiL/versions/666",
@@ -559,6 +555,10 @@ func TestHTTPModelSource(t *testing.T) {
                 "name": "contenttype",
                 "type": "string"
               },
+              "format": {
+                "name": "format",
+                "type": "string"
+              },
               "fileurl": {
                 "name": "fileurl",
                 "type": "url"
@@ -689,11 +689,19 @@ func TestHTTPModelSource(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -701,9 +709,7 @@ func TestHTTPModelSource(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -712,9 +718,7 @@ func TestHTTPModelSource(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -2924,8 +2928,6 @@ func TestHTTPIgnore(t *testing.T) {
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
@@ -2964,8 +2966,6 @@ func TestHTTPIgnore(t *testing.T) {
     "createdat": "2025-12-05T17:01:19.742647723Z",
     "modifiedat": "2025-12-05T17:01:19.90283273Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v4",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4",

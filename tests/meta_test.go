@@ -31,8 +31,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -61,8 +59,6 @@ func TestMetaSimple(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -164,8 +160,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f12/versions/1",
@@ -194,8 +188,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -225,8 +217,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -253,8 +243,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1",
@@ -283,8 +271,6 @@ func TestMetaSimple(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/1",
@@ -325,8 +311,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -352,8 +336,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -380,8 +362,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "zzz",
 
   "defaultversionid": "1",
@@ -408,8 +388,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "aaa",
 
   "defaultversionid": "1",
@@ -469,8 +447,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -493,8 +469,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f21/versions/1",
@@ -517,8 +491,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "zz1",
 
   "defaultversionid": "1",
@@ -542,8 +514,6 @@ func TestMetaSimple(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -645,8 +615,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1.0",
@@ -775,8 +743,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -860,8 +826,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -922,8 +886,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -984,8 +946,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -1022,8 +982,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -1068,8 +1026,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v2.0",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -1103,8 +1059,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:04Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -1162,8 +1116,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:04Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2.0",
@@ -1189,8 +1141,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -1224,8 +1174,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
@@ -1251,8 +1199,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v1.0",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1.0",
@@ -1286,8 +1232,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1.0",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1.0",
@@ -1314,8 +1258,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -1350,8 +1292,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
     "foo": "bar",
 
     "defaultversionid": "1",
@@ -1379,8 +1319,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "v1.0",
@@ -1415,8 +1353,6 @@ func TestMetaCombos(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
     "foo": "bar",
 
     "defaultversionid": "v1.0",
@@ -1444,8 +1380,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -1470,8 +1404,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
   "foo": "bar",
 
   "defaultversionid": "1",
@@ -1495,8 +1427,6 @@ func TestMetaCombos(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",

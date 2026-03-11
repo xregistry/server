@@ -162,15 +162,15 @@ type GroupModel struct {
 	SID   string `json:"sid,omitempty"`
 	Model *Model `json:"-"`
 
-	Plural         string            `json:"plural"`
-	Singular       string            `json:"singular"`
-	Description    string            `json:"description,omitempty"`
-	Documentation  string            `json:"documentation,omitempty"`
-	Icon           string            `json:"icon,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"`
-	ModelVersion   string            `json:"modelversion,omitempty"`
-	CompatibleWith string            `json:"compatiblewith,omitempty"`
-	Attributes     Attributes        `json:"attributes,omitempty"`
+	Plural              string            `json:"plural"`
+	Singular            string            `json:"singular"`
+	Description         string            `json:"description,omitempty"`
+	Documentation       string            `json:"documentation,omitempty"`
+	Icon                string            `json:"icon,omitempty"`
+	Labels              map[string]string `json:"labels,omitempty"`
+	ModelVersion        string            `json:"modelversion,omitempty"`
+	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
+	Attributes          Attributes        `json:"attributes,omitempty"`
 
 	// [ GROUPS/RESOURCES * ]
 	XImportResources []string                  `json:"ximportresources,omitempty"`
@@ -185,14 +185,14 @@ type ResourceModel struct {
 	SID        string      `json:"sid,omitempty"`
 	GroupModel *GroupModel `json:"-"`
 
-	Plural         string            `json:"plural"`
-	Singular       string            `json:"singular"`
-	Description    string            `json:"description,omitempty"`
-	Documentation  string            `json:"documentation,omitempty"`
-	Icon           string            `json:"icon,omitempty"`
-	Labels         map[string]string `json:"labels,omitempty"`
-	ModelVersion   string            `json:"modelversion,omitempty"`
-	CompatibleWith string            `json:"compatiblewith,omitempty"`
+	Plural              string            `json:"plural"`
+	Singular            string            `json:"singular"`
+	Description         string            `json:"description,omitempty"`
+	Documentation       string            `json:"documentation,omitempty"`
+	Icon                string            `json:"icon,omitempty"`
+	Labels              map[string]string `json:"labels,omitempty"`
+	ModelVersion        string            `json:"modelversion,omitempty"`
+	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
 
 	MaxVersions       *int              `json:"maxversions,omitempty"`
 	SetVersionId      *bool             `json:"setversionid,omitempty"`
@@ -2188,13 +2188,13 @@ func (gm *GroupModel) GetModelVersion() string {
 	return gm.ModelVersion
 }
 
-func (gm *GroupModel) SetCompatibleWith(val string) {
-	gm.CompatibleWith = val
+func (gm *GroupModel) SetModelCompatibleWith(val string) {
+	gm.ModelCompatibleWith = val
 	gm.Model.SetChanged(true)
 }
 
-func (gm *GroupModel) GetCompatibleWith() string {
-	return gm.CompatibleWith
+func (gm *GroupModel) GetModelCompatibleWith() string {
+	return gm.ModelCompatibleWith
 }
 
 func (gm *GroupModel) GetBaseAttributes() Attributes {
@@ -2684,13 +2684,13 @@ func (rm *ResourceModel) GetModelVersion() string {
 	return rm.ModelVersion
 }
 
-func (rm *ResourceModel) SetCompatibleWith(val string) {
-	rm.CompatibleWith = val
+func (rm *ResourceModel) SetModelCompatibleWith(val string) {
+	rm.ModelCompatibleWith = val
 	rm.GroupModel.Model.SetChanged(true)
 }
 
-func (rm *ResourceModel) GetCompatibleWith() string {
-	return rm.CompatibleWith
+func (rm *ResourceModel) GetModelCompatibleWith() string {
+	return rm.ModelCompatibleWith
 }
 
 func (rm *ResourceModel) SetVersionMode(val string) {

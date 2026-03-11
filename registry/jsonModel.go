@@ -107,9 +107,9 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 		buf.WriteString(ug.ModelVersion)
 		buf.WriteRune('"')
 	}
-	if ug.CompatibleWith != "" {
-		buf.WriteString(`,"compatiblewith":"`)
-		buf.WriteString(ug.CompatibleWith)
+	if ug.ModelCompatibleWith != "" {
+		buf.WriteString(`,"modelcompatiblewith":"`)
+		buf.WriteString(ug.ModelCompatibleWith)
 		buf.WriteRune('"')
 	}
 	extra = ","
@@ -185,9 +185,9 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.WriteString(ur.ModelVersion)
 		buf.WriteRune('"')
 	}
-	if ur.CompatibleWith != "" {
-		buf.WriteString(`,"compatiblewith":"`)
-		buf.WriteString(ur.CompatibleWith)
+	if ur.ModelCompatibleWith != "" {
+		buf.WriteString(`,"modelcompatiblewith":"`)
+		buf.WriteString(ur.ModelCompatibleWith)
 		buf.WriteRune('"')
 	}
 

@@ -3,8 +3,8 @@
     "docs": {
       "singular": "doc",
       "resources": {
-        "formats": {
-          "singular": "format"
+        "types": {
+          "singular": "type"
         }
       }
     }

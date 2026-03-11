@@ -168,6 +168,7 @@ GROUP: dirs / dir
     ├ fileid          string       y     -    -
     ├ fileproxyurl    url          -     -    y
     ├ fileurl         url          -     -    y
+    ├ format          string       -     -    y
     ├ icon            url          -     -    y
     ├ isdefault       boolean      y     y    y     false
     ├ labels          map/string   -     -    y
@@ -190,8 +191,8 @@ GROUP: dirs / dir
     └ xid                  xid          y     y    -
 
     META ATTRIBUTES:           TYPE        REQ   RO   MUT   DEFAULT
-    ├ compatibility            string      y     -    y     "none"
-    ├ compatibilityauthority   string      y     -    y     "external"
+    ├ compatibility            string      -     -    y
+    ├ compatibilityauthority   string      -     -    y
     ├ createdat                timestamp   y     -    y
     ├ defaultversionid         string      y     -    y
     ├ defaultversionsticky     boolean     y     -    y     false
@@ -204,6 +205,7 @@ GROUP: dirs / dir
     │ └ *                      any         -     -    y
     ├ epoch                    uinteger    y     y    y
     ├ fileid                   string      y     -    -
+    ├ formatauthority          string      -     -    y
     ├ modifiedat               timestamp   y     -    y
     ├ readonly                 boolean     y     y    y     false
     ├ self                     url         y     y    -
@@ -292,13 +294,13 @@ GROUP: dirs / dir
 
 GROUP: docs / doc
 
-  ATTRIBUTES:      TYPE         REQ   RO   MUT   DEFAULT
-  ├ formats        map/object   -     -    y
-  │ └ *            any          -     -    y
-  ├ formatscount   uinteger     y     y    y
-  └ formatsurl     url          y     y    -
+  ATTRIBUTES:    TYPE         REQ   RO   MUT   DEFAULT
+  ├ types        map/object   -     -    y
+  │ └ *          any          -     -    y
+  ├ typescount   uinteger     y     y    y
+  └ typesurl     url          y     y    -
 
-  RESOURCE: formats / format
+  RESOURCE: types / type
     Max versions      : 0
     Set version id    : true
     Set version sticky: true
@@ -1138,6 +1140,10 @@ files2 / file2   true      0
         "name": "file2url",
         "type": "url"
       },
+      "format": {
+        "name": "format",
+        "type": "string"
+      },
       "icon": {
         "name": "icon",
         "type": "url"
@@ -1256,7 +1262,6 @@ files2 / file2   true      0
         "name": "compatibility",
         "type": "string",
         "enum": [
-          "none",
           "backward",
           "backward_transitive",
           "forward",
@@ -1264,9 +1269,7 @@ files2 / file2   true      0
           "full",
           "full_transitive"
         ],
-        "strict": true,
-        "required": true,
-        "default": "none"
+        "strict": true
       },
       "compatibilityauthority": {
         "name": "compatibilityauthority",
@@ -1275,9 +1278,7 @@ files2 / file2   true      0
           "external",
           "server"
         ],
-        "strict": true,
-        "required": true,
-        "default": "external"
+        "strict": false
       },
       "createdat": {
         "name": "createdat",
@@ -1338,6 +1339,15 @@ files2 / file2   true      0
         "type": "string",
         "immutable": true,
         "required": true
+      },
+      "formatauthority": {
+        "name": "formatauthority",
+        "type": "string",
+        "enum": [
+          "external",
+          "server"
+        ],
+        "strict": false
       },
       "modifiedat": {
         "name": "modifiedat",

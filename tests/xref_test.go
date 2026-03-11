@@ -87,8 +87,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -118,8 +116,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
@@ -153,8 +149,6 @@ func TestXrefBasic(t *testing.T) {
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -213,8 +207,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -263,8 +255,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
@@ -333,8 +323,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -380,8 +368,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:04Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
@@ -439,8 +425,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -489,8 +473,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
@@ -548,8 +530,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
@@ -597,8 +577,6 @@ func TestXrefBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:03Z",
       "modifiedat": "2024-01-01T12:00:04Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",
@@ -912,8 +890,6 @@ func TestXrefErrors(t *testing.T) {
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/bars/b1/files/f2/versions/1",
@@ -972,8 +948,6 @@ func TestXrefRevert(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f0/versions/1",
@@ -1004,8 +978,6 @@ func TestXrefRevert(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:02Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v9",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1050,8 +1022,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
@@ -1093,8 +1063,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v9",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1128,8 +1096,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
@@ -1169,8 +1135,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v9",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1208,8 +1172,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
@@ -1250,8 +1212,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v9",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1288,8 +1248,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "z1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/z1",
@@ -1330,8 +1288,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v9",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1383,8 +1339,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "b3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/b3",
@@ -1425,8 +1379,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:00Z",
     "modifiedat": "2025-01-01T12:00:00Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v9",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1480,8 +1432,6 @@ func TestXrefRevert(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "b3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/b3",
@@ -1508,8 +1458,6 @@ func TestXrefRevert(t *testing.T) {
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v9",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v9",
@@ -1544,8 +1492,6 @@ func TestXrefRevert(t *testing.T) {
   "createdat": "2025-01-09T23:16:04.619269627Z",
   "modifiedat": "2025-01-09T23:16:05.273949318Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
@@ -1618,8 +1564,6 @@ func TestXrefDocs(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1$details",

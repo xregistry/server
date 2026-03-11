@@ -220,7 +220,7 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 	for _, fileName := range args {
 		prefix := ""
 		if len(args) > 1 {
-			// prefix = fileName + ": "
+			prefix = fileName + ": "
 		}
 
 		buf, xErr = xrlib.ReadFile(fileName)
@@ -228,8 +228,9 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 			xErr = VerifyModel(fileName, buf, skipTarget)
 		}
 		if xErr != nil {
-			xErr.SetDetailf("Found at: %s", prefix)
-			// Error(err, "%s%s", prefix, err)
+			xErr.SetDetailf("Found at: %s.", prefix)
+			Error(xErr)
+			// Error(xErr, "%s%s", prefix, xErr)
 		}
 
 		Verbose("%sModel verified", prefix)
@@ -442,7 +443,7 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 
 	PrintNotEmpty(indent+"  Description    ", gm.Description, os.Stdout)
 	PrintNotEmpty(indent+"  Model version  ", gm.ModelVersion, os.Stdout)
-	PrintNotEmpty(indent+"  Compatible with", gm.CompatibleWith, os.Stdout)
+	PrintNotEmpty(indent+"  Model Compatible with", gm.ModelCompatibleWith, os.Stdout)
 
 	PrintLabels(gm.Labels, indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_GROUP, "", gm.Attributes, gm.Singular, indent+"  ",
@@ -471,7 +472,7 @@ func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, a
 	PrintNotEmpty(indent+"  Set version sticky", rm.SetDefaultSticky, os.Stdout)
 	PrintNotEmpty(indent+"  Has document      ", rm.HasDocument, os.Stdout)
 	PrintNotEmpty(indent+"  Model version     ", rm.ModelVersion, os.Stdout)
-	PrintNotEmpty(indent+"  Compatible with   ", rm.CompatibleWith, os.Stdout)
+	PrintNotEmpty(indent+"  Model Compatible with   ", rm.ModelCompatibleWith, os.Stdout)
 
 	PrintLabels(rm.Labels, indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_VERSION, "", rm.VersionAttributes,

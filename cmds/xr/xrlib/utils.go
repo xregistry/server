@@ -253,7 +253,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	}
 	if gm == nil {
 		return NewXRError("not_found", xid.Group).
-			SetDetailf("Unknown Group type: %s", xid.Group)
+			SetDetailf("Unknown Group type: %s.", xid.Group)
 	}
 
 	if xid.Resource == "" {
@@ -271,7 +271,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	}
 	if rm == nil {
 		return NewXRError("not_found", xid.Resource).
-			SetDetailf("Unknown Resource type: %s", xid.Resource)
+			SetDetailf("Unknown Resource type: %s.", xid.Resource)
 	}
 
 	if xid.Version != "" {
@@ -296,13 +296,13 @@ func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
 	}
 	if gm == nil {
 		return nil, NewXRError("not_found", "/"+xid.Group).
-			SetDetailf("Unknown group type: %s", xid.Group)
+			SetDetailf("Unknown group type: %s.", xid.Group)
 	}
 
 	rm := gm.FindResourceModel(xid.Resource)
 	if rm == nil {
 		return nil, NewXRError("not_found", "/"+xid.Group+"/"+xid.Resource).
-			SetDetailf("Unknown resource type: %s", xid.Resource)
+			SetDetailf("Unknown resource type: %s.", xid.Resource)
 	}
 	return rm, nil
 }
@@ -477,7 +477,7 @@ func DownloadObject(urlPath string) (map[string]any, *XRError) {
 	if err != nil {
 		return object, NewXRError("parsing_response", urlPath,
 			"error_detail="+err.Error()).
-			SetDetail("Response: " + string(res.Body))
+			SetDetail("Response: " + string(res.Body) + ".")
 	}
 	return object, nil
 }

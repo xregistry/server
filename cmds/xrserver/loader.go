@@ -588,8 +588,8 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
         "documents": {
           "singular": "document",
           "resources": {
-            "formats": {
-              "singular": "format"
+            "docformats": {
+              "singular": "docformat"
             }
           }
         }
@@ -600,23 +600,24 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")
 
-	r, _ := g.AddResource("formats", "json", "v1")
+	r, xErr := g.AddResource("docformats", "json", "v1")
+	ErrFatalf(xErr)
 	r.SetSaveDefault("contenttype", "application/json")
-	r.SetSaveDefault("format", `{"prop": "A document 1"}`)
+	r.SetSaveDefault("docformat", `{"prop": "A document 1"}`)
 
-	r, _ = g.AddResource("formats", "xml", "v1")
+	r, _ = g.AddResource("docformats", "xml", "v1")
 	r.SetSaveDefault("contenttype", "application/xml")
-	r.SetSaveDefault("format", `<elem title="A document 1"/>`)
+	r.SetSaveDefault("docformat", `<elem title="A document 1"/>`)
 
 	g, _ = reg.AddGroup("documents", "mydoc2")
 
-	r, _ = g.AddResource("formats", "json", "v1")
+	r, _ = g.AddResource("docformats", "json", "v1")
 	r.SetSaveDefault("contenttype", "application/json")
-	r.SetSaveDefault("format", `{"prop": "A document 2"}`)
+	r.SetSaveDefault("docformat", `{"prop": "A document 2"}`)
 
-	r, _ = g.AddResource("formats", "xml", "v1")
+	r, _ = g.AddResource("docformats", "xml", "v1")
 	r.SetSaveDefault("contenttype", "application/xml")
-	r.SetSaveDefault("format", `<elem title="A document 2"/>`)
+	r.SetSaveDefault("docformat", `<elem title="A document 2"/>`)
 
 	// End of model
 
@@ -694,14 +695,14 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 
 		// Schemas
 		g, xErr = reg.AddGroupWithObject("schemagroups", "sg1", common.Object{
-			"format": "text",
+			"docformat": "text",
 		})
 		ErrFatalf(xErr)
 		r, xErr = g.AddResourceWithObject("schemas", "popped", "v1.0",
-			common.Object{"format": "text"}, false)
+			common.Object{"docformat": "text"}, false)
 		ErrFatalf(xErr)
 		_, xErr = r.AddVersionWithObject("v2.0", common.Object{
-			"format": "text",
+			"docformat": "text",
 		})
 		ErrFatalf(xErr)
 	} else {

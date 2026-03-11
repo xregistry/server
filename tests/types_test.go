@@ -733,8 +733,6 @@ func TestTypesBasic(t *testing.T) {
             "createdat": "2024-01-01T12:00:04Z",
             "modifiedat": "2024-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",

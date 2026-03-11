@@ -643,6 +643,10 @@ func TestModelResourceAttrs(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "format": {
+              "name": "format",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -780,11 +784,19 @@ func TestModelResourceAttrs(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -792,9 +804,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -803,9 +813,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1227,6 +1235,10 @@ func TestModelResourceAttrs(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -1361,11 +1373,19 @@ func TestModelResourceAttrs(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -1373,9 +1393,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -1384,9 +1402,7 @@ func TestModelResourceAttrs(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1620,7 +1636,7 @@ func TestModelFullModel(t *testing.T) {
               "group_type_label_1": "gtl1"
             },
             "modelversion": "gmv1",
-            "compatiblewith": "gcw1",
+            "modelcompatiblewith": "gcw1",
             "attributes": {
               "gext1": {
                 "type": "string"
@@ -1636,7 +1652,7 @@ func TestModelFullModel(t *testing.T) {
                   "resource_type_label_1": "rtl1"
                 },
                 "modelversion": "rmv1",
-                "compatiblewith": "rcw1",
+                "modelcompatiblewith": "rcw1",
                 "maxversions": 5,
                 "setversionid": true,
                 "setdefaultversionsticky": false,
@@ -1869,7 +1885,7 @@ func TestModelFullModel(t *testing.T) {
           "group_type_label_1": "gtl1"
         },
         "modelversion": "gmv1",
-        "compatiblewith": "gcw1",
+        "modelcompatiblewith": "gcw1",
         "attributes": {
           "dirid": {
             "name": "dirid",
@@ -1998,7 +2014,7 @@ func TestModelFullModel(t *testing.T) {
               "resource_type_label_1": "rtl1"
             },
             "modelversion": "rmv1",
-            "compatiblewith": "rcw1",
+            "modelcompatiblewith": "rcw1",
             "maxversions": 5,
             "setversionid": true,
             "setdefaultversionsticky": false,
@@ -2087,6 +2103,10 @@ func TestModelFullModel(t *testing.T) {
               },
               "contenttype": {
                 "name": "contenttype",
+                "type": "string"
+              },
+              "format": {
+                "name": "format",
                 "type": "string"
               },
               "vext1": {
@@ -2207,11 +2227,19 @@ func TestModelFullModel(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -2219,9 +2247,7 @@ func TestModelFullModel(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -2230,9 +2256,7 @@ func TestModelFullModel(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",

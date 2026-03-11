@@ -1326,6 +1326,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -1456,11 +1460,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -1468,9 +1480,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -1479,9 +1489,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1737,6 +1745,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -1867,11 +1879,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -1879,9 +1899,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -1890,9 +1908,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -2306,6 +2322,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -2436,11 +2456,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -2448,9 +2476,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -2459,9 +2485,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -2965,6 +2989,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -3095,11 +3123,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -3107,9 +3143,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -3118,9 +3152,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -3599,6 +3631,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -3729,11 +3765,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -3741,9 +3785,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -3752,9 +3794,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -4141,6 +4181,10 @@ func TestResourceModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -4271,11 +4315,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -4283,9 +4335,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -4294,9 +4344,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -4713,6 +4761,10 @@ func TestResourceModelCreate(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "format": {
+              "name": "format",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -4828,11 +4880,19 @@ func TestResourceModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -4840,9 +4900,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -4851,9 +4909,7 @@ func TestResourceModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -5274,6 +5330,10 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "format": {
+                "name": "format",
+                "type": "string"
               }
             },
             "resourceattributes": {
@@ -5389,11 +5449,19 @@ func TestResourceModelCreate(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -5401,9 +5469,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -5412,9 +5478,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -5864,6 +5928,10 @@ func TestResourceModelCreate(t *testing.T) {
               "contenttype": {
                 "name": "contenttype",
                 "type": "string"
+              },
+              "format": {
+                "name": "format",
+                "type": "string"
               }
             },
             "resourceattributes": {
@@ -5979,11 +6047,19 @@ func TestResourceModelCreate(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -5991,9 +6067,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -6002,9 +6076,7 @@ func TestResourceModelCreate(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -6985,6 +7057,10 @@ func TestMultModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "rm1url": {
               "name": "rm1url",
               "type": "url"
@@ -7115,11 +7191,19 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -7127,9 +7211,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -7138,9 +7220,7 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -7277,6 +7357,10 @@ func TestMultModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "rm2url": {
               "name": "rm2url",
               "type": "url"
@@ -7407,11 +7491,19 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -7419,9 +7511,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -7430,9 +7520,7 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -7714,6 +7802,10 @@ func TestMultModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "rm1url": {
               "name": "rm1url",
               "type": "url"
@@ -7844,11 +7936,19 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -7856,9 +7956,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -7867,9 +7965,7 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -8006,6 +8102,10 @@ func TestMultModelCreate(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "rm2url": {
               "name": "rm2url",
               "type": "url"
@@ -8136,11 +8236,19 @@ func TestMultModelCreate(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -8148,9 +8256,7 @@ func TestMultModelCreate(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -8159,9 +8265,7 @@ func TestMultModelCreate(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -8628,6 +8732,10 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "contenttype",
                 "type": "string"
               },
+              "format": {
+                "name": "format",
+                "type": "string"
+              },
               "fileurl": {
                 "name": "fileurl",
                 "type": "url"
@@ -8758,11 +8866,19 @@ func TestMultModel2Create(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -8770,9 +8886,7 @@ func TestMultModel2Create(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -8781,9 +8895,7 @@ func TestMultModel2Create(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -9039,6 +9151,10 @@ func TestMultModel2Create(t *testing.T) {
                 "name": "contenttype",
                 "type": "string"
               },
+              "format": {
+                "name": "format",
+                "type": "string"
+              },
               "fileurl": {
                 "name": "fileurl",
                 "type": "url"
@@ -9169,11 +9285,19 @@ func TestMultModel2Create(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -9181,9 +9305,7 @@ func TestMultModel2Create(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -9192,9 +9314,7 @@ func TestMultModel2Create(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -9279,8 +9399,6 @@ func TestMultModel2Create(t *testing.T) {
             "createdat": "2024-01-01T12:00:02Z",
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs1/d1/files/f1/versions/v2$details",
@@ -9349,8 +9467,6 @@ func TestMultModel2Create(t *testing.T) {
             "createdat": "2024-01-01T12:00:02Z",
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v1.1",
             "defaultversionurl": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1$details",
@@ -9423,8 +9539,6 @@ func TestMultModel2Create(t *testing.T) {
             "createdat": "2024-01-01T12:00:02Z",
             "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",

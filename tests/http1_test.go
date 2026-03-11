@@ -813,6 +813,10 @@ func TestHTTPModel(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -943,11 +947,19 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -955,9 +967,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -966,9 +976,7 @@ func TestHTTPModel(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1411,6 +1419,10 @@ func TestHTTPModel(t *testing.T) {
             "contenttype": {
               "name": "contenttype",
               "type": "string"
+            },
+            "format": {
+              "name": "format",
+              "type": "string"
             }
           },
           "resourceattributes": {
@@ -1526,11 +1538,19 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -1538,9 +1558,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -1549,9 +1567,7 @@ func TestHTTPModel(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -2006,6 +2022,10 @@ func TestHTTPModel(t *testing.T) {
               "name": "contenttype",
               "type": "string"
             },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
             "fileurl": {
               "name": "fileurl",
               "type": "url"
@@ -2136,11 +2156,19 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
+            "formatauthority": {
+              "name": "formatauthority",
+              "type": "string",
+              "enum": [
+                "external",
+                "server"
+              ],
+              "strict": false
+            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
               "enum": [
-                "none",
                 "backward",
                 "backward_transitive",
                 "forward",
@@ -2148,9 +2176,7 @@ func TestHTTPModel(t *testing.T) {
                 "full",
                 "full_transitive"
               ],
-              "strict": true,
-              "required": true,
-              "default": "none"
+              "strict": true
             },
             "compatibilityauthority": {
               "name": "compatibilityauthority",
@@ -2159,9 +2185,7 @@ func TestHTTPModel(t *testing.T) {
                 "external",
                 "server"
               ],
-              "strict": true,
-              "required": true,
-              "default": "external"
+              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -7372,8 +7396,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "createdat": "YYYY-MM-DDTHH:MM:03Z",
             "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7429,8 +7451,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "createdat": "YYYY-MM-DDTHH:MM:03Z",
             "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
@@ -7617,8 +7637,6 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "createdat": "YYYY-MM-DDTHH:MM:02Z",
             "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -7790,7 +7808,7 @@ func TestHTTPCompatility(t *testing.T) {
 	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
 	XNoErr(t, err)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{"compatibility":"none"}`,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{"compatibility":null}`,
 		201, `{
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -7799,8 +7817,6 @@ func TestHTTPCompatility(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -7817,8 +7833,6 @@ func TestHTTPCompatility(t *testing.T) {
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -7836,7 +7850,6 @@ func TestHTTPCompatility(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
   "readonly": false,
   "compatibility": "backward",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -7844,34 +7857,13 @@ func TestHTTPCompatility(t *testing.T) {
 }
 `)
 
-	/* old semantics
-		XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
-			`{"compatibility":"mine"}`, 200, `{
-	  "fileid": "f1",
-	  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-	  "xid": "/dirs/d1/files/f1/meta",
-	  "epoch": 4,
-	  "createdat": "2025-01-01T12:00:01Z",
-	  "modifiedat": "2025-01-01T12:00:02Z",
-	  "readonly": false,
-	  "compatibility": "mine",
-	  "compatibilityauthority": "external",
-
-	  "defaultversionid": "1",
-	  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
-	  "defaultversionsticky": false
-	}
-	`)
-	*/
-
-	// New semantics
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
 		`{"compatibility":"mine"}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"compatibility\" for \"/dirs/d1/files/f1/meta\" is not valid: value (mine) must be one of the enum values: none, backward, backward_transitive, forward, forward_transitive, full, full_transitive.",
+  "title": "The attribute \"compatibility\" for \"/dirs/d1/files/f1/meta\" is not valid: value (mine) must be one of the enum values: backward, backward_transitive, forward, forward_transitive, full, full_transitive.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "error_detail": "value (mine) must be one of the enum values: none, backward, backward_transitive, forward, forward_transitive, full, full_transitive",
+    "error_detail": "value (mine) must be one of the enum values: backward, backward_transitive, forward, forward_transitive, full, full_transitive",
     "name": "compatibility"
   },
   "source": "dea6f3070dde:registry:entity:2665"
@@ -9388,8 +9380,6 @@ func TestHTTPDefault(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "2",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/2$details",
@@ -9970,8 +9960,6 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v3.1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f3/versions/v3.1$details",
@@ -9988,8 +9976,6 @@ func TestHTTPDelete(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v2.1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2.1$details",
@@ -10306,8 +10292,6 @@ func TestHTTPDelete(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v5",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
@@ -10441,8 +10425,6 @@ func TestHTTPDelete(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v3",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
@@ -10543,8 +10525,6 @@ func TestHTTPDelete(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v10",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10$details",
@@ -10616,8 +10596,6 @@ func TestHTTPDelete(t *testing.T) {
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v10",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v10$details",
@@ -10675,8 +10653,6 @@ func TestHTTPDelete(t *testing.T) {
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:04Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",

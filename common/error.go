@@ -160,6 +160,14 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is not allowed to be present since the Resource (<subject>) uses "xref".`,
 	},
+	"format_missing": &XRError{
+		Code:  400,
+		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource's "formatauthority" being set.`,
+	},
+	"format_violation": &XRError{
+		Code:  400,
+		Title: `The request would cause Version "<subject>" to violate its adherence to its "format" (<format>).`,
+	},
 	"groups_only": &XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is invalid. Only Group types are allowed to be specified on this request: <subject>.`,
@@ -396,7 +404,7 @@ func (xErr *XRError) SetDetail(msg string) *XRError {
 	if xErr != nil {
 		xErr.Detail = msg
 		TestPanicIf(!strings.HasSuffix(msg, "."),
-			"Missing trailing period: %s", GetStackAsString())
+			"Missing trailing period on 'detail': %s", msg)
 	}
 	return xErr
 }

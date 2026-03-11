@@ -323,13 +323,23 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name:     "formatauthority",
+		Type:     STRING,
+		Enum:     []any{"external", "server"},
+		Strict:   PtrBool(false),
+		Required: false,
+
+		internals: &AttrInternals{
+			types: StrTypes(ENTITY_META),
+		},
+	},
+	{
 		Name: "compatibility",
 		Type: STRING,
-		Enum: []any{"none", "backward", "backward_transitive", "forward",
+		Enum: []any{"backward", "backward_transitive", "forward",
 			"forward_transitive", "full", "full_transitive"},
 		Strict:   PtrBool(true),
-		Required: true,
-		Default:  "none",
+		Required: false,
 
 		internals: &AttrInternals{
 			types: StrTypes(ENTITY_META),
@@ -339,9 +349,8 @@ var OrderedSpecProps = []*Attribute{
 		Name:     "compatibilityauthority",
 		Type:     STRING,
 		Enum:     []any{"external", "server"},
-		Strict:   PtrBool(true),
-		Required: true,
-		Default:  "external",
+		Strict:   PtrBool(false),
+		Required: false,
 
 		internals: &AttrInternals{
 			types: StrTypes(ENTITY_META),
@@ -388,6 +397,14 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:      StrTypes(ENTITY_VERSION),
 			httpHeader: "Content-Type",
+		},
+	},
+	{
+		Name: "format",
+		Type: STRING,
+
+		internals: &AttrInternals{
+			types: StrTypes(ENTITY_VERSION),
 		},
 	},
 	{

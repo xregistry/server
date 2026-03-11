@@ -33,11 +33,10 @@ func GetVersionSum(version *Version) (int, *XRError) {
 				}
 				i, err := strconv.Atoi(line)
 				if err != nil {
-					return 0, NewXRError("bad_request", version.XID,
-						"error_detail="+
-							fmt.Sprintf("Version %q isn't a valid \"numbers\" "+
-								"document. Line %d isn't an integer: %s",
-								version.XID, num+1, line))
+					return 0, NewXRError("format_violation", version.XID,
+						"format=numbers").
+						SetDetail(fmt.Sprintf("Line %d isn't an integer: %s.",
+							num+1, line))
 				}
 				sum += i
 			}
@@ -79,10 +78,10 @@ func (ft FormatNumbers) IsCompatible(oldVersion, newVersion *Version) *XRError {
 			Resource.
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
-		return NewXRError("bad_request", newVersion.XID,
-			"error_detail="+
-				fmt.Sprintf("Version %q isn't %q compatible with %q",
-					newVersion.XID, compat, oldVersion.XID))
+		return NewXRError("compatibility_violation", newVersion.Resource.XID,
+			"value="+compat).
+			SetDetail(fmt.Sprintf("Version %q isn't %q compatible with %q",
+				newVersion.XID, compat, oldVersion.XID))
 	}
 
 	return nil

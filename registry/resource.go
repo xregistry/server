@@ -1557,50 +1557,47 @@ func RegisterFormat(name string, format FormatChecker) {
 	SupportedFormats[name] = format
 }
 
+// This will check "format" as well
 func (r *Resource) EnsureCompat() *XRError {
 	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: EnsureCompat")
 
 	meta := r.MustFindMeta(false, FOR_READ)
 
-	format := meta.GetAsString("format")
+	oldFormatAuth := meta.GetOrigin("formatauthority")
+	newFormatAuth := meta.GetAsString("formatauthority")
 
-	if format == "" {
+	oldCompat := meta.GetOriginAsString("compatibility")
+	oldCompatAuth := meta.GetOriginAsString("compatibilityauthority")
+	newCompat := meta.GetAsString("compatibility")
+	newCompatAuth := strings.ToLower(meta.GetAsString("compatibilityauthority"))
+
+	if newCompatAuth == "server" && newFormatAuth != "server" {
+		return NewXRError("bad_request", meta.XID,
+			"error_detail="+
+				fmt.Sprintf(`For "<subject>", "formatauthority" must be `+
+					`"server" when "compatibilityauthority" is "server"`)).
+			SetSubject(meta.XID)
+	}
+
+	if newCompatAuth == "server" && newCompat == "" {
+		return NewXRError("invalid_attribute", meta.XID,
+			"name=formatauthority",
+			"error_detail=can't be an empty string")
+	}
+
+	// Doing neither so just return
+	if newFormatAuth != "server" && newCompatAuth != "server" {
 		return nil
 	}
 
-	checker := SupportedFormats[format]
-	if IsNil(checker) {
-		return NewXRError("bad_request", r.XID,
-			"error_detail="+
-				fmt.Sprintf("Unknown format for %s: %s", r.XID, format)).
-			SetSubject(r.XID)
-	}
+	checker := FormatChecker(nil)
 
 	// Check all versions, not just changed ones?
-	doAll := false
-
-	oldCompat := meta.GetOrigin("compatibility")
-	oldAuth := meta.GetOrigin("compatibilityauthority")
-	newCompat := meta.GetAsString("compatibility")
-	newAuth := meta.Get("compatibilityauthority")
-
-	compat := newCompat
-	/*
-		if compat == "none" || compat == "" {
-			return nil
-		}
-	*/
-
-	if newAuth != "server" {
-		return nil
-	}
-
-	// Check all versions if auth=server is new, or we've changed compat
-	if (oldAuth != newAuth && newAuth == "server") ||
-		(oldCompat != newCompat && newCompat != "none") {
-		doAll = true
-	}
+	// Check all versions if *auth=server is new, or we've changed compat
+	doAll := (oldFormatAuth != newFormatAuth && newFormatAuth == "server") ||
+		(oldCompatAuth != newCompatAuth && newCompatAuth == "server") ||
+		(oldCompat != newCompat && newCompat != "")
 
 	// Get the complete list of Versions and ancestor orders.
 	// We'll use this to build our easy look-ups as we process things.
@@ -1609,21 +1606,13 @@ func (r *Resource) EnsureCompat() *XRError {
 		return xErr
 	}
 
-	// 1 or 0 Versions - just stop, gotta be ok
-	// If we ever need to check for valid format then we need to change this
-	/*
-		if len(orderedVAs) < 2 {
-			log.Printf("Less than 2 versions, so no check needed")
-			return nil
-		}
-	*/
-
 	childrenMap := map[string][]string{} // v.UID -> []child.UID
-	changedVersions := []string{}        // v.UID    (*Version){}
-	doneChecks := map[string]bool{}      // "newID">"oldID" -> true
-	ancestorMap := map[string]string{}   // v.UID -> v.ancestorUID
+	changedVersions := []string{}        // v.UID
 
-	doCheck := func(oldVID string, newVID string) *XRError {
+	doneChecks := map[string]bool{}    // "newID">"oldID" -> true
+	ancestorMap := map[string]string{} // v.UID -> v.ancestorUID
+
+	doCheckCompat := func(oldVID string, newVID string) *XRError {
 		PanicIf(oldVID == "", "can't be empty")
 		PanicIf(newVID == "", "can't be empty")
 
@@ -1685,13 +1674,31 @@ func (r *Resource) EnsureCompat() *XRError {
 		// skip it, it didn't change.
 		// doAll would be true in cases like turning on compat checking.
 		if doAll || ver.EpochSet {
-			// Validate that the Version is valid per the "format"
-			if xErr := checker.IsValid(ver); xErr != nil {
-				return xErr
+			if newFormatAuth == "server" {
+				newFormat := ver.GetAsString("format")
+				if newFormat == "" {
+					return NewXRError("format_missing", ver.XID)
+				}
+
+				checker := SupportedFormats[newFormat]
+				if IsNil(checker) {
+					return NewXRError("bad_request", r.XID,
+						"error_detail="+
+							fmt.Sprintf("Unknown format for %s: %s", r.XID,
+								newFormat)).
+						SetSubject(r.XID)
+				}
+
+				// Validate that the Version is valid per the "format"
+				if xErr := checker.IsValid(ver); xErr != nil {
+					return xErr
+				}
 			}
 
-			// Only add to the list if we're checking for compat
-			if compat != "none" && compat != "" {
+			// Only add to the list if we're checking for compat.
+			// We don't do Compat checking here because we need to populate
+			// our cache of data first (maps, arrays, etc)
+			if newCompatAuth == "server" {
 				changedVersions = append(changedVersions, va.VID)
 			}
 		}
@@ -1700,21 +1707,27 @@ func (r *Resource) EnsureCompat() *XRError {
 	// for all changed versions do compat checking
 	compatFound := false
 	for _, verID := range changedVersions {
-		if compat == "backward" || compat == "full" {
+		// Already checked newFormat & checker in previous loop
+		ver, xErr := r.FindVersion(verID, false, FOR_READ)
+		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
+		newFormat := ver.GetAsString("format")
+		checker = SupportedFormats[newFormat]
+
+		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
 			// compatible w/ the next oldest Ver
-			if xErr := doCheck(ancestorMap[verID], verID); xErr != nil {
+			if xErr := doCheckCompat(ancestorMap[verID], verID); xErr != nil {
 				return xErr
 			}
 
 			for _, childUID := range childrenMap[verID] {
-				if xErr := doCheck(verID, childUID); xErr != nil {
+				if xErr := doCheckCompat(verID, childUID); xErr != nil {
 					return xErr
 				}
 			}
 		}
 
-		if compat == "backward_transitive" || compat == "full_transitive" {
+		if newCompat == "backward_transitive" || newCompat == "full_transitive" {
 			compatFound = true
 			// compatible w/ all older Ver
 			currentID := verID
@@ -1724,7 +1737,7 @@ func (r *Resource) EnsureCompat() *XRError {
 					break
 				}
 
-				if xErr := doCheck(prevID, currentID); xErr != nil {
+				if xErr := doCheckCompat(prevID, currentID); xErr != nil {
 					return xErr
 				}
 				currentID = prevID
@@ -1732,27 +1745,27 @@ func (r *Resource) EnsureCompat() *XRError {
 
 			// Make sure we didn't break our children's compat
 			for _, childUID := range childrenMap[verID] {
-				if xErr := doCheck(verID, childUID); xErr != nil {
+				if xErr := doCheckCompat(verID, childUID); xErr != nil {
 					return xErr
 				}
 			}
 		}
 
-		if compat == "forward" || compat == "full" {
+		if newCompat == "forward" || newCompat == "full" {
 			compatFound = true
 			// compatible w/ the next newest Ver
 			for _, childUID := range childrenMap[verID] {
-				if xErr := doCheck(childUID, verID); xErr != nil {
+				if xErr := doCheckCompat(childUID, verID); xErr != nil {
 					return xErr
 				}
 			}
 
-			if xErr := doCheck(verID, ancestorMap[verID]); xErr != nil {
+			if xErr := doCheckCompat(verID, ancestorMap[verID]); xErr != nil {
 				return xErr
 			}
 		}
 
-		if compat == "forward_transitive" || compat == "full_transivite" {
+		if newCompat == "forward_transitive" || newCompat == "full_transivite" {
 			compatFound = true
 			// compatible w/ all newer Versions
 			list := [][2]string{} // [old,new]
@@ -1765,7 +1778,7 @@ func (r *Resource) EnsureCompat() *XRError {
 				item := list[0] // [old,new]
 				list = list[1:]
 
-				if xErr := doCheck(item[1], item[0]); xErr != nil { // reverse
+				if xErr := doCheckCompat(item[1], item[0]); xErr != nil { // reverse
 					return xErr
 				}
 
@@ -1776,7 +1789,7 @@ func (r *Resource) EnsureCompat() *XRError {
 			}
 
 			// Now check our ancestor
-			if xErr := doCheck(verID, ancestorMap[verID]); xErr != nil {
+			if xErr := doCheckCompat(verID, ancestorMap[verID]); xErr != nil {
 				return xErr
 			}
 		}
@@ -1785,7 +1798,7 @@ func (r *Resource) EnsureCompat() *XRError {
 			// Should never get here
 			return NewXRError("server_error", r.XID+"/meta").
 				SetDetail(fmt.Sprintf("Unknown \"compatibility\" value: %s.",
-					compat))
+					newCompat))
 		}
 	}
 

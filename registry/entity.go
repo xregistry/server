@@ -183,6 +183,20 @@ func (e *Entity) GetAsString(path string) string {
 	return str
 }
 
+func (e *Entity) GetOriginAsString(path string) string {
+	val := e.GetOrigin(path)
+	if IsNil(val) {
+		return ""
+	}
+
+	if tmp := reflect.ValueOf(val).Kind(); tmp != reflect.String {
+		panic(fmt.Sprintf("Not a string - got %T(%v)", val, val))
+	}
+
+	str, _ := val.(string)
+	return str
+}
+
 func (e *Entity) GetAsInt(path string) int {
 	val := e.Get(path)
 	if IsNil(val) {
@@ -851,7 +865,7 @@ var PropsFuncs = []*Attribute{
 				if newID == "" {
 					return NewXRError("invalid_attribute", e.XID,
 						"name="+singular,
-						"error_detail="+"can't be an empty string")
+						"error_detail=can't be an empty string")
 				}
 
 				if xErr := IsValidID(newID.(string), singular); xErr != nil {
@@ -1268,35 +1282,33 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
+		Name: "formatauthority",
+		internals: &AttrInternals{
+			checkFn: func(e *Entity) *XRError {
+				tmp := e.NewObject["formatauthority"]
+				if !IsNil(tmp) && tmp == "" {
+					return NewXRError("invalid_attribute", e.XID,
+						"name=formatauthority",
+						"error_detail=attribute must not be an empty string")
+				}
+				return nil
+			},
+		},
+	},
+	{
 		Name:      "compatibility",
 		internals: &AttrInternals{},
 	},
 	{
 		Name: "compatibilityauthority",
 		internals: &AttrInternals{
-			updateFn: func(e *Entity) *XRError {
-				/*
-					if !IsNil(e.NewObject["xref"]) {
-						return nil
-					}
-					compat, _ := e.NewObject["compatibility"]
-					isDefault := (compat == SpecProps["compatibility"].Default)
-					if IsNil(compat) || isDefault {
-						// delete(e.NewObject, "compatibilityauthority")
-					} else {
-						val := e.GetAsString("compatibilityauthority")
-						if val != "" && val != "external" && val != "server" {
-							return NewXRError("bad_request", e.XID,
-								"error_detail="+
-									fmt.Sprintf("Unknown \"compatibilityauthority\" value: %s",
-										val))
-						}
-						if val == "" {
-							e.NewObject["compatibilityauthority"] = "external"
-						}
-					}
-				*/
-
+			checkFn: func(e *Entity) *XRError {
+				tmp := e.NewObject["compatibilityauthority"]
+				if !IsNil(tmp) && tmp == "" {
+					return NewXRError("invalid_attribute", e.XID,
+						"name=compatibilityauthority",
+						"error_detail=attribute must not be an empty string")
+				}
 				return nil
 			},
 		},
@@ -1325,6 +1337,10 @@ var PropsFuncs = []*Attribute{
 	},
 	{
 		Name:      "contenttype",
+		internals: &AttrInternals{},
+	},
+	{
+		Name:      "format",
 		internals: &AttrInternals{},
 	},
 	{

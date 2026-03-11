@@ -144,3 +144,4 @@ TODOs:
 - test ?setdefaultversionid in all resource (and deeper) APIs
 - add more tests for our resource processing logic
 - fix 'xr' so that they can use --data to upload doc & --add for xreg meteadata
+- test for "format_missing" error

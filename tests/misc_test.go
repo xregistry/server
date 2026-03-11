@@ -42,8 +42,6 @@ func TestMiscDBRows(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1$details",
@@ -88,8 +86,6 @@ dirs/d1: epoch, -> 2
 dirs/d1: modifiedat, -> YYYY-MM-DDTHH:MM:03Z
 dirs/d1/files/f1: fileid, -> f1
 dirs/d1/files/f1/meta: #nextversionid, -> 1
-dirs/d1/files/f1/meta: compatibility, -> none
-dirs/d1/files/f1/meta: compatibilityauthority, -> external
 dirs/d1/files/f1/meta: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/meta: defaultversionid, -> v1
 dirs/d1/files/f1/meta: defaultversionsticky, -> false

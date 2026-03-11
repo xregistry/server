@@ -484,8 +484,6 @@ func TestSetLabels(t *testing.T) {
             "createdat": "2024-01-01T12:00:03Z",
             "modifiedat": "2024-01-01T12:00:03Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -591,8 +589,6 @@ func TestSetLabels(t *testing.T) {
             "createdat": "2024-01-01T12:00:03Z",
             "modifiedat": "2024-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",

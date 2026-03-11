@@ -99,7 +99,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 			if err := json.Unmarshal(group, &subObj); err != nil {
 				Error(NewXRError("parsing_response", path,
 					"error_detail="+err.Error()).
-					SetDetailf("Error parsing response group collection %q",
+					SetDetailf("Error parsing response group collection %q.",
 						gType))
 			}
 			Verbose("Imported: %d %s", len(subObj), gType)
@@ -110,7 +110,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 			if err := json.Unmarshal(resource, &subObj); err != nil {
 				Error(NewXRError("parsing_response", path,
 					"error_detail="+err.Error()).
-					SetDetailf("Error parsing response resource collection %q",
+					SetDetailf("Error parsing response resource collection %q.",
 						rType))
 			}
 			Verbose("Imported: %d %s", len(subObj), rType)

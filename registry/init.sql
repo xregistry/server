@@ -68,23 +68,23 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parentSID=Group)
     Abstract          VARCHAR(255),       # /GROUPS, /GROUPS/RESOURCES
 
     # For Groups and Resources
-    Plural            VARCHAR(64),
-    Singular          VARCHAR(64),
-    Description       VARCHAR(255),
-    ModelVersion      VARCHAR(255),
-    CompatibleWith    VARCHAR(255),
-    Labels            JSON,
-    XImportResources  VARCHAR($MAX_VARCHAR),
-    Attributes        JSON,               # Until we use the Attributes table
+    Plural              VARCHAR(64),
+    Singular            VARCHAR(64),
+    Description         VARCHAR(255),
+    ModelVersion        VARCHAR(255),
+    ModelCompatibleWith VARCHAR(255),
+    Labels              JSON,
+    XImportResources    VARCHAR($MAX_VARCHAR),
+    Attributes          JSON,               # Until we use the Attributes table
 
     # For Resources
-    MaxVersions       INT,
-    SetVersionId      BOOL,
-    SetDefaultSticky  BOOL,
-    HasDocument       BOOL,
-    SingleVersionRoot BOOL,
-    TypeMap           JSON,
-    MetaAttributes    JSON,
+    MaxVersions         INT,
+    SetVersionId        BOOL,
+    SetDefaultSticky    BOOL,
+    HasDocument         BOOL,
+    SingleVersionRoot   BOOL,
+    TypeMap             JSON,
+    MetaAttributes      JSON,
 
     PRIMARY KEY(SID),
     UNIQUE INDEX (RegistrySID, ParentSID, Plural),

@@ -110,8 +110,6 @@ func TestExportBasic(t *testing.T) {
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -215,8 +213,6 @@ func TestExportBasic(t *testing.T) {
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -694,6 +690,10 @@ func TestExportBasic(t *testing.T) {
                 "name": "contenttype",
                 "type": "string"
               },
+              "format": {
+                "name": "format",
+                "type": "string"
+              },
               "fileurl": {
                 "name": "fileurl",
                 "type": "url"
@@ -824,11 +824,19 @@ func TestExportBasic(t *testing.T) {
                 "required": true,
                 "default": false
               },
+              "formatauthority": {
+                "name": "formatauthority",
+                "type": "string",
+                "enum": [
+                  "external",
+                  "server"
+                ],
+                "strict": false
+              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
                 "enum": [
-                  "none",
                   "backward",
                   "backward_transitive",
                   "forward",
@@ -836,9 +844,7 @@ func TestExportBasic(t *testing.T) {
                   "full",
                   "full_transitive"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "none"
+                "strict": true
               },
               "compatibilityauthority": {
                 "name": "compatibilityauthority",
@@ -847,9 +853,7 @@ func TestExportBasic(t *testing.T) {
                   "external",
                   "server"
                 ],
-                "strict": true,
-                "required": true,
-                "default": "external"
+                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -932,8 +936,6 @@ func TestExportBasic(t *testing.T) {
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:04Z",
           "readonly": false,
-          "compatibility": "none",
-          "compatibilityauthority": "external",
 
           "defaultversionid": "v2",
           "defaultversionurl": "#/d1/files/f1/versions/v2",
@@ -1017,8 +1019,6 @@ func TestExportBasic(t *testing.T) {
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:04Z",
         "readonly": false,
-        "compatibility": "none",
-        "compatibilityauthority": "external",
 
         "defaultversionid": "v2",
         "defaultversionurl": "#/files/f1/versions/v2",
@@ -1092,8 +1092,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:04Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v2",
       "defaultversionurl": "#/f1/versions/v2",
@@ -1164,8 +1162,6 @@ func TestExportBasic(t *testing.T) {
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:04Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "#/versions/v2",
@@ -1216,8 +1212,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:04Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v2",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1358,8 +1352,6 @@ func TestExportBasic(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1403,8 +1395,6 @@ func TestExportBasic(t *testing.T) {
     "createdat": "2025-01-01T12:00:01Z",
     "modifiedat": "2025-01-01T12:00:02Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v2",
     "defaultversionurl": "#/versions/v2",
@@ -1476,8 +1466,6 @@ func TestExportBasic(t *testing.T) {
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "v2",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v2",
@@ -1586,8 +1574,6 @@ func TestExportBasic(t *testing.T) {
       "createdat": "2025-01-01T12:00:01Z",
       "modifiedat": "2025-01-01T12:00:02Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "v2",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -1702,8 +1688,6 @@ func TestExportBasic(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "v2",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
@@ -2082,8 +2066,6 @@ func TestExportURLs(t *testing.T) {
             "createdat": "2025-01-01T12:00:03Z",
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2190,8 +2172,6 @@ func TestExportURLs(t *testing.T) {
             "createdat": "2025-01-01T12:00:03Z",
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
@@ -2238,8 +2218,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:03Z",
       "modifiedat": "2025-01-01T12:00:03Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "#/f1/versions/1",
@@ -2279,8 +2257,6 @@ func TestExportURLs(t *testing.T) {
       "createdat": "2025-01-01T12:00:03Z",
       "modifiedat": "2025-01-01T12:00:03Z",
       "readonly": false,
-      "compatibility": "none",
-      "compatibilityauthority": "external",
 
       "defaultversionid": "1",
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2353,8 +2329,6 @@ func TestExportURLs(t *testing.T) {
             "createdat": "2025-01-01T12:00:03Z",
             "modifiedat": "2025-01-01T12:00:03Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2434,8 +2408,6 @@ func TestExportURLs(t *testing.T) {
   "createdat": "2025-01-01T12:00:03Z",
   "modifiedat": "2025-01-01T12:00:03Z",
   "readonly": false,
-  "compatibility": "none",
-  "compatibilityauthority": "external",
 
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
@@ -2526,8 +2498,6 @@ func TestExportURLs(t *testing.T) {
             "createdat": "2025-01-01T12:00:04Z",
             "modifiedat": "2025-01-01T12:00:04Z",
             "readonly": false,
-            "compatibility": "none",
-            "compatibilityauthority": "external",
 
             "defaultversionid": "1",
             "defaultversionurl": "#/dirs/d1/files/f1/versions/1",
@@ -2611,8 +2581,6 @@ func TestExportNoDoc(t *testing.T) {
     "createdat": "2025-01-23T23:07:14.527627972Z",
     "modifiedat": "2025-01-23T23:07:14.527627972Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
@@ -2638,8 +2606,6 @@ func TestExportNoDoc(t *testing.T) {
     "createdat": "2025-01-23T23:08:08.330305606Z",
     "modifiedat": "2025-01-23T23:08:08.330305606Z",
     "readonly": false,
-    "compatibility": "none",
-    "compatibilityauthority": "external",
 
     "defaultversionid": "v1",
     "defaultversionurl": "#/versions/v1",
