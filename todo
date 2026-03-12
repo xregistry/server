@@ -145,3 +145,6 @@ TODOs:
 - add more tests for our resource processing logic
 - fix 'xr' so that they can use --data to upload doc & --add for xreg meteadata
 - test for "format_missing" error
+- test export & import - include readonly and xref resources
+- make sure the export/import flow is as UX friendly as possible
+- what should "xr create /" do? fail due to the reg already existing? import?

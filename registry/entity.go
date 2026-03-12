@@ -1282,36 +1282,8 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
-		Name: "formatauthority",
-		internals: &AttrInternals{
-			checkFn: func(e *Entity) *XRError {
-				tmp := e.NewObject["formatauthority"]
-				if !IsNil(tmp) && tmp == "" {
-					return NewXRError("invalid_attribute", e.XID,
-						"name=formatauthority",
-						"error_detail=attribute must not be an empty string")
-				}
-				return nil
-			},
-		},
-	},
-	{
 		Name:      "compatibility",
 		internals: &AttrInternals{},
-	},
-	{
-		Name: "compatibilityauthority",
-		internals: &AttrInternals{
-			checkFn: func(e *Entity) *XRError {
-				tmp := e.NewObject["compatibilityauthority"]
-				if !IsNil(tmp) && tmp == "" {
-					return NewXRError("invalid_attribute", e.XID,
-						"name=compatibilityauthority",
-						"error_detail=attribute must not be an empty string")
-				}
-				return nil
-			},
-		},
 	},
 	{
 		Name:      "deprecated",

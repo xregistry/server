@@ -731,6 +731,8 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -947,15 +949,6 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
-            "formatauthority": {
-              "name": "formatauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
@@ -968,15 +961,6 @@ func TestHTTPModel(t *testing.T) {
                 "full_transitive"
               ],
               "strict": true
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1048,7 +1032,9 @@ func TestHTTPModel(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": false,
-          "singleversionroot": false
+          "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false
         }
       }
     }
@@ -1070,7 +1056,9 @@ func TestHTTPModel(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": false,
-          "singleversionroot": false
+          "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false
         }
       }
     }
@@ -1338,6 +1326,8 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1538,15 +1528,6 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
-            "formatauthority": {
-              "name": "formatauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
@@ -1559,15 +1540,6 @@ func TestHTTPModel(t *testing.T) {
                 "full_transitive"
               ],
               "strict": true
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1940,6 +1912,8 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2156,15 +2130,6 @@ func TestHTTPModel(t *testing.T) {
               "required": true,
               "default": false
             },
-            "formatauthority": {
-              "name": "formatauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
@@ -2177,15 +2142,6 @@ func TestHTTPModel(t *testing.T) {
                 "full_transitive"
               ],
               "strict": true
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
             },
             "deprecated": {
               "name": "deprecated",

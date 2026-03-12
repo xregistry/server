@@ -13,6 +13,8 @@ const SETDEFAULTSTICKY = true
 const HASDOCUMENT = true
 const VERSIONMODE = "manual"
 const SINGLEVERSIONROOT = false
+const VALIDATECOMPATIBILITY = false
+const VALIDATEFORMAT = false
 const READONLY = false
 
 // Attribute types

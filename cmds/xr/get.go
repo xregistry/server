@@ -19,6 +19,8 @@ func addGetCmd(parent *cobra.Command) {
 		Run:     getFunc,
 		GroupID: "Entities",
 	}
+	getCmd.Flags().StringArrayP("inline", "i", nil, "Inline entities: *, ...")
+	getCmd.Flags().Bool("doc", false, "Retieve document view of entities")
 	getCmd.Flags().StringP("output", "o", "json", "Output format: json, table")
 	getCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 
@@ -33,6 +35,8 @@ func getFunc(cmd *cobra.Command, args []string) {
 	reg, xErr := xrlib.GetRegistry(Server)
 	Error(xErr)
 
+	inlines, _ := cmd.Flags().GetStringArray("inline")
+	docView, _ := cmd.Flags().GetBool("doc")
 	output, _ := cmd.Flags().GetString("output")
 	if !ArrayContains([]string{"table", "json"}, output) {
 		Error("--output must be one of: json, table")
@@ -48,9 +52,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	xidStr := args[0]
 	xidStr, queryParams, _ := strings.Cut(xidStr, "?")
-	if queryParams != "" {
-		queryParams = "?" + queryParams
-	}
+
 	if len(xidStr) > 0 && xidStr[0] != '/' {
 		xidStr = "/" + xidStr
 	}
@@ -74,7 +76,20 @@ func getFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	res, xErr := reg.HttpDo("GET", xid.String()+suffix+queryParams, nil)
+	path := xid.String() + suffix
+
+	path = AddQuery(path, queryParams)
+
+	if docView {
+		path = AddQuery(path, "doc")
+	}
+	if cmd.Flags().Changed("inline") && len(inlines) == 0 {
+		path = AddQuery(path, "inline")
+	} else if len(inlines) > 0 {
+		path = AddQuery(path, "inline="+strings.Join(inlines, ","))
+	}
+
+	res, xErr := reg.HttpDo("GET", path, nil)
 	Error(xErr)
 
 	if !resIsJSON {

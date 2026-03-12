@@ -56,8 +56,10 @@ xr download DIR XID...
 
 xr get [ XID ]
   # Retrieve entities from the registry
-  -m, --details         Show resource metadata
-  -o, --output string   Output format: json, table (default "json")
+  -m, --details              Show resource metadata
+      --doc                  Retieve document view of entities
+  -i, --inline stringArray   Inline entities: *, ...
+  -o, --output string        Output format: json, table (default "json")
 
 xr import [ XID ]
   # Import entities into the registry
@@ -136,6 +138,7 @@ xr update XID
   -m, --details           Data is resource metadata
   -f, --force             Force a 'create' if missing, skip pre-flight checks
       --ignoreepoch       Skip 'epoch' checks
+      --ignorereadonly    Skip 'readonly' checks
   -o, --output string     Output format (none, json) when xReg metadata
                           (default "none")
   -r, --replace           Replace entire entity (all attributes)

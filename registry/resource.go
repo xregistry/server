@@ -36,6 +36,33 @@ func isResourceOnly(name string) bool {
 	return false
 }
 
+func RemoveReadonlyResourceAttributes(rm *ResourceModel, obj map[string]any) {
+	for _, attr := range rm.GetBaseAttributes() {
+		if attr.ReadOnly {
+			delete(obj, attr.Name)
+		}
+	}
+	// delete(obj, rm.Singular+"id")
+}
+
+func RemoveReadonlyMetaAttributes(rm *ResourceModel, obj map[string]any) {
+	for _, attr := range rm.GetBaseMetaAttributes() {
+		if attr.ReadOnly {
+			delete(obj, attr.Name)
+		}
+	}
+	// delete(obj, rm.Singular+"id")
+}
+
+func RemoveReadonlyVersionAttributes(rm *ResourceModel, obj map[string]any) {
+	for _, attr := range rm.GetBaseVersionAttributes() {
+		if attr.ReadOnly {
+			delete(obj, attr.Name)
+		}
+	}
+	delete(obj, rm.Singular+"id")
+}
+
 // Remove any attributes that appear on Resources but not Versions.
 // Mainly used to prep an Obj that was directed at a Resource but will be used
 // to update a Version
@@ -744,6 +771,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 
 			// meta.JustSet("createdat", nil)
 
+			// DUG
+			// RemoveReadonlyMetaAttributes(r.ResourceModel, meta.NewObject)
+
 			extraAttrs := []string{}
 			for k, v := range meta.NewObject {
 				// Leave "epoch" in NewObject, the updateFn will delete it.
@@ -1179,8 +1209,8 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 		return xErr
 	}
 
-	// Validate compat between Versions if needed
-	if xErr := r.EnsureCompat(); xErr != nil {
+	// Validate compat/format between Versions if needed
+	if xErr := r.EnsureCompat(false); xErr != nil {
 		return xErr
 	}
 
@@ -1557,47 +1587,45 @@ func RegisterFormat(name string, format FormatChecker) {
 	SupportedFormats[name] = format
 }
 
-// This will check "format" as well
-func (r *Resource) EnsureCompat() *XRError {
+// This will check "format" as well.
+// "force" check all Verisons even if we don't think we need to.
+func (r *Resource) EnsureCompat(force bool) *XRError {
 	log.VPrintf(3, ">Enter: EnsureCompat(%s)", r.UID)
 	defer log.VPrintf(3, "<Exit: EnsureCompat")
 
 	meta := r.MustFindMeta(false, FOR_READ)
 
-	oldFormatAuth := meta.GetOrigin("formatauthority")
-	newFormatAuth := meta.GetAsString("formatauthority")
+	validateCompat := r.ResourceModel.GetValidateCompatibility()
+	validateFormat := r.ResourceModel.GetValidateFormat()
 
-	oldCompat := meta.GetOriginAsString("compatibility")
-	oldCompatAuth := meta.GetOriginAsString("compatibilityauthority")
-	newCompat := meta.GetAsString("compatibility")
-	newCompatAuth := strings.ToLower(meta.GetAsString("compatibilityauthority"))
+	oldCompat := meta.GetOrigin("compatibility")
+	newCompat := meta.Get("compatibility")
 
-	if newCompatAuth == "server" && newFormatAuth != "server" {
-		return NewXRError("bad_request", meta.XID,
-			"error_detail="+
-				fmt.Sprintf(`For "<subject>", "formatauthority" must be `+
-					`"server" when "compatibilityauthority" is "server"`)).
-			SetSubject(meta.XID)
+	if validateCompat && IsNil(newCompat) {
+		return NewXRError("invalid_attribute", meta.XID,
+			"name=compatibility",
+			"error_detail=must be set since the Resource model definition for "+
+				r.ResourceModel.Plural+" has \"validatecompatibility\" set to "+
+				"\"true\"")
 	}
 
-	if newCompatAuth == "server" && newCompat == "" {
+	if validateCompat && newCompat == "" {
 		return NewXRError("invalid_attribute", meta.XID,
-			"name=formatauthority",
+			"name=compatibility",
 			"error_detail=can't be an empty string")
 	}
 
 	// Doing neither so just return
-	if newFormatAuth != "server" && newCompatAuth != "server" {
+	if !validateCompat && !validateFormat {
 		return nil
 	}
 
 	checker := FormatChecker(nil)
 
 	// Check all versions, not just changed ones?
-	// Check all versions if *auth=server is new, or we've changed compat
-	doAll := (oldFormatAuth != newFormatAuth && newFormatAuth == "server") ||
-		(oldCompatAuth != newCompatAuth && newCompatAuth == "server") ||
-		(oldCompat != newCompat && newCompat != "")
+	// Check all versions if we've changed compat & we're validating
+	doAll := force ||
+		(validateCompat && oldCompat != newCompat && newCompat != "")
 
 	// Get the complete list of Versions and ancestor orders.
 	// We'll use this to build our easy look-ups as we process things.
@@ -1609,7 +1637,7 @@ func (r *Resource) EnsureCompat() *XRError {
 	childrenMap := map[string][]string{} // v.UID -> []child.UID
 	changedVersions := []string{}        // v.UID
 
-	doneChecks := map[string]bool{}    // "newID">"oldID" -> true
+	doneChecks := map[string]bool{}    // "oldID">"newID" -> true
 	ancestorMap := map[string]string{} // v.UID -> v.ancestorUID
 
 	doCheckCompat := func(oldVID string, newVID string) *XRError {
@@ -1621,7 +1649,7 @@ func (r *Resource) EnsureCompat() *XRError {
 			return nil
 		}
 
-		key := newVID + ">" + oldVID
+		key := oldVID + ">" + newVID
 		if doneChecks[key] {
 			// Already checked
 			return nil
@@ -1672,9 +1700,9 @@ func (r *Resource) EnsureCompat() *XRError {
 		// Build our list of changed Versions.
 		// So, either doAll=true, or version's epoch was changed, otherwise
 		// skip it, it didn't change.
-		// doAll would be true in cases like turning on compat checking.
+		// doAll would be true in cases like changing the 'compat' value
 		if doAll || ver.EpochSet {
-			if newFormatAuth == "server" {
+			if validateFormat {
 				newFormat := ver.GetAsString("format")
 				if newFormat == "" {
 					return NewXRError("format_missing", ver.XID)
@@ -1698,7 +1726,7 @@ func (r *Resource) EnsureCompat() *XRError {
 			// Only add to the list if we're checking for compat.
 			// We don't do Compat checking here because we need to populate
 			// our cache of data first (maps, arrays, etc)
-			if newCompatAuth == "server" {
+			if validateCompat {
 				changedVersions = append(changedVersions, va.VID)
 			}
 		}
@@ -1720,6 +1748,7 @@ func (r *Resource) EnsureCompat() *XRError {
 				return xErr
 			}
 
+			// compatible w/ all children
 			for _, childUID := range childrenMap[verID] {
 				if xErr := doCheckCompat(verID, childUID); xErr != nil {
 					return xErr
@@ -1737,6 +1766,7 @@ func (r *Resource) EnsureCompat() *XRError {
 					break
 				}
 
+				// Compatible with our next ancestor
 				if xErr := doCheckCompat(prevID, currentID); xErr != nil {
 					return xErr
 				}
@@ -1755,11 +1785,13 @@ func (r *Resource) EnsureCompat() *XRError {
 			compatFound = true
 			// compatible w/ the next newest Ver
 			for _, childUID := range childrenMap[verID] {
+				// Compatible with a descendent
 				if xErr := doCheckCompat(childUID, verID); xErr != nil {
 					return xErr
 				}
 			}
 
+			// Compatible w/ our ancestor
 			if xErr := doCheckCompat(verID, ancestorMap[verID]); xErr != nil {
 				return xErr
 			}

@@ -442,7 +442,11 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		}
 	}
 
-	if hasXref { // DUG!! may need these checks
+	if hasXref {
+		// DUG
+		// RemoveReadonlyVersionAttributes(r.ResourceModel, ru.Obj)
+		// RemoveReadonlyResourceAttributes(r.ResourceModel, ru.Obj)
+
 		delete(ru.Obj, r.Singular+"id")
 		if len(ru.Obj) > 0 {
 			xErr := NewXRError("extra_xref_attribute", r.XID,

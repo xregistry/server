@@ -109,6 +109,8 @@ Notes:
 		"Force a 'create' if missing, skip pre-flight checks")
 	updateCmd.Flags().BoolP("ignoreepoch", "", false,
 		"Skip 'epoch' checks")
+	updateCmd.Flags().BoolP("ignorereadonly", "", false,
+		"Skip 'readonly' checks")
 	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
 	updateCmd.Flags().StringArray("add", nil, "Add to an attribute")
 	updateCmd.Flags().StringArray("del", nil, "Delete an attribute")
@@ -154,6 +156,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	replace, _ := cmd.Flags().GetBool("replace")
 	force, _ := cmd.Flags().GetBool("force")
 	ignoreEpoch, _ := cmd.Flags().GetBool("ignoreepoch")
+	ignoreReadonly, _ := cmd.Flags().GetBool("ignorereadonly")
 	output, _ := cmd.Flags().GetString("output")
 	isDomainDoc := false
 
@@ -368,7 +371,11 @@ func createFunc(cmd *cobra.Command, args []string) {
 	path = AddQuery(path, queryParams)
 
 	if ignoreEpoch {
-		path = AddQuery(path, "ignoreepoch")
+		path = AddQuery(path, "ignore=epoch")
+	}
+
+	if ignoreReadonly {
+		path = AddQuery(path, "ignore=readonly")
 	}
 
 	res, xErr := reg.HttpDo(method, path, []byte(data))

@@ -194,13 +194,15 @@ type ResourceModel struct {
 	ModelVersion        string            `json:"modelversion,omitempty"`
 	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
 
-	MaxVersions       *int              `json:"maxversions,omitempty"`
-	SetVersionId      *bool             `json:"setversionid,omitempty"`
-	SetDefaultSticky  *bool             `json:"setdefaultversionsticky,omitempty"`
-	HasDocument       *bool             `json:"hasdocument,omitempty"`
-	VersionMode       string            `json:"versionmode,omitempty"`
-	SingleVersionRoot *bool             `json:"singleversionroot,omitempty"`
-	TypeMap           map[string]string `json:"typemap,omitempty"`
+	MaxVersions           *int              `json:"maxversions,omitempty"`
+	SetVersionId          *bool             `json:"setversionid,omitempty"`
+	SetDefaultSticky      *bool             `json:"setdefaultversionsticky,omitempty"`
+	HasDocument           *bool             `json:"hasdocument,omitempty"`
+	VersionMode           string            `json:"versionmode,omitempty"`
+	SingleVersionRoot     *bool             `json:"singleversionroot,omitempty"`
+	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
+	ValidateFormat        *bool             `json:"validateformat,omitempty"`
+	TypeMap               map[string]string `json:"typemap,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
 	VersionAttributes   Attributes `json:"attributes,omitempty"`
@@ -292,6 +294,12 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 	}
+	if r.ValidateCompatibility == nil {
+		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
+	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	}
 	return nil
 }
 */
@@ -332,6 +340,12 @@ func (r *ResourceModel) ApplyDefaults() {
 	}
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
+	}
+	if r.ValidateCompatibility == nil {
+		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
+	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
 	}
 }
 
@@ -981,14 +995,16 @@ func (gm *GroupModel) DelAttribute(name string) *XRError {
 
 func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, *XRError) {
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:            plural,
-		Singular:          singular,
-		MaxVersions:       PtrInt(MAXVERSIONS),
-		SetVersionId:      PtrBool(SETVERSIONID),
-		SetDefaultSticky:  PtrBool(SETDEFAULTSTICKY),
-		HasDocument:       PtrBool(HASDOCUMENT),
-		VersionMode:       VERSIONMODE,
-		SingleVersionRoot: PtrBool(SINGLEVERSIONROOT),
+		Plural:                plural,
+		Singular:              singular,
+		MaxVersions:           PtrInt(MAXVERSIONS),
+		SetVersionId:          PtrBool(SETVERSIONID),
+		SetDefaultSticky:      PtrBool(SETDEFAULTSTICKY),
+		HasDocument:           PtrBool(HASDOCUMENT),
+		VersionMode:           VERSIONMODE,
+		SingleVersionRoot:     PtrBool(SINGLEVERSIONROOT),
+		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
+		ValidateFormat:        PtrBool(VALIDATEFORMAT),
 	})
 }
 
@@ -1333,6 +1349,20 @@ func (rm *ResourceModel) GetSingleVersionRoot() bool {
 		return SINGLEVERSIONROOT
 	}
 	return *rm.SingleVersionRoot
+}
+
+func (rm *ResourceModel) GetValidateCompatibility() bool {
+	if rm.ValidateCompatibility == nil {
+		return VALIDATECOMPATIBILITY
+	}
+	return *rm.ValidateCompatibility
+}
+
+func (rm *ResourceModel) GetValidateFormat() bool {
+	if rm.ValidateFormat == nil {
+		return VALIDATEFORMAT
+	}
+	return *rm.ValidateFormat
 }
 
 func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
@@ -2301,6 +2331,14 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 					rmName))
 	}
 
+	if rm.GetValidateCompatibility() && !rm.GetValidateFormat() {
+		return NewXRError("bad_request", "/model",
+			"error_detail="+
+				fmt.Sprintf(`Resource %q must have "validateformat" set to `+
+					`"true" when "validatecompatibility" is "true"`,
+					rm.Plural))
+	}
+
 	// Make sure we have the xRegistry core/spec defined attributes
 	// in the list and they're not changed in an inappropriate way.
 	// This just checks the Group level Attributes
@@ -2500,6 +2538,24 @@ func (rm *ResourceModel) SetSetDefaultSticky(val bool) *XRError {
 func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
 	if rm.GetSingleVersionRoot() != val {
 		rm.SingleVersionRoot = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+
+	return nil
+}
+
+func (rm *ResourceModel) SetValidateCompatibility(val bool) *XRError {
+	if rm.GetValidateCompatibility() != val {
+		rm.ValidateCompatibility = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+
+	return nil
+}
+
+func (rm *ResourceModel) SetValidateFormat(val bool) *XRError {
+	if rm.GetValidateFormat() != val {
+		rm.ValidateFormat = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
 

@@ -318,6 +318,10 @@ func (rm *ResourceModel) VerifyData() *XRError {
 				return xErr
 			}
 
+			if xErr = resource.EnsureCompat(true); xErr != nil {
+				return xErr
+			}
+
 			resource.tx.AddResource(resource)
 		}
 	}

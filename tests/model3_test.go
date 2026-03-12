@@ -562,6 +562,8 @@ func TestModelResourceAttrs(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -784,15 +786,6 @@ func TestModelResourceAttrs(t *testing.T) {
               "required": true,
               "default": false
             },
-            "formatauthority": {
-              "name": "formatauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
@@ -805,15 +798,6 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full_transitive"
               ],
               "strict": true
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1153,6 +1137,8 @@ func TestModelResourceAttrs(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
+          "validatecompatibility": false,
+          "validateformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1373,15 +1359,6 @@ func TestModelResourceAttrs(t *testing.T) {
               "required": true,
               "default": false
             },
-            "formatauthority": {
-              "name": "formatauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
-            },
             "compatibility": {
               "name": "compatibility",
               "type": "string",
@@ -1394,15 +1371,6 @@ func TestModelResourceAttrs(t *testing.T) {
                 "full_transitive"
               ],
               "strict": true
-            },
-            "compatibilityauthority": {
-              "name": "compatibilityauthority",
-              "type": "string",
-              "enum": [
-                "external",
-                "server"
-              ],
-              "strict": false
             },
             "deprecated": {
               "name": "deprecated",
@@ -1658,6 +1626,8 @@ func TestModelFullModel(t *testing.T) {
                 "setdefaultversionsticky": false,
                 "hasdocument": false,
                 "singleversionroot": true,
+                "validatecompatibility": false,
+                "validateformat": false,
                 "typemap": {
                   "text/mine": "json"
                 },
@@ -1708,7 +1678,6 @@ func TestModelFullModel(t *testing.T) {
                 "createdat": "2027-01-04T12:04:03",
                 "modifiedat": "2027-01-04T12:04:04",
                 "compatibility": "forward",
-                "compatibilityauthority": "external",
                 "deprecated": {
                   "alternative": "alt url",
                   "documentation": "dep docs",
@@ -2020,6 +1989,8 @@ func TestModelFullModel(t *testing.T) {
             "setdefaultversionsticky": false,
             "hasdocument": false,
             "singleversionroot": true,
+            "validatecompatibility": false,
+            "validateformat": false,
             "typemaps": {
               "text/mine": "json"
             },
@@ -2227,15 +2198,6 @@ func TestModelFullModel(t *testing.T) {
                 "required": true,
                 "default": false
               },
-              "formatauthority": {
-                "name": "formatauthority",
-                "type": "string",
-                "enum": [
-                  "external",
-                  "server"
-                ],
-                "strict": false
-              },
               "compatibility": {
                 "name": "compatibility",
                 "type": "string",
@@ -2248,15 +2210,6 @@ func TestModelFullModel(t *testing.T) {
                   "full_transitive"
                 ],
                 "strict": true
-              },
-              "compatibilityauthority": {
-                "name": "compatibilityauthority",
-                "type": "string",
-                "enum": [
-                  "external",
-                  "server"
-                ],
-                "strict": false
               },
               "deprecated": {
                 "name": "deprecated",
@@ -2362,7 +2315,6 @@ func TestModelFullModel(t *testing.T) {
             "modifiedat": "2027-01-04T12:04:04Z",
             "readonly": false,
             "compatibility": "forward",
-            "compatibilityauthority": "external",
             "deprecated": {
               "effective": "2000-01-01T00:00:00Z",
               "removal": "3000-01-01T12:12:12Z",

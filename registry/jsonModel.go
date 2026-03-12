@@ -211,6 +211,14 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
 			NotNilBoolPtr(ur.SingleVersionRoot)))
 	}
+	if ur.ValidateCompatibility != nil {
+		buf.WriteString(fmt.Sprintf(`,"validatecompatibility":%v`,
+			NotNilBoolPtr(ur.ValidateCompatibility)))
+	}
+	if ur.ValidateFormat != nil {
+		buf.WriteString(fmt.Sprintf(`,"validateformat":%v`,
+			NotNilBoolPtr(ur.ValidateFormat)))
+	}
 	if len(ur.TypeMap) > 0 {
 		buf.WriteString(`,"typemaps":`)
 		b, _ := json.Marshal(ur.TypeMap)

@@ -304,11 +304,6 @@
                         "forward_transitive", "full", "full_transitive" ],
               "strict": true
             },
-            "compatibilityauthority": {
-              "type": "string",
-              "enum": [ "external", "server" ],
-              "strict": false
-            },
             "deprecated": {
               "type": "object",
               "attributes": {

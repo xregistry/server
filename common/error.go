@@ -162,11 +162,11 @@ var Type2Error = map[string]*XRError{
 	},
 	"format_missing": &XRError{
 		Code:  400,
-		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource's "formatauthority" being set.`,
+		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource model's "versionformat" being set.`,
 	},
 	"format_violation": &XRError{
 		Code:  400,
-		Title: `The request would cause Version "<subject>" to violate its adherence to its "format" (<format>).`,
+		Title: `The request would cause Version "<subject>" to be non-compliant with its "format" (<format>).`,
 	},
 	"groups_only": &XRError{
 		Code:  400,
