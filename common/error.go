@@ -162,7 +162,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"format_missing": &XRError{
 		Code:  400,
-		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource model's "versionformat" being set.`,
+		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource model's "validateformat" being set.`,
 	},
 	"format_violation": &XRError{
 		Code:  400,

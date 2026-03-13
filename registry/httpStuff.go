@@ -1533,7 +1533,7 @@ FROM FullTree WHERE RegSID=? AND `
 		if attr.Type == MAP && IsScalar(attr.Item.Type) {
 			for name, value := range val.(map[string]any) {
 				// Should only ever be one of each xRegistry header
-				info.SetHeader("xRegistry-"+key+"-"+name,
+				info.SetHeader("xRegistry-"+key+"."+name,
 					fmt.Sprintf("%v", value))
 			}
 			return nil
@@ -1868,13 +1868,14 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	return nil
 }
 
-var attrHeaders = map[string]*Attribute{}
+var specialAttrHeaders = map[string]*Attribute{}
 
 func init() {
 	// Load-up the attributes that have custom http header names
 	for _, attr := range OrderedSpecProps {
 		if attr.internals != nil && attr.internals.httpHeader != "" {
-			attrHeaders[strings.ToLower(attr.internals.httpHeader)] = attr
+			specialAttrHeaders[strings.ToLower(attr.internals.httpHeader)] =
+				attr
 		}
 	}
 }
@@ -3097,13 +3098,11 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		if metaJSON, ok := entry["meta"]; ok {
 			metaMap, ok := metaJSON.(map[string]any)
 			if !ok {
-				if xErr != nil { // makes no sense  TODO
-					return NewXRError("invalid_attribute", resource.XID,
-						"name=meta",
-						"error_detail="+
-							fmt.Sprintf("meta needs to be an object, "+
-								"not a \"%T\"", metaJSON))
-				}
+				return NewXRError("invalid_attribute", resource.XID,
+					"name=meta",
+					"error_detail="+
+						fmt.Sprintf("meta needs to be an object, "+
+							"not a \"%T\"", metaJSON))
 			}
 
 			if tmp, ok := metaMap[singular]; ok && tmp != id {
@@ -3336,7 +3335,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 
 		seenMaps := map[string]bool{}
 
-		for name, attr := range attrHeaders {
+		for name, attr := range specialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
 			// each HttpHeader attribute since some may want to have an
 			// explicit 'null' to be erased instead of just missing (eg patch)
@@ -3350,6 +3349,8 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				}
 			}
 		}
+
+		meta := map[string]any(nil)
 
 		for key, value := range info.OriginalRequest.Header {
 			key := strings.ToLower(key)
@@ -3388,13 +3389,37 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				val = nil
 			}
 
-			// If there are -'s then it's a non-scalar, convert it.
-			// Note that any "-" after the 1st is part of the key name
-			// labels-keyName && labels-"key-name"
-			parts := strings.SplitN(key, "-", 2)
+			// If there are .'s then it's a non-scalar, convert it.
+			// Note that any "." after the 1st is part of the key name for maps:
+			// labels.keyName && labels."key.name"
+			parts := strings.SplitN(key, ".", 2)
 			if len(parts) > 1 {
 				obj := IncomingObj
 
+				// "meta.abc" is special
+				if parts[0] == "meta" {
+					// Make sure "abc" doesn't have any dots in it
+					if strings.Index(parts[1], ".") >= 0 {
+						return nil, NewXRError("header_error",
+							"/"+info.OriginalPath,
+							"name=xRegistry-"+key,
+							`error_detail="meta" attributes must only be `+
+								`one level deep, "`+parts[1]+`" is invalid"`)
+					}
+
+					// Add "meta" if not already there
+					if mAny, ok := obj["meta"]; !ok {
+						meta = map[string]any{}
+						obj["meta"] = meta
+					} else {
+						meta = mAny.(map[string]any)
+					}
+
+					meta[parts[1]] = val
+					continue
+				}
+
+				// Must be a map
 				if _, ok := seenMaps[parts[0]]; !ok {
 					// First time we've seen this map, delete old stuff
 					delete(IncomingObj, parts[0])
@@ -3448,14 +3473,19 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 				}
 			}
 		}
-	}
 
-	// Convert all HTTP header values into their proper data types since
-	// as of now they're all just strings
-	if !metaInBody && info.ResourceModel != nil {
+		// Convert all HTTP header values into their proper data types
+		// since as of now they're all just strings
 		attrs := info.ResourceModel.GetBaseAttributes()
 		attrs.AddIfValuesAttributes(IncomingObj)
 		attrs.ConvertStrings(IncomingObj)
+
+		// Now do the same thing is there's "meta"
+		if meta != nil {
+			attrs := info.ResourceModel.GetBaseMetaAttributes()
+			attrs.AddIfValuesAttributes(meta)
+			attrs.ConvertStrings(meta)
+		}
 	}
 
 	return IncomingObj, nil

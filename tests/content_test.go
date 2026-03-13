@@ -273,7 +273,7 @@ func CompareContentMeta(t *testing.T, reg *registry.Registry, test *Test) {
 		}
 		name = name[len("xregistry-"):]
 
-		if strings.HasPrefix(name, "labels-") {
+		if strings.HasPrefix(name, "labels.") {
 			headerLabels[name[7:]] = value[0]
 			continue
 		}
