@@ -103,12 +103,13 @@ type Attributes map[string]*Attribute // AttrName->Attr
 // that we can just copy them over in one statement in SetSpecPropsFields()
 // and so that if we add more we don't need to remember to update that func
 type AttrInternals struct {
-	types           string // show only for these eTypes, ""==all
-	dontStore       bool   // don't store this prop in the DB
-	alwaysSerialize bool   // even if nil
-	neverSerialize  bool   // hidden attr
-	httpHeader      string // custom HTTP header name, not xRegistry-...
-	xrefrequired    bool   // required in meta even when xref is set
+	types           string   // show only for these eTypes, ""==all
+	dontStore       bool     // don't store this prop in the DB
+	alwaysSerialize bool     // even if nil
+	neverSerialize  bool     // hidden attr
+	httpHeader      string   // custom HTTP header name, not xRegistry-...
+	xrefrequired    bool     // required in meta even when xref is set
+	cantOverride    []string // blindly set from spec defined values
 
 	getFn    func(*Entity) any      // return prop's value
 	checkFn  func(*Entity) *XRError // validate incoming prop
@@ -127,6 +128,7 @@ type Attribute struct {
 	Description string `json:"description,omitempty"`
 	Enum        []any  `json:"enum,omitempty"` // just scalars though
 	Strict      *bool  `json:"strict,omitempty"`
+	MatchCase   bool   `json:"matchcase,omitempty"`
 	ReadOnly    bool   `json:"readonly,omitempty"`
 	Immutable   bool   `json:"immutable,omitempty"`
 	Required    bool   `json:"required,omitempty"`
@@ -793,7 +795,8 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 
 	if attr.Name != "*" {
 		if i.Type == OBJECT {
-			if i.NameCharSet == "extended" {
+			lowerNCS := strings.ToLower(i.NameCharSet)
+			if lowerNCS == "extended" {
 				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
 					return nil,
 						NewXRError("model_error", "/model",
@@ -802,7 +805,7 @@ func (i *Item) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 									"match: %s", attr.Name,
 									RegexpMapKey.String()))
 				}
-			} else if i.NameCharSet == "strict" || i.NameCharSet == "" {
+			} else if lowerNCS == "strict" || lowerNCS == "" {
 				if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 					return nil, xErr
 				}
@@ -1319,6 +1322,13 @@ func (rm *ResourceModel) GetHasDocument() bool {
 	return *rm.HasDocument
 }
 
+func (rm *ResourceModel) ClearHasDocument() {
+	if rm.HasDocument != nil {
+		rm.HasDocument = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
 func (rm *ResourceModel) SetHasDocument(val bool) {
 	if rm.GetHasDocument() != val {
 		rm.HasDocument = PtrBool(val)
@@ -1629,6 +1639,10 @@ func (a *Attribute) GetStrict() bool {
 	return a.Strict == nil || *a.Strict == true
 }
 
+func (a *Attribute) GetMatchCase() bool {
+	return a.MatchCase
+}
+
 func (a *Attribute) InType(eType int) bool {
 	PanicIf(a.internals == nil, "nil")
 	/*
@@ -1657,8 +1671,17 @@ func (a *Attribute) SetModel(m *Model) {
 
 // TODO add more setters
 func (a *Attribute) SetStrict(val bool) {
-	a.Strict = PtrBool(val)
-	a.Model.SetChanged(true)
+	if !IsNil(a.Strict) && *(a.Strict) != val {
+		a.Strict = PtrBool(val)
+		a.Model.SetChanged(true)
+	}
+}
+
+func (a *Attribute) SetMatchCase(val bool) {
+	if a.MatchCase != val {
+		a.MatchCase = val
+		a.Model.SetChanged(true)
+	}
 }
 
 func (a *Attribute) AddAttr(name, daType string) (*Attribute, *XRError) {
@@ -1683,14 +1706,15 @@ func (a *Attribute) AddAttrArray(name string, item *Item) (*Attribute, *XRError)
 func (a *Attribute) AddAttribute(attr *Attribute) (*Attribute, *XRError) {
 	if attr.Name != "*" {
 		if a.Type == OBJECT {
-			if a.NameCharSet == "extended" {
+			lowerNCS := strings.ToLower(a.NameCharSet)
+			if lowerNCS == "extended" {
 				if xErr := IsValidMapKey(attr.Name, "/model", ""); xErr != nil {
 					return nil, NewXRError("model_error", "/model",
 						"error_detail="+
 							fmt.Sprintf("invalid attribute name %q must "+
 								"match: %s", attr.Name, RegexpMapKey.String()))
 				}
-			} else if a.NameCharSet == "strict" || a.NameCharSet == "" {
+			} else if lowerNCS == "strict" || a.NameCharSet == "" {
 				if xErr := IsValidAttributeName(attr.Name, "/model", ""); xErr != nil {
 					return nil, xErr
 				}
@@ -1761,6 +1785,24 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 			"error_detail="+
 				fmt.Sprintf(`"model.%s" must have a "type" of %q`,
 					userAttr.Name, specAttr.Type))
+	}
+
+	// TODO DUG align other aspects of the attrs too
+	if specAttr.internals != nil {
+		for _, attrName := range specAttr.internals.cantOverride {
+			switch attrName {
+			case "MatchCase":
+				if specAttr.MatchCase != userAttr.MatchCase {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf(`"model.%s" can not `+
+								`change its "matchcase" property, it must `+
+								`be "%v"`, userAttr.Name, specAttr.MatchCase))
+				}
+			default:
+				panic(attrName)
+			}
+		}
 	}
 
 	return nil
@@ -2517,6 +2559,13 @@ func (rm *ResourceModel) GetMaxVersions() int {
 	return *rm.MaxVersions
 }
 
+func (rm *ResourceModel) ClearMaxVersions() {
+	if rm.MaxVersions != nil {
+		rm.MaxVersions = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
 func (rm *ResourceModel) SetMaxVersions(maxV int) *XRError {
 	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
 		rm.MaxVersions = PtrInt(maxV)
@@ -2524,6 +2573,13 @@ func (rm *ResourceModel) SetMaxVersions(maxV int) *XRError {
 	}
 
 	return nil
+}
+
+func (rm *ResourceModel) ClearSetDefaultSticky() {
+	if rm.SetDefaultSticky != nil {
+		rm.SetDefaultSticky = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
 }
 
 func (rm *ResourceModel) SetSetDefaultSticky(val bool) *XRError {
@@ -2535,6 +2591,13 @@ func (rm *ResourceModel) SetSetDefaultSticky(val bool) *XRError {
 	return nil
 }
 
+func (rm *ResourceModel) ClearSingleVersionRoot() {
+	if rm.SingleVersionRoot != nil {
+		rm.SingleVersionRoot = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
 func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
 	if rm.GetSingleVersionRoot() != val {
 		rm.SingleVersionRoot = PtrBool(val)
@@ -2544,6 +2607,13 @@ func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
 	return nil
 }
 
+func (rm *ResourceModel) ClearValidateCompatibility() {
+	if rm.ValidateCompatibility != nil {
+		rm.ValidateCompatibility = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
 func (rm *ResourceModel) SetValidateCompatibility(val bool) *XRError {
 	if rm.GetValidateCompatibility() != val {
 		rm.ValidateCompatibility = PtrBool(val)
@@ -2551,6 +2621,13 @@ func (rm *ResourceModel) SetValidateCompatibility(val bool) *XRError {
 	}
 
 	return nil
+}
+
+func (rm *ResourceModel) ClearValidateFormat() {
+	if rm.ValidateFormat != nil {
+		rm.ValidateFormat = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
 }
 
 func (rm *ResourceModel) SetValidateFormat(val bool) *XRError {
@@ -2885,6 +2962,8 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		ld.AttrNames = map[string]bool{}
 	}
 
+	lowerNCS := strings.ToLower(namecharset)
+
 	// First add the new attribute names, while checking the attr
 	for name, attr := range attrs {
 		if attr == nil {
@@ -2914,11 +2993,11 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		// Technically we should convert the ...id into id but any ...id needs
 		// to be a valid name/string so we should be ok
 		if name != "*" && SpecProps[name] == nil {
-			if namecharset == "extended" {
+			if lowerNCS == "extended" {
 				if xErr := IsValidMapKey(name, "/model", ld.Path.UI()); xErr != nil {
 					return xErr
 				}
-			} else if namecharset == "strict" || namecharset == "" {
+			} else if lowerNCS == "strict" || lowerNCS == "" {
 				xErr := IsValidAttributeName(name, "/model", ld.Path.UI())
 				if xErr != nil {
 					return xErr
@@ -3072,7 +3151,8 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		}
 
 		if attr.Type == OBJECT {
-			if attr.NameCharSet != "" && attr.NameCharSet != "strict" && attr.NameCharSet != "extended" {
+			lowerNCS := strings.ToLower(attr.NameCharSet)
+			if lowerNCS != "" && lowerNCS != "strict" && lowerNCS != "extended" {
 				return NewXRError("model_error", "/model",
 					"error_detail="+
 						fmt.Sprintf("%q has an invalid \"namecharset\" value: "+
@@ -3109,8 +3189,11 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 
 	// Now that we have all of the attribute names for this level, go ahead
 	// and check the IfValues, not just for validatity but to also make sure
-	// they don't define duplicate attribute names
+	// they don't define duplicate attribute names.
+	// Also, check for dup ifvalues values that differ by case
 	for _, attr := range attrs {
+		caseMap := map[string]bool{}
+
 		for valStr, ifValue := range attr.IfValues {
 			if valStr == "" {
 				return NewXRError("model_error", "/model",
@@ -3125,6 +3208,16 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 						fmt.Sprintf("%q has an ifvalues key that starts "+
 							"with \"^\"", ld.Path.P(attr.Name).UI()))
 			}
+
+			lowerVal := strings.ToLower(valStr)
+			if caseMap[lowerVal] != false {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q has ifvalues that only differ by "+
+							"case (%q)",
+							ld.Path.P(attr.Name).UI(), valStr))
+			}
+			caseMap[lowerVal] = true
 
 			nextLD := &LevelData{
 				ld.Model,
@@ -3196,7 +3289,8 @@ func (item *Item) Verify(path *PropPath) *XRError {
 	}
 
 	if item.Type == OBJECT {
-		if item.NameCharSet != "" && item.NameCharSet != "strict" && item.NameCharSet != "extended" {
+		lowerNCS := strings.ToLower(item.NameCharSet)
+		if lowerNCS != "" && lowerNCS != "strict" && lowerNCS != "extended" {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("invalid \"namecharset\" value: %s",

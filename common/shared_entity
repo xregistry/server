@@ -111,22 +111,26 @@ var OrderedSpecProps = []*Attribute{
 	{
 		Name:      "id",
 		Type:      STRING,
+		MatchCase: true,
 		Immutable: true,
 		Required:  true,
 
 		internals: &AttrInternals{
 			types:        "", // Yes even ENTITY_RESOURCE
 			xrefrequired: true,
+			cantOverride: []string{"MatchCase"},
 		},
 	},
 	{
 		Name:      "versionid",
 		Type:      STRING,
+		MatchCase: true,
 		Immutable: true,
 		Required:  true,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_VERSION),
+			types:        StrTypes(ENTITY_VERSION),
+			cantOverride: []string{"MatchCase"},
 		},
 	},
 	{
@@ -360,12 +364,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "ancestor",
-		Type:     STRING,
-		Required: true,
+		Name:      "ancestor",
+		Type:      STRING,
+		MatchCase: true,
+		Required:  true,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_VERSION),
+			types:        StrTypes(ENTITY_VERSION),
+			cantOverride: []string{"MatchCase"},
 		},
 	},
 	{
@@ -468,12 +474,14 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:     "defaultversionid",
-		Type:     STRING,
-		Required: true,
+		Name:      "defaultversionid",
+		Type:      STRING,
+		MatchCase: true,
+		Required:  true,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types:        StrTypes(ENTITY_META),
+			cantOverride: []string{"MatchCase"},
 		},
 	},
 	{

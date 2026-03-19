@@ -2131,9 +2131,9 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// GetAttributes already added IfValues for Registry attributes
 			if path.Len() >= 1 && len(attr.IfValues) > 0 {
-				valStr := fmt.Sprintf("%v", val)
+				valStr := strings.ToLower(fmt.Sprintf("%v", val))
 				for ifValStr, ifValueData := range attr.IfValues {
-					if valStr != ifValStr {
+					if valStr != strings.ToLower(ifValStr) {
 						continue
 					}
 
@@ -2212,11 +2212,12 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// And finally check to make sure it's a valid attribute name,
 			// but only if it's actually present in the object.
 			if keyPresent {
-				if namecharset == "extended" {
+				lowerNCS := strings.ToLower(namecharset)
+				if lowerNCS == "extended" {
 					if xErr := IsValidMapKey(key, e.XID, path.UI()); xErr != nil {
 						return xErr
 					}
-				} else if namecharset == "" || namecharset == "strict" {
+				} else if lowerNCS == "" || lowerNCS == "strict" {
 					if xErr := IsValidAttributeName(key, e.XID, path.UI()); xErr != nil {
 						ShowStack()
 						return xErr
@@ -2637,8 +2638,16 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 	if len(attr.Enum) > 0 && attr.GetStrict() {
 		foundOne := false
 		valStr := fmt.Sprintf("%v", val)
+
+		if attr.MatchCase == false {
+			valStr = strings.ToLower(valStr)
+		}
+
 		for _, enumVal := range attr.Enum {
 			enumValStr := fmt.Sprintf("%v", enumVal)
+			if attr.MatchCase == false {
+				enumValStr = strings.ToLower(enumValStr)
+			}
 			if enumValStr == valStr {
 				foundOne = true
 				break

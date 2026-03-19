@@ -449,7 +449,7 @@ func TestResourceSamples(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) //hasdoc=false
-	rm.SetVersionMode("createdat")
+	rm.SetVersionMode("cREATEdAt")                                      // weird casing
 
 	// Create single Resource with empty content - PUT
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{}`, 201, `{

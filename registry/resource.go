@@ -377,7 +377,7 @@ func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
 
 func (r *Resource) GetVersionMode() VersionMode {
 	vm := r.ResourceModel.GetVersionMode()
-	apis, ok := VersionModes[vm]
+	apis, ok := VersionModes[strings.ToLower(vm)]
 	PanicIf(!ok, "Missing versionmode(%s) for: %s", vm, r.UID)
 
 	return apis
@@ -1581,10 +1581,11 @@ type FormatChecker interface {
 	IsCompatible(oldVersion, newVersion *Version) *XRError
 }
 
+// case insensitive 'format' values'
 var SupportedFormats = map[string]FormatChecker{}
 
 func RegisterFormat(name string, format FormatChecker) {
-	SupportedFormats[name] = format
+	SupportedFormats[strings.ToLower(name)] = format
 }
 
 // This will check "format" as well.
@@ -1601,6 +1602,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	oldCompat := meta.GetOrigin("compatibility")
 	newCompat := meta.Get("compatibility")
 
+	/* not true!
 	if validateCompat && IsNil(newCompat) {
 		return NewXRError("invalid_attribute", meta.XID,
 			"name=compatibility",
@@ -1608,6 +1610,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				r.ResourceModel.Plural+" has \"validatecompatibility\" set to "+
 				"\"true\"")
 	}
+	*/
 
 	if validateCompat && newCompat == "" {
 		return NewXRError("invalid_attribute", meta.XID,
@@ -1641,6 +1644,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	ancestorMap := map[string]string{} // v.UID -> v.ancestorUID
 
 	doCheckCompat := func(oldVID string, newVID string) *XRError {
+		// log.Printf("In doCheckCompat: %s vs %s", oldVID, newVID)
 		PanicIf(oldVID == "", "can't be empty")
 		PanicIf(newVID == "", "can't be empty")
 
@@ -1708,13 +1712,12 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					return NewXRError("format_missing", ver.XID)
 				}
 
-				checker := SupportedFormats[newFormat]
+				checker := SupportedFormats[strings.ToLower(newFormat)]
 				if IsNil(checker) {
 					return NewXRError("bad_request", r.XID,
 						"error_detail="+
-							fmt.Sprintf("Unknown format for %s: %s", r.XID,
-								newFormat)).
-						SetSubject(r.XID)
+							fmt.Sprintf("Unknown \"format\" value for %s: %s",
+								r.XID, newFormat))
 				}
 
 				// Validate that the Version is valid per the "format"
@@ -1732,6 +1735,14 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		}
 	}
 
+	// If compat isn't enabled, skip compat checking
+	if IsNil(newCompat) {
+		return nil
+	}
+
+	// compat is case-insensitive
+	newCompat = strings.ToLower(newCompat.(string))
+
 	// for all changed versions do compat checking
 	compatFound := false
 	for _, verID := range changedVersions {
@@ -1739,7 +1750,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		ver, xErr := r.FindVersion(verID, false, FOR_READ)
 		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
 		newFormat := ver.GetAsString("format")
-		checker = SupportedFormats[newFormat]
+		checker = SupportedFormats[strings.ToLower(newFormat)]
 
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
@@ -1827,10 +1838,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		}
 
 		if !compatFound {
-			// Should never get here
-			return NewXRError("server_error", r.XID+"/meta").
-				SetDetail(fmt.Sprintf("Unknown \"compatibility\" value: %s.",
-					newCompat))
+			// Should we check this in the checkFn stuff instead???
+			return NewXRError("bad_request", r.XID+"/meta",
+				"error_detail="+
+					fmt.Sprintf("Unknown \"compatibility\" value for %s: %s",
+						r.XID+"/meta", newCompat))
 		}
 	}
 

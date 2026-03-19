@@ -18,6 +18,12 @@ func (m *Model) UserMarshal(prefix string, indent string) ([]byte, error) {
 	return json.MarshalIndent((*UserModel)(m), prefix, indent)
 }
 
+func (m *Model) MustUserMarshal(prefix string, indent string) string {
+	buf, err := json.MarshalIndent((*UserModel)(m), prefix, indent)
+	PanicIf(err != nil, "Err: %s ", err)
+	return string(buf)
+}
+
 func (um *UserModel) MarshalJSON() ([]byte, error) {
 	extra := ""
 	buf := bytes.Buffer{}

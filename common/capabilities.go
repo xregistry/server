@@ -348,5 +348,5 @@ func (c *Capabilities) StickyVersionsEnabled() bool {
 }
 
 func (c *Capabilities) VersionModeEnabled(str string) bool {
-	return ArrayContains(c.VersionModes, str)
+	return ArrayContains(c.VersionModes, strings.ToLower(str))
 }

@@ -13,6 +13,7 @@ type VersionMode interface {
 	GetOrderedVersionIDs(r *Resource) ([]*VersionAncestor, *XRError)
 }
 
+// keys MUST be lowercase
 var VersionModes = map[string]VersionMode{
 	"manual":    (*ManualVersionMode)(nil),
 	"createdat": (*CreatedatVersionMode)(nil),

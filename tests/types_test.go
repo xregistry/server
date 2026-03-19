@@ -946,7 +946,7 @@ func TestTypesNameCharSet(t *testing.T) {
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name:        "obj1",
 		Type:        OBJECT,
-		NameCharSet: "strict",
+		NameCharSet: "sTRICt", // weird casing
 		Attributes: map[string]*registry.Attribute{
 			"attr1-": {
 				Name: "attr1-",
@@ -1150,6 +1150,7 @@ func TestTypesNameCharSet(t *testing.T) {
     "registryid": {
       "name": "registryid",
       "type": "string",
+      "matchcase": true,
       "readonly": true,
       "immutable": true,
       "required": true

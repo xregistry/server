@@ -8,6 +8,7 @@
     },
     "registryid": {
       "type": "string",
+      "matchcase": true,
       "immutable": true,
       "readonly": true,
       "required": true
@@ -103,6 +104,7 @@
       "attributes": {
         "dirid": {
           "type": "string",
+          "matchcase": true,
           "immutable": true,
           "required": true
         },
@@ -179,11 +181,13 @@
           "attributes": {
             "fileid": {
               "type": "string",
+              "matchcase": true,
               "immutable": true,
               "required": true
             },
             "versionid": {
               "type": "string",
+              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -269,6 +273,7 @@
           "metaattributes": {
             "fileid": {
               "type": "string",
+              "matchcase": true,
               "immutable": true,
               "required": true
             },
@@ -326,6 +331,7 @@
             },
             "defaultversionid": {
               "type": "string",
+              "matchcase": true,
               "required": true
             },
             "defaultversionurl": {
