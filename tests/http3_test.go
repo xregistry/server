@@ -681,6 +681,13 @@ func TestHTTPModelSource(t *testing.T) {
                 "readonly": true,
                 "required": true
               },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
+              },
               "createdat": {
                 "name": "createdat",
                 "type": "timestamp",

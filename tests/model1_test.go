@@ -1460,6 +1460,13 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -1869,6 +1876,13 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -2439,6 +2453,13 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -3098,6 +3119,13 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -3734,6 +3762,13 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -4275,6 +4310,13 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -4834,6 +4876,13 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -5395,6 +5444,13 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "uinteger",
                 "readonly": true,
                 "required": true
+              },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
               },
               "createdat": {
                 "name": "createdat",
@@ -5987,6 +6043,13 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "uinteger",
                 "readonly": true,
                 "required": true
+              },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
               },
               "createdat": {
                 "name": "createdat",
@@ -7128,6 +7191,13 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -7417,6 +7487,13 @@ func TestMultModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -7854,6 +7931,13 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -8143,6 +8227,13 @@ func TestMultModelCreate(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -8766,6 +8857,13 @@ func TestMultModel2Create(t *testing.T) {
                 "readonly": true,
                 "required": true
               },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
+              },
               "createdat": {
                 "name": "createdat",
                 "type": "timestamp",
@@ -9175,6 +9273,13 @@ func TestMultModel2Create(t *testing.T) {
                 "type": "uinteger",
                 "readonly": true,
                 "required": true
+              },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
               },
               "createdat": {
                 "name": "createdat",

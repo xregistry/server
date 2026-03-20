@@ -495,6 +495,13 @@ func TestModelLabels(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -1046,6 +1053,13 @@ func TestModelLabels(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -1640,6 +1654,13 @@ func TestModelLabels(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -2806,6 +2827,13 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "readonly": true,
                 "required": true
               },
+              "labels": {
+                "name": "labels",
+                "type": "map",
+                "item": {
+                  "type": "string"
+                }
+              },
               "createdat": {
                 "name": "createdat",
                 "type": "timestamp",
@@ -3814,6 +3842,13 @@ func TestModelCompatibleWith(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -4106,6 +4141,13 @@ func TestModelCompatibleWith(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -4396,6 +4438,13 @@ func TestModelCompatibleWith(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -5304,6 +5353,13 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -5891,6 +5947,13 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -6300,6 +6363,13 @@ func TestModelIncludes(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -6975,6 +7045,13 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -7384,6 +7461,13 @@ func TestModelIncludes(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -7965,6 +8049,13 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -8374,6 +8465,13 @@ func TestModelIncludes(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -8955,6 +9053,13 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -9364,6 +9469,13 @@ func TestModelIncludes(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -10036,6 +10148,13 @@ func TestModelMissingFields(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",

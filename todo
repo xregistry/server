@@ -147,7 +147,6 @@ TODOs:
 - test export & import - include readonly and xref resources
 - make sure the export/import flow is as UX friendly as possible
 - what should "xr create /" do? fail due to the reg already existing? import?
-- support labels in meta
 - support ?ignore=id
 - make sure we validate (adhere to rfc2119) for capabilities.ignore rules
   - capabilities.flags=ignore but capabilities.ignore is missing/empty -> error

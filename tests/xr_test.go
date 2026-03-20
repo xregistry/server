@@ -190,25 +190,26 @@ GROUP: dirs / dir
     ├ versionsurl          url          y     y    -
     └ xid                  xid          y     y    -
 
-    META ATTRIBUTES:         TYPE        REQ   RO   MUT   DEFAULT
-    ├ compatibility          string      -     -    y
-    ├ createdat              timestamp   y     -    y
-    ├ defaultversionid       string      y     -    y
-    ├ defaultversionsticky   boolean     y     -    y     false
-    ├ defaultversionurl      url         y     y    y
-    ├ deprecated             object      -     -    y
-    │ ├ alternative          url         -     -    y
-    │ ├ documentation        url         -     -    y
-    │ ├ effective            timestamp   -     -    y
-    │ ├ removal              timestamp   -     -    y
-    │ └ *                    any         -     -    y
-    ├ epoch                  uinteger    y     y    y
-    ├ fileid                 string      y     -    -
-    ├ modifiedat             timestamp   y     -    y
-    ├ readonly               boolean     y     y    y     false
-    ├ self                   url         y     y    -
-    ├ xid                    xid         y     y    -
-    └ xref                   url         -     -    y
+    META ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+    ├ compatibility          string       -     -    y
+    ├ createdat              timestamp    y     -    y
+    ├ defaultversionid       string       y     -    y
+    ├ defaultversionsticky   boolean      y     -    y     false
+    ├ defaultversionurl      url          y     y    y
+    ├ deprecated             object       -     -    y
+    │ ├ alternative          url          -     -    y
+    │ ├ documentation        url          -     -    y
+    │ ├ effective            timestamp    -     -    y
+    │ ├ removal              timestamp    -     -    y
+    │ └ *                    any          -     -    y
+    ├ epoch                  uinteger     y     y    y
+    ├ fileid                 string       y     -    -
+    ├ labels                 map/string   -     -    y
+    ├ modifiedat             timestamp    y     -    y
+    ├ readonly               boolean      y     y    y     false
+    ├ self                   url          y     y    -
+    ├ xid                    xid          y     y    -
+    └ xref                   url          -     -    y
 `, "", true)
 
 	XCLI(t, "create /dirs/d1/files/f1/versions/v1 -vd hello_world", "",
@@ -1340,6 +1341,13 @@ files2 / file2   true      0
         "matchcase": true,
         "immutable": true,
         "required": true
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
       },
       "modifiedat": {
         "name": "modifiedat",

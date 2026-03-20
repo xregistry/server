@@ -942,6 +942,13 @@ func TestHTTPModel(t *testing.T) {
               "readonly": true,
               "required": true
             },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
             "createdat": {
               "name": "createdat",
               "type": "timestamp",
@@ -1528,6 +1535,13 @@ func TestHTTPModel(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",
@@ -2138,6 +2152,13 @@ func TestHTTPModel(t *testing.T) {
               "type": "uinteger",
               "readonly": true,
               "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
             },
             "createdat": {
               "name": "createdat",

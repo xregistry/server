@@ -3334,6 +3334,7 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		IncomingObj[resSingular] = body // save new body
 
 		seenMaps := map[string]bool{}
+		seenMetaMaps := map[string]bool{}
 
 		for name, attr := range specialAttrHeaders {
 			// TODO we may need some kind of "delete if missing" flag on
@@ -3398,15 +3399,6 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 
 				// "meta.abc" is special
 				if parts[0] == "meta" {
-					// Make sure "abc" doesn't have any dots in it
-					if strings.Index(parts[1], ".") >= 0 {
-						return nil, NewXRError("header_error",
-							"/"+info.OriginalPath,
-							"name=xRegistry-"+key,
-							`error_detail="meta" attributes must only be `+
-								`one level deep, "`+parts[1]+`" is invalid"`)
-					}
-
 					// Add "meta" if not already there
 					if mAny, ok := obj["meta"]; !ok {
 						meta = map[string]any{}
@@ -3415,7 +3407,65 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 						meta = mAny.(map[string]any)
 					}
 
-					meta[parts[1]] = val
+					// ---
+
+					// If there are .'s then it's a non-scalar, convert it.
+					// Note that any "." after the 1st is part of the key name for maps:
+					// labels.keyName && labels."key.name"
+					metaParts := strings.SplitN(parts[1], ".", 2)
+					if len(metaParts) > 1 {
+						obj := meta
+
+						// Must be a map
+						if _, ok := seenMetaMaps[metaParts[0]]; !ok {
+							// First time we've seen this map, delete old stuff
+							delete(obj, parts[0])
+							seenMetaMaps[metaParts[0]] = true
+						}
+
+						for i, part := range metaParts {
+							if i+1 == len(metaParts) {
+								// Should we just skip all of this logic if nil?
+								// If we try, watch for the case where someone
+								// has just xReg-label-foo:null, it should probably
+								// create the empty map anyway. And watch for the
+								// case mentioned below
+								if val != nil {
+									obj[part] = val
+								}
+								continue
+							}
+
+							prop, ok := obj[part]
+							if !ok {
+								if val == nil {
+									break
+								}
+								tmpO := map[string]any{}
+								obj[part] = tmpO
+								obj = map[string]any(tmpO)
+							} else {
+								obj, ok = prop.(map[string]any)
+								PanicIf(!ok, "Prop isn't map: %#v", prop)
+							}
+						}
+					} else {
+
+						// ---
+
+						// Make sure "abc" doesn't have any dots in it
+						/*
+							if strings.Index(parts[1], ".") >= 0 {
+								return nil, NewXRError("header_error",
+									"/"+info.OriginalPath,
+									"name=xRegistry-"+key,
+									`error_detail="meta" attributes must only be `+
+										`one level deep, "`+parts[1]+`" is invalid"`)
+							}
+						*/
+
+						meta[parts[1]] = val
+					}
 					continue
 				}
 

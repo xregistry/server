@@ -243,7 +243,7 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
 		},
 	},
 	{

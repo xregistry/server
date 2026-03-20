@@ -1474,3 +1474,187 @@ func TestMetaCombos(t *testing.T) {
 	})
 
 }
+
+func TestMetaLabels(t *testing.T) {
+	reg := NewRegistry("TestMetaLabels")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:     "/dirs/d1/files/f1/meta",
+		Method:  "PUT",
+		ReqBody: `{"labels": { "foo": "bar" } }`,
+		Code:    201,
+		ResHeaders: []string{
+			"Location: http://localhost:8181/dirs/d1/files/f1/meta",
+		},
+		ResBody: `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "labels": {
+    "foo": "bar"
+  },
+  "createdat": "2026-03-20T20:37:37.837043251Z",
+  "modifiedat": "2026-03-20T20:37:37.837043251Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-meta.labels.bar:foo",
+		},
+		ReqBody: `my doc`,
+		Code:    200,
+		ResHeaders: []string{
+			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-origin: *",
+			"content-disposition: f1",
+			"content-length: 6",
+			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"content-type: text/plain; charset=utf-8",
+
+			"xregistry-fileid: f1",
+			"xregistry-versionid: 1",
+			"xregistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xregistry-xid: /dirs/d1/files/f1",
+			"xregistry-epoch: 2",
+			"xregistry-isdefault: true",
+			"xregistry-createdat: 2026-03-20T20:58:22.885024391Z",
+			"xregistry-modifiedat: 2026-03-20T20:58:22.946741842Z",
+			"xregistry-ancestor: 1",
+			"xregistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xregistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xregistry-versionscount: 1",
+		},
+		ResBody: `my doc`,
+	})
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "labels": {
+    "bar": "foo"
+  },
+  "createdat": "2026-03-20T21:02:41.827947262Z",
+  "modifiedat": "2026-03-20T21:02:50Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
+}
+`)
+
+}
+
+func TestMetaXregHeaders(t *testing.T) {
+	reg := NewRegistry("TestMetaXregHeaders")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-meta.bar:foo",
+		},
+		ReqBody: `my doc`,
+		Code:    400,
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (bar) was specified for \"/dirs/d1/files/f1/meta\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "name": "bar"
+  },
+  "source": "abbc855721d7:registry:entity:2254"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-meta.bar.bar:foo",
+		},
+		ReqBody: `my doc`,
+		Code:    400,
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (bar) was specified for \"/dirs/d1/files/f1/meta\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "name": "bar"
+  },
+  "source": "abbc855721d7:registry:entity:2254"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-meta.labels.bar.bar:foo",
+		},
+		ReqBody: `my doc`,
+		Code:    201,
+		ResHeaders: []string{
+			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-origin: *",
+			"content-disposition: f1",
+			"content-length: 6",
+			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"content-type: text/plain; charset=utf-8",
+
+			"xregistry-fileid: f1",
+			"xregistry-versionid: 1",
+			"xregistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xregistry-xid: /dirs/d1/files/f1",
+			"xregistry-epoch: 1",
+			"xregistry-isdefault: true",
+			"xregistry-createdat: 2026-03-20T20:58:22.0Z",
+			"xregistry-modifiedat: 2026-03-20T20:58:22.0Z",
+			"xregistry-ancestor: 1",
+			"xregistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xregistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xregistry-versionscount: 1",
+		},
+		ResBody: `my doc`,
+	})
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "labels": {
+    "bar.bar": "foo"
+  },
+  "createdat": "2026-03-20T21:02:41.0Z",
+  "modifiedat": "2026-03-20T21:02:41.0Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
+}
+`)
+}
