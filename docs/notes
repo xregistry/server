@@ -1,0 +1,8 @@
+# Notes
+
+These need to be added to a real doc, but for now I don't want to lose track
+of them.
+
+
+- When a "format" is registered, (RegisterFormat(NAME, CHECKER{})), the
+  NAME is a regexp to it can accept any number of variants. E.g. `jsonSchem.*`.

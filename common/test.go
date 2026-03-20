@@ -141,6 +141,25 @@ func XCheckErr(t *testing.T, errAny any, errStr string) {
 	XEqual(t, "", errAny, errStr)
 }
 
+func XCheckErrFold(t *testing.T, errAny any, errStr string) {
+	t.Helper()
+
+	if IsNil(errAny) {
+		if errStr == "" {
+			return
+		}
+		t.Fatalf("\nGot:<no err>\nExp: %s", errStr)
+	}
+
+	if errStr == "" {
+		t.Fatalf("Test failed: %s", errAny)
+	}
+
+	exp := strings.ToLower(fmt.Sprintf("%v", errAny))
+	got := strings.ToLower(fmt.Sprintf("%v", errStr))
+	XEqual(t, "", exp, got)
+}
+
 func XCheck(t *testing.T, b bool, errStr string, args ...any) {
 	t.Helper()
 	if !b {

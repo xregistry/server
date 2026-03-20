@@ -844,3 +844,98 @@ func TestFormatCompatVariants(t *testing.T) {
 `)
 
 }
+
+func TestFormatSimpleJson(t *testing.T) {
+	reg := NewRegistry("TestFormatSimpleJson")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rm, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+
+	rm.SetValidateFormat(true) // And enable validateformat
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
+		200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "validateformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Happy path
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+  "format": "jsonSchema/draft-07",
+  "file": "{}"
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-03-06T00:19:13.099947785Z",
+  "modifiedat": "2026-03-06T00:19:13.099947785Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "jsonSchema/draft-07",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Happy path - tweak format
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+  "format": "jsonSchema/draft-08"
+}`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-03-06T00:19:13.099947785Z",
+  "modifiedat": "2026-03-06T00:19:13.199947785Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "jsonSchema/draft-08",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// close but not quite the right format
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+  "format": "jsonSchem"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Unknown \"format\" value for /dirs/d1/files/f1: jsonSchem.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f1: jsonSchem"
+  },
+  "source": "4ed15b37cca0:registry:resource:1737"
+}
+`)
+
+}

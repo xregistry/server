@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1588,6 +1589,25 @@ func RegisterFormat(name string, format FormatChecker) {
 	SupportedFormats[strings.ToLower(name)] = format
 }
 
+func GetFormatChecker(format string) FormatChecker {
+	format = strings.ToLower(format)
+	checker := SupportedFormats[format]
+	if checker != nil {
+		return checker
+	}
+
+	// Just grab the first format whose regexp matches - not determinant
+	for name, checker := range SupportedFormats {
+		nameRE, err := regexp.Compile(name)
+		PanicIf(err != nil, "%s: %s", name, err)
+		if nameRE.MatchString(format) {
+			return checker
+		}
+	}
+
+	return nil
+}
+
 // This will check "format" as well.
 // "force" check all Verisons even if we don't think we need to.
 func (r *Resource) EnsureCompat(force bool) *XRError {
@@ -1712,7 +1732,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					return NewXRError("format_missing", ver.XID)
 				}
 
-				checker := SupportedFormats[strings.ToLower(newFormat)]
+				checker := GetFormatChecker(newFormat)
 				if IsNil(checker) {
 					return NewXRError("bad_request", r.XID,
 						"error_detail="+
@@ -1750,7 +1770,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		ver, xErr := r.FindVersion(verID, false, FOR_READ)
 		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
 		newFormat := ver.GetAsString("format")
-		checker = SupportedFormats[strings.ToLower(newFormat)]
+		checker = GetFormatChecker(newFormat)
 
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true

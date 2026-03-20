@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	RegisterFormat("json", FormatJson{})
+	RegisterFormat("jsonschema.*", FormatJson{})
 }
 
 type FormatJson struct{}

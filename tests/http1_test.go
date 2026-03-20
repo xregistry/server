@@ -10981,7 +10981,7 @@ func TestHTTPIfValuesValuesCase(t *testing.T) {
 			"FoO": &registry.IfValue{},
 		},
 	})
-	XCheckErr(t, err, `{
+	XCheckErrFold(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"mystring\" has ifvalues that only differ by case (\"FoO\").",
   "subject": "/model",
@@ -11034,9 +11034,7 @@ func TestHTTPIfValuesValuesCase(t *testing.T) {
 		},
 	})
 
-	// odd but we need to allow for objVAL and objval in the msg
-	if err == nil {
-		XCheckErr(t, err, `{
+	XCheckErrFold(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"mystring.ifvalues.foo.object.objstr\" has ifvalues that only differ by case (\"objVAL\").",
   "subject": "/model",
@@ -11045,17 +11043,6 @@ func TestHTTPIfValuesValuesCase(t *testing.T) {
   },
   "source": "c30ebf8b495a:registry:shared_model:3198"
 }`)
-	} else {
-		XEqual(t, "", strings.ToLower(err.String()), `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "there was an error in the model definition provided: \"mystring.ifvalues.foo.object.objstr\" has ifvalues that only differ by case (\"objval\").",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"mystring.ifvalues.foo.object.objstr\" has ifvalues that only differ by case (\"objval\")"
-  },
-  "source": "c30ebf8b495a:registry:shared_model:3198"
-}`)
-	}
 
 }
 
