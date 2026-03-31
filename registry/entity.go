@@ -874,10 +874,16 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return NewXRError("mismatched_id", e.XID,
-						"singular="+justSingular,
-						"expected_id="+fmt.Sprintf("%v", oldID),
-						"invalid_id="+fmt.Sprintf("%v", newID))
+					info := e.tx.RequestInfo
+					if info.HasIgnore("id") && "/"+info.Root == e.XID {
+						// Don't check and reset to old ID (if changed)
+						e.NewObject[singular] = oldID
+					} else {
+						return NewXRError("mismatched_id", e.XID,
+							"singular="+justSingular,
+							"expected_id="+fmt.Sprintf("%v", oldID),
+							"invalid_id="+fmt.Sprintf("%v", newID))
+					}
 				}
 				return nil
 			},
@@ -923,10 +929,16 @@ var PropsFuncs = []*Attribute{
 				}
 
 				if oldID != "" && !IsNil(oldID) && newID != oldID {
-					return NewXRError("mismatched_id", e.XID,
-						"singular=version",
-						"invalid_id="+fmt.Sprintf("%v", newID),
-						"expected_id="+fmt.Sprintf("%v", oldID))
+					info := e.tx.RequestInfo
+					if info.HasIgnore("id") && "/"+info.Root == e.XID {
+						// Don't check and reset to old ID (if changed)
+						e.NewObject["versionid"] = oldID
+					} else {
+						return NewXRError("mismatched_id", e.XID,
+							"singular=version",
+							"invalid_id="+fmt.Sprintf("%v", newID),
+							"expected_id="+fmt.Sprintf("%v", oldID))
+					}
 				}
 				return nil
 			},

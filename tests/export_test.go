@@ -63,6 +63,7 @@ func TestExportBasic(t *testing.T) {
       "defaultversionid",
       "defaultversionsticky",
       "epoch",
+      "id",
       "modelsource",
       "readonly"
     ],
@@ -315,6 +316,7 @@ func TestExportBasic(t *testing.T) {
       "defaultversionid",
       "defaultversionsticky",
       "epoch",
+      "id",
       "modelsource",
       "readonly"
     ],

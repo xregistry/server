@@ -2244,10 +2244,15 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		if propsID != "" && propsID != resourceUID {
-			return NewXRError("mismatched_id", "/"+info.OriginalPath,
-				"singular="+info.ResourceModel.Singular,
-				"invalid_id="+propsID,
-				"expected_id="+resourceUID)
+			if info.HasIgnore("id") {
+				// ignore error, and force the right value
+				IncomingObj[info.ResourceModel.Singular+"id"] = resourceUID
+			} else {
+				return NewXRError("mismatched_id", "/"+info.OriginalPath,
+					"singular="+info.ResourceModel.Singular,
+					"invalid_id="+propsID,
+					"expected_id="+resourceUID)
+			}
 		}
 
 		if resource != nil {
@@ -2354,19 +2359,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if resource == nil {
 			isNew = true
-			propsID := "" // RESOURCEid
-			if v, ok := IncomingObj[info.ResourceModel.Singular+"id"]; ok {
-				if reflect.ValueOf(v).Kind() == reflect.String {
-					propsID = NotNilString(&v)
-				}
-			}
-
-			if propsID != "" && propsID != resourceUID {
-				return NewXRError("mismatched_id", info.GetParts(4),
-					"singular="+info.ResourceModel.Singular,
-					"invalid_id="+propsID,
-					"expected_id="+resourceUID)
-			}
 
 			// Implicitly create the resource
 			resource, _, xErr = group.UpsertResource(&ResourceUpsert{
@@ -2544,13 +2536,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	if numParts == 6 {
 		// PUT GROUPs/gID/RESOURCEs/rID/versions/vID [$details]
-		propsID := "" //versionid
-		if v, ok := IncomingObj["versionid"]; ok {
-			if reflect.ValueOf(v).Kind() == reflect.String {
-				propsID = NotNilString(&v)
-			}
-		}
-
 		if resource == nil {
 			// Implicitly create the resource
 			resource, xErr = group.AddResourceWithObject(info.ResourceType,
@@ -2577,14 +2562,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				DefaultVersionID: setDefVerID,
 			})
 		} else if !isNew {
-			if propsID != "" && propsID != version.UID {
-				return NewXRError("mismatched_id", version.XID,
-					"singular=version",
-					"invalid_id="+propsID,
-					"expected_id="+version.UID)
-			}
-
-			IncomingObj["versionid"] = version.UID
 			addType := ADD_UPSERT
 			if method == "PATCH" || !metaInBody {
 				addType = ADD_PATCH

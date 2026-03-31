@@ -524,14 +524,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	PanicIf(mu.obj == nil, "obj is nil")
-	if val, ok := mu.obj[r.Singular+"id"]; ok {
-		if val != r.UID {
-			return nil, false, NewXRError("mismatched_id", meta.XID,
-				"singular="+r.Singular,
-				"invalid_id="+fmt.Sprintf("%v", val),
-				"expected_id="+r.UID)
-		}
-	}
 
 	// Just in case we need it, save the Resource's epoch value. If this
 	// is an xref'd Resource then it'll actually be the target's epoch.

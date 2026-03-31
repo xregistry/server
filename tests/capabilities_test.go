@@ -45,6 +45,7 @@ func TestCapabilitySimple(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -100,6 +101,7 @@ func TestCapabilitySimple(t *testing.T) {
       "defaultversionid",
       "defaultversionsticky",
       "epoch",
+      "id",
       "modelsource",
       "readonly"
     ],
@@ -381,6 +383,7 @@ func TestCapabilityPath(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -565,7 +568,7 @@ func TestCapabilityPath(t *testing.T) {
     "setdefaultversionid", "sort", "specversion"
   ],
   "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
-    "epoch", "modelsource", "readonly" ],
+    "epoch", "id", "modelsource", "readonly" ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
   "shortself": false,
@@ -598,6 +601,7 @@ func TestCapabilityPath(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -644,6 +648,7 @@ func TestCapabilityPath(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -901,7 +906,7 @@ func TestCapabilityAttr(t *testing.T) {
   ],
   "ignores": [
     "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
-    "modelsource", "readonly"
+    "id", "modelsource", "readonly"
   ],
   "mutable": [ "capabilities", "entities", "model" ],
   "pagination": false,
@@ -946,6 +951,7 @@ func TestCapabilityAttr(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -1227,6 +1233,7 @@ func TestCapabilityOffered(t *testing.T) {
       "defaultversionid",
       "defaultversionsticky",
       "epoch",
+      "id",
       "modelsource",
       "readonly"
     ]
@@ -1502,6 +1509,7 @@ func TestCapabilityAPIs(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],
@@ -1549,6 +1557,7 @@ func TestCapabilityPatch(t *testing.T) {
     "defaultversionid",
     "defaultversionsticky",
     "epoch",
+    "id",
     "modelsource",
     "readonly"
   ],

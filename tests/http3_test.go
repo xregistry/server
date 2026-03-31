@@ -2817,7 +2817,7 @@ func TestHTTPIgnore(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `*`)
 
-	// capabilities, defaultversionid, defaultversionsticky, epoch,
+	// capabilities, defaultversionid, defaultversionsticky, epoch, id
 	// modelsource, readonly
 
 	// Make sure things will fails w/o ?ignore
@@ -3431,4 +3431,315 @@ func TestHTTPIgnore(t *testing.T) {
 	}
 	`)
 	*/
+
+	// Test ignore=id
+
+	// Registry - first fail, then ignore/pass
+	XHTTP(t, reg, "PUT", "/", `{"registryid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"registryid\" value (foo) for \"/\" needs to be \"TestHTTPIgnore\".",
+  "subject": "/",
+  "args": {
+    "expected_id": "TestHTTPIgnore",
+    "invalid_id": "foo",
+    "singular": "registry"
+  },
+  "source": "87d46e750ad4:registry:entity:882"
+}
+`)
+	XHTTP(t, reg, "PUT", "/?ignore=id", `{"id": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (id) was specified for \"/\".",
+  "subject": "/",
+  "args": {
+    "name": "id"
+  },
+  "source": "87d46e750ad4:registry:entity:2260"
+}
+`)
+	XHTTP(t, reg, "PUT", "/?ignore=id", `{"registryid": "foo"}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPIgnore",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 11,
+  "createdat": "2026-03-31T16:58:38.827310968Z",
+  "modifiedat": "2026-03-31T16:58:39.594726599Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
+	// Group
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"dirid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"dirid\" value (foo) for \"/dirs/d1\" needs to be \"d1\".",
+  "subject": "/dirs/d1",
+  "args": {
+    "expected_id": "d1",
+    "invalid_id": "foo",
+    "singular": "dir"
+  },
+  "source": "87d46e750ad4:registry:entity:882"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1?ignore=id", `{"dirid": "foo"}`, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 9,
+  "createdat": "2026-03-31T17:03:12.12563978Z",
+  "modifiedat": "2026-03-31T17:03:12.951228087Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 2
+}
+`)
+
+	// Resource
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"fileid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (foo) for \"/dirs/d1/files/f1\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "expected_id": "f1",
+    "invalid_id": "foo",
+    "singular": "file"
+  },
+  "source": "87d46e750ad4:registry:httpStuff:2247"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"versionid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"versionid\" value (foo) for \"/dirs/d1/files/f1\" needs to be \"v4\".",
+  "detail": "Must match the \"defaultversionid\" value.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "expected_id": "v4",
+    "invalid_id": "foo",
+    "singular": "version"
+  },
+  "source": "87d46e750ad4:registry:group:535"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?ignore=id", `{"fileid": "f1"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 5,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:06:21.790240035Z",
+  "modifiedat": "2026-03-31T17:06:22.44021924Z",
+  "ancestor": "v4",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?ignore=id", `{"versionid": "v4"}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 6,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:06:21.790240035Z",
+  "modifiedat": "2026-03-31T17:06:22.44021924Z",
+  "ancestor": "v4",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4",
+		`{"fileid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (foo) for \"/dirs/d1/files/f1/versions/v4\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1/versions/v4",
+  "args": {
+    "expected_id": "f1",
+    "invalid_id": "foo",
+    "singular": "file"
+  },
+  "source": "87d46e750ad4:registry:entity:882"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4",
+		`{"versionid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"versionid\" value (foo) for \"/dirs/d1/files/f1/versions/v4\" needs to be \"v4\".",
+  "subject": "/dirs/d1/files/f1/versions/v4",
+  "args": {
+    "expected_id": "v4",
+    "invalid_id": "foo",
+    "singular": "version"
+  },
+  "source": "87d46e750ad4:registry:httpStuff:2581"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4?ignore=id",
+		`{"fileid": "foo"}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+  "xid": "/dirs/d1/files/f1/versions/v4",
+  "epoch": 7,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:14:20.660162882Z",
+  "modifiedat": "2026-03-31T17:14:21.361552856Z",
+  "ancestor": "v4"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4?ignore=id",
+		`{"versionid": "foo"}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+  "xid": "/dirs/d1/files/f1/versions/v4",
+  "epoch": 8,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:14:20.660162882Z",
+  "modifiedat": "2026-03-31T17:14:21.361552856Z",
+  "ancestor": "v4"
+}
+`)
+
+	// Do create
+	XHTTP(t, reg, "PUT", "/dirs/d99?ignore=id",
+		`{"dirid": "foo"}`, 201, `{
+  "dirid": "d99",
+  "self": "http://localhost:8181/dirs/d99",
+  "xid": "/dirs/d99",
+  "epoch": 1,
+  "createdat": "2026-03-31T17:30:08.965581484Z",
+  "modifiedat": "2026-03-31T17:30:08.965581484Z",
+
+  "filesurl": "http://localhost:8181/dirs/d99/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d99/files/f99?ignore=id",
+		`{"fileid": "foo"}`, 201, `{
+  "fileid": "f99",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d99/files/f99",
+  "xid": "/dirs/d99/files/f99",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:32:34.167348341Z",
+  "modifiedat": "2026-03-31T17:32:34.167348341Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d99/files/f99/meta",
+  "versionsurl": "http://localhost:8181/dirs/d99/files/f99/versions",
+  "versionscount": 1
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f99/versions/v98?ignore=id",
+		`{"fileid": "foo", "versionid": "foo1"}`, 201, `{
+  "fileid": "f99",
+  "versionid": "v98",
+  "self": "http://localhost:8181/dirs/d1/files/f99/versions/v98",
+  "xid": "/dirs/d1/files/f99/versions/v98",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:32:56.885835954Z",
+  "modifiedat": "2026-03-31T17:32:56.885835954Z",
+  "ancestor": "v98"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f99/versions/v97?ignore=id",
+		`{"fileid": "foo"}`, 201, `{
+  "fileid": "f99",
+  "versionid": "v97",
+  "self": "http://localhost:8181/dirs/d1/files/f99/versions/v97",
+  "xid": "/dirs/d1/files/f99/versions/v97",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:34:34.584043287Z",
+  "modifiedat": "2026-03-31T17:34:34.584043287Z",
+  "ancestor": "v98"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f99/versions/v96?ignore=id",
+		`{"versionid": "foo"}`, 201, `{
+  "fileid": "f99",
+  "versionid": "v96",
+  "self": "http://localhost:8181/dirs/d1/files/f99/versions/v96",
+  "xid": "/dirs/d1/files/f99/versions/v96",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-03-31T17:35:03.319863555Z",
+  "modifiedat": "2026-03-31T17:35:03.319863555Z",
+  "ancestor": "v97"
+}
+`)
+
+	// Meta
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"fileid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (foo) for \"/dirs/d1/files/f1/meta\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "expected_id": "f1",
+    "invalid_id": "foo",
+    "singular": "file"
+  },
+  "source": "87d46e750ad4:registry:resource:529"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta?ignore=id",
+		`{"fileid": "foo"}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 9,
+  "createdat": "2026-03-31T18:35:56.386761865Z",
+  "modifiedat": "2026-03-31T18:35:57.487348295Z",
+  "readonly": false,
+
+  "defaultversionid": "v4",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+  "defaultversionsticky": false
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f88/meta",
+		`{"fileid": "foo"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (foo) for \"/dirs/d1/files/f88/meta\" needs to be \"f88\".",
+  "subject": "/dirs/d1/files/f88/meta",
+  "args": {
+    "expected_id": "f88",
+    "invalid_id": "foo",
+    "singular": "file"
+  },
+  "source": "87d46e750ad4:registry:httpStuff:2370"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f88/meta?ignore=id",
+		`{"fileid": "foo"}`, 201, `{
+  "fileid": "f88",
+  "self": "http://localhost:8181/dirs/d1/files/f88/meta",
+  "xid": "/dirs/d1/files/f88/meta",
+  "epoch": 1,
+  "createdat": "2026-03-31T18:38:41.438348538Z",
+  "modifiedat": "2026-03-31T18:38:41.438348538Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f88/versions/1",
+  "defaultversionsticky": false
+}
+`)
 }

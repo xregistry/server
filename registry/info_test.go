@@ -31,10 +31,10 @@ func TestInfoIgnore(t *testing.T) {
 		// errors
 		{"?ignore=foo", nil, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_ignore",
-  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly.",
+  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly.",
   "subject": "/",
   "args": {
-    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly",
+    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly",
     "value": "foo"
   },
   "source": "0e8077782f41:registry:info:465"
@@ -42,10 +42,10 @@ func TestInfoIgnore(t *testing.T) {
 		},
 		{"?ignore&ignore=foo", nil, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_ignore",
-  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly.",
+  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly.",
   "subject": "/",
   "args": {
-    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly",
+    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly",
     "value": "foo"
   },
   "source": "0e8077782f41:registry:info:465"
@@ -53,10 +53,10 @@ func TestInfoIgnore(t *testing.T) {
 		},
 		{"?ignore=*,foo", nil, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_ignore",
-  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly.",
+  "title": "An error was found in \"ignore\" value (foo): value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly.",
   "subject": "/",
   "args": {
-    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,modelsource,readonly",
+    "error_detail": "value not supported; allowed values: capabilities,defaultversionid,defaultversionsticky,epoch,id,modelsource,readonly",
     "value": "foo"
   },
   "source": "0e8077782f41:registry:info:465"

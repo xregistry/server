@@ -55,7 +55,7 @@ var AllowableFlags = ArrayToLower([]string{
 	"setdefaultversionid", "sort", "specversion"})
 
 var AllowableIgnores = ArrayToLower([]string{
-	"capabilities", "defaultversionid", "defaultversionsticky", "epoch",
+	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
 	"modelsource", "readonly"})
 
 var AllowableMutable = ArrayToLower([]string{
@@ -70,7 +70,7 @@ var SupportedFlags = ArrayToLower([]string{
 	"setdefaultversionid", "sort", "specversion"})
 
 var SupportedIgnores = ArrayToLower([]string{
-	"capabilities", "defaultversionid", "defaultversionsticky", "epoch",
+	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
 	"modelsource", "readonly"})
 
 var DefaultCapabilities = &Capabilities{
