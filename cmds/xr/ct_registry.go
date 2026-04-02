@@ -10,7 +10,7 @@ func TestRoot(td *TD) {
 	// td.DependsOn(TestLoadModel)
 	reg := td.Props["xreg"].(*xrlib.Registry)
 
-	res, xErr := reg.HttpDo("GET", "/", nil)
+	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
 	td.NoErrorStop(xErr, "'GET /' should have worked: %s", xErr)
 
 	if res.Code != 200 {

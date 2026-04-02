@@ -4546,7 +4546,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
     "invalid_id": "f2",
     "singular": "file"
   },
-  "source": ":registry:httpStuff:2166"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `,
 	})
@@ -5626,14 +5626,14 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{ "fileid": "F1" }`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
-  "title": "The specified \"fileid\" value (F1) for \"/dirs/d1/files/f1$details\" needs to be \"f1\".",
-  "subject": "/dirs/d1/files/f1$details",
+  "title": "The specified \"fileid\" value (F1) for \"/dirs/d1/files/f1\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1",
   "args": {
     "expected_id": "f1",
     "invalid_id": "F1",
     "singular": "file"
   },
-  "source": ":registry:httpStuff:2166"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/F1$details", `{ "fileid": "F1" }`,
@@ -5661,14 +5661,14 @@ func TestHTTPCases(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{ "fileid": "F1" }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
-  "title": "The specified \"fileid\" value (F1) for \"/dirs/d1/files/f1$details\" needs to be \"f1\".",
-  "subject": "/dirs/d1/files/f1$details",
+  "title": "The specified \"fileid\" value (F1) for \"/dirs/d1/files/f1\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1",
   "args": {
     "expected_id": "f1",
     "invalid_id": "F1",
     "singular": "file"
   },
-  "source": ":registry:httpStuff:2166"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
 
@@ -5804,7 +5804,7 @@ func TestHTTPCases(t *testing.T) {
     "invalid_id": "F1",
     "singular": "file"
   },
-  "source": ":registry:group:140"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
 	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"F1":{"fileid":"f1"}}`,

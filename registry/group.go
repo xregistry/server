@@ -172,6 +172,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				rModel.Singular, ru.Id, r.UID))
 	}
 
+	if g.tx.RequestInfo.HasIgnore("id") && len(g.tx.RequestInfo.Parts) == 4 {
+		delete(ru.Obj, rModel.Singular+"id")
+	}
+
 	if ru.Obj != nil && !IsNil(ru.Obj[rModel.Singular+"id"]) && !ru.ObjIsVer {
 		if ru.Id != ru.Obj[rModel.Singular+"id"] {
 			return nil, false, NewXRError("mismatched_id",
@@ -499,11 +503,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 				defaultVersion = v
 			}
 		}
-	}
-
-	if !ru.ObjIsVer {
-		// Clear any ID there since it's the Resource's
-		delete(ru.Obj, r.Singular+"id")
 	}
 
 	if !IsNil(metaObj) {

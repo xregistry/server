@@ -161,7 +161,7 @@ func setFunc(cmd *cobra.Command, args []string) {
 	Error(err)
 
 	Verbose("Updating %q", xid)
-	res, xErr := reg.HttpDo("PATCH", xid.String(), data)
+	res, xErr := reg.HttpDo(VerboseCount > 1, "PATCH", xid.String(), data)
 	Error(xErr)
 
 	if !resIsJSON {

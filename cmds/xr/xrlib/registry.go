@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	// log "github.com/duglin/dlog"
+	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
 
@@ -91,7 +91,7 @@ func (reg *Registry) Refresh() *XRError {
 }
 
 func (reg *Registry) RefreshModel() *XRError {
-	res, xErr := reg.HttpDo("GET", "/model", nil)
+	res, xErr := reg.HttpDo(log.GetVerbose() > 2, "GET", "/model", nil)
 	if xErr != nil {
 		return xErr
 	}
@@ -107,7 +107,7 @@ func (reg *Registry) RefreshModel() *XRError {
 }
 
 func (reg *Registry) RefreshCapabilities() *XRError {
-	res, xErr := reg.HttpDo("GET", "/capabilities", nil)
+	res, xErr := reg.HttpDo(log.GetVerbose() > 2, "GET", "/capabilities", nil)
 	if xErr != nil {
 		return xErr
 	}
@@ -158,18 +158,31 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 		}
 	}
 
-	tmpModel := Model{}
+	modelSource := Model{}
 	if reg.Model.Source != "" {
-		err := Unmarshal([]byte(reg.Model.Source), &tmpModel)
+		err := Unmarshal([]byte(reg.Model.Source), &modelSource)
 		if err != nil {
 			return nil, NewXRError("parse_response", "/modelsource",
 				"error_detail="+err.Error()).
 				SetDetailf("Response: %s.", string(reg.Model.Source))
 		}
 	}
-	tmpModel.SetPointers()
 
-	return &tmpModel, nil
+	// If "modelsource" appears to be empty, then use "model" instead.
+	// a bit of a hack but better than nothing
+	if ToJSON(modelSource) == "{}" {
+		tmp := ToJSON(reg.Model)
+		err := Unmarshal([]byte(tmp), &modelSource)
+		if err != nil {
+			return nil, NewXRError("parse_response", "/modelsource",
+				"error_detail="+err.Error()).
+				SetDetailf("Response: %s.", string(reg.Model.Source))
+		}
+	}
+
+	modelSource.SetPointers()
+
+	return &modelSource, nil
 }
 
 func (reg *Registry) RefreshModelSource() *XRError {
@@ -179,7 +192,7 @@ func (reg *Registry) RefreshModelSource() *XRError {
 		}
 	}
 
-	res, xErr := reg.HttpDo("GET", "/modelsource", nil)
+	res, xErr := reg.HttpDo(log.GetVerbose() > 2, "GET", "/modelsource", nil)
 
 	reg.Model.Source = ""
 
@@ -250,12 +263,12 @@ func (reg *Registry) FindResourceModel(gPlural, rPlural string) (*ResourceModel,
 	return model.FindResourceModel(gPlural, rPlural), nil
 }
 
-func (reg *Registry) HttpDo(verb, path string, body []byte) (*HttpResponse, *XRError) {
+func (reg *Registry) HttpDo(debug bool, verb, path string, body []byte) (*HttpResponse, *XRError) {
 	u, xErr := reg.URLWithPath(path)
 	if xErr != nil {
 		return nil, xErr
 	}
-	return HttpDo(verb, u.String(), body)
+	return HttpDo(debug, verb, u.String(), body)
 }
 
 func (m *Model) FindGroupBySingular(singular string) *GroupModel {
@@ -330,7 +343,7 @@ func (reg *Registry) DownloadObject(path string) (map[string]any, *XRError) {
 		return nil, xErr
 	}
 
-	return DownloadObject(urlPath.String())
+	return DownloadObject(log.GetVerbose() > 2, urlPath.String())
 }
 
 func (rm *ResourceModel) HasDoc() bool {

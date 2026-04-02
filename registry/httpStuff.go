@@ -2236,25 +2236,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if numParts == 4 && (method == "PUT" || method == "PATCH") {
 		// PUT GROUPs/gID/RESOURCEs/rID [$details]
 
-		propsID := "" // RESOURCEid
-		if v, ok := IncomingObj[info.ResourceModel.Singular+"id"]; ok {
-			if reflect.ValueOf(v).Kind() == reflect.String {
-				propsID = NotNilString(&v)
-			}
-		}
-
-		if propsID != "" && propsID != resourceUID {
-			if info.HasIgnore("id") {
-				// ignore error, and force the right value
-				IncomingObj[info.ResourceModel.Singular+"id"] = resourceUID
-			} else {
-				return NewXRError("mismatched_id", "/"+info.OriginalPath,
-					"singular="+info.ResourceModel.Singular,
-					"invalid_id="+propsID,
-					"expected_id="+resourceUID)
-			}
-		}
-
 		if resource != nil {
 			// version, xErr = resource.GetDefault(FOR_WRITE)
 
@@ -2282,9 +2263,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
-
-			// ID is the Resource's delete it
-			delete(IncomingObj, info.ResourceModel.Singular+"id")
 
 			addType := ADD_UPSERT
 			if method == "PATCH" {

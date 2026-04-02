@@ -8,7 +8,7 @@ func TestSniffTest(td *TD) {
 	reg := td.Props["xreg"].(*xrlib.Registry)
 	td.Log("Server URL: %s", reg.GetServerURL())
 
-	res, xErr := reg.HttpDo("GET", "", nil)
+	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "", nil)
 	td.NoErrorStop(xErr, "'GET /' should have worked: %s", xErr)
 
 	if res.Code != 200 {
@@ -33,7 +33,7 @@ func TestLoadModel(td *TD) {
 	td.DependsOn(TestSniffTest)
 	reg := td.Props["xreg"].(*xrlib.Registry)
 
-	res, xErr := reg.HttpDo("GET", "/model", nil)
+	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/model", nil)
 	td.NoErrorStop(xErr, "'GET /model' should have worked: %s", xErr)
 	td.MustEqual(res.Code, 200, "'GET /model' MUST return 200")
 	td.MustNotEqual(res.Body, nil, "The model MUST NOT be empty")

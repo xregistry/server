@@ -1386,3 +1386,27 @@ files2 / file2   true      0
 		"", true)
 
 }
+
+func TestXRIgnore(t *testing.T) {
+	reg := NewRegistry("TestXRIgnore")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	// cmd, stdin, stdout, stderr, pass?
+
+	XCLI(t, "model resource create files:file -g dirs:dir --no-doc", "",
+		"", "", true)
+
+	XCLI(t, "create /dirs/d1/files/f1 --set fileid=f2", ``,
+		"", `The specified "fileid" value (f2) for "/dirs/d1/files/f1" needs to be "f1".`+"\n", false)
+
+	XCLI(t, "create -v /dirs/d1/files/f1 -d @- --ignore=id", `{ "fileid": "f2" }`,
+		"", `Created: /dirs/d1/files/f1`+"\n", true)
+
+	XCLI(t, "update -v /dirs/d1/files/f1 --set epoch=5", ``,
+		"", `The specified epoch value (5) for "/dirs/d1/files/f1/versions/1" does not match its current value (1).`+"\n", false)
+
+	XCLI(t, "update -v /dirs/d1/files/f1 --set epoch=5 --set fileid=foo --ignore=id --ignore=epoch", ``,
+		"", `Updated: /dirs/d1/files/f1`+"\n", true)
+}

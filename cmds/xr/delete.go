@@ -81,13 +81,13 @@ func deleteFunc(cmd *cobra.Command, args []string) {
 
 	if !force {
 		for id, _ := range objects {
-			_, xErr := reg.HttpDo("GET", id, nil)
+			_, xErr := reg.HttpDo(VerboseCount > 2, "GET", id, nil)
 			Error(xErr)
 		}
 	}
 
 	for id, _ := range objects {
-		res, xErr := reg.HttpDo("DELETE", id, nil)
+		res, xErr := reg.HttpDo(VerboseCount > 1, "DELETE", id, nil)
 		if res == nil || res.Code != 404 {
 			Error(xErr)
 		}

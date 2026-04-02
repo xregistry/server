@@ -321,7 +321,7 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("Missing model data")
 	}
 
-	_, xErr = reg.HttpDo("PUT", "/modelsource", []byte(buf))
+	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", []byte(buf))
 	Error(xErr)
 	Verbose("Model updated")
 }
@@ -864,7 +864,7 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 	if err != nil {
 		Error(err)
 	}
-	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
 
@@ -943,7 +943,7 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
 }
@@ -1091,7 +1091,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 		buf, err := json.MarshalIndent(modelSrc, "", "  ")
 		Error(err)
-		_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+		_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 		Error(xErr)
 		Verbose("Created Group type: %s:%s\n", groupPlural, groupSingular)
 		gm = modelSrc.FindGroupModel(groupPlural)
@@ -1166,7 +1166,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(modelSrc, "", "  ")
 	Error(err)
-	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
 
@@ -1242,7 +1242,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	buf, err := json.MarshalIndent(model, "", "  ")
 	Error(err)
-	_, xErr = reg.HttpDo("PUT", "/modelsource", buf)
+	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
 }

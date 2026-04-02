@@ -89,7 +89,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 		path = AddQuery(path, "inline="+strings.Join(inlines, ","))
 	}
 
-	res, xErr := reg.HttpDo("GET", path, nil)
+	res, xErr := reg.HttpDo(VerboseCount > 1, "GET", path, nil)
 	Error(xErr)
 
 	if !resIsJSON {

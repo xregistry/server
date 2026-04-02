@@ -567,7 +567,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 // Body, Headers
 func Download(reg *xrlib.Registry, path string) ([]byte, map[string]string) {
-	res, xErr := reg.HttpDo("GET", path, nil)
+	res, xErr := reg.HttpDo(VerboseCount > 1, "GET", path, nil)
 	Error(xErr)
 
 	headers := (map[string]string)(nil)

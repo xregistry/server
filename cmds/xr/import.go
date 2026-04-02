@@ -82,7 +82,7 @@ func importFunc(cmd *cobra.Command, args []string) {
 	}
 
 	path := xid.String() + queryParams + suffix
-	res, xErr := reg.HttpDo("POST", path, []byte(data))
+	res, xErr := reg.HttpDo(VerboseCount > 1, "POST", path, []byte(data))
 	Error(xErr)
 
 	obj = map[string]json.RawMessage{}

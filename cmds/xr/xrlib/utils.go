@@ -78,7 +78,7 @@ type HttpResponse struct {
 
 // statusCode, body
 // Add headers (in and out) later
-func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
+func HttpDo(debug bool, verb string, url string, body []byte) (*HttpResponse, *XRError) {
 	client := &http.Client{}
 	// CheckRedirect: func(req *http.Request, via []*http.Request) error {
 	// return http.ErrUseLastResponse
@@ -92,10 +92,12 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 			"error_detail="+err.Error())
 	}
 
-	Debug("Request: %s %s", verb, url)
-	if len(body) != 0 {
-		Debug("Request Body:\n%s", string(body))
-		Debug("--------------------")
+	if debug {
+		Debug("Request: %s %s", verb, url)
+		if len(body) != 0 {
+			Debug("Request Body:\n%s", string(body))
+			Debug("--------------------")
+		}
 	}
 
 	res, err := client.Do(req)
@@ -143,28 +145,30 @@ func HttpDo(verb string, url string, body []byte) (*HttpResponse, *XRError) {
 		Header: res.Header,
 	}
 
-	Debug("Response: %s", res.Status)
+	if debug {
+		Debug("Response: %s", res.Status)
 
-	showHeaders := map[string]bool{
-		"location":                     true,
-		"content-type":                 true,
-		"content-disposition":          true,
-		"access-control-allow-origin":  true,
-		"access-control-allow-methods": true,
-	}
-	for _, key := range SortedKeys(res.Header) {
-		val := res.Header[key][0]
-		key = strings.ToLower(key)
-		if strings.HasPrefix(key, "xregistry-") {
-			Debug("xRegistry-%s: %s", key[10:], val)
-		} else if showHeaders[key] {
-			Debug("%s: %s", key, val)
+		showHeaders := map[string]bool{
+			"location":                     true,
+			"content-type":                 true,
+			"content-disposition":          true,
+			"access-control-allow-origin":  true,
+			"access-control-allow-methods": true,
 		}
-	}
+		for _, key := range SortedKeys(res.Header) {
+			val := res.Header[key][0]
+			key = strings.ToLower(key)
+			if strings.HasPrefix(key, "xregistry-") {
+				Debug("xRegistry-%s: %s", key[10:], val)
+			} else if showHeaders[key] {
+				Debug("%s: %s", key, val)
+			}
+		}
 
-	if len(body) != 0 {
-		Debug("Response Body:\n%s", string(body))
-		Debug("--------------------")
+		if len(body) != 0 {
+			Debug("Response Body:\n%s", string(body))
+			Debug("--------------------")
+		}
 	}
 
 	return httpRes, xErr
@@ -461,8 +465,8 @@ func BoolStr(v bool, yes string, no string) string {
 	return no
 }
 
-func DownloadObject(urlPath string) (map[string]any, *XRError) {
-	res, xErr := HttpDo("GET", urlPath, nil)
+func DownloadObject(debug bool, urlPath string) (map[string]any, *XRError) {
+	res, xErr := HttpDo(debug, "GET", urlPath, nil)
 	if xErr != nil {
 		return nil, xErr
 	}

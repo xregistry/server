@@ -39,6 +39,7 @@ Notes:
 		"Replace entire entity (all attributes)")
 	createCmd.Flags().BoolP("force", "f", false,
 		"Force an 'update' if exist, skip pre-flight checks")
+	createCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	createCmd.Flags().StringArray("set", nil,
 		"Set an attribute: --set NAME[=(VALUE | \"STRING\")]")
 	createCmd.Flags().StringArray("add", nil,
@@ -75,6 +76,7 @@ Notes:
 		"Replace entire entity (all attributes)")
 	upsertCmd.Flags().BoolP("force", "f", false,
 		"Skip pre-flight checks")
+	upsertCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	upsertCmd.Flags().StringArray("set", nil, "Set an attribute")
 	upsertCmd.Flags().StringArray("add", nil, "Add to an attribute")
 	upsertCmd.Flags().StringArray("del", nil, "Delete an attribute")
@@ -107,10 +109,7 @@ Notes:
 		"Replace entire entity (all attributes)")
 	updateCmd.Flags().BoolP("force", "f", false,
 		"Force a 'create' if missing, skip pre-flight checks")
-	updateCmd.Flags().BoolP("ignoreepoch", "", false,
-		"Skip 'epoch' checks")
-	updateCmd.Flags().BoolP("ignorereadonly", "", false,
-		"Skip 'readonly' checks")
+	updateCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
 	updateCmd.Flags().StringArray("add", nil, "Add to an attribute")
 	updateCmd.Flags().StringArray("del", nil, "Delete an attribute")
@@ -155,8 +154,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	isMetadata, _ := cmd.Flags().GetBool("details")
 	replace, _ := cmd.Flags().GetBool("replace")
 	force, _ := cmd.Flags().GetBool("force")
-	ignoreEpoch, _ := cmd.Flags().GetBool("ignoreepoch")
-	ignoreReadonly, _ := cmd.Flags().GetBool("ignorereadonly")
+	ignores, _ := cmd.Flags().GetStringArray("ignore")
 	output, _ := cmd.Flags().GetString("output")
 	isDomainDoc := false
 
@@ -317,7 +315,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 	// Make sure none of the top-level entities already exist
 	if xid.IsEntity {
 		if !force && action != "upsert" {
-			res, xErr := reg.HttpDo("GET", xid.String(), nil)
+			res, xErr := reg.HttpDo(VerboseCount > 2, "GET", xid.String(), nil)
 			if xErr != nil && res == nil {
 				Error(xErr)
 			}
@@ -346,7 +344,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 			IDs += id
 			if !force && action != "upsert" {
 				id = xid.String() + "/" + id
-				_, xErr = reg.HttpDo("GET", id, nil)
+				_, xErr = reg.HttpDo(VerboseCount > 2, "GET", id, nil)
 				Error(xErr)
 				if action == "update" && xErr != nil {
 					Error(NewXRError("not_found", id))
@@ -370,15 +368,11 @@ func createFunc(cmd *cobra.Command, args []string) {
 
 	path = AddQuery(path, queryParams)
 
-	if ignoreEpoch {
-		path = AddQuery(path, "ignore=epoch")
+	if cmd.Flags().Changed("ignore") {
+		path = AddQuery(path, "ignore="+strings.Join(ignores, ","))
 	}
 
-	if ignoreReadonly {
-		path = AddQuery(path, "ignore=readonly")
-	}
-
-	res, xErr := reg.HttpDo(method, path, []byte(data))
+	res, xErr := reg.HttpDo(VerboseCount > 1, method, path, []byte(data))
 	Error(xErr)
 
 	// Verbose("Processed: %s", IDs)

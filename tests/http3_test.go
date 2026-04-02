@@ -3508,7 +3508,7 @@ func TestHTTPIgnore(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "source": "87d46e750ad4:registry:httpStuff:2247"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
 
@@ -3740,6 +3740,34 @@ func TestHTTPIgnore(t *testing.T) {
   "defaultversionid": "1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/f88/versions/1",
   "defaultversionsticky": false
+}
+`)
+
+	// Make sure these still fail
+	XHTTP(t, reg, "POST", "/dirs/d1/files?ignore=id",
+		`{"f1":{"fileid":"f2"}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (f2) for \"/dirs/d1/files/f1\" needs to be \"f1\".",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "expected_id": "f1",
+    "invalid_id": "f2",
+    "singular": "file"
+  },
+  "source": "3e81f76ccc5d:registry:group:181"
+}
+`)
+	XHTTP(t, reg, "POST", "/dirs/d1/files/?ignore=id",
+		`{"f77":{"fileid":"f2"}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (f2) for \"/dirs/d1/files/f77\" needs to be \"f77\".",
+  "subject": "/dirs/d1/files/f77",
+  "args": {
+    "expected_id": "f77",
+    "invalid_id": "f2",
+    "singular": "file"
+  },
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `)
 }

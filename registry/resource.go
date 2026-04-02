@@ -1412,6 +1412,11 @@ func (r *Resource) EnsureSingleVersionRoot() *XRError {
 }
 
 func (r *Resource) EnsureMaxVersions() *XRError {
+	// xref resource have no versios, so exit
+	if r.IsXref() {
+		return nil
+	}
+
 	rm := r.GetResourceModel()
 	if rm.GetMaxVersions() == 0 {
 		// No limit, so just exit

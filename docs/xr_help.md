@@ -23,15 +23,17 @@ xr conform
 
 xr create XID
   # Create a new entity in the registry
-      --add stringArray   Add to an attribute: --add NAME[=(VALUE | "STRING")]
-  -d, --data string       Data, @FILE, @URL, @-(stdin)
-      --del stringArray   Delete an attribute: --del NAME
-  -m, --details           Data is resource metadata
-  -f, --force             Force an 'update' if exist, skip pre-flight checks
-  -o, --output string     Output format (none, json) when xReg metadata
-                          (default "none")
-  -r, --replace           Replace entire entity (all attributes)
-      --set stringArray   Set an attribute: --set NAME[=(VALUE | "STRING")]
+      --add stringArray      Add to an attribute: --add NAME[=(VALUE |
+                             "STRING")]
+  -d, --data string          Data, @FILE, @URL, @-(stdin)
+      --del stringArray      Delete an attribute: --del NAME
+  -m, --details              Data is resource metadata
+  -f, --force                Force an 'update' if exist, skip pre-flight checks
+      --ignore stringArray   Skip certain checks
+  -o, --output string        Output format (none, json) when xReg metadata
+                             (default "none")
+  -r, --replace              Replace entire entity (all attributes)
+      --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
 
 xr delete XID ...
   # Delete an entity from the registry
@@ -132,29 +134,30 @@ xr serve DIR
 
 xr update XID
   # Update an entity in the registry
-      --add stringArray   Add to an attribute
-  -d, --data string       Data, @FILE, @URL, @-(stdin)
-      --del stringArray   Delete an attribute
-  -m, --details           Data is resource metadata
-  -f, --force             Force a 'create' if missing, skip pre-flight checks
-      --ignoreepoch       Skip 'epoch' checks
-      --ignorereadonly    Skip 'readonly' checks
-  -o, --output string     Output format (none, json) when xReg metadata
-                          (default "none")
-  -r, --replace           Replace entire entity (all attributes)
-      --set stringArray   Set an attribute
+      --add stringArray      Add to an attribute
+  -d, --data string          Data, @FILE, @URL, @-(stdin)
+      --del stringArray      Delete an attribute
+  -m, --details              Data is resource metadata
+  -f, --force                Force a 'create' if missing, skip pre-flight
+                             checks
+      --ignore stringArray   Skip certain checks
+  -o, --output string        Output format (none, json) when xReg metadata
+                             (default "none")
+  -r, --replace              Replace entire entity (all attributes)
+      --set stringArray      Set an attribute
 
 xr upsert XID
   # UPdate, or inSERT as appropriate, an entity in the registry
-      --add stringArray   Add to an attribute
-  -d, --data string       Data, @FILE, @URL, @-(stdin)
-      --del stringArray   Delete an attribute
-  -m, --details           Data is resource metadata
-  -f, --force             Skip pre-flight checks
-  -o, --output string     Output format (none, json) when xReg metadata
-                          (default "none")
-  -r, --replace           Replace entire entity (all attributes)
-      --set stringArray   Set an attribute
+      --add stringArray      Add to an attribute
+  -d, --data string          Data, @FILE, @URL, @-(stdin)
+      --del stringArray      Delete an attribute
+  -m, --details              Data is resource metadata
+  -f, --force                Skip pre-flight checks
+      --ignore stringArray   Skip certain checks
+  -o, --output string        Output format (none, json) when xReg metadata
+                             (default "none")
+  -r, --replace              Replace entire entity (all attributes)
+      --set stringArray      Set an attribute
 ```
 <!-- XR HELP END -->
 

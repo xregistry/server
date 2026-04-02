@@ -674,7 +674,7 @@ func TestMetaCombos(t *testing.T) {
     "invalid_id": "foo",
     "singular": "file"
   },
-  "source": "e4e59b8a76c4:registry:httpStuff:2166"
+  "source": "3e81f76ccc5d:registry:group:181"
 }
 `,
 	})
