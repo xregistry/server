@@ -3498,6 +3498,25 @@ func TestHTTPIgnore(t *testing.T) {
 }
 `)
 
+	// Make sure we don't ignore nested IDs
+	XHTTP(t, reg, "PUT", "/dirs/di?ignore=id", `{
+  "dirid": "foo",
+  "files": {
+    "f1": { "fileid": "f2" }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"fileid\" value (f2) for \"/dirs/di/files/f1\" needs to be \"f1\".",
+  "subject": "/dirs/di/files/f1",
+  "args": {
+    "expected_id": "f1",
+    "invalid_id": "f2",
+    "singular": "file"
+  },
+  "source": "9c3e229728fc:registry:group:181"
+}
+`)
+
 	// Resource
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"fileid": "foo"}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
@@ -3541,6 +3560,25 @@ func TestHTTPIgnore(t *testing.T) {
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
+}
+`)
+	// Make sure we don't ignore nested IDs
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?ignore=id", `{
+  "fileid": "f1",
+  "versions": {
+    "v1": { "versionid": "vx" }
+  }
+}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
+  "title": "The specified \"versionid\" value (vx) for \"/dirs/d1/files/f1/versions/v1\" needs to be \"v1\".",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "expected_id": "v1",
+    "invalid_id": "vx",
+    "singular": "version"
+  },
+  "source": "9c3e229728fc:registry:entity:937"
 }
 `)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?ignore=id", `{"versionid": "v4"}`,

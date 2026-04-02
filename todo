@@ -147,6 +147,5 @@ TODOs:
 - test export & import - include readonly and xref resources
 - make sure the export/import flow is as UX friendly as possible
 - what should "xr create /" do? fail due to the reg already existing? import?
-- support ?ignore=id
 - model add matchcase, def=false - remove internals.caseinsensitive
 - test for setting capabilities.formats/compat* at the same time as uploading data. Those capabilities need to take effect prior to committing the data to ensure conformance
