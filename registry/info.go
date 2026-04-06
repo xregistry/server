@@ -266,6 +266,7 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 	w.Header().Add("Access-Control-Allow-Methods",
 		"GET, PATCH, POST, PUT, DELETE")
+	w.Header().Add("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
 
 	if log.GetVerbose() > 2 {
 		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
