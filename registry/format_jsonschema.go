@@ -1,3 +1,111 @@
+// Package registry - JSON Schema format compatibility checker.
+//
+// IsValid verifies that a version's document is a syntactically valid
+// JSON Schema.
+//
+// IsCompatible checks whether two JSON Schema versions are compatible
+// in the given direction. The rules below follow the closed-world
+// assumption standard for schema registries (producers only emit
+// fields defined in their schema):
+//
+//	"backward" — consumers using the NEW schema can read messages
+//	             produced with the OLD schema.
+//	             Permitted changes to the schema:
+//	               • Delete any field (required or optional).
+//	               • Add an optional field (not in required).
+//	               • Widen constraints on existing fields.
+//	             Forbidden changes:
+//	               • Add a required field (old messages lack it).
+//	               • Narrow constraints on existing fields.
+//	             Implemented as: old ⊆ new
+//
+//	"forward"  — consumers using the OLD schema can read messages
+//	             produced with the NEW schema.
+//	             Permitted changes to the schema:
+//	               • Add any field.
+//	               • Delete an optional field (old doesn't require it).
+//	               • Narrow constraints on existing fields.
+//	             Forbidden changes:
+//	               • Delete a required field (new messages lack it;
+//	                 old schema requires it).
+//	               • Widen constraints on existing fields.
+//	             Implemented as: new ⊆ old
+//	             (forward compat = backward compat with args swapped)
+//
+// Compatibility checks – status per keyword:
+//
+// Meta / top-level
+//   - [supported]     boolean schemas (true / false)
+//   - [supported]     type (single and array forms)
+//   - [supported]     enum
+//   - [supported]     const
+//   - [not supported] $ref (only absolute HTTP/HTTPS URLs are resolved;
+//     relative and JSON-Pointer $refs such as "#/$defs/Foo" are not
+//     supported)
+//   - [not supported] $defs / definitions (inlined only after $ref
+//     resolution)
+//   - [not supported] $schema / $id / $anchor / $dynamicRef /
+//     $dynamicAnchor
+//   - [not supported] title / description / $comment / examples /
+//     default / readOnly / writeOnly / deprecated (informational;
+//     not used for compat)
+//
+// Combinators
+//   - [supported]     allOf  (conservative structural check)
+//   - [supported]     anyOf  (conservative: old must satisfy at least
+//     one new sub)
+//   - [supported]     oneOf  (conservative: old must satisfy at least
+//     one new sub)
+//   - [supported]     not
+//   - [supported]     if / then / else  (conservative structural check)
+//
+// Object keywords
+//   - [supported]     properties
+//   - [supported]     additionalProperties
+//   - [supported]     patternProperties
+//   - [supported]     unevaluatedProperties
+//   - [supported]     propertyNames
+//   - [supported]     required
+//   - [supported]     dependentRequired
+//   - [supported]     dependentSchemas
+//   - [supported]     minProperties / maxProperties
+//
+// Array keywords
+//   - [supported]     items (uniform schema form)
+//   - [supported]     prefixItems / tuple items (array form)
+//   - [supported]     additionalItems
+//   - [supported]     unevaluatedItems
+//   - [supported]     contains
+//   - [supported]     minContains / maxContains
+//   - [supported]     minItems / maxItems
+//   - [supported]     uniqueItems
+//
+// String keywords
+//   - [supported]     minLength / maxLength
+//   - [supported]     pattern  (exact string match only; semantic
+//     equivalence not checked)
+//   - [supported]     format   (exact string match only; semantic
+//     equivalence not checked)
+//   - [supported]     contentEncoding
+//   - [supported]     contentMediaType
+//   - [supported]     contentSchema
+//
+// Number / integer keywords
+//   - [supported]     minimum / exclusiveMinimum
+//   - [supported]     maximum / exclusiveMaximum
+//   - [supported]     multipleOf
+//
+// Known limitations / not yet implemented
+//   - Multi-type schemas: when "type" is an array, only the first
+//     element is used for type-specific sub-checks.
+//   - Semantic pattern equivalence: two different regexes that match
+//     the same language are treated as incompatible.
+//   - Precise anyOf / oneOf compatibility: the current check is
+//     conservative and may report false positives.
+//   - Full if/then/else semantic analysis.
+//   - Cross-type widening (e.g. integer → number when "type" is
+//     absent).
+
 package registry
 
 import (
@@ -41,13 +149,17 @@ func (fp FormatJson) IsValid(version *Version) *XRError {
 	return nil
 }
 
-func (fp FormatJson) IsCompatible(direction string, oldVersion *Version, newVersion *Version) *XRError {
+func (fp FormatJson) IsCompatible(
+	direction string,
+	oldVersion *Version,
+	newVersion *Version,
+) *XRError {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
 		oldBuf = bufAny.([]byte)
 	}
-	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
+	if bufAny := newVersion.Get(newVersion.Resource.Singular); !IsNil(bufAny) {
 		newBuf = bufAny.([]byte)
 	}
 
@@ -90,14 +202,14 @@ func (fp FormatJson) IsCompatible(direction string, oldVersion *Version, newVers
 				err.Error())
 	}
 
-	err = checkCompat(oldMap, newMap)
+	err = checkCompat(direction, oldMap, newMap)
 	if err != nil {
 		compat := newVersion.
 			Resource.
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
 
-		NewXRError("bad_request", newVersion.XID,
+		return NewXRError("bad_request", newVersion.XID,
 			"error_detail="+
 				fmt.Sprintf("Version %q isn't %q compatible with %q: %s",
 					newVersion.XID, compat, oldVersion.XID, err.Error()))
@@ -120,7 +232,10 @@ func IsValidJson(buf []byte) error {
 }
 
 // resolveSchema resolves $ref for absolute URLs only, recursively.
-func resolveSchema(s map[string]interface{}, cache map[string]map[string]interface{}) (map[string]interface{}, error) {
+func resolveSchema(
+	s map[string]interface{},
+	cache map[string]map[string]interface{},
+) (map[string]interface{}, error) {
 	if ref, ok := s["$ref"].(string); ok {
 		if cached, ok := cache[ref]; ok {
 			return cached, nil
@@ -150,7 +265,11 @@ func resolveSchema(s map[string]interface{}, cache map[string]map[string]interfa
 	}
 
 	// Recurse on subschemas
-	subKeys := []string{"additionalProperties", "additionalItems", "contains", "propertyNames", "not", "if", "then", "else", "unevaluatedProperties", "unevaluatedItems", "contentSchema"}
+	subKeys := []string{
+		"additionalProperties", "additionalItems", "contains",
+		"propertyNames", "not", "if", "then", "else",
+		"unevaluatedProperties", "unevaluatedItems", "contentSchema",
+	}
 	for _, k := range subKeys {
 		if sub, ok := s[k].(map[string]interface{}); ok {
 			res, err := resolveSchema(sub, cache)
@@ -161,7 +280,10 @@ func resolveSchema(s map[string]interface{}, cache map[string]map[string]interfa
 		}
 	}
 
-	arrKeys := []string{"allOf", "anyOf", "oneOf", "prefixItems", "items"} // items can be array
+	// items can be array
+	arrKeys := []string{
+		"allOf", "anyOf", "oneOf", "prefixItems", "items",
+	}
 	for _, k := range arrKeys {
 		if arr, ok := s[k].([]interface{}); ok {
 			for i := range arr {
@@ -178,7 +300,10 @@ func resolveSchema(s map[string]interface{}, cache map[string]map[string]interfa
 		}
 	}
 
-	mapKeys := []string{"properties", "patternProperties", "dependentSchemas", "definitions", "$defs"}
+	mapKeys := []string{
+		"properties", "patternProperties",
+		"dependentSchemas", "definitions", "$defs",
+	}
 	for _, k := range mapKeys {
 		if m, ok := s[k].(map[string]interface{}); ok {
 			for pk := range m {
@@ -198,8 +323,33 @@ func resolveSchema(s map[string]interface{}, cache map[string]map[string]interfa
 	return s, nil
 }
 
-// checkCompat checks if old is subschema of new (backwards compatible).
-func checkCompat(old, new interface{}) error {
+// checkCompat is the top-level dispatcher.
+//
+// "backward": verifies old ⊆ new (every old-valid doc is also
+// new-valid). Allowed: delete fields, add optional fields, widen
+// constraints.
+//
+// "forward": verifies new ⊆ old (every new-valid doc is also
+// old-valid). Allowed: add fields, delete optional fields, narrow
+// constraints. Implemented by swapping the arguments and running the
+// backward check, which gives the correct A ⊆ B relationship.
+func checkCompat(direction string, old, new interface{}) error {
+	if direction == "forward" {
+		old, new = new, old
+	}
+	return checkBackwardCompat(old, new)
+}
+
+// checkBackwardCompat checks that schema A (first arg) is a subset of
+// schema B (second arg) under the closed-world assumption: producers
+// only emit fields explicitly defined in their schema, so a field
+// absent from A never appears in A's documents. This means:
+//   - A property present in B but absent from A is skipped unless A
+//     has an explicit (non-permissive) additionalProperties/items
+//     restriction, because A documents never carry that property.
+//   - The required-field checks enforce the real constraints for both
+//     directions.
+func checkBackwardCompat(old, new interface{}) error {
 	if oldB, ok := old.(bool); ok {
 		if newB, ok := new.(bool); ok {
 			if oldB && !newB {
@@ -286,14 +436,14 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 	// allOf
 	if all, ok := oldM["allOf"].([]interface{}); ok {
 		for _, sub := range all {
-			if err := checkCompat(sub, newM); err != nil {
+			if err := checkBackwardCompat(sub, newM); err != nil {
 				return fmt.Errorf("old allOf sub not compatible: %v", err)
 			}
 		}
 	}
 	if all, ok := newM["allOf"].([]interface{}); ok {
 		for _, sub := range all {
-			if err := checkCompat(oldM, sub); err != nil {
+			if err := checkBackwardCompat(oldM, sub); err != nil {
 				return fmt.Errorf("new allOf sub not compatible: %v", err)
 			}
 		}
@@ -302,7 +452,7 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 	// anyOf
 	if any, ok := oldM["anyOf"].([]interface{}); ok {
 		for _, sub := range any {
-			if err := checkCompat(sub, newM); err != nil {
+			if err := checkBackwardCompat(sub, newM); err != nil {
 				return fmt.Errorf("old anyOf sub not compatible: %v", err)
 			}
 		}
@@ -310,20 +460,23 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 	if any, ok := newM["anyOf"].([]interface{}); ok {
 		found := false
 		for _, sub := range any {
-			if checkCompat(oldM, sub) == nil {
+			if checkBackwardCompat(oldM, sub) == nil {
 				found = true
 				break
 			}
 		}
 		if !found {
-			return fmt.Errorf("old not compatible with any new anyOf sub (conservative check)")
+			return fmt.Errorf(
+			"old not compatible with any new anyOf sub " +
+				"(conservative check)",
+		)
 		}
 	}
 
 	// oneOf
 	if one, ok := oldM["oneOf"].([]interface{}); ok {
 		for _, sub := range one {
-			if err := checkCompat(sub, newM); err != nil {
+			if err := checkBackwardCompat(sub, newM); err != nil {
 				return fmt.Errorf("old oneOf sub not compatible: %v", err)
 			}
 		}
@@ -331,13 +484,16 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 	if one, ok := newM["oneOf"].([]interface{}); ok {
 		found := false
 		for _, sub := range one {
-			if checkCompat(oldM, sub) == nil {
+			if checkBackwardCompat(oldM, sub) == nil {
 				found = true
 				break
 			}
 		}
 		if !found {
-			return fmt.Errorf("old not compatible with any new oneOf sub (conservative check)")
+			return fmt.Errorf(
+			"old not compatible with any new oneOf sub " +
+				"(conservative check)",
+		)
 		}
 	}
 
@@ -364,20 +520,20 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 		newIf, hasNew := newM["if"]
 		if hasNew {
 			// Conservative: check ifs compatible, then recurse
-			if err := checkCompat(oldIf, newIf); err != nil {
+			if err := checkBackwardCompat(oldIf, newIf); err != nil {
 				return fmt.Errorf("if not compatible: %v", err)
 			}
 		}
 		if oldThen != nil {
 			if newThen, ok := newM["then"]; ok {
-				if err := checkCompat(oldThen, newThen); err != nil {
+				if err := checkBackwardCompat(oldThen, newThen); err != nil {
 					return fmt.Errorf("then not compatible: %v", err)
 				}
 			}
 		}
 		if oldElse != nil {
 			if newElse, ok := newM["else"]; ok {
-				if err := checkCompat(oldElse, newElse); err != nil {
+				if err := checkBackwardCompat(oldElse, newElse); err != nil {
 					return fmt.Errorf("else not compatible: %v", err)
 				}
 			}
@@ -444,21 +600,40 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 	newProps := getMap(newM["properties"])
 	for name, oldP := range oldProps {
 		if newP, has := newProps[name]; has {
-			if err := checkCompat(oldP, newP); err != nil {
+			if err := checkBackwardCompat(oldP, newP); err != nil {
 				return fmt.Errorf("property %s not compatible: %v", name, err)
 			}
 		} else {
 			effectiveNew := getEffectiveAdditional(newM, name)
-			if err := checkCompat(oldP, effectiveNew); err != nil {
-				return fmt.Errorf("removed property %s not compatible with new additional/pattern: %v", name, err)
+			if err := checkBackwardCompat(oldP, effectiveNew); err != nil {
+				return fmt.Errorf(
+					"removed property %s not compatible "+
+						"with new additional/pattern: %v",
+					name, err,
+				)
 			}
 		}
 	}
 	for name, newP := range newProps {
 		if _, has := oldProps[name]; !has {
+			// Under the closed-world assumption, documents produced
+			// under "old" never carry this property, so there is
+			// nothing to check — the required-field check above
+			// already rejects it if "new" makes it mandatory.
+			// We only need to check when old explicitly restricts
+			// additionalProperties, because then old documents
+			// could carry the field with a constrained type.
 			effectiveOld := getEffectiveAdditional(oldM, name)
-			if err := checkCompat(effectiveOld, newP); err != nil {
-				return fmt.Errorf("added property %s not compatible with old additional/pattern: %v", name, err)
+			if !isTrueSchema(effectiveOld) {
+				if err := checkBackwardCompat(
+					effectiveOld, newP,
+				); err != nil {
+					return fmt.Errorf(
+						"added property %s not compatible "+
+							"with old additional/pattern: %v",
+						name, err,
+					)
+				}
 			}
 		}
 	}
@@ -468,21 +643,38 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 	newPatProps := getMap(newM["patternProperties"])
 	for pat, oldP := range oldPatProps {
 		if newP, has := newPatProps[pat]; has {
-			if err := checkCompat(oldP, newP); err != nil {
+			if err := checkBackwardCompat(oldP, newP); err != nil {
 				return fmt.Errorf("patternProperty %s not compatible: %v", pat, err)
 			}
 		} else {
 			// Removed pattern, check with additional
-			if err := checkCompat(oldP, newM["additionalProperties"]); err != nil {
-				return fmt.Errorf("removed patternProperty %s not compatible with new additional: %v", pat, err)
+			if err := checkBackwardCompat(
+				oldP, newM["additionalProperties"],
+			); err != nil {
+				return fmt.Errorf(
+					"removed patternProperty %s not "+
+						"compatible with new additional: %v",
+					pat, err,
+				)
 			}
 		}
 	}
 	for pat, newP := range newPatProps {
 		if _, has := oldPatProps[pat]; !has {
-			// Added pattern, check old additional with newP
-			if err := checkCompat(oldM["additionalProperties"], newP); err != nil {
-				return fmt.Errorf("added patternProperty %s not compatible with old additional: %v", pat, err)
+			// Same closed-world reasoning as for plain properties:
+			// skip schema check unless old has an explicit
+			// additionalProperties restriction.
+			effectiveOld := oldM["additionalProperties"]
+			if !isTrueSchema(effectiveOld) {
+				if err := checkBackwardCompat(
+					effectiveOld, newP,
+				); err != nil {
+					return fmt.Errorf(
+						"added patternProperty %s not "+
+							"compatible with old additional: %v",
+						pat, err,
+					)
+				}
 			}
 		}
 	}
@@ -490,14 +682,14 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 	// additionalProperties
 	oldAdd := getEffectiveAdditional(oldM, "")
 	newAdd := getEffectiveAdditional(newM, "")
-	if err := checkCompat(oldAdd, newAdd); err != nil {
+	if err := checkBackwardCompat(oldAdd, newAdd); err != nil {
 		return fmt.Errorf("additionalProperties not compatible: %v", err)
 	}
 
 	// unevaluatedProperties
 	if oldU, hasOld := oldM["unevaluatedProperties"]; hasOld {
 		if newU, hasNew := newM["unevaluatedProperties"]; hasNew {
-			if err := checkCompat(oldU, newU); err != nil {
+			if err := checkBackwardCompat(oldU, newU); err != nil {
 				return fmt.Errorf("unevaluatedProperties not compatible: %v", err)
 			}
 		}
@@ -508,7 +700,7 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 	// propertyNames
 	if oldPN, hasOld := oldM["propertyNames"]; hasOld {
 		if newPN, hasNew := newM["propertyNames"]; hasNew {
-			if err := checkCompat(oldPN, newPN); err != nil {
+			if err := checkBackwardCompat(oldPN, newPN); err != nil {
 				return fmt.Errorf("propertyNames not compatible: %v", err)
 			}
 		}
@@ -530,7 +722,10 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 		}
 		for _, r := range newList.([]interface{}) {
 			if _, has := oldSet[r.(string)]; !has {
-				return fmt.Errorf("new dependentRequired for %s adds extra %s", key, r)
+				return fmt.Errorf(
+				"new dependentRequired for %s adds extra %s",
+				key, r,
+			)
 			}
 		}
 	}
@@ -543,16 +738,20 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 		if !has {
 			return fmt.Errorf("new adds dependentSchemas for %s", key)
 		}
-		if err := checkCompat(oldS, newS); err != nil {
+		if err := checkBackwardCompat(oldS, newS); err != nil {
 			return fmt.Errorf("dependentSchemas for %s not compatible: %v", key, err)
 		}
 	}
 
 	// minProperties, maxProperties
-	if err := checkMinMax(oldM["minProperties"], newM["minProperties"], true); err != nil {
+	if err := checkMinMax(
+		oldM["minProperties"], newM["minProperties"], true,
+	); err != nil {
 		return fmt.Errorf("minProperties: %v", err)
 	}
-	if err := checkMinMax(oldM["maxProperties"], newM["maxProperties"], false); err != nil {
+	if err := checkMinMax(
+		oldM["maxProperties"], newM["maxProperties"], false,
+	); err != nil {
 		return fmt.Errorf("maxProperties: %v", err)
 	}
 
@@ -582,22 +781,49 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 		if newIsPrefix || newIsArray {
 			minLen := math.Min(float64(len(oldPrefixArr)), float64(len(newPrefixArr)))
 			for i := 0; i < int(minLen); i++ {
-				if err := checkCompat(oldPrefixArr[i], newPrefixArr[i]); err != nil {
-					return fmt.Errorf("prefixItems [%d] not compatible: %v", i, err)
+				if err := checkBackwardCompat(
+					oldPrefixArr[i], newPrefixArr[i],
+				); err != nil {
+					return fmt.Errorf(
+						"prefixItems [%d] not compatible: %v",
+						i, err,
+					)
 				}
 			}
 			if len(oldPrefixArr) > len(newPrefixArr) {
 				for i := len(newPrefixArr); i < len(oldPrefixArr); i++ {
 					effectiveNew := getEffectiveAdditionalItems(newM)
-					if err := checkCompat(oldPrefixArr[i], effectiveNew); err != nil {
-						return fmt.Errorf("old extra prefixItem [%d] not compatible with new additionalItems: %v", i, err)
+					if err := checkBackwardCompat(
+						oldPrefixArr[i], effectiveNew,
+					); err != nil {
+						return fmt.Errorf(
+							"old extra prefixItem [%d] not "+
+								"compatible with new "+
+								"additionalItems: %v",
+							i, err,
+						)
 					}
 				}
 			} else if len(newPrefixArr) > len(oldPrefixArr) {
+				// Under closed-world, "old" documents only have
+				// as many positional items as old schema defines.
+				// Extra positions added in "new" are irrelevant
+				// unless old restricts additionalItems, in which
+				// case those extra elements may appear with a
+				// constrained type.
 				effectiveOld := getEffectiveAdditionalItems(oldM)
-				for i := len(oldPrefixArr); i < len(newPrefixArr); i++ {
-					if err := checkCompat(effectiveOld, newPrefixArr[i]); err != nil {
-						return fmt.Errorf("new extra prefixItem [%d] not compatible with old additionalItems: %v", i, err)
+				if !isTrueSchema(effectiveOld) {
+					for i := len(oldPrefixArr); i < len(newPrefixArr); i++ {
+						if err := checkBackwardCompat(
+							effectiveOld, newPrefixArr[i],
+						); err != nil {
+							return fmt.Errorf(
+								"new extra prefixItem [%d] not "+
+									"compatible with old "+
+									"additionalItems: %v",
+								i, err,
+							)
+						}
 					}
 				}
 			}
@@ -606,7 +832,7 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 			newUniform, ok := newItems.(map[string]interface{})
 			if ok {
 				for _, oldSub := range oldPrefixArr {
-					if err := checkCompat(oldSub, newUniform); err != nil {
+					if err := checkBackwardCompat(oldSub, newUniform); err != nil {
 						return err
 					}
 				}
@@ -618,7 +844,7 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 		oldUniform, okO := oldItems.(map[string]interface{})
 		newUniform, okN := newItems.(map[string]interface{})
 		if okO && okN {
-			if err := checkCompat(oldUniform, newUniform); err != nil {
+			if err := checkBackwardCompat(oldUniform, newUniform); err != nil {
 				return err
 			}
 		} else if okO && !okN {
@@ -631,14 +857,14 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 	// additionalItems
 	oldAddItems := getEffectiveAdditionalItems(oldM)
 	newAddItems := getEffectiveAdditionalItems(newM)
-	if err := checkCompat(oldAddItems, newAddItems); err != nil {
+	if err := checkBackwardCompat(oldAddItems, newAddItems); err != nil {
 		return fmt.Errorf("additionalItems not compatible: %v", err)
 	}
 
 	// unevaluatedItems
 	if oldU, hasOld := oldM["unevaluatedItems"]; hasOld {
 		if newU, hasNew := newM["unevaluatedItems"]; hasNew {
-			if err := checkCompat(oldU, newU); err != nil {
+			if err := checkBackwardCompat(oldU, newU); err != nil {
 				return fmt.Errorf("unevaluatedItems not compatible: %v", err)
 			}
 		}
@@ -649,7 +875,7 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 	// contains
 	if oldC, hasOld := oldM["contains"]; hasOld {
 		if newC, hasNew := newM["contains"]; hasNew {
-			if err := checkCompat(oldC, newC); err != nil {
+			if err := checkBackwardCompat(oldC, newC); err != nil {
 				return fmt.Errorf("contains not compatible: %v", err)
 			}
 		}
@@ -658,10 +884,14 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 	}
 
 	// minContains, maxContains
-	if err := checkMinMax(oldM["minContains"], newM["minContains"], true); err != nil {
+	if err := checkMinMax(
+		oldM["minContains"], newM["minContains"], true,
+	); err != nil {
 		return fmt.Errorf("minContains: %v", err)
 	}
-	if err := checkMinMax(oldM["maxContains"], newM["maxContains"], false); err != nil {
+	if err := checkMinMax(
+		oldM["maxContains"], newM["maxContains"], false,
+	); err != nil {
 		return fmt.Errorf("maxContains: %v", err)
 	}
 
@@ -688,16 +918,20 @@ func checkArrayCompat(oldM, newM map[string]interface{}) error {
 // checkStringCompat checks string-specific compatibility
 func checkStringCompat(oldM, newM map[string]interface{}) error {
 	// minLength, maxLength
-	if err := checkMinMax(oldM["minLength"], newM["minLength"], true); err != nil {
+	if err := checkMinMax(
+		oldM["minLength"], newM["minLength"], true,
+	); err != nil {
 		return fmt.Errorf("minLength: %v", err)
 	}
-	if err := checkMinMax(oldM["maxLength"], newM["maxLength"], false); err != nil {
+	if err := checkMinMax(
+		oldM["maxLength"], newM["maxLength"], false,
+	); err != nil {
 		return fmt.Errorf("maxLength: %v", err)
 	}
 
 	// pattern
 	oldPat, hasOld := oldM["pattern"].(string)
-	newPat, hasNew := oldM["pattern"].(string)
+	newPat, hasNew := newM["pattern"].(string)
 	if hasOld {
 		if hasNew {
 			if oldPat != newPat {
@@ -750,7 +984,7 @@ func checkStringCompat(oldM, newM map[string]interface{}) error {
 	// contentSchema
 	if oldCS, hasOld := oldM["contentSchema"]; hasOld {
 		if newCS, hasNew := newM["contentSchema"]; hasNew {
-			if err := checkCompat(oldCS, newCS); err != nil {
+			if err := checkBackwardCompat(oldCS, newCS); err != nil {
 				return fmt.Errorf("contentSchema not compatible: %v", err)
 			}
 		}
@@ -769,7 +1003,10 @@ func checkNumberCompat(oldM, newM map[string]interface{}) error {
 	if hasOld {
 		if hasNew {
 			if math.Mod(oldMult, newMult) != 0 {
-				return fmt.Errorf("new multipleOf %f does not divide old %f", newMult, oldMult)
+				return fmt.Errorf(
+				"new multipleOf %f does not divide old %f",
+				newMult, oldMult,
+			)
 			}
 		}
 	} else if hasNew {
@@ -821,8 +1058,11 @@ func getRequired(s map[string]interface{}) map[string]struct{} {
 	return req
 }
 
-// getEffectiveAdditional returns effective schema for additional properties, considering patternProperties for specific name
-func getEffectiveAdditional(s map[string]interface{}, name string) interface{} {
+// getEffectiveAdditional returns the effective schema for additional
+// properties, considering patternProperties for a specific name.
+func getEffectiveAdditional(
+	s map[string]interface{}, name string,
+) interface{} {
 	if name != "" {
 		patProps, ok := s["patternProperties"].(map[string]interface{})
 		if ok {
@@ -885,7 +1125,22 @@ func isTrueSchema(s interface{}) bool {
 		return isFalseSchema(not)
 	}
 	// Check if no restricting keywords
-	restricting := []string{"type", "enum", "const", "multipleOf", "maximum", "exclusiveMaximum", "minimum", "exclusiveMinimum", "maxLength", "minLength", "pattern", "format", "maxItems", "minItems", "uniqueItems", "maxContains", "minContains", "maxProperties", "minProperties", "required", "dependentRequired", "properties", "patternProperties", "additionalProperties", "propertyNames", "contains", "contentMediaType", "contentEncoding", "contentSchema", "allOf", "anyOf", "oneOf", "not", "if"}
+	restricting := []string{
+		"type", "enum", "const",
+		"multipleOf",
+		"maximum", "exclusiveMaximum",
+		"minimum", "exclusiveMinimum",
+		"maxLength", "minLength", "pattern", "format",
+		"maxItems", "minItems", "uniqueItems",
+		"maxContains", "minContains",
+		"maxProperties", "minProperties",
+		"required", "dependentRequired",
+		"properties", "patternProperties",
+		"additionalProperties", "propertyNames",
+		"contains",
+		"contentMediaType", "contentEncoding", "contentSchema",
+		"allOf", "anyOf", "oneOf", "not", "if",
+	}
 	for _, k := range restricting {
 		if _, has := m[k]; has {
 			return false

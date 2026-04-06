@@ -1,3 +1,70 @@
+// Package registry - Protobuf format compatibility checker.
+//
+// IsValid verifies that a version's document is syntactically valid
+// Protobuf IDL (proto2 or proto3).
+//
+// IsCompatible checks whether two Protobuf schema versions are
+// compatible in the given direction. Rules follow the closed-world
+// assumption standard for schema registries:
+//
+//	"backward" — consumers using the NEW schema can read messages
+//	             produced with the OLD schema.
+//	             Permitted changes to the schema:
+//	               • Add a new message, enum, or service.
+//	               • Add a new optional field (absent in old messages
+//	                 → reader uses the proto default).
+//	               • Remove a field, provided its field number and
+//	                 name are both marked reserved in the new schema
+//	                 (prevents accidental number reuse).
+//	             Forbidden changes:
+//	               • Remove a message, enum, or service.
+//	               • Remove a field without reserving its number/name.
+//	               • Change a field's type to a wire-incompatible type.
+//	             Implemented as: old ⊆ new (checkFileCompat(old, new))
+//
+//	"forward"  — consumers using the OLD schema can read messages
+//	             produced with the NEW schema.
+//	             Permitted changes to the schema:
+//	               • Add a new message, enum, or service.
+//	               • Add a new optional field (old consumers treat
+//	                 unknown field numbers as unknown and preserve
+//	                 them, so old schema consumers are unaffected).
+//	             Forbidden changes:
+//	               • Remove any field (new messages lack it; old
+//	                 consumers that reference it get a zero default
+//	                 which may be incorrect).
+//	               • Remove a message, enum, or service.
+//	               • Change a field's type to a wire-incompatible type.
+//	             Implemented as: new ⊆ old (checkFileCompat(new, old))
+//	             (forward compat = backward compat with args swapped)
+//
+// Compatibility checks – status per construct:
+//
+// Top-level
+//   - [supported]     package (must not change)
+//   - [supported]     message (removal detected; field-level compat
+//     checked recursively)
+//   - [supported]     enum (removal detected; value-level compat
+//     checked)
+//   - [supported]     service / rpc (removal detected; streaming
+//     flags and message types checked)
+//
+// Message keywords
+//   - [supported]     field number (immutable)
+//   - [supported]     field type (wire-compatibility groups checked)
+//   - [supported]     repeated ↔ singular (wire-safe for string /
+//     bytes / message only)
+//   - [supported]     reserved ranges and names (required when
+//     removing a field)
+//   - [supported]     oneof (move between oneofs detected)
+//   - [supported]     nested messages and enums (recursive)
+//   - [supported]     map fields (key and value type checked)
+//
+// Known limitations
+//   - proto2 required fields are treated the same as optional.
+//   - Extensions and options are not checked.
+//   - Field renames are not detected (only field numbers are matched).
+
 package registry
 
 import (
@@ -17,7 +84,7 @@ func init() {
 
 type FormatProtobuf struct{}
 
-// IsValid checks if the version is a valid Protobuf schema syntax
+// IsValid checks if the version is a valid Protobuf schema syntax.
 func (fp FormatProtobuf) IsValid(version *Version) *XRError {
 	buf := []byte(nil)
 
@@ -40,15 +107,26 @@ func (fp FormatProtobuf) IsValid(version *Version) *XRError {
 
 	if err != nil {
 		return NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+"is not a valid protobuf file:"+
-				err.Error())
+			"error_detail="+version.XID+
+				"is not a valid protobuf file:"+err.Error())
 	}
 	return nil
 }
 
-// checks if both buffers are valid Protobuf schemas and whether newBuf is
-// backwards compatible with oldBuf according to Protobuf wire compatibility rules.
-func (fp FormatProtobuf) IsCompatible(direction string, oldVersion *Version, newVersion *Version) *XRError {
+// IsValidProto returns nil when buf is a syntactically valid Protobuf
+// IDL file, or an error describing the syntax problem.
+func IsValidProto(buf []byte) error {
+	_, err := parseProto(buf)
+	return err
+}
+
+// checks if both buffers are valid Protobuf schemas and whether
+// newVersion is compatible with oldVersion in the given direction.
+func (fp FormatProtobuf) IsCompatible(
+	direction string,
+	oldVersion *Version,
+	newVersion *Version,
+) *XRError {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
@@ -70,16 +148,23 @@ func (fp FormatProtobuf) IsCompatible(direction string, oldVersion *Version, new
 	oldDesc, err := parseProto(oldBuf)
 	if err != nil {
 		return NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+"is not a valid protobuf file: "+
-				err.Error())
+			"error_detail="+oldVersion.XID+
+				"is not a valid protobuf file: "+err.Error())
 	}
 	newDesc, err := parseProto(newBuf)
 	if err != nil {
 		return NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+"is not a valid protobuf file: "+
-				err.Error())
+			"error_detail="+oldVersion.XID+
+				"is not a valid protobuf file: "+err.Error())
 	}
-	err = checkFileCompat(oldDesc, newDesc)
+
+	// "forward" is backward with args swapped: new ⊆ old.
+	checkOld, checkNew := oldDesc, newDesc
+	if direction == "forward" {
+		checkOld, checkNew = newDesc, oldDesc
+	}
+
+	err = checkFileCompat(checkOld, checkNew)
 	if err != nil {
 		compat := newVersion.
 			Resource.

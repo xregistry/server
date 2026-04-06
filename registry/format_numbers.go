@@ -1,9 +1,9 @@
 package registry
 
-// Just a test file "format"
+// Just a test file "format".
 // It'll add up all of the integers on each line of the file.
-// Each line number either be blank or an int, anything else fails
-// files are compatible if newfile's sum >= old file sum
+// Each line number either be blank or an int, anything else fails.
+// Files are compatible if newfile's sum >= old file sum.
 
 import (
 	"fmt"
