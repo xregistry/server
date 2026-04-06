@@ -54,7 +54,7 @@ func (ft FormatNumbers) IsValid(version *Version) *XRError {
 	return xErr
 }
 
-func (ft FormatNumbers) IsCompatible(oldVersion, newVersion *Version) *XRError {
+func (ft FormatNumbers) IsCompatible(direction string, oldVersion, newVersion *Version) *XRError {
 	log.VPrintf(3, ">Enter: IsCompliant.IsCompliant(old:%s,new:%s)",
 		oldVersion.UID, newVersion.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsCompliant")

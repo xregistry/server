@@ -41,7 +41,7 @@ func (fp FormatJson) IsValid(version *Version) *XRError {
 	return nil
 }
 
-func (fp FormatJson) IsCompatible(oldVersion *Version, newVersion *Version) *XRError {
+func (fp FormatJson) IsCompatible(direction string, oldVersion *Version, newVersion *Version) *XRError {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {

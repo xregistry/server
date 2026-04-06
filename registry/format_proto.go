@@ -48,7 +48,7 @@ func (fp FormatProtobuf) IsValid(version *Version) *XRError {
 
 // checks if both buffers are valid Protobuf schemas and whether newBuf is
 // backwards compatible with oldBuf according to Protobuf wire compatibility rules.
-func (fp FormatProtobuf) IsCompatible(oldVersion *Version, newVersion *Version) *XRError {
+func (fp FormatProtobuf) IsCompatible(direction string, oldVersion *Version, newVersion *Version) *XRError {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {

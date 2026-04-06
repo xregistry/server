@@ -1576,7 +1576,8 @@ func (r *Resource) DumpOrderedVersions() {
 
 type FormatChecker interface {
 	IsValid(version *Version) *XRError
-	IsCompatible(oldVersion, newVersion *Version) *XRError
+	// 'direction' == backward, forward
+	IsCompatible(direction string, oldVersion, newVersion *Version) *XRError
 }
 
 // case insensitive 'format' values'
@@ -1657,10 +1658,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	childrenMap := map[string][]string{} // v.UID -> []child.UID
 	changedVersions := []string{}        // v.UID
 
-	doneChecks := map[string]bool{}    // "oldID">"newID" -> true
+	doneChecks := map[string]bool{}    // "direction>oldID">"newID" -> true
 	ancestorMap := map[string]string{} // v.UID -> v.ancestorUID
 
-	doCheckCompat := func(oldVID string, newVID string) *XRError {
+	// 'direction' = 'backward', 'forward'
+	doCheckCompat := func(direction string, oldVID string, newVID string) *XRError {
 		// log.Printf("In doCheckCompat: %s vs %s", oldVID, newVID)
 		PanicIf(oldVID == "", "can't be empty")
 		PanicIf(newVID == "", "can't be empty")
@@ -1670,7 +1672,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			return nil
 		}
 
-		key := oldVID + ">" + newVID
+		key := direction + ">" + oldVID + ">" + newVID
 		if doneChecks[key] {
 			// Already checked
 			return nil
@@ -1681,7 +1683,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
 		// Do actual check here
-		if xErr = checker.IsCompatible(oldV, newV); xErr != nil {
+		if xErr = checker.IsCompatible(direction, oldV, newV); xErr != nil {
 			return xErr
 		}
 
@@ -1772,13 +1774,15 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
 			// compatible w/ the next oldest Ver
-			if xErr := doCheckCompat(ancestorMap[verID], verID); xErr != nil {
+			xErr := doCheckCompat("backward", ancestorMap[verID], verID)
+			if xErr != nil {
 				return xErr
 			}
 
 			// compatible w/ all children
 			for _, childUID := range childrenMap[verID] {
-				if xErr := doCheckCompat(verID, childUID); xErr != nil {
+				xErr := doCheckCompat("backward", verID, childUID)
+				if xErr != nil {
 					return xErr
 				}
 			}
@@ -1795,7 +1799,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				}
 
 				// Compatible with our next ancestor
-				if xErr := doCheckCompat(prevID, currentID); xErr != nil {
+				xErr := doCheckCompat("backward", prevID, currentID)
+				if xErr != nil {
 					return xErr
 				}
 				currentID = prevID
@@ -1803,7 +1808,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 			// Make sure we didn't break our children's compat
 			for _, childUID := range childrenMap[verID] {
-				if xErr := doCheckCompat(verID, childUID); xErr != nil {
+				xErr := doCheckCompat("backward", verID, childUID)
+				if xErr != nil {
 					return xErr
 				}
 			}
@@ -1814,13 +1820,15 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// compatible w/ the next newest Ver
 			for _, childUID := range childrenMap[verID] {
 				// Compatible with a descendent
-				if xErr := doCheckCompat(childUID, verID); xErr != nil {
+				xErr := doCheckCompat("forward", childUID, verID)
+				if xErr != nil {
 					return xErr
 				}
 			}
 
 			// Compatible w/ our ancestor
-			if xErr := doCheckCompat(verID, ancestorMap[verID]); xErr != nil {
+			xErr := doCheckCompat("forward", verID, ancestorMap[verID])
+			if xErr != nil {
 				return xErr
 			}
 		}
@@ -1838,7 +1846,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				item := list[0] // [old,new]
 				list = list[1:]
 
-				if xErr := doCheckCompat(item[1], item[0]); xErr != nil { // reverse
+				xErr := doCheckCompat("forward", item[1], item[0])
+				if xErr != nil {
 					return xErr
 				}
 
@@ -1849,7 +1858,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			}
 
 			// Now check our ancestor
-			if xErr := doCheckCompat(verID, ancestorMap[verID]); xErr != nil {
+			xErr := doCheckCompat("forward", verID, ancestorMap[verID])
+			if xErr != nil {
 				return xErr
 			}
 		}
