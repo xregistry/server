@@ -305,6 +305,9 @@ func (rm *ResourceModel) VerifyData() *XRError {
 		if e.Type == ENTITY_GROUP {
 			group = &Group{Entity: *e, Registry: reg}
 			group.Self = group
+			// Always lock: RawEntitiesFromQuery is called with
+			// FOR_WRITE above, so newly loaded entities must acquire
+			// the DB row lock.
 			group.Lock()
 		} else {
 			PanicIf(group == nil, "Group can't be nil")
@@ -324,6 +327,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 			}
 
 			resource.tx.AddResource(resource)
+			// Always lock: same rationale as group above.
 			resource.Lock()
 		}
 	}

@@ -1530,6 +1530,8 @@ func (r *Resource) GetVersions() ([]*Version, *XRError) {
 			v = &Version{Entity: *e, Resource: r}
 			v.Self = v
 			v.tx.AddVersion(v)
+			// Always lock: this function fetches with FOR_WRITE,
+			// so newly loaded entities must acquire the DB row lock.
 			v.Lock()
 		}
 		list = append(list, v)
