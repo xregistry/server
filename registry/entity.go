@@ -770,7 +770,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 			entity = &Entity{
 				EntityExtensions: EntityExtensions{
 					tx:         tx,
-					AccessMode: accessMode,
+					AccessMode: FOR_READ,
 				},
 
 				Registry: tx.Registry,

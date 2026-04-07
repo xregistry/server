@@ -329,6 +329,9 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 	m := &Meta{Entity: *ent, Resource: r}
 	m.Self = m
 	r.tx.AddMeta(m)
+	if accessMode == FOR_WRITE {
+		m.Lock()
+	}
 	return m, nil
 }
 
@@ -364,6 +367,9 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 	v := &Version{Entity: *ent, Resource: r}
 	v.Self = v
 	v.tx.AddVersion(v)
+	if accessMode == FOR_WRITE {
+		v.Lock()
+	}
 	return v, nil
 }
 
@@ -1524,6 +1530,7 @@ func (r *Resource) GetVersions() ([]*Version, *XRError) {
 			v = &Version{Entity: *e, Resource: r}
 			v.Self = v
 			v.tx.AddVersion(v)
+			v.Lock()
 		}
 		list = append(list, v)
 	}
