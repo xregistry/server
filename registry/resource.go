@@ -329,6 +329,11 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 	m := &Meta{Entity: *ent, Resource: r}
 	m.Self = m
 	r.tx.AddMeta(m)
+
+	if accessMode == FOR_WRITE {
+		m.Lock()
+	}
+
 	return m, nil
 }
 
@@ -364,6 +369,11 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 	v := &Version{Entity: *ent, Resource: r}
 	v.Self = v
 	v.tx.AddVersion(v)
+
+	if accessMode == FOR_WRITE {
+		v.Lock()
+	}
+
 	return v, nil
 }
 
@@ -660,7 +670,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		meta = &Meta{
 			Entity: Entity{
 				EntityExtensions: EntityExtensions{
-					tx: r.tx,
+					tx:         r.tx,
+					AccessMode: FOR_WRITE,
 				},
 
 				Registry: r.Registry,
@@ -793,7 +804,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			}
 
 			// Delete all existing Versions too
-			vers, xErr := r.GetVersions()
+			vers, xErr := r.GetVersions(FOR_WRITE) // always lock
 			if xErr != nil {
 				return nil, false, xErr
 			}
@@ -1111,6 +1122,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		if IsNil(v.NewObject["versionid"]) {
 			v.NewObject["versionid"] = vu.Id
 		}
+	}
+
+	if IsNil(v.NewObject["versionid"]) {
+		log.Printf("OldObject: %s", ToJSON(v.Object))
+		log.Printf("NewObject: %s", ToJSON(v.NewObject))
+		log.Printf("vu: %s", ToJSON(vu))
 	}
 
 	if v.NewObject != nil {
@@ -1509,7 +1526,7 @@ func (m *Meta) Delete() *XRError {
 	return nil
 }
 
-func (r *Resource) GetVersions() ([]*Version, *XRError) {
+func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
 	list := []*Version{}
 
 	entities, xErr := RawEntitiesFromQuery(r.tx, r.Registry.DbSID,
@@ -1524,6 +1541,10 @@ func (r *Resource) GetVersions() ([]*Version, *XRError) {
 			v = &Version{Entity: *e, Resource: r}
 			v.Self = v
 			v.tx.AddVersion(v)
+		}
+
+		if accessMode == FOR_WRITE {
+			v.Lock()
 		}
 		list = append(list, v)
 	}

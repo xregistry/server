@@ -770,7 +770,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 			entity = &Entity{
 				EntityExtensions: EntityExtensions{
 					tx:         tx,
-					AccessMode: accessMode,
+					AccessMode: FOR_READ, // Caller need to lock it if needed
 				},
 
 				Registry: tx.Registry,
@@ -945,6 +945,7 @@ var PropsFuncs = []*Attribute{
 			updateFn: func(e *Entity) *XRError {
 				// Make sure the ID is always set
 				if IsNil(e.NewObject["versionid"]) {
+					log.Printf("NewObject: %s", ToJSON(e.NewObject))
 					ShowStack()
 					panic(fmt.Sprintf(`"versionid" is nil - fix it!`))
 				}

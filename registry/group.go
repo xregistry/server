@@ -83,6 +83,9 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 	r := &Resource{Entity: *ent, Group: g}
 	r.Self = r
 	r.tx.AddResource(r)
+	if accessMode == FOR_WRITE {
+		r.Lock()
+	}
 	return r, nil
 }
 

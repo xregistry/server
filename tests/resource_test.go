@@ -268,7 +268,7 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	f1, err := d1.AddResource("files", "f1", "v1")
 	XCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
-	vers, err := f1.GetVersions()
+	vers, err := f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 1, "Should be just one version")
 
@@ -282,7 +282,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q default: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
+	vers, err = f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
 
@@ -297,7 +297,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
+	vers, err = f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 2, "Should be 2")
 	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
@@ -309,7 +309,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
 	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
+	vers, err = f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 2, "Should be 2, but is: %d", len(vers))
 	XCheck(t, len(vers) == 2, "Should be 2, but is: %s", ToJSON(vers))
@@ -331,7 +331,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XNoErr(t, err)
 	_, err = f1.AddVersion("v9")
 	XNoErr(t, err)
-	vers, err = f1.GetVersions()
+	vers, err = f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 7, "Should be 7, but is: %d", len(vers))
 	XCheck(t, len(vers) == 7, "Should be 7, but is: %s", ToJSON(vers))
@@ -344,7 +344,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel())
 
-	vers, err = f1.GetVersions()
+	vers, err = f1.GetVersions(registry.FOR_READ)
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))

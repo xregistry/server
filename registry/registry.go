@@ -274,6 +274,10 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	tx.Registry = reg
 	tx.AddRegistry(reg)
 
+	if accessMode == FOR_WRITE {
+		reg.Lock()
+	}
+
 	reg.LoadCapabilities()
 	reg.LoadModel()
 
@@ -355,6 +359,10 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	reg.tx = tx
 
 	reg.tx.AddRegistry(reg)
+
+	if accessMode == FOR_WRITE {
+		reg.Lock()
+	}
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -583,6 +591,11 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	g := &Group{Entity: *ent, Registry: reg}
 	g.Self = g
 	g.tx.AddGroup(g)
+
+	if accessMode == FOR_WRITE {
+		g.Lock()
+	}
+
 	return g, nil
 }
 

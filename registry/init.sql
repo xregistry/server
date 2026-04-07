@@ -215,6 +215,22 @@ CREATE TABLE Props (
     INDEX (RegistrySID, PropName)
 );
 
+# CREATE TRIGGER EpochCheck BEFORE INSERT ON Props
+# FOR EACH ROW
+# BEGIN
+#     DECLARE old_epoch INT DEFAULT NULL $$
+#     DECLARE err TEXT $$
+# 
+#     SELECT PropValue INTO old_epoch FROM Props 
+#     WHERE EntitySID=NEW.EntitySID AND PropName='epoch,' LIMIT 1 $$
+# 
+#     IF old_epoch IS NOT NULL AND NEW.PropName='epoch,' AND old_epoch > NEW.PropValue THEN
+#         SET err = CONCAT('old:', old_epoch, ' new:', NEW.PropValue) $$
+#         SIGNAL SQLSTATE '45000'
+#         SET MESSAGE_TEXT = err $$
+#     END IF $$
+# END ;
+
 CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
 FOR EACH ROW
 BEGIN

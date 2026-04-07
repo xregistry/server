@@ -239,28 +239,36 @@ func TestMiscConcurrency(t *testing.T) {
 	startFlag := false
 	wg := &sync.WaitGroup{}
 
-	NewJob(t, "PATCH /", &startFlag, wg, 5, 10, func(num int) {
+	par := 5
+	numRegUpdates := 10
+	NewJob(t, "PATCH /", &startFlag, wg, par, numRegUpdates, func(num int) {
 		XHTTP(t, reg, "PATCH", fmt.Sprintf("/"), "{}", 200, "*")
 	})
 
-	NewJob(t, "PUT dx", &startFlag, wg, 5, 10, func(num int) {
+	numGroupUpdates := 10
+	NewJob(t, "PUT dx", &startFlag, wg, par, numGroupUpdates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
 	})
-	NewJob(t, "PUT d1", &startFlag, wg, 5, 10, func(num int) {
+	numGroup1Updates := 10
+	NewJob(t, "PUT d1", &startFlag, wg, par, numGroup1Updates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
 	})
 
-	NewJob(t, "PUT fx", &startFlag, wg, 5, 10, func(num int) {
+	numFileUpdates := 10
+	NewJob(t, "PUT fx", &startFlag, wg, par, numFileUpdates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f%d", num), "{}", 2, "*")
 	})
-	NewJob(t, "PUT f1", &startFlag, wg, 5, 10, func(num int) {
+	numFile1Updates := 10
+	NewJob(t, "PUT f1", &startFlag, wg, par, numFile1Updates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1"), "{}", 2, "*")
 	})
 
-	NewJob(t, "PUT vx", &startFlag, wg, 5, 10, func(num int) {
+	numVersionUpdates := 10
+	NewJob(t, "PUT vx", &startFlag, wg, par, numVersionUpdates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v%d", num), "{}", 2, "*")
 	})
-	NewJob(t, "PUT v1", &startFlag, wg, 5, 10, func(num int) {
+	numVersion1Updates := 10
+	NewJob(t, "PUT v1", &startFlag, wg, par, numVersion1Updates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1/files/f1/versions/v1"), "{}", 2, "*")
 	})
 
@@ -299,16 +307,22 @@ func TestMiscConcurrency(t *testing.T) {
 	t.Logf("Json: %s", ToJSON(data))
 
 	// May need to check for 20 here (see below)
-	XEqual(t, "", data.Epoch, 21)
-	XEqual(t, "", data.DirsCount, 10)
+	sum := numRegUpdates + numGroupUpdates
+	if data.Epoch != sum && data.Epoch != sum+1 {
+		t.Fatalf("Data.epoch: %d, should be %d or %d", data.Epoch, sum, sum+1)
+	}
+	// XEqual(t, "", data.Epoch, numRegUpdates+numVersionUpdates)
+	XEqual(t, "", data.DirsCount, numGroupUpdates)
 
 	// can be either depending on the order in which things are created
-	if data.Dirs["d1"].Epoch != 20 && data.Dirs["d1"].Epoch != 21 {
-		t.Fatalf("data.Dirs[d1].Epoch should be 20 or 21, got: %d",
-			data.Dirs["d1"].Epoch)
+	sum = numGroup1Updates + numFileUpdates
+	if data.Dirs["d1"].Epoch != sum && data.Dirs["d1"].Epoch != sum+1 {
+		t.Fatalf("data.Dirs[d1].Epoch should be %d or %d, got: %d",
+			data.Dirs["d1"].Epoch, sum, sum+1)
 	}
 
-	XEqual(t, "", data.Dirs["d1"].FilesCount, 10)
+	sum = numFileUpdates
+	XEqual(t, "", data.Dirs["d1"].FilesCount, sum)
 
 	// version "1" may not exist if a PUT .../vX arrives before PUT .../f1
 	XEqual(t, "", data.Dirs["d1"].Files["f1"].Meta.Epoch,

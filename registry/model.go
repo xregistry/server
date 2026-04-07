@@ -305,10 +305,12 @@ func (rm *ResourceModel) VerifyData() *XRError {
 		if e.Type == ENTITY_GROUP {
 			group = &Group{Entity: *e, Registry: reg}
 			group.Self = group
+			group.Lock() // Always lock
 		} else {
 			PanicIf(group == nil, "Group can't be nil")
 			resource = &Resource{Entity: *e, Group: group}
 			resource.Self = resource
+			resource.Lock() // Always lock
 
 			if xErr = resource.EnsureSingleVersionRoot(); xErr != nil {
 				return xErr
