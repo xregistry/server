@@ -118,6 +118,9 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 	}
 
 	dbSID := NewUUID()
+
+	LockEntity(tx, dbSID, "/")
+
 	DoOne(tx, `
 		INSERT INTO Registries(SID, UID)
 		VALUES(?,?)`, dbSID, id)
@@ -151,6 +154,8 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 
 	tx.Registry = reg
 	tx.AddRegistry(reg)
+
+	reg.Lock()
 
 	xErr = reg.Model.Verify()
 	if xErr != nil {
@@ -253,7 +258,16 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	log.VPrintf(3, ">Enter: FindRegistrySID(%s)", sid)
 	defer log.VPrintf(3, "<Exit: FindRegistrySID")
 
+	// Assume we want it locked whether we find it or not, so first lock it
+	// at the DB level. We'll lock at the in-memory level later
+	if accessMode == FOR_WRITE {
+		LockEntity(tx, sid, "/")
+	}
+
 	if tx.Registry != nil && tx.Registry.DbSID == sid {
+		if accessMode == FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -290,6 +304,9 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	defer log.VPrintf(3, "<Exit: FindRegistry")
 
 	if tx != nil && tx.Registry != nil && tx.Registry.UID == id {
+		if accessMode == FOR_WRITE {
+			tx.Registry.Lock()
+		}
 		return tx.Registry, nil
 	}
 
@@ -454,6 +471,8 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		return xErr
 	}
 
+	PanicIf(reg.AccessMode == FOR_WRITE, "reg is locked")
+
 	// Normally we should never call Lock() directly, however Registry is
 	// kind of special because we rarely know if we want to "Find" the Registry
 	// for writing until later in the process. So instead of forcing the
@@ -570,8 +589,14 @@ func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
 
+	// Assume we want it locked whether we find it or not, so first lock it
+	// at the DB level. We'll lock at the in-memory level later
+	if accessMode == FOR_WRITE {
+		LockEntity(reg.tx, reg.DbSID, "/"+gType+"/"+id)
+	}
+
 	if g := reg.tx.GetGroup(reg, gType, id); g != nil {
-		if accessMode == FOR_WRITE && g.AccessMode != FOR_WRITE {
+		if accessMode == FOR_WRITE {
 			g.Lock()
 		}
 		return g, nil

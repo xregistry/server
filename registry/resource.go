@@ -306,18 +306,26 @@ func (r *Resource) FindMeta(anyCase bool, accessMode int) (*Meta, *XRError) {
 	log.VPrintf(3, ">Enter: FindMeta(%v)", anyCase)
 	defer log.VPrintf(3, "<Exit: FindMeta")
 
+	mPath := r.Path + "/meta"
+	mXID := "/" + mPath
+
+	// Assume we want it locked whether we find it or not, so first lock it
+	// at the DB level. We'll lock at the in-memory level later
+	if accessMode == FOR_WRITE {
+		LockEntity(r.tx, r.Registry.DbSID, mXID)
+	}
+
 	if m := r.tx.GetMeta(r); m != nil {
-		if accessMode == FOR_WRITE && m.AccessMode != FOR_WRITE {
+		if accessMode == FOR_WRITE {
 			m.Lock()
 		}
 		return m, nil
 	}
 
-	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
-		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/meta",
+	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID, mPath,
 		anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.XID+"/meta").
+		return nil, NewXRError("server_error", mXID).
 			SetDetail(fmt.Sprintf("Error finding Meta for %s: %s.",
 				r.Path, xErr.GetTitle()))
 	}
@@ -346,20 +354,27 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 		return nil, nil
 	}
 
+	vPath := r.Path + "/versions/" + id
+	vXID := r.XID + "/versions/" + id
+	// Assume we want it locked whether we find it or not, so first lock it
+	// at the DB level. We'll lock at the in-memory level later
+	if accessMode == FOR_WRITE {
+		LockEntity(r.tx, r.Registry.DbSID, vXID)
+	}
+
 	if v := r.tx.GetVersion(r, id); v != nil {
-		if accessMode == FOR_WRITE && v.AccessMode != FOR_WRITE {
+		if accessMode == FOR_WRITE {
 			v.Lock()
 		}
 		return v, nil
 	}
 
-	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID,
-		r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+id,
+	ent, xErr := RawEntityFromPath(r.tx, r.Group.Registry.DbSID, vPath,
 		anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", r.XID+"/versions/"+id).
+		return nil, NewXRError("server_error", vXID).
 			SetDetail(fmt.Sprintf("Error finding Version %s: %s.",
-				r.Path+"/versions/"+id, xErr.GetTitle()))
+				vPath, xErr.GetTitle()))
 	}
 	if ent == nil {
 		log.VPrintf(3, "None found")
@@ -929,6 +944,10 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		nextID := NotNilInt(&tmp)
 		for {
 			vu.Id = strconv.Itoa(nextID)
+
+			// Technically this will lock all versions that get created
+			// at the same time by some other tx, which isn't great but
+			// we'll deal with it later  TODO
 			v, xErr := r.FindVersion(vu.Id, false, FOR_WRITE)
 			if xErr != nil {
 				return nil, false, xErr
@@ -943,6 +962,11 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			}
 		}
 	} else {
+		// Assume we want it locked whether we find it or not, so first lock it
+		// at the DB level. We'll lock at the in-memory level later
+		vXID := r.XID + "/versions/" + vu.Id
+		LockEntity(r.tx, r.Registry.DbSID, vXID)
+
 		v, xErr = r.FindVersion(vu.Id, true, FOR_WRITE)
 
 		if vu.AddType == ADD_ADD && v != nil {
@@ -1014,9 +1038,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 
 		// Touch owning Resource to bump its epoch abd modifiedat timestamp
 		if r.Touch() {
-			if xErr = r.ValidateAndSave(); xErr != nil {
-				return nil, false, xErr
-			}
+			// DUG CONCURRENCY - comment this out
+			/*
+				if xErr = r.ValidateAndSave(); xErr != nil {
+					return nil, false, xErr
+				}
+			*/
 		}
 	}
 
@@ -1530,7 +1557,7 @@ func (r *Resource) GetVersions(accessMode int) ([]*Version, *XRError) {
 	list := []*Version{}
 
 	entities, xErr := RawEntitiesFromQuery(r.tx, r.Registry.DbSID,
-		FOR_WRITE, `ParentSID=? AND Type=?`, r.DbSID, ENTITY_VERSION)
+		accessMode, `ParentSID=? AND Type=?`, r.DbSID, ENTITY_VERSION)
 	if xErr != nil {
 		return nil, xErr
 	}

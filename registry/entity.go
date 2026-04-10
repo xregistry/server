@@ -258,6 +258,13 @@ func (e *Entity) GetPP(pp *PropPath) any {
 	return val
 }
 
+// We use the Locks table since we can't count on locking via Props table
+func LockEntity(tx *Tx, regID string, xid string) {
+	log.Printf("tx: %s : Requesting lock for: %s", tx.uuid, xid)
+	Query(tx, `SELECT 1 FROM Locks WHERE ID=? FOR UPDATE`, regID+":"+xid)
+	log.Printf("tx: %s : Got lock for: %s", tx.uuid, xid)
+}
+
 func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, *XRError) {
 	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
 	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
@@ -270,22 +277,27 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 		caseExpr = " COLLATE utf8mb4_0900_ai_ci"
 	}
 
+	if accessMode == FOR_WRITE {
+		// Should already be done, but just in case
+		LockEntity(tx, regID, "/"+path)
+	}
+
 	results := Query(tx, `
-		SELECT
-            e.RegSID as RegSID,
-            e.Type as Type,
-            e.Plural as Plural,
-            e.Singular as Singular,
-            e.eSID as eSID,
-            e.UID as UID,
-            p.PropName as PropName,
-            p.PropValue as PropValue,
-            p.PropType as PropType,
-            e.Path as Path,
-            e.Abstract as Abstract
-        FROM Entities AS e
-        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID)
-        WHERE e.RegSID=? AND e.Path`+caseExpr+`=? ORDER BY Path`,
+			SELECT
+	            e.RegSID as RegSID,
+	            e.Type as Type,
+	            e.Plural as Plural,
+	            e.Singular as Singular,
+	            e.eSID as eSID,
+	            e.UID as UID,
+	            p.PropName as PropName,
+	            p.PropValue as PropValue,
+	            p.PropType as PropType,
+	            e.Path as Path,
+	            e.Abstract as Abstract
+	        FROM Entities AS e
+	        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID)
+	        WHERE e.RegSID=? AND e.Path`+caseExpr+`=? ORDER BY Path`,
 		regID, path)
 	defer results.Close()
 
@@ -387,17 +399,20 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	mode := ""
 	if accessMode == FOR_WRITE {
 		mode = " FOR UPDATE"
+		LockEntity(e.tx, e.Registry.DbSID, e.XID)
 	}
 
 	results := Query(e.tx, `
         SELECT PropName, PropValue, PropType
-        FROM Props WHERE EntitySID=?`+mode, e.DbSID)
+        FROM Props
+        WHERE RegistrySID=? AND EntitySID=?`+mode, e.Registry.DbSID, e.DbSID)
 	defer results.Close()
 
 	// Erase all old props first
 	e.Object = map[string]any{}
 	e.NewObject = nil
 
+	count := 0
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		name := NotNilString(row[0])
 		val := NotNilString(row[1])
@@ -406,7 +421,24 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 		if xErr := e.SetFromDBName(name, &val, propType); xErr != nil {
 			return xErr
 		}
+		count++
 	}
+
+	// if count > 0 && e.Type != ENTITY_RESOURCE && IsNil(e.Object["epoch"]) {
+	if e.XID == "/" {
+		log.Printf("tx: %s : ===== In Refresh for %s - write:%v", e.EntityExtensions.tx.uuid, e.XID, accessMode == FOR_WRITE)
+		// log.Printf("epoch is missing")
+		log.Printf("tx: %s : count: %d:", e.EntityExtensions.tx.uuid, count)
+		log.Printf("tx: %s : e: %p:", e.EntityExtensions.tx.uuid, e)
+		log.Printf("tx: %s : e.SID: %s:", e.EntityExtensions.tx.uuid, e.DbSID)
+		log.Printf("tx: %s : e.Old: %s", e.EntityExtensions.tx.uuid, ToJSON(e.Object))
+		log.Printf("tx: %s : e.New: %s", e.EntityExtensions.tx.uuid, ToJSON(e.NewObject))
+		log.Printf("tx: %s : ------------------", e.EntityExtensions.tx.uuid)
+		// ShowStack()
+		// panic("epoch is missing")
+	}
+	PanicIf(count > 0 && e.Type != ENTITY_RESOURCE && IsNil(e.Object["epoch"]),
+		"tx: %s : epoch is missing", e.EntityExtensions.tx.uuid)
 
 	// TODO see if we can remove this - it scares me.
 	// Added when I added Touch() - touching parent on add/remove child
@@ -563,6 +595,8 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 	return xErr
 }
 
+var cache = map[string]int{}
+
 // This will save a single property/value in the DB. This assumes
 // the caller is traversing the Object and splitting it into individual props
 func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
@@ -585,6 +619,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
 	if ok && specProp.internals != nil && specProp.internals.dontStore {
+		log.Printf("tx: %s : Set: Skipping %s.%s (%v)", e.tx.uuid, e.UID, specProp.Name)
 		return nil
 	}
 
@@ -623,8 +658,10 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 
 	if IsNil(val) {
 		// Should never need this but keeping it just in case
-		Do(e.tx, `DELETE FROM Props WHERE EntitySID=? and PropName=?`,
-			e.DbSID, name)
+		log.Printf("tx: %s : Set: Delete all props: %s (%s)", e.tx.uuid, e.DbSID, e.XID)
+		Do(e.tx, `DELETE FROM Props
+                  WHERE RegistrySID=? AND EntitySID=? AND PropName=?`,
+			e.Registry.DbSID, e.DbSID, name)
 	} else {
 		propType := GoToOurType(val)
 
@@ -671,11 +708,27 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 			dbVal = ""
 		}
 
+		if name == "epoch," {
+			i, _ := AnyToUInt(dbVal)
+			c := cache[e.DbSID]
+			if c != 0 {
+				if i < c {
+					log.Printf("tx: %s : e.XID: %s", e.tx.uuid, e.XID)
+					log.Printf("tx: %s : e.Old: %s", e.tx.uuid, ToJSON(e.Object))
+					log.Printf("tx: %s : e.New: %s", e.tx.uuid, ToJSON(e.NewObject))
+					panic(fmt.Sprintf("tx: %s : epoch %d < %d", e.tx.uuid, i, c))
+				}
+			}
+			cache[e.DbSID] = i
+			log.Printf("tx: %s : %s->%d", e.tx.uuid, e.DbSID, i)
+		}
+
 		DoOneTwo(e.tx, `
             REPLACE INTO Props(
               RegistrySID,EntitySID,eType,PropName,PropValue,PropType,DocView)
             VALUES( ?,?,?,?,?,?, true )`,
 			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType)
+		log.Printf("tx: %s : Set: REPLACE %s.%s (%v)", e.tx.uuid, e.UID, name, dbVal)
 	}
 
 	return nil
@@ -899,8 +952,12 @@ var PropsFuncs = []*Attribute{
 					// Versions shouldn't store the RESOURCEid
 					delete(e.NewObject, singular)
 				} else if IsNil(e.NewObject[singular]) {
-					panic(fmt.Sprintf(`%q is nil - that's bad, fix it!`,
-						singular))
+					log.Printf("tx: %s : ==== In updateFn: e.XID: %s", e.EntityExtensions.tx.uuid, e.XID)
+					log.Printf("tx: %s : e.SID: %s", e.EntityExtensions.tx.uuid, e.DbSID)
+					log.Printf("tx: %s : e.Old: %s", e.EntityExtensions.tx.uuid, ToJSON(e.Object))
+					log.Printf("tx: %s : e.New: %s", e.EntityExtensions.tx.uuid, ToJSON(e.NewObject))
+					panic(fmt.Sprintf(`tx: %s : %q is nil - that's bad, fix it!`,
+						e.EntityExtensions.tx.uuid, singular))
 				}
 				return nil
 			},
@@ -945,9 +1002,11 @@ var PropsFuncs = []*Attribute{
 			updateFn: func(e *Entity) *XRError {
 				// Make sure the ID is always set
 				if IsNil(e.NewObject["versionid"]) {
-					log.Printf("NewObject: %s", ToJSON(e.NewObject))
-					ShowStack()
-					panic(fmt.Sprintf(`"versionid" is nil - fix it!`))
+					log.Printf("tx: %s : ==== In updateFn: e.XID: %s", e.EntityExtensions.tx.uuid, e.XID)
+					log.Printf("tx: %s : e.SID: %s", e.EntityExtensions.tx.uuid, e.DbSID)
+					log.Printf("tx: %s : e.Old: %s", e.EntityExtensions.tx.uuid, ToJSON(e.Object))
+					log.Printf("tx: %s : e.New: %s", e.EntityExtensions.tx.uuid, ToJSON(e.NewObject))
+					panic(fmt.Sprintf(`"tx: %s : versionid" is nil - fix it!`, e.EntityExtensions.tx.uuid))
 				}
 				return nil
 			},
@@ -1749,6 +1808,16 @@ func (e *Entity) Save() *XRError {
 		}
 	}
 
+	PanicIf(e.Type != ENTITY_RESOURCE && IsNil(e.NewObject["epoch"]) && !(e.Type == ENTITY_META && !IsNil(e.NewObject["xref"])),
+		"Epoch(%s) is nil", e.XID)
+	if e.XID == "/" {
+		log.Printf("tx: %s : ==== In Save: %s", e.EntityExtensions.tx.uuid, e.XID)
+		log.Printf("tx: %s : - e: %p", e.EntityExtensions.tx.uuid, e)
+		log.Printf("tx: %s : - e.SID: %s", e.EntityExtensions.tx.uuid, e.DbSID)
+		log.Printf("tx: %s : - New: %s", e.EntityExtensions.tx.uuid, ToJSON(e.NewObject))
+		defer log.Printf("tx: %s : ==== End of Save", e.EntityExtensions.tx.uuid)
+	}
+
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, "Saving - %s (id:%s):\n%s\n", e.Abstract, e.UID,
 			ToJSON(e.NewObject))
@@ -1759,7 +1828,9 @@ func (e *Entity) Save() *XRError {
 
 	// Delete all props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	Do(e.tx, "DELETE FROM Props WHERE EntitySID=? ", e.DbSID)
+	Do(e.tx, `DELETE FROM Props
+              WHERE RegistrySID=? AND EntitySID=?`,
+		e.Registry.DbSID, e.DbSID)
 
 	resSingular := ""
 	resHasDoc := false
@@ -1768,6 +1839,7 @@ func (e *Entity) Save() *XRError {
 		resHasDoc = rm.GetHasDocument()
 	}
 
+	setCount := 0
 	var traverse func(pp *PropPath, val any, obj map[string]any) *XRError
 	traverse = func(pp *PropPath, val any, obj map[string]any) *XRError {
 		if IsNil(val) { // Skip empty attributes
@@ -1793,10 +1865,12 @@ func (e *Entity) Save() *XRError {
 				v := valValue.MapIndex(keyValue).Interface()
 				// "RESOURCE" is special - call SetDBProp if it's present
 				if resHasDoc && pp.Len() == 0 && k == resSingular {
+					setCount++
 					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
 						return xErr
 					}
 				} else if k[0] == '#' {
+					setCount++
 					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
 						return xErr
 					}
@@ -1811,12 +1885,14 @@ func (e *Entity) Save() *XRError {
 				count++
 			}
 			if count == 0 && pp.Len() != 0 {
+				setCount++
 				return e.SetDBProperty(pp, map[string]any{})
 			}
 
 		case reflect.Slice:
 			if valValue.Len() == 0 {
 				valValue = reflect.MakeSlice(reflect.TypeOf(val), 0, 0)
+				setCount++
 				return e.SetDBProperty(pp, valValue.Interface())
 			}
 			for i := 0; i < valValue.Len(); i++ {
@@ -1842,11 +1918,13 @@ func (e *Entity) Save() *XRError {
 				count++
 			}
 			if count == 0 {
+				setCount++
 				return e.SetDBProperty(pp, struct{}{})
 			}
 
 		default:
 			// must be scalar so add it
+			setCount++
 			return e.SetDBProperty(pp, val)
 		}
 		return nil
@@ -1865,6 +1943,7 @@ func (e *Entity) Save() *XRError {
 		}
 	}
 	e.NewObject = nil
+	log.Printf("tx: %s : - setCount: %d", e.EntityExtensions.tx.uuid, setCount)
 
 	return nil
 }

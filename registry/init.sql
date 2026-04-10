@@ -32,6 +32,12 @@ same way... via the generic Get/Set methods.
 SET GLOBAL sql_mode = 'ANSI_QUOTES' ;
 SET sql_mode = 'ANSI_QUOTES' ;
 
+CREATE TABLE Locks (
+    ID VARCHAR(512) NOT NULL,
+
+    PRIMARY KEY (ID)
+);
+
 CREATE TABLE Registries (
     SID     VARCHAR(255) NOT NULL,  # System ID
     UID     VARCHAR(255) NOT NULL,  # User defined
@@ -210,9 +216,9 @@ CREATE TABLE Props (
     # are generated, the entire entity should vanish from the serialization.
     # e.g. Versions of an xref'd Resource.
 
-    PRIMARY KEY (EntitySID, PropName),
-    INDEX (EntitySID),
-    INDEX (RegistrySID, PropName)
+    PRIMARY KEY (RegistrySID, EntitySID, PropName),
+    INDEX (RegistrySID, EntitySID)
+    # INDEX (RegistrySID, PropName)
 );
 
 # CREATE TRIGGER EpochCheck BEFORE INSERT ON Props

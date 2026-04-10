@@ -61,17 +61,26 @@ func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode i
 	log.VPrintf(3, ">Enter: FindResource(%s,%s,%v)", rType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindResource")
 
+	rPath := g.Path + "/" + rType + "/" + id
+	rXID := g.XID + "/" + rType + "/" + id
+
+	// Assume we want it locked whether we find it or not, so first lock it
+	// at the DB level. We'll lock at the in-memory level later
+	if accessMode == FOR_WRITE {
+		LockEntity(g.tx, g.Registry.DbSID, rXID)
+	}
+
 	if r := g.tx.GetResource(g, rType, id); r != nil {
-		if accessMode == FOR_WRITE && r.AccessMode != FOR_WRITE {
+		if accessMode == FOR_WRITE {
 			r.Lock()
 		}
 		return r, nil
 	}
 
-	ent, xErr := RawEntityFromPath(g.tx, g.Registry.DbSID,
-		g.Plural+"/"+g.UID+"/"+rType+"/"+id, anyCase, accessMode)
+	ent, xErr := RawEntityFromPath(g.tx, g.Registry.DbSID, rPath,
+		anyCase, accessMode)
 	if xErr != nil {
-		return nil, NewXRError("server_error", g.XID+"/"+rType+"/"+id).
+		return nil, NewXRError("server_error", rXID).
 			SetDetail(fmt.Sprintf("Error finding Resource %q(%s): %s",
 				id, rType, xErr.GetTitle()))
 	}
@@ -331,12 +340,17 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		r.tx.AddResource(r)
 		g.Touch()
 
+		// DUG CONCURRENCY - replace with commented code below
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
 		xErr = r.SetSaveResource(r.Singular+"id", r.UID)
 		if xErr != nil {
 			return nil, false, xErr
 		}
+		/*
+			r.EnsureNewObject()
+			r.NewObject[r.Singular+"id"] = r.UID
+		*/
 
 		meta = &Meta{
 			Entity: Entity{

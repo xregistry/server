@@ -193,6 +193,11 @@ func NewJob(test *testing.T, name string, sf *bool, wg *sync.WaitGroup, p int, t
 		}()
 
 		for i := 0; i < j.total; {
+			if j.t.Failed() {
+				// Stop immediately if something didn't work
+				j.t.Logf("Stopping early!")
+				break
+			}
 			if atomic.LoadInt32(&j.active) < int32(j.parallel) {
 				atomic.AddInt32(&j.active, 1)
 				go func(c int) {
@@ -240,16 +245,16 @@ func TestMiscConcurrency(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	par := 5
-	numRegUpdates := 10
+	numRegUpdates := 50
 	NewJob(t, "PATCH /", &startFlag, wg, par, numRegUpdates, func(num int) {
 		XHTTP(t, reg, "PATCH", fmt.Sprintf("/"), "{}", 200, "*")
 	})
 
-	numGroupUpdates := 10
+	numGroupUpdates := 50
 	NewJob(t, "PUT dx", &startFlag, wg, par, numGroupUpdates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d%d", num), "{}", 2, "*")
 	})
-	numGroup1Updates := 10
+	numGroup1Updates := 50
 	NewJob(t, "PUT d1", &startFlag, wg, par, numGroup1Updates, func(num int) {
 		XHTTP(t, reg, "PUT", fmt.Sprintf("/dirs/d1"), "{}", 2, "*")
 	})
@@ -318,7 +323,7 @@ func TestMiscConcurrency(t *testing.T) {
 	sum = numGroup1Updates + numFileUpdates
 	if data.Dirs["d1"].Epoch != sum && data.Dirs["d1"].Epoch != sum+1 {
 		t.Fatalf("data.Dirs[d1].Epoch should be %d or %d, got: %d",
-			data.Dirs["d1"].Epoch, sum, sum+1)
+			sum, sum+1, data.Dirs["d1"].Epoch)
 	}
 
 	sum = numFileUpdates

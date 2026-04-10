@@ -208,6 +208,7 @@ func (tx *Tx) NewTx() *XRError {
 	TXsMutex.Lock()
 	TXs[tx.uuid] = tx
 	TXsMutex.Unlock()
+	log.Printf("tx: %s : ==== New tx", tx.uuid)
 	return nil
 }
 
@@ -289,7 +290,7 @@ func (tx *Tx) AddToCache(e *Entity) {
 }
 
 func (tx *Tx) RemoveFromCache(e *Entity) {
-	// If NewObject is missing or its the same a Ob then we're ok.
+	// If NewObject is missing or its the same a Obj then we're ok.
 	// "same" is ok because it means it was just touched, not really changed
 
 	// TODO turn this off when in prod (the maps.Equals probably isn't too
@@ -410,6 +411,7 @@ func (tx *Tx) Commit() *XRError {
 		return nil
 	}
 
+	log.Printf("tx: %s : ==== Commit tx", tx.uuid)
 	if xErr := tx.WriteCache(true); xErr != nil {
 		return xErr
 	}
@@ -431,6 +433,7 @@ func (tx *Tx) Rollback() *XRError {
 	if tx == nil || tx.tx == nil {
 		return nil
 	}
+	log.Printf("tx: %s : ==== Rollback", tx.uuid)
 	err := tx.tx.Rollback()
 	Must(err)
 
