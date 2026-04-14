@@ -149,3 +149,4 @@ TODOs:
 - model add matchcase, def=false - remove internals.caseinsensitive
 - test for setting capabilities.formats/compat* at the same time as uploading data. Those capabilities need to take effect prior to committing the data to ensure conformance
 - MSFT schema docs: https://learn.microsoft.com/en-us/azure/event-hubs/schema-registry-concepts#backward-compatibility
+- more format/compat tests!!

@@ -736,8 +736,10 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -826,6 +828,14 @@ func TestHTTPModel(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -1051,8 +1061,10 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
+          "validateformat": false,
           "validatecompatibility": false,
-          "validateformat": false
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -1075,8 +1087,10 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
+          "validateformat": false,
           "validatecompatibility": false,
-          "validateformat": false
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -1346,8 +1360,10 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1436,6 +1452,14 @@ func TestHTTPModel(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             }
           },
           "resourceattributes": {
@@ -1947,8 +1971,10 @@ func TestHTTPModel(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2037,6 +2063,14 @@ func TestHTTPModel(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",

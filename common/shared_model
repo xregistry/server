@@ -110,6 +110,7 @@ type AttrInternals struct {
 	httpHeader      string   // custom HTTP header name, not xRegistry-...
 	xrefrequired    bool     // required in meta even when xref is set
 	cantOverride    []string // blindly set from spec defined values
+	noDocView       bool     // exclude from docView
 
 	getFn    func(*Entity) any      // return prop's value
 	checkFn  func(*Entity) *XRError // validate incoming prop
@@ -202,8 +203,10 @@ type ResourceModel struct {
 	HasDocument           *bool             `json:"hasdocument,omitempty"`
 	VersionMode           string            `json:"versionmode,omitempty"`
 	SingleVersionRoot     *bool             `json:"singleversionroot,omitempty"`
-	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
 	ValidateFormat        *bool             `json:"validateformat,omitempty"`
+	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
+	StrictValidation      *bool             `json:"strictvalidation,omitempty"`
+	ConsistentFormat      *bool             `json:"consistentformat,omitempty"`
 	TypeMap               map[string]string `json:"typemap,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
@@ -296,11 +299,17 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	}
 	if r.ValidateCompatibility == nil {
 		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
 	}
-	if r.ValidateFormat == nil {
-		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	if r.StrictValidation == nil {
+		r.StrictValidation = PtrBool(STRICTVALIDATION)
+	}
+	if r.ConsistentFormat == nil {
+		r.ConsistentFormat = PtrBool(CONSISTENTFORMAT)
 	}
 	return nil
 }
@@ -343,11 +352,17 @@ func (r *ResourceModel) ApplyDefaults() {
 	if r.SingleVersionRoot == nil {
 		r.SingleVersionRoot = PtrBool(SINGLEVERSIONROOT)
 	}
+	if r.ValidateFormat == nil {
+		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	}
 	if r.ValidateCompatibility == nil {
 		r.ValidateCompatibility = PtrBool(VALIDATECOMPATIBILITY)
 	}
-	if r.ValidateFormat == nil {
-		r.ValidateFormat = PtrBool(VALIDATEFORMAT)
+	if r.StrictValidation == nil {
+		r.StrictValidation = PtrBool(STRICTVALIDATION)
+	}
+	if r.ConsistentFormat == nil {
+		r.ConsistentFormat = PtrBool(CONSISTENTFORMAT)
 	}
 }
 
@@ -1006,20 +1021,27 @@ func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*Resource
 		HasDocument:           PtrBool(HASDOCUMENT),
 		VersionMode:           VERSIONMODE,
 		SingleVersionRoot:     PtrBool(SINGLEVERSIONROOT),
-		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
 		ValidateFormat:        PtrBool(VALIDATEFORMAT),
+		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
+		StrictValidation:      PtrBool(STRICTVALIDATION),
+		ConsistentFormat:      PtrBool(CONSISTENTFORMAT),
 	})
 }
 
 func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, setDefaultSticky bool, hasDocument bool) (*ResourceModel, *XRError) {
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:           plural,
-		Singular:         singular,
-		MaxVersions:      PtrInt(maxVersions),
-		SetVersionId:     PtrBool(setVerId),
-		SetDefaultSticky: PtrBool(setDefaultSticky),
-		HasDocument:      PtrBool(hasDocument),
-		VersionMode:      VERSIONMODE,
+		Plural:                plural,
+		Singular:              singular,
+		MaxVersions:           PtrInt(maxVersions),
+		SetVersionId:          PtrBool(setVerId),
+		SetDefaultSticky:      PtrBool(setDefaultSticky),
+		HasDocument:           PtrBool(hasDocument),
+		VersionMode:           VERSIONMODE,
+		SingleVersionRoot:     PtrBool(SINGLEVERSIONROOT),
+		ValidateFormat:        PtrBool(VALIDATEFORMAT),
+		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
+		StrictValidation:      PtrBool(STRICTVALIDATION),
+		ConsistentFormat:      PtrBool(CONSISTENTFORMAT),
 	})
 }
 
@@ -1361,6 +1383,13 @@ func (rm *ResourceModel) GetSingleVersionRoot() bool {
 	return *rm.SingleVersionRoot
 }
 
+func (rm *ResourceModel) GetValidateFormat() bool {
+	if rm.ValidateFormat == nil {
+		return VALIDATEFORMAT
+	}
+	return *rm.ValidateFormat
+}
+
 func (rm *ResourceModel) GetValidateCompatibility() bool {
 	if rm.ValidateCompatibility == nil {
 		return VALIDATECOMPATIBILITY
@@ -1368,11 +1397,18 @@ func (rm *ResourceModel) GetValidateCompatibility() bool {
 	return *rm.ValidateCompatibility
 }
 
-func (rm *ResourceModel) GetValidateFormat() bool {
-	if rm.ValidateFormat == nil {
-		return VALIDATEFORMAT
+func (rm *ResourceModel) GetStrictValidation() bool {
+	if rm.StrictValidation == nil {
+		return STRICTVALIDATION
 	}
-	return *rm.ValidateFormat
+	return *rm.StrictValidation
+}
+
+func (rm *ResourceModel) GetConsistentFormat() bool {
+	if rm.ConsistentFormat == nil {
+		return CONSISTENTFORMAT
+	}
+	return *rm.ConsistentFormat
 }
 
 func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
@@ -2366,6 +2402,8 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 		return xErr
 	}
 
+	rm.ApplyDefaults()
+
 	if rm.MaxVersions != nil && *rm.MaxVersions < 0 {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
@@ -2607,6 +2645,22 @@ func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
 	return nil
 }
 
+func (rm *ResourceModel) ClearValidateFormat() {
+	if rm.ValidateFormat != nil {
+		rm.ValidateFormat = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) SetValidateFormat(val bool) *XRError {
+	if rm.GetValidateFormat() != val {
+		rm.ValidateFormat = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+
+	return nil
+}
+
 func (rm *ResourceModel) ClearValidateCompatibility() {
 	if rm.ValidateCompatibility != nil {
 		rm.ValidateCompatibility = nil
@@ -2623,16 +2677,32 @@ func (rm *ResourceModel) SetValidateCompatibility(val bool) *XRError {
 	return nil
 }
 
-func (rm *ResourceModel) ClearValidateFormat() {
-	if rm.ValidateFormat != nil {
-		rm.ValidateFormat = nil
+func (rm *ResourceModel) ClearStrictValidation() {
+	if rm.StrictValidation != nil {
+		rm.StrictValidation = nil
 		rm.GroupModel.Model.SetChanged(true)
 	}
 }
 
-func (rm *ResourceModel) SetValidateFormat(val bool) *XRError {
-	if rm.GetValidateFormat() != val {
-		rm.ValidateFormat = PtrBool(val)
+func (rm *ResourceModel) SetStrictValidation(val bool) *XRError {
+	if rm.GetStrictValidation() != val {
+		rm.StrictValidation = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
+
+	return nil
+}
+
+func (rm *ResourceModel) ClearConsistentFormat() {
+	if rm.ConsistentFormat != nil {
+		rm.ConsistentFormat = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) SetConsistentFormat(val bool) *XRError {
+	if rm.GetConsistentFormat() != val {
+		rm.ConsistentFormat = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
 

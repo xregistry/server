@@ -46,15 +46,15 @@ func GetVersionSum(version *Version) (int, *XRError) {
 	return sum, nil
 }
 
-func (ft FormatNumbers) IsValid(version *Version) *XRError {
+func (ft FormatNumbers) IsValid(version *Version) (bool, *XRError) {
 	log.VPrintf(3, ">Enter: FormatNumbers.IsValid(%s)", version.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsValid")
 
 	_, xErr := GetVersionSum(version)
-	return xErr
+	return IsNil(xErr), xErr
 }
 
-func (ft FormatNumbers) IsCompatible(direction string, oldVersion, newVersion *Version) *XRError {
+func (ft FormatNumbers) IsCompatible(direction string, oldVersion, newVersion *Version) (bool, *XRError) {
 	log.VPrintf(3, ">Enter: IsCompliant.IsCompliant(old:%s,new:%s)",
 		oldVersion.UID, newVersion.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsCompliant")
@@ -66,11 +66,11 @@ func (ft FormatNumbers) IsCompatible(direction string, oldVersion, newVersion *V
 
 	oldSum, xErr := GetVersionSum(oldVersion)
 	if xErr != nil {
-		return xErr
+		return false, xErr
 	}
 	newSum, xErr := GetVersionSum(newVersion)
 	if xErr != nil {
-		return xErr
+		return false, xErr
 	}
 
 	// log.Printf("Comparing %v < %v", newSum, oldSum)
@@ -79,12 +79,12 @@ func (ft FormatNumbers) IsCompatible(direction string, oldVersion, newVersion *V
 			Resource.
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
-		return NewXRError("compatibility_violation", newVersion.Resource.XID,
+		return false, NewXRError("compatibility_violation", newVersion.Resource.XID,
 			"value="+compat).
 			SetDetail(fmt.Sprintf("Version %q (sum: %d) isn't %q compatible "+
 				"with %q (sum: %d).",
 				newVersion.XID, newSum, compat, oldVersion.XID, oldSum))
 	}
 
-	return nil
+	return true, nil
 }

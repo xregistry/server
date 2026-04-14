@@ -10,24 +10,28 @@ import (
 )
 
 type Capabilities struct {
-	APIs           []string `json:"apis"`           // must not have omitempty
-	Flags          []string `json:"flags"`          // must not have omitempty
-	Ignores        []string `json:"ignores"`        // must not have omitempty
-	Mutable        []string `json:"mutable"`        // must not have omitempty
-	Pagination     bool     `json:"pagination"`     // must not have omitempty
-	ShortSelf      bool     `json:"shortself"`      // must not have omitempty
-	SpecVersions   []string `json:"specversions"`   // must not have omitempty
-	StickyVersions *bool    `json:"stickyversions"` // must not have omitempty
-	VersionModes   []string `json:"versionmodes"`   // must not have omitempty
+	// THESE MUST NOT HAVE "omitempty" on them
+	APIs            []string            `json:"apis"`
+	Compatibilities map[string][]string `json:"compatibilities"`
+	Flags           []string            `json:"flags"`
+	Formats         []string            `json:"formats"`
+	Ignores         []string            `json:"ignores"`
+	Mutable         []string            `json:"mutable"`
+	Pagination      bool                `json:"pagination"`
+	ShortSelf       bool                `json:"shortself"`
+	SpecVersions    []string            `json:"specversions"`
+	StickyVersions  *bool               `json:"stickyversions"`
+	VersionModes    []string            `json:"versionmodes"`
 }
 
 type OfferedCapability struct {
-	Type          string       `json:"type,omitempty"`
-	Item          *OfferedItem `json:"item,omitempty"`
-	Enum          []any        `json:"enum,omitempty"`
-	Min           any          `json:"min,omitempty"`
-	Max           any          `json:"max,omitempty"`
-	Documentation string       `json:"documentation,omitempty"`
+	Type          string              `json:"type,omitempty"`
+	Item          *OfferedItem        `json:"item,omitempty"`
+	Enum          []any               `json:"enum,omitempty"`
+	Options       map[string][]string `json:"options,omitempty"`
+	Min           any                 `json:"min,omitempty"`
+	Max           any                 `json:"max,omitempty"`
+	Documentation string              `json:"documentation,omitempty"`
 }
 
 type OfferedItem struct {
@@ -35,15 +39,17 @@ type OfferedItem struct {
 }
 
 type Offered struct {
-	APIs           OfferedCapability `json:"apis,omitempty"`
-	Flags          OfferedCapability `json:"flags,omitempty"`
-	Ignores        OfferedCapability `json:"ignores,omitempty"`
-	Mutable        OfferedCapability `json:"mutable,omitempty"`
-	Pagination     OfferedCapability `json:"pagination,omitempty"`
-	ShortSelf      OfferedCapability `json:"shortself,omitempty"`
-	SpecVersions   OfferedCapability `json:"specversions,omitempty"`
-	StickyVersions OfferedCapability `json:"stickyversions,omitempty"`
-	VersionModes   OfferedCapability `json:"versionmodes,omitempty"`
+	APIs            OfferedCapability `json:"apis,omitempty"`
+	Compatibilities OfferedCapability `json:"compatibilities,omitempty"`
+	Flags           OfferedCapability `json:"flags,omitempty"`
+	Formats         OfferedCapability `json:"formats,omitempty"`
+	Ignores         OfferedCapability `json:"ignores,omitempty"`
+	Mutable         OfferedCapability `json:"mutable,omitempty"`
+	Pagination      OfferedCapability `json:"pagination,omitempty"`
+	ShortSelf       OfferedCapability `json:"shortself,omitempty"`
+	SpecVersions    OfferedCapability `json:"specversions,omitempty"`
+	StickyVersions  OfferedCapability `json:"stickyversions,omitempty"`
+	VersionModes    OfferedCapability `json:"versionmodes,omitempty"`
 }
 
 var AllowableAPIs = ArrayToLower([]string{
@@ -65,24 +71,30 @@ var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 
 var AllowableVersionModes = ArrayToLower([]string{"manual", "createdat"})
 
+var SupportedCompatibilities = map[string][]string{}
+
 var SupportedFlags = ArrayToLower([]string{
 	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
 	"setdefaultversionid", "sort", "specversion"})
+
+var SupportedFormats = []string{}
 
 var SupportedIgnores = ArrayToLower([]string{
 	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
 	"modelsource", "readonly"})
 
 var DefaultCapabilities = &Capabilities{
-	APIs:           AllowableAPIs,
-	Flags:          SupportedFlags,
-	Ignores:        SupportedIgnores,
-	Mutable:        AllowableMutable,
-	Pagination:     false,
-	ShortSelf:      false,
-	SpecVersions:   AllowableSpecVersions,
-	StickyVersions: PtrBool(true),
-	VersionModes:   AllowableVersionModes,
+	APIs:            AllowableAPIs,
+	Compatibilities: SupportedCompatibilities,
+	Flags:           SupportedFlags,
+	Formats:         SupportedFormats,
+	Ignores:         SupportedIgnores,
+	Mutable:         AllowableMutable,
+	Pagination:      false,
+	ShortSelf:       false,
+	SpecVersions:    AllowableSpecVersions,
+	StickyVersions:  PtrBool(true),
+	VersionModes:    AllowableVersionModes,
 }
 
 func init() {
@@ -93,7 +105,13 @@ func init() {
 	sort.Strings(AllowableSpecVersions)
 	sort.Strings(AllowableVersionModes)
 
+	for format, compats := range SupportedCompatibilities {
+		sort.Strings(compats)
+		// Not 100% sure we need to store it back
+		SupportedCompatibilities[format] = compats
+	}
 	sort.Strings(SupportedFlags)
+	sort.Strings(SupportedFormats)
 	sort.Strings(SupportedIgnores)
 
 	Must(DefaultCapabilities.Validate())
@@ -118,12 +136,26 @@ func GetOffered() *Offered {
 			},
 			Enum: String2AnySlice(AllowableAPIs),
 		},
+		Compatibilities: OfferedCapability{
+			Type: "map",
+			Item: &OfferedItem{
+				Type: "string",
+			},
+			Options: SupportedCompatibilities,
+		},
 		Flags: OfferedCapability{
 			Type: "array",
 			Item: &OfferedItem{
 				Type: "string",
 			},
 			Enum: String2AnySlice(SupportedFlags),
+		},
+		Formats: OfferedCapability{
+			Type: "array",
+			Item: &OfferedItem{
+				Type: "string",
+			},
+			Enum: String2AnySlice(SupportedFormats),
 		},
 		Ignores: OfferedCapability{
 			Type: "array",
@@ -179,7 +211,7 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 	// Make a copy so we can tweak it
 	arr = slices.Clone(arr)
 
-	// Lowercase evrything and look for "*"
+	// Lowercase everything and look for "*"
 	for i, s := range arr {
 		s = strings.ToLower(s)
 
@@ -230,9 +262,41 @@ func (c *Capabilities) Validate() *XRError {
 		return xErr
 	}
 
+	if c.Compatibilities == nil {
+		c.Compatibilities = map[string][]string{}
+	}
+	for format, compats := range c.Compatibilities {
+		if !ArrayContainsAnyCase(c.Formats, format) {
+			return NewXRError("capability_value", "/capabilities",
+				"name=compatibilities",
+				"value="+format,
+				"list="+strings.Join(c.Formats, ","))
+		}
+
+		c.Compatibilities[format], xErr =
+			CleanArray(compats, SupportedCompatibilities[format],
+				fmt.Sprintf("compatibilities[%s]", format))
+		if xErr != nil {
+			return xErr
+		}
+	}
+
 	c.Flags, xErr = CleanArray(c.Flags, AllowableFlags, "flags")
 	if xErr != nil {
 		return xErr
+	}
+
+	c.Formats, xErr = CleanArray(c.Formats, SupportedFormats, "formats")
+	if xErr != nil {
+		return xErr
+	}
+	for _, format := range c.Formats {
+		if !ArrayContainsAnyCase(c.Formats, format) {
+			return NewXRError("capability_value", "/capabilities",
+				"name=compatibilities",
+				"value="+format,
+				"list="+strings.Join(c.Formats, ","))
+		}
 	}
 
 	c.Ignores, xErr = CleanArray(c.Ignores, AllowableIgnores, "ignores")

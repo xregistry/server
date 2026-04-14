@@ -1190,6 +1190,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 		return nil
 	}
 
+	/* DUG strict
+	if xErr := meta.ValidateAndSave(); xErr != nil {
+		return xErr
+	}
+	*/
+
 	// Clean-up and verify all Ancestor attributes before we continue
 	if !onlyMetaChanged {
 		if xErr := r.CheckAncestors(); xErr != nil {
@@ -1575,27 +1581,27 @@ func (r *Resource) DumpOrderedVersions() {
 }
 
 type FormatChecker interface {
-	IsValid(version *Version) *XRError
+	IsValid(version *Version) (bool, *XRError)
 	// 'direction' == backward, forward
-	IsCompatible(direction string, oldVersion, newVersion *Version) *XRError
+	IsCompatible(direction string, oldVersion, newVersion *Version) (bool, *XRError)
 }
 
 // case insensitive 'format' values'
-var SupportedFormats = map[string]FormatChecker{}
+var SupportedFormatCheckers = map[string]FormatChecker{}
 
 func RegisterFormat(name string, format FormatChecker) {
-	SupportedFormats[strings.ToLower(name)] = format
+	SupportedFormatCheckers[strings.ToLower(name)] = format
 }
 
 func GetFormatChecker(format string) FormatChecker {
 	format = strings.ToLower(format)
-	checker := SupportedFormats[format]
+	checker := SupportedFormatCheckers[format]
 	if checker != nil {
 		return checker
 	}
 
 	// Just grab the first format whose regexp matches - not determinant
-	for name, checker := range SupportedFormats {
+	for name, checker := range SupportedFormatCheckers {
 		nameRE, err := regexp.Compile(name)
 		PanicIf(err != nil, "%s: %s", name, err)
 		if nameRE.MatchString(format) {
@@ -1614,8 +1620,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	meta := r.MustFindMeta(false, FOR_READ)
 
-	validateCompat := r.ResourceModel.GetValidateCompatibility()
 	validateFormat := r.ResourceModel.GetValidateFormat()
+	validateCompat := r.ResourceModel.GetValidateCompatibility()
 
 	oldCompat := meta.GetOrigin("compatibility")
 	newCompat := meta.Get("compatibility")
@@ -1683,16 +1689,34 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
 		// Do actual check here
-		if xErr = checker.IsCompatible(direction, oldV, newV); xErr != nil {
+		valid, xErr := checker.IsCompatible(direction, oldV, newV)
+		if xErr != nil {
 			return xErr
 		}
+
+		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), valid)
 
 		doneChecks[key] = true
 		return nil
 	}
 
+	prevFormat := ""
+
 	// Loop over all of the Resource's Versions
-	for _, va := range orderedVAs {
+	for i, va := range orderedVAs {
+		ver, xErr := r.FindVersion(va.VID, false, FOR_READ)
+		if xErr != nil {
+			return xErr
+		}
+
+		if r.ResourceModel.GetConsistentFormat() && i > 0 {
+			format := ver.GetAsString("format")
+			if format != prevFormat {
+				return NewXRError("format_inconsistent", r.XID)
+			}
+			prevFormat = format
+		}
+
 		// For each Version, save it's list of ancestors for easy lookup later.
 		// Note that we may need this even if the Version didn't change
 		oldList := childrenMap[va.Ancestor]
@@ -1705,15 +1729,17 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		// Calc all changed versions - the ones we want to check.
 		// Unless we're checking all Versions, if it's not in the cache
 		// then it didn't change
-		ver := r.tx.GetVersion(r, va.VID)
+		/*
+			ver := r.tx.GetVersion(r, va.VID)
 
-		if doAll && IsNil(ver) {
-			// If we're checking all Version, make sure Ver is loaded
-			ver, xErr = r.FindVersion(va.VID, false, FOR_READ)
-			if xErr != nil {
-				return xErr
+			if doAll && IsNil(ver) {
+				// If we're checking all Version, make sure Ver is loaded
+				ver, xErr = r.FindVersion(va.VID, false, FOR_READ)
+				if xErr != nil {
+					return xErr
+				}
 			}
-		}
+		*/
 
 		if !doAll && IsNil(ver) {
 			// Not doing all so if ver==nil then it didn't change, skip it
@@ -1728,21 +1754,44 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			if validateFormat {
 				newFormat := ver.GetAsString("format")
 				if newFormat == "" {
-					return NewXRError("format_missing", ver.XID)
+					if r.ResourceModel.GetStrictValidation() {
+						return NewXRError("format_missing", ver.XID)
+					}
+					ver.SetSystemDBProperty(NewPPP("formatvalidated"), nil)
+					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+					continue
 				}
 
 				checker := GetFormatChecker(newFormat)
 				if IsNil(checker) {
-					return NewXRError("bad_request", r.XID,
-						"error_detail="+
-							fmt.Sprintf("Unknown \"format\" value for %s: %s",
-								r.XID, newFormat))
+					if r.ResourceModel.GetStrictValidation() {
+						return NewXRError("bad_request", r.XID,
+							"error_detail="+
+								fmt.Sprintf("Unknown \"format\" value for %s: %s",
+									r.XID, newFormat))
+					}
+					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
+					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), false)
+					continue
 				}
 
 				// Validate that the Version is valid per the "format"
-				if xErr := checker.IsValid(ver); xErr != nil {
+				ok, xErr := checker.IsValid(ver)
+				if xErr != nil {
 					return xErr
 				}
+
+				if !ok {
+					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
+					if validateCompat {
+						ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), false)
+					} else {
+						ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+					}
+					continue
+				}
+
+				ver.SetSystemDBProperty(NewPPP("formatvalidated"), true)
 			}
 
 			// Only add to the list if we're checking for compat.
@@ -1750,6 +1799,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			// our cache of data first (maps, arrays, etc)
 			if validateCompat {
 				changedVersions = append(changedVersions, va.VID)
+			} else {
+				ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
 			}
 		}
 	}

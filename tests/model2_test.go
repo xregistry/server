@@ -289,8 +289,10 @@ func TestModelLabels(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "rmid": {
               "name": "rmid",
@@ -379,6 +381,14 @@ func TestModelLabels(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "rmurl": {
               "name": "rmurl",
@@ -848,8 +858,10 @@ func TestModelLabels(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "rmid": {
               "name": "rmid",
@@ -938,6 +950,14 @@ func TestModelLabels(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "rmurl": {
               "name": "rmurl",
@@ -1449,8 +1469,10 @@ func TestModelLabels(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1539,6 +1561,14 @@ func TestModelLabels(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -1948,6 +1978,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "ancestor": 8,
     "capabilities": 12,
     "compatibility": 13,
+    "compatibilityvalidated": 22,
     "contenttype": 11,
     "createdat": 9,
     "defaultversionid": 16,
@@ -1958,6 +1989,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "documentation": 13,
     "epoch": "5-epoch",
     "format": 6,
+    "formatvalidated": 15,
     "icon": 4,
     "id": 2,
     "isdefault": 9,
@@ -2062,6 +2094,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "name": "compatibility",
             "type": "integer"
           },
+          "compatibilityvalidated": {
+            "name": "compatibilityvalidated",
+            "type": "integer"
+          },
           "contenttype": {
             "name": "contenttype",
             "type": "integer"
@@ -2100,6 +2136,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
           },
           "format": {
             "name": "format",
+            "type": "integer"
+          },
+          "formatvalidated": {
+            "name": "formatvalidated",
             "type": "integer"
           },
           "icon": {
@@ -2337,6 +2377,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "compatibility",
                 "type": "integer"
               },
+              "compatibilityvalidated": {
+                "name": "compatibilityvalidated",
+                "type": "integer"
+              },
               "contenttype": {
                 "name": "contenttype",
                 "type": "integer"
@@ -2383,6 +2427,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
               },
               "format": {
                 "name": "format",
+                "type": "integer"
+              },
+              "formatvalidated": {
+                "name": "formatvalidated",
                 "type": "integer"
               },
               "icon": {
@@ -2491,8 +2539,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "setdefaultversionsticky": true,
             "hasdocument": false,
             "singleversionroot": false,
-            "validatecompatibility": false,
             "validateformat": false,
+            "validatecompatibility": false,
+            "strictvalidation": false,
+            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -2582,6 +2632,14 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "format",
                 "type": "string"
               },
+              "formatvalidated": {
+                "name": "formatvalidated",
+                "type": "boolean"
+              },
+              "compatibilityvalidated": {
+                "name": "compatibilityvalidated",
+                "type": "boolean"
+              },
               "obj": {
                 "name": "obj",
                 "type": "object",
@@ -2596,6 +2654,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "compatibility": {
                     "name": "compatibility",
+                    "type": "integer"
+                  },
+                  "compatibilityvalidated": {
+                    "name": "compatibilityvalidated",
                     "type": "integer"
                   },
                   "contenttype": {
@@ -2656,6 +2718,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "format": {
                     "name": "format",
+                    "type": "integer"
+                  },
+                  "formatvalidated": {
+                    "name": "formatvalidated",
                     "type": "integer"
                   },
                   "icon": {
@@ -2906,6 +2972,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "name": "compatibility",
                     "type": "integer"
                   },
+                  "compatibilityvalidated": {
+                    "name": "compatibilityvalidated",
+                    "type": "integer"
+                  },
                   "contenttype": {
                     "name": "contenttype",
                     "type": "integer"
@@ -2964,6 +3034,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "format": {
                     "name": "format",
+                    "type": "integer"
+                  },
+                  "formatvalidated": {
+                    "name": "formatvalidated",
                     "type": "integer"
                   },
                   "icon": {
@@ -3074,6 +3148,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "ancestor": 8,
         "capabilities": 12,
         "compatibility": 13,
+        "compatibilityvalidated": 22,
         "contenttype": 11,
         "createdat": 9,
         "defaultversionid": 16,
@@ -3086,6 +3161,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "epoch": "5-epoch",
         "fileid": 6,
         "format": 6,
+        "formatvalidated": 15,
         "icon": 4,
         "id": 2,
         "isdefault": 9,
@@ -3121,6 +3197,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "ancestor": 8,
             "capabilities": 12,
             "compatibility": 13,
+            "compatibilityvalidated": 22,
             "contenttype": 11,
             "createdat": 9,
             "defaultversionid": 16,
@@ -3136,6 +3213,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "fileid": 6,
             "fileurl": 7,
             "format": 6,
+            "formatvalidated": 15,
             "icon": 4,
             "id": 2,
             "isdefault": 9,
@@ -3168,6 +3246,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "ancestor": 8,
               "capabilities": 12,
               "compatibility": 13,
+              "compatibilityvalidated": 22,
               "contenttype": 11,
               "createdat": 9,
               "defaultversionid": 16,
@@ -3183,6 +3262,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "fileid": 6,
               "fileurl": 7,
               "format": 6,
+              "formatvalidated": 15,
               "icon": 4,
               "id": 2,
               "isdefault": 9,
@@ -3222,6 +3302,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "ancestor": 8,
                 "capabilities": 12,
                 "compatibility": 13,
+                "compatibilityvalidated": 22,
                 "contenttype": 11,
                 "createdat": 9,
                 "defaultversionid": 16,
@@ -3237,6 +3318,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "fileid": 6,
                 "fileurl": 7,
                 "format": 6,
+                "formatvalidated": 15,
                 "icon": 4,
                 "id": 2,
                 "isdefault": 9,
@@ -3636,8 +3718,10 @@ func TestModelCompatibleWith(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "dataid": {
               "name": "dataid",
@@ -3726,6 +3810,14 @@ func TestModelCompatibleWith(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "dataurl": {
               "name": "dataurl",
@@ -3935,8 +4027,10 @@ func TestModelCompatibleWith(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -4025,6 +4119,14 @@ func TestModelCompatibleWith(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -4233,8 +4335,10 @@ func TestModelCompatibleWith(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fooid": {
               "name": "fooid",
@@ -4323,6 +4427,14 @@ func TestModelCompatibleWith(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "foourl": {
               "name": "foourl",
@@ -5147,8 +5259,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -5237,6 +5351,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -5741,8 +5863,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -5831,6 +5955,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -6158,8 +6290,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -6248,6 +6382,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "typeurl": {
               "name": "typeurl",
@@ -6839,8 +6981,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -6929,6 +7073,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -7256,8 +7408,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -7346,6 +7500,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "typeurl": {
               "name": "typeurl",
@@ -7843,8 +8005,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -7933,6 +8097,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -8260,8 +8432,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -8350,6 +8524,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "typeurl": {
               "name": "typeurl",
@@ -8847,8 +9029,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -8937,6 +9121,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "fileurl": {
               "name": "fileurl",
@@ -9264,8 +9456,10 @@ func TestModelIncludes(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -9354,6 +9548,14 @@ func TestModelIncludes(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "typeurl": {
               "name": "typeurl",
@@ -9939,8 +10141,10 @@ func TestModelMissingFields(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -10029,6 +10233,14 @@ func TestModelMissingFields(t *testing.T) {
             "format": {
               "name": "format",
               "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean"
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean"
             },
             "rext": {
               "name": "rext",

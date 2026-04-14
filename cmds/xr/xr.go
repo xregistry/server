@@ -76,6 +76,7 @@ func Error(obj any, args ...any) {
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
 
 	// ShowStack()
+	// fmt.Printf("xErr: %s\n", xErr)
 	os.Exit(1)
 }
 

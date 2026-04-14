@@ -31,7 +31,12 @@ func TestFormatSimple(t *testing.T) {
           "maxversions": 0,
           "setversionid": true,
           "setdefaultversionsticky": true,
-          "hasdocument": true
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -70,7 +75,11 @@ func TestFormatSimple(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
-          "validateformat": true
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -116,7 +125,12 @@ func TestFormatSimple(t *testing.T) {
           "maxversions": 0,
           "setversionid": true,
           "setdefaultversionsticky": true,
-          "hasdocument": true
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -128,8 +142,9 @@ func TestFormatSimple(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `not a number`, 201,
 		`not a number`)
 
-	// Now try to turn on format validation, should fail on f2
+	// Now try to turn on format validation+strict, should fail on f2
 	rm.SetValidateFormat(true)
+	rm.SetStrictValidation(true)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
@@ -139,7 +154,35 @@ func TestFormatSimple(t *testing.T) {
 }
 `)
 
-	// give it a format, but a bad one. No checks so should be ok
+	// Try again w/o strict, should work this time. Missing is ok
+	rm.SetStrictValidation(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
+		200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false
+        }
+      }
+    }
+  }
+}
+`)
+
+	// give it a format, but a bad one. strict=false so should be ok
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f2",
 		Method: "PUT",
@@ -171,6 +214,7 @@ func TestFormatSimple(t *testing.T) {
 		ResBody: `not a number`})
 
 	// Try to turn on validateformat again, should still fail due to bad format
+	rm.SetStrictValidation(true)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -183,7 +227,34 @@ func TestFormatSimple(t *testing.T) {
 }
 `)
 
-	// Now, update good format, but bad data for that format
+	// Now, no validation, update good format, but bad data for that format
+	rm.SetValidateFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
+		200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": true,
+          "consistentformat": false
+        }
+      }
+    }
+  }
+}
+`)
+
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f2",
 		Method: "PUT",
@@ -215,6 +286,7 @@ func TestFormatSimple(t *testing.T) {
 		ResBody: `not a number`})
 
 	// Try to turn on validateformat again, should still fail due to bad data
+	rm.SetValidateFormat(true)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
@@ -274,7 +346,11 @@ func TestFormatSimple(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
-          "validateformat": true
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": false,
+          "strictvalidation": true,
+          "consistentformat": false
         }
       }
     }
@@ -367,8 +443,11 @@ func TestFormatCompatSimple(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
           "validatecompatibility": true,
-          "validateformat": true
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -411,7 +490,11 @@ func TestFormatCompatSimple(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
-          "validateformat": false
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false
         }
       }
     }
@@ -419,8 +502,9 @@ func TestFormatCompatSimple(t *testing.T) {
 }
 `)
 
-	rm.SetValidateCompatibility(true)
 	rm.SetValidateFormat(true)
+	rm.SetValidateCompatibility(true)
+	rm.SetStrictValidation(true)
 
 	// Now turn both back on so we can test compat
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
@@ -437,8 +521,11 @@ func TestFormatCompatSimple(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
           "validatecompatibility": true,
-          "validateformat": true
+          "strictvalidation": true,
+          "consistentformat": false
         }
       }
     }
@@ -637,6 +724,8 @@ func TestFormatCompatSimple(t *testing.T) {
 			"xRegistry-modifiedat: 2026-03-13T20:24:48.0Z",
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: NUMBers",
+			"xRegistry-formatvalidated: true",
+			"xRegistry-compatibilityvalidated: true",
 		},
 		ResBody: `2`,
 	})
@@ -711,10 +800,10 @@ func TestFormatCompatVariants(t *testing.T) {
 	rm, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
 	XNoErr(t, xErr)
 
-	rm.SetValidateCompatibility(true)
 	rm.SetValidateFormat(true)
+	rm.SetValidateCompatibility(true)
+	rm.SetStrictValidation(true)
 
-	// Should fail since validateformat isn't set
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		200, `*`)
 
@@ -834,10 +923,10 @@ func TestFormatCompatVariants(t *testing.T) {
         "format": "protobuf"
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "/dirs/d1/files/f2/versions/v2is not a valid protobuf file:schema.proto:1:1: syntax error: unexpected int literal.",
+  "title": "/dirs/d1/files/f2/versions/v2 is not a valid protobuf file: schema.proto:1:1: syntax error: unexpected int literal.",
   "subject": "/dirs/d1/files/f2/versions/v2",
   "args": {
-    "error_detail": "/dirs/d1/files/f2/versions/v2is not a valid protobuf file:schema.proto:1:1: syntax error: unexpected int literal"
+    "error_detail": "/dirs/d1/files/f2/versions/v2 is not a valid protobuf file: schema.proto:1:1: syntax error: unexpected int literal"
   },
   "source": "c30ebf8b495a:registry:format_proto:42"
 }
@@ -855,7 +944,8 @@ func TestFormatSimpleJson(t *testing.T) {
 	rm, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
 	XNoErr(t, xErr)
 
-	rm.SetValidateFormat(true) // And enable validateformat
+	rm.SetValidateFormat(true)   // And enable validateformat
+	rm.SetStrictValidation(true) // Don't allow unknown formats
 
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		200, `{
@@ -871,7 +961,11 @@ func TestFormatSimpleJson(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
-          "validateformat": true
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": false,
+          "strictvalidation": true,
+          "consistentformat": false
         }
       }
     }

@@ -46,6 +46,7 @@ func TestExportBasic(t *testing.T) {
       "/model",
       "/modelsource"
     ],
+    "compatibilities": {},
     "flags": [
       "binary",
       "collections",
@@ -58,6 +59,7 @@ func TestExportBasic(t *testing.T) {
       "sort",
       "specversion"
     ],
+    "formats": [],
     "ignores": [
       "capabilities",
       "defaultversionid",
@@ -299,6 +301,7 @@ func TestExportBasic(t *testing.T) {
       "/model",
       "/modelsource"
     ],
+    "compatibilities": {},
     "flags": [
       "binary",
       "collections",
@@ -311,6 +314,7 @@ func TestExportBasic(t *testing.T) {
       "sort",
       "specversion"
     ],
+    "formats": [],
     "ignores": [
       "capabilities",
       "defaultversionid",
@@ -612,8 +616,10 @@ func TestExportBasic(t *testing.T) {
             "setdefaultversionsticky": true,
             "hasdocument": true,
             "singleversionroot": false,
-            "validatecompatibility": false,
             "validateformat": false,
+            "validatecompatibility": false,
+            "strictvalidation": false,
+            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -702,6 +708,14 @@ func TestExportBasic(t *testing.T) {
               "format": {
                 "name": "format",
                 "type": "string"
+              },
+              "formatvalidated": {
+                "name": "formatvalidated",
+                "type": "boolean"
+              },
+              "compatibilityvalidated": {
+                "name": "compatibilityvalidated",
+                "type": "boolean"
               },
               "fileurl": {
                 "name": "fileurl",

@@ -392,6 +392,24 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "formatvalidated",
+		Type: BOOLEAN,
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_VERSION),
+			noDocView: true,
+		},
+	},
+	{
+		Name: "compatibilityvalidated",
+		Type: BOOLEAN,
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_VERSION),
+			noDocView: true,
+		},
+	},
+	{
 		Name: "$extensions",
 		internals: &AttrInternals{
 			types: StrTypes(ENTITY_GROUP, ENTITY_RESOURCE, ENTITY_META, ENTITY_VERSION),

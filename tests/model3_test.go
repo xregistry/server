@@ -564,8 +564,10 @@ func TestModelResourceAttrs(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": false,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1154,8 +1156,10 @@ func TestModelResourceAttrs(t *testing.T) {
           "setdefaultversionsticky": true,
           "hasdocument": true,
           "singleversionroot": false,
-          "validatecompatibility": false,
           "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1656,8 +1660,10 @@ func TestModelFullModel(t *testing.T) {
                 "setdefaultversionsticky": false,
                 "hasdocument": false,
                 "singleversionroot": true,
-                "validatecompatibility": false,
                 "validateformat": false,
+                "validatecompatibility": false,
+                "strictvalidation": false,
+                "consistentformat": false,
                 "typemap": {
                   "text/mine": "json"
                 },
@@ -2021,8 +2027,10 @@ func TestModelFullModel(t *testing.T) {
             "setdefaultversionsticky": false,
             "hasdocument": false,
             "singleversionroot": true,
-            "validatecompatibility": false,
             "validateformat": false,
+            "validatecompatibility": false,
+            "strictvalidation": false,
+            "consistentformat": false,
             "typemaps": {
               "text/mine": "json"
             },
@@ -2114,6 +2122,14 @@ func TestModelFullModel(t *testing.T) {
               "format": {
                 "name": "format",
                 "type": "string"
+              },
+              "formatvalidated": {
+                "name": "formatvalidated",
+                "type": "boolean"
+              },
+              "compatibilityvalidated": {
+                "name": "compatibilityvalidated",
+                "type": "boolean"
               },
               "vext1": {
                 "name": "vext1",

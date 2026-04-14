@@ -215,6 +215,17 @@ CREATE TABLE Props (
     INDEX (RegistrySID, PropName)
 );
 
+CREATE TABLE SystemProps (
+    RegistrySID VARCHAR(64) NOT NULL,
+    EntitySID   VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
+    PropName    VARCHAR($MAX_PROPNAME) NOT NULL,
+    PropValue   VARCHAR($MAX_VARCHAR),
+    PropType    CHAR(64) NOT NULL,          # string, boolean, int, ...
+    DocView     BOOL NOT NULL,              # Should include during doc view?
+
+    PRIMARY KEY (RegistrySID, EntitySID, PropName)
+);
+
 CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
 FOR EACH ROW
 BEGIN
@@ -465,7 +476,16 @@ UNION ALL SELECT               # Add in Version.RESOURCEid, which is calculated
   IF(LEFT(v.eSID,1)='-',false,true)  # Lie if it's not an xref'd prop/ver
 FROM Entities AS v
 JOIN Resources AS r ON (r.SID=v.ParentSID)
-WHERE v.Type=$ENTITY_VERSION;
+WHERE v.Type=$ENTITY_VERSION 
+
+UNION ALL SELECT               # Add in System Properties
+    RegistrySID,
+    EntitySID,
+    PropName,
+    PropValue,
+    PropType,
+    DocView
+FROM SystemProps;
 
 CREATE TABLE FullTreeTable (
   RegSID     VARCHAR(64) NOT NULL,

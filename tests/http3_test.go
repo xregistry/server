@@ -475,8 +475,10 @@ func TestHTTPModelSource(t *testing.T) {
             "setdefaultversionsticky": true,
             "hasdocument": true,
             "singleversionroot": false,
-            "validatecompatibility": false,
             "validateformat": false,
+            "validatecompatibility": false,
+            "strictvalidation": false,
+            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -565,6 +567,14 @@ func TestHTTPModelSource(t *testing.T) {
               "format": {
                 "name": "format",
                 "type": "string"
+              },
+              "formatvalidated": {
+                "name": "formatvalidated",
+                "type": "boolean"
+              },
+              "compatibilityvalidated": {
+                "name": "compatibilityvalidated",
+                "type": "boolean"
               },
               "fileurl": {
                 "name": "fileurl",
@@ -2118,7 +2128,9 @@ func TestHTTPJsonSchema(t *testing.T) {
     "/model",
     "/modelsource"
   ],
+  "compatibilities": {},
   "flags": [],
+  "formats": [],
   "ignores": [],
   "mutable": [
     "capabilities",
@@ -2146,7 +2158,9 @@ func TestHTTPJsonSchema(t *testing.T) {
     "/model",
     "/modelsource"
   ],
+  "compatibilities": {},
   "flags": [],
+  "formats": [],
   "ignores": [],
   "mutable": [
     "capabilities",

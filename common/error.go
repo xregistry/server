@@ -160,6 +160,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is not allowed to be present since the Resource (<subject>) uses "xref".`,
 	},
+	"format_inconsistent": &XRError{
+		Code:  400,
+		Title: `One or more Versions of Resource "<subject>" do not have the same "format" value as mandated by their owning Resource model's "consistentformat" attribute being set.`,
+	},
 	"format_missing": &XRError{
 		Code:  400,
 		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource model's "validateformat" being set.`,

@@ -213,9 +213,9 @@ func TestProtoCompat_Messages(t *testing.T) {
 		{
 			// Forward = checkFileCompat(new, old): each new message
 			// must exist in old. New adds B which old lacks → error.
-			name:    "add new message – incompatible (forward, conservative)",
-			dir:     "forward",
-			old:     `syntax="proto3"; message A { string x = 1; }`,
+			name: "add new message – incompatible (forward, conservative)",
+			dir:  "forward",
+			old:  `syntax="proto3"; message A { string x = 1; }`,
 			new: `syntax="proto3";
 				message A { string x = 1; }
 				message B { int32 y = 1; }`,
@@ -257,8 +257,8 @@ func TestProtoCompat_Fields(t *testing.T) {
 				}`,
 		},
 		{
-			name:    "remove field without reservation – incompatible",
-			dir:     "backward",
+			name: "remove field without reservation – incompatible",
+			dir:  "backward",
 			old: `syntax="proto3";
 				message M { string name = 1; int32 age = 2; }`,
 			new:     `syntax="proto3"; message M { string name = 1; }`,
@@ -391,8 +391,8 @@ func TestProtoCompat_Enums(t *testing.T) {
 			new:  `syntax="proto3"; enum E { UNKNOWN=0; A=1; }`,
 		},
 		{
-			name:    "remove enum value – incompatible (backward)",
-			dir:     "backward",
+			name: "remove enum value – incompatible (backward)",
+			dir:  "backward",
 			old: `syntax="proto3";
 				enum E { UNKNOWN = 0; ACTIVE = 1; RETIRED = 2; }`,
 			new: `syntax="proto3";
@@ -435,8 +435,8 @@ func TestProtoCompat_Nested(t *testing.T) {
 				}`,
 		},
 		{
-			name:    "remove nested message – incompatible",
-			dir:     "backward",
+			name: "remove nested message – incompatible",
+			dir:  "backward",
 			old: `syntax="proto3";
 				message Outer {
 				  message Inner {}
@@ -469,8 +469,8 @@ func TestProtoCompat_Services(t *testing.T) {
 				}`,
 		},
 		{
-			name:    "remove service method – incompatible",
-			dir:     "backward",
+			name: "remove service method – incompatible",
+			dir:  "backward",
 			old: `syntax="proto3";
 				message Req {} message Res {}
 				service S {
@@ -483,8 +483,8 @@ func TestProtoCompat_Services(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "remove service – incompatible",
-			dir:     "backward",
+			name: "remove service – incompatible",
+			dir:  "backward",
 			old: `syntax="proto3";
 				message Req {} message Res {}
 				service S { rpc A(Req) returns (Res); }`,
@@ -492,8 +492,8 @@ func TestProtoCompat_Services(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "change streaming flag – incompatible",
-			dir:     "backward",
+			name: "change streaming flag – incompatible",
+			dir:  "backward",
 			old: `syntax="proto3";
 				message Req {} message Res {}
 				service S { rpc A(Req) returns (Res); }`,
@@ -534,9 +534,9 @@ func TestProtoCompat_ForwardDirection(t *testing.T) {
 			new: `syntax="proto3"; message M { string name = 1; }`,
 		},
 		{
-			name:    "add field – incompatible (conservative)",
-			dir:     "forward",
-			old:     `syntax="proto3"; message M { string name = 1; }`,
+			name: "add field – incompatible (conservative)",
+			dir:  "forward",
+			old:  `syntax="proto3"; message M { string name = 1; }`,
 			new: `syntax="proto3";
 				message M { string name = 1; int32 age = 2; }`,
 			wantErr: true,

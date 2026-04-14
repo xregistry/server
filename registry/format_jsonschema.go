@@ -129,7 +129,7 @@ func init() {
 
 type FormatJson struct{}
 
-func (fp FormatJson) IsValid(version *Version) *XRError {
+func (fp FormatJson) IsValid(version *Version) (bool, *XRError) {
 	buf := []byte(nil)
 
 	if bufAny := version.Get(version.Resource.Singular); !IsNil(bufAny) {
@@ -137,23 +137,23 @@ func (fp FormatJson) IsValid(version *Version) *XRError {
 	}
 
 	if len(buf) == 0 {
-		return NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+"is not a valid json-schema file")
+		return false, NewXRError("bad_request", version.XID,
+			"error_detail="+version.XID+" is not a valid json-schema file")
 	}
 
 	if err := IsValidJson(buf); err != nil {
-		return NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+"is not a valid json-schema file: "+
+		return false, NewXRError("bad_request", version.XID,
+			"error_detail="+version.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
-	return nil
+	return true, nil
 }
 
 func (fp FormatJson) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) *XRError {
+) (bool, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
@@ -164,24 +164,24 @@ func (fp FormatJson) IsCompatible(
 	}
 
 	if len(oldBuf) == 0 {
-		return NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+"is not a valid json-schema file")
+		return false, NewXRError("bad_request", oldVersion.XID,
+			"error_detail="+oldVersion.XID+" is not a valid json-schema file")
 	}
 	if len(newBuf) == 0 {
-		return NewXRError("bad_request", newVersion.XID,
-			"error_detail="+newVersion.XID+"is not a valid json-schema file")
+		return false, NewXRError("bad_request", newVersion.XID,
+			"error_detail="+newVersion.XID+" is not a valid json-schema file")
 	}
 
 	var oldMap, newMap map[string]interface{}
 
 	if err := json.Unmarshal(oldBuf, &oldMap); err != nil {
-		return NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+"is not a valid json-schema file: "+
+		return false, NewXRError("bad_request", oldVersion.XID,
+			"error_detail="+oldVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 	if err := json.Unmarshal(newBuf, &newMap); err != nil {
-		return NewXRError("bad_request", newVersion.XID,
-			"error_detail="+newVersion.XID+"is not a valid json-schema file: "+
+		return false, NewXRError("bad_request", newVersion.XID,
+			"error_detail="+newVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 
@@ -190,15 +190,15 @@ func (fp FormatJson) IsCompatible(
 	var err error
 	oldMap, err = resolveSchema(oldMap, cache)
 	if err != nil {
-		return NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+"is not a valid json-schema file: "+
+		return false, NewXRError("bad_request", oldVersion.XID,
+			"error_detail="+oldVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 
 	newMap, err = resolveSchema(newMap, cache)
 	if err != nil {
-		return NewXRError("bad_request", newVersion.XID,
-			"error_detail="+newVersion.XID+"is not a valid json-schema file: "+
+		return false, NewXRError("bad_request", newVersion.XID,
+			"error_detail="+newVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 
@@ -209,13 +209,13 @@ func (fp FormatJson) IsCompatible(
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
 
-		return NewXRError("bad_request", newVersion.XID,
+		return false, NewXRError("bad_request", newVersion.XID,
 			"error_detail="+
 				fmt.Sprintf("Version %q isn't %q compatible with %q: %s",
 					newVersion.XID, compat, oldVersion.XID, err.Error()))
 	}
 
-	return nil
+	return true, nil
 }
 
 func IsValidJson(buf []byte) error {
@@ -467,9 +467,9 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 		}
 		if !found {
 			return fmt.Errorf(
-			"old not compatible with any new anyOf sub " +
-				"(conservative check)",
-		)
+				"old not compatible with any new anyOf sub " +
+					"(conservative check)",
+			)
 		}
 	}
 
@@ -491,9 +491,9 @@ func handleCombinators(oldM, newM map[string]interface{}) error {
 		}
 		if !found {
 			return fmt.Errorf(
-			"old not compatible with any new oneOf sub " +
-				"(conservative check)",
-		)
+				"old not compatible with any new oneOf sub " +
+					"(conservative check)",
+			)
 		}
 	}
 
@@ -723,9 +723,9 @@ func checkObjectCompat(oldM, newM map[string]interface{}) error {
 		for _, r := range newList.([]interface{}) {
 			if _, has := oldSet[r.(string)]; !has {
 				return fmt.Errorf(
-				"new dependentRequired for %s adds extra %s",
-				key, r,
-			)
+					"new dependentRequired for %s adds extra %s",
+					key, r,
+				)
 			}
 		}
 	}
@@ -1004,9 +1004,9 @@ func checkNumberCompat(oldM, newM map[string]interface{}) error {
 		if hasNew {
 			if math.Mod(oldMult, newMult) != 0 {
 				return fmt.Errorf(
-				"new multipleOf %f does not divide old %f",
-				newMult, oldMult,
-			)
+					"new multipleOf %f does not divide old %f",
+					newMult, oldMult,
+				)
 			}
 		}
 	} else if hasNew {

@@ -90,7 +90,7 @@ func init() {
 type FormatAvro struct{}
 
 // IsValid checks that the version document is a valid Avro schema.
-func (fa FormatAvro) IsValid(version *Version) *XRError {
+func (fa FormatAvro) IsValid(version *Version) (bool, *XRError) {
 	buf := []byte(nil)
 	if bufAny := version.Get(
 		version.Resource.Singular,
@@ -98,16 +98,16 @@ func (fa FormatAvro) IsValid(version *Version) *XRError {
 		buf = bufAny.([]byte)
 	}
 	if len(buf) == 0 {
-		return NewXRError("bad_request", version.XID,
+		return false, NewXRError("bad_request", version.XID,
 			"error_detail="+version.XID+
-				"is not a valid avro schema file")
+				" is not a valid avro schema file")
 	}
 	if err := IsValidAvro(buf); err != nil {
-		return NewXRError("bad_request", version.XID,
+		return false, NewXRError("bad_request", version.XID,
 			"error_detail="+version.XID+
-				"is not a valid avro schema file: "+err.Error())
+				" is not a valid avro schema file: "+err.Error())
 	}
-	return nil
+	return true, nil
 }
 
 // IsCompatible checks whether newVersion is compatible with
@@ -116,7 +116,7 @@ func (fa FormatAvro) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) *XRError {
+) (bool, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 	if b := oldVersion.Get(
 		oldVersion.Resource.Singular,
@@ -129,26 +129,26 @@ func (fa FormatAvro) IsCompatible(
 		newBuf = b.([]byte)
 	}
 	if len(oldBuf) == 0 {
-		return NewXRError("bad_request", oldVersion.XID,
+		return false, NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+
-				"is not a valid avro schema file")
+				" is not a valid avro schema file")
 	}
 	if len(newBuf) == 0 {
-		return NewXRError("bad_request", newVersion.XID,
+		return false, NewXRError("bad_request", newVersion.XID,
 			"error_detail="+newVersion.XID+
-				"is not a valid avro schema file")
+				" is not a valid avro schema file")
 	}
 
 	var oldSchema, newSchema interface{}
 	if err := json.Unmarshal(oldBuf, &oldSchema); err != nil {
-		return NewXRError("bad_request", oldVersion.XID,
+		return false, NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+
-				"is not a valid avro schema file: "+err.Error())
+				" is not a valid avro schema file: "+err.Error())
 	}
 	if err := json.Unmarshal(newBuf, &newSchema); err != nil {
-		return NewXRError("bad_request", newVersion.XID,
+		return false, NewXRError("bad_request", newVersion.XID,
 			"error_detail="+newVersion.XID+
-				"is not a valid avro schema file: "+err.Error())
+				" is not a valid avro schema file: "+err.Error())
 	}
 
 	if err := checkAvroCompat(
@@ -158,7 +158,7 @@ func (fa FormatAvro) IsCompatible(
 			Resource.
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
-		return NewXRError("bad_request", newVersion.XID,
+		return false, NewXRError("bad_request", newVersion.XID,
 			"error_detail="+
 				fmt.Sprintf(
 					"Version %q isn't %q compatible with %q: %s",
@@ -166,7 +166,7 @@ func (fa FormatAvro) IsCompatible(
 					err.Error(),
 				))
 	}
-	return nil
+	return true, nil
 }
 
 // ── Public helpers ─────────────────────────────────────────────────

@@ -274,7 +274,7 @@ func (tx *Tx) RefreshFullTree() {
 
 func (tx *Tx) DumpCache() {
 	log.Printf("==== CACHE =====")
-	for _, path := range tx.Cache {
+	for path, _ := range tx.Cache {
 		log.Printf("- %s", path)
 	}
 }
@@ -350,6 +350,15 @@ func (tx *Tx) IsCacheDirty() bool {
 		}
 	}
 	return dirty
+}
+
+func (tx *Tx) DumpDirtyCache() {
+	log.Printf("==== DIRTY CACHE =====")
+	for path, e := range tx.Cache {
+		if len(e.NewObject) != 0 {
+			log.Printf("- %s", path)
+		}
+	}
 }
 
 func (tx *Tx) WriteCache(force bool) *XRError {

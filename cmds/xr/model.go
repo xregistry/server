@@ -228,7 +228,9 @@ func modelVerifyFunc(cmd *cobra.Command, args []string) {
 			xErr = VerifyModel(fileName, buf, skipTarget)
 		}
 		if xErr != nil {
-			xErr.SetDetailf("Found at: %s.", prefix)
+			if len(args) > 1 {
+				xErr.SetDetailf("Found at: %s.", fileName)
+			}
 			Error(xErr)
 			// Error(xErr, "%s%s", prefix, xErr)
 		}

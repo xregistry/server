@@ -572,6 +572,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	PanicIf(pp.UI() == "", "pp is empty")
 
 	name := pp.DB()
+	docView := true
 
 	if len(name) > MAX_PROPNAME {
 		return NewXRError("invalid_attribute", e.XID,
@@ -581,11 +582,16 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 					MAX_PROPNAME))
 	}
 
-	// Any prop with "dontStore"=true we skip
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
-	if ok && specProp.internals != nil && specProp.internals.dontStore {
-		return nil
+	if ok && specProp.internals != nil {
+		// Any prop with "dontStore"=true we skip
+		if specProp.internals.dontStore {
+			return nil
+		}
+		if specProp.internals.noDocView {
+			docView = false
+		}
 	}
 
 	PanicIf(e.DbSID == "", "DbSID should not be empty")
@@ -674,8 +680,82 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 		DoOneTwo(e.tx, `
             REPLACE INTO Props(
               RegistrySID,EntitySID,eType,PropName,PropValue,PropType,DocView)
-            VALUES( ?,?,?,?,?,?, true )`,
-			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType)
+            VALUES( ?,?,?,?,?,?,? )`,
+			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType, docView)
+	}
+
+	return nil
+}
+
+func (e *Entity) ClearSystemDBProperties() *XRError {
+	log.VPrintf(3, ">Enter: ClearSystemDBProperties")
+	defer log.VPrintf(3, "<Exit ClearSystemDBProperties")
+
+	Do(e.tx, `DELETE FROM SystemProps WHERE EntitySID=?`, e.DbSID)
+	return nil
+}
+
+func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
+	log.VPrintf(3, ">Enter: SetSystemDBProperty(%s=%v)", pp, val)
+	defer log.VPrintf(3, "<Exit SetSystemDBProperty")
+
+	PanicIf(pp.UI() == "", "pp is empty")
+
+	name := pp.DB()
+	docView := true
+
+	_, propsMap := e.GetPropsOrdered()
+	specProp, ok := propsMap[pp.Top()]
+	if ok && specProp.internals != nil {
+		// Any prop with "dontStore"=true we skip
+		if specProp.internals.dontStore {
+			return nil
+		}
+		if specProp.internals.noDocView {
+			docView = false
+		}
+	}
+
+	PanicIf(len(name) > MAX_PROPNAME, "SysProp name is too long: %s", name)
+	PanicIf(e.DbSID == "", "DbSID should not be empty")
+	PanicIf(e.Registry == nil, "Registry should not be nil")
+
+	if IsNil(val) {
+		Do(e.tx, `DELETE FROM SystemProps WHERE EntitySID=? and PropName=?`,
+			e.DbSID, name)
+	} else {
+		propType := GoToOurType(val)
+
+		// Convert booleans to true/false instead of 1/0 so filter works
+		// ...=true and not ...=1
+		dbVal := val
+		if propType == BOOLEAN {
+			if val == true {
+				dbVal = "true"
+			} else {
+				dbVal = "false"
+			}
+		}
+
+		switch reflect.ValueOf(val).Kind() {
+		case reflect.String:
+			PanicIf(reflect.ValueOf(val).Len() > MAX_VARCHAR, "%s:too long", name)
+		case reflect.Slice:
+			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+			dbVal = ""
+		case reflect.Map:
+			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+			dbVal = ""
+		case reflect.Struct:
+			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
+			dbVal = ""
+		}
+
+		DoOneTwo(e.tx, `
+            REPLACE INTO SystemProps(
+              RegistrySID,EntitySID,PropName,PropValue,PropType,DocView)
+            VALUES( ?,?,?,?,?,? )`,
+			e.Registry.DbSID, e.DbSID, name, dbVal, propType, docView)
 	}
 
 	return nil
@@ -1325,6 +1405,14 @@ var PropsFuncs = []*Attribute{
 	},
 	{
 		Name:      "format",
+		internals: &AttrInternals{},
+	},
+	{
+		Name:      "formatvalidated",
+		internals: &AttrInternals{},
+	},
+	{
+		Name:      "compatibilityvalidated",
 		internals: &AttrInternals{},
 	},
 	{

@@ -1342,20 +1342,20 @@ func validateJSON(jsonData interface{}, goType reflect.Type, goValue reflect.Val
 		switch goType.Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Float32, reflect.Float64:
+			reflect.Float32, reflect.Float64, reflect.Interface:
 			return nil
 		default:
 			return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
 		}
 
 	case string:
-		if goType.Kind() == reflect.String {
+		if goType.Kind() == reflect.String || goType.Kind() == reflect.Interface {
 			return nil
 		}
 		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))
 
 	case bool:
-		if goType.Kind() == reflect.Bool {
+		if goType.Kind() == reflect.Bool || goType.Kind() == reflect.Interface {
 			return nil
 		}
 		return fmt.Errorf("path '%s': expected %q, got %q", path, goType.Kind(), getJSONTypeName(jsonData))

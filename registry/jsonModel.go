@@ -197,34 +197,42 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		buf.WriteRune('"')
 	}
 
-	if ur.MaxVersions != nil {
-		buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
-			((*ResourceModel)(ur)).GetMaxVersions()))
-	}
-	if ur.SetVersionId != nil {
-		buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
-			NotNilBoolPtr(ur.SetVersionId)))
-	}
-	if ur.SetDefaultSticky != nil {
-		buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
-			NotNilBoolPtr(ur.SetDefaultSticky)))
-	}
-	if ur.HasDocument != nil {
-		buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
-			NotNilBoolPtr(ur.HasDocument)))
-	}
-	if ur.SingleVersionRoot != nil {
-		buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
-			NotNilBoolPtr(ur.SingleVersionRoot)))
-	}
-	if ur.ValidateCompatibility != nil {
-		buf.WriteString(fmt.Sprintf(`,"validatecompatibility":%v`,
-			NotNilBoolPtr(ur.ValidateCompatibility)))
-	}
-	if ur.ValidateFormat != nil {
-		buf.WriteString(fmt.Sprintf(`,"validateformat":%v`,
-			NotNilBoolPtr(ur.ValidateFormat)))
-	}
+	// if ur.MaxVersions != nil {
+	buf.WriteString(fmt.Sprintf(`,"maxversions":%d`,
+		((*ResourceModel)(ur)).GetMaxVersions()))
+	// }
+	// if ur.SetVersionId != nil {
+	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
+		NotNilBoolPtr(ur.SetVersionId)))
+	// }
+	// if ur.SetDefaultSticky != nil {
+	buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
+		NotNilBoolPtr(ur.SetDefaultSticky)))
+	// }
+	// if ur.HasDocument != nil {
+	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
+		NotNilBoolPtr(ur.HasDocument)))
+	// }
+	// if ur.GetSingleVersionRoot != nil {
+	buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
+		NotNilBoolPtr(ur.SingleVersionRoot)))
+	// }
+	// if ur.ValidateFormat != nil {
+	buf.WriteString(fmt.Sprintf(`,"validateformat":%v`,
+		NotNilBoolPtr(ur.ValidateFormat)))
+	// }
+	// if ur.ValidateCompatibility != nil {
+	buf.WriteString(fmt.Sprintf(`,"validatecompatibility":%v`,
+		NotNilBoolPtr(ur.ValidateCompatibility)))
+	// }
+	// if ur.StrictValidation != nil {
+	buf.WriteString(fmt.Sprintf(`,"strictvalidation":%v`,
+		NotNilBoolPtr(ur.StrictValidation)))
+	// }
+	// if ur.ConsistentFormat != nil {
+	buf.WriteString(fmt.Sprintf(`,"consistentformat":%v`,
+		NotNilBoolPtr(ur.ConsistentFormat)))
+	// }
 	if len(ur.TypeMap) > 0 {
 		buf.WriteString(`,"typemaps":`)
 		b, _ := json.Marshal(ur.TypeMap)

@@ -776,7 +776,7 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 						log.Printf("From: %s", file.DownloadURL)
 						log.Printf("Input:\n%s", ToJSON(obj))
 					}
-					ErrFatalf(xErr, "  - %s", xErr)
+					ErrFatalf(xErr, "Error: %s", xErr)
 				}
 			}
 		}
