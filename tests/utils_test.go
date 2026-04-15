@@ -357,7 +357,9 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 	resHeaders := map[string]string{}
 	gotHeaders := ""
 
-	for name, vals := range res.Header {
+	for _, key := range SortedKeys(res.Header) {
+		name := key
+		vals := res.Header[key]
 		value := ""
 		if len(vals) > 0 {
 			value = vals[0]

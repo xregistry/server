@@ -687,11 +687,34 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	return nil
 }
 
-func (e *Entity) ClearSystemDBProperties() *XRError {
-	log.VPrintf(3, ">Enter: ClearSystemDBProperties")
-	defer log.VPrintf(3, "<Exit ClearSystemDBProperties")
+// Clears system prop for all versions of this resource
+func (e *Entity) ClearResourceSystemDBProperty(propName string) *XRError {
+	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%s)", propName)
+	defer log.VPrintf(3, "<Exit ClearResourceSystemDBProperties")
 
-	Do(e.tx, `DELETE FROM SystemProps WHERE EntitySID=?`, e.DbSID)
+	r, ok := e.Self.(*Resource)
+	PanicIf(!ok, "%s isn't a Resource", e.XID)
+
+	propName = NewPPP(propName).DB()
+
+	Do(e.tx, `DELETE FROM Props AS p
+              WHERE p.RegistrySID=? AND p.EntitySID IN (
+                  SELECT v.SID FROM Versions AS v
+                  WHERE v.RegistrySID=p.RegistrySID AND v.ResourceSID=?
+              ) AND p.PropName=? AND p.SystemProp=true`,
+		e.Registry.DbSID, r.DbSID, propName)
+
+	return nil
+}
+
+func (e *Entity) ClearEntitySystemDBProperties() *XRError {
+	log.VPrintf(3, ">Enter: ClearEntitySystemDBProperties")
+	defer log.VPrintf(3, "<Exit ClearEntitySystemDBProperties")
+
+	Do(e.tx, `DELETE FROM Props
+              WHERE RegistrySID=? AND EntitySID=? AND SystemProp=true`,
+		e.Registry.DbSID, e.DbSID)
+
 	return nil
 }
 
@@ -721,7 +744,8 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
 	PanicIf(e.Registry == nil, "Registry should not be nil")
 
 	if IsNil(val) {
-		Do(e.tx, `DELETE FROM SystemProps WHERE EntitySID=? and PropName=?`,
+		Do(e.tx, `DELETE FROM Props
+                  WHERE EntitySID=? AND PropName=? AND SystemProp=true`,
 			e.DbSID, name)
 	} else {
 		propType := GoToOurType(val)
@@ -752,9 +776,9 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
 		}
 
 		DoOneTwo(e.tx, `
-            REPLACE INTO SystemProps(
-              RegistrySID,EntitySID,PropName,PropValue,PropType,DocView)
-            VALUES( ?,?,?,?,?,? )`,
+            REPLACE INTO Props(
+              RegistrySID,EntitySID,PropName,PropValue,PropType,DocView,SystemProp)
+            VALUES( ?,?,?,?,?,?,true )`,
 			e.Registry.DbSID, e.DbSID, name, dbVal, propType, docView)
 	}
 
@@ -1374,8 +1398,18 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
-		Name:      "compatibility",
-		internals: &AttrInternals{},
+		Name: "compatibility",
+		internals: &AttrInternals{
+			updateFn: func(e *Entity) *XRError {
+				compat, ok := e.NewObject["compatibility"]
+				if ok && compat == "" {
+					return NewXRError("invalid_attribute", e.XID,
+						"name=compatibility",
+						"error_detail=can't be an empty string")
+				}
+				return nil
+			},
+		},
 	},
 	{
 		Name:      "deprecated",
@@ -1404,8 +1438,18 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
-		Name:      "format",
-		internals: &AttrInternals{},
+		Name: "format",
+		internals: &AttrInternals{
+			updateFn: func(e *Entity) *XRError {
+				format, ok := e.NewObject["format"]
+				if ok && format == "" {
+					return NewXRError("invalid_attribute", e.XID,
+						"name=format",
+						"error_detail=can't be an empty string")
+				}
+				return nil
+			},
+		},
 	},
 	{
 		Name:      "formatvalidated",
@@ -1844,9 +1888,10 @@ func (e *Entity) Save() *XRError {
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
 
-	// Delete all props for this entity, we assume that NewObject
+	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	Do(e.tx, "DELETE FROM Props WHERE EntitySID=? ", e.DbSID)
+	Do(e.tx, "DELETE FROM Props WHERE EntitySID=? AND SystemProp=false",
+		e.DbSID)
 
 	resSingular := ""
 	resHasDoc := false

@@ -831,11 +831,13 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -1455,11 +1457,13 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             }
           },
           "resourceattributes": {
@@ -2066,11 +2070,13 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",

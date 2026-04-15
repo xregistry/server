@@ -1349,11 +1349,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -1776,11 +1778,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -2362,11 +2366,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -3039,11 +3045,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -3691,11 +3699,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -4250,11 +4260,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -4842,11 +4854,13 @@ func TestResourceModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             }
           },
           "resourceattributes": {
@@ -5420,11 +5434,13 @@ func TestResourceModelCreate(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               }
             },
             "resourceattributes": {
@@ -6029,11 +6045,13 @@ func TestResourceModelCreate(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               }
             },
             "resourceattributes": {
@@ -7170,11 +7188,13 @@ func TestMultModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rm1url": {
               "name": "rm1url",
@@ -7477,11 +7497,13 @@ func TestMultModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rm2url": {
               "name": "rm2url",
@@ -7930,11 +7952,13 @@ func TestMultModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rm1url": {
               "name": "rm1url",
@@ -8237,11 +8261,13 @@ func TestMultModelCreate(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rm2url": {
               "name": "rm2url",
@@ -8876,11 +8902,13 @@ func TestMultModel2Create(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "fileurl": {
                 "name": "fileurl",
@@ -9303,11 +9331,13 @@ func TestMultModel2Create(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "fileurl": {
                 "name": "fileurl",

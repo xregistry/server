@@ -103,6 +103,7 @@ func TestFormatSimple(t *testing.T) {
   "ancestor": "1",
   "contenttype": "application/json",
   "format": "numbers",
+  "formatvalidated": "true",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -142,19 +143,37 @@ func TestFormatSimple(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `not a number`, 201,
 		`not a number`)
 
-	// Now try to turn on format validation+strict, should fail on f2
+	// Now try to turn on format validation+strict, should skip f2
 	rm.SetValidateFormat(true)
 	rm.SetStrictValidation(true)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
-		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f2/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f2/versions/1",
-  "source": "c30ebf8b495a:registry:resource:1708"
+		200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": false,
+          "strictvalidation": true,
+          "consistentformat": false
+        }
+      }
+    }
+  }
 }
 `)
 
 	// Try again w/o strict, should work this time. Missing is ok
+	// Strict=false allows for
 	rm.SetStrictValidation(false)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		200, `{
@@ -207,6 +226,8 @@ func TestFormatSimple(t *testing.T) {
 			"xRegistry-modifiedat: 2026-03-13T20:24:48.291099909Z",
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: bad-format",
+			"xRegistry-formatvalidated: false, unknown format",
+			"xRegistry-compatibilityvalidated: false, unknown format",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f2/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f2/versions",
 			"xRegistry-versionscount: 1",
@@ -217,13 +238,13 @@ func TestFormatSimple(t *testing.T) {
 	rm.SetStrictValidation(true)
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f2: bad-format.",
-  "subject": "/dirs/d1/files/f2",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f2/versions/1\" has a \"format\" value (bad-format) that it not supported.",
+  "subject": "/dirs/d1/files/f2/versions/1",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f2: bad-format"
+    "format": "bad-format"
   },
-  "source": "c30ebf8b495a:registry:resource:1713"
+  "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
 
@@ -358,15 +379,9 @@ func TestFormatSimple(t *testing.T) {
 }
 `)
 
-	// Creating a resource w/o a format should fail when validateformat=true
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3", "1",
-		400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f3/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f3/versions/1",
-  "source": "c30ebf8b495a:registry:resource:1710"
-}
-`)
+	// Creating a resource w/o a format should work validateformat=true, skips
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3.1", "1",
+		201, `1`)
 
 	// This one should work since it has a 'format'
 	// Case insensitive 'format'
@@ -394,6 +409,7 @@ func TestFormatSimple(t *testing.T) {
 			"xRegistry-modifiedat: 2026-03-13T20:24:48.0Z",
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: NuMbErS",
+			"xRegistry-formatvalidated: true",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f3/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f3/versions",
 			"xRegistry-versionscount: 1",
@@ -535,21 +551,23 @@ func TestFormatCompatSimple(t *testing.T) {
 
 	// Now let's create some Resources/files
 
-	// Create file w/o format - should fail
-	XCheckHTTP(t, reg, &HTTPTest{
-		URL:        "/dirs/d1/files/f1",
-		Method:     "PUT",
-		ReqHeaders: []string{},
-		ReqBody:    "not a number",
-		Code:       400,
-		ResHeaders: []string{},
-		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f1/versions/1",
-  "source": "c30ebf8b495a:registry:resource:1711"
-}
-`})
+	/*
+	   	// Create file w/o format - should fail
+	   	XCheckHTTP(t, reg, &HTTPTest{
+	   		URL:        "/dirs/d1/files/f1",
+	   		Method:     "PUT",
+	   		ReqHeaders: []string{},
+	   		ReqBody:    "not a number",
+	   		Code:       400,
+	   		ResHeaders: []string{},
+	   		ResBody: `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+	     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+	     "subject": "/dirs/d1/files/f1/versions/1",
+	     "source": "c30ebf8b495a:registry:resource:1711"
+	   }
+	   `})
+	*/
 
 	// Now with 'format' - weird casing
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -576,6 +594,7 @@ func TestFormatCompatSimple(t *testing.T) {
 			"xRegistry-modifiedat: 2026-03-13T20:24:48.0Z",
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: nUmBeRs",
+			"xRegistry-formatvalidated: true",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -617,13 +636,13 @@ func TestFormatCompatSimple(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"compatibility\" value for /dirs/d1/files/f1/meta: unknown.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#compatibility_unknown",
+  "title": "The compatibility value (unknown) on Resource \"/dirs/d1/files/f1/meta\" is not supported.",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "error_detail": "Unknown \"compatibility\" value for /dirs/d1/files/f1/meta: unknown"
+    "compat": "unknown"
   },
-  "source": "c30ebf8b495a:registry:resource:1842"
+  "source": "79ab0198e6b4:registry:resource:1944"
 }
 `,
 	})
@@ -653,6 +672,8 @@ func TestFormatCompatSimple(t *testing.T) {
 			"xRegistry-modifiedat: 2026-03-13T20:24:48.1Z",
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: nUmBeRs",
+			"xRegistry-formatvalidated: true",
+			"xRegistry-compatibilityvalidated: true",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -661,21 +682,23 @@ func TestFormatCompatSimple(t *testing.T) {
 	})
 
 	// Add a new version w/o format
-	XCheckHTTP(t, reg, &HTTPTest{
-		URL:        "/dirs/d1/files/f1",
-		Method:     "POST",
-		ReqHeaders: []string{},
-		ReqBody:    "2",
-		Code:       400,
-		ResHeaders: []string{},
-		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f1/versions/2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f1/versions/2",
-  "source": "c30ebf8b495a:registry:resource:1711"
-}
-`,
-	})
+	/*
+	   	XCheckHTTP(t, reg, &HTTPTest{
+	   		URL:        "/dirs/d1/files/f1",
+	   		Method:     "POST",
+	   		ReqHeaders: []string{},
+	   		ReqBody:    "2",
+	   		Code:       400,
+	   		ResHeaders: []string{},
+	   		ResBody: `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+	     "title": "Version \"/dirs/d1/files/f1/versions/2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+	     "subject": "/dirs/d1/files/f1/versions/2",
+	     "source": "c30ebf8b495a:registry:resource:1711"
+	   }
+	   `,
+	   	})
+	*/
 
 	// Add a new version w/ bad format
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -688,13 +711,13 @@ func TestFormatCompatSimple(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f1: unknown.",
-  "subject": "/dirs/d1/files/f1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/2\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/2",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f1: unknown"
+    "format": "unknown"
   },
-  "source": "c30ebf8b495a:registry:resource:1716"
+  "source": "79ab0198e6b4:registry:resource:1795"
 }
 `,
 	})
@@ -740,13 +763,13 @@ func TestFormatCompatSimple(t *testing.T) {
 		ReqBody: "2",
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f1: unknown.",
-  "subject": "/dirs/d1/files/f1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/2\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/2",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f1: unknown"
+    "format": "unknown"
   },
-  "source": "c30ebf8b495a:registry:resource:1716"
+  "source": "79ab0198e6b4:registry:resource:1795"
 }
 `,
 	})
@@ -782,7 +805,7 @@ func TestFormatCompatSimple(t *testing.T) {
   "detail": "Version \"/dirs/d1/files/f1/versions/2\" (sum: 0) isn't \"BaCkWaRd\" compatible with \"/dirs/d1/files/f1/versions/1\" (sum: 2).",
   "subject": "/dirs/d1/files/f1",
   "args": {
-    "value": "BaCkWaRd"
+    "compat": "BaCkWaRd"
   },
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
@@ -816,25 +839,27 @@ func TestFormatCompatVariants(t *testing.T) {
 	}
 
 	// Missing Format
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "123", 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f1/versions/1",
-  "source": "c30ebf8b495a:registry:resource:1711"
-}
-`)
+	/*
+	   	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "123", 400, `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+	     "title": "Version \"/dirs/d1/files/f1/versions/1\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+	     "subject": "/dirs/d1/files/f1/versions/1",
+	     "source": "c30ebf8b495a:registry:resource:1711"
+	   }
+	   `)
+	*/
 
 	// Bad Format
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
     "format": "Unknown",
     "file":  "123"}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f1: Unknown.",
-  "subject": "/dirs/d1/files/f1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (Unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f1: Unknown"
+    "format": "Unknown"
   },
-  "source": "c30ebf8b495a:registry:resource:1716"
+  "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
 
@@ -858,7 +883,7 @@ func TestFormatCompatVariants(t *testing.T) {
   "detail": "Version \"/dirs/d1/files/f2/versions/v3\" (sum: 0) isn't \"backward\" compatible with \"/dirs/d1/files/f2/versions/v2\" (sum: 2).",
   "subject": "/dirs/d1/files/f2",
   "args": {
-    "value": "backward"
+    "compat": "backward"
   },
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
@@ -876,45 +901,49 @@ func TestFormatCompatVariants(t *testing.T) {
   "detail": "Version \"/dirs/d1/files/f2/versions/v3\" (sum: 3) isn't \"backward\" compatible with \"/dirs/d1/files/f2/versions/v2\" (sum: 4).",
   "subject": "/dirs/d1/files/f2",
   "args": {
-    "value": "backward"
+    "compat": "backward"
   },
   "source": "c30ebf8b495a:registry:format_numbers:82"
 }
 `)
 
 	// Change v2 to break compat with missing format
-	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
-        "format": null
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f2/versions/v2",
-  "source": "c30ebf8b495a:registry:resource:1712"
-}
-`)
+	/*
+	   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
+	           "format": null
+	       }`, 400, `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+	     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+	     "subject": "/dirs/d1/files/f2/versions/v2",
+	     "source": "c30ebf8b495a:registry:resource:1712"
+	   }
+	   `)
+	*/
 
 	// Change v2 to break compat with empty format
-	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
-        "format": ""
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
-  "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
-  "subject": "/dirs/d1/files/f2/versions/v2",
-  "source": "c30ebf8b495a:registry:resource:1712"
-}
-`)
+	/*
+	   	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
+	           "format": ""
+	       }`, 400, `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_missing",
+	     "title": "Version \"/dirs/d1/files/f2/versions/v2\" needs to have a \"format\" value due to its owning Resource model's \"validateformat\" being set.",
+	     "subject": "/dirs/d1/files/f2/versions/v2",
+	     "source": "c30ebf8b495a:registry:resource:1712"
+	   }
+	   `)
+	*/
 
 	// Change v2 to break compat with bad format
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2/versions/v2$details", `{
         "format": "UnKnown"
     }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f2: UnKnown.",
-  "subject": "/dirs/d1/files/f2",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f2/versions/v2\" has a \"format\" value (UnKnown) that it not supported.",
+  "subject": "/dirs/d1/files/f2/versions/v2",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f2: UnKnown"
+    "format": "UnKnown"
   },
-  "source": "c30ebf8b495a:registry:resource:1717"
+  "source": "79ab0198e6b4:registry:resource:1795"
 }
 `)
 
@@ -989,6 +1018,7 @@ func TestFormatSimpleJson(t *testing.T) {
   "ancestor": "1",
   "contenttype": "application/json",
   "format": "jsonSchema/draft-07",
+  "formatvalidated": "true",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1011,6 +1041,7 @@ func TestFormatSimpleJson(t *testing.T) {
   "ancestor": "1",
   "contenttype": "application/json",
   "format": "jsonSchema/draft-08",
+  "formatvalidated": "true",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1022,13 +1053,2185 @@ func TestFormatSimpleJson(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
   "format": "jsonSchem"
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Unknown \"format\" value for /dirs/d1/files/f1: jsonSchem.",
-  "subject": "/dirs/d1/files/f1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (jsonSchem) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
   "args": {
-    "error_detail": "Unknown \"format\" value for /dirs/d1/files/f1: jsonSchem"
+    "format": "jsonSchem"
   },
-  "source": "4ed15b37cca0:registry:resource:1737"
+  "source": "79ab0198e6b4:registry:resource:1795"
+}
+`)
+
+}
+
+func TestFormatStrictNumbers(t *testing.T) {
+	reg := NewRegistry("TestFormatStrictNumbers")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(true)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(true)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "numbers",
+        "file": "1" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "numbers"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid numbers file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid numbers file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "1"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "1"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "unknown"
+  },
+  "source": "79ab0198e6b4:registry:resource:1802"
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "nuMBers",
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"nuMBers\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "fileurl": "http://example.com"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "79ab0198e6b4:registry:format_numbers:46"
+}
+`)
+
+}
+
+func TestFormatNotStrictNumbers(t *testing.T) {
+	reg := NewRegistry("TestFormatNotStrictNumbers")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(false)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(false)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "numbers",
+        "file": "1" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "numbers"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid numbers file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (numbers).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid numbers file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "numbers"
+  },
+  "source": "79ab0198e6b4:registry:format_numbers:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "1"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "1"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:08:33.325493075Z",
+  "modifiedat": "2026-04-15T17:08:33.500548614Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "unknown",
+  "formatvalidated": "false, unknown format",
+  "compatibilityvalidated": "false, unknown format",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "nuMBers",
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"nuMBers\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// varying format - 4
+	rmFile.SetConsistentFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "meta": { "compatibility": "backWARD" },
+   "versions": {
+    "v1": {
+      "format": "nuMBers",
+      "file": "1"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema.*\".",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema.*\""
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:137"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "numbers",
+        "fileurl": "http://example.com"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:09:02.57684679Z",
+  "modifiedat": "2026-04-15T17:09:02.924358354Z",
+  "ancestor": "1",
+  "format": "numbers",
+  "formatvalidated": "false, data stored externally",
+  "compatibilityvalidated": "false, data stored externally",
+
+  "fileurl": "http://example.com",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+}
+
+func TestFormatStrictAvro(t *testing.T) {
+	reg := NewRegistry("TestFormatStrictAvro")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(true)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(true)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "avro",
+        "file": "\"null\"" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "avro",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "avro"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid avro schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid avro schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "\"null\""
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "\"null\""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "unknown"
+  },
+  "source": "79ab0198e6b4:registry:resource:1802"
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "AvrO",
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "\"null\""
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"AvrO\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "fileurl": "http://example.com"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "79ab0198e6b4:registry:format_avro:46"
+}
+`)
+
+}
+
+func TestFormatNotStrictAvro(t *testing.T) {
+	reg := NewRegistry("TestFormatNotStrictAvro")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(false)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(false)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "avro",
+        "file": "\"null\"" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "avro",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "avro"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid avro schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (avro).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid avro schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "avro"
+  },
+  "source": "79ab0198e6b4:registry:format_avro:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "\"null\""
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "\"null\""
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:08:33.325493075Z",
+  "modifiedat": "2026-04-15T17:08:33.500548614Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "unknown",
+  "formatvalidated": "false, unknown format",
+  "compatibilityvalidated": "false, unknown format",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "aVRo",
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"aVRo\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// varying format - 4
+	rmFile.SetConsistentFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "meta": { "compatibility": "backWARD" },
+   "versions": {
+    "v1": {
+      "format": "aVRo",
+      "file": "\"null\""
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema.*\".",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema.*\""
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:137"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "avro",
+        "fileurl": "http://example.com"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:09:02.57684679Z",
+  "modifiedat": "2026-04-15T17:09:02.924358354Z",
+  "ancestor": "1",
+  "format": "avro",
+  "formatvalidated": "false, data stored externally",
+  "compatibilityvalidated": "false, data stored externally",
+
+  "fileurl": "http://example.com",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+}
+
+func TestFormatStrictJson(t *testing.T) {
+	reg := NewRegistry("TestFormatStrictJson")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(true)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(true)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "jsonschema",
+        "file": "{}" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "jsonschema",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "jsonschema"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid json schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid json schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "{}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "{}"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "unknown"
+  },
+  "source": "79ab0198e6b4:registry:resource:1802"
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "JSONschema",
+      "file": "{}"
+    },
+    "v2": {
+      "format": "numbers",
+      "file": "1"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"JSONschema\" vs \"numbers\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "{}"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "{}"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "fileurl": "http://example.com"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "79ab0198e6b4:registry:format_jsonschema:46"
+}
+`)
+
+}
+
+func TestFormatNotStrictJson(t *testing.T) {
+	reg := NewRegistry("TestFormatNotStrictJson")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(false)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(false)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "jsonschema",
+        "file": "{}" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "jsonschema",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "jsonschema"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid json schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (jsonschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid json schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "jsonschema"
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "{}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "{}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:08:33.325493075Z",
+  "modifiedat": "2026-04-15T17:08:33.500548614Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "unknown",
+  "formatvalidated": "false, unknown format",
+  "compatibilityvalidated": "false, unknown format",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "jSONschema",
+      "file": "{}"
+    },
+    "v2": {
+      "format": "avro",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"jSONschema\" vs \"avro\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "{}"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"jsonSchema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "{}"
+    },
+    "v2": {
+      "format": "jsonSchema",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// varying format - 4
+	rmFile.SetConsistentFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "meta": { "compatibility": "backWARD" },
+   "versions": {
+    "v1": {
+      "format": "jSONschema",
+      "file": "{}"
+    },
+    "v2": {
+      "format": "AvrO",
+      "file": "\"null\""
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro.*\".",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro.*\""
+  },
+  "source": "79ab0198e6b4:registry:format_jsonschema:137"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "jsonschema",
+        "fileurl": "http://example.com"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:09:02.57684679Z",
+  "modifiedat": "2026-04-15T17:09:02.924358354Z",
+  "ancestor": "1",
+  "format": "jsonschema",
+  "formatvalidated": "false, data stored externally",
+  "compatibilityvalidated": "false, data stored externally",
+
+  "fileurl": "http://example.com",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+}
+
+func TestFormatStrictProtobuf(t *testing.T) {
+	reg := NewRegistry("TestFormatStrictProtobuf")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(true)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(true)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "protobuf",
+        "file": "syntax = \"proto3\"; message E {}" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "protobuf",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "protobuf"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid protobuf file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid protobuf file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "syntax = \"proto3\"; message E {}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "syntax = \"proto3\"; message E {}"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "unknown"
+  },
+  "source": "79ab0198e6b4:registry:resource:1802"
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "protoBUF",
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "numbers",
+      "file": "1"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"protoBUF\" vs \"numbers\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "protobuf",
+      "file": "syntax = \"proto3\"; message E {}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"protobuf\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "protobuf",
+      "file": "syntax = \"proto3\"; message E {}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "fileurl": "http://example.com"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "79ab0198e6b4:registry:format_protobuf:46"
+}
+`)
+
+}
+
+func TestFormatNotStrictProtobuf(t *testing.T) {
+	reg := NewRegistry("TestFormatNotStrictProtobuf")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(false)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(false)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "protobuf",
+        "file": "syntax = \"proto3\"; message E {}" }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "protobuf",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "protobuf"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid protobuf file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (protobuf).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid protobuf file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "protobuf"
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "syntax = \"proto3\"; message E {}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "syntax = \"proto3\"; message E {}"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:08:33.325493075Z",
+  "modifiedat": "2026-04-15T17:08:33.500548614Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "unknown",
+  "formatvalidated": "false, unknown format",
+  "compatibilityvalidated": "false, unknown format",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "protoBUF",
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "avro",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"protoBUF\" vs \"avro\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "protoBUF",
+      "file": "syntax = \"proto3\"; message E {}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"protoBUF\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "protoBUF",
+      "file": "syntax = \"proto3\"; message E {}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// varying format - 4
+	rmFile.SetConsistentFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "meta": { "compatibility": "backWARD" },
+   "versions": {
+    "v1": {
+      "format": "protoBUF",
+      "file": "syntax = \"proto3\"; message E {}"
+    },
+    "v2": {
+      "format": "AvrO",
+      "file": "\"null\""
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro.*\".",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro.*\""
+  },
+  "source": "79ab0198e6b4:registry:format_protobuf:137"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "protobuf",
+        "fileurl": "http://example.com"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:09:02.57684679Z",
+  "modifiedat": "2026-04-15T17:09:02.924358354Z",
+  "ancestor": "1",
+  "format": "protobuf",
+  "formatvalidated": "false, data stored externally",
+  "compatibilityvalidated": "false, data stored externally",
+
+  "fileurl": "http://example.com",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
 }
 `)
 

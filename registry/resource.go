@@ -1581,9 +1581,16 @@ func (r *Resource) DumpOrderedVersions() {
 }
 
 type FormatChecker interface {
-	IsValid(version *Version) (bool, *XRError)
+	// 1st return arg is either:
+	//  true           - validation was attempted
+	//  false, why...  - validation not attempted, and why
+	// 2nd return arg is:
+	//  xErr if 1st=true  and validation failed
+	//  xErr if 2st=false and we need to return an xErr to client
+
+	IsValid(version *Version) (string, *XRError)
 	// 'direction' == backward, forward
-	IsCompatible(direction string, oldVersion, newVersion *Version) (bool, *XRError)
+	IsCompatible(direction string, oldVersion, newVersion *Version) (string, *XRError)
 }
 
 // case insensitive 'format' values'
@@ -1626,16 +1633,6 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	oldCompat := meta.GetOrigin("compatibility")
 	newCompat := meta.Get("compatibility")
 
-	/* not true!
-	if validateCompat && IsNil(newCompat) {
-		return NewXRError("invalid_attribute", meta.XID,
-			"name=compatibility",
-			"error_detail=must be set since the Resource model definition for "+
-				r.ResourceModel.Plural+" has \"validatecompatibility\" set to "+
-				"\"true\"")
-	}
-	*/
-
 	if validateCompat && newCompat == "" {
 		return NewXRError("invalid_attribute", meta.XID,
 			"name=compatibility",
@@ -1644,10 +1641,27 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Doing neither so just return
 	if !validateCompat && !validateFormat {
+		xErr := r.ClearResourceSystemDBProperty("formatvalidated")
+		if xErr != nil {
+			return NewXRError("server_error", r.XID).
+				SetDetail(fmt.Sprintf("Error clearing 'formatvalidated' "+
+					"for %s: %s.",
+					r.XID, xErr.GetTitle()))
+
+		}
+
+		xErr = r.ClearResourceSystemDBProperty("compatibilityvalidated")
+		if xErr != nil {
+			return NewXRError("server_error", r.XID).
+				SetDetail(fmt.Sprintf("Error clearing "+
+					"'compatibilityvalidated' for %s: %s.",
+					r.XID, xErr.GetTitle()))
+
+		}
 		return nil
 	}
 
-	checker := FormatChecker(nil)
+	strict := r.ResourceModel.GetStrictValidation()
 
 	// Check all versions, not just changed ones?
 	// Check all versions if we've changed compat & we're validating
@@ -1669,14 +1683,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// 'direction' = 'backward', 'forward'
 	doCheckCompat := func(direction string, oldVID string, newVID string) *XRError {
-		// log.Printf("In doCheckCompat: %s vs %s", oldVID, newVID)
 		PanicIf(oldVID == "", "can't be empty")
 		PanicIf(newVID == "", "can't be empty")
-
-		// I'm always compatible with myself. Just in case caller doesn't check
-		if oldVID == newVID {
-			return nil
-		}
 
 		key := direction + ">" + oldVID + ">" + newVID
 		if doneChecks[key] {
@@ -1688,13 +1696,23 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		newV, xErr := r.FindVersion(newVID, false, FOR_READ)
 		PanicIf(!IsNil(xErr) || IsNil(newV), "%s: %s", newVID, ToJSON(xErr))
 
+		// I'm always compatible with myself. Just in case caller doesn't check
+		if oldVID == newVID {
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), "true")
+			return nil
+		}
+
 		// Do actual check here
-		valid, xErr := checker.IsCompatible(direction, oldV, newV)
-		if xErr != nil {
+		format := newV.GetAsString("format")
+		checker := GetFormatChecker(format)
+		reason, xErr := checker.IsCompatible(direction, oldV, newV)
+
+		if xErr != nil && (reason == "true" || strict) {
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
 			return xErr
 		}
 
-		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), valid)
+		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), reason)
 
 		doneChecks[key] = true
 		return nil
@@ -1709,10 +1727,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			return xErr
 		}
 
-		if r.ResourceModel.GetConsistentFormat() && i > 0 {
+		if r.ResourceModel.GetConsistentFormat() {
 			format := ver.GetAsString("format")
-			if format != prevFormat {
-				return NewXRError("format_inconsistent", r.XID)
+			if i > 0 && format != prevFormat {
+				return NewXRError("format_inconsistent", r.XID).
+					SetDetailf("Formats: %q vs %q.", prevFormat, format)
 			}
 			prevFormat = format
 		}
@@ -1720,31 +1739,14 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		// For each Version, save it's list of ancestors for easy lookup later.
 		// Note that we may need this even if the Version didn't change
 		oldList := childrenMap[va.Ancestor]
-		childrenMap[va.Ancestor] = append(oldList, va.VID)
+		if va.Ancestor != va.VID {
+			// Don't add roots to themselves
+			childrenMap[va.Ancestor] = append(oldList, va.VID)
+		}
 
 		// Save for easy look-up later
 		ancestorMap[va.VID] = va.Ancestor
 		PanicIf(va.Ancestor == "", "Not good")
-
-		// Calc all changed versions - the ones we want to check.
-		// Unless we're checking all Versions, if it's not in the cache
-		// then it didn't change
-		/*
-			ver := r.tx.GetVersion(r, va.VID)
-
-			if doAll && IsNil(ver) {
-				// If we're checking all Version, make sure Ver is loaded
-				ver, xErr = r.FindVersion(va.VID, false, FOR_READ)
-				if xErr != nil {
-					return xErr
-				}
-			}
-		*/
-
-		if !doAll && IsNil(ver) {
-			// Not doing all so if ver==nil then it didn't change, skip it
-			continue
-		}
 
 		// Build our list of changed Versions.
 		// So, either doAll=true, or version's epoch was changed, otherwise
@@ -1754,44 +1756,45 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			if validateFormat {
 				newFormat := ver.GetAsString("format")
 				if newFormat == "" {
-					if r.ResourceModel.GetStrictValidation() {
-						return NewXRError("format_missing", ver.XID)
-					}
+					// Regardless of being strict or not, turn off checks
+					// and don't show any of the *validated attributes
 					ver.SetSystemDBProperty(NewPPP("formatvalidated"), nil)
-					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
+						nil)
 					continue
 				}
 
 				checker := GetFormatChecker(newFormat)
 				if IsNil(checker) {
-					if r.ResourceModel.GetStrictValidation() {
-						return NewXRError("bad_request", r.XID,
-							"error_detail="+
-								fmt.Sprintf("Unknown \"format\" value for %s: %s",
-									r.XID, newFormat))
+					if strict {
+						return NewXRError("format_unknown", ver.XID,
+							"format="+newFormat)
 					}
-					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
-					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), false)
+					ver.SetSystemDBProperty(NewPPP("formatvalidated"),
+						"false, unknown format")
+					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
+						"false, unknown format")
 					continue
 				}
 
 				// Validate that the Version is valid per the "format"
-				ok, xErr := checker.IsValid(ver)
-				if xErr != nil {
+				reason, xErr := checker.IsValid(ver)
+				if xErr != nil && (reason == "true" || strict) {
 					return xErr
 				}
 
-				if !ok {
-					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
+				ver.SetSystemDBProperty(NewPPP("formatvalidated"), reason)
+
+				if strings.HasPrefix(reason, "false") {
 					if validateCompat {
-						ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), false)
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidated"), reason)
 					} else {
-						ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidated"), nil)
 					}
 					continue
 				}
-
-				ver.SetSystemDBProperty(NewPPP("formatvalidated"), true)
 			}
 
 			// Only add to the list if we're checking for compat.
@@ -1817,10 +1820,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	compatFound := false
 	for _, verID := range changedVersions {
 		// Already checked newFormat & checker in previous loop
-		ver, xErr := r.FindVersion(verID, false, FOR_READ)
-		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
-		newFormat := ver.GetAsString("format")
-		checker = GetFormatChecker(newFormat)
+		// ver, xErr := r.FindVersion(verID, false, FOR_READ)
+		// PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
+		// newFormat := ver.GetAsString("format")
+		// checker = GetFormatChecker(newFormat)
 
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
@@ -1917,10 +1920,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		if !compatFound {
 			// Should we check this in the checkFn stuff instead???
-			return NewXRError("bad_request", r.XID+"/meta",
-				"error_detail="+
-					fmt.Sprintf("Unknown \"compatibility\" value for %s: %s",
-						r.XID+"/meta", newCompat))
+			return NewXRError("compatibility_unknown", r.XID+"/meta",
+				"compat="+newCompat.(string))
 		}
 	}
 

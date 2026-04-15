@@ -384,11 +384,13 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rmurl": {
               "name": "rmurl",
@@ -953,11 +955,13 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rmurl": {
               "name": "rmurl",
@@ -1564,11 +1568,13 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -2634,11 +2640,13 @@ func TestModelUseSpecAttrs(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
-                "type": "boolean"
+                "type": "string",
+                "readonly": true
               },
               "obj": {
                 "name": "obj",
@@ -3813,11 +3821,13 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "dataurl": {
               "name": "dataurl",
@@ -4122,11 +4132,13 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -4430,11 +4442,13 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "foourl": {
               "name": "foourl",
@@ -5354,11 +5368,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -5958,11 +5974,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -6385,11 +6403,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "typeurl": {
               "name": "typeurl",
@@ -7076,11 +7096,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -7503,11 +7525,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "typeurl": {
               "name": "typeurl",
@@ -8100,11 +8124,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -8527,11 +8553,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "typeurl": {
               "name": "typeurl",
@@ -9124,11 +9152,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "fileurl": {
               "name": "fileurl",
@@ -9551,11 +9581,13 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "typeurl": {
               "name": "typeurl",
@@ -10236,11 +10268,13 @@ func TestModelMissingFields(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
-              "type": "boolean"
+              "type": "string",
+              "readonly": true
             },
             "rext": {
               "name": "rext",

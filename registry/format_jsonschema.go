@@ -123,38 +123,73 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+const JSON_FORMAT = "jsonschema.*"
+
 func init() {
-	RegisterFormat("jsonschema.*", FormatJson{})
+	RegisterFormat(JSON_FORMAT, FormatJson{})
 }
 
 type FormatJson struct{}
 
-func (fp FormatJson) IsValid(version *Version) (bool, *XRError) {
-	buf := []byte(nil)
+func (fj FormatJson) IsValid(ver *Version) (string, *XRError) {
+	format := ver.GetAsString("format")
+	if ok, _ := regexp.MatchString("(?i)"+JSON_FORMAT, format); !ok {
+		return "true", NewXRError("bad_request", ver.XID,
+			"error_detail="+
+				fmt.Sprintf(`Version %q has a "format" value of %q, was `+
+					`expecting %q`, ver.XID, format, JSON_FORMAT))
+	}
 
-	if bufAny := version.Get(version.Resource.Singular); !IsNil(bufAny) {
+	if ver.Resource.ResourceModel.GetHasDocument() == false {
+		return "true", NewXRError("format_violation", ver.XID,
+			"format="+format).
+			SetDetailf(`The Resource (%s) for Version %q does not have `+
+				`"hasdocument" in its resource model set to "true", and an `+
+				`empty/missing document is not compliant.`,
+				ver.Resource.XID, ver.XID)
+	}
+
+	if resURL := ver.Get(ver.Resource.Singular + "url"); !IsNil(resURL) {
+		return "false, data stored externally",
+			NewXRError("format_external", ver.XID)
+	}
+
+	buf := []byte(nil)
+	if bufAny := ver.Get(ver.Resource.Singular); !IsNil(bufAny) {
 		buf = bufAny.([]byte)
 	}
 
 	if len(buf) == 0 {
-		return false, NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+" is not a valid json-schema file")
+		return "true", NewXRError("format_violation", ver.XID,
+			"format="+ver.GetAsString("format")).
+			SetDetailf("Version %q is empty and therefore not a "+
+				"valid json schema file.", ver.XID)
 	}
 
 	if err := IsValidJson(buf); err != nil {
-		return false, NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+" is not a valid json-schema file: "+
+		return "false", NewXRError("bad_request", ver.XID,
+			"error_detail="+ver.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
-	return true, nil
+	return "true", nil
 }
 
-func (fp FormatJson) IsCompatible(
+func (fj FormatJson) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) (bool, *XRError) {
+) (string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
+
+	reason, xErr := fj.IsValid(oldVersion)
+	if xErr != nil {
+		return reason, xErr
+	}
+
+	reason, xErr = fj.IsValid(newVersion)
+	if xErr != nil {
+		return reason, xErr
+	}
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
 		oldBuf = bufAny.([]byte)
@@ -163,24 +198,15 @@ func (fp FormatJson) IsCompatible(
 		newBuf = bufAny.([]byte)
 	}
 
-	if len(oldBuf) == 0 {
-		return false, NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+" is not a valid json-schema file")
-	}
-	if len(newBuf) == 0 {
-		return false, NewXRError("bad_request", newVersion.XID,
-			"error_detail="+newVersion.XID+" is not a valid json-schema file")
-	}
-
 	var oldMap, newMap map[string]interface{}
 
 	if err := json.Unmarshal(oldBuf, &oldMap); err != nil {
-		return false, NewXRError("bad_request", oldVersion.XID,
+		return "false", NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 	if err := json.Unmarshal(newBuf, &newMap); err != nil {
-		return false, NewXRError("bad_request", newVersion.XID,
+		return "false", NewXRError("bad_request", newVersion.XID,
 			"error_detail="+newVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
@@ -190,14 +216,14 @@ func (fp FormatJson) IsCompatible(
 	var err error
 	oldMap, err = resolveSchema(oldMap, cache)
 	if err != nil {
-		return false, NewXRError("bad_request", oldVersion.XID,
+		return "false", NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
 
 	newMap, err = resolveSchema(newMap, cache)
 	if err != nil {
-		return false, NewXRError("bad_request", newVersion.XID,
+		return "false", NewXRError("bad_request", newVersion.XID,
 			"error_detail="+newVersion.XID+" is not a valid json-schema file: "+
 				err.Error())
 	}
@@ -209,13 +235,13 @@ func (fp FormatJson) IsCompatible(
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
 
-		return false, NewXRError("bad_request", newVersion.XID,
+		return "false", NewXRError("bad_request", newVersion.XID,
 			"error_detail="+
 				fmt.Sprintf("Version %q isn't %q compatible with %q: %s",
 					newVersion.XID, compat, oldVersion.XID, err.Error()))
 	}
 
-	return true, nil
+	return "true", nil
 }
 
 func IsValidJson(buf []byte) error {

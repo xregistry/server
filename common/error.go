@@ -144,9 +144,13 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `When "<field>" includes a value of "*" then no other values are allowed.`,
 	},
+	"compatibility_unknown": &XRError{
+		Code:  400,
+		Title: `The compatibility value (<compat>) on Resource "<subject>" is not supported.`,
+	},
 	"compatibility_violation": &XRError{
 		Code:  400,
-		Title: `The request would cause one or more Versions of "<subject>" to violate its compatibility rule (<value>).`,
+		Title: `The request would cause one or more Versions of "<subject>" to violate its compatibility rule (<compat>).`,
 	},
 	"data_retrieval_error": &XRError{
 		Code:  500,
@@ -160,13 +164,17 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is not allowed to be present since the Resource (<subject>) uses "xref".`,
 	},
+	"format_external": &XRError{
+		Code:  400,
+		Title: `Version "<subject>" references a document stored outside of the Registry, therefore no validation was performed.`,
+	},
 	"format_inconsistent": &XRError{
 		Code:  400,
 		Title: `One or more Versions of Resource "<subject>" do not have the same "format" value as mandated by their owning Resource model's "consistentformat" attribute being set.`,
 	},
-	"format_missing": &XRError{
+	"format_unknown": &XRError{
 		Code:  400,
-		Title: `Version "<subject>" needs to have a "format" value due to its owning Resource model's "validateformat" being set.`,
+		Title: `Version "<subject>" has a "format" value (<format>) that it not supported.`,
 	},
 	"format_violation": &XRError{
 		Code:  400,

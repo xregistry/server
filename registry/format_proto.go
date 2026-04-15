@@ -71,6 +71,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
@@ -78,46 +79,56 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
+const PROTOBUF_FORMAT = "protobuf"
+
 func init() {
-	RegisterFormat("protobuf", FormatProtobuf{})
+	RegisterFormat(PROTOBUF_FORMAT, FormatProtobuf{})
 }
 
 type FormatProtobuf struct{}
 
 // IsValid checks if the version is a valid Protobuf schema syntax.
-func (fp FormatProtobuf) IsValid(version *Version) (bool, *XRError) {
+func (fp FormatProtobuf) IsValid(ver *Version) (string, *XRError) {
+	format := ver.GetAsString("format")
+	if ok, _ := regexp.MatchString("(?i)"+PROTOBUF_FORMAT, format); !ok {
+		return "true", NewXRError("bad_request", ver.XID,
+			"error_detail="+
+				fmt.Sprintf(`Version %q has a "format" value of %q, was `+
+					`expecting %q`, ver.XID, format, PROTOBUF_FORMAT))
+	}
+
+	if ver.Resource.ResourceModel.GetHasDocument() == false {
+		return "true", NewXRError("format_violation", ver.XID,
+			"format="+format).
+			SetDetailf(`The Resource (%s) for Version %q does not have `+
+				`"hasdocument" in its resource model set to "true", and an `+
+				`empty/missing document is not compliant.`,
+				ver.Resource.XID, ver.XID)
+	}
+
+	if resURL := ver.Get(ver.Resource.Singular + "url"); !IsNil(resURL) {
+		return "false, data stored externally",
+			NewXRError("format_external", ver.XID)
+	}
+
 	buf := []byte(nil)
-
-	if version.Resource.ResourceModel.GetHasDocument() == false {
-		return false, NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+
-				" does not \"haddocument\" in its resource model set to true")
-	}
-
-	if resURL := version.Get(version.Resource.Singular + "url"); !IsNil(resURL) {
-		return false, nil // NewXRError("bad_request", version.XID,
-		// "error_detail="+version.XID+
-		// " resorceURL is set")
-	}
-
-	if bufAny := version.Get(version.Resource.Singular); !IsNil(bufAny) {
+	if bufAny := ver.Get(ver.Resource.Singular); !IsNil(bufAny) {
 		buf = bufAny.([]byte)
 	}
 
 	if len(buf) == 0 {
-		return false, NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+
-				" is not a valid protobuf file - it's empty")
+		return "true", NewXRError("format_violation", ver.XID,
+			"format="+ver.GetAsString("format")).
+			SetDetailf("Version %q is empty and therefore not a "+
+				"valid protobuf file.", ver.XID)
 	}
 
-	err := IsValidProto(buf)
-
-	if err != nil {
-		return false, NewXRError("bad_request", version.XID,
-			"error_detail="+version.XID+
+	if err := IsValidProto(buf); err != nil {
+		return "false", NewXRError("bad_request", ver.XID,
+			"error_detail="+ver.XID+
 				" is not a valid protobuf file: "+err.Error())
 	}
-	return true, nil
+	return "true", nil
 }
 
 // IsValidProto returns nil when buf is a syntactically valid Protobuf
@@ -133,8 +144,18 @@ func (fp FormatProtobuf) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) (bool, *XRError) {
+) (string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
+
+	reason, xErr := fp.IsValid(oldVersion)
+	if xErr != nil {
+		return reason, xErr
+	}
+
+	reason, xErr = fp.IsValid(newVersion)
+	if xErr != nil {
+		return reason, xErr
+	}
 
 	if bufAny := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(bufAny) {
 		oldBuf = bufAny.([]byte)
@@ -143,24 +164,15 @@ func (fp FormatProtobuf) IsCompatible(
 		newBuf = bufAny.([]byte)
 	}
 
-	if len(oldBuf) == 0 {
-		return false, NewXRError("bad_request", oldVersion.XID,
-			"error_detail="+oldVersion.XID+" is not a valid protobuf file")
-	}
-	if len(newBuf) == 0 {
-		return false, NewXRError("bad_request", newVersion.XID,
-			"error_detail="+newVersion.XID+" is not a valid protobuf file")
-	}
-
 	oldDesc, err := parseProto(oldBuf)
 	if err != nil {
-		return false, NewXRError("bad_request", oldVersion.XID,
+		return "false", NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+
 				" is not a valid protobuf file: "+err.Error())
 	}
 	newDesc, err := parseProto(newBuf)
 	if err != nil {
-		return false, NewXRError("bad_request", oldVersion.XID,
+		return "false", NewXRError("bad_request", oldVersion.XID,
 			"error_detail="+oldVersion.XID+
 				" is not a valid protobuf file: "+err.Error())
 	}
@@ -178,12 +190,12 @@ func (fp FormatProtobuf) IsCompatible(
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
 
-		return false, NewXRError("bad_request", newVersion.XID,
+		return "false", NewXRError("bad_request", newVersion.XID,
 			"error_detail="+
 				fmt.Sprintf("Version %q isn't %q compatible with %q: %s",
 					newVersion.XID, compat, oldVersion.XID, err.Error()))
 	}
-	return true, nil
+	return "true", nil
 }
 
 func parseProto(buf []byte) (*desc.FileDescriptor, error) {

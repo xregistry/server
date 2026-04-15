@@ -158,7 +158,7 @@ GROUP: dirs / dir
 
     ATTRIBUTES:                TYPE         REQ   RO   MUT   DEFAULT
     ├ ancestor                 string       y     -    y
-    ├ compatibilityvalidated   boolean      -     -    y
+    ├ compatibilityvalidated   string       -     y    y
     ├ contenttype              string       -     -    y
     ├ createdat                timestamp    y     -    y
     ├ description              string       -     -    y
@@ -170,7 +170,7 @@ GROUP: dirs / dir
     ├ fileproxyurl             url          -     -    y
     ├ fileurl                  url          -     -    y
     ├ format                   string       -     -    y
-    ├ formatvalidated          boolean      -     -    y
+    ├ formatvalidated          string       -     y    y
     ├ icon                     url          -     -    y
     ├ isdefault                boolean      y     y    y     false
     ├ labels                   map/string   -     -    y
@@ -1107,7 +1107,8 @@ files2 / file2   true      0
       },
       "compatibilityvalidated": {
         "name": "compatibilityvalidated",
-        "type": "boolean"
+        "type": "string",
+        "readonly": true
       },
       "contenttype": {
         "name": "contenttype",
@@ -1161,7 +1162,8 @@ files2 / file2   true      0
       },
       "formatvalidated": {
         "name": "formatvalidated",
-        "type": "boolean"
+        "type": "string",
+        "readonly": true
       },
       "icon": {
         "name": "icon",

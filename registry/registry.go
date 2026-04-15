@@ -796,7 +796,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 
 	if sortKey != "" && what != "Coll" {
 		return "", nil, NewXRError("bad_sort", "",
-			"sort_value="+sortKey,
+			"value="+sortKey,
 			"error_detail=can't sort on a non-collection results")
 	}
 
