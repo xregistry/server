@@ -1,17 +1,98 @@
-// Package registry - XML Schema format compatibility checker.
+// Package registry - XML Schema (XSD) format compatibility checker.
 //
 // IsValid verifies that a version's document is a syntactically valid
-// XML Schema (XSD).
+// XML Schema document (XSD).  The root element must be <schema> in
+// the http://www.w3.org/2001/XMLSchema namespace.
 //
-// IsCompatible checks whether two XML Schema versions are compatible in
-// the given direction using a conservative subset rule over global
-// declarations:
+// IsCompatible checks whether two XML Schema versions are compatible
+// in the given direction. The rules follow the closed-world assumption
+// standard for schema registries (producers only emit elements
+// defined in their schema):
 //
-//   - "backward": old ⊆ new
-//   - "forward":  new ⊆ old
+//	"backward" — consumers using the NEW schema can read messages
+//	             produced with the OLD schema.
+//	             Permitted changes to the schema:
+//	               • Add a new top-level element, complexType, or
+//	                 simpleType declaration.
+//	               • Add a new attribute, sequence element, or
+//	                 content model to an existing type, provided
+//	                 the change is within the same inner-XML body
+//	                 as before (see limitation note below).
+//	             Forbidden changes:
+//	               • Remove a top-level element, complexType, or
+//	                 simpleType declaration.
+//	               • Change the type attribute or inner body of an
+//	                 existing top-level declaration.
+//	             Implemented as: old ⊆ new (checkXMLSchemaCompat)
 //
-// A declaration is considered compatible if a declaration with the same
-// name exists and its normalized signature is unchanged.
+//	"forward"  — consumers using the OLD schema can read messages
+//	             produced with the NEW schema.
+//	             Permitted changes to the schema:
+//	               • Remove a top-level element, complexType, or
+//	                 simpleType declaration.
+//	             Forbidden changes:
+//	               • Add a new top-level declaration (old consumers
+//	                 do not know about the new type).
+//	               • Change an existing declaration.
+//	             Implemented as: new ⊆ old (checkXMLSchemaCompat)
+//	             (forward compat = backward compat with args swapped)
+//
+// Compatibility checks – status per XSD construct:
+//
+// Top-level declarations
+//   - [supported]     element (removal detected; name + type
+//     attribute + inner-XML body must match)
+//   - [supported]     complexType (removal detected; inner-XML body
+//     must match verbatim after whitespace normalisation)
+//   - [supported]     simpleType (removal detected; inner-XML body
+//     must match verbatim after whitespace normalisation)
+//   - [not supported] group / attributeGroup (top-level reusable
+//     groups are not tracked)
+//   - [not supported] attribute (top-level attribute declarations
+//     are not tracked)
+//   - [not supported] notation (not tracked)
+//
+// Element and attribute keywords
+//   - [supported]     name attribute (used as the declaration key)
+//   - [supported]     type attribute (included in the signature;
+//     a type change is detected as an incompatibility)
+//   - [not supported] minOccurs / maxOccurs (occurrence constraint
+//     changes inside inner bodies are only caught if they alter
+//     the whitespace-normalised inner XML text)
+//   - [not supported] default / fixed (not individually tracked)
+//   - [not supported] nillable / abstract / block / final (not
+//     individually tracked)
+//   - [not supported] substitutionGroup (not tracked)
+//
+// Type definition keywords
+//   - [supported]     sequence / all / choice inner content (any
+//     whitespace-normalised change to the inner-XML body is
+//     detected as an incompatibility)
+//   - [not supported] xs:extension / xs:restriction base changes
+//     (detected only if the inner-XML body changes)
+//   - [not supported] xs:union / xs:list member types (detected
+//     only via inner-XML body change)
+//   - [not supported] xs:annotation / xs:documentation (ignored
+//     by the parser; do not affect compatibility)
+//
+// Known limitations / not yet implemented
+//   - Inner-XML comparison is whitespace-normalised but otherwise
+//     verbatim: logically equivalent schemas with different
+//     serialisations (e.g. swapped attribute order or reordered
+//     sequence children) are reported as incompatible.
+//   - Only top-level named declarations are tracked; anonymous
+//     types defined inline inside other elements are not
+//     individually compared.
+//   - xs:include / xs:import / xs:redefine / xs:override are not
+//     resolved; referenced external schemas are not fetched.
+//   - Attribute declarations inside complexType bodies are only
+//     checked as part of the normalised inner-XML text.
+//   - Wildcard keywords (xs:any, xs:anyAttribute) are not
+//     individually analysed; changes are only caught through the
+//     inner-XML body comparison.
+//   - xs:key / xs:keyref / xs:unique identity-constraint keywords
+//     are not individually analysed.
+//   - Target-namespace changes are not detected.
 
 package registry
 
