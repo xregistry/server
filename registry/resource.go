@@ -1871,25 +1871,28 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		if newCompat == "forward" || newCompat == "full" {
 			compatFound = true
-			// compatible w/ the next newest Ver
+			// compatible w/ the next newest Ver.
+			// Pass (older, newer) — the plugin owns direction handling.
 			for _, childUID := range childrenMap[verID] {
 				// Compatible with a descendent
-				xErr := doCheckCompat("forward", childUID, verID)
+				xErr := doCheckCompat("forward", verID, childUID)
 				if xErr != nil {
 					return xErr
 				}
 			}
 
 			// Compatible w/ our ancestor
-			xErr := doCheckCompat("forward", verID, ancestorMap[verID])
+			xErr := doCheckCompat("forward", ancestorMap[verID], verID)
 			if xErr != nil {
 				return xErr
 			}
 		}
 
-		if newCompat == "forward_transitive" || newCompat == "full_transivite" {
+		if newCompat == "forward_transitive" ||
+			newCompat == "full_transitive" {
 			compatFound = true
-			// compatible w/ all newer Versions
+			// compatible w/ all newer Versions.
+			// Pass (older, newer) — the plugin owns direction handling.
 			list := [][2]string{} // [old,new]
 			// Start our psuedo-recursive list of old/new pairs to check
 			for _, childID := range childrenMap[verID] {
@@ -1900,7 +1903,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				item := list[0] // [old,new]
 				list = list[1:]
 
-				xErr := doCheckCompat("forward", item[1], item[0])
+				xErr := doCheckCompat("forward", item[0], item[1])
 				if xErr != nil {
 					return xErr
 				}
@@ -1912,7 +1915,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			}
 
 			// Now check our ancestor
-			xErr := doCheckCompat("forward", verID, ancestorMap[verID])
+			xErr := doCheckCompat("forward", ancestorMap[verID], verID)
 			if xErr != nil {
 				return xErr
 			}
