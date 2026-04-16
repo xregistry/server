@@ -90,6 +90,10 @@ func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) 
 		oldVer.UID, newVer.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsCompliant")
 
+	if direction == "forward" {
+		oldVer, newVer = newVer, oldVer
+	}
+
 	oldSum, reason, xErr := GetVersionSum(oldVer)
 	if xErr != nil {
 		return reason, xErr

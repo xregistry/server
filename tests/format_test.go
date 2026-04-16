@@ -3236,3 +3236,548 @@ func TestFormatNotStrictProtobuf(t *testing.T) {
 `)
 
 }
+
+func TestFormatStrictXMLSchema(t *testing.T) {
+	reg := NewRegistry("TestFormatStrictXMLSchema")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(true)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(true)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": true,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "xmlschema",
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "xmlschema",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "xmlschema"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid xml schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid xml schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" has a \"format\" value (unknown) that it not supported.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "unknown"
+  },
+  "source": "79ab0198e6b4:registry:resource:1802"
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "XMLschema",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "numbers",
+      "file": "1"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"XMLschema\" vs \"numbers\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "xmlschema",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"xmlschema\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "xmlschema",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "fileurl": "http://example.com"
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_external",
+  "title": "Version \"/dirs/d1/files/f1/versions/1\" references a document stored outside of the Registry, therefore no validation was performed.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "79ab0198e6b4:registry:format_xmlschema:46"
+}
+`)
+
+}
+
+func TestFormatNotStrictXMLSchema(t *testing.T) {
+	reg := NewRegistry("TestFormatNotStrictXMLSchema")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rmFile, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+	rmNoFile, xErr := gm.AddResourceModel("nofiles", "nofile", 0, true, true, false)
+	XNoErr(t, xErr)
+
+	rmFile.SetValidateFormat(true)
+	rmFile.SetValidateCompatibility(true)
+	rmFile.SetStrictValidation(false)
+	rmFile.SetConsistentFormat(true)
+	rmNoFile.SetValidateFormat(true)
+	rmNoFile.SetValidateCompatibility(true)
+	rmNoFile.SetStrictValidation(false)
+	rmNoFile.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": true,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "setdefaultversionsticky": true,
+          "hasdocument": false,
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "consistentformat": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// hasdoc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "meta": {"compatibility": "backward" },
+        "format": "xmlschema",
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+  }`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:07.554485814Z",
+  "modifiedat": "2026-04-15T11:16:07.554485814Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "xmlschema",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/nofiles/f1", `{
+        "format": "xmlschema"
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/nofiles/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "The Resource (/dirs/d1/nofiles/f1) for Version \"/dirs/d1/nofiles/f1/versions/1\" does not have \"hasdocument\" in its resource model set to \"true\", and an empty/missing document is not compliant.",
+  "subject": "/dirs/d1/nofiles/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:36"
+}
+`)
+
+	// no doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "file": null
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid xml schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:60"
+}
+`)
+
+	// empty doc
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "file": ""
+        }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant with its \"format\" (xmlschema).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/1\" is empty and therefore not a valid xml schema file.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "format": "xmlschema"
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:60"
+}
+`)
+
+	// missing format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-04-15T11:16:34.008113923Z",
+  "modifiedat": "2026-04-15T11:16:34.135061948Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// unknown format
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "unknown",
+        "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:08:33.325493075Z",
+  "modifiedat": "2026-04-15T17:08:33.500548614Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+  "format": "unknown",
+  "formatvalidated": "false, unknown format",
+  "compatibilityvalidated": "false, unknown format",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// varying format - 1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "xmlSCHEMA",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "avro",
+      "file": "{}"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"xmlSCHEMA\" vs \"avro\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 2
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": null,
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "xmlSCHEMA",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
+  "title": "One or more Versions of Resource \"/dirs/d1/files/f2\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
+  "detail": "Formats: \"\" vs \"xmlSCHEMA\".",
+  "subject": "/dirs/d1/files/f2",
+  "source": "79ab0198e6b4:registry:resource:1749"
+}
+`)
+
+	// varying format - 3
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "versions": {
+    "v1": {
+      "format": "",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "xmlSCHEMA",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"format\" for \"/dirs/d1/files/f2/versions/v1\" is not valid: can't be an empty string.",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "can't be an empty string",
+    "name": "format"
+  },
+  "source": "79ab0198e6b4:registry:entity:1446"
+}
+`)
+
+	// varying format - 4
+	rmFile.SetConsistentFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+   "meta": { "compatibility": "backWARD" },
+   "versions": {
+    "v1": {
+      "format": "xmlSCHEMA",
+      "file": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>"
+    },
+    "v2": {
+      "format": "AvrO",
+      "file": "\"null\""
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro.*\".",
+  "subject": "/dirs/d1/files/f2/versions/v1",
+  "args": {
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro.*\""
+  },
+  "source": "79ab0198e6b4:registry:format_xmlschema:137"
+}
+`)
+
+	// RESOURCEurl
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+        "format": "xmlschema",
+        "fileurl": "http://example.com"
+        }`, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 4,
+  "isdefault": true,
+  "createdat": "2026-04-15T17:09:02.57684679Z",
+  "modifiedat": "2026-04-15T17:09:02.924358354Z",
+  "ancestor": "1",
+  "format": "xmlschema",
+  "formatvalidated": "false, data stored externally",
+  "compatibilityvalidated": "false, data stored externally",
+
+  "fileurl": "http://example.com",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+}
