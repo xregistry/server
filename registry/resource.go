@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1598,25 +1597,33 @@ var SupportedFormatCheckers = map[string]FormatChecker{}
 
 func RegisterFormat(name string, format FormatChecker) {
 	SupportedFormatCheckers[strings.ToLower(name)] = format
+	AddSupportedFormat(name, []string{
+		"backward",
+		"backward_transitive",
+		"forward",
+		"forward_transitive",
+		"full",
+		"full_transitive",
+	})
 }
 
-func GetFormatChecker(format string) FormatChecker {
+// checker, registered format string
+func GetFormatChecker(format string) (FormatChecker, string) {
+	// Look for an exact match first - we choose those over wildcards
 	format = strings.ToLower(format)
 	checker := SupportedFormatCheckers[format]
 	if checker != nil {
-		return checker
+		return checker, format
 	}
 
-	// Just grab the first format whose regexp matches - not determinant
-	for name, checker := range SupportedFormatCheckers {
-		nameRE, err := regexp.Compile(name)
-		PanicIf(err != nil, "%s: %s", name, err)
-		if nameRE.MatchString(format) {
-			return checker
+	// Just grab the first format whose pattern matches - not determinant
+	for pattern, checker := range SupportedFormatCheckers {
+		if Match(strings.ToLower(pattern), format) {
+			return checker, pattern
 		}
 	}
 
-	return nil
+	return nil, ""
 }
 
 // This will check "format" as well.
@@ -1641,7 +1648,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Doing neither so just return
 	if !validateCompat && !validateFormat {
-		xErr := r.ClearResourceSystemDBProperty("formatvalidated")
+		xErr := r.ClearResourceSystemDBProperty(NewPPP("formatvalidated"))
 		if xErr != nil {
 			return NewXRError("server_error", r.XID).
 				SetDetail(fmt.Sprintf("Error clearing 'formatvalidated' "+
@@ -1650,7 +1657,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		}
 
-		xErr = r.ClearResourceSystemDBProperty("compatibilityvalidated")
+		xErr = r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
 		if xErr != nil {
 			return NewXRError("server_error", r.XID).
 				SetDetail(fmt.Sprintf("Error clearing "+
@@ -1704,7 +1711,16 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		// Do actual check here
 		format := newV.GetAsString("format")
-		checker := GetFormatChecker(format)
+		checker, formatPattern := GetFormatChecker(format)
+
+		// Shouldn't be needed, but just in case
+		if !r.Registry.Capabilities.CompatibilityEnabled(formatPattern,
+			newCompat.(string)) {
+			return NewXRError("compatibility_unknown", r.XID+"/meta",
+				"compat="+newCompat.(string),
+				"format="+formatPattern)
+		}
+
 		reason, xErr := checker.IsCompatible(direction, oldV, newV)
 
 		if xErr != nil && (reason == "true" || strict) {
@@ -1764,7 +1780,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					continue
 				}
 
-				checker := GetFormatChecker(newFormat)
+				checker, formatPattern := GetFormatChecker(newFormat)
+
 				if IsNil(checker) {
 					if strict {
 						return NewXRError("format_unknown", ver.XID,
@@ -1775,6 +1792,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
 						"false, unknown format")
 					continue
+				}
+
+				if !r.Registry.Capabilities.FormatEnabled(formatPattern) {
+					return NewXRError("format_unknown", ver.XID,
+						"format="+newFormat)
 				}
 
 				// Validate that the Version is valid per the "format"
@@ -1809,8 +1831,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	}
 
 	// If compat isn't enabled, skip compat checking
-	if IsNil(newCompat) {
-		return nil
+	if IsNil(newCompat) || !validateCompat {
+		// clear compatvalidated attr for all versions
+		return r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
 	}
 
 	// compat is case-insensitive
@@ -1820,10 +1843,19 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	compatFound := false
 	for _, verID := range changedVersions {
 		// Already checked newFormat & checker in previous loop
-		// ver, xErr := r.FindVersion(verID, false, FOR_READ)
-		// PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
-		// newFormat := ver.GetAsString("format")
-		// checker = GetFormatChecker(newFormat)
+		ver, xErr := r.FindVersion(verID, false, FOR_READ)
+		PanicIf(!IsNil(xErr) || IsNil(verID), "%s: %s", verID, ToJSON(xErr))
+
+		newFormat := ver.GetAsString("format")
+		_, formatPattern := GetFormatChecker(newFormat)
+
+		if !r.Registry.Capabilities.CompatibilityEnabled(formatPattern,
+			newCompat.(string)) {
+
+			return NewXRError("compatibility_unknown", r.XID+"/meta",
+				"compat="+newCompat.(string),
+				"format="+formatPattern)
+		}
 
 		if newCompat == "backward" || newCompat == "full" {
 			compatFound = true
@@ -1920,8 +1952,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		if !compatFound {
 			// Should we check this in the checkFn stuff instead???
+			panic("should never get here")
 			return NewXRError("compatibility_unknown", r.XID+"/meta",
-				"compat="+newCompat.(string))
+				"compat="+newCompat.(string),
+				"format=n/a")
 		}
 	}
 

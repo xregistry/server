@@ -146,7 +146,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"compatibility_unknown": &XRError{
 		Code:  400,
-		Title: `The compatibility value (<compat>) on Resource "<subject>" is not supported.`,
+		Title: `The compatibility value (<compat>) on Resource "<subject>" is not supported for format "<format>".`,
 	},
 	"compatibility_violation": &XRError{
 		Code:  400,
@@ -259,6 +259,10 @@ var Type2Error = map[string]*XRError{
 	"required_attribute_missing": &XRError{
 		Code:  400,
 		Title: `One or more mandatory attributes for "<subject>" are missing: <list>.`,
+	},
+	"resources_only": &XRError{
+		Code:  400,
+		Title: `Attribute "<name>" is invalid. Only Resource types are allowed to be specified on this request: <subject>.`,
 	},
 	"server_error": &XRError{
 		Code:  500,

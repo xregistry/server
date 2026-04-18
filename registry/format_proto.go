@@ -79,7 +79,7 @@ import (
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
-const PROTOBUF_FORMAT = "protobuf"
+const PROTOBUF_FORMAT = "protobuf*"
 
 func init() {
 	RegisterFormat(PROTOBUF_FORMAT, FormatProtobuf{})

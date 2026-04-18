@@ -798,6 +798,7 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	PanicIf(err != nil, "doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
 
 	count, _ := result.RowsAffected()
+	log.VPrintf(4, "doCount: %d rows", count)
 	return int(count)
 }
 

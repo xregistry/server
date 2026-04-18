@@ -213,31 +213,31 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	isNew := false
 
 	metaObj := (map[string]any)(nil)
-	metaObjAny, hasMeta := ru.Obj["meta"]
-
-	if hasMeta && !ru.ObjIsVer {
-		delete(ru.Obj, "meta")
-	}
-
-	if hasMeta {
-		if IsNil(metaObjAny) {
-			// Convert "null" to empty {}
-			metaObjAny = map[string]any{}
-		}
-
-		var ok bool
-		metaObj, ok = metaObjAny.(map[string]any)
-		if !ok {
-			return nil, false, NewXRError("invalid_attribute", rXID,
-				"name=meta",
-				"error_detail=\"meta\" must be an object")
-		}
-	}
+	metaObjAny, hasMeta := any(nil), false
 
 	// List of versions in the incoming request
 	versions := map[string]any(nil)
 
 	if !ru.ObjIsVer {
+		metaObjAny, hasMeta = ru.Obj["meta"]
+
+		if hasMeta {
+			delete(ru.Obj, "meta")
+
+			if IsNil(metaObjAny) {
+				// Convert "null" to empty {}
+				metaObjAny = map[string]any{}
+			}
+
+			var ok bool
+			metaObj, ok = metaObjAny.(map[string]any)
+			if !ok {
+				return nil, false, NewXRError("invalid_attribute", rXID,
+					"name=meta",
+					"error_detail=\"meta\" must be an object")
+			}
+		}
+
 		// If ru.Obj is for the resource then save and delete the versions
 		// collection (and it's attributes) so we don't try to save them
 		// as extensions on the Resource
@@ -252,7 +252,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 					"error_detail=doesn't appear to be of a map of Versions")
 			}
 		}
-
 	}
 
 	if ru.DefaultVersionID == "request" && len(versions) > 1 {
@@ -538,6 +537,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			SetDetail("Must match the \"defaultversionid\" value.")
 	}
 
+	if !ru.ObjIsVer {
+		RemoveResourceAttributes(rModel, ru.Obj)
+	}
+
 	// Update the appropriate Version (ru.VID), but only if the versionID
 	// doesn't match a Version ID from the "versions" collection (if there).
 	// If both Resource attrs and Version attrs are present, use the Version's
@@ -546,7 +549,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	if !hasXref && ru.VID != "" { // DUG clean-up this use of hasXref - it's hacky
 		// Skip if ru.VID is in "versions" collection
 		if _, ok := versions[ru.VID]; !ok {
-			RemoveResourceAttributes(rModel, vObj)
 			defaultVersion, _, xErr = r.UpsertVersionWithObject(&VersionUpsert{
 				Id:               ru.VID,
 				Obj:              vObj,
@@ -567,7 +569,6 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// If len(versions) > 0 then we do nothing and one of them will
 		// become the default version
 		if len(versions) == 0 {
-			RemoveResourceAttributes(rModel, vObj)
 			defaultVersion, _, xErr = r.UpsertVersionWithObject(&VersionUpsert{
 				Id:               ru.VID,
 				Obj:              vObj,
@@ -625,4 +626,54 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 
 	return r, isNew, xErr
+}
+
+// Returns a map of resourceType->*Resource
+func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string][]*Resource, *XRError) {
+	log.VPrintf(3, ">Enter UpsertJustResources()")
+	defer log.VPrintf(3, "<Exit UpsertJustResources")
+
+	resources := map[string][]*Resource{}
+
+	// Just for nicer error msg than what IncomingObj2Map would produce
+	for attrName, _ := range rootObj {
+		if g.GroupModel.FindResourceModel(attrName) == nil {
+			return nil, NewXRError("resources_only", g.XID,
+				"name="+attrName)
+		}
+	}
+
+	rootMap, xErr := IncomingObj2Map(rootObj, "Resource")
+	if xErr != nil {
+		return nil, xErr.SetSubject("/").
+			SetTitle("Request must be a map of Resource types.")
+	}
+
+	for rType, rAny := range rootMap {
+		rMap, xErr := IncomingObj2Map(rAny, "Resource")
+		if xErr != nil {
+			return nil, xErr.SetSubject(g.XID)
+		}
+
+		// Make sure we include empty resourceTypes in the result
+		resources[rType] = []*Resource{}
+
+		for id, obj := range rMap {
+			r, _, xErr := g.UpsertResource(&ResourceUpsert{
+				RType:            rType,
+				Id:               id,
+				VID:              "",
+				Obj:              obj,
+				AddType:          addType,
+				ObjIsVer:         false,
+				DefaultVersionID: "",
+			})
+			if xErr != nil {
+				return nil, xErr
+			}
+			resources[rType] = append(resources[rType], r)
+		}
+	}
+
+	return resources, nil
 }

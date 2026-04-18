@@ -982,3 +982,78 @@ func TestVersionOrdering2(t *testing.T) {
 }
 `})
 }
+
+func TestVersionExtensions(t *testing.T) {
+	reg := NewRegistry("TestVersionExtensions")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err := rm.AddAttribute(&registry.Attribute{
+		Name: "*",
+		Type: ANY,
+	})
+	XNoErr(t, err)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
+      "meta": "ads"
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"meta\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: meta.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: meta",
+    "name": "meta"
+  },
+  "source": "a3d56ce41e09:registry:entity:2236"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
+      "metaurl": {}
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"metaurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: metaurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: metaurl",
+    "name": "metaurl"
+  },
+  "source": "a3d56ce41e09:registry:entity:2236"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+     "v1": {
+       "metaurl": {}
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"metaurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: metaurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: metaurl",
+    "name": "metaurl"
+  },
+  "source": "a3d56ce41e09:registry:entity:2236"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+     "versions": {
+       "v1": {
+         "metaurl": {}
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"metaurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: metaurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: metaurl",
+    "name": "metaurl"
+  },
+  "source": "a3d56ce41e09:registry:entity:2236"
+}
+`)
+}

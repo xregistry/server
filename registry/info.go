@@ -440,7 +440,7 @@ func (info *RequestInfo) ParseRequestURL() *XRError {
 	// use GetFlagValues instead of GetFlag
 	info.Flags = map[string]string{}
 	params := info.OriginalRequest.URL.Query()
-	for _, flag := range AllowableFlags {
+	for _, flag := range SupportedFlags {
 		val, ok := params[flag]
 		if ok {
 			info.Flags[flag] = val[0]

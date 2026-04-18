@@ -52,24 +52,9 @@ type Offered struct {
 	VersionModes    OfferedCapability `json:"versionmodes,omitempty"`
 }
 
-var AllowableAPIs = ArrayToLower([]string{
+var SupportedAPIs = ArrayToLower([]string{
 	"/capabilities", "/capabilitiesoffered", "/export",
 	"/model", "/modelsource"})
-
-var AllowableFlags = ArrayToLower([]string{
-	"binary", "collections", "doc", "epoch", "filter", "ignore", "inline",
-	"setdefaultversionid", "sort", "specversion"})
-
-var AllowableIgnores = ArrayToLower([]string{
-	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
-	"modelsource", "readonly"})
-
-var AllowableMutable = ArrayToLower([]string{
-	"capabilities", "entities", "model"})
-
-var AllowableSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
-
-var AllowableVersionModes = ArrayToLower([]string{"manual", "createdat"})
 
 var SupportedCompatibilities = map[string][]string{}
 
@@ -83,36 +68,54 @@ var SupportedIgnores = ArrayToLower([]string{
 	"capabilities", "defaultversionid", "defaultversionsticky", "epoch", "id",
 	"modelsource", "readonly"})
 
+var SupportedMutable = ArrayToLower([]string{
+	"capabilities", "entities", "model"})
+
+var SupportedSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
+
+var SupportedVersionModes = ArrayToLower([]string{"manual", "createdat"})
+
 var DefaultCapabilities = &Capabilities{
-	APIs:            AllowableAPIs,
+	APIs:            SupportedAPIs,
 	Compatibilities: SupportedCompatibilities,
 	Flags:           SupportedFlags,
 	Formats:         SupportedFormats,
 	Ignores:         SupportedIgnores,
-	Mutable:         AllowableMutable,
+	Mutable:         SupportedMutable,
 	Pagination:      false,
 	ShortSelf:       false,
-	SpecVersions:    AllowableSpecVersions,
+	SpecVersions:    SupportedSpecVersions,
 	StickyVersions:  PtrBool(true),
-	VersionModes:    AllowableVersionModes,
+	VersionModes:    SupportedVersionModes,
+}
+
+func AddSupportedFormat(format string, compats []string) {
+	PanicIf(format == "", "Can't be empty")
+
+	SupportedFormats = append(SupportedFormats, format)
+	sort.Strings(SupportedFormats)
+	DefaultCapabilities.Formats = SupportedFormats
+
+	if len(compats) != 0 {
+		sort.Strings(compats)
+		SupportedCompatibilities[format] = compats
+	}
+
+	Must(DefaultCapabilities.Validate())
 }
 
 func init() {
-	sort.Strings(AllowableAPIs)
-	sort.Strings(AllowableFlags)
-	sort.Strings(AllowableIgnores)
-	sort.Strings(AllowableMutable)
-	sort.Strings(AllowableSpecVersions)
-	sort.Strings(AllowableVersionModes)
-
-	for format, compats := range SupportedCompatibilities {
-		sort.Strings(compats)
-		// Not 100% sure we need to store it back
-		SupportedCompatibilities[format] = compats
-	}
+	sort.Strings(SupportedAPIs)
 	sort.Strings(SupportedFlags)
 	sort.Strings(SupportedFormats)
 	sort.Strings(SupportedIgnores)
+	sort.Strings(SupportedMutable)
+	sort.Strings(SupportedSpecVersions)
+	sort.Strings(SupportedVersionModes)
+
+	for _, compats := range SupportedCompatibilities {
+		sort.Strings(compats)
+	}
 
 	Must(DefaultCapabilities.Validate())
 }
@@ -134,7 +137,7 @@ func GetOffered() *Offered {
 			Item: &OfferedItem{
 				Type: "string",
 			},
-			Enum: String2AnySlice(AllowableAPIs),
+			Enum: String2AnySlice(SupportedAPIs),
 		},
 		Compatibilities: OfferedCapability{
 			Type: "map",
@@ -166,7 +169,7 @@ func GetOffered() *Offered {
 		},
 		Mutable: OfferedCapability{
 			Type: "string",
-			Enum: String2AnySlice(AllowableMutable),
+			Enum: String2AnySlice(SupportedMutable),
 		},
 		Pagination: OfferedCapability{
 			Type: "boolean",
@@ -181,7 +184,7 @@ func GetOffered() *Offered {
 			Item: &OfferedItem{
 				Type: "string",
 			},
-			Enum: String2AnySlice(AllowableSpecVersions),
+			Enum: String2AnySlice(SupportedSpecVersions),
 		},
 		StickyVersions: OfferedCapability{
 			Type: "boolean",
@@ -192,7 +195,7 @@ func GetOffered() *Offered {
 			Item: &OfferedItem{
 				Type: "string",
 			},
-			Enum: String2AnySlice(AllowableVersionModes),
+			Enum: String2AnySlice(SupportedVersionModes),
 		},
 	}
 
@@ -257,7 +260,7 @@ func CleanArray(arr []string, full []string, text string) ([]string, *XRError) {
 func (c *Capabilities) Validate() *XRError {
 	var xErr *XRError
 
-	c.APIs, xErr = CleanArray(c.APIs, AllowableAPIs, "apis")
+	c.APIs, xErr = CleanArray(c.APIs, SupportedAPIs, "apis")
 	if xErr != nil {
 		return xErr
 	}
@@ -268,7 +271,7 @@ func (c *Capabilities) Validate() *XRError {
 	for format, compats := range c.Compatibilities {
 		if !ArrayContainsAnyCase(c.Formats, format) {
 			return NewXRError("capability_value", "/capabilities",
-				"name=compatibilities",
+				"field=compatibilities",
 				"value="+format,
 				"list="+strings.Join(c.Formats, ","))
 		}
@@ -281,7 +284,7 @@ func (c *Capabilities) Validate() *XRError {
 		}
 	}
 
-	c.Flags, xErr = CleanArray(c.Flags, AllowableFlags, "flags")
+	c.Flags, xErr = CleanArray(c.Flags, SupportedFlags, "flags")
 	if xErr != nil {
 		return xErr
 	}
@@ -299,12 +302,12 @@ func (c *Capabilities) Validate() *XRError {
 		}
 	}
 
-	c.Ignores, xErr = CleanArray(c.Ignores, AllowableIgnores, "ignores")
+	c.Ignores, xErr = CleanArray(c.Ignores, SupportedIgnores, "ignores")
 	if xErr != nil {
 		return xErr
 	}
 
-	c.Mutable, xErr = CleanArray(c.Mutable, AllowableMutable, "mutable")
+	c.Mutable, xErr = CleanArray(c.Mutable, SupportedMutable, "mutable")
 	if xErr != nil {
 		return xErr
 	}
@@ -327,7 +330,7 @@ func (c *Capabilities) Validate() *XRError {
 		c.SpecVersions = []string{SPECVERSION}
 	}
 
-	c.SpecVersions, xErr = CleanArray(c.SpecVersions, AllowableSpecVersions,
+	c.SpecVersions, xErr = CleanArray(c.SpecVersions, SupportedSpecVersions,
 		"specversions")
 	if xErr != nil {
 		return xErr
@@ -347,7 +350,7 @@ func (c *Capabilities) Validate() *XRError {
 		c.VersionModes = []string{VERSIONMODE}
 	}
 
-	c.VersionModes, xErr = CleanArray(c.VersionModes, AllowableVersionModes,
+	c.VersionModes, xErr = CleanArray(c.VersionModes, SupportedVersionModes,
 		"versionmodes")
 	if xErr != nil {
 		return xErr
@@ -412,5 +415,14 @@ func (c *Capabilities) StickyVersionsEnabled() bool {
 }
 
 func (c *Capabilities) VersionModeEnabled(str string) bool {
-	return ArrayContains(c.VersionModes, strings.ToLower(str))
+	return ArrayContainsAnyCase(c.VersionModes, strings.ToLower(str))
+}
+
+func (c *Capabilities) FormatEnabled(str string) bool {
+	return ArrayContainsAnyCase(c.Formats, str)
+}
+
+func (c *Capabilities) CompatibilityEnabled(format, compat string) bool {
+	compatibilities, ok := c.Compatibilities[format]
+	return ok && ArrayContainsAnyCase(compatibilities, compat)
 }

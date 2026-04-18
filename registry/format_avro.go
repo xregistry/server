@@ -83,7 +83,7 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-const AVRO_FORMAT = "avro.*"
+const AVRO_FORMAT = "avro*"
 
 func init() {
 	RegisterFormat(AVRO_FORMAT, FormatAvro{})

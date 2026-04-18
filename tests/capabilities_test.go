@@ -28,7 +28,48 @@ func TestCapabilitySimple(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -41,7 +82,13 @@ func TestCapabilitySimple(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -86,7 +133,48 @@ func TestCapabilitySimple(t *testing.T) {
       "/model",
       "/modelsource"
     ],
-    "compatibilities": {},
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
     "flags": [
       "binary",
       "collections",
@@ -99,7 +187,13 @@ func TestCapabilitySimple(t *testing.T) {
       "sort",
       "specversion"
     ],
-    "formats": [],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
     "ignores": [
       "capabilities",
       "defaultversionid",
@@ -380,7 +474,48 @@ func TestCapabilityPath(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -393,7 +528,13 @@ func TestCapabilityPath(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -589,12 +730,59 @@ func TestCapabilityPath(t *testing.T) {
   "apis": [
     "/capabilities", "/capabilitiesoffered", "/export", "/model", "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
     "setdefaultversionid", "sort", "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
     "epoch", "id", "modelsource", "readonly" ],
   "mutable": [ "capabilities", "entities", "model" ],
@@ -612,7 +800,48 @@ func TestCapabilityPath(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -625,7 +854,13 @@ func TestCapabilityPath(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -661,7 +896,48 @@ func TestCapabilityPath(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -674,7 +950,13 @@ func TestCapabilityPath(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -942,12 +1224,59 @@ func TestCapabilityAttr(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
   "apis": ["/export", "/model", "/modelsource", "/capabilities",
     "/capabilitiesoffered"],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary", "collections", "doc", "epoch", "filter", "inline", "ignore",
     "setdefaultversionid", "sort", "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
     "id", "modelsource", "readonly"
@@ -978,7 +1307,48 @@ func TestCapabilityAttr(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -991,7 +1361,13 @@ func TestCapabilityAttr(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -1263,6 +1639,48 @@ func TestCapabilityOffered(t *testing.T) {
     "type": "map",
     "item": {
       "type": "string"
+    },
+    "options": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
     }
   },
   "flags": {
@@ -1287,7 +1705,14 @@ func TestCapabilityOffered(t *testing.T) {
     "type": "array",
     "item": {
       "type": "string"
-    }
+    },
+    "enum": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ]
   },
   "ignores": {
     "type": "array",
@@ -1564,7 +1989,48 @@ func TestCapabilityAPIs(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "binary",
     "collections",
@@ -1577,7 +2043,13 @@ func TestCapabilityAPIs(t *testing.T) {
     "sort",
     "specversion"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",
@@ -1623,11 +2095,58 @@ func TestCapabilityPatch(t *testing.T) {
     "/model",
     "/modelsource"
   ],
-  "compatibilities": {},
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
   "flags": [
     "inline"
   ],
-  "formats": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
   "ignores": [
     "capabilities",
     "defaultversionid",

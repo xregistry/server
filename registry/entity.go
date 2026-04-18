@@ -284,8 +284,9 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             e.Path as Path,
             e.Abstract as Abstract
         FROM Entities AS e
-        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID)
-        WHERE e.RegSID=? AND e.Path`+caseExpr+`=? ORDER BY Path`,
+        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
+        WHERE e.RegSID=? AND e.Path`+caseExpr+`=?
+        ORDER BY Path`,
 		regID, path)
 	defer results.Close()
 
@@ -359,7 +360,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             e.Path as Path,
             e.Abstract as Abstract
         FROM Entities AS e
-        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID)
+        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
         WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
 	defer results.Close()
 
@@ -391,7 +392,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 
 	results := Query(e.tx, `
         SELECT PropName, PropValue, PropType
-        FROM Props WHERE EntitySID=?`+mode, e.DbSID)
+        FROM Props WHERE EntitySID=? AND SystemProp=false`+mode, e.DbSID)
 	defer results.Close()
 
 	// Erase all old props first
@@ -629,7 +630,8 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 
 	if IsNil(val) {
 		// Should never need this but keeping it just in case
-		Do(e.tx, `DELETE FROM Props WHERE EntitySID=? and PropName=?`,
+		Do(e.tx, `DELETE FROM Props
+                  WHERE EntitySID=? AND PropName=? AND SystemProp=false`,
 			e.DbSID, name)
 	} else {
 		propType := GoToOurType(val)
@@ -679,8 +681,9 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 
 		DoOneTwo(e.tx, `
             REPLACE INTO Props(
-              RegistrySID,EntitySID,eType,PropName,PropValue,PropType,DocView)
-            VALUES( ?,?,?,?,?,?,? )`,
+              RegistrySID, EntitySID, eType, PropName, PropValue, PropType,
+              DocView, SystemProp)
+            VALUES( ?,?,?,?,?,?,?,false )`,
 			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType, docView)
 	}
 
@@ -688,21 +691,19 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 }
 
 // Clears system prop for all versions of this resource
-func (e *Entity) ClearResourceSystemDBProperty(propName string) *XRError {
-	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%s)", propName)
+func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) *XRError {
+	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%s)", pp.UI())
 	defer log.VPrintf(3, "<Exit ClearResourceSystemDBProperties")
 
 	r, ok := e.Self.(*Resource)
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
-
-	propName = NewPPP(propName).DB()
 
 	Do(e.tx, `DELETE FROM Props AS p
               WHERE p.RegistrySID=? AND p.EntitySID IN (
                   SELECT v.SID FROM Versions AS v
                   WHERE v.RegistrySID=p.RegistrySID AND v.ResourceSID=?
               ) AND p.PropName=? AND p.SystemProp=true`,
-		e.Registry.DbSID, r.DbSID, propName)
+		e.Registry.DbSID, r.DbSID, pp.DB())
 
 	return nil
 }
@@ -2224,6 +2225,22 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			keys = []string{attr.Name}
 		} else {
 			keys = SortedKeys(objKeys) // no need to be sorted, just grab keys
+
+			// However, look for extensions in Versions that might overlap
+			// with Resource attribute, like "meta"
+			if path.Len() == 0 && e.Type == ENTITY_VERSION {
+				for _, key := range keys {
+					prop := SpecProps[key]
+					if prop != nil {
+						if prop.InOnlyType(ENTITY_RESOURCE) {
+							return NewXRError("invalid_attribute", e.XID,
+								"name="+path.P(key).UI(),
+								"error_detail=Versions can't define an "+
+									"extension called: "+key)
+						}
+					}
+				}
+			}
 		}
 
 		// For each attribute (key) in newObj, check its type

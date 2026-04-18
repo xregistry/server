@@ -4346,6 +4346,25 @@ func TestHTTPRegGroups(t *testing.T) {
 `,
 	})
 
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:       "POST / - err - bad group",
+		URL:        "/",
+		Method:     "POST",
+		ReqBody:    `{"dirs": { "d":"b" } }`,
+		Code:       400,
+		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"d\" must be a \"Group\".",
+  "subject": "/dirs",
+  "args": {
+    "error_detail": "Value of \"d\" must be a \"Group\""
+  },
+  "source": "a3d56ce41e09:common:utils:769"
+}
+`,
+	})
+
 	// Make sure nothing changed at the registry level
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "GET /",

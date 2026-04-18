@@ -123,7 +123,7 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-const JSON_FORMAT = "jsonschema.*"
+const JSON_FORMAT = "jsonschema*"
 
 func init() {
 	RegisterFormat(JSON_FORMAT, FormatJson{})

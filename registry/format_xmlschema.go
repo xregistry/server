@@ -135,7 +135,7 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-const XMLSCHEMA_FORMAT = "xmlschema.*"
+const XMLSCHEMA_FORMAT = "xmlschema*"
 
 const xmlSchemaNS = "http://www.w3.org/2001/XMLSchema"
 

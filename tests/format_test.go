@@ -227,7 +227,6 @@ func TestFormatSimple(t *testing.T) {
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: bad-format",
 			"xRegistry-formatvalidated: false, unknown format",
-			"xRegistry-compatibilityvalidated: false, unknown format",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f2/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f2/versions",
 			"xRegistry-versionscount: 1",
@@ -637,12 +636,13 @@ func TestFormatCompatSimple(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#compatibility_unknown",
-  "title": "The compatibility value (unknown) on Resource \"/dirs/d1/files/f1/meta\" is not supported.",
+  "title": "The compatibility value (unknown) on Resource \"/dirs/d1/files/f1/meta\" is not supported for format \"numbers\".",
   "subject": "/dirs/d1/files/f1/meta",
   "args": {
-    "compat": "unknown"
+    "compat": "unknown",
+    "format": "numbers"
   },
-  "source": "79ab0198e6b4:registry:resource:1944"
+  "source": "a3d56ce41e09:registry:resource:1854"
 }
 `,
 	})
@@ -869,7 +869,8 @@ func TestFormatCompatVariants(t *testing.T) {
     "file":  "1"}`, 201, `*`)
 
 	// Create valid v2
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2/versions/v2$details", `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{
+    "versionid": "v2",
     "meta": { "compatibility": "backward"},
     "format":"NuMBers",
     "file":  "2"}`, 201, `*`)
@@ -1571,10 +1572,10 @@ func TestFormatNotStrictNumbers(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema.*\".",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema*\".",
   "subject": "/dirs/d1/files/f2/versions/v1",
   "args": {
-    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema.*\""
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"nuMBers\", was expecting \"jsonschema*\""
   },
   "source": "79ab0198e6b4:registry:format_jsonschema:137"
 }
@@ -2114,10 +2115,10 @@ func TestFormatNotStrictAvro(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema.*\".",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema*\".",
   "subject": "/dirs/d1/files/f2/versions/v1",
   "args": {
-    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema.*\""
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"aVRo\", was expecting \"jsonschema*\""
   },
   "source": "79ab0198e6b4:registry:format_jsonschema:137"
 }
@@ -2657,10 +2658,10 @@ func TestFormatNotStrictJson(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro.*\".",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro*\".",
   "subject": "/dirs/d1/files/f2/versions/v1",
   "args": {
-    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro.*\""
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"jSONschema\", was expecting \"avro*\""
   },
   "source": "79ab0198e6b4:registry:format_jsonschema:137"
 }
@@ -3200,10 +3201,10 @@ func TestFormatNotStrictProtobuf(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro.*\".",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro*\".",
   "subject": "/dirs/d1/files/f2/versions/v1",
   "args": {
-    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro.*\""
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"protoBUF\", was expecting \"avro*\""
   },
   "source": "79ab0198e6b4:registry:format_protobuf:137"
 }
@@ -3745,10 +3746,10 @@ func TestFormatNotStrictXMLSchema(t *testing.T) {
   }
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro.*\".",
+  "title": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro*\".",
   "subject": "/dirs/d1/files/f2/versions/v1",
   "args": {
-    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro.*\""
+    "error_detail": "Version \"/dirs/d1/files/f2/versions/v1\" has a \"format\" value of \"xmlSCHEMA\", was expecting \"avro*\""
   },
   "source": "79ab0198e6b4:registry:format_xmlschema:137"
 }
@@ -3777,6 +3778,207 @@ func TestFormatNotStrictXMLSchema(t *testing.T) {
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 1
+}
+`)
+
+}
+
+func TestFormatCompatModes(t *testing.T) {
+	reg := NewRegistry("TestFormatCompatModes")
+	defer PassDeleteReg(t, reg)
+
+	model := registry.Model{}
+	gm, xErr := model.AddGroupModel("dirs", "dir")
+	XNoErr(t, xErr)
+	rm, xErr := gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, xErr)
+
+	rm.SetValidateFormat(true)
+	rm.SetValidateCompatibility(true)
+	rm.SetStrictValidation(true)
+	rm.SetConsistentFormat(true)
+
+	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
+		200, `*`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "forward" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "1"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "2"
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#compatibility_violation",
+  "title": "The request would cause one or more Versions of \"/dirs/d1/files/f1\" to violate its compatibility rule (forward).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/v1\" (sum: 1) isn't \"forward\" compatible with \"/dirs/d1/files/f1/versions/v2\" (sum: 2).",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "compat": "forward"
+  },
+  "source": "a3d56ce41e09:registry:format_numbers:109"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "forward" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "1"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "1"
+        }
+      }
+    }`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-04-16T17:12:38.231940065Z",
+  "modifiedat": "2026-04-16T17:12:38.231940065Z",
+  "ancestor": "v1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": "true",
+  "compatibilityvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+        "v1": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "2"
+        },
+        "v3": {
+          "format": "numbers",
+          "file": "1"
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+        "meta": { "compatibility": "full" }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#compatibility_violation",
+  "title": "The request would cause one or more Versions of \"/dirs/d1/files/f1\" to violate its compatibility rule (full).",
+  "detail": "Version \"/dirs/d1/files/f1/versions/v2\" (sum: 2) isn't \"full\" compatible with \"/dirs/d1/files/f1/versions/v1\" (sum: 3).",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "compat": "full"
+  },
+  "source": "a3d56ce41e09:registry:format_numbers:109"
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "full" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v3": {
+          "format": "numbers",
+          "file": "3"
+        }
+      }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "backward_transitive" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "4"
+        },
+        "v3": {
+          "format": "numbers",
+          "file": "4"
+        }
+      }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "backward_transitive" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "4"
+        },
+        "v3": {
+          "format": "numbers",
+          "file": "2"
+        }
+      }
+    }`, 400, `*`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": "full_transitive" },
+      "versions": {
+        "v1": {
+          "format": "numbers",
+          "file": "3"
+        },
+        "v2": {
+          "format": "numbers",
+          "file": "1\n1\n1"
+        },
+        "v3": {
+          "format": "numbers",
+          "file": "2\n0\n1"
+        }
+      }
+    }`, 200, `*`)
+
+	// compatvalidated should be removed
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{
+      "meta": { "compatibility": null }
+    }`, 200, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 5,
+  "isdefault": true,
+  "createdat": "2026-04-16T17:27:32.182487206Z",
+  "modifiedat": "2026-04-16T17:27:32.523524772Z",
+  "ancestor": "v2",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": "true",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
 }
 `)
 

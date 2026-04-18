@@ -758,7 +758,7 @@ func ResetMap[M ~map[K]V, K comparable, V any](m M, key K, oldVal V) {
 
 type Object map[string]any
 
-func IncomingObj2Map(incomingObj Object) (map[string]Object, *XRError) {
+func IncomingObj2Map(incomingObj Object, daType string) (map[string]Object, *XRError) {
 	result := map[string]Object{}
 	for id, obj := range incomingObj {
 		oV := reflect.ValueOf(obj)
@@ -768,8 +768,8 @@ func IncomingObj2Map(incomingObj Object) (map[string]Object, *XRError) {
 			return nil,
 				NewXRError("bad_request", "",
 					"error_detail="+
-						fmt.Sprintf("body must be a map of id->Entity, near %q",
-							id))
+						fmt.Sprintf("Value of %q must be a %q",
+							id, daType))
 		}
 		newObj := Object{}
 		for _, keyVal := range oV.MapKeys() {
@@ -782,6 +782,7 @@ func IncomingObj2Map(incomingObj Object) (map[string]Object, *XRError) {
 	return result, nil
 }
 
+// Basically strcmp but allows for "*" wildcards in the pattern
 func Match(pattern string, str string) bool {
 	ip, is := 0, 0                   // index of pattern or string
 	lp, ls := len(pattern), len(str) // len of pattern or string

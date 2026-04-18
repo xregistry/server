@@ -657,127 +657,142 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 
 	repoURL := "https://api.github.com/repos/xregistry/spec"
 	samplesDirURL := repoURL + "/contents/cloudevents/samples/scenarios"
-	res, err := http.Get(samplesDirURL)
+	local := os.Getenv("XR_SPEC") + "/cloudevents/samples/scenarios"
 
-	body := []byte{}
-	if res != nil {
-		body, _ = io.ReadAll(res.Body)
-		res.Body.Close()
-	}
-
-	if err != nil {
-		Verbose("  - Error loading samples dir: %s", err)
-	} else if res.StatusCode != 200 {
-		Verbose("  - Error loading samples dir: %s\n%s", res.Status, string(body))
-	}
-
-	if err != nil || res.StatusCode != 200 {
-		Verbose("  - Loading fake data instead")
-
-		// Endpoints
-		g, xErr := reg.AddGroupWithObject("endpoints", "e1", common.Object{
-			"usage": []string{"producer"},
-		})
-		ErrFatalf(xErr)
-
-		r, xErr := g.AddResource("messages", "blobCreated", "v1")
-		ErrFatalf(xErr)
-
-		r, xErr = g.AddResource("messages", "blobDeleted", "v1.0")
-		ErrFatalf(xErr)
-
-		g, xErr = reg.AddGroupWithObject("endpoints", "e2", common.Object{
-			"usage": []string{"consumer"},
-		})
-		ErrFatalf(xErr)
-		r, xErr = g.AddResource("messages", "popped", "v1.0")
-		ErrFatalf(xErr)
-
-		// Schemas
-		g, xErr = reg.AddGroupWithObject("schemagroups", "sg1", common.Object{
-			"docformat": "text",
-		})
-		ErrFatalf(xErr)
-		r, xErr = g.AddResourceWithObject("schemas", "popped", "v1.0",
-			common.Object{"docformat": "text"}, false)
-		ErrFatalf(xErr)
-		_, xErr = r.AddVersionWithObject("v2.0", common.Object{
-			"docformat": "text",
-		})
-		ErrFatalf(xErr)
-	} else {
-		files := []struct {
-			Name        string `json:"name"`
-			DownloadURL string `json:"download_url"`
-			Type        string `json:"type"`
-		}{}
-
-		err = json.Unmarshal(body, &files)
+	// Load samples from local dir
+	if fs, err := os.Stat(local); local != "" && err == nil && fs.IsDir() {
+		files, err := os.ReadDir(local)
 		ErrFatalf(err)
-
 		for _, file := range files {
-			if !strings.HasSuffix(file.Name, "xreg.json") {
+			fileName := local + "/" + file.Name()
+			if !strings.HasSuffix(fileName, ".xreg.json") {
 				continue
 			}
-			// Verbose("  - %s", file.Name)
-			res, err := http.Get(file.DownloadURL)
+
+			buf, err := os.ReadFile(fileName)
 			ErrFatalf(err)
-			if res.StatusCode != 200 {
-				ErrFatalf(fmt.Errorf(""), "Error downloading sample %q: %s",
-					file.Name, res.Status)
+
+			IncomingObj := map[string]any{}
+			err = Unmarshal(buf, &IncomingObj)
+			if err != nil {
+				ErrFatalf(NewXRError("parsing_data", fileName,
+					"error_detail="+err.Error()))
 			}
 
-			// TODO create an import() func so we can just call it instead of
-			// doing an HTTP call
+			_, xErr = reg.UpsertJustGroups(IncomingObj, registry.ADD_UPDATE)
+			if xErr != nil {
+				log.Printf("From: %s", fileName)
+				// log.Printf("Input:\n%s", ToJSON(IncomingObj))
+			}
+			ErrFatalf(xErr)
+		}
+	} else {
+		res, err := http.Get(samplesDirURL)
+
+		body := []byte{}
+		if res != nil {
 			body, _ = io.ReadAll(res.Body)
 			res.Body.Close()
+		}
 
-			r := &http.Request{
-				Method: "POST",
-				URL: &url.URL{
-					Scheme:  "http",
-					Host:    "localhost:8181",
-					Path:    "",
-					RawPath: "",
-				},
-			}
-			info := &registry.RequestInfo{
-				OriginalPath:    r.URL.Path, // path,
-				OriginalRequest: r,          // not sure this is the best option
-				Registry:        reg,
-				BaseURL:         r.URL.String(),
-			}
+		if err != nil {
+			Verbose("  - Error loading samples dir: %s", err)
+		} else if res.StatusCode != 200 {
+			Verbose("  - Error loading samples dir: %s\n%s", res.Status,
+				string(body))
+		}
 
-			if reg != nil && reg.Model != nil {
-				ErrFatalf(info.ParseRequestURL())
-			}
+		if err != nil || res.StatusCode != 200 {
+			Verbose("  - Loading fake data instead")
 
-			// Error on anything but a group type
-			IncomingObj, xErr := registry.ExtractIncomingObject(info, body)
+			// Endpoints
+			g, xErr := reg.AddGroupWithObject("endpoints", "e1", common.Object{
+				"usage": []string{"producer"},
+			})
 			ErrFatalf(xErr)
-			for key, _ := range IncomingObj {
-				if reg.Model.FindGroupModel(key) == nil {
-					ErrFatalf(fmt.Errorf("  - POST / only allows Group "+
-						"types to be specified. %q is invalid", key))
+
+			r, xErr := g.AddResource("messages", "blobCreated", "v1")
+			ErrFatalf(xErr)
+
+			r, xErr = g.AddResource("messages", "blobDeleted", "v1.0")
+			ErrFatalf(xErr)
+
+			g, xErr = reg.AddGroupWithObject("endpoints", "e2", common.Object{
+				"usage": []string{"consumer"},
+			})
+			ErrFatalf(xErr)
+			r, xErr = g.AddResource("messages", "popped", "v1.0")
+			ErrFatalf(xErr)
+
+			// Schemas
+			g, xErr = reg.AddGroupWithObject("schemagroups", "sg1",
+				common.Object{
+					"docformat": "text",
+				})
+			ErrFatalf(xErr)
+			r, xErr = g.AddResourceWithObject("schemas", "popped", "v1.0",
+				common.Object{"docformat": "text"}, false)
+			ErrFatalf(xErr)
+			_, xErr = r.AddVersionWithObject("v2.0", common.Object{
+				"docformat": "text",
+			})
+			ErrFatalf(xErr)
+		} else {
+			files := []struct {
+				Name        string `json:"name"`
+				DownloadURL string `json:"download_url"`
+				Type        string `json:"type"`
+			}{}
+
+			err = json.Unmarshal(body, &files)
+			ErrFatalf(err)
+
+			for _, file := range files {
+				if !strings.HasSuffix(file.Name, "xreg.json") {
+					continue
 				}
-			}
+				// Verbose("  - %s", file.Name)
+				res, err := http.Get(file.DownloadURL)
+				ErrFatalf(err)
+				if res.StatusCode != 200 {
+					ErrFatalf(fmt.Errorf(""), "Error downloading sample %q: %s",
+						file.Name, res.Status)
+				}
 
-			objMap, xErr := IncomingObj2Map(IncomingObj)
-			ErrFatalf(xErr)
+				// TODO create import() func so we can just call it instead of
+				// doing an HTTP call
+				body, _ = io.ReadAll(res.Body)
+				res.Body.Close()
 
-			for gType, gAny := range objMap {
-				gMap, xErr := IncomingObj2Map(gAny)
+				r := &http.Request{
+					Method: "POST",
+					URL: &url.URL{
+						Scheme:  "http",
+						Host:    "localhost:8181",
+						Path:    "",
+						RawPath: "",
+					},
+				}
+				info := &registry.RequestInfo{
+					OriginalPath:    r.URL.Path, // path,
+					OriginalRequest: r,          // not sure this is best option
+					Registry:        reg,
+					BaseURL:         r.URL.String(),
+				}
+
+				if reg != nil && reg.Model != nil {
+					ErrFatalf(info.ParseRequestURL())
+				}
+
+				IncomingObj, xErr := registry.ExtractIncomingObject(info, body)
 				ErrFatalf(xErr)
-
-				for id, obj := range gMap {
-					_, _, xErr := info.Registry.UpsertGroupWithObject(gType,
-						id, obj, registry.ADD_UPDATE)
-					if xErr != nil {
-						log.Printf("From: %s", file.DownloadURL)
-						log.Printf("Input:\n%s", ToJSON(obj))
-					}
-					ErrFatalf(xErr, "Error: %s", xErr)
+				_, xErr = info.Registry.UpsertJustGroups(IncomingObj,
+					registry.ADD_UPDATE)
+				if xErr != nil {
+					log.Printf("From: %s", file.DownloadURL)
+					// log.Printf("Input:\n%s", ToJSON(IncomingObj))
 				}
+				ErrFatalf(xErr)
 			}
 		}
 	}

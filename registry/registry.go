@@ -789,6 +789,55 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	return g, isNew, nil
 }
 
+// Returns a map of groupType->*Group
+func (reg *Registry) UpsertJustGroups(rootObj Object, addType AddType) (map[string][]*Group, *XRError) {
+	log.VPrintf(3, ">Enter UpsertJustGroups()")
+	defer log.VPrintf(3, "<Exit UpsertJustGroups")
+
+	groups := map[string][]*Group{}
+
+	// Just for nicer error msg than what IncomingObj2Map would produce
+	for attrName, _ := range rootObj {
+		if reg.Model.FindGroupModel(attrName) == nil {
+			return nil, NewXRError("groups_only", "/", "name="+attrName)
+		}
+	}
+
+	rootMap, xErr := IncomingObj2Map(rootObj, "Group")
+	if xErr != nil {
+		return nil, xErr.SetSubject("/").
+			SetTitle("Request must be a map of Group types.")
+	}
+
+	// rootMap is map[groupType]group
+	for gType, gAny := range rootMap {
+		/*
+			if reg.Model.FindGroupModel(gType) == nil {
+				return nil, NewXRError("groups_only", "/", "name="+gType)
+			}
+		*/
+
+		gMap, xErr := IncomingObj2Map(gAny, "Group")
+		if xErr != nil {
+			return nil, xErr.SetSubject(gType)
+		}
+
+		// Make sure we include empty groupTypes in the result
+		groups[gType] = []*Group{}
+
+		// gMap is maps[gID]group
+		for id, gObj := range gMap {
+			g, _, xErr := reg.UpsertGroupWithObject(gType, id, gObj, addType)
+			if xErr != nil {
+				return nil, xErr
+			}
+			groups[gType] = append(groups[gType], g)
+		}
+	}
+
+	return groups, nil
+}
+
 // sortKey = attribute name, -NAME means descending, no "-" means ascending
 func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*FilterExpr, docView bool, sortKey string) (string, []interface{}, *XRError) {
 	query := ""

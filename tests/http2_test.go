@@ -6056,6 +6056,29 @@ func TestHTTPGroupResources(t *testing.T) {
 }
 `)
 
+	// Errors
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"description":"","files":{}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#resources_only",
+  "title": "Attribute \"description\" is invalid. Only Resource types are allowed to be specified on this request: /dirs/d1.",
+  "subject": "/dirs/d1",
+  "args": {
+    "name": "description"
+  },
+  "source": "a3d56ce41e09:registry:group:640"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1", `{"files":{"f":"b"}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
+  "title": "Value of \"f\" must be a \"Resource\".",
+  "subject": "/dirs/d1",
+  "args": {
+    "error_detail": "Value of \"f\" must be a \"Resource\""
+  },
+  "source": "a3d56ce41e09:common:utils:769"
+}
+`)
+
 }
 
 func TestHTTPNestedRegistry(t *testing.T) {

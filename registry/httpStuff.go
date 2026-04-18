@@ -1987,51 +1987,26 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		// Must be POST /    + body:map[GROUPS]map[id]Group
 
-		// Error on anything but a group type
-		for key, _ := range IncomingObj {
-			if info.Registry.Model.FindGroupModel(key) == nil {
-				return NewXRError("groups_only", "/"+info.OriginalPath,
-					"name="+key)
-			}
-		}
-
-		objMap, xErr := IncomingObj2Map(IncomingObj)
+		newGs, xErr := info.Registry.UpsertJustGroups(IncomingObj, ADD_UPDATE)
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(0)).SetTitle(
-				"body must be a map of Group types")
+			return xErr
 		}
 
 		resPaths := map[string][]string{}
-		for gType, gAny := range objMap {
-			// Should be caught above, but just in case
-			if info.Registry.Model.Groups[gType] == nil {
-				return NewXRError("not_found", "/"+gType).
-					SetDetailf("Unknown Group type: %s.", gType)
-			}
-
-			gMap, xErr := IncomingObj2Map(gAny)
-			if xErr != nil {
-				return xErr.SetSubject(info.GetParts(0))
-			}
-
-			for id, obj := range gMap {
-				g, _, xErr := info.Registry.UpsertGroupWithObject(gType,
-					id, obj, ADD_UPDATE)
-				if xErr != nil {
-					return xErr
-				}
-				resPaths[gType] = append(resPaths[gType], g.Path)
-			}
-
-			if len(resPaths[gType]) == 0 {
-				// Force an empty collection to be returned
-				resPaths[gType] = []string{"!"}
-			}
-		}
-
 		// Special case - if req is {} then make response {}
-		if len(objMap) == 0 {
+		if len(newGs) == 0 {
 			resPaths = map[string][]string{"": []string{"!"}}
+		} else {
+			for gType, groups := range newGs {
+				resPaths[gType] = []string{}
+				for _, g := range groups {
+					resPaths[gType] = append(resPaths[gType], g.Path)
+				}
+				if len(resPaths[gType]) == 0 {
+					// Force an empty collection to be returned
+					resPaths[gType] = []string{"!"}
+				}
+			}
 		}
 
 		// Return HTTP GET of Groups created or updated
@@ -2046,7 +2021,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if numParts == 1 {
 		// POST /GROUPs + body:map[id]Group
 
-		objMap, xErr := IncomingObj2Map(IncomingObj)
+		objMap, xErr := IncomingObj2Map(IncomingObj, "Group")
 		if xErr != nil {
 			return xErr.SetSubject(info.GetParts(0))
 		}
@@ -2102,55 +2077,39 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		}
 
 		// Must be POST /GROUPs/gID + body: map[rType]map[rID]{resource}
-		objMap, xErr := IncomingObj2Map(IncomingObj)
+		group, xErr = info.Registry.FindGroup(info.GroupType, groupUID, false,
+			FOR_WRITE)
 		if xErr != nil {
-			return xErr.SetSubject(info.GetParts(2)).SetTitle(
-				fmt.Sprintf("body must be a map of Resource types"))
+			return xErr
 		}
 
-		group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+		if group == nil {
+			group, _, xErr = info.Registry.UpsertGroup(info.GroupType, groupUID)
+			if xErr != nil {
+				return xErr
+			}
+		}
+
+		newRs, xErr := group.UpsertJustResources(IncomingObj, ADD_UPDATE)
 		if xErr != nil {
 			return xErr
 		}
 
 		resPaths := map[string][]string{}
-		for rType, rAny := range objMap {
-			if info.GroupModel.FindResourceModel(rType) == nil {
-				return NewXRError("not_found", info.GetParts(2)).
-					SetDetailf("Unknown Resource type: %s.", rType)
-			}
-
-			rMap, xErr := IncomingObj2Map(rAny)
-			if xErr != nil {
-				return xErr.SetSubject(info.GetParts(0))
-			}
-
-			for id, obj := range rMap {
-				r, _, xErr := group.UpsertResource(&ResourceUpsert{
-					RType:            rType,
-					Id:               id,
-					VID:              "",
-					Obj:              obj,
-					AddType:          ADD_UPDATE,
-					ObjIsVer:         false,
-					DefaultVersionID: "",
-				})
-				if xErr != nil {
-					return xErr
-				}
-				resPaths[rType] = append(resPaths[rType], r.Path)
-			}
-
-			if len(resPaths[rType]) == 0 {
-				// Force an empty collection to be returned
-				resPaths[rType] = []string{"!"}
-			}
-
-		}
 
 		// Special case - if req is {} then make response {}
-		if len(objMap) == 0 {
+		if len(IncomingObj) == 0 {
 			resPaths = map[string][]string{"": []string{"!"}}
+		} else {
+			for rType, resources := range newRs {
+				resPaths[rType] = []string{}
+				for _, r := range resources {
+					resPaths[rType] = append(resPaths[rType], r.Path)
+				}
+				if len(resPaths[rType]) == 0 {
+					resPaths[rType] = []string{"!"}
+				}
+			}
 		}
 
 		// Return HTTP GET of Resources created or updated
@@ -2187,7 +2146,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	if numParts == 3 {
 		// POST GROUPs/gID/RESOURCEs + body:map[id]Resource
 
-		objMap, xErr := IncomingObj2Map(IncomingObj)
+		objMap, xErr := IncomingObj2Map(IncomingObj, "Resource")
 		if xErr != nil {
 			return xErr.SetSubject(info.GetParts(0))
 		}
@@ -2401,7 +2360,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// PATCH GROUPs/gID/RESOURCEs/rID/versions, body=map[id]->Version
 
 		// Convert IncomingObj to a map of Objects
-		objMap, xErr := IncomingObj2Map(IncomingObj)
+		objMap, xErr := IncomingObj2Map(IncomingObj, "Version")
 		if xErr != nil {
 			return xErr
 		}
@@ -2660,6 +2619,12 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 	}
 
 	if xErr = info.Registry.SetSave("#capabilities", ToJSON(cap)); xErr != nil {
+		return xErr
+	}
+
+	// Now make sure all of the data in the Registry is ok. If not
+	// we can't allow the capabilities to be updated
+	if xErr = info.Registry.Model.Verify(); xErr != nil {
 		return xErr
 	}
 

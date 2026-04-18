@@ -1679,6 +1679,16 @@ func (a *Attribute) GetMatchCase() bool {
 	return a.MatchCase
 }
 
+func (a *Attribute) InOnlyType(eType int) bool {
+	PanicIf(a.internals == nil, "nil")
+	/*
+		if a.internals == nil {
+			return false
+		}
+	*/
+	return a.internals.types == string(rune('0'+byte(eType)))
+}
+
 func (a *Attribute) InType(eType int) bool {
 	PanicIf(a.internals == nil, "nil")
 	/*
@@ -2558,7 +2568,7 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 					fmt.Sprintf("Resource %q has an invalid 'versionmode' value "+
 						"(%s). Must be one of: %s",
 						rmName, rm.VersionMode,
-						strings.Join(AllowableVersionModes, ",")))
+						strings.Join(SupportedVersionModes, ",")))
 		}
 	}
 
