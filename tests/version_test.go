@@ -1056,4 +1056,101 @@ func TestVersionExtensions(t *testing.T) {
   "source": "a3d56ce41e09:registry:entity:2236"
 }
 `)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
+         "versions": ""
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versions\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versions.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versions",
+    "name": "versions"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
+         "versionsurl": ""
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionsurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versionsurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versionsurl",
+    "name": "versionsurl"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+      "v1": {
+         "versions": ""
+       }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versions\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versions.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versions",
+    "name": "versions"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+      "v1": {
+         "versionsurl": ""
+       }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionsurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versionsurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versionsurl",
+    "name": "versionsurl"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+      "versions": {
+        "v1": {
+           "versions": ""
+         }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versions\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versions.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versions",
+    "name": "versions"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+      "versions": {
+        "v1": {
+           "versionsurl": ""
+         }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"versionsurl\" for \"/dirs/d1/files/f1/versions/v1\" is not valid: Versions can't define an extension called: versionsurl.",
+  "subject": "/dirs/d1/files/f1/versions/v1",
+  "args": {
+    "error_detail": "Versions can't define an extension called: versionsurl",
+    "name": "versionsurl"
+  },
+  "source": "74880ecd28f6:registry:entity:2241"
+}
+`)
+
 }

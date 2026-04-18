@@ -2229,15 +2229,19 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 			// However, look for extensions in Versions that might overlap
 			// with Resource attribute, like "meta"
 			if path.Len() == 0 && e.Type == ENTITY_VERSION {
+				special := map[string]bool{
+					"versions":    true,
+					"versionsurl": true,
+				}
 				for _, key := range keys {
 					prop := SpecProps[key]
-					if prop != nil {
-						if prop.InOnlyType(ENTITY_RESOURCE) {
-							return NewXRError("invalid_attribute", e.XID,
-								"name="+path.P(key).UI(),
-								"error_detail=Versions can't define an "+
-									"extension called: "+key)
-						}
+					if special[key] ||
+						(prop != nil && prop.InOnlyType(ENTITY_RESOURCE)) {
+
+						return NewXRError("invalid_attribute", e.XID,
+							"name="+path.P(key).UI(),
+							"error_detail=Versions can't define an "+
+								"extension called: "+key)
 					}
 				}
 			}
