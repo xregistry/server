@@ -691,7 +691,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 }
 
 // Clears system prop for all versions of this resource
-func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) *XRError {
+func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) {
 	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%s)", pp.UI())
 	defer log.VPrintf(3, "<Exit ClearResourceSystemDBProperties")
 
@@ -704,8 +704,6 @@ func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) *XRError {
                   WHERE v.RegistrySID=p.RegistrySID AND v.ResourceSID=?
               ) AND p.PropName=? AND p.SystemProp=true`,
 		e.Registry.DbSID, r.DbSID, pp.DB())
-
-	return nil
 }
 
 func (e *Entity) ClearEntitySystemDBProperties() *XRError {
@@ -719,7 +717,7 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
 	return nil
 }
 
-func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
+func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 	log.VPrintf(3, ">Enter: SetSystemDBProperty(%s=%v)", pp, val)
 	defer log.VPrintf(3, "<Exit SetSystemDBProperty")
 
@@ -733,7 +731,7 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
 	if ok && specProp.internals != nil {
 		// Any prop with "dontStore"=true we skip
 		if specProp.internals.dontStore {
-			return nil
+			return
 		}
 		if specProp.internals.noDocView {
 			docView = false
@@ -782,8 +780,6 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) *XRError {
             VALUES( ?,?,?,?,?,?,true )`,
 			e.Registry.DbSID, e.DbSID, name, dbVal, propType, docView)
 	}
-
-	return nil
 }
 
 // This is used to take a DB entry and update the current Entity's Object
@@ -1457,7 +1453,15 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
+		Name:      "formatvalidateddetails",
+		internals: &AttrInternals{},
+	},
+	{
 		Name:      "compatibilityvalidated",
+		internals: &AttrInternals{},
+	},
+	{
+		Name:      "compatibilityvalidateddetails",
 		internals: &AttrInternals{},
 	},
 	{

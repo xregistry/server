@@ -384,11 +384,21 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -955,11 +965,21 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -1568,11 +1588,21 @@ func TestModelLabels(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -1985,6 +2015,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "capabilities": 12,
     "compatibility": 13,
     "compatibilityvalidated": 22,
+    "compatibilityvalidateddetails": 29,
     "contenttype": 11,
     "createdat": 9,
     "defaultversionid": 16,
@@ -1996,6 +2027,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "epoch": "5-epoch",
     "format": 6,
     "formatvalidated": 15,
+    "formatvalidateddetails": 22,
     "icon": 4,
     "id": 2,
     "isdefault": 9,
@@ -2104,6 +2136,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "name": "compatibilityvalidated",
             "type": "integer"
           },
+          "compatibilityvalidateddetails": {
+            "name": "compatibilityvalidateddetails",
+            "type": "integer"
+          },
           "contenttype": {
             "name": "contenttype",
             "type": "integer"
@@ -2146,6 +2182,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
           },
           "formatvalidated": {
             "name": "formatvalidated",
+            "type": "integer"
+          },
+          "formatvalidateddetails": {
+            "name": "formatvalidateddetails",
             "type": "integer"
           },
           "icon": {
@@ -2387,6 +2427,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "compatibilityvalidated",
                 "type": "integer"
               },
+              "compatibilityvalidateddetails": {
+                "name": "compatibilityvalidateddetails",
+                "type": "integer"
+              },
               "contenttype": {
                 "name": "contenttype",
                 "type": "integer"
@@ -2437,6 +2481,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
+                "type": "integer"
+              },
+              "formatvalidateddetails": {
+                "name": "formatvalidateddetails",
                 "type": "integer"
               },
               "icon": {
@@ -2640,11 +2688,21 @@ func TestModelUseSpecAttrs(t *testing.T) {
               },
               "formatvalidated": {
                 "name": "formatvalidated",
+                "type": "boolean",
+                "readonly": true
+              },
+              "formatvalidateddetails": {
+                "name": "formatvalidateddetails",
                 "type": "string",
                 "readonly": true
               },
               "compatibilityvalidated": {
                 "name": "compatibilityvalidated",
+                "type": "boolean",
+                "readonly": true
+              },
+              "compatibilityvalidateddetails": {
+                "name": "compatibilityvalidateddetails",
                 "type": "string",
                 "readonly": true
               },
@@ -2666,6 +2724,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "compatibilityvalidated": {
                     "name": "compatibilityvalidated",
+                    "type": "integer"
+                  },
+                  "compatibilityvalidateddetails": {
+                    "name": "compatibilityvalidateddetails",
                     "type": "integer"
                   },
                   "contenttype": {
@@ -2730,6 +2792,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "formatvalidated": {
                     "name": "formatvalidated",
+                    "type": "integer"
+                  },
+                  "formatvalidateddetails": {
+                    "name": "formatvalidateddetails",
                     "type": "integer"
                   },
                   "icon": {
@@ -2984,6 +3050,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "name": "compatibilityvalidated",
                     "type": "integer"
                   },
+                  "compatibilityvalidateddetails": {
+                    "name": "compatibilityvalidateddetails",
+                    "type": "integer"
+                  },
                   "contenttype": {
                     "name": "contenttype",
                     "type": "integer"
@@ -3046,6 +3116,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "formatvalidated": {
                     "name": "formatvalidated",
+                    "type": "integer"
+                  },
+                  "formatvalidateddetails": {
+                    "name": "formatvalidateddetails",
                     "type": "integer"
                   },
                   "icon": {
@@ -3157,6 +3231,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "capabilities": 12,
         "compatibility": 13,
         "compatibilityvalidated": 22,
+        "compatibilityvalidateddetails": 29,
         "contenttype": 11,
         "createdat": 9,
         "defaultversionid": 16,
@@ -3170,6 +3245,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "fileid": 6,
         "format": 6,
         "formatvalidated": 15,
+        "formatvalidateddetails": 22,
         "icon": 4,
         "id": 2,
         "isdefault": 9,
@@ -3206,6 +3282,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "capabilities": 12,
             "compatibility": 13,
             "compatibilityvalidated": 22,
+            "compatibilityvalidateddetails": 29,
             "contenttype": 11,
             "createdat": 9,
             "defaultversionid": 16,
@@ -3222,6 +3299,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "fileurl": 7,
             "format": 6,
             "formatvalidated": 15,
+            "formatvalidateddetails": 22,
             "icon": 4,
             "id": 2,
             "isdefault": 9,
@@ -3255,6 +3333,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "capabilities": 12,
               "compatibility": 13,
               "compatibilityvalidated": 22,
+              "compatibilityvalidateddetails": 29,
               "contenttype": 11,
               "createdat": 9,
               "defaultversionid": 16,
@@ -3271,6 +3350,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "fileurl": 7,
               "format": 6,
               "formatvalidated": 15,
+              "formatvalidateddetails": 22,
               "icon": 4,
               "id": 2,
               "isdefault": 9,
@@ -3311,6 +3391,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "capabilities": 12,
                 "compatibility": 13,
                 "compatibilityvalidated": 22,
+                "compatibilityvalidateddetails": 29,
                 "contenttype": 11,
                 "createdat": 9,
                 "defaultversionid": 16,
@@ -3327,6 +3408,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "fileurl": 7,
                 "format": 6,
                 "formatvalidated": 15,
+                "formatvalidateddetails": 22,
                 "icon": 4,
                 "id": 2,
                 "isdefault": 9,
@@ -3821,11 +3903,21 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -4132,11 +4224,21 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -4442,11 +4544,21 @@ func TestModelCompatibleWith(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -5368,11 +5480,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -5974,11 +6096,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -6403,11 +6535,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -7096,11 +7238,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -7525,11 +7677,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -8124,11 +8286,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -8553,11 +8725,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -9152,11 +9334,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -9581,11 +9773,21 @@ func TestModelIncludes(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -10268,11 +10470,21 @@ func TestModelMissingFields(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },

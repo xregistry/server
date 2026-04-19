@@ -148,12 +148,12 @@ type FormatXMLSchema struct{}
 
 func (fx FormatXMLSchema) IsValid(
 	ver *Version,
-) (string, *XRError) {
+) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString(
 		"(?i)"+XMLSCHEMA_FORMAT, format,
 	); !ok {
-		return "true", NewXRError("bad_request", ver.XID,
+		return true, "", NewXRError("bad_request", ver.XID,
 			"error_detail="+
 				fmt.Sprintf(
 					`Version %q has a "format" value of %q,`+
@@ -162,7 +162,7 @@ func (fx FormatXMLSchema) IsValid(
 	}
 
 	if ver.Resource.ResourceModel.GetHasDocument() == false {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+format).
 			SetDetailf(
 				`The Resource (%s) for Version %q does not`+
@@ -175,7 +175,7 @@ func (fx FormatXMLSchema) IsValid(
 	if resURL := ver.Get(
 		ver.Resource.Singular + "url",
 	); !IsNil(resURL) {
-		return "false, data stored externally",
+		return false, "Data stored externally",
 			NewXRError("format_external", ver.XID)
 	}
 
@@ -187,7 +187,7 @@ func (fx FormatXMLSchema) IsValid(
 	}
 
 	if len(buf) == 0 {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+ver.GetAsString("format")).
 			SetDetailf(
 				"Version %q is empty and therefore not a "+
@@ -195,28 +195,28 @@ func (fx FormatXMLSchema) IsValid(
 	}
 
 	if err := IsValidXMLSchema(buf); err != nil {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+ver.GetAsString("format")).
 			SetDetailf(
 				"Version %q is not a valid xml schema"+
 					" file: %s.", ver.XID, err)
 	}
 
-	return "true", nil
+	return true, "", nil
 }
 
 func (fx FormatXMLSchema) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) (string, *XRError) {
-	reason, xErr := fx.IsValid(oldVersion)
+) (bool, string, *XRError) {
+	checked, reason, xErr := fx.IsValid(oldVersion)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
-	reason, xErr = fx.IsValid(newVersion)
+	checked, reason, xErr = fx.IsValid(newVersion)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
 
 	oldBuf := []byte(nil)
@@ -237,7 +237,7 @@ func (fx FormatXMLSchema) IsCompatible(
 			Resource.
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
-		return "true", NewXRError(
+		return true, "", NewXRError(
 			"compatibility_violation", newVersion.XID,
 			"compat="+compat).
 			SetDetailf(
@@ -246,7 +246,7 @@ func (fx FormatXMLSchema) IsCompatible(
 				err.Error())
 	}
 
-	return "true", nil
+	return true, "", nil
 }
 
 // IsValidXMLSchema returns nil when buf is a syntactically valid

@@ -97,17 +97,17 @@ type FormatAvro struct{}
 // true or false, why not...
 // xErr is the error to use if we're returning an error to the user. Which
 // may happen in both cases based on strictvalidation=true
-func (fa FormatAvro) IsValid(ver *Version) (string, *XRError) {
+func (fa FormatAvro) IsValid(ver *Version) (bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+AVRO_FORMAT, format); !ok {
-		return "true", NewXRError("bad_request", ver.XID,
+		return true, "", NewXRError("bad_request", ver.XID,
 			"error_detail="+
 				fmt.Sprintf(`Version %q has a "format" value of %q, was `+
 					`expecting %q`, ver.XID, format, AVRO_FORMAT))
 	}
 
 	if ver.Resource.ResourceModel.GetHasDocument() == false {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+format).
 			SetDetailf(`The Resource (%s) for Version %q does not have `+
 				`"hasdocument" in its resource model set to "true", and an `+
@@ -116,7 +116,7 @@ func (fa FormatAvro) IsValid(ver *Version) (string, *XRError) {
 	}
 
 	if resURL := ver.Get(ver.Resource.Singular + "url"); !IsNil(resURL) {
-		return "false, data stored externally",
+		return false, "Data stored externally",
 			NewXRError("format_external", ver.XID)
 	}
 
@@ -126,20 +126,20 @@ func (fa FormatAvro) IsValid(ver *Version) (string, *XRError) {
 	}
 
 	if len(buf) == 0 {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+ver.GetAsString("format")).
 			SetDetailf("Version %q is empty and therefore not a "+
 				"valid avro schema file.", ver.XID)
 	}
 
 	if err := IsValidAvro(buf); err != nil {
-		return "true", NewXRError("format_violation", ver.XID,
+		return true, "", NewXRError("format_violation", ver.XID,
 			"format="+ver.GetAsString("format")).
 			SetDetailf("Version %q is not a valid avro schema file: %s.",
 				ver.XID, err)
 	}
 
-	return "true", nil
+	return true, "", nil
 }
 
 // IsCompatible checks whether newVersion is compatible with
@@ -148,17 +148,17 @@ func (fa FormatAvro) IsCompatible(
 	direction string,
 	oldVersion *Version,
 	newVersion *Version,
-) (string, *XRError) {
+) (bool, string, *XRError) {
 	oldBuf, newBuf := []byte(nil), []byte(nil)
 
-	reason, xErr := fa.IsValid(oldVersion)
+	checked, reason, xErr := fa.IsValid(oldVersion)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
 
-	reason, xErr = fa.IsValid(newVersion)
+	checked, reason, xErr = fa.IsValid(newVersion)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
 
 	if b := oldVersion.Get(oldVersion.Resource.Singular); !IsNil(b) {
@@ -171,13 +171,14 @@ func (fa FormatAvro) IsCompatible(
 
 	var oldSchema, newSchema interface{}
 	if err := json.Unmarshal(oldBuf, &oldSchema); err != nil {
-		return "false", NewXRError("format_violation", oldVersion.XID,
-			"format="+oldVersion.GetAsString("format")).
-			SetDetailf("Version %q is not a valid avro schema file: %s.",
-				oldVersion.XID, err.Error())
+		return true, "",
+			NewXRError("format_violation", oldVersion.XID,
+				"format="+oldVersion.GetAsString("format")).
+				SetDetailf("Version %q is not a valid avro schema file: %s.",
+					oldVersion.XID, err.Error())
 	}
 	if err := json.Unmarshal(newBuf, &newSchema); err != nil {
-		return "false", NewXRError("format_violation", newVersion.XID,
+		return true, "", NewXRError("format_violation", newVersion.XID,
 			"format="+newVersion.GetAsString("format")).
 			SetDetailf("Version %q is not a valid avro schema file: %s.",
 				newVersion.XID, err.Error())
@@ -189,14 +190,14 @@ func (fa FormatAvro) IsCompatible(
 			MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
 
-		return "true", NewXRError("compatibility_violation", newVersion.XID,
+		return true, "", NewXRError("compatibility_violation", newVersion.XID,
 			"compat="+compat).
 			SetDetailf("Version %q isn't %q compatible with %q: %s",
 				newVersion.XID, compat, oldVersion.XID,
 				err.Error())
 	}
 
-	return "true", nil
+	return true, "", nil
 }
 
 // ── Public helpers ─────────────────────────────────────────────────

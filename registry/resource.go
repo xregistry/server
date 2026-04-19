@@ -1580,16 +1580,13 @@ func (r *Resource) DumpOrderedVersions() {
 }
 
 type FormatChecker interface {
-	// 1st return arg is either:
-	//  true           - validation was attempted
-	//  false, why...  - validation not attempted, and why
-	// 2nd return arg is:
-	//  xErr if 1st=true  and validation failed
-	//  xErr if 2st=false and we need to return an xErr to client
+	// 1st return arg: bool - did we do the check?
+	// 2nd return arg: if no check done, then why?
+	// 3rd return arg: the error to return if we need to return an error
 
-	IsValid(version *Version) (string, *XRError)
+	IsValid(version *Version) (bool, string, *XRError)
 	// 'direction' == backward, forward
-	IsCompatible(direction string, oldVersion, newVersion *Version) (string, *XRError)
+	IsCompatible(direction string, oldVersion, newVersion *Version) (bool, string, *XRError)
 }
 
 // case insensitive 'format' values'
@@ -1648,23 +1645,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Doing neither so just return
 	if !validateCompat && !validateFormat {
-		xErr := r.ClearResourceSystemDBProperty(NewPPP("formatvalidated"))
-		if xErr != nil {
-			return NewXRError("server_error", r.XID).
-				SetDetail(fmt.Sprintf("Error clearing 'formatvalidated' "+
-					"for %s: %s.",
-					r.XID, xErr.GetTitle()))
-
-		}
-
-		xErr = r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
-		if xErr != nil {
-			return NewXRError("server_error", r.XID).
-				SetDetail(fmt.Sprintf("Error clearing "+
-					"'compatibilityvalidated' for %s: %s.",
-					r.XID, xErr.GetTitle()))
-
-		}
+		r.ClearResourceSystemDBProperty(NewPPP("formatvalidated"))
+		r.ClearResourceSystemDBProperty(NewPPP("formatvalidateddetails"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidateddetails"))
 		return nil
 	}
 
@@ -1705,7 +1689,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		// I'm always compatible with myself. Just in case caller doesn't check
 		if oldVID == newVID {
-			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), "true")
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), true)
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+				nil)
 			return nil
 		}
 
@@ -1721,14 +1707,22 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				"format="+formatPattern)
 		}
 
-		reason, xErr := checker.IsCompatible(direction, oldV, newV)
+		checked, reason, xErr := checker.IsCompatible(direction, oldV, newV)
+		PanicIf(!checked && reason == "", "Bad state")
 
-		if xErr != nil && (reason == "true" || strict) {
-			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+		if xErr != nil && (checked || strict) {
 			return xErr
 		}
 
-		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), reason)
+		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), checked)
+
+		if reason == "" {
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+				nil)
+		} else {
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+				reason)
+		}
 
 		doneChecks[key] = true
 		return nil
@@ -1775,8 +1769,12 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					// Regardless of being strict or not, turn off checks
 					// and don't show any of the *validated attributes
 					ver.SetSystemDBProperty(NewPPP("formatvalidated"), nil)
+					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+						nil)
 					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
 						nil)
+					ver.SetSystemDBProperty(NewPPP(
+						"compatibilityvalidateddetails"), nil)
 					continue
 				}
 
@@ -1787,10 +1785,13 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 						return NewXRError("format_unknown", ver.XID,
 							"format="+newFormat)
 					}
-					ver.SetSystemDBProperty(NewPPP("formatvalidated"),
-						"false, unknown format")
+					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
+					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+						"Unknown format")
 					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
-						"false, unknown format")
+						false)
+					ver.SetSystemDBProperty(NewPPP(
+						"compatibilityvalidateddetails"), "Unknown format")
 					continue
 				}
 
@@ -1800,20 +1801,32 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				}
 
 				// Validate that the Version is valid per the "format"
-				reason, xErr := checker.IsValid(ver)
-				if xErr != nil && (reason == "true" || strict) {
+				checked, reason, xErr := checker.IsValid(ver)
+				PanicIf(!checked && reason == "", "Bad state")
+				if xErr != nil && (checked || strict) {
 					return xErr
 				}
 
-				ver.SetSystemDBProperty(NewPPP("formatvalidated"), reason)
+				ver.SetSystemDBProperty(NewPPP("formatvalidated"), checked)
+				if reason == "" {
+					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+						nil)
+				} else {
+					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+						reason)
+				}
 
-				if strings.HasPrefix(reason, "false") {
+				if reason != "" {
 					if validateCompat {
 						ver.SetSystemDBProperty(
-							NewPPP("compatibilityvalidated"), reason)
+							NewPPP("compatibilityvalidated"), false)
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidateddetails"), reason)
 					} else {
 						ver.SetSystemDBProperty(
 							NewPPP("compatibilityvalidated"), nil)
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidateddetails"), nil)
 					}
 					continue
 				}
@@ -1826,6 +1839,8 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				changedVersions = append(changedVersions, va.VID)
 			} else {
 				ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
+				ver.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+					nil)
 			}
 		}
 	}
@@ -1833,7 +1848,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	// If compat isn't enabled, skip compat checking
 	if IsNil(newCompat) || !validateCompat {
 		// clear compatvalidated attr for all versions
-		return r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidateddetails"))
+		return nil
 	}
 
 	// compat is case-insensitive

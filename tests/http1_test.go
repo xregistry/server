@@ -831,11 +831,21 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },
@@ -1457,11 +1467,21 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             }
@@ -2070,11 +2090,21 @@ func TestHTTPModel(t *testing.T) {
             },
             "formatvalidated": {
               "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidateddetails": {
+              "name": "formatvalidateddetails",
               "type": "string",
               "readonly": true
             },
             "compatibilityvalidated": {
               "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidateddetails": {
+              "name": "compatibilityvalidateddetails",
               "type": "string",
               "readonly": true
             },

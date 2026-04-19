@@ -23,17 +23,17 @@ func init() {
 
 type FormatNumbers struct{}
 
-func GetVersionSum(ver *Version) (int, string, *XRError) {
+func GetVersionSum(ver *Version) (int, bool, string, *XRError) {
 	format := ver.GetAsString("format")
 	if ok, _ := regexp.MatchString("(?i)"+NUMBERS_FORMAT, format); !ok {
-		return 0, "true", NewXRError("bad_request", ver.XID,
+		return 0, true, "", NewXRError("bad_request", ver.XID,
 			"error_detail="+
 				fmt.Sprintf(`Version %q has a "format" value of %q, was `+
 					`expecting %q`, ver.XID, format, NUMBERS_FORMAT))
 	}
 
 	if ver.Resource.ResourceModel.GetHasDocument() == false {
-		return 0, "true", NewXRError("format_violation", ver.XID,
+		return 0, true, "", NewXRError("format_violation", ver.XID,
 			"format="+format).
 			SetDetailf(`The Resource (%s) for Version %q does not have `+
 				`"hasdocument" in its resource model set to "true", and an `+
@@ -42,7 +42,7 @@ func GetVersionSum(ver *Version) (int, string, *XRError) {
 	}
 
 	if resURL := ver.Get(ver.Resource.Singular + "url"); !IsNil(resURL) {
-		return 0, "false, data stored externally",
+		return 0, false, "Data stored externally",
 			NewXRError("format_external", ver.XID)
 	}
 
@@ -52,7 +52,7 @@ func GetVersionSum(ver *Version) (int, string, *XRError) {
 	}
 
 	if len(buf) == 0 {
-		return 0, "true", NewXRError("format_violation", ver.XID,
+		return 0, true, "", NewXRError("format_violation", ver.XID,
 			"format="+ver.GetAsString("format")).
 			SetDetailf("Version %q is empty and therefore not a "+
 				"valid numbers file.", ver.XID)
@@ -66,7 +66,7 @@ func GetVersionSum(ver *Version) (int, string, *XRError) {
 		}
 		i, err := strconv.Atoi(line)
 		if err != nil {
-			return 0, "true", NewXRError("format_violation", ver.XID,
+			return 0, true, "", NewXRError("format_violation", ver.XID,
 				"format=numbers").
 				SetDetailf("Line %d isn't an integer: %s.", num+1, line)
 		}
@@ -74,18 +74,18 @@ func GetVersionSum(ver *Version) (int, string, *XRError) {
 	}
 
 	// all ok - so just exit
-	return sum, "true", nil
+	return sum, true, "", nil
 }
 
-func (ft FormatNumbers) IsValid(ver *Version) (string, *XRError) {
+func (ft FormatNumbers) IsValid(ver *Version) (bool, string, *XRError) {
 	log.VPrintf(3, ">Enter: FormatNumbers.IsValid(%s)", ver.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsValid")
 
-	_, reason, xErr := GetVersionSum(ver)
-	return reason, xErr
+	_, checked, reason, xErr := GetVersionSum(ver)
+	return checked, reason, xErr
 }
 
-func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) (string, *XRError) {
+func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) (bool, string, *XRError) {
 	log.VPrintf(3, ">Enter: IsCompliant.IsCompliant(old:%s,new:%s)",
 		oldVer.UID, newVer.UID)
 	defer log.VPrintf(3, "<Exit: FormatNumbers.IsCompliant")
@@ -94,24 +94,24 @@ func (ft FormatNumbers) IsCompatible(direction string, oldVer, newVer *Version) 
 		oldVer, newVer = newVer, oldVer
 	}
 
-	oldSum, reason, xErr := GetVersionSum(oldVer)
+	oldSum, checked, reason, xErr := GetVersionSum(oldVer)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
-	newSum, reason, xErr := GetVersionSum(newVer)
+	newSum, checked, reason, xErr := GetVersionSum(newVer)
 	if xErr != nil {
-		return reason, xErr
+		return checked, reason, xErr
 	}
 
 	if newSum < oldSum {
 		compat := newVer.Resource.MustFindMeta(false, FOR_READ).
 			GetAsString("compatibility")
-		return "false", NewXRError("compatibility_violation",
+		return true, "", NewXRError("compatibility_violation",
 			newVer.Resource.XID, "compat="+compat).
 			SetDetail(fmt.Sprintf("Version %q (sum: %d) isn't %q compatible "+
 				"with %q (sum: %d).",
 				newVer.XID, newSum, compat, oldVer.XID, oldSum))
 	}
 
-	return "true", nil
+	return true, "", nil
 }

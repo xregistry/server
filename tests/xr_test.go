@@ -156,29 +156,31 @@ GROUP: dirs / dir
     Set version sticky: true
     Has document      : true
 
-    ATTRIBUTES:                TYPE         REQ   RO   MUT   DEFAULT
-    ├ ancestor                 string       y     -    y
-    ├ compatibilityvalidated   string       -     y    y
-    ├ contenttype              string       -     -    y
-    ├ createdat                timestamp    y     -    y
-    ├ description              string       -     -    y
-    ├ documentation            url          -     -    y
-    ├ epoch                    uinteger     y     y    y
-    ├ file                     any          -     -    y
-    ├ filebase64               string       -     -    y
-    ├ fileid                   string       y     -    -
-    ├ fileproxyurl             url          -     -    y
-    ├ fileurl                  url          -     -    y
-    ├ format                   string       -     -    y
-    ├ formatvalidated          string       -     y    y
-    ├ icon                     url          -     -    y
-    ├ isdefault                boolean      y     y    y     false
-    ├ labels                   map/string   -     -    y
-    ├ modifiedat               timestamp    y     -    y
-    ├ name                     string       -     -    y
-    ├ self                     url          y     y    -
-    ├ versionid                string       y     -    -
-    └ xid                      xid          y     y    -
+    ATTRIBUTES:                       TYPE         REQ   RO   MUT   DEFAULT
+    ├ ancestor                        string       y     -    y
+    ├ compatibilityvalidated          boolean      -     y    y
+    ├ compatibilityvalidateddetails   string       -     y    y
+    ├ contenttype                     string       -     -    y
+    ├ createdat                       timestamp    y     -    y
+    ├ description                     string       -     -    y
+    ├ documentation                   url          -     -    y
+    ├ epoch                           uinteger     y     y    y
+    ├ file                            any          -     -    y
+    ├ filebase64                      string       -     -    y
+    ├ fileid                          string       y     -    -
+    ├ fileproxyurl                    url          -     -    y
+    ├ fileurl                         url          -     -    y
+    ├ format                          string       -     -    y
+    ├ formatvalidated                 boolean      -     y    y
+    ├ formatvalidateddetails          string       -     y    y
+    ├ icon                            url          -     -    y
+    ├ isdefault                       boolean      y     y    y     false
+    ├ labels                          map/string   -     -    y
+    ├ modifiedat                      timestamp    y     -    y
+    ├ name                            string       -     -    y
+    ├ self                            url          y     y    -
+    ├ versionid                       string       y     -    -
+    └ xid                             xid          y     y    -
 
     RESOURCE ATTRIBUTES:   TYPE         REQ   RO   MUT   DEFAULT
     ├ fileid               string       y     -    -
@@ -1107,6 +1109,11 @@ files2 / file2   true      0
       },
       "compatibilityvalidated": {
         "name": "compatibilityvalidated",
+        "type": "boolean",
+        "readonly": true
+      },
+      "compatibilityvalidateddetails": {
+        "name": "compatibilityvalidateddetails",
         "type": "string",
         "readonly": true
       },
@@ -1162,6 +1169,11 @@ files2 / file2   true      0
       },
       "formatvalidated": {
         "name": "formatvalidated",
+        "type": "boolean",
+        "readonly": true
+      },
+      "formatvalidateddetails": {
+        "name": "formatvalidateddetails",
         "type": "string",
         "readonly": true
       },

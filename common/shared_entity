@@ -393,6 +393,16 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name:     "formatvalidated",
+		Type:     BOOLEAN,
+		ReadOnly: true,
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_VERSION),
+			noDocView: true,
+		},
+	},
+	{
+		Name:     "formatvalidateddetails",
 		Type:     STRING,
 		ReadOnly: true,
 
@@ -403,6 +413,16 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name:     "compatibilityvalidated",
+		Type:     BOOLEAN,
+		ReadOnly: true,
+
+		internals: &AttrInternals{
+			types:     StrTypes(ENTITY_VERSION),
+			noDocView: true,
+		},
+	},
+	{
+		Name:     "compatibilityvalidateddetails",
 		Type:     STRING,
 		ReadOnly: true,
 
