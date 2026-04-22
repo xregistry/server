@@ -227,7 +227,7 @@ func TestFormatSimple(t *testing.T) {
 			"xRegistry-ancestor: 1",
 			"xRegistry-format: bad-format",
 			"xRegistry-formatvalidated: false",
-			"xRegistry-formatvalidateddetails: Unknown format",
+			"xRegistry-formatvalidatedreason: Unknown format",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f2/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f2/versions",
 			"xRegistry-versionscount: 1",
@@ -1481,9 +1481,9 @@ func TestFormatNotStrictNumbers(t *testing.T) {
   "contenttype": "application/json",
   "format": "unknown",
   "formatvalidated": false,
-  "formatvalidateddetails": "Unknown format",
+  "formatvalidatedreason": "Unknown format",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Unknown format",
+  "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1600,9 +1600,9 @@ func TestFormatNotStrictNumbers(t *testing.T) {
   "ancestor": "1",
   "format": "numbers",
   "formatvalidated": false,
-  "formatvalidateddetails": "Data stored externally",
+  "formatvalidatedreason": "Data stored externally",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Data stored externally",
+  "compatibilityvalidatedreason": "Data stored externally",
 
   "fileurl": "http://example.com",
 
@@ -2028,9 +2028,9 @@ func TestFormatNotStrictAvro(t *testing.T) {
   "contenttype": "application/json",
   "format": "unknown",
   "formatvalidated": false,
-  "formatvalidateddetails": "Unknown format",
+  "formatvalidatedreason": "Unknown format",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Unknown format",
+  "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2147,9 +2147,9 @@ func TestFormatNotStrictAvro(t *testing.T) {
   "ancestor": "1",
   "format": "avro",
   "formatvalidated": false,
-  "formatvalidateddetails": "Data stored externally",
+  "formatvalidatedreason": "Data stored externally",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Data stored externally",
+  "compatibilityvalidatedreason": "Data stored externally",
 
   "fileurl": "http://example.com",
 
@@ -2575,9 +2575,9 @@ func TestFormatNotStrictJson(t *testing.T) {
   "contenttype": "application/json",
   "format": "unknown",
   "formatvalidated": false,
-  "formatvalidateddetails": "Unknown format",
+  "formatvalidatedreason": "Unknown format",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Unknown format",
+  "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2694,9 +2694,9 @@ func TestFormatNotStrictJson(t *testing.T) {
   "ancestor": "1",
   "format": "jsonschema",
   "formatvalidated": false,
-  "formatvalidateddetails": "Data stored externally",
+  "formatvalidatedreason": "Data stored externally",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Data stored externally",
+  "compatibilityvalidatedreason": "Data stored externally",
 
   "fileurl": "http://example.com",
 
@@ -3122,9 +3122,9 @@ func TestFormatNotStrictProtobuf(t *testing.T) {
   "contenttype": "application/json",
   "format": "unknown",
   "formatvalidated": false,
-  "formatvalidateddetails": "Unknown format",
+  "formatvalidatedreason": "Unknown format",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Unknown format",
+  "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -3241,9 +3241,9 @@ func TestFormatNotStrictProtobuf(t *testing.T) {
   "ancestor": "1",
   "format": "protobuf",
   "formatvalidated": false,
-  "formatvalidateddetails": "Data stored externally",
+  "formatvalidatedreason": "Data stored externally",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Data stored externally",
+  "compatibilityvalidatedreason": "Data stored externally",
 
   "fileurl": "http://example.com",
 
@@ -3671,9 +3671,9 @@ func TestFormatNotStrictXMLSchema(t *testing.T) {
   "contenttype": "application/json",
   "format": "unknown",
   "formatvalidated": false,
-  "formatvalidateddetails": "Unknown format",
+  "formatvalidatedreason": "Unknown format",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Unknown format",
+  "compatibilityvalidatedreason": "Unknown format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -3790,9 +3790,9 @@ func TestFormatNotStrictXMLSchema(t *testing.T) {
   "ancestor": "1",
   "format": "xmlschema",
   "formatvalidated": false,
-  "formatvalidateddetails": "Data stored externally",
+  "formatvalidatedreason": "Data stored externally",
   "compatibilityvalidated": false,
-  "compatibilityvalidateddetails": "Data stored externally",
+  "compatibilityvalidatedreason": "Data stored externally",
 
   "fileurl": "http://example.com",
 

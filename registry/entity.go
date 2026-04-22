@@ -1453,7 +1453,7 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
-		Name:      "formatvalidateddetails",
+		Name:      "formatvalidatedreason",
 		internals: &AttrInternals{},
 	},
 	{
@@ -1461,7 +1461,7 @@ var PropsFuncs = []*Attribute{
 		internals: &AttrInternals{},
 	},
 	{
-		Name:      "compatibilityvalidateddetails",
+		Name:      "compatibilityvalidatedreason",
 		internals: &AttrInternals{},
 	},
 	{

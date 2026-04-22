@@ -1646,9 +1646,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	// Doing neither so just return
 	if !validateCompat && !validateFormat {
 		r.ClearResourceSystemDBProperty(NewPPP("formatvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("formatvalidateddetails"))
+		r.ClearResourceSystemDBProperty(NewPPP("formatvalidatedreason"))
 		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidateddetails"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidatedreason"))
 		return nil
 	}
 
@@ -1690,7 +1690,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		// I'm always compatible with myself. Just in case caller doesn't check
 		if oldVID == newVID {
 			newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), true)
-			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidatedreason"),
 				nil)
 			return nil
 		}
@@ -1717,10 +1717,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		newV.SetSystemDBProperty(NewPPP("compatibilityvalidated"), checked)
 
 		if reason == "" {
-			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidatedreason"),
 				nil)
 		} else {
-			newV.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+			newV.SetSystemDBProperty(NewPPP("compatibilityvalidatedreason"),
 				reason)
 		}
 
@@ -1769,12 +1769,12 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					// Regardless of being strict or not, turn off checks
 					// and don't show any of the *validated attributes
 					ver.SetSystemDBProperty(NewPPP("formatvalidated"), nil)
-					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+					ver.SetSystemDBProperty(NewPPP("formatvalidatedreason"),
 						nil)
 					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
 						nil)
 					ver.SetSystemDBProperty(NewPPP(
-						"compatibilityvalidateddetails"), nil)
+						"compatibilityvalidatedreason"), nil)
 					continue
 				}
 
@@ -1786,12 +1786,12 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 							"format="+newFormat)
 					}
 					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
-					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+					ver.SetSystemDBProperty(NewPPP("formatvalidatedreason"),
 						"Unknown format")
 					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
 						false)
 					ver.SetSystemDBProperty(NewPPP(
-						"compatibilityvalidateddetails"), "Unknown format")
+						"compatibilityvalidatedreason"), "Unknown format")
 					continue
 				}
 
@@ -1809,10 +1809,10 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 				ver.SetSystemDBProperty(NewPPP("formatvalidated"), checked)
 				if reason == "" {
-					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+					ver.SetSystemDBProperty(NewPPP("formatvalidatedreason"),
 						nil)
 				} else {
-					ver.SetSystemDBProperty(NewPPP("formatvalidateddetails"),
+					ver.SetSystemDBProperty(NewPPP("formatvalidatedreason"),
 						reason)
 				}
 
@@ -1821,12 +1821,12 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 						ver.SetSystemDBProperty(
 							NewPPP("compatibilityvalidated"), false)
 						ver.SetSystemDBProperty(
-							NewPPP("compatibilityvalidateddetails"), reason)
+							NewPPP("compatibilityvalidatedreason"), reason)
 					} else {
 						ver.SetSystemDBProperty(
 							NewPPP("compatibilityvalidated"), nil)
 						ver.SetSystemDBProperty(
-							NewPPP("compatibilityvalidateddetails"), nil)
+							NewPPP("compatibilityvalidatedreason"), nil)
 					}
 					continue
 				}
@@ -1839,7 +1839,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 				changedVersions = append(changedVersions, va.VID)
 			} else {
 				ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"), nil)
-				ver.SetSystemDBProperty(NewPPP("compatibilityvalidateddetails"),
+				ver.SetSystemDBProperty(NewPPP("compatibilityvalidatedreason"),
 					nil)
 			}
 		}
@@ -1849,7 +1849,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	if IsNil(newCompat) || !validateCompat {
 		// clear compatvalidated attr for all versions
 		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidateddetails"))
+		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidatedreason"))
 		return nil
 	}
 

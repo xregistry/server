@@ -834,8 +834,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "formatvalidateddetails": {
-              "name": "formatvalidateddetails",
+            "formatvalidatedreason": {
+              "name": "formatvalidatedreason",
               "type": "string",
               "readonly": true
             },
@@ -844,8 +844,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "compatibilityvalidateddetails": {
-              "name": "compatibilityvalidateddetails",
+            "compatibilityvalidatedreason": {
+              "name": "compatibilityvalidatedreason",
               "type": "string",
               "readonly": true
             },
@@ -1470,8 +1470,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "formatvalidateddetails": {
-              "name": "formatvalidateddetails",
+            "formatvalidatedreason": {
+              "name": "formatvalidatedreason",
               "type": "string",
               "readonly": true
             },
@@ -1480,8 +1480,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "compatibilityvalidateddetails": {
-              "name": "compatibilityvalidateddetails",
+            "compatibilityvalidatedreason": {
+              "name": "compatibilityvalidatedreason",
               "type": "string",
               "readonly": true
             }
@@ -2093,8 +2093,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "formatvalidateddetails": {
-              "name": "formatvalidateddetails",
+            "formatvalidatedreason": {
+              "name": "formatvalidatedreason",
               "type": "string",
               "readonly": true
             },
@@ -2103,8 +2103,8 @@ func TestHTTPModel(t *testing.T) {
               "type": "boolean",
               "readonly": true
             },
-            "compatibilityvalidateddetails": {
-              "name": "compatibilityvalidateddetails",
+            "compatibilityvalidatedreason": {
+              "name": "compatibilityvalidatedreason",
               "type": "string",
               "readonly": true
             },
