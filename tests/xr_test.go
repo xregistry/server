@@ -72,7 +72,7 @@ func TestXRBasic(t *testing.T) {
 		"", "Created Group type: dirs:dir\n", true)
 
 	XCLI(t, "model resource create -v -g dirs files:file", "",
-		"", "Created Resource type: files:file\n", true)
+		"", "Created Resource type: files\n", true)
 
 	XCLI(t, "model get", "",
 		`xRegistry Model:
@@ -92,10 +92,16 @@ GROUP: dirs / dir
   └ filesurl     url          y     y    -
 
   RESOURCE: files / file
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 `, "", true)
 
 	XCLI(t, "model get -a", "",
@@ -151,10 +157,16 @@ GROUP: dirs / dir
   └ xid               xid          y     y    -
 
   RESOURCE: files / file
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 
     ATTRIBUTES:                      TYPE         REQ   RO   MUT   DEFAULT
     ├ ancestor                       string       y     -    y
@@ -254,10 +266,10 @@ func TestXRModel(t *testing.T) {
 		"", "Created Group type: gts:gt\n", true)
 
 	XCLI(t, "model resource create -vg gts rts:rt", "",
-		"", "Created Resource type: rts:rt\n", true)
+		"", "Created Resource type: rts\n", true)
 
 	XCLI(t, "model resource create -vg gt2s:gt2 rt2s:rt2", "",
-		"", "Created Group type: gt2s:gt2\nCreated Resource type: rt2s:rt2\n", true)
+		"", "Created Group type: gt2s:gt2\nCreated Resource type: rt2s\n", true)
 
 	XCLI(t, "model get", "",
 
@@ -290,10 +302,16 @@ GROUP: dirs / dir
   └ filesurl     url          y     y    -
 
   RESOURCE: files / file
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 
 GROUP: docs / doc
 
@@ -304,10 +322,16 @@ GROUP: docs / doc
   └ typesurl     url          y     y    -
 
   RESOURCE: types / type
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 
 GROUP: gt2s / gt2
 
@@ -318,10 +342,16 @@ GROUP: gt2s / gt2
   └ rt2surl     url          y     y    -
 
   RESOURCE: rt2s / rt2
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 
 GROUP: gts / gt
 
@@ -332,10 +362,16 @@ GROUP: gts / gt
   └ rtsurl      url          y     y    -
 
   RESOURCE: rts / rt
-    Max versions      : 0
-    Set version id    : true
-    Set version sticky: true
-    Has document      : true
+    Max versions        : 0
+    Set version id      : true
+    Set version sticky  : true
+    Has document        : true
+    Version mode        : manual
+    Single version root : false
+    Validate format     : false
+    Validate compat     : false
+    Strict valiation    : false
+    Consistent format   : false
 `, "", true)
 
 	// Test some ifvalues
@@ -1041,27 +1077,39 @@ GROUP: dirs / dir
 `, "", true)
 
 	XCLI(t, "model resource create -v -g dirs2 files:file", "",
-		``, "Created Resource type: files:file\n", true)
+		``, "Created Resource type: files\n", true)
 
 	XCLI(t, "model resource create -v -g dirs2 files2:file2 -o table", "",
 		`RESOURCE: files2 / file2
-  Max versions      : 0
-  Set version id    : true
-  Set version sticky: true
-  Has document      : true
-`, "Created Resource type: files2:file2\n", true)
+  Max versions        : 0
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
+`, "Created Resource type: files2\n", true)
 
 	XCLI(t, "model resource create -v -g dirs7 files2:file2 -o table", "",
 		``, "Group type \"dirs7\" does not exist.\n", false)
 
 	XCLI(t, "model resource create -v -g dirs7:dir7 files2:file2 -o table", "",
 		`RESOURCE: files2 / file2
-  Max versions      : 0
-  Set version id    : true
-  Set version sticky: true
-  Has document      : true
+  Max versions        : 0
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
 `, `Created Group type: dirs7:dir7
-Created Resource type: files2:file2
+Created Resource type: files2
 `, true)
 
 	XCLI(t, "model group list", "", `GROUP          RESOURCES   DESCRIPTION
@@ -1421,7 +1469,7 @@ func TestXRIgnore(t *testing.T) {
 
 	// cmd, stdin, stdout, stderr, pass?
 
-	XCLI(t, "model resource create files:file -g dirs:dir --no-doc", "",
+	XCLI(t, "model resource create files:file -g dirs:dir --has-doc=false", "",
 		"", "", true)
 
 	XCLI(t, "create /dirs/d1/files/f1 --set fileid=f2", ``,
@@ -1435,4 +1483,236 @@ func TestXRIgnore(t *testing.T) {
 
 	XCLI(t, "update -v /dirs/d1/files/f1 --set epoch=5 --set fileid=foo --ignore=id --ignore=epoch", ``,
 		"", `Updated: /dirs/d1/files/f1`+"\n", true)
+}
+
+func TestXRResourceType(t *testing.T) {
+	reg := NewRegistry("TestXRResourceType")
+	defer PassDeleteReg(t, reg)
+
+	XCLIServer("localhost:8181")
+
+	// XCLI(t, "cmd", "stdin", "stdout", "stderr", true/false)
+	XCLI(t, "model resource create files", "", "",
+		"A Group type name must be provided via the --group flag.\n", false)
+	XCLI(t, "model resource create files -g dirs", "", "",
+		`Group type "dirs" does not exist.`+"\n", false)
+	XCLI(t, "model resource create files -g dirs:dir", "", "",
+		"Resource type name must be of the form: PLURAL:SINGULAR.\n", false)
+
+	XCLI(t, "model resource create files:file -g dirs:dir", "", "", "", true)
+	XCLI(t, "model resource delete files -g dirs", "", "", "", true)
+
+	XCLI(t, "model resource create -v files:file -g dirs", "",
+		"", "Created Resource type: files\n", true)
+
+	XCLI(t, "model resource create f2s:f2 -g dirs -o table", "",
+		`RESOURCE: f2s / f2
+  Max versions        : 0
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
+`, "", true)
+
+	XCLI(t, "model resource create f3s:f3 -g dirs -o table "+
+		"--consistent-format --description desc --docs docURL --has-doc "+
+		"--icon iconURL --label foo=bar --label=abc=def --max-versions 1 "+
+		"--model-compat-with mcw --model-version 1.0 --set-default-sticky "+
+		"--set-version-id --single-version-root --strict-validation "+
+		"--type-map tm1=json --type-map tm2=string --validate-compat "+
+		"--validate-format --version-mode=createdat", "",
+		`RESOURCE: f3s / f3
+  Description         : desc
+  Documentation       : docURL
+  Max versions        : 1
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : createdat
+  Single version root : true
+  Validate format     : true
+  Validate compat     : true
+  Strict valiation    : true
+  Consistent format   : true
+  Icon URL            : iconURL
+  Model version       : 1.0
+  Model Compat with   : mcw
+  Labels              : abc=def
+                        foo=bar
+  Type map            : tm1=json
+                        tm2=string
+`, ``, true)
+
+	XCLI(t, "model resource create f4s:f4 -g dirs -o table "+
+		"--consistent-format=true --has-doc=true "+
+		"--set-default-sticky=true --set-version-id=true "+
+		"--single-version-root=true --strict-validation=true "+
+		"--validate-compat=true --validate-format=true", "",
+		`RESOURCE: f4s / f4
+  Max versions        : 0
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : manual
+  Single version root : true
+  Validate format     : true
+  Validate compat     : true
+  Strict valiation    : true
+  Consistent format   : true
+`, ``, true)
+
+	XCLI(t, "model resource create f5s:f5 -g dirs -o table "+
+		"--consistent-format=false --has-doc=false "+
+		"--set-default-sticky=false --set-version-id=false "+
+		"--single-version-root=false --strict-validation=false "+
+		"--validate-compat=false --validate-format=false", "",
+		`RESOURCE: f5s / f5
+  Max versions        : 0
+  Set version id      : false
+  Set version sticky  : false
+  Has document        : false
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
+`, ``, true)
+
+	XCLI(t, "model resource create f6s:f6 -g dirs -o table "+
+		"--no-consistent-format --no-has-doc "+
+		"--no-set-default-sticky --no-set-version-id "+
+		"--no-single-version-root --no-strict-validation "+
+		"--no-validate-compat --no-validate-format", "",
+		`RESOURCE: f6s / f6
+  Max versions        : 0
+  Set version id      : false
+  Set version sticky  : false
+  Has document        : false
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
+`, ``, true)
+
+	XCLI(t, "model resource create f7s:f7 -g dirs -o table "+
+		"--no-consistent-format=true --no-has-doc=true "+
+		"--no-set-default-sticky=true --no-set-version-id=true "+
+		"--no-single-version-root=true --no-strict-validation=true "+
+		"--no-validate-compat=true --no-validate-format=true", "",
+		`RESOURCE: f7s / f7
+  Max versions        : 0
+  Set version id      : false
+  Set version sticky  : false
+  Has document        : false
+  Version mode        : manual
+  Single version root : false
+  Validate format     : false
+  Validate compat     : false
+  Strict valiation    : false
+  Consistent format   : false
+`, ``, true)
+
+	XCLI(t, "model resource create f8s:f8 -g dirs -o table "+
+		"--no-consistent-format=false --no-has-doc=false "+
+		"--no-set-default-sticky=false --no-set-version-id=false "+
+		"--no-single-version-root=false --no-strict-validation=false "+
+		"--no-validate-compat=false --no-validate-format=false", "",
+		`RESOURCE: f8s / f8
+  Max versions        : 0
+  Set version id      : true
+  Set version sticky  : true
+  Has document        : true
+  Version mode        : manual
+  Single version root : true
+  Validate format     : true
+  Validate compat     : true
+  Strict valiation    : true
+  Consistent format   : true
+`, ``, true)
+
+	// Some errors and test create vs update vs upsert
+	XCLI(t, "model resource create fsc:fc -g dirs -f -v", "",
+		"", "Created Resource type: fsc\n", true)
+
+	// ---
+
+	XCLI(t, "model resource update fs:f -g dirs -v", "",
+		"", `Resource type "fs" doesn't exists.`+"\n", false)
+
+	XCLI(t, "model resource update fs:f -g dirs -f -v", "",
+		"", "Created Resource type: fs\n", true)
+
+	XCLI(t, "model resource update fs:f -g dirs -v", "",
+		"", "Updated Resource type: fs\n", true)
+
+	XCLI(t, "model resource update fs -g dirs -v", "",
+		"", "Updated Resource type: fs\n", true)
+
+	// ---
+
+	XCLI(t, "model resource upsert fs:f -g dirs -f -v", "",
+		"", `Error: unknown shorthand flag: 'f' in -f
+Usage:
+  xr model resource upsert PLURAL:SINGULAR... [flags]
+
+Flags:
+  -a, --all                        Include default attributes in output
+      --consistent-format          Enforce same format values
+      --description string         Description text
+      --docs string                Documenations URL
+  -g, --group string               Group plural name (create with ":SINGULAR")
+      --has-doc                    Supports domain doc (true*)
+      --icon string                Icon URL
+      --label stringArray          NAME[=VALUE)]
+      --max-versions int           Max versions allowed (0=unlimited*)
+      --model-compat-with string   URI of model
+      --model-version string       Model version string
+      --no-consistent-format       Allow varying format values (true*)
+      --no-has-doc                 Doesn't support domain doc
+      --no-set-default-sticky      Can't set sticky version
+      --no-set-version-id          VersionID is not settable
+      --no-single-version-root     Allow multiple verson roots (true*)
+      --no-strict-validation       Disable strict validation (true*)
+      --no-validate-compat         Disable compatibility validation (true*)
+      --no-validate-format         Disable format validation (true*)
+  -o, --output string              Output format: none*, table, json
+      --set-default-sticky         Can set sticky version (true*)
+      --set-version-id             Version ID is settable (true*)
+      --single-version-root        Restrict to single root
+      --strict-validation          Enforce strict validation
+      --type-map stringArray       NAME[=VALUE)]
+      --validate-compat            Enable compatibility validation
+      --validate-format            Enable format validation
+      --version-mode string        Versioning algorithm
+
+Global Flags:
+      --errjson         Print errors as json
+  -?, --help            Help for xr
+  -s, --server string   xRegistry server URL
+  -v, --verbose         Be chatty
+
+Version: edd264c38c5e
+
+unknown shorthand flag: 'f' in -f
+`, false)
+
+	XCLI(t, "model resource upsert fs -g dirs -v", "",
+		"", "Updated Resource type: fs\n", true)
+
+	XCLI(t, "model resource upsert fs:f -g dirs -v", "",
+		"", "Updated Resource type: fs\n", true)
+
+	XCLI(t, "model resource upsert fs2 -g dirs -v", "",
+		"", "Resource type name must be of the form: PLURAL:SINGULAR.\n", false)
+
+	XCLI(t, "model resource upsert fs22:f22 -g dirs -v", "",
+		"", "Created Resource type: fs22\n", true)
 }

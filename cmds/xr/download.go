@@ -50,7 +50,8 @@ func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd.Flags().StringP("url", "u", "",
 		"Host/path to Update xRegistry paths")
 	downloadCmd.Flags().StringP("index", "i", "index.html",
-		"Directory index file name")
+		"Directory index file name (index.html*)")
+	downloadCmd.Flag("index").DefValue = "" // hide default text
 	downloadCmd.Flags().BoolP("md2html-no-style", "", false,
 		"Do not add default styling to html files")
 	downloadCmd.Flags().BoolP("md2html", "m", false,
@@ -58,13 +59,14 @@ func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd.Flags().StringP("md2html-css-link", "", "",
 		"CSS stylesheet 'link' to add in md2html files")
 	downloadCmd.Flags().StringP("md2html-header", "", "",
-		"HTML to add in <head> of md2html files (data,@FILE,@URL,@-)")
+		"HTML to add in <head> (data,@FILE,@URL,@-)")
 	downloadCmd.Flags().StringP("md2html-html", "", "",
-		"HTML to add after <head> in md2html files (data,@FILE,@URL,@-)")
+		"HTML to add after <head> (data,@FILE,@URL,@-)")
 	downloadCmd.Flags().BoolP("capabilities", "c", false,
 		"Modify capabilities for static site")
 	downloadCmd.Flags().IntP("parallel", "p", 10,
-		"Number of items to download in parallel")
+		"Number of items to download in parallel (10*)")
+	downloadCmd.Flag("parallel").DefValue = "0" // hide default text
 
 	parent.AddCommand(downloadCmd)
 }

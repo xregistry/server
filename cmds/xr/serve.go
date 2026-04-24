@@ -20,7 +20,8 @@ func addServeCmd(parent *cobra.Command) {
 	}
 
 	serveCmd.Flags().StringP("address", "a", "0.0.0.0:8080",
-		"address:port of listener")
+		"address:port of listener (0.0.0.0:8080*)")
+	serveCmd.Flag("address").DefValue = "" // hide default text
 
 	parent.AddCommand(serveCmd)
 }

@@ -213,6 +213,11 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
 		NotNilBoolPtr(ur.HasDocument)))
 	// }
+	if ur.VersionMode != "" {
+		buf.WriteString(`,"versionmode":"`)
+		buf.WriteString(ur.VersionMode)
+		buf.WriteRune('"')
+	}
 	// if ur.GetSingleVersionRoot != nil {
 	buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
 		NotNilBoolPtr(ur.SingleVersionRoot)))
@@ -234,7 +239,7 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 		NotNilBoolPtr(ur.ConsistentFormat)))
 	// }
 	if len(ur.TypeMap) > 0 {
-		buf.WriteString(`,"typemaps":`)
+		buf.WriteString(`,"typemap":`)
 		b, _ := json.Marshal(ur.TypeMap)
 		buf.Write(b)
 	}

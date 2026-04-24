@@ -59,7 +59,8 @@ func addModelCmd(parent *cobra.Command) {
 		Run:   modelGetFunc,
 	}
 	getCmd.Flags().BoolP("all", "a", false, "Include default attributes")
-	getCmd.Flags().StringP("output", "o", "table", "Output format: table, json")
+	getCmd.Flags().StringP("output", "o", "table", "Output format: table*, json")
+	getCmd.Flag("output").DefValue = "" // hide default text
 	modelCmd.AddCommand(getCmd)
 
 	// "model group" commands
@@ -77,7 +78,8 @@ func addModelCmd(parent *cobra.Command) {
 		Run:   modelGroupListFunc,
 	}
 	groupListCmd.Flags().StringP("output", "o", "table",
-		"Output format: table, json")
+		"Output format: table*, json")
+	groupListCmd.Flag("output").DefValue = "" // hide default text
 	modelGroupCmd.AddCommand(groupListCmd)
 
 	groupGetCmd := &cobra.Command{
@@ -87,7 +89,8 @@ func addModelCmd(parent *cobra.Command) {
 	}
 	groupGetCmd.Flags().BoolP("all", "a", false, "Include default attributes")
 	groupGetCmd.Flags().StringP("output", "o", "table",
-		"Output format: table, json")
+		"Output format: table*, json")
+	groupGetCmd.Flag("output").DefValue = "" // hide default text
 	modelGroupCmd.AddCommand(groupGetCmd)
 
 	groupCreateCmd := &cobra.Command{
@@ -100,7 +103,8 @@ func addModelCmd(parent *cobra.Command) {
 	groupCreateCmd.Flags().BoolP("all", "a", false,
 		"Include default attributes in output")
 	groupCreateCmd.Flags().StringP("output", "o", "none",
-		"Output format: none, table, json")
+		"Output format: none*, table, json")
+	groupCreateCmd.Flag("output").DefValue = "" // hide default text
 	modelGroupCmd.AddCommand(groupCreateCmd)
 
 	groupDeleteCmd := &cobra.Command{
@@ -128,7 +132,8 @@ func addModelCmd(parent *cobra.Command) {
 	}
 	resourceListCmd.Flags().StringP("group", "g", "", "Group type plural name")
 	resourceListCmd.Flags().StringP("output", "o", "table",
-		"Output format: table, json")
+		"Output format: table*, json")
+	resourceListCmd.Flag("output").DefValue = "" // hide default text
 	modelResourceCmd.AddCommand(resourceListCmd)
 
 	resourceGetCmd := &cobra.Command{
@@ -140,7 +145,8 @@ func addModelCmd(parent *cobra.Command) {
 	resourceGetCmd.Flags().BoolP("all", "a", false,
 		"Include default attributes")
 	resourceGetCmd.Flags().StringP("output", "o", "table",
-		"Output format: table, json")
+		"Output format: table*, json")
+	resourceGetCmd.Flag("output").DefValue = "" // hide default text
 	modelResourceCmd.AddCommand(resourceGetCmd)
 
 	resourceCreateCmd := &cobra.Command{
@@ -148,21 +154,24 @@ func addModelCmd(parent *cobra.Command) {
 		Short: "Create a new Model Resource type",
 		Run:   modelResourceCreateFunc,
 	}
-	resourceCreateCmd.Flags().StringP("group", "g", "",
-		"Group type plural name (add \":SINGULAR\" to create)")
-	resourceCreateCmd.Flags().IntP("max-versions", "m", 0,
-		"Max versions allowed (default 0 - no limit)")
-	resourceCreateCmd.Flags().BoolP("no-doc", "n", false,
-		"Don't allow for domain docs")
-	resourceCreateCmd.Flags().BoolP("no-set-versionid", "i", false,
-		"Don't allow for setting of versionid")
-	resourceCreateCmd.Flags().BoolP("single-root", "r", false,
-		"Only allow one root version")
-	resourceCreateCmd.Flags().BoolP("all", "a", false,
-		"Include default attributes in output")
-	resourceCreateCmd.Flags().StringP("output", "o", "none",
-		"Output format: none, table, json")
+	AddResourceFlags(resourceCreateCmd)
 	modelResourceCmd.AddCommand(resourceCreateCmd)
+
+	resourceUpdateCmd := &cobra.Command{
+		Use:   "update PLURAL...",
+		Short: "Update a Model Resource type",
+		Run:   modelResourceCreateFunc,
+	}
+	AddResourceFlags(resourceUpdateCmd)
+	modelResourceCmd.AddCommand(resourceUpdateCmd)
+
+	resourceUpsertCmd := &cobra.Command{
+		Use:   "upsert PLURAL:SINGULAR...",
+		Short: "UPdate, or inSERT as appropriate, a Model Resource type",
+		Run:   modelResourceCreateFunc,
+	}
+	AddResourceFlags(resourceUpsertCmd)
+	modelResourceCmd.AddCommand(resourceUpsertCmd)
 
 	resourceDeleteCmd := &cobra.Command{
 		Use:   "delete PLURAL...",
@@ -174,6 +183,95 @@ func addModelCmd(parent *cobra.Command) {
 		"Ignore a \"not found\" error")
 	modelResourceCmd.AddCommand(resourceDeleteCmd)
 
+}
+
+func AddResourceFlags(cmd *cobra.Command) {
+	if strings.HasPrefix(cmd.Use, "create") {
+		cmd.Flags().BoolP("force", "f", false,
+			"Force an 'update' if exist")
+	}
+	if strings.HasPrefix(cmd.Use, "update") {
+		cmd.Flags().BoolP("force", "f", false,
+			"Force a 'create' if missing")
+	}
+
+	cmd.Flags().StringP("group", "g", "",
+		"Group plural name (create with \":SINGULAR\")")
+	cmd.Flags().BoolP("all", "a", false,
+		"Include default attributes in output")
+	cmd.Flags().StringP("output", "o", "none",
+		"Output format: none*, table, json")
+	cmd.Flag("output").DefValue = "" // hide default text
+
+	cmd.Flags().String("description", "", "Description text")
+	cmd.Flags().String("docs", "", "Documenations URL")
+	cmd.Flags().String("icon", "", "Icon URL")
+	cmd.Flags().StringArray("label", nil, "NAME[=VALUE)]")
+	cmd.Flags().StringArray("type-map", nil, "NAME[=VALUE)]")
+	cmd.Flags().String("model-version", "", "Model version string")
+	cmd.Flags().String("model-compat-with", "", "URI of model")
+
+	PanicIf(MAXVERSIONS != 0, "fix me")
+	cmd.Flags().Int("max-versions", MAXVERSIONS,
+		"Max versions allowed (0=unlimited*)")
+
+	PanicIf(SETVERSIONID != true, "fix me")
+	cmd.Flags().Bool("no-set-version-id", false,
+		"VersionID is not settable")
+	cmd.Flags().Bool("set-version-id", true,
+		"Version ID is settable (true*)")
+	cmd.Flag("set-version-id").DefValue = ""
+
+	PanicIf(SETDEFAULTSTICKY != true, "fix me")
+	cmd.Flags().Bool("no-set-default-sticky", false,
+		"Can't set sticky version")
+	cmd.Flags().Bool("set-default-sticky", SETDEFAULTSTICKY,
+		"Can set sticky version (true*)")
+	cmd.Flag("set-default-sticky").DefValue = ""
+
+	PanicIf(HASDOCUMENT != true, "fix me")
+	cmd.Flags().Bool("no-has-doc", false,
+		"Doesn't support domain doc")
+	cmd.Flags().Bool("has-doc", true,
+		"Supports domain doc (true*)")
+	cmd.Flag("has-doc").DefValue = ""
+
+	cmd.Flags().String("version-mode", "", "Versioning algorithm")
+
+	PanicIf(SINGLEVERSIONROOT != false, "fix me")
+	cmd.Flags().Bool("no-single-version-root", true,
+		"Allow multiple verson roots (true*)")
+	cmd.Flags().Bool("single-version-root", false,
+		"Restrict to single root")
+	cmd.Flag("no-single-version-root").DefValue = ""
+
+	PanicIf(VALIDATEFORMAT != false, "fix me")
+	cmd.Flags().Bool("no-validate-format", true,
+		"Disable format validation (true*)")
+	cmd.Flags().Bool("validate-format", false,
+		"Enable format validation")
+	cmd.Flag("no-validate-format").DefValue = ""
+
+	PanicIf(VALIDATECOMPATIBILITY != false, "fix me")
+	cmd.Flags().Bool("no-validate-compat", true,
+		"Disable compatibility validation (true*)")
+	cmd.Flags().Bool("validate-compat", false,
+		"Enable compatibility validation")
+	cmd.Flag("no-validate-compat").DefValue = ""
+
+	PanicIf(STRICTVALIDATION != false, "fix me")
+	cmd.Flags().Bool("no-strict-validation", true,
+		"Disable strict validation (true*)")
+	cmd.Flags().Bool("strict-validation", false,
+		"Enforce strict validation")
+	cmd.Flag("no-strict-validation").DefValue = ""
+
+	PanicIf(CONSISTENTFORMAT != false, "fix me")
+	cmd.Flags().Bool("no-consistent-format", true,
+		"Allow varying format values (true*)")
+	cmd.Flags().Bool("consistent-format", false,
+		"Enforce same format values")
+	cmd.Flag("no-consistent-format").DefValue = ""
 }
 
 func modelNormalizeFunc(cmd *cobra.Command, args []string) {
@@ -352,7 +450,7 @@ func modelGetFunc(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println("xRegistry Model:")
-	PrintLabels(model.Labels, "  ", os.Stdout)
+	PrintMap(model.Labels, "Labels", "  ", os.Stdout)
 	PrintAttributes(ENTITY_REGISTRY, "", model.Attributes, "registry", "",
 		os.Stdout, all)
 
@@ -447,7 +545,7 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 	PrintNotEmpty(indent+"  Model version  ", gm.ModelVersion, os.Stdout)
 	PrintNotEmpty(indent+"  Model Compatible with", gm.ModelCompatibleWith, os.Stdout)
 
-	PrintLabels(gm.Labels, indent+"  ", os.Stdout)
+	PrintMap(gm.Labels, "Labels", indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_GROUP, "", gm.Attributes, gm.Singular, indent+"  ",
 		os.Stdout, all)
 
@@ -468,15 +566,24 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, all bool) {
 	fmt.Printf(indent+"RESOURCE: %s / %s\n", rm.Plural, rm.Singular)
 
-	PrintNotEmpty(indent+"  Description       ", rm.Description, os.Stdout)
-	PrintNotEmpty(indent+"  Max versions      ", rm.GetMaxVersions(), os.Stdout)
-	PrintNotEmpty(indent+"  Set version id    ", rm.SetVersionId, os.Stdout)
-	PrintNotEmpty(indent+"  Set version sticky", rm.SetDefaultSticky, os.Stdout)
-	PrintNotEmpty(indent+"  Has document      ", rm.HasDocument, os.Stdout)
-	PrintNotEmpty(indent+"  Model version     ", rm.ModelVersion, os.Stdout)
-	PrintNotEmpty(indent+"  Model Compatible with   ", rm.ModelCompatibleWith, os.Stdout)
+	PrintNotEmpty(indent+"  Description         ", rm.Description, os.Stdout)
+	PrintNotEmpty(indent+"  Documentation       ", rm.Documentation, os.Stdout)
+	PrintNotEmpty(indent+"  Max versions        ", rm.GetMaxVersions(), os.Stdout)
+	PrintNotEmpty(indent+"  Set version id      ", rm.SetVersionId, os.Stdout)
+	PrintNotEmpty(indent+"  Set version sticky  ", rm.SetDefaultSticky, os.Stdout)
+	PrintNotEmpty(indent+"  Has document        ", rm.HasDocument, os.Stdout)
+	PrintNotEmpty(indent+"  Version mode        ", rm.VersionMode, os.Stdout)
+	PrintNotEmpty(indent+"  Single version root ", rm.SingleVersionRoot, os.Stdout)
+	PrintNotEmpty(indent+"  Validate format     ", rm.ValidateFormat, os.Stdout)
+	PrintNotEmpty(indent+"  Validate compat     ", rm.ValidateCompatibility, os.Stdout)
+	PrintNotEmpty(indent+"  Strict valiation    ", rm.StrictValidation, os.Stdout)
+	PrintNotEmpty(indent+"  Consistent format   ", rm.ConsistentFormat, os.Stdout)
+	PrintNotEmpty(indent+"  Icon URL            ", rm.Icon, os.Stdout)
+	PrintNotEmpty(indent+"  Model version       ", rm.ModelVersion, os.Stdout)
+	PrintNotEmpty(indent+"  Model Compat with   ", rm.ModelCompatibleWith, os.Stdout)
 
-	PrintLabels(rm.Labels, indent+"  ", os.Stdout)
+	PrintMap(rm.Labels, "Labels", indent+"  ", os.Stdout)
+	PrintMap(rm.TypeMap, "Type map", indent+"  ", os.Stdout)
 	PrintAttributes(ENTITY_VERSION, "", rm.VersionAttributes,
 		rm.Singular, indent+"  ", os.Stdout, all)
 
@@ -486,14 +593,14 @@ func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, a
 		rm.Singular, indent+"  ", os.Stdout, all)
 }
 
-func PrintLabels(labels map[string]string, indent string, w io.Writer) {
-	if len(labels) > 0 {
-		for i, k := range SortedKeys(labels) {
-			v := labels[k]
+func PrintMap(daMap map[string]string, title string, indent string, w io.Writer) {
+	if len(daMap) > 0 {
+		for i, k := range SortedKeys(daMap) {
+			v := daMap[k]
 			if i == 0 {
-				fmt.Fprintf(w, indent+"Labels         : %s=%s\n", k, v)
+				fmt.Fprintf(w, "%s%-19s : %s=%s\n", indent, title, k, v)
 			} else {
-				fmt.Fprintf(w, indent+"                 %s=%s\n", k, v)
+				fmt.Fprintf(w, "%s%-19s   %s=%s\n", indent, "", k, v)
 			}
 		}
 	}
@@ -1045,12 +1152,20 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error("At least one Resource type name must be specified")
 	}
 
+	action, _, _ := strings.Cut(cmd.Use, " ")
+
+	ExclusiveFlags(cmd, "set-version-id", "no-set-version-id")
+	ExclusiveFlags(cmd, "set-default-version-id", "no-set-default-version-id")
+	ExclusiveFlags(cmd, "has-doc", "no-has-doc")
+	ExclusiveFlags(cmd, "single-version-root", "no-single-version-root")
+	ExclusiveFlags(cmd, "validate-format", "no-validate-format")
+	ExclusiveFlags(cmd, "validate-compat", "no-validate-compat")
+	ExclusiveFlags(cmd, "strict-validation", "no-strict-validation")
+	ExclusiveFlags(cmd, "consistent-format", "no-consitent-format")
+
 	output, _ := cmd.Flags().GetString("output")
 	all, _ := cmd.Flags().GetBool("all")
-	maxVersions, _ := cmd.Flags().GetInt("max-versions")
-	noDoc, _ := cmd.Flags().GetBool("no-doc")
-	noSetVersionId, _ := cmd.Flags().GetBool("no-set-versionid")
-	singleRoot, _ := cmd.Flags().GetBool("single-root")
+	force, _ := cmd.Flags().GetBool("force")
 
 	if !ArrayContains([]string{"none", "table", "json"}, output) {
 		Error("--output must be one of 'json', 'none', 'table'")
@@ -1073,8 +1188,12 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	modelSrc, xErr := reg.GetModelSource()
 	Error(xErr)
 	gm := modelSrc.FindGroupModel(groupPlural)
+	verMsg := ""
+
 	if gm == nil {
 		if groupSingular == "" {
+			// Doesn't doesn't exist and they didn't ask us to create it by
+			// adding :SINGULAR to the --group value, so just error
 			Error("Group type %q does not exist", group)
 		}
 
@@ -1091,79 +1210,176 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			Singular: groupSingular,
 		}
 
-		buf, err := json.MarshalIndent(modelSrc, "", "  ")
-		Error(err)
-		_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
-		Error(xErr)
-		Verbose("Created Group type: %s:%s\n", groupPlural, groupSingular)
+		verMsg += fmt.Sprintf("Created Group type: %s:%s\n",
+			groupPlural, groupSingular)
 		gm = modelSrc.FindGroupModel(groupPlural)
 	} else {
+		// Just sanity check the :SINGULAR part of the group name provided
 		if groupSingular != "" && groupSingular != gm.Singular {
 			Error("Group type %q already exists with a different "+
 				"singular name: %s", gm.Singular)
 		}
 	}
 
-	verMsg := ""
+	// Now we can move on to processing the Resources
+
 	resourceNames := []string{}
 	for _, arg := range args {
-		parts := strings.Split(arg, ":")
-		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+		resourcePlural, resourceSingular, _ := strings.Cut(arg, ":")
+		if resourcePlural == "" || strings.Contains(resourceSingular, ":") {
 			Error("Resource type name must be of the form: PLURAL:SINGULAR")
 		}
 
-		if parts[0] == parts[1] {
+		if resourcePlural == resourceSingular {
 			Error("Resource PLURAL and SINGULAR names must be different")
 		}
 
-		resourceNames = append(resourceNames, parts[0])
+		// First see if one exists already with the given plural name
+		rm := gm.FindResourceModel(resourcePlural)
 
-		for _, rm := range gm.Resources {
-			if parts[0] == rm.Plural {
-				Error("PLURAL value (%s) conflicts with an existing Resource "+
-					"PLURAL name", parts[0])
+		isNew := false
+
+		if rm == nil {
+			if action == "update" && !force {
+				Error("Resource type %q doesn't exists", resourcePlural)
 			}
-			if parts[0] == rm.Singular {
-				Error("PLURAL value (%s) conflicts with an existing Resource "+
-					"SINGULAR name", parts[0])
+
+			if resourceSingular == "" {
+				Error("Resource type name must be of the form: PLURAL:SINGULAR")
 			}
-			if parts[1] == rm.Plural {
-				Error("SINGULAR value (%s) conflicts with an existing "+
-					"Resource PLURAL name", parts[1])
+
+			// Error check the names before we try to create it
+			for _, tmpR := range gm.Resources {
+				if resourcePlural == tmpR.Singular {
+					Error("PLURAL value (%s) conflicts with an existing "+
+						"Resource type's SINGULAR name", resourcePlural)
+				}
+				if resourceSingular == tmpR.Plural {
+					Error("SINGULAR value (%s) conflicts with an existing "+
+						"Resource type's PLURAL name", resourceSingular)
+				}
+				if resourceSingular == tmpR.Singular {
+					Error("SINGULAR value (%s) conflicts with an existing "+
+						" Resource SINGULAR name", resourceSingular)
+				}
 			}
-			if parts[1] == rm.Singular {
-				Error("SINGULAR value (%s) conflicts with an existing "+
-					" Resource SINGULAR name", parts[1])
+
+			if gm.Resources == nil {
+				gm.Resources = map[string]*xrlib.ResourceModel{}
+			}
+
+			rm = &xrlib.ResourceModel{
+				GroupModel: gm,
+				Plural:     resourcePlural,
+				Singular:   resourceSingular,
+			}
+			gm.Resources[resourcePlural] = rm
+			isNew = true
+
+		} else {
+			if action == "create" && !force {
+				Error("Resource type %q already exists", resourcePlural)
+			}
+
+			if resourceSingular == "" {
+				resourceSingular = rm.Singular
+			} else if resourceSingular != rm.Singular {
+				Error("Resource type %q singular name must be: %s",
+					resourcePlural, rm.Singular)
 			}
 		}
 
-		if gm.Resources == nil {
-			gm.Resources = map[string]*xrlib.ResourceModel{}
+		// Reglardless of whether 'rm' is new or existing, set its properties
+		// based on what the user gave us
+
+		resourceNames = append(resourceNames, resourcePlural)
+
+		if cmd.Flags().Changed("description") {
+			str, _ := cmd.Flags().GetString("description")
+			rm.SetDescription(str)
 		}
 
-		rm := &xrlib.ResourceModel{
-			GroupModel: gm,
-			Plural:     parts[0],
-			Singular:   parts[1],
+		if cmd.Flags().Changed("docs") {
+			str, _ := cmd.Flags().GetString("docs")
+			rm.SetDocumentation(str)
 		}
-		gm.Resources[parts[0]] = rm
+
+		if cmd.Flags().Changed("icon") {
+			str, _ := cmd.Flags().GetString("icon")
+			rm.SetIcon(str)
+		}
+
+		strs, _ := cmd.Flags().GetStringArray("label")
+		for _, value := range strs {
+			name, val, _ := strings.Cut(value, "=")
+			rm.AddLabel(name, val)
+		}
+
+		strs, _ = cmd.Flags().GetStringArray("type-map")
+		for _, value := range strs {
+			name, val, _ := strings.Cut(value, "=")
+			Error(rm.AddTypeMap(name, val))
+		}
+
+		if cmd.Flags().Changed("model-version") {
+			str, _ := cmd.Flags().GetString("model-version")
+			rm.SetModelVersion(str)
+		}
+
+		if cmd.Flags().Changed("model-compat-with") {
+			str, _ := cmd.Flags().GetString("model-compat-with")
+			rm.SetModelCompatibleWith(str)
+		}
 
 		if cmd.Flags().Changed("max-versions") {
-			rm.SetMaxVersions(maxVersions)
-		}
-		if cmd.Flags().Changed("no-doc") {
-			rm.HasDocument = PtrBool(!noDoc)
-		}
-		if cmd.Flags().Changed("no-set-versionid") {
-			rm.SetVersionId = PtrBool(!noSetVersionId)
-		}
-		if cmd.Flags().Changed("single-root") {
-			rm.SingleVersionRoot = &singleRoot
+			i, _ := cmd.Flags().GetInt("max-versions")
+			rm.SetMaxVersions(i)
 		}
 
-		verMsg += fmt.Sprintf("Created Resource type: %s:%s\n",
-			parts[0], parts[1])
+		if b, setIt := SetBoolFlag(cmd, "set-version-id"); setIt {
+			rm.SetSetVersionId(b)
+		}
 
+		if b, setIt := SetBoolFlag(cmd, "set-default-sticky"); setIt {
+			rm.SetSetDefaultSticky(b)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "has-doc"); setIt {
+			rm.SetHasDocument(b)
+		}
+
+		if cmd.Flags().Changed("version-mode") {
+			str, _ := cmd.Flags().GetString("version-mode")
+			rm.SetVersionMode(str)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "single-version-root"); setIt {
+			rm.SetSingleVersionRoot(b)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "validate-format"); setIt {
+			rm.SetValidateFormat(b)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "validate-compat"); setIt {
+			rm.SetValidateCompatibility(b)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "strict-validation"); setIt {
+			rm.SetStrictValidation(b)
+		}
+
+		if b, setIt := SetBoolFlag(cmd, "consistent-format"); setIt {
+			rm.SetConsistentFormat(b)
+		}
+
+		actionStr := "Created"
+		if !isNew {
+			actionStr = "Updated"
+		}
+
+		verMsg += fmt.Sprintf("%s Resource type: %s\n",
+			actionStr, resourcePlural)
 	}
 
 	buf, err := json.MarshalIndent(modelSrc, "", "  ")
@@ -1182,15 +1398,27 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error("Unknown Group type: %s", gm.Plural)
 	}
 
+	jsonOutput := map[string]any{}
+
 	for i, rmName := range resourceNames {
 		rm := gm.FindResourceModel(rmName)
 		if rm == nil {
 			Error("Unknown Resource type: %s", rmName)
 		}
+
+		if output == "json" {
+			jsonOutput[rm.Plural] = rm
+			continue
+		}
+
 		if i != 0 {
 			fmt.Print("")
 		}
 		PrintResourceModel(rm, output, "", all)
+	}
+
+	if len(jsonOutput) > 0 {
+		fmt.Printf("%s\n", ToJSON(jsonOutput))
 	}
 }
 

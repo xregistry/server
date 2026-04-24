@@ -709,6 +709,7 @@ func TestExportBasic(t *testing.T) {
             "setversionid": true,
             "setdefaultversionsticky": true,
             "hasdocument": true,
+            "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,

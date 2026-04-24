@@ -21,7 +21,8 @@ func addGetCmd(parent *cobra.Command) {
 	}
 	getCmd.Flags().StringArrayP("inline", "i", nil, "Inline entities: *, ...")
 	getCmd.Flags().Bool("doc", false, "Retieve document view of entities")
-	getCmd.Flags().StringP("output", "o", "json", "Output format: json, table")
+	getCmd.Flags().StringP("output", "o", "json", "Output format: json*, table")
+	getCmd.Flag("output").DefValue = "" // hide default text
 	getCmd.Flags().BoolP("details", "m", false, "Show resource metadata")
 
 	parent.AddCommand(getCmd)

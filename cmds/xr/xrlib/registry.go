@@ -97,7 +97,7 @@ func (reg *Registry) RefreshModel() *XRError {
 	}
 
 	if err := json.Unmarshal(res.Body, &reg.Model); err != nil {
-		return NewXRError("parse_response", "/model",
+		return NewXRError("parsing_data", "/model",
 			"error_detail="+err.Error()).
 			SetDetailf("Response: %s.", string(res.Body))
 	}
@@ -113,7 +113,7 @@ func (reg *Registry) RefreshCapabilities() *XRError {
 	}
 
 	if err := json.Unmarshal(res.Body, &reg.Capabilities); err != nil {
-		return NewXRError("parse_response", "/capabilities",
+		return NewXRError("parsing_data", "/capabilities",
 			"error_detail="+err.Error()).
 			SetDetailf("Response: %s.", string(res.Body))
 	}
@@ -160,11 +160,22 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 
 	modelSource := Model{}
 	if reg.Model.Source != "" {
-		err := Unmarshal([]byte(reg.Model.Source), &modelSource)
+		tmpAny := map[string]any{}
+		err := Unmarshal([]byte(reg.Model.Source), &tmpAny)
 		if err != nil {
-			return nil, NewXRError("parse_response", "/modelsource",
+			return nil, NewXRError("parsing_data", "/modelsource",
 				"error_detail="+err.Error()).
 				SetDetailf("Response: %s.", string(reg.Model.Source))
+		}
+
+		delete(tmpAny, "$schema")
+		src := ToJSON(tmpAny)
+
+		err = Unmarshal([]byte(src), &modelSource)
+		if err != nil {
+			return nil, NewXRError("parsing_data", "/modelsource",
+				"error_detail="+err.Error()).
+				SetDetailf("Response: %s.", string(src))
 		}
 	}
 
@@ -174,7 +185,7 @@ func (reg *Registry) GetModelSource() (*Model, *XRError) {
 		tmp := ToJSON(reg.Model)
 		err := Unmarshal([]byte(tmp), &modelSource)
 		if err != nil {
-			return nil, NewXRError("parse_response", "/modelsource",
+			return nil, NewXRError("parsing_data", "/modelsource",
 				"error_detail="+err.Error()).
 				SetDetailf("Response: %s.", string(reg.Model.Source))
 		}
@@ -205,7 +216,7 @@ func (reg *Registry) RefreshModelSource() *XRError {
 		srcModel := Model{}
 
 		if err := json.Unmarshal(res.Body, &srcModel); err != nil {
-			return NewXRError("parse_response", "/modelsource",
+			return NewXRError("parsing_data", "/modelsource",
 				"error_detail="+err.Error()).
 				SetDetailf("Response: %s.", string(res.Body))
 		}

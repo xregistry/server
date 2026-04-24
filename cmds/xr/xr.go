@@ -26,8 +26,16 @@ var ErrJson = false
 //    if an arg is "err" then replace with err.Error()
 
 func Error(obj any, args ...any) {
-	if IsNil(obj) {
+	if !ShowError(obj, args...) {
 		return
+	}
+
+	os.Exit(1)
+}
+
+func ShowError(obj any, args ...any) bool {
+	if IsNil(obj) {
+		return false // no error
 	}
 
 	var xErr *XRError
@@ -77,6 +85,18 @@ func Error(obj any, args ...any) {
 
 	// ShowStack()
 	// fmt.Printf("xErr: %s\n", xErr)
+
+	return true // yes we printed something
+}
+
+// Same as Error() but will print the cmd's usage text afterwards
+func ErrorUsage(cmd *cobra.Command, obj any, args ...any) {
+	if !ShowError(obj, args...) {
+		return
+	}
+
+	cmd.Usage()
+
 	os.Exit(1)
 }
 
@@ -114,6 +134,49 @@ func mainFunc(cmd *cobra.Command, args []string) {
 func BufPrintf(buf *strings.Builder, fmtStr string, args ...any) {
 	str := fmt.Sprintf(fmtStr, args...)
 	buf.WriteString(str)
+}
+
+func HelpDefBool(b bool) string {
+	if b {
+		return fmt.Sprintf(" (true*)")
+	}
+	return ""
+}
+
+func ExclusiveFlags(cmd *cobra.Command, flags ...string) {
+	full := map[string]bool{}
+	used := map[string]bool{}
+	for _, flag := range flags {
+		full["--"+flag] = true
+		if cmd.Flags().Changed(flag) {
+			used[flag] = true
+		}
+	}
+	if len(used) <= 1 {
+		return
+	}
+	Error("Only one of '%s' may be specified at a time",
+		strings.Join(SortedKeys(full), ","))
+}
+
+// Look for --xxx and --no-xxx flags and return the net result.
+// If neither are used then return "setIt" as false so we don't do anything
+// Return: value, setIt?
+func SetBoolFlag(cmd *cobra.Command, flagName string) (bool, bool) {
+	if cmd.Flags().Changed("no-" + flagName) {
+		// Using --no-xxx=false means the same as --xxx=true
+		// So return the opposite of whatever this flag's value is
+		value, _ := cmd.Flags().GetBool("no-" + flagName)
+		return !value, true
+	}
+
+	if cmd.Flags().Changed(flagName) {
+		value, _ := cmd.Flags().GetBool(flagName)
+		return value, true
+	}
+
+	// Neither are set so don't set any underlying attribute at all
+	return false, false
 }
 
 func wrap(str string, col int, indent string) string {

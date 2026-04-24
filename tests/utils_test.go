@@ -509,8 +509,8 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 			stdout.String(), stderr.String())
 	}
 
-	XEqual(t, "Stderr:", stderr.String(), Eerr)
 	XEqual(t, "Stdout:", stdout.String(), Eout)
+	XEqual(t, "Stderr:", stderr.String(), Eerr)
 }
 
 func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {

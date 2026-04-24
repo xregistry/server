@@ -286,8 +286,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XNoErr(t, err)
 	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
 
-	err = rm.SetMaxVersions(2)
-	XNoErr(t, err)
+	rm.SetMaxVersions(2)
 	XNoErr(t, reg.SaveModel())
 
 	// Create v3, but keep v2 as default
@@ -316,8 +315,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
 	XCheck(t, vers[1].Object["versionid"] == "v4", "1=v4")
 
-	err = rm.SetMaxVersions(0)
-	XNoErr(t, err)
+	rm.SetMaxVersions(0)
 	XNoErr(t, reg.SaveModel())
 
 	v5, err := f1.AddVersion("v5")
@@ -340,8 +338,7 @@ func TestResourceMaxVersions(t *testing.T) {
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 
 	// Now set maxVer to 1 and just v5 should remain
-	err = rm.SetMaxVersions(1)
-	XNoErr(t, err)
+	rm.SetMaxVersions(1)
 	XNoErr(t, reg.SaveModel())
 
 	vers, err = f1.GetVersions()

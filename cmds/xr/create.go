@@ -31,14 +31,15 @@ Notes:
 `
 
 	createCmd.Flags().StringP("output", "o", "none",
-		"Output format (none, json) when xReg metadata")
+		"Output format (none*, json) when xReg metadata")
+	createCmd.Flag("output").DefValue = "" // hide default text
 	createCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	createCmd.Flags().StringP("data", "d", "",
 		"Data, @FILE, @URL, @-(stdin)")
 	createCmd.Flags().BoolP("replace", "r", false,
 		"Replace entire entity (all attributes)")
 	createCmd.Flags().BoolP("force", "f", false,
-		"Force an 'update' if exist, skip pre-flight checks")
+		"Force an 'update' if exist, no pre-flight checks")
 	createCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	createCmd.Flags().StringArray("set", nil,
 		"Set an attribute: --set NAME[=(VALUE | \"STRING\")]")
@@ -68,7 +69,8 @@ Notes:
 `
 
 	upsertCmd.Flags().StringP("output", "o",
-		"none", "Output format (none, json) when xReg metadata")
+		"none", "Output format (none*, json) when xReg metadata")
+	upsertCmd.Flag("output").DefValue = "" // hide default text
 	upsertCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	upsertCmd.Flags().StringP("data", "d", "",
 		"Data, @FILE, @URL, @-(stdin)")
@@ -101,14 +103,15 @@ Notes:
 `
 
 	updateCmd.Flags().StringP("output", "o", "none",
-		"Output format (none, json) when xReg metadata")
+		"Output format (none*, json) when xReg metadata")
+	updateCmd.Flag("output").DefValue = "" // hide default text
 	updateCmd.Flags().BoolP("details", "m", false, "Data is resource metadata")
 	updateCmd.Flags().StringP("data", "d", "",
 		"Data, @FILE, @URL, @-(stdin)")
 	updateCmd.Flags().BoolP("replace", "r", false,
 		"Replace entire entity (all attributes)")
 	updateCmd.Flags().BoolP("force", "f", false,
-		"Force a 'create' if missing, skip pre-flight checks")
+		"Force a 'create' if missing, no pre-flight checks")
 	updateCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
 	updateCmd.Flags().StringArray("add", nil, "Add to an attribute")

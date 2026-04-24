@@ -563,6 +563,7 @@ func TestModelResourceAttrs(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": false,
+          "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
@@ -1155,6 +1156,7 @@ func TestModelResourceAttrs(t *testing.T) {
           "setversionid": true,
           "setdefaultversionsticky": true,
           "hasdocument": true,
+          "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
@@ -1659,6 +1661,7 @@ func TestModelFullModel(t *testing.T) {
                 "setversionid": true,
                 "setdefaultversionsticky": false,
                 "hasdocument": false,
+                "versionmode": "manual",
                 "singleversionroot": true,
                 "validateformat": false,
                 "validatecompatibility": false,
@@ -2026,12 +2029,13 @@ func TestModelFullModel(t *testing.T) {
             "setversionid": true,
             "setdefaultversionsticky": false,
             "hasdocument": false,
+            "versionmode": "manual",
             "singleversionroot": true,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
             "consistentformat": false,
-            "typemaps": {
+            "typemap": {
               "text/mine": "json"
             },
             "attributes": {

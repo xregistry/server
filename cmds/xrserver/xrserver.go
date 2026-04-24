@@ -106,6 +106,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
 	serverCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort, "API Listen port")
+	serverCmd.Flag("port").DefValue = "0"
 	serverCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
 	serverCmd.Flags().BoolVarP(&RecreateReg, "recreatereg", "", RecreateReg,
@@ -114,19 +115,26 @@ func setupCmds() *cobra.Command {
 		"Don't create DB/reg if missing")
 	serverCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
 		"Default Registry name")
+	serverCmd.Flag("registry").DefValue = ""
 
 	serverCmd.CompletionOptions.HiddenDefaultCmd = true
-	serverCmd.PersistentFlags().StringVarP(&DBName, "db", "", DBName, "DB name")
+	serverCmd.PersistentFlags().StringVarP(&DBName, "db", "", DBName,
+		"DB name ("+DBName+"*)")
+	serverCmd.Flag("db").DefValue = "" // hide default text
 	serverCmd.PersistentFlags().StringVarP(&DBHost, "dbhost", "", defDBHost,
-		"DB host address")
+		"DB host address ("+DBHost+"*)")
+	serverCmd.Flag("dbhost").DefValue = "" // hide default text
 	serverCmd.PersistentFlags().IntVarP(&DBPort, "dbport", "", defDBPort,
-		"DB host port")
+		fmt.Sprintf("DB host port (%d*)", DBPort))
+	serverCmd.Flag("dbport").DefValue = "0" // hide default text
 	serverCmd.PersistentFlags().StringVarP(&DBUser, "dbuser", "", defDBUser,
-		"DB user")
+		"DB user ("+DBUser+"*)")
+	serverCmd.Flag("dbuser").DefValue = "" // hide default text
 	serverCmd.PersistentFlags().StringVarP(&DBPassword, "dbpassword", "",
-		defDBPassword, "DB password")
+		defDBPassword, "DB password ("+DBPassword+"*)")
+	serverCmd.Flag("dbpassword").DefValue = "" // hide default text
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
-		"Be chatty - can specify multiple (-v=0 to turn off)``")
+		"Be chatty - can specify multiple")
 
 	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
@@ -137,7 +145,9 @@ func setupCmds() *cobra.Command {
 	}
 	runCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	runCmd.Flags().BoolP("samples", "", false, "Load sample registries")
-	runCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort, "API Listen port")
+	runCmd.Flags().IntVarP(&APIPort, "port", "p", APIPort,
+		fmt.Sprintf("API Listen port (%d*)", APIPort))
+	runCmd.Flag("port").DefValue = "0"
 	runCmd.Flags().BoolVarP(&RecreateDB, "recreatedb", "", RecreateDB,
 		"Recreate the DB")
 	runCmd.Flags().BoolVarP(&RecreateReg, "recreatereg", "", RecreateReg,
@@ -145,7 +155,8 @@ func setupCmds() *cobra.Command {
 	runCmd.Flags().BoolVarP(&DontCreate, "dontcreate", "", DontCreate,
 		"Don't create DB/reg if missing")
 	runCmd.Flags().StringVarP(&RegistryName, "registry", "r", RegistryName,
-		"Default Registry name")
+		"Default Registry name("+RegistryName+"*)")
+	runCmd.Flag("registry").DefValue = ""
 
 	serverCmd.AddCommand(runCmd)
 

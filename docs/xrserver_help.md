@@ -8,18 +8,18 @@ The `xrserver` CLI boots and manages the API server and backing database:
 ```yaml
 xrserver [command]
   # Global flags:
-      --db string           DB name (default "registry")
-      --dbhost string       DB host address (default "127.0.0.1")
-      --dbpassword string   DB password (default "password")
-      --dbport int          DB host port (default 3306)
-      --dbuser string       DB user (default "root")
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
       --dontcreate          Don't create DB/reg if missing
   -?, --help                Help for commands
       --help-all            Help for all commands
-  -p, --port int            API Listen port (default 8080)
+  -p, --port int            API Listen port
       --recreatedb          Recreate the DB
       --recreatereg         Recreate registry
-  -r, --registry string     Default Registry name (default "xRegistry")
+  -r, --registry string     Default Registry name
       --samples             Load sample registries
   -v, --verbose             Be chatty - can specify multiple (-v=0 to turn off)
       --verify              Verify loading and exit
@@ -37,7 +37,7 @@ xrserver db get NAME
 
 xrserver db list
   # List the databases
-  -o, --output string   Output format: json, table (default "table")
+  -o, --output string   Output format: json, table*
 
 xrserver help [command]
   # Help about any command
@@ -59,10 +59,10 @@ xrserver registry list
 xrserver run
   # Run server (the default command)
       --dontcreate        Don't create DB/reg if missing
-  -p, --port int          API Listen port (default 8080)
+  -p, --port int          API Listen port (8080*)
       --recreatedb        Recreate the DB
       --recreatereg       Recreate registry
-  -r, --registry string   Default Registry name (default "xRegistry")
+  -r, --registry string   Default Registry name(xRegistry*)
       --samples           Load sample registries
       --verify            Verify loading and exit
 ```
@@ -92,17 +92,17 @@ the `xrserver` command is executed:
 
 | Env Var    | Value |
 | ---------- | ----- |
-| XR_PORT    | Listening port of the `xrserver` API server (default: 8080) |
+| XR_PORT    | Listening port of the `xrserver` API server (8080*) |
 | XR_MODEL_PATH | Where to find the sample's model files |
 | XR_LOAD_LARGE | If set, a very large default sample Registry will be loaded |
-| XR_VERBOSE | Chatty level - 0=none, 1=start-up info, 2=HTTP requests, 3+=debug (default: 2) |
+| XR_VERBOSE | Chatty level - 0=none, 1=start-up info, 2=HTTP requests*, 3+=debug |
 
 To configure the `xrserver` to use a non-local (127.0.0.1:3306) MySQL
 instance, set the following environment variables:
 
 | Env Var    | Value |
 | ---------- | ----- |
-| DBHOST     | Hostname, or IP address, of MySQL instance (default: 127.0.0.1) |
-| DBPORT     | Listening port of MySQL instance (default: 3306) |
-| DBUSER     | Admin login for MySQL instance (default: root) |
-| DBPASSWORD | Admin password for MySQL instance (default: password) |
+| DBHOST     | Hostname, or IP address, of MySQL instance (127.0.0.1*) |
+| DBPORT     | Listening port of MySQL instance (3306*) |
+| DBUSER     | Admin login for MySQL instance (root*) |
+| DBPASSWORD | Admin password for MySQL instance (password*) |

@@ -53,7 +53,8 @@ func addDBCmd(parent *cobra.Command) *cobra.Command {
 		},
 	}
 	listCmd.Flags().StringP("output", "o", "table",
-		"Output format: json, table")
+		"Output format: json, table*")
+	listCmd.Flag("output").DefValue = ""
 	dbCmd.AddCommand(listCmd)
 
 	createCmd := &cobra.Command{

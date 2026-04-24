@@ -473,15 +473,39 @@ func (m *Model) SetChanged(val bool) {
 	// ShowStack()
 }
 
-func (m *Model) GetLabel(name string) *string {
+func (m *Model) GetLabel(name string) (string, bool) {
 	if m.Labels == nil {
-		return nil
+		return "", false
 	}
 	val, ok := m.Labels[name]
-	if !ok {
-		return nil
+	return val, ok
+}
+
+func (m *Model) AddLabel(name string, value string) {
+	if m.Labels == nil {
+		m.Labels = map[string]string{}
 	}
-	return &val
+	if m.Labels[name] == value {
+		return
+	}
+	m.Labels[name] = value
+	m.SetChanged(true)
+}
+
+func (m *Model) RemoveLabel(name string) {
+	if m.Labels == nil {
+		return
+	}
+
+	if _, ok := m.Labels[name]; !ok {
+		return
+	}
+
+	delete(m.Labels, name)
+	if len(m.Labels) == 0 {
+		m.Labels = nil
+	}
+	m.SetChanged(true)
 }
 
 func (m *Model) GetPropsOrdered() ([]*Attribute, map[string]*Attribute) {
@@ -667,28 +691,6 @@ func (m *Model) AddGroupModel(plural string, singular string) (*GroupModel, *XRE
 	return gm, nil
 }
 
-func (m *Model) AddLabel(name string, value string) {
-	if m.Labels == nil {
-		m.Labels = map[string]string{}
-	}
-	m.Labels[name] = value
-
-	m.SetChanged(true)
-}
-
-func (m *Model) RemoveLabel(name string) {
-	if m.Labels == nil {
-		return
-	}
-
-	delete(m.Labels, name)
-	if len(m.Labels) == 0 {
-		m.Labels = nil
-	}
-
-	m.SetChanged(true)
-}
-
 func (m *Model) GetChanged() bool {
 	return m.changed
 }
@@ -770,13 +772,11 @@ func (i *Item) SetModel(m *Model) {
 	i.Item.SetModel(m)
 }
 
-func (i *Item) SetItem(item *Item) *XRError {
+func (i *Item) SetItem(item *Item) {
 	i.Item = item
 	item.SetModel(i.Model)
 
 	i.Model.SetChanged(true)
-
-	return nil
 }
 
 func (i *Item) AddAttr(name, daType string) (*Attribute, *XRError) {
@@ -1323,41 +1323,6 @@ func (rm *ResourceModel) GetVersionPropsOrdered() ([]*Attribute, map[string]*Att
 	return rm.versionPropsOrdered, rm.versionPropsMap
 }
 
-func (rm *ResourceModel) GetSetVersionId() bool {
-	if rm.SetVersionId == nil {
-		return SETVERSIONID
-	}
-	return *rm.SetVersionId
-}
-
-func (rm *ResourceModel) GetSetDefaultSticky() bool {
-	if rm.SetDefaultSticky == nil {
-		return SETDEFAULTSTICKY
-	}
-	return *rm.SetDefaultSticky
-}
-
-func (rm *ResourceModel) GetHasDocument() bool {
-	if rm.HasDocument == nil {
-		return HASDOCUMENT
-	}
-	return *rm.HasDocument
-}
-
-func (rm *ResourceModel) ClearHasDocument() {
-	if rm.HasDocument != nil {
-		rm.HasDocument = nil
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
-func (rm *ResourceModel) SetHasDocument(val bool) {
-	if rm.GetHasDocument() != val {
-		rm.HasDocument = PtrBool(val)
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
 func (rm *ResourceModel) Dump(indents ...string) {
 	indent := strings.Join(indents, "")
 	log.Printf("%sRM: %s/%s", indent, rm.Plural, rm.Singular)
@@ -1374,41 +1339,6 @@ func (attr *Attribute) Dump(indents ...string) {
 	log.Printf("%s%s:", indent, attr.Name)
 	log.Printf("%s  - type: ", indent, attr.Type)
 	log.Printf("%s  - internal: %v", indent, attr.internals != nil)
-}
-
-func (rm *ResourceModel) GetSingleVersionRoot() bool {
-	if rm.SingleVersionRoot == nil {
-		return SINGLEVERSIONROOT
-	}
-	return *rm.SingleVersionRoot
-}
-
-func (rm *ResourceModel) GetValidateFormat() bool {
-	if rm.ValidateFormat == nil {
-		return VALIDATEFORMAT
-	}
-	return *rm.ValidateFormat
-}
-
-func (rm *ResourceModel) GetValidateCompatibility() bool {
-	if rm.ValidateCompatibility == nil {
-		return VALIDATECOMPATIBILITY
-	}
-	return *rm.ValidateCompatibility
-}
-
-func (rm *ResourceModel) GetStrictValidation() bool {
-	if rm.StrictValidation == nil {
-		return STRICTVALIDATION
-	}
-	return *rm.StrictValidation
-}
-
-func (rm *ResourceModel) GetConsistentFormat() bool {
-	if rm.ConsistentFormat == nil {
-		return CONSISTENTFORMAT
-	}
-	return *rm.ConsistentFormat
 }
 
 func (rm *ResourceModel) AddResourceAttr(name, daType string) (*Attribute, *XRError) {
@@ -1717,7 +1647,7 @@ func (a *Attribute) SetModel(m *Model) {
 
 // TODO add more setters
 func (a *Attribute) SetStrict(val bool) {
-	if !IsNil(a.Strict) && *(a.Strict) != val {
+	if IsNil(a.Strict) || *(a.Strict) != val {
 		a.Strict = PtrBool(val)
 		a.Model.SetChanged(true)
 	}
@@ -2248,17 +2178,12 @@ func (gm *GroupModel) SetModel(m *Model) {
 	}
 }
 
-func (gm *GroupModel) SetDescription(val string) {
-	gm.Description = val
-	gm.Model.SetChanged(true)
-}
-
 func (gm *GroupModel) GetDescription() string {
 	return gm.Description
 }
 
-func (gm *GroupModel) SetDocumentation(val string) {
-	gm.Documentation = val
+func (gm *GroupModel) SetDescription(val string) {
+	gm.Description = val
 	gm.Model.SetChanged(true)
 }
 
@@ -2266,8 +2191,8 @@ func (gm *GroupModel) GetDocumentation() string {
 	return gm.Documentation
 }
 
-func (gm *GroupModel) SetIcon(val string) {
-	gm.Icon = val
+func (gm *GroupModel) SetDocumentation(val string) {
+	gm.Documentation = val
 	gm.Model.SetChanged(true)
 }
 
@@ -2275,12 +2200,27 @@ func (gm *GroupModel) GetIcon() string {
 	return gm.Icon
 }
 
+func (gm *GroupModel) SetIcon(val string) {
+	gm.Icon = val
+	gm.Model.SetChanged(true)
+}
+
+func (gm *GroupModel) GetLabel(name string) (string, bool) {
+	if gm.Labels == nil {
+		return "", false
+	}
+	val, ok := gm.Labels[name]
+	return val, ok
+}
+
 func (gm *GroupModel) AddLabel(name string, value string) {
 	if gm.Labels == nil {
 		gm.Labels = map[string]string{}
 	}
+	if gm.Labels[name] == value {
+		return
+	}
 	gm.Labels[name] = value
-
 	gm.Model.SetChanged(true)
 }
 
@@ -2289,16 +2229,14 @@ func (gm *GroupModel) RemoveLabel(name string) {
 		return
 	}
 
+	if _, ok := gm.Labels[name]; !ok {
+		return
+	}
+
 	delete(gm.Labels, name)
 	if len(gm.Labels) == 0 {
 		gm.Labels = nil
 	}
-
-	gm.Model.SetChanged(true)
-}
-
-func (gm *GroupModel) SetModelVersion(val string) {
-	gm.ModelVersion = val
 	gm.Model.SetChanged(true)
 }
 
@@ -2306,13 +2244,24 @@ func (gm *GroupModel) GetModelVersion() string {
 	return gm.ModelVersion
 }
 
-func (gm *GroupModel) SetModelCompatibleWith(val string) {
-	gm.ModelCompatibleWith = val
+func (gm *GroupModel) SetModelVersion(val string) {
+	if gm.ModelVersion == val {
+		return
+	}
+	gm.ModelVersion = val
 	gm.Model.SetChanged(true)
 }
 
 func (gm *GroupModel) GetModelCompatibleWith() string {
 	return gm.ModelCompatibleWith
+}
+
+func (gm *GroupModel) SetModelCompatibleWith(val string) {
+	if gm.ModelCompatibleWith == val {
+		return
+	}
+	gm.ModelCompatibleWith = val
+	gm.Model.SetChanged(true)
 }
 
 func (gm *GroupModel) GetBaseAttributes() Attributes {
@@ -2600,11 +2549,104 @@ func (rm *ResourceModel) SetModel(m *Model) {
 	rm.MetaAttributes.SetModel(m)
 }
 
+func (rm *ResourceModel) GetDescription() string {
+	return rm.Description
+}
+
+func (rm *ResourceModel) SetDescription(val string) {
+	if rm.Description == val {
+		return
+	}
+	rm.Description = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetDocumentation() string {
+	return rm.Documentation
+}
+
+func (rm *ResourceModel) SetDocumentation(val string) {
+	if rm.Documentation == val {
+		return
+	}
+	rm.Documentation = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetIcon() string {
+	return rm.Icon
+}
+
+func (rm *ResourceModel) SetIcon(val string) {
+	if rm.Icon == val {
+		return
+	}
+	rm.Icon = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetLabel(name string) (string, bool) {
+	if rm.Labels == nil {
+		return "", false
+	}
+	val, ok := rm.Labels[name]
+	return val, ok
+}
+
+func (rm *ResourceModel) AddLabel(name string, value string) {
+	if rm.Labels == nil {
+		rm.Labels = map[string]string{}
+	}
+	if rm.Labels[name] == value {
+		return
+	}
+	rm.Labels[name] = value
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) RemoveLabel(name string) {
+	if rm.Labels == nil {
+		return
+	}
+
+	delete(rm.Labels, name)
+	if len(rm.Labels) == 0 {
+		rm.Labels = nil
+	}
+
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetModelVersion() string {
+	return rm.ModelVersion
+}
+
+func (rm *ResourceModel) SetModelVersion(val string) {
+	rm.ModelVersion = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetModelCompatibleWith() string {
+	return rm.ModelCompatibleWith
+}
+
+func (rm *ResourceModel) SetModelCompatibleWith(val string) {
+	rm.ModelCompatibleWith = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
 func (rm *ResourceModel) GetMaxVersions() int {
 	if rm.MaxVersions == nil {
 		return MAXVERSIONS
 	}
 	return *rm.MaxVersions
+}
+
+func (rm *ResourceModel) SetMaxVersions(maxV int) {
+	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
+		rm.MaxVersions = PtrInt(maxV)
+		rm.GroupModel.Model.SetChanged(true)
+	}
 }
 
 func (rm *ResourceModel) ClearMaxVersions() {
@@ -2614,13 +2656,32 @@ func (rm *ResourceModel) ClearMaxVersions() {
 	}
 }
 
-func (rm *ResourceModel) SetMaxVersions(maxV int) *XRError {
-	if rm.MaxVersions == nil || *rm.MaxVersions != maxV {
-		rm.MaxVersions = PtrInt(maxV)
+func (rm *ResourceModel) GetSetVersionId() bool {
+	if rm.SetVersionId == nil {
+		return SETVERSIONID
+	}
+	return *rm.SetVersionId
+}
+
+func (rm *ResourceModel) SetSetVersionId(val bool) {
+	if rm.SetVersionId == nil || *rm.SetVersionId != val {
+		rm.SetVersionId = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
+}
 
-	return nil
+func (rm *ResourceModel) GetSetDefaultSticky() bool {
+	if rm.SetDefaultSticky == nil {
+		return SETDEFAULTSTICKY
+	}
+	return *rm.SetDefaultSticky
+}
+
+func (rm *ResourceModel) SetSetDefaultSticky(val bool) {
+	if rm.SetDefaultSticky == nil || *rm.SetDefaultSticky != val {
+		rm.SetDefaultSticky = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
 }
 
 func (rm *ResourceModel) ClearSetDefaultSticky() {
@@ -2630,13 +2691,51 @@ func (rm *ResourceModel) ClearSetDefaultSticky() {
 	}
 }
 
-func (rm *ResourceModel) SetSetDefaultSticky(val bool) *XRError {
-	if rm.GetSetDefaultSticky() != val {
-		rm.SetDefaultSticky = PtrBool(val)
+func (rm *ResourceModel) GetHasDocument() bool {
+	if rm.HasDocument == nil {
+		return HASDOCUMENT
+	}
+	return *rm.HasDocument
+}
+
+func (rm *ResourceModel) SetHasDocument(val bool) {
+	if rm.HasDocument == nil || *rm.HasDocument != val {
+		rm.HasDocument = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
+}
 
-	return nil
+func (rm *ResourceModel) ClearHasDocument() {
+	if rm.HasDocument != nil {
+		rm.HasDocument = nil
+		rm.GroupModel.Model.SetChanged(true)
+	}
+}
+
+func (rm *ResourceModel) GetVersionMode() string {
+	return rm.VersionMode
+}
+
+func (rm *ResourceModel) SetVersionMode(val string) {
+	if rm.VersionMode == val {
+		return
+	}
+	rm.VersionMode = val
+	rm.GroupModel.Model.SetChanged(true)
+}
+
+func (rm *ResourceModel) GetSingleVersionRoot() bool {
+	if rm.SingleVersionRoot == nil {
+		return SINGLEVERSIONROOT
+	}
+	return *rm.SingleVersionRoot
+}
+
+func (rm *ResourceModel) SetSingleVersionRoot(val bool) {
+	if rm.SingleVersionRoot == nil || *rm.SingleVersionRoot != val {
+		rm.SingleVersionRoot = PtrBool(val)
+		rm.GroupModel.Model.SetChanged(true)
+	}
 }
 
 func (rm *ResourceModel) ClearSingleVersionRoot() {
@@ -2646,13 +2745,18 @@ func (rm *ResourceModel) ClearSingleVersionRoot() {
 	}
 }
 
-func (rm *ResourceModel) SetSingleVersionRoot(val bool) *XRError {
-	if rm.GetSingleVersionRoot() != val {
-		rm.SingleVersionRoot = PtrBool(val)
+func (rm *ResourceModel) GetValidateFormat() bool {
+	if rm.ValidateFormat == nil {
+		return VALIDATEFORMAT
+	}
+	return *rm.ValidateFormat
+}
+
+func (rm *ResourceModel) SetValidateFormat(val bool) {
+	if rm.ValidateFormat == nil || *rm.ValidateFormat != val {
+		rm.ValidateFormat = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
-
-	return nil
 }
 
 func (rm *ResourceModel) ClearValidateFormat() {
@@ -2662,13 +2766,18 @@ func (rm *ResourceModel) ClearValidateFormat() {
 	}
 }
 
-func (rm *ResourceModel) SetValidateFormat(val bool) *XRError {
-	if rm.GetValidateFormat() != val {
-		rm.ValidateFormat = PtrBool(val)
+func (rm *ResourceModel) GetValidateCompatibility() bool {
+	if rm.ValidateCompatibility == nil {
+		return VALIDATECOMPATIBILITY
+	}
+	return *rm.ValidateCompatibility
+}
+
+func (rm *ResourceModel) SetValidateCompatibility(val bool) {
+	if rm.ValidateCompatibility == nil || *rm.ValidateCompatibility != val {
+		rm.ValidateCompatibility = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
-
-	return nil
 }
 
 func (rm *ResourceModel) ClearValidateCompatibility() {
@@ -2678,13 +2787,18 @@ func (rm *ResourceModel) ClearValidateCompatibility() {
 	}
 }
 
-func (rm *ResourceModel) SetValidateCompatibility(val bool) *XRError {
-	if rm.GetValidateCompatibility() != val {
-		rm.ValidateCompatibility = PtrBool(val)
+func (rm *ResourceModel) GetStrictValidation() bool {
+	if rm.StrictValidation == nil {
+		return STRICTVALIDATION
+	}
+	return *rm.StrictValidation
+}
+
+func (rm *ResourceModel) SetStrictValidation(val bool) {
+	if rm.StrictValidation == nil || *rm.StrictValidation != val {
+		rm.StrictValidation = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
-
-	return nil
 }
 
 func (rm *ResourceModel) ClearStrictValidation() {
@@ -2694,13 +2808,18 @@ func (rm *ResourceModel) ClearStrictValidation() {
 	}
 }
 
-func (rm *ResourceModel) SetStrictValidation(val bool) *XRError {
-	if rm.GetStrictValidation() != val {
-		rm.StrictValidation = PtrBool(val)
+func (rm *ResourceModel) GetConsistentFormat() bool {
+	if rm.ConsistentFormat == nil {
+		return CONSISTENTFORMAT
+	}
+	return *rm.ConsistentFormat
+}
+
+func (rm *ResourceModel) SetConsistentFormat(val bool) {
+	if rm.ConsistentFormat == nil || *rm.ConsistentFormat != val {
+		rm.ConsistentFormat = PtrBool(val)
 		rm.GroupModel.Model.SetChanged(true)
 	}
-
-	return nil
 }
 
 func (rm *ResourceModel) ClearConsistentFormat() {
@@ -2710,14 +2829,7 @@ func (rm *ResourceModel) ClearConsistentFormat() {
 	}
 }
 
-func (rm *ResourceModel) SetConsistentFormat(val bool) *XRError {
-	if rm.GetConsistentFormat() != val {
-		rm.ConsistentFormat = PtrBool(val)
-		rm.GroupModel.Model.SetChanged(true)
-	}
-
-	return nil
-}
+// DUG
 
 func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 	attrs := Attributes{}
@@ -2837,82 +2949,6 @@ func (rm *ResourceModel) RemoveTypeMap(ct string) *XRError {
 	rm.GroupModel.Model.SetChanged(true)
 
 	return nil
-}
-
-func (rm *ResourceModel) SetDescription(val string) {
-	rm.Description = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetDescription() string {
-	return rm.Description
-}
-
-func (rm *ResourceModel) SetDocumentation(val string) {
-	rm.Documentation = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetDocumentation() string {
-	return rm.Documentation
-}
-
-func (rm *ResourceModel) SetIcon(val string) {
-	rm.Icon = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetIcon() string {
-	return rm.Icon
-}
-
-func (rm *ResourceModel) AddLabel(name string, value string) {
-	if rm.Labels == nil {
-		rm.Labels = map[string]string{}
-	}
-	rm.Labels[name] = value
-
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) RemoveLabel(name string) {
-	if rm.Labels == nil {
-		return
-	}
-
-	delete(rm.Labels, name)
-	if len(rm.Labels) == 0 {
-		rm.Labels = nil
-	}
-
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) SetModelVersion(val string) {
-	rm.ModelVersion = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetModelVersion() string {
-	return rm.ModelVersion
-}
-
-func (rm *ResourceModel) SetModelCompatibleWith(val string) {
-	rm.ModelCompatibleWith = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetModelCompatibleWith() string {
-	return rm.ModelCompatibleWith
-}
-
-func (rm *ResourceModel) SetVersionMode(val string) {
-	rm.VersionMode = val
-	rm.GroupModel.Model.SetChanged(true)
-}
-
-func (rm *ResourceModel) GetVersionMode() string {
-	return rm.VersionMode
 }
 
 // Map incoming "contentType" (ct) to its typemap value.

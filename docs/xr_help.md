@@ -28,10 +28,9 @@ xr create XID
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute: --del NAME
   -m, --details              Data is resource metadata
-  -f, --force                Force an 'update' if exist, skip pre-flight checks
+  -f, --force                Force an 'update' if exist, no pre-flight checks
       --ignore stringArray   Skip certain checks
-  -o, --output string        Output format (none, json) when xReg metadata
-                             (default "none")
+  -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
       --set stringArray      Set an attribute: --set NAME[=(VALUE | "STRING")]
 
@@ -43,17 +42,13 @@ xr delete XID ...
 xr download DIR XID...
   # Download entities from registry as individual files
   -c, --capabilities              Modify capabilities for static site
-  -i, --index string              Directory index file name (default
-                                  "index.html")
+  -i, --index string              Directory index file name (index.html*)
   -m, --md2html                   Generate HTML files for MD files
       --md2html-css-link string   CSS stylesheet 'link' to add in md2html files
-      --md2html-header string     HTML to add in <head> of md2html files
-                                  (data,@FILE,@URL,@-)
-      --md2html-html string       HTML to add after <head> in md2html
-                                  files (data,@FILE,@URL,@-)
+      --md2html-header string     HTML to add in <head> (data,@FILE,@URL,@-)
+      --md2html-html string       HTML to add after <head> (data,@FILE,@URL,@-)
       --md2html-no-style          Do not add default styling to html files
-  -p, --parallel int              Number of items to download in parallel
-                                  (default 10)
+  -p, --parallel int              Number of items to download in parallel (10*)
   -u, --url string                Host/path to Update xRegistry paths
 
 xr get [ XID ]
@@ -61,7 +56,7 @@ xr get [ XID ]
   -m, --details              Show resource metadata
       --doc                  Retieve document view of entities
   -i, --inline stringArray   Inline entities: *, ...
-  -o, --output string        Output format: json, table (default "json")
+  -o, --output string        Output format: json*, table
 
 xr import [ XID ]
   # Import entities into the registry
@@ -70,12 +65,12 @@ xr import [ XID ]
 xr model get
   # Retrieve details about the registry's model
   -a, --all             Include default attributes
-  -o, --output string   Output format: table, json (default "table")
+  -o, --output string   Output format: table*, json
 
 xr model group create PLURAL:SINGULAR...
   # Create a new Model Group type
   -a, --all             Include default attributes in output
-  -o, --output string   Output format: none, table, json (default "none")
+  -o, --output string   Output format: none*, table, json
   -r, --resources       Show Resource types in output
 
 xr model group delete PLURAL...
@@ -85,24 +80,46 @@ xr model group delete PLURAL...
 xr model group get PLURAL
   # Retrieve details about a Model Group type
   -a, --all             Include default attributes
-  -o, --output string   Output format: table, json (default "table")
+  -o, --output string   Output format: table*, json
 
 xr model group list
   # List the Group types defined in the model
-  -o, --output string   Output format: table, json (default "table")
+  -o, --output string   Output format: table*, json
 
 xr model normalize [ - | FILE ]
   # Parse and resolve 'includes' in an xRegistry model document
 
 xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
-  -a, --all                Include default attributes in output
-  -g, --group string       Group type plural name (add ":SINGULAR" to create)
-  -m, --max-versions int   Max versions allowed (default 0 - no limit)
-  -n, --no-doc             Don't allow for domain docs
-  -i, --no-set-versionid   Don't allow for setting of versionid
-  -o, --output string      Output format: none, table, json (default "none")
-  -r, --single-root        Only allow one root version
+  -a, --all                        Include default attributes in output
+      --consistent-format          Enforce same format values
+      --description string         Description text
+      --docs string                Documenations URL
+  -f, --force                      Force an 'update' if exist
+  -g, --group string               Group plural name (create with ":SINGULAR")
+      --has-doc                    Supports domain doc (true*)
+      --icon string                Icon URL
+      --label stringArray          NAME[=VALUE)]
+      --max-versions int           Max versions allowed (0=unlimited*)
+      --model-compat-with string   URI of model
+      --model-version string       Model version string
+      --no-consistent-format       Allow varying format values (true*)
+      --no-has-doc                 Doesn't support domain doc
+      --no-set-default-sticky      Can't set sticky version
+      --no-set-version-id          VersionID is not settable
+      --no-single-version-root     Allow multiple verson roots (true*)
+      --no-strict-validation       Disable strict validation (true*)
+      --no-validate-compat         Disable compatibility validation (true*)
+      --no-validate-format         Disable format validation (true*)
+  -o, --output string              Output format: none*, table, json
+      --set-default-sticky         Can set sticky version (true*)
+      --set-version-id             Version ID is settable (true*)
+      --single-version-root        Restrict to single root
+      --strict-validation          Enforce strict validation
+      --type-map stringArray       NAME[=VALUE)]
+      --validate-compat            Enable compatibility validation
+      --validate-format            Enable format validation
+      --version-mode string        Versioning algorithm
 
 xr model resource delete PLURAL...
   # Delete a Model Resource type
@@ -113,12 +130,75 @@ xr model resource get PLURAL
   # Retrieve details about a Model Resource type
   -a, --all             Include default attributes
   -g, --group string    Group type plural name
-  -o, --output string   Output format: table, json (default "table")
+  -o, --output string   Output format: table*, json
 
 xr model resource list
   # List the Resource types in a Group type
   -g, --group string    Group type plural name
-  -o, --output string   Output format: table, json (default "table")
+  -o, --output string   Output format: table*, json
+
+xr model resource update PLURAL...
+  # Update a Model Resource type
+  -a, --all                        Include default attributes in output
+      --consistent-format          Enforce same format values
+      --description string         Description text
+      --docs string                Documenations URL
+  -f, --force                      Force a 'create' if missing
+  -g, --group string               Group plural name (create with ":SINGULAR")
+      --has-doc                    Supports domain doc (true*)
+      --icon string                Icon URL
+      --label stringArray          NAME[=VALUE)]
+      --max-versions int           Max versions allowed (0=unlimited*)
+      --model-compat-with string   URI of model
+      --model-version string       Model version string
+      --no-consistent-format       Allow varying format values (true*)
+      --no-has-doc                 Doesn't support domain doc
+      --no-set-default-sticky      Can't set sticky version
+      --no-set-version-id          VersionID is not settable
+      --no-single-version-root     Allow multiple verson roots (true*)
+      --no-strict-validation       Disable strict validation (true*)
+      --no-validate-compat         Disable compatibility validation (true*)
+      --no-validate-format         Disable format validation (true*)
+  -o, --output string              Output format: none*, table, json
+      --set-default-sticky         Can set sticky version (true*)
+      --set-version-id             Version ID is settable (true*)
+      --single-version-root        Restrict to single root
+      --strict-validation          Enforce strict validation
+      --type-map stringArray       NAME[=VALUE)]
+      --validate-compat            Enable compatibility validation
+      --validate-format            Enable format validation
+      --version-mode string        Versioning algorithm
+
+xr model resource upsert PLURAL:SINGULAR...
+  # UPdate, or inSERT as appropriate, a Model Resource type
+  -a, --all                        Include default attributes in output
+      --consistent-format          Enforce same format values
+      --description string         Description text
+      --docs string                Documenations URL
+  -g, --group string               Group plural name (create with ":SINGULAR")
+      --has-doc                    Supports domain doc (true*)
+      --icon string                Icon URL
+      --label stringArray          NAME[=VALUE)]
+      --max-versions int           Max versions allowed (0=unlimited*)
+      --model-compat-with string   URI of model
+      --model-version string       Model version string
+      --no-consistent-format       Allow varying format values (true*)
+      --no-has-doc                 Doesn't support domain doc
+      --no-set-default-sticky      Can't set sticky version
+      --no-set-version-id          VersionID is not settable
+      --no-single-version-root     Allow multiple verson roots (true*)
+      --no-strict-validation       Disable strict validation (true*)
+      --no-validate-compat         Disable compatibility validation (true*)
+      --no-validate-format         Disable format validation (true*)
+  -o, --output string              Output format: none*, table, json
+      --set-default-sticky         Can set sticky version (true*)
+      --set-version-id             Version ID is settable (true*)
+      --single-version-root        Restrict to single root
+      --strict-validation          Enforce strict validation
+      --type-map stringArray       NAME[=VALUE)]
+      --validate-compat            Enable compatibility validation
+      --validate-format            Enable format validation
+      --version-mode string        Versioning algorithm
 
 xr model update [ - | FILE | -d ]
   # Update the registry's model
@@ -130,7 +210,7 @@ xr model verify [ - | FILE ... ]
 
 xr serve DIR
   # Run an HTTP file server for a directory
-  -a, --address string   address:port of listener (default "0.0.0.0:8080")
+  -a, --address string   address:port of listener (0.0.0.0:8080*)
 
 xr update XID
   # Update an entity in the registry
@@ -138,11 +218,9 @@ xr update XID
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
   -m, --details              Data is resource metadata
-  -f, --force                Force a 'create' if missing, skip pre-flight
-                             checks
+  -f, --force                Force a 'create' if missing, no pre-flight checks
       --ignore stringArray   Skip certain checks
-  -o, --output string        Output format (none, json) when xReg metadata
-                             (default "none")
+  -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
       --set stringArray      Set an attribute
 
@@ -154,8 +232,7 @@ xr upsert XID
   -m, --details              Data is resource metadata
   -f, --force                Skip pre-flight checks
       --ignore stringArray   Skip certain checks
-  -o, --output string        Output format (none, json) when xReg metadata
-                             (default "none")
+  -o, --output string        Output format (none*, json) when xReg metadata
   -r, --replace              Replace entire entity (all attributes)
       --set stringArray      Set an attribute
 ```
@@ -191,4 +268,4 @@ the `xr` command is executed:
 
 | Env Var    | Value |
 | ---------- | ----- |
-| XR_SERVER  | Location of the xRegistry API server (default: localhost:8080) |
+| XR_SERVER  | Location of the xRegistry API server (localhost:8080*) |
