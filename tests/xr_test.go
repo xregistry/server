@@ -1659,50 +1659,7 @@ func TestXRResourceType(t *testing.T) {
 	// ---
 
 	XCLI(t, "model resource upsert fs:f -g dirs -f -v", "",
-		"", `Error: unknown shorthand flag: 'f' in -f
-Usage:
-  xr model resource upsert PLURAL:SINGULAR... [flags]
-
-Flags:
-  -a, --all                        Include default attributes in output
-      --consistent-format          Enforce same format values
-      --description string         Description text
-      --docs string                Documenations URL
-  -g, --group string               Group plural name (create with ":SINGULAR")
-      --has-doc                    Supports domain doc (true*)
-      --icon string                Icon URL
-      --label stringArray          NAME[=VALUE)]
-      --max-versions int           Max versions allowed (0=unlimited*)
-      --model-compat-with string   URI of model
-      --model-version string       Model version string
-      --no-consistent-format       Allow varying format values (true*)
-      --no-has-doc                 Doesn't support domain doc
-      --no-set-default-sticky      Can't set sticky version
-      --no-set-version-id          VersionID is not settable
-      --no-single-version-root     Allow multiple verson roots (true*)
-      --no-strict-validation       Disable strict validation (true*)
-      --no-validate-compat         Disable compatibility validation (true*)
-      --no-validate-format         Disable format validation (true*)
-  -o, --output string              Output format: none*, table, json
-      --set-default-sticky         Can set sticky version (true*)
-      --set-version-id             Version ID is settable (true*)
-      --single-version-root        Restrict to single root
-      --strict-validation          Enforce strict validation
-      --type-map stringArray       NAME[=VALUE)]
-      --validate-compat            Enable compatibility validation
-      --validate-format            Enable format validation
-      --version-mode string        Versioning algorithm
-
-Global Flags:
-      --errjson         Print errors as json
-  -?, --help            Help for xr
-  -s, --server string   xRegistry server URL
-  -v, --verbose         Be chatty
-
-Version: edd264c38c5e
-
-unknown shorthand flag: 'f' in -f
-`, false)
+		"", "Error: unknown shorthand flag: 'f' in -f\n", false)
 
 	XCLI(t, "model resource upsert fs -g dirs -v", "",
 		"", "Updated Resource type: fs\n", true)

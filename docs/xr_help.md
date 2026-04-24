@@ -13,6 +13,7 @@ xr [command]
       --help-all        Help for all commands
   -s, --server string   xRegistry server URL
   -v, --verbose         Be chatty
+      --version         Print command version string
 
 xr conform
   # xRegistry Conformance Tester

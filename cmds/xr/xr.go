@@ -258,14 +258,20 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 
 func main() {
 	xrCmd := &cobra.Command{
-		Use:   "xr",
-		Short: "xRegistry CLI",
-		Run:   mainFunc,
+		Use:          "xr",
+		Short:        "xRegistry CLI",
+		Run:          mainFunc,
+		SilenceUsage: true,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Just make sure Server starts with some variant of "http"
 			if Server != "" && !strings.HasPrefix(Server, "http") {
 				Server = "http://" + strings.TrimLeft(Server, "/")
+			}
+
+			if b, _ := cmd.Flags().GetBool("version"); b {
+				fmt.Printf("Version: %s\n", GitCommit[:min(len(GitCommit), 12)])
+				os.Exit(0)
 			}
 
 			log.SetVerbose(VerboseCount)
@@ -279,6 +285,8 @@ func main() {
 	xrCmd.PersistentFlags().BoolVarP(&ErrJson, "errjson", "", false,
 		"Print errors as json")
 	xrCmd.PersistentFlags().BoolP("help", "?", false, "Help for xr")
+	xrCmd.PersistentFlags().BoolP("version", "", false,
+		"Print command version string")
 
 	xrCmd.AddGroup(
 		&cobra.Group{"Entities", "Data Management:"},
@@ -286,8 +294,8 @@ func main() {
 
 	xrCmd.SetUsageTemplate(strings.ReplaceAll(xrCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
-	xrCmd.SetUsageTemplate(xrCmd.UsageTemplate() + "\nVersion: " +
-		GitCommit[:min(len(GitCommit), 12)] + "\n")
+	// xrCmd.SetUsageTemplate(xrCmd.UsageTemplate() + "\nVersion: " +
+	// GitCommit[:min(len(GitCommit), 12)] + "\n")
 
 	// just so 'help' is in a group and Hidden is adhered to
 	xrCmd.SetHelpCommand(&cobra.Command{
@@ -323,7 +331,7 @@ func main() {
 	addConformCmd(xrCmd)
 
 	if err := xrCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		// fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }

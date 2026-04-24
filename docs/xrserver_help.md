@@ -21,8 +21,9 @@ xrserver [command]
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name
       --samples             Load sample registries
-  -v, --verbose             Be chatty - can specify multiple (-v=0 to turn off)
+  -v, --verbose             Be chatty
       --verify              Verify loading and exit
+      --version             Print command version string
 
 xrserver db create NAME
   # Create a new mysql DB

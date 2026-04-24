@@ -99,9 +99,10 @@ func Verbose(args ...any) {
 
 func setupCmds() *cobra.Command {
 	serverCmd := &cobra.Command{
-		Use:   "xrserver",
-		Short: "xRegistry server",
-		Run:   runFunc, // if we add this, add all of runCmd's flags
+		Use:          "xrserver",
+		Short:        "xRegistry server",
+		Run:          runFunc, // if we add this, add all of runCmd's flags
+		SilenceUsage: true,
 	}
 	serverCmd.Flags().BoolP("verify", "", false, "Verify loading and exit")
 	serverCmd.Flags().BoolP("samples", "", false, "Load sample registries")
@@ -134,7 +135,9 @@ func setupCmds() *cobra.Command {
 		defDBPassword, "DB password ("+DBPassword+"*)")
 	serverCmd.Flag("dbpassword").DefValue = "" // hide default text
 	serverCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
-		"Be chatty - can specify multiple")
+		"Be chatty``")
+	serverCmd.PersistentFlags().BoolP("version", "", false,
+		"Print command version string")
 
 	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
@@ -166,13 +169,18 @@ func setupCmds() *cobra.Command {
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		log.SetVerbose(VerboseCount)
 		registry.DB_Name = DBName
+
+		if b, _ := cmd.Flags().GetBool("version"); b {
+			fmt.Printf("Version: %s\n", GitCommit[:min(len(GitCommit), 12)])
+			os.Exit(0)
+		}
 	}
 
 	serverCmd.PersistentFlags().BoolP("help", "?", false, "Help for commands")
 	serverCmd.SetUsageTemplate(strings.ReplaceAll(serverCmd.UsageTemplate(),
 		"\"help\"", "\"hide-me\""))
-	serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
-		GitCommit[:min(len(GitCommit), 12)] + "\n")
+	// serverCmd.SetUsageTemplate(serverCmd.UsageTemplate() + "\nVersion: " +
+	// GitCommit[:min(len(GitCommit), 12)] + "\n")
 
 	return serverCmd
 }
@@ -390,7 +398,7 @@ func main() {
 	serverCmd := setupCmds()
 
 	if err := serverCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		// fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }
