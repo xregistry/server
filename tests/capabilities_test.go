@@ -13,7 +13,7 @@ func TestCapabilitySimple(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities/foo", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilities/foo.",
   "subject": "/capabilities/foo",
   "source": ":registry:httpStuff:1258"
@@ -101,7 +101,7 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -206,7 +206,7 @@ func TestCapabilitySimple(t *testing.T) {
     "mutable": [
       "capabilities",
       "entities",
-      "model"
+      "modelsource"
     ],
     "pagination": false,
     "shortself": false,
@@ -250,7 +250,7 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "full mutable",
-			Cap:  `{"mutable":["entities","model","capabilities"]}`,
+			Cap:  `{"mutable":["entities","modelsource","capabilities"]}`,
 			Exp: `{
   "apis": [],
   "compatibilities": {},
@@ -260,7 +260,7 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -275,7 +275,7 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "dup mutable",
-			Cap:  `{"mutable":["entities","model","entities","capabilities"]}`,
+			Cap:  `{"mutable":["entities","modelsource","entities","capabilities"]}`,
 			Exp: `{
   "apis": [],
   "compatibilities": {},
@@ -285,7 +285,7 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -310,7 +310,7 @@ func TestCapabilitySimple(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -346,7 +346,7 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "star mutable-bad",
-			Cap:  `{"mutable":["model","*"]}`,
+			Cap:  `{"mutable":["modelsource","*"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
   "title": "When \"mutable\" includes a value of \"*\" then no other values are allowed.",
@@ -362,11 +362,11 @@ func TestCapabilitySimple(t *testing.T) {
 			Cap:  `{"mutable":["xx"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
+  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
   "subject": "/capabilities",
   "args": {
     "field": "mutable",
-    "list": "capabilities,entities,model",
+    "list": "capabilities,entities,modelsource",
     "value": "xx"
   },
   "source": ":common:capabilities:178"
@@ -374,14 +374,14 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "bad mutable-2",
-			Cap:  `{"mutable":["model", "xx"]}`,
+			Cap:  `{"mutable":["modelsource", "xx"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
+  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
   "subject": "/capabilities",
   "args": {
     "field": "mutable",
-    "list": "capabilities,entities,model",
+    "list": "capabilities,entities,modelsource",
     "value": "xx"
   },
   "source": ":common:capabilities:178"
@@ -389,7 +389,7 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "bad mutable-3",
-			Cap:  `{"mutable":["aa", "model"]}`,
+			Cap:  `{"mutable":["aa", "modelsource"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
   "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"aa\".",
@@ -402,14 +402,14 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "bad mutable-4",
-			Cap:  `{"mutable":["entities", "ff", "model"]}`,
+			Cap:  `{"mutable":["entities", "ff", "modelsource"]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (ff) specified for capability \"mutable\". Allowable values include: capabilities,entities,model.",
+  "title": "Invalid value (ff) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
   "subject": "/capabilities",
   "args": {
     "field": "mutable",
-    "list": "capabilities,entities,model",
+    "list": "capabilities,entities,modelsource",
     "value": "ff"
   },
   "source": ":common:capabilities:178"
@@ -547,7 +547,7 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -601,7 +601,7 @@ func TestCapabilityPath(t *testing.T) {
 	// tests
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilities.",
   "subject": "/capabilities",
   "source": ":registry:httpStuff:1589"
@@ -785,7 +785,7 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
     "epoch", "id", "modelsource", "readonly" ],
-  "mutable": [ "capabilities", "entities", "model" ],
+  "mutable": [ "capabilities", "entities", "modelsource" ],
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
@@ -873,7 +873,7 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -969,7 +969,7 @@ func TestCapabilityPath(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -1281,7 +1281,7 @@ func TestCapabilityAttr(t *testing.T) {
     "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
     "id", "modelsource", "readonly"
   ],
-  "mutable": [ "capabilities", "entities", "model" ],
+  "mutable": [ "capabilities", "entities", "modelsource" ],
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
@@ -1380,7 +1380,7 @@ func TestCapabilityAttr(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -1517,7 +1517,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -1734,7 +1734,7 @@ func TestCapabilityOffered(t *testing.T) {
     "enum": [
       "capabilities",
       "entities",
-      "model"
+      "modelsource"
     ]
   },
   "pagination": {
@@ -1806,7 +1806,7 @@ func TestCapabilityAPIs(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilities.",
   "subject": "/capabilities",
   "source": ":registry:httpStuff:1589"
@@ -1814,7 +1814,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilitiesoffered.",
   "subject": "/capabilitiesoffered",
   "source": ":registry:httpStuff:1596"
@@ -1822,7 +1822,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/export", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /export.",
   "subject": "/export",
   "source": ":registry:httpStuff:1603"
@@ -1830,7 +1830,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /model.",
   "subject": "/model",
   "source": ":registry:httpStuff:1575"
@@ -1838,7 +1838,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /modelsource.",
   "subject": "/modelsource",
   "source": ":registry:httpStuff:1582"
@@ -1907,7 +1907,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /model.",
   "subject": "/model",
   "source": ":registry:httpStuff:1575"
@@ -1915,7 +1915,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /modelsource.",
   "subject": "/modelsource",
   "source": ":registry:httpStuff:1582"
@@ -2062,7 +2062,7 @@ func TestCapabilityAPIs(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -2159,7 +2159,7 @@ func TestCapabilityPatch(t *testing.T) {
   "mutable": [
     "capabilities",
     "entities",
-    "model"
+    "modelsource"
   ],
   "pagination": false,
   "shortself": false,

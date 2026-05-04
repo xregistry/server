@@ -119,7 +119,7 @@ func TestExportBasic(t *testing.T) {
     "mutable": [
       "capabilities",
       "entities",
-      "model"
+      "modelsource"
     ],
     "pagination": false,
     "shortself": false,
@@ -421,7 +421,7 @@ func TestExportBasic(t *testing.T) {
     "mutable": [
       "capabilities",
       "entities",
-      "model"
+      "modelsource"
     ],
     "pagination": false,
     "shortself": false,

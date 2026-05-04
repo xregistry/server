@@ -69,7 +69,7 @@ var SupportedIgnores = ArrayToLower([]string{
 	"modelsource", "readonly"})
 
 var SupportedMutable = ArrayToLower([]string{
-	"capabilities", "entities", "model"})
+	"capabilities", "entities", "modelsource"})
 
 var SupportedSpecVersions = ArrayToLower([]string{"1.0-rc2", SPECVERSION})
 

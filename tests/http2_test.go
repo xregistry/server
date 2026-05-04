@@ -50,7 +50,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 
 		Code: 400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xregistry-barid\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/d1/bars",
   "args": {
@@ -431,7 +431,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", "", 405,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
@@ -472,7 +472,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 `)
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", "", 405,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
@@ -3111,7 +3111,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xregistry-description\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/dir1/files/f8$details",
   "args": {
@@ -4096,7 +4096,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1", ``, 405,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1",
@@ -4292,7 +4292,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1", ``, 405,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
@@ -5402,7 +5402,7 @@ func TestHTTPURLs(t *testing.T) {
 		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/d2/files/f1",
@@ -5730,7 +5730,7 @@ func TestHTTPURLs(t *testing.T) {
 		Code:       405,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#details_required",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1/versions/v5.",
   "detail": "PATCH is not allowed on Resource documents.",
   "subject": "/dirs/d2/files/f1/versions/v5",
@@ -9072,7 +9072,7 @@ func TestHTTPMissingBody(t *testing.T) {
 
 	fn := func(i string) string {
 		xErr := &XRError{
-			Type:    "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
+			Type:    "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
 			Subject: i,
 			Title:   "The request is missing an HTTP body - try '{}'.",
 			Source:  "xyz",
@@ -9160,7 +9160,7 @@ func TestHTTPJsonParsingErrors(t *testing.T) {
 		{`{}{}`, `Error parsing json: extra data possibly near position 3: {`},
 		{`[]`, `path '': expected \"map\", got \"array\"`},
 		{``, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
   "title": "The request is missing an HTTP body - try '{}'.",
   "subject": "/",
   "source": ":registry:httpStuff:3119"

@@ -3980,7 +3980,7 @@ func TestHTTPRegGroups(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type:application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#missing_body",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
   "title": "The request is missing an HTTP body - try '{}'.",
   "subject": "/",
   "source": ":registry:httpStuff:3119"
@@ -4469,7 +4469,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xRegistry-file\" is not allowed on this request: 'xRegistry-file' isn't allowed as an HTTP header.",
   "subject": "/dirs/dir1/files/f1",
   "args": {
@@ -4492,7 +4492,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xRegistry-filebase64\" is not allowed on this request: 'xRegistry-filebase64' isn't allowed as an HTTP header.",
   "subject": "/dirs/dir1/files/f1",
   "args": {
@@ -4803,7 +4803,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xRegistry-fileurl\" is not allowed on this request: header isn't allowed if there's a body.",
   "subject": "/dirs/dir1/files/f3",
   "args": {
@@ -5147,7 +5147,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#header_error",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#header_error",
   "title": "There was an error processing HTTP header \"xRegistry-\": missing an attribute name after the \"-\".",
   "subject": "/dirs/dir1/files/f1",
   "args": {
@@ -9512,7 +9512,7 @@ func TestHTTPDefault(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type: application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xregistry-versionid\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/d1/files/f1$details",
   "args": {
@@ -9570,7 +9570,7 @@ func TestHTTPDefault(t *testing.T) {
 		Code:       400,
 		ResHeaders: []string{"Content-Type: application/json; charset=utf-8"},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#extra_xregistry_header",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#extra_xregistry_header",
   "title": "xRegistry HTTP header \"xregistry-versionid\" is not allowed on this request: including \"xRegistry\" HTTP headers when \"$details\" is used is not allowed.",
   "subject": "/dirs/d1/files/f1$details",
   "args": {

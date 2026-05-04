@@ -317,22 +317,27 @@ var Type2Error = map[string]*XRError{
 
 	// HTTP SPEC
 	"api_not_found": &XRError{
+		Type:  HTTP_SPECURL + "#api_not_found",
 		Code:  404,
 		Title: `The specified API is not supported: <subject>.`,
 	},
 	"details_required": &XRError{
+		Type:  HTTP_SPECURL + "#details_required",
 		Code:  405,
 		Title: `$details suffix is needed when using PATCH for the entity: <subject>.`,
 	},
 	"extra_xregistry_header": &XRError{
+		Type:  HTTP_SPECURL + "#extra_xregistry_header",
 		Code:  400,
 		Title: `xRegistry HTTP header "<name>" is not allowed on this request: <error_detail>.`,
 	},
 	"header_error": &XRError{
+		Type:  HTTP_SPECURL + "#header_error",
 		Code:  400,
 		Title: `There was an error processing HTTP header "<name>": <error_detail>.`,
 	},
 	"missing_body": &XRError{
+		Type:  HTTP_SPECURL + "#missing_body",
 		Code:  400,
 		Title: `The request is missing an HTTP body - try '{}'.`,
 	},
@@ -359,7 +364,9 @@ var Type2Error = map[string]*XRError{
 
 func init() {
 	for k, _ := range Type2Error {
-		Type2Error[k].Type = SPECURL + "#" + k
+		if Type2Error[k].Type == "" {
+			Type2Error[k].Type = CORE_SPECURL + "#" + k
+		}
 	}
 }
 
