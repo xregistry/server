@@ -13,7 +13,7 @@ func TestCapabilitySimple(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities/foo", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /capabilities/foo.",
   "subject": "/capabilities/foo",
   "source": ":registry:httpStuff:1258"
@@ -601,7 +601,7 @@ func TestCapabilityPath(t *testing.T) {
 	// tests
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /capabilities.",
   "subject": "/capabilities",
   "source": ":registry:httpStuff:1589"
@@ -1806,7 +1806,7 @@ func TestCapabilityAPIs(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /capabilities.",
   "subject": "/capabilities",
   "source": ":registry:httpStuff:1589"
@@ -1814,7 +1814,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /capabilitiesoffered.",
   "subject": "/capabilitiesoffered",
   "source": ":registry:httpStuff:1596"
@@ -1822,7 +1822,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/export", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /export.",
   "subject": "/export",
   "source": ":registry:httpStuff:1603"
@@ -1830,7 +1830,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /model.",
   "subject": "/model",
   "source": ":registry:httpStuff:1575"
@@ -1838,7 +1838,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /modelsource.",
   "subject": "/modelsource",
   "source": ":registry:httpStuff:1582"
@@ -1907,7 +1907,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/model", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /model.",
   "subject": "/model",
   "source": ":registry:httpStuff:1575"
@@ -1915,7 +1915,7 @@ func TestCapabilityAPIs(t *testing.T) {
 `)
 	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
   "title": "The specified API is not supported: /modelsource.",
   "subject": "/modelsource",
   "source": ":registry:httpStuff:1582"
