@@ -50,12 +50,21 @@ func (r *Registry) Rollback() *XRError {
 func (r *Registry) SaveAllAndCommit() *XRError {
 	if r != nil {
 		if r.Model.GetChanged() {
-			if xErr := r.SaveModel(); xErr != nil {
+			if xErr := r.SaveModel(false); xErr != nil {
 				return xErr
 			}
 		}
 		return r.tx.SaveAllAndCommit()
 	}
+	return nil
+}
+
+func (r *Registry) Refresh(accessMode int) *XRError {
+	xErr := r.Entity.Refresh(accessMode)
+	if xErr != nil {
+		return xErr
+	}
+	r.LoadCapabilities()
 	return nil
 }
 
@@ -143,7 +152,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 
 	reg.Self = reg
 	reg.Entity.Registry = reg
-	reg.Capabilities = DefaultCapabilities
+	reg.Capabilities = DefaultCapabilities.Clone()
 	reg.Model = &Model{
 		Registry: reg,
 		Groups:   map[string]*GroupModel{},
@@ -178,7 +187,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 		return nil, xErr
 	}
 
-	if xErr = reg.Model.VerifyAndSave(); xErr != nil {
+	if xErr = reg.Model.VerifyAndSave(true); xErr != nil {
 		return nil, xErr
 	}
 
@@ -277,6 +286,8 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 	reg.LoadCapabilities()
 	reg.LoadModel()
 
+	reg.oldCapabilities = reg.Capabilities.Clone()
+
 	return reg, nil
 }
 
@@ -359,14 +370,29 @@ func FindRegistry(tx *Tx, id string, accessMode int) (*Registry, *XRError) {
 	reg.LoadCapabilities()
 	reg.LoadModel()
 
+	reg.oldCapabilities = reg.Capabilities.Clone()
+
 	return reg, nil
+}
+
+func (reg *Registry) SaveCapabilities() *XRError {
+	xErr := reg.Capabilities.Validate()
+	if xErr != nil {
+		return xErr
+	}
+
+	if xErr = reg.Model.Verify(); xErr != nil {
+		return xErr
+	}
+
+	return reg.SetSave("#capabilities", ToJSON(reg.Capabilities))
 }
 
 func (reg *Registry) LoadCapabilities() *Capabilities {
 	capVal, ok := reg.Object["#capabilities"]
 	if !ok {
 		// No custom capabilities, use the default one
-		reg.Capabilities = DefaultCapabilities
+		reg.Capabilities = DefaultCapabilities.Clone()
 	} else {
 		// Custom capabilities
 		capStr, ok := capVal.(string)
@@ -382,8 +408,8 @@ func (reg *Registry) LoadModel() *Model {
 	return LoadModel(reg)
 }
 
-func (reg *Registry) SaveModel() *XRError {
-	return reg.Model.VerifyAndSave()
+func (reg *Registry) SaveModel(verifyData bool) *XRError {
+	return reg.Model.VerifyAndSave(verifyData)
 }
 
 func (reg *Registry) LoadModelFromFile(file string) *XRError {
@@ -432,7 +458,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 		return xErr
 	}
 
-	if xErr = reg.Model.ApplyNewModel(model, string(buf)); xErr != nil {
+	if xErr = reg.Model.ApplyNewModel(model, string(buf), true); xErr != nil {
 		return xErr
 	}
 
@@ -442,6 +468,9 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 }
 
 func (reg *Registry) Update(obj Object, addType AddType) *XRError {
+	log.VPrintf(3, ">Enter: Registry.Update()")
+	defer log.VPrintf(3, "<Exit: Registry.Update")
+
 	if xErr := CheckAttrs(obj, reg.XID); xErr != nil {
 		return xErr
 	}
@@ -484,7 +513,7 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 			}
 		}
 
-		xErr := reg.Model.ApplyNewModelFromJSON(rawJson)
+		xErr := reg.Model.ApplyNewModelFromJSON(rawJson, false)
 		if xErr != nil {
 			return xErr
 		}
@@ -555,7 +584,13 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		}
 	}
 
-	return reg.ValidateAndSave()
+	// If the model changed, save it to the DB and verify all data
+	if xErr := reg.Model.VerifyAndSave(true); xErr != nil {
+		return xErr
+	}
+
+	// Now we can save the registry itself
+	return reg.ValidateAndSave(false)
 }
 
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
@@ -612,7 +647,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 	// that all interactions go thru.
 	reg.Lock()
 
-	if xErr := reg.SaveModel(); xErr != nil {
+	if xErr := reg.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -757,7 +792,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			g.NewObject[g.Singular+"id"] = g.UID
 		}
 
-		if xErr = g.ValidateAndSave(); xErr != nil {
+		if xErr = g.ValidateAndSave(false); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -782,7 +817,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 		}
 	}
 
-	if xErr = reg.ValidateAndSave(); xErr != nil {
+	if xErr = reg.ValidateAndSave(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -1325,4 +1360,60 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	}
 
 	return reg, nil
+}
+
+func (r *Registry) VerifyData() *XRError {
+	// Start with the Registry itself
+	if xErr := r.ValidateAndSave(true); xErr != nil {
+		return xErr
+	}
+
+	// Now do all Groups
+	entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+		fmt.Sprintf(`Type=%d`, ENTITY_GROUP))
+	if xErr != nil {
+		return xErr
+	}
+
+	for _, e := range entities {
+		group := &Group{Entity: *e, Registry: r}
+		group.Self = group
+		if xErr = group.ValidateAndSave(true); xErr != nil {
+			return xErr
+		}
+
+		// Now do all Resource in this Group and implicitly it's owning Meta
+		entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+			`ParentSID=?`, group.DbSID)
+		if xErr != nil {
+			return xErr
+		}
+
+		for _, e := range entities {
+			resource := &Resource{Entity: *e, Group: group}
+			resource.Self = resource
+			// onlyMetaChanged, forceVerify
+			if xErr = resource.ValidateResource(false, true); xErr != nil {
+				return xErr
+			}
+
+			// Now do Versions
+			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+				`ParentSID=?`, resource.DbSID)
+			if xErr != nil {
+				return xErr
+			}
+
+			for _, e := range entities {
+				version := &Version{Entity: *e, Resource: resource}
+				version.Self = version
+				if xErr = version.ValidateAndSave(true); xErr != nil {
+					return xErr
+				}
+			}
+		}
+
+	}
+
+	return nil
 }

@@ -230,7 +230,7 @@ func TestNoModel(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/model/foo", "", 404, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /model/foo.",
   "subject": "/model/foo",
   "source": "e4e59b8a76c4:registry:httpStuff:1308"
@@ -4566,7 +4566,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	XNoErr(t, reg.Model.ApplyNewModel(newModel, ""))
+	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
 	XCheckGet(t, reg, "/model", `{
   "attributes": {
     "specversion": {
@@ -5136,7 +5136,7 @@ func TestResourceModelCreate(t *testing.T) {
 			},
 		},
 	}
-	err = reg.Model.ApplyNewModel(newModel, "")
+	err = reg.Model.ApplyNewModel(newModel, "", true)
 	XNoErr(t, err)
 
 	// Rollback since the previous "newModel" erased too much
@@ -5774,7 +5774,8 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel, "")
+	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
+
 	XCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
@@ -6366,7 +6367,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel, "")
+	reg.Model.ApplyNewModel(newModel, "", true)
 	XCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
@@ -6623,7 +6624,7 @@ func TestResourceModelCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel, "")
+	reg.Model.ApplyNewModel(newModel, "", true)
 
 	XCheckGet(t, reg, "?inline=model&inline=", `{
   "specversion": "`+SPECVERSION+`",

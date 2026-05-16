@@ -65,7 +65,7 @@ func TestInfoIgnore(t *testing.T) {
 		t.Logf("URL: %s", test.URL)
 		info := &RequestInfo{
 			Registry: &Registry{
-				Capabilities: DefaultCapabilities,
+				Capabilities: DefaultCapabilities.Clone(),
 			},
 			OriginalRequest: &http.Request{},
 		}

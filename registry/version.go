@@ -32,7 +32,7 @@ func (v *Version) JustDelete() *XRError {
 	meta := v.Resource.MustFindMeta(false, FOR_WRITE)
 
 	if v.Resource.Touch() {
-		if xErr := meta.ValidateAndSave(); xErr != nil {
+		if xErr := meta.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
 	}

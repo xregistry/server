@@ -24,3 +24,13 @@ encounter problems.
 - [`xrserver` Command](docs/xrserver_help.md)
 - [Developers/Contributing](docs/developers.md)
 - [Community (and additional) Information](docs/community.md)
+
+### Implementation Details/Choices
+
+#### Model Changes
+
+- As of now, removing a Group or Resource type will silently delete any of the
+  corresponding entity instances of those types.
+- However, attribute-level changes that make any entity in the system be
+  non-compliant will generate an error and the model update will be rejected.
+

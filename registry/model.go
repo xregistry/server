@@ -13,7 +13,7 @@ import (
 // cases where someone would need to call it manually (e.g. setting an
 // attribute's property - we should technically find a way to catch those
 // cases so code above this shouldn't need to think about it
-func (m *Model) VerifyAndSave() *XRError {
+func (m *Model) VerifyAndSave(verifyData bool) *XRError {
 	if m.GetChanged() == false {
 		return nil
 	}
@@ -31,7 +31,20 @@ func (m *Model) VerifyAndSave() *XRError {
 		return xErr
 	}
 
-	return m.Save()
+	// Save before we verifyData because saving will delete stuff from the
+	// Registry that should no longer exist (like Resources for non-existing
+	// types)
+	if xErr := m.Save(); xErr != nil {
+		return xErr
+	}
+
+	if verifyData {
+		if xErr := m.Registry.VerifyData(); xErr != nil {
+			return xErr
+		}
+	}
+
+	return nil
 }
 
 func (m *Model) Save() *XRError {
@@ -205,14 +218,15 @@ func LoadModel(reg *Registry) *Model {
 	return model
 }
 
-func (m *Model) ApplyNewModel(newM *Model, src string) *XRError {
+func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError {
 	newM.Registry = m.Registry
 	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
 	// Copy existing SIDs into the new Model so we don't create new ones
 	for gmPlural, gm := range newM.Groups {
 		// Note: gm.Plural might be ""
-		if oldGM := m.FindGroupModel(gmPlural); oldGM != nil {
+		oldGM := m.FindGroupModel(gmPlural)
+		if oldGM != nil {
 			if oldGM.Singular != gm.Singular {
 				return NewXRError("model_error", "/model",
 					"error_detail="+
@@ -252,7 +266,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string) *XRError {
 	}
 	m.Source = src
 
-	if xErr := m.VerifyAndSave(); xErr != nil {
+	if xErr := m.VerifyAndSave(verifyData); xErr != nil {
 		// Too much to undo. The Verify() at the top should have caught
 		// anything wrong
 		return xErr
@@ -261,7 +275,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string) *XRError {
 	return nil
 }
 
-func (m *Model) ApplyNewModelFromJSON(buf []byte) *XRError {
+func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {
 	modelSource := string(buf)
 	if modelSource == "" {
 		modelSource = "{}"
@@ -273,6 +287,11 @@ func (m *Model) ApplyNewModelFromJSON(buf []byte) *XRError {
 		return xErr
 	}
 
+	buf, err := RemoveSchema(buf)
+	if err != nil {
+		return NewXRError("bad_request", "/", "error_detail="+err.Error())
+	}
+
 	model, xErr := ParseModel(buf)
 	if xErr != nil {
 		return xErr
@@ -280,7 +299,7 @@ func (m *Model) ApplyNewModelFromJSON(buf []byte) *XRError {
 
 	// model.Source = modelSource
 
-	return m.ApplyNewModel(model, modelSource)
+	return m.ApplyNewModel(model, modelSource, verify)
 }
 
 func (rm *ResourceModel) VerifyData() *XRError {

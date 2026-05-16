@@ -526,8 +526,15 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			caps, xErr := ParseCapabilitiesJSON(tmpData["capabilities"])
 			Error(xErr)
 
+			caps.Available = map[string]*AvailableObject{
+				"capabilities":        &AvailableObject{Mutable: false},
+				"capabilitiesoffered": &AvailableObject{Mutable: false},
+				"entities":            &AvailableObject{Mutable: false},
+				"export":              &AvailableObject{Mutable: false},
+				"model":               &AvailableObject{Mutable: false},
+				"modelsource":         &AvailableObject{Mutable: false},
+			}
 			caps.Flags = nil
-			caps.Mutable = nil
 			caps.Pagination = false
 			tmpData["capabilities"], _ = json.Marshal(caps)
 			data, _ = json.MarshalIndent(tmpData, "", "  ")
@@ -553,8 +560,16 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		if modCap {
 			caps, xErr := ParseCapabilitiesJSON(data)
 			Error(xErr)
+
+			caps.Available = map[string]*AvailableObject{
+				"capabilities":        &AvailableObject{Mutable: false},
+				"capabilitiesoffered": &AvailableObject{Mutable: false},
+				"entities":            &AvailableObject{Mutable: false},
+				"export":              &AvailableObject{Mutable: false},
+				"model":               &AvailableObject{Mutable: false},
+				"modelsource":         &AvailableObject{Mutable: false},
+			}
 			caps.Flags = nil
-			caps.Mutable = nil
 			caps.Pagination = false
 			data, _ = json.MarshalIndent(caps, "", "  ")
 		}

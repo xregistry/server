@@ -291,7 +291,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Type: OBJECT,
 	})
 	XNoErr(t, err)
-	err = reg.SaveModel()
+	err = reg.SaveModel(true)
 	XNoErr(t, err)
 
 	_, err = obj.AddAttribute(&registry.Attribute{
@@ -301,7 +301,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Default:  "string",
 	})
 	XNoErr(t, err)
-	err = reg.SaveModel()
+	err = reg.SaveModel(true)
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"myobj.defint\" \"default\" value must be of type \"integer\".",
@@ -321,7 +321,7 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Default:  "string",
 	})
 	XNoErr(t, err)
-	err = reg.SaveModel()
+	err = reg.SaveModel(true)
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_scalar_default",
   "title": "Model attribute \"myobj.defint\" is not allowed to have a default value since it is not a scalar.",
@@ -341,13 +341,13 @@ func TestRegistryDefaultFields(t *testing.T) {
 		Default:  123,
 	})
 	XNoErr(t, err)
-	err = reg.SaveModel()
+	err = reg.SaveModel(true)
 	XNoErr(t, err)
 
 	// Commit before we call Set below otherwise the Tx will be rolled back
 	reg.Refresh(registry.FOR_WRITE)
 	reg.Touch() // Force a validation which will set all defaults
-	reg.ValidateAndSave()
+	reg.ValidateAndSave(false)
 
 	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -436,4 +436,303 @@ func TestRegistryDefaultFields(t *testing.T) {
   "defstring": "hello"
 }
 `)
+}
+
+func TestRegistryRoot(t *testing.T) {
+	reg := NewRegistry("TestRegistryRoot")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
+		`{
+  "specversion": "1.0-rc2",
+  "registryid": "TestRegistryRoot",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-05-15T19:51:47.726218335Z",
+  "modifiedat": "2026-05-15T19:51:47.726218335Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
+  },
+  "modelsource": {}
+}
+`)
+	// epoch=1
+
+	// First, make caps minimal
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+    "available": {
+      "capabilities": { "mutable": true },
+      "modelsource": { "mutable": true }
+    },
+    "flags": [ "inline" ]
+    }`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Minimal + epoch=2
+	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
+		`{
+  "specversion": "1.0-rc2",
+  "registryid": "TestRegistryRoot",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-15T19:53:28.842649795Z",
+  "modifiedat": "2026-05-15T19:53:28.864538646Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {},
+    "flags": [
+      "inline"
+    ],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  },
+  "modelsource": {}
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{"description":"testing"}`, 200,
+		`{
+  "description": "testing"
+}
+`)
+
+	// epoch=3
+	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
+		`{
+  "specversion": "1.0-rc2",
+  "registryid": "TestRegistryRoot",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2026-05-15T19:53:28.842649795Z",
+  "modifiedat": "2026-05-15T19:53:28.864538646Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {},
+    "flags": [
+      "inline"
+    ],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  },
+  "modelsource": {
+    "description": "testing"
+  }
+}
+`)
+
+	// Now, make sure we don't lose anything on a PUT
+	XHTTP(t, reg, "PUT", "/?inline=capabilities,modelsource", `{}`, 200,
+		`{
+  "specversion": "1.0-rc2",
+  "registryid": "TestRegistryRoot",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2026-05-15T19:47:09.150460505Z",
+  "modifiedat": "2026-05-15T19:47:09.178548005Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {},
+    "flags": [
+      "inline"
+    ],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  },
+  "modelsource": {
+    "description": "testing"
+  }
+}
+`)
+
 }

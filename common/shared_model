@@ -2496,20 +2496,17 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 	if xErr := rm.MetaAttributes.Verify("strict", ld); xErr != nil {
 		return xErr
 	}
+
+	// Validate "versionmode"
+	if rm.VersionMode == "" {
+		rm.VersionMode = VERSIONMODE
+	}
+
 	// TODO: verify the Resources data are model compliant
 	// Only do this if we have a Registry. It assumes that if we have
 	// no Registry then we're not connected to a backend and there's no data
 	// to verify
 	if rm.GroupModel.Model.Registry != nil {
-		if xErr := rm.VerifyData(); xErr != nil {
-			return xErr
-		}
-
-		// Validate "versionmode"
-		if rm.VersionMode == "" {
-			rm.VersionMode = VERSIONMODE
-		}
-
 		// Should we be able to verify this when Registry is nil ?
 		if !rm.GroupModel.Model.Registry.Capabilities.VersionModeEnabled(rm.VersionMode) {
 			return NewXRError("model_error", "/model",

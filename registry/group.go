@@ -43,7 +43,7 @@ func (g *Group) Delete() *XRError {
 	}
 
 	if g.Registry.Touch() {
-		if xErr := g.Registry.ValidateAndSave(); xErr != nil {
+		if xErr := g.Registry.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
 	}
@@ -118,7 +118,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	log.VPrintf(3, ">Enter: UpsertResource(%s,%s)", ru.RType, ru.Id)
 	defer log.VPrintf(3, "<Exit: UpsertResource")
 
-	if xErr := g.Registry.SaveModel(); xErr != nil {
+	if xErr := g.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -617,11 +617,11 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 	*/
 
-	if xErr = g.ValidateAndSave(); xErr != nil {
+	if xErr = g.ValidateAndSave(false); xErr != nil {
 		return nil, false, xErr
 	}
 
-	if xErr = r.ValidateResource(false); xErr != nil {
+	if xErr = r.ValidateResource(false, false); xErr != nil {
 		return nil, false, xErr
 	}
 

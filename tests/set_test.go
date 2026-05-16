@@ -134,7 +134,7 @@ func TestSetAttributeNames(t *testing.T) {
 		}
 
 	}
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 }
 
 func TestSetResource(t *testing.T) {
@@ -143,7 +143,7 @@ func TestSetResource(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -182,7 +182,7 @@ func TestSetVersion(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
-	reg.SaveModel()
+	reg.SaveModel(true)
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -220,7 +220,7 @@ func TestSetDots(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
-	reg.SaveModel()
+	reg.SaveModel(true)
 
 	// check some dots in the prop names - and some labels stuff too
 	dir, _ := reg.AddGroup("dirs", "d1")
@@ -669,7 +669,7 @@ func TestSetNameUser(t *testing.T) {
 	_, err = rm.AddAttrMap("mymap", registry.NewItemType(STRING))
 	XNoErr(t, err)
 
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 	XNoErr(t, reg.Commit())
 
 	base := "http://localhost:8181"

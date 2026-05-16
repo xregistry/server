@@ -308,7 +308,7 @@ func TestModelResourceAttrs(t *testing.T) {
 	_, err = rm.AddResourceAttrArray("rarray", registry.NewItemType(INTEGER))
 	XNoErr(t, err)
 
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	XHTTP(t, reg, "GET", "/model", "{}", 200, `{
   "attributes": {

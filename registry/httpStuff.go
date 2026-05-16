@@ -140,7 +140,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, xErr = ParseRequest(tx, w, r)
-	tx.RequestInfo = info
+	// tx.RequestInfo = info
 
 	if xErr != nil {
 		HTTPWriteError(info, xErr)
@@ -650,39 +650,39 @@ func HTTPGet(info *RequestInfo) *XRError {
 
 	info.Root = strings.Trim(info.Root, "/")
 
-	if info.RootPath == "model" {
-		if !info.APIEnabled("/model") {
-			return NewXRError("api_not_found", "/model")
-		}
-		return HTTPGETModel(info)
-	}
-
-	if info.RootPath == "modelsource" {
-		if !info.APIEnabled("/modelsource") {
-			return NewXRError("api_not_found", "/modelsource")
-		}
-		return HTTPGETModelSource(info)
-	}
-
 	if info.RootPath == "capabilities" {
-		if !info.APIEnabled("/capabilities") {
-			return NewXRError("api_not_found", "/capabilities")
+		if !info.IsAvailable("capabilities") {
+			return NewXRError("not_available", "/capabilities")
 		}
 		return HTTPGETCapabilities(info)
 	}
 
 	if info.RootPath == "capabilitiesoffered" {
-		if !info.APIEnabled("/capabilitiesoffered") {
-			return NewXRError("api_not_found", "/capabilitiesoffered")
+		if !info.IsAvailable("capabilitiesoffered") {
+			return NewXRError("not_available", "/capabilitiesoffered")
 		}
 		return HTTPGETCapabilitiesOffered(info)
 	}
 
 	if info.RootPath == "export" {
-		if !info.APIEnabled("/export") {
-			return NewXRError("api_not_found", "/export")
+		if !info.IsAvailable("export") {
+			return NewXRError("not_available", "/export")
 		}
 		return SerializeQuery(info, nil, "Registry", info.Filters)
+	}
+
+	if info.RootPath == "model" {
+		if !info.IsAvailable("model") {
+			return NewXRError("not_available", "/model")
+		}
+		return HTTPGETModel(info)
+	}
+
+	if info.RootPath == "modelsource" {
+		if !info.IsAvailable("modelsource") {
+			return NewXRError("not_available", "/modelsource")
+		}
+		return HTTPGETModelSource(info)
 	}
 
 	// 'metaInBody' tells us whether xReg metadata should be in the http
@@ -741,10 +741,16 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 		}
 	}()
 
-	if info.RootPath == "export" && len(info.Inlines) == 0 {
-		info.AddInline("*")
-		info.AddInline("capabilities")
-		info.AddInline("modelsource")
+	if info.RootPath == "export" {
+		if !info.FlagEnabled("inline") || len(info.Inlines) == 0 {
+			// Clear all inlines for cases where they specified them
+			// but "inline" flag is not enabled
+			info.Inlines = nil
+
+			info.AddInline("*")
+			info.AddInline("capabilities")
+			info.AddInline("modelsource")
+		}
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -906,8 +912,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	// Capabilities has its own special func
 	if info.RootPath == "capabilities" {
-		if !info.APIEnabled("/capabilities") {
-			return NewXRError("api_not_found", "/capabilities")
+		if !info.IsAvailable("capabilities") || !info.IsAvailableMutable("capabilities") {
+			return NewXRError("not_available", "/capabilities")
 		}
 		return HTTPPUTCapabilities(info)
 	}
@@ -920,21 +926,14 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	// The model has its own special func
 	if info.RootPath == "modelsource" {
-		if !info.APIEnabled("/modelsource") {
-			return NewXRError("api_not_found", "/modelsource")
+		if !info.IsAvailable("modelsource") || !info.IsAvailableMutable("modelsource") {
+			return NewXRError("not_available", "/modelsource")
 		}
 		return HTTPPUTModelSource(info)
 	}
 
-	// Load-up the body
-	// //////////////////////////////////////////////////////
-	body, err := io.ReadAll(info.OriginalRequest.Body)
-	if err != nil {
-		return NewXRError("parsing_data", "/"+info.OriginalPath,
-			"error_detail="+err.Error())
-	}
-	if len(body) == 0 {
-		body = nil
+	if !info.IsAvailableMutable("entities") {
+		return NewXRError("not_available", "/"+info.OriginalPath)
 	}
 
 	// Check for some obvious high-level bad states up-front
@@ -964,7 +963,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	//////////////////////////////////////////////////
 
 	// Get the incoming Object either from the body or from xRegistry headers
-	IncomingObj, xErr := ExtractIncomingObject(info, body)
+	IncomingObj, xErr := ExtractIncomingObject(info, info.Body)
 	if xErr != nil {
 		return xErr
 	}
@@ -1576,18 +1575,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 }
 
 func HTTPPUTCapabilities(info *RequestInfo) *XRError {
-	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0))
+	if len(info.Parts) > 1 || !info.IsAvailable("capabilities") {
+		return NewXRError("not_available", "/"+info.GetParts(0))
 	}
 
-	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
-	if err != nil {
-		info.StatusCode = http.StatusInternalServerError
-		return NewXRError("parsing_data", info.GetParts(0),
-			"error_detail="+err.Error())
-	}
-
-	reqBody, err = RemoveSchema(reqBody)
+	reqBody, err := RemoveSchema(info.Body)
 	if err != nil {
 		return NewXRError("parsing_data", info.GetParts(0),
 			"error_detail="+err.Error())
@@ -1641,8 +1633,8 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 }
 
 func HTTPPUTModelSource(info *RequestInfo) *XRError {
-	if len(info.Parts) > 1 {
-		return NewXRError("api_not_found", info.GetParts(0))
+	if len(info.Parts) > 1 || !info.IsAvailable("modelsource") {
+		return NewXRError("not_available", "/"+info.GetParts(0))
 	}
 
 	if info.OriginalRequest.Method != "PUT" {
@@ -1650,14 +1642,14 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 			"action="+info.OriginalRequest.Method)
 	}
 
-	reqBody, err := io.ReadAll(info.OriginalRequest.Body)
-	if err != nil {
-		return NewXRError("parsing_data", info.GetParts(0),
-			"error_detail="+err.Error())
+	xErr := info.Registry.Model.ApplyNewModelFromJSON(info.Body, true)
+	if xErr != nil {
+		return xErr
 	}
 
-	xErr := info.Registry.Model.ApplyNewModelFromJSON(reqBody)
-	if xErr != nil {
+	info.Registry.Touch()
+
+	if xErr = info.Registry.ValidateAndSave(false); xErr != nil {
 		return xErr
 	}
 
@@ -1893,16 +1885,10 @@ type EpochEntryMap map[string]EpochEntry
 func LoadEpochMap(info *RequestInfo) (EpochEntryMap, *XRError) {
 	res := EpochEntryMap{}
 
-	body, err := io.ReadAll(info.OriginalRequest.Body)
-	if err != nil {
-		return nil, NewXRError("parsing_data", "/"+info.OriginalPath,
-			"error_detail="+err.Error())
-	}
-
-	bodyStr := strings.TrimSpace(string(body))
+	bodyStr := strings.TrimSpace(string(info.Body))
 
 	if len(bodyStr) > 0 {
-		err = Unmarshal([]byte(bodyStr), &res)
+		err := Unmarshal([]byte(bodyStr), &res)
 		if err != nil {
 			return nil, NewXRError("parsing_data", info.GetParts(0),
 				"error_detail="+err.Error())

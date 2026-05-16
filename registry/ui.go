@@ -159,7 +159,7 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	for _, r := range rootList {
 		name := r.name
 
-		if r.u != "" && !info.APIEnabled("/"+r.u) {
+		if r.u != "" && !info.IsAvailable(r.u) {
 			continue
 		}
 

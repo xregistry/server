@@ -175,7 +175,7 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 
 func XCheckGet(t *testing.T, reg *registry.Registry, url string, expected string) {
 	t.Helper()
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 	XNoErr(t, reg.SaveAllAndCommit())
 
 	if len(url) > 0 {
@@ -235,7 +235,7 @@ type HTTPResult struct {
 func XDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	bodyStr string) *HTTPResult {
 
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 	XNoErr(t, reg.SaveAllAndCommit())
 
 	client := &http.Client{
@@ -269,7 +269,7 @@ func XDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 
 func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...string) {
 	t.Helper()
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 	XNoErr(t, reg.SaveAllAndCommit())
 
 	// t.Logf("Test: %s", test.Name)

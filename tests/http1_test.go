@@ -2336,7 +2336,7 @@ func TestHTTPModel(t *testing.T) {
   "registryid": "TestHTTPModel",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 6,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -2350,7 +2350,7 @@ func TestHTTPModel(t *testing.T) {
   "registryid": "TestHTTPModel",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 7,
   "description": "two",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -7852,7 +7852,7 @@ func TestHTTPEnum(t *testing.T) {
 
 	attr = reg.Model.Attributes["myint"]
 	attr.SetStrict(false)
-	reg.Model.VerifyAndSave()
+	reg.Model.VerifyAndSave(true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT reg - int valid - no-strict",
@@ -8026,7 +8026,7 @@ func TestHTTPIfValue(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, "")
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "myobj",
@@ -8066,7 +8066,7 @@ func TestHTTPIfValue(t *testing.T) {
 		},
 	})
 	XCheckErr(t, err, "")
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	_, err = reg.Model.AddAttribute(&registry.Attribute{
 		Name: "badone",
@@ -8503,7 +8503,7 @@ func TestHTTPResources(t *testing.T) {
 	rm, err := gm.AddResourceModelSimple("files", "file")
 	XNoErr(t, err)
 
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	/*
 		_, err := rm.AddAttribute(&registry.Attribute{
@@ -8657,7 +8657,7 @@ func TestHTTPResources(t *testing.T) {
 	// "file" is ok this time because HasDocument=false
 	rm = rm.Refresh()
 	rm.SetHasDocument(false)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name: "mystring",
 		Type: STRING,
@@ -11177,7 +11177,7 @@ func TestHTTPMatchCaseEnum(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/", `{"description":"one"}`, 200, `*`)
 	XHTTP(t, reg, "PATCH", "/", `{"description":"OnE"}`, 200, `*`)
 
-	// now set matchcase to true
+	// now set matchcase to true - and watch it fail due to the Registry.desc
 	XHTTP(t, reg, "PUT", "/modelsource", `{
   "attributes": {
     "description": {
@@ -11185,7 +11185,32 @@ func TestHTTPMatchCaseEnum(t *testing.T) {
       "type": "string",
       "matchcase": true,
       "enum": [ "oNe", "TWO" ]
-    }}}`, 200, `*`)
+    }}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"description\" for \"/\" is not valid: value (OnE) must be one of the enum values: oNe, TWO.",
+  "subject": "/",
+  "args": {
+    "error_detail": "value (OnE) must be one of the enum values: oNe, TWO",
+    "name": "description"
+  },
+  "source": "b1fcff68b7f8:registry:entity:2857"
+}
+`)
+
+	// now set matchcase to true AND set Registry.desc to a valid value
+	XHTTP(t, reg, "PUT", "/", `{
+  "description": "TWO",
+  "modelsource": {
+    "attributes": {
+      "description": {
+        "name": "description",
+        "type": "string",
+        "matchcase": true,
+        "enum": [ "oNe", "TWO" ]
+      }
+    }
+  }
+}`, 200, `*`)
 
 	XHTTP(t, reg, "PATCH", "/", `{"description":"oNe"}`, 200, `*`)
 	XHTTP(t, reg, "PATCH", "/", `{"description":"OnE"}`, 400, `{

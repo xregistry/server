@@ -371,7 +371,7 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 				ShowStack()
 			}
 		}
-		if xErr := e.ValidateAndSave(); xErr != nil {
+		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
 	}

@@ -39,13 +39,26 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
-    "apis": [
-      "/capabilities",
-      "/capabilitiesoffered",
-      "/export",
-      "/model",
-      "/modelsource"
-    ],
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
     "compatibilities": {
       "avro*": [
         "backward",
@@ -115,11 +128,6 @@ func TestExportBasic(t *testing.T) {
       "id",
       "modelsource",
       "readonly"
-    ],
-    "mutable": [
-      "capabilities",
-      "entities",
-      "modelsource"
     ],
     "pagination": false,
     "shortself": false,
@@ -341,13 +349,26 @@ func TestExportBasic(t *testing.T) {
   "modifiedat": "2025-01-01T12:00:02Z",
 
   "capabilities": {
-    "apis": [
-      "/capabilities",
-      "/capabilitiesoffered",
-      "/export",
-      "/model",
-      "/modelsource"
-    ],
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
     "compatibilities": {
       "avro*": [
         "backward",
@@ -417,11 +438,6 @@ func TestExportBasic(t *testing.T) {
       "id",
       "modelsource",
       "readonly"
-    ],
-    "mutable": [
-      "capabilities",
-      "entities",
-      "modelsource"
     ],
     "pagination": false,
     "shortself": false,

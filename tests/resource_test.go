@@ -139,7 +139,7 @@ func TestResourceSet(t *testing.T) {
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// /dirs/d1/f1/v1
 
@@ -224,7 +224,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
 	d1, _ := reg.AddGroup("dirs", "d1")
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
@@ -264,7 +264,7 @@ func TestResourceMaxVersions(t *testing.T) {
 		SetDefaultSticky: PtrBool(false),
 	})
 	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	f1, err := d1.AddResource("files", "f1", "v1")
 	XCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
@@ -287,7 +287,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
 
 	rm.SetMaxVersions(2)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// Create v3, but keep v2 as default
 	XNoErr(t, f1.SetDefault(v2))
@@ -316,7 +316,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XCheck(t, vers[1].Object["versionid"] == "v4", "1=v4")
 
 	rm.SetMaxVersions(0)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	v5, err := f1.AddVersion("v5")
 	XNoErr(t, err)
@@ -339,10 +339,11 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	// Now set maxVer to 1 and just v5 should remain
 	rm.SetMaxVersions(1)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	vers, err = f1.GetVersions()
 	XNoErr(t, err)
+
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
 	XCheck(t, vers[0].Object["versionid"] == "v5", "0=v5")

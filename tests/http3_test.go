@@ -942,10 +942,10 @@ func TestHTTPModelSource(t *testing.T) {
   }
 }`, 200, `*`)
 
-	// Notice "null" means erase model
+	// Notice "{}" means erase model
 	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
-  "modelsource": null
+  "modelsource": {}
 }`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelSource",
@@ -1061,6 +1061,124 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
+	// Notice "null" means erase model
+	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
+  "model": { "ignore": "me" },
+  "modelsource": null
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPModelSource",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "model": {
+    "attributes": {
+      "specversion": {
+        "name": "specversion",
+        "type": "string",
+        "readonly": true,
+        "required": true
+      },
+      "registryid": {
+        "name": "registryid",
+        "type": "string",
+        "matchcase": true,
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "self": {
+        "name": "self",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "xid": {
+        "name": "xid",
+        "type": "xid",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "epoch": {
+        "name": "epoch",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "name": {
+        "name": "name",
+        "type": "string"
+      },
+      "description": {
+        "name": "description",
+        "type": "string"
+      },
+      "documentation": {
+        "name": "documentation",
+        "type": "url"
+      },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
+      },
+      "createdat": {
+        "name": "createdat",
+        "type": "timestamp",
+        "required": true
+      },
+      "modifiedat": {
+        "name": "modifiedat",
+        "type": "timestamp",
+        "required": true
+      },
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
 	// Some errors
 	XHTTP(t, reg, "POST", "/modelsource", `{}`, 405,
 		`{
@@ -1092,7 +1210,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 7,
+  "epoch": 8,
   "createdat": "2025-05-29T21:12:41.262020774Z",
   "modifiedat": "2025-05-29T21:12:41.399898946Z",
 
@@ -2132,24 +2250,41 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+        "$schema": "http://foo.com",
+        "available": {
+            "capabilities": { "mutable": true },
+            "capabilitiesoffered": { "mutable": false },
+            "export": { "mutable": false },
+            "model": { "mutable": false },
+            "modelsource": { "mutable": true }
+        }
+      }`,
 		200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -2162,24 +2297,41 @@ func TestHTTPJsonSchema(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PATCH", "/capabilities", `{"$schema": "http://foo.com","apis":["*"],"mutable":["*"]}`,
+	XHTTP(t, reg, "PATCH", "/capabilities", `{
+        "$schema": "http://foo.com",
+        "available": {
+            "capabilities": { "mutable": true },
+            "capabilitiesoffered": { "mutable": false },
+            "export": { "mutable": false },
+            "model": { "mutable": false },
+            "modelsource": { "mutable": true }
+        }
+    }`,
 		200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [

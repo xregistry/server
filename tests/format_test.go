@@ -241,6 +241,7 @@ func TestFormatSimple(t *testing.T) {
 
 	// Try to turn on validateformat again, should still fail due to bad format
 	rm.SetStrictValidation(true)
+
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "),
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_unknown",

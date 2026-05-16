@@ -88,10 +88,6 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `For "<subject>", the request would create a circular list of ancestors: <list>.`,
 	},
-	"api_not_found": &XRError{
-		Code:  404,
-		Title: `The specified API is not supported: <subject>.`,
-	},
 	"bad_defaultversionid": &XRError{
 		Code:  400,
 		Title: `An error was found in the "defaultversionid" value specified (<value>): <error_detail>.`,
@@ -244,6 +240,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The operation would result in multiple root Versions for "<subject>", which is not allowed for "<plural>".`,
 	},
+	"not_available": &XRError{
+		Code:  400,
+		Title: `The requested data (<subject>) is not available.`,
+	},
 	"not_found": &XRError{
 		Code:  404,
 		Title: `The targeted entity (<subject>) cannot be found.`,
@@ -320,6 +320,11 @@ var Type2Error = map[string]*XRError{
 	// MODEL SPEC
 
 	// HTTP SPEC
+	"api_not_found": &XRError{
+		Type:  HTTP_SPECURL + "#api_not_found",
+		Code:  404,
+		Title: `The specified API is not supported: <subject>.`,
+	},
 	"details_required": &XRError{
 		Type:  HTTP_SPECURL + "#details_required",
 		Code:  405,

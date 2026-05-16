@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/xregistry/server/common"
+	"github.com/xregistry/server/registry"
 )
 
 func TestCapabilitySimple(t *testing.T) {
@@ -13,7 +14,7 @@ func TestCapabilitySimple(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities/foo", ``, 404,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
   "title": "The specified API is not supported: /capabilities/foo.",
   "subject": "/capabilities/foo",
   "source": ":registry:httpStuff:1258"
@@ -21,13 +22,26 @@ func TestCapabilitySimple(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -98,11 +112,6 @@ func TestCapabilitySimple(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -126,13 +135,26 @@ func TestCapabilitySimple(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
 
   "capabilities": {
-    "apis": [
-      "/capabilities",
-      "/capabilitiesoffered",
-      "/export",
-      "/model",
-      "/modelsource"
-    ],
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
     "compatibilities": {
       "avro*": [
         "backward",
@@ -203,11 +225,6 @@ func TestCapabilitySimple(t *testing.T) {
       "modelsource",
       "readonly"
     ],
-    "mutable": [
-      "capabilities",
-      "entities",
-      "modelsource"
-    ],
     "pagination": false,
     "shortself": false,
     "specversions": [
@@ -231,12 +248,15 @@ func TestCapabilitySimple(t *testing.T) {
 			Name: "empty",
 			Cap:  `{}`,
 			Exp: `{
-  "apis": [],
+  "available": {
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -250,18 +270,26 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "full mutable",
-			Cap:  `{"mutable":["entities","modelsource","capabilities"]}`,
+			Cap: `{"available":{
+                     "modelsource":{"mutable":true},
+                     "entities":{"mutable":true},
+                     "capabilities":{"mutable":true}}}`,
 			Exp: `{
-  "apis": [],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -275,18 +303,26 @@ func TestCapabilitySimple(t *testing.T) {
 		},
 		{
 			Name: "dup mutable",
-			Cap:  `{"mutable":["entities","modelsource","entities","capabilities"]}`,
+			Cap: `{"available":{
+                     "modelsource":{"mutable":true},
+                     "entities":{"mutable":true},
+                     "capabilities":{"mutable":true}}}`,
 			Exp: `{
-  "apis": [],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -296,123 +332,6 @@ func TestCapabilitySimple(t *testing.T) {
   "versionmodes": [
     "manual"
   ]
-}`,
-		},
-		{
-			Name: "star mutable",
-			Cap:  `{"mutable":["*"]}`,
-			Exp: `{
-  "apis": [],
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "` + SPECVERSION + `"
-  ],
-  "stickyversions": true,
-  "versionmodes": [
-    "manual"
-  ]
-}`,
-		},
-		{
-			Name: "mutable empty",
-			Cap:  `{"mutable":[]}`,
-			Exp: `{
-  "apis": [],
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "mutable": [],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "` + SPECVERSION + `"
-  ],
-  "stickyversions": true,
-  "versionmodes": [
-    "manual"
-  ]
-}`,
-		},
-		{
-			Name: "star mutable-bad",
-			Cap:  `{"mutable":["modelsource","*"]}`,
-			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
-  "title": "When \"mutable\" includes a value of \"*\" then no other values are allowed.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "mutable"
-  },
-  "source": ":common:capabilities:157"
-}`,
-		},
-		{
-			Name: "bad mutable-1",
-			Cap:  `{"mutable":["xx"]}`,
-			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "mutable",
-    "list": "capabilities,entities,modelsource",
-    "value": "xx"
-  },
-  "source": ":common:capabilities:178"
-}`,
-		},
-		{
-			Name: "bad mutable-2",
-			Cap:  `{"mutable":["modelsource", "xx"]}`,
-			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (xx) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "mutable",
-    "list": "capabilities,entities,modelsource",
-    "value": "xx"
-  },
-  "source": ":common:capabilities:178"
-}`,
-		},
-		{
-			Name: "bad mutable-3",
-			Cap:  `{"mutable":["aa", "modelsource"]}`,
-			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
-  "title": "There was an error in the capabilities provided: unknown \"mutable\" value: \"aa\".",
-  "subject": "/capabilities",
-  "args": {
-    "error_detail": "unknown \"mutable\" value: \"aa\""
-  },
-  "source": ":common:capabilities:188"
-}`,
-		},
-		{
-			Name: "bad mutable-4",
-			Cap:  `{"mutable":["entities", "ff", "modelsource"]}`,
-			Exp: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (ff) specified for capability \"mutable\". Allowable values include: capabilities,entities,modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "mutable",
-    "list": "capabilities,entities,modelsource",
-    "value": "ff"
-  },
-  "source": ":common:capabilities:178"
 }`,
 		},
 
@@ -467,13 +386,26 @@ func TestCapabilityPath(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -544,11 +476,6 @@ func TestCapabilityPath(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -577,14 +504,17 @@ func TestCapabilityPath(t *testing.T) {
 	// Try to clear it all - some can't be totally erased
 	XHTTP(t, reg, "PUT", "/capabilities", `{"flags":["inline"]}`, 200,
 		`{
-  "apis": [],
+  "available": {
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [
     "inline"
   ],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -599,44 +529,32 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Make sure it's turned off, but turn it on for the rest of the
 	// tests
-	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
+	XHTTP(t, reg, "GET", "/capabilities", ``, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /capabilities.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/capabilities) is not available.",
   "subject": "/capabilities",
-  "source": ":registry:httpStuff:1589"
+  "source": "b1fcff68b7f8:registry:httpStuff:655"
 }
 `)
 
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	reg.Capabilities.SetAvailable("capabilities", true)
+	reg.Capabilities.SetAvailable("entities", true)
+	XNoErr(t, reg.SaveCapabilities())
+	// Epoch should now be 3
+
+	// Notice no flags are enabled, so inline is ignored
 	XHTTP(t, reg, "PUT", "/?inline=capabilities",
-		`{"capabilities":{"apis":["/capabilities"]}}`, 200, `{
+		`{"capabilities":{"available":{"capabilities":{"mutable":true}}}}`,
+		200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-
-  "capabilities": {
-    "apis": [
-      "/capabilities"
-    ],
-    "compatibilities": {},
-    "flags": [],
-    "formats": [],
-    "ignores": [],
-    "mutable": [],
-    "pagination": false,
-    "shortself": false,
-    "specversions": [
-      "`+SPECVERSION+`"
-    ],
-    "stickyversions": true,
-    "versionmodes": [
-      "manual"
-    ]
-  }
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
 
@@ -646,21 +564,25 @@ func TestCapabilityPath(t *testing.T) {
   "registryid": "TestCapabilityPath",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -675,23 +597,26 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Setting to nulls
 	XHTTP(t, reg, "PUT", "/capabilities", `{
-  "apis": ["/capabilities"],
+  "available": {"capabilities":{"mutable":true}},
   "flags": null,
   "ignores": null,
-  "mutable": null,
   "pagination": null,
   "shortself": null,
   "specversions": null
 }`, 200,
 		`{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -705,14 +630,18 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -727,9 +656,26 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Testing setting everything to the default
 	XHTTP(t, reg, "PUT", "/capabilities", `{
-  "apis": [
-    "/capabilities", "/capabilitiesoffered", "/export", "/model", "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -785,7 +731,6 @@ func TestCapabilityPath(t *testing.T) {
   ],
   "ignores": [ "capabilities", "defaultversionid", "defaultversionsticky",
     "epoch", "id", "modelsource", "readonly" ],
-  "mutable": [ "capabilities", "entities", "modelsource" ],
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
@@ -793,13 +738,26 @@ func TestCapabilityPath(t *testing.T) {
   "versionmodes": [ "createdat", "manual" ]
 }`, 200,
 		`{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -869,11 +827,6 @@ func TestCapabilityPath(t *testing.T) {
     "id",
     "modelsource",
     "readonly"
-  ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -889,13 +842,26 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -965,11 +931,6 @@ func TestCapabilityPath(t *testing.T) {
     "id",
     "modelsource",
     "readonly"
-  ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
   ],
   "pagination": false,
   "shortself": false,
@@ -985,16 +946,20 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	// Setting to minimal
-	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/capabilities"]}`,
+	XHTTP(t, reg, "PUT", "/capabilities", `{"available":{"capabilities":{"mutable":true}}}`,
 		200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1008,14 +973,18 @@ func TestCapabilityPath(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1030,19 +999,23 @@ func TestCapabilityPath(t *testing.T) {
 
 	// Test some bools
 	XHTTP(t, reg, "PUT", "/capabilities", `{
-    "apis":["/capabilities"],
+    "available":{"capabilities":{"mutable":true}},
 	"pagination": false,
 	"shortself": false,
     "stickyversions": false
 }`, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1143,7 +1116,14 @@ func TestCapabilityAttr(t *testing.T) {
 	// Try to clear it all - some can't be totally erased.
 	// Notice epoch value changed
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{
-      "capabilities": {"apis":["/capabilities"]} }`, 200, `{
+      "capabilities": {
+        "available":{
+          "capabilities":{"mutable":true},
+          "entities":{"mutable":true}
+        },
+        "flags": ["inline"]
+      }
+    }`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
   "self": "http://localhost:8181/",
@@ -1153,14 +1133,20 @@ func TestCapabilityAttr(t *testing.T) {
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
-    "apis": [
-      "/capabilities"
-    ],
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      }
+    },
     "compatibilities": {},
-    "flags": [],
+    "flags": [
+      "inline"
+    ],
     "formats": [],
     "ignores": [],
-    "mutable": [],
     "pagination": false,
     "shortself": false,
     "specversions": [
@@ -1177,10 +1163,9 @@ func TestCapabilityAttr(t *testing.T) {
 	// Setting to nulls
 	// notice ?inline is still disabled!
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "apis": ["/capabilities"],
+  "available": {"capabilities":{"mutable":true},"entities":{"mutable":true}},
   "flags": null,
   "ignores": null,
-  "mutable": null,
   "pagination": null,
   "shortself": null,
   "specversions": null,
@@ -1199,14 +1184,18 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1220,10 +1209,16 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	// Testing setting everything to the default
-	// inline still disabled
+	// inline will be enabled due to the update
 	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "apis": ["/export", "/model", "/modelsource", "/capabilities",
-    "/capabilitiesoffered"],
+  "available": {
+    "capabilities": { "mutable": true },
+    "capabilitiesoffered": { "mutable": false },
+    "entities": { "mutable": true },
+    "export": { "mutable": false },
+    "model": { "mutable": false },
+    "modelsource": { "mutable": true }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -1281,7 +1276,6 @@ func TestCapabilityAttr(t *testing.T) {
     "capabilities", "defaultversionid", "defaultversionsticky", "epoch",
     "id", "modelsource", "readonly"
   ],
-  "mutable": [ "capabilities", "entities", "modelsource" ],
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
@@ -1295,18 +1289,134 @@ func TestCapabilityAttr(t *testing.T) {
   "xid": "/",
   "epoch": 4,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": false,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
+  }
 }
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -1377,11 +1487,6 @@ func TestCapabilityAttr(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1396,20 +1501,21 @@ func TestCapabilityAttr(t *testing.T) {
 `)
 
 	// Setting to minimal
-	// inline still enabled
-	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{ "capabilities": {
-  "apis":["/capabilities"],
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "mutable": [],
-  "pagination": false,
-  "shortself": false,
-  "specversions": ["`+SPECVERSION+`"],
-  "stickyversions": true,
-  "versionmodes": [ "manual" ]
-}}`, 200,
+	// inline not enabled
+	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{
+  "capabilities": {
+    "available":{"capabilities":{"mutable":true},"entities":{"mutable":true}},
+    "compatibilities": {},
+    "flags": [],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": ["`+SPECVERSION+`"],
+    "stickyversions": true,
+    "versionmodes": [ "manual" ]
+  }
+}`, 200,
 		`{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityAttr",
@@ -1417,39 +1523,23 @@ func TestCapabilityAttr(t *testing.T) {
   "xid": "/",
   "epoch": 5,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-
-  "capabilities": {
-    "apis": [
-      "/capabilities"
-    ],
-    "compatibilities": {},
-    "flags": [],
-    "formats": [],
-    "ignores": [],
-    "mutable": [],
-    "pagination": false,
-    "shortself": false,
-    "specversions": [
-      "`+SPECVERSION+`"
-    ],
-    "stickyversions": true,
-    "versionmodes": [
-      "manual"
-    ]
-  }
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
 }
 `)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
-  "apis": [
-    "/capabilities"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1505,20 +1595,25 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	XHTTP(t, reg, "PUT", "/capabilities", `{
-      "apis":["/capabilities","/model"],"mutable":["*"]}`, 200, `{
-  "apis": [
-    "/capabilities",
-    "/model"
-  ],
+      "available":{
+        "capabilities":{"mutable":true},
+        "entities":{"mutable":true},
+        "model":{"mutable":false}}}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    },
+    "model": {
+      "mutable": false
+    }
+  },
   "compatibilities": {},
   "flags": [],
   "formats": [],
   "ignores": [],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -1622,25 +1717,523 @@ func TestCapabilityOffered(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 200, `{
-  "apis": {
-    "type": "array",
-    "item": {
-      "type": "string"
-    },
-    "enum": [
-      "/capabilities",
-      "/capabilitiesoffered",
-      "/export",
-      "/model",
-      "/modelsource"
-    ]
+  "available": {
+    "type": "object",
+    "attributes": {
+      "capabilities": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "capabilitiesoffered": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "entities": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      },
+      "export": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "model": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
+      "modelsource": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
   },
   "compatibilities": {
-    "type": "map",
+    "type": "object",
+    "attributes": {
+      "avro*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "jsonschema*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "numbers": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "protobuf*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
+      "xmlschema*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "flags": {
+    "type": "array",
+    "enum": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
     "item": {
       "type": "string"
+    }
+  },
+  "formats": {
+    "type": "array",
+    "enum": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "ignores": {
+    "type": "array",
+    "enum": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "pagination": {
+    "type": "boolean",
+    "enum": [
+      false
+    ]
+  },
+  "shortself": {
+    "type": "boolean",
+    "enum": [
+      false
+    ]
+  },
+  "specversions": {
+    "type": "array",
+    "enum": [
+      "`+SPECVERSION+`"
+    ],
+    "item": {
+      "type": "string"
+    }
+  },
+  "stickyversions": {
+    "type": "boolean",
+    "enum": [
+      false,
+      true
+    ]
+  },
+  "versionmodes": {
+    "type": "array",
+    "enum": [
+      "createdat",
+      "manual"
+    ],
+    "item": {
+      "type": "string"
+    }
+  }
+}
+`)
+}
+
+func TestCapabilityAvailable(t *testing.T) {
+	reg := NewRegistry("TestCapabilityAPIs")
+	defer PassDeleteReg(t, reg)
+
+	// Try to clear it all
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+      "available":{
+        "entities":{
+          "mutable":false
+        }
+      }
+    }`, 200,
+		`{
+  "available": {
+    "entities": {
+      "mutable": false
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	XHTTP(t, reg, "GET", "/capabilities", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/capabilities) is not available.",
+  "subject": "/capabilities",
+  "source": "b1fcff68b7f8:registry:httpStuff:655"
+}
+`)
+	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/capabilitiesoffered) is not available.",
+  "subject": "/capabilitiesoffered",
+  "source": "b1fcff68b7f8:registry:httpStuff:662"
+}
+`)
+	XHTTP(t, reg, "GET", "/export", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/export) is not available.",
+  "subject": "/export",
+  "source": "b1fcff68b7f8:registry:httpStuff:669"
+}
+`)
+	XHTTP(t, reg, "GET", "/model", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/model) is not available.",
+  "subject": "/model",
+  "source": "b1fcff68b7f8:registry:httpStuff:676"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/modelsource) is not available.",
+  "subject": "/modelsource",
+  "source": "b1fcff68b7f8:registry:httpStuff:683"
+}
+`)
+
+	// Now test mutability
+	XHTTP(t, reg, "PUT", "/capabilities", `{}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/capabilities) is not available.",
+  "subject": "/capabilities",
+  "source": "b1fcff68b7f8:registry:httpStuff:910"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/", `{}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/) is not available.",
+  "subject": "/",
+  "source": "b1fcff68b7f8:registry:httpStuff:930"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/modelsource) is not available.",
+  "subject": "/modelsource",
+  "source": "b1fcff68b7f8:registry:httpStuff:924"
+}
+`)
+
+	reg.Capabilities.SetAvailable("capabilities", true)
+	reg.Capabilities.SetAvailable("entities", true)
+	XNoErr(t, reg.SaveCapabilities())
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+
+	// Open /capabilities back up
+	XHTTP(t, reg, "PUT", "/capabilities",
+		`{"available":{
+            "capabilities":{"mutable":true},
+            "entities":{"mutable":true}
+          }}`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/?inline=capabilities",
+		`{"capabilities":{
+            "available":{
+              "capabilities":{"mutable":true},
+              "entities":{"mutable":true}
+            }}}`,
+		200, `*`)
+
+	XHTTP(t, reg, "PUT", "/capabilities",
+		`{"available":{
+            "capabilities":{"mutable":true},
+            "export":{"mutable":false}
+          }}`,
+		200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
     },
-    "options": {
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// XHTTP(t, reg, "GET", "/capabilities", ``, 200, "*")
+	XHTTP(t, reg, "GET", "/export", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestCapabilityAPIs",
+  "self": "#/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      }
+    },
+    "compatibilities": {},
+    "flags": [],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "`+SPECVERSION+`"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  }
+}
+`)
+
+	XHTTP(t, reg, "GET", "/model", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/model) is not available.",
+  "subject": "/model",
+  "source": "b1fcff68b7f8:registry:httpStuff:676"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/modelsource) is not available.",
+  "subject": "/modelsource",
+  "source": "b1fcff68b7f8:registry:httpStuff:683"
+}
+`)
+
+	// Some errors
+	XHTTP(t, reg, "PUT", "/capabilities", `{"available":{"foo":{}}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "title": "There was an error in the capabilities provided: Unknown \"available\" value: foo.",
+  "subject": "/capabilities",
+  "args": {
+    "error_detail": "Unknown \"available\" value: foo"
+  },
+  "source": "b1fcff68b7f8:common:capabilities:319"
+}
+`)
+	XHTTP(t, reg, "PUT", "/capabilities", `{"available":{"/foo":{}}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "title": "There was an error in the capabilities provided: Unknown \"available\" value: /foo.",
+  "subject": "/capabilities",
+  "args": {
+    "error_detail": "Unknown \"available\" value: /foo"
+  },
+  "source": "b1fcff68b7f8:common:capabilities:319"
+}
+`)
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+      "available":{
+        "capabilities":{"mutable":true},
+        "export":{"mutable":true}
+      }
+    }`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "title": "There was an error in the capabilities provided: \"available\" value \"export\" is not allowed to be mutable.",
+  "subject": "/capabilities",
+  "args": {
+    "error_detail": "\"available\" value \"export\" is not allowed to be mutable"
+  },
+  "source": "b1fcff68b7f8:common:capabilities:324"
+}
+`)
+
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	reg.Capabilities.SetAvailable("capabilities", true)
+	reg.Capabilities.SetAvailable("entities", true)
+	XNoErr(t, reg.SaveCapabilities())
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+
+	// Reset to default
+
+	// despite "flags" being empty prior to this command, since capabilities
+	// are being reset to their default values, "flags" should immediately
+	// allow "inline" to be enabled for processing of the response
+	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{"capabilities":null}`,
+		200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityAPIs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 6,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
       "avro*": [
         "backward",
         "backward_transitive",
@@ -1681,14 +2274,8 @@ func TestCapabilityOffered(t *testing.T) {
         "full",
         "full_transitive"
       ]
-    }
-  },
-  "flags": {
-    "type": "array",
-    "item": {
-      "type": "string"
     },
-    "enum": [
+    "flags": [
       "binary",
       "collections",
       "doc",
@@ -1699,27 +2286,15 @@ func TestCapabilityOffered(t *testing.T) {
       "setdefaultversionid",
       "sort",
       "specversion"
-    ]
-  },
-  "formats": {
-    "type": "array",
-    "item": {
-      "type": "string"
-    },
-    "enum": [
+    ],
+    "formats": [
       "avro*",
       "jsonschema*",
       "numbers",
       "protobuf*",
       "xmlschema*"
-    ]
-  },
-  "ignores": {
-    "type": "array",
-    "item": {
-      "type": "string"
-    },
-    "enum": [
+    ],
+    "ignores": [
       "capabilities",
       "defaultversionid",
       "defaultversionsticky",
@@ -1727,268 +2302,43 @@ func TestCapabilityOffered(t *testing.T) {
       "id",
       "modelsource",
       "readonly"
-    ]
-  },
-  "mutable": {
-    "type": "string",
-    "enum": [
-      "capabilities",
-      "entities",
-      "modelsource"
-    ]
-  },
-  "pagination": {
-    "type": "boolean",
-    "enum": [
-      false
-    ]
-  },
-  "shortself": {
-    "type": "boolean",
-    "enum": [
-      false
-    ]
-  },
-  "specversions": {
-    "type": "array",
-    "item": {
-      "type": "string"
-    },
-    "enum": [
-      "`+SPECVERSION+`"
-    ]
-  },
-  "stickyversions": {
-    "type": "boolean",
-    "enum": [
-      false,
-      true
-    ]
-  },
-  "versionmodes": {
-    "type": "array",
-    "item": {
-      "type": "string"
-    },
-    "enum": [
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
       "createdat",
       "manual"
     ]
   }
 }
 `)
-}
-
-func TestCapabilityAPIs(t *testing.T) {
-	reg := NewRegistry("TestCapabilityAPIs")
-	defer PassDeleteReg(t, reg)
-
-	// Try to clear it all
-	XHTTP(t, reg, "PUT", "/capabilities", `{}`, 200,
-		`{
-  "apis": [],
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "mutable": [],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "`+SPECVERSION+`"
-  ],
-  "stickyversions": true,
-  "versionmodes": [
-    "manual"
-  ]
-}
-`)
-
-	XHTTP(t, reg, "GET", "/capabilities", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /capabilities.",
-  "subject": "/capabilities",
-  "source": ":registry:httpStuff:1589"
-}
-`)
-	XHTTP(t, reg, "GET", "/capabilitiesoffered", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /capabilitiesoffered.",
-  "subject": "/capabilitiesoffered",
-  "source": ":registry:httpStuff:1596"
-}
-`)
-	XHTTP(t, reg, "GET", "/export", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /export.",
-  "subject": "/export",
-  "source": ":registry:httpStuff:1603"
-}
-`)
-	XHTTP(t, reg, "GET", "/model", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /model.",
-  "subject": "/model",
-  "source": ":registry:httpStuff:1575"
-}
-`)
-	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /modelsource.",
-  "subject": "/modelsource",
-  "source": ":registry:httpStuff:1582"
-}
-`)
-
-	// Open /capabilities back up
-	XHTTP(t, reg, "PUT", "/?inline=capabilities",
-		`{"capabilities":{"apis":["/capabilities"]}}`, 200, `*`)
-
-	XHTTP(t, reg, "PUT", "/capabilities", `{
-      "apis":["/capabilities","/export"]}`, 200, `{
-  "apis": [
-    "/capabilities",
-    "/export"
-  ],
-  "compatibilities": {},
-  "flags": [],
-  "formats": [],
-  "ignores": [],
-  "mutable": [],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "`+SPECVERSION+`"
-  ],
-  "stickyversions": true,
-  "versionmodes": [
-    "manual"
-  ]
-}
-`)
-
-	XHTTP(t, reg, "GET", "/capabilities", ``, 200, "*")
-	XHTTP(t, reg, "GET", "/export", ``, 200, `{
-  "specversion": "`+SPECVERSION+`",
-  "registryid": "TestCapabilityAPIs",
-  "self": "#/",
-  "xid": "/",
-  "epoch": 4,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-
-  "capabilities": {
-    "apis": [
-      "/capabilities",
-      "/export"
-    ],
-    "compatibilities": {},
-    "flags": [],
-    "formats": [],
-    "ignores": [],
-    "mutable": [],
-    "pagination": false,
-    "shortself": false,
-    "specversions": [
-      "`+SPECVERSION+`"
-    ],
-    "stickyversions": true,
-    "versionmodes": [
-      "manual"
-    ]
-  },
-  "modelsource": {}
-}
-`)
-	XHTTP(t, reg, "GET", "/model", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /model.",
-  "subject": "/model",
-  "source": ":registry:httpStuff:1575"
-}
-`)
-	XHTTP(t, reg, "GET", "/modelsource", ``, 404,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#api_not_found",
-  "title": "The specified API is not supported: /modelsource.",
-  "subject": "/modelsource",
-  "source": ":registry:httpStuff:1582"
-}
-`)
-
-	// Some errors
-	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["/foo"]}`, 400,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (/foo) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "apis",
-    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
-    "value": "/foo"
-  },
-  "source": ":common:capabilities:178"
-}
-`)
-	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["foo"]}`, 400,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (foo) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "apis",
-    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
-    "value": "foo"
-  },
-  "source": ":common:capabilities:178"
-}
-`)
-	XHTTP(t, reg, "PUT", "/capabilities", `{"apis":["export"]}`, 400,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (export) specified for capability \"apis\". Allowable values include: /capabilities,/capabilitiesoffered,/export,/model,/modelsource.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "apis",
-    "list": "/capabilities,/capabilitiesoffered,/export,/model,/modelsource",
-    "value": "export"
-  },
-  "source": ":common:capabilities:178"
-}
-`)
-
-	// Reset to default
-
-	// notice that the ?inline will be ignored because it's a valid
-	// flag before the PATCH and won't take effect until AFTER this API
-	// is complete
-	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{"capabilities":null}`,
-		200, `{
-  "specversion": "1.0-rc2",
-  "registryid": "TestCapabilityAPIs",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 5,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
-}
-`)
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200,
 		`{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -2059,11 +2409,6 @@ func TestCapabilityAPIs(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -2088,13 +2433,26 @@ func TestCapabilityPatch(t *testing.T) {
       "flags": ["inline"],
       "stickyversions": false
     }`, 200, `{
-  "apis": [
-    "/capabilities",
-    "/capabilitiesoffered",
-    "/export",
-    "/model",
-    "/modelsource"
-  ],
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
   "compatibilities": {
     "avro*": [
       "backward",
@@ -2156,11 +2514,6 @@ func TestCapabilityPatch(t *testing.T) {
     "modelsource",
     "readonly"
   ],
-  "mutable": [
-    "capabilities",
-    "entities",
-    "modelsource"
-  ],
   "pagination": false,
   "shortself": false,
   "specversions": [
@@ -2174,6 +2527,20 @@ func TestCapabilityPatch(t *testing.T) {
 }
 `)
 
+	XHTTP(t, reg, "PATCH", "/", `{
+  "description": "test"
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityPatch",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "description": "test",
+  "createdat": "2026-05-16T20:31:36.518315881Z",
+  "modifiedat": "2026-05-16T20:31:36.540563891Z"
+}
+`)
+
 	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
   "capabilities": {
     "flags": [ "inline", "filter" ],
@@ -2184,12 +2551,17 @@ func TestCapabilityPatch(t *testing.T) {
   "registryid": "TestCapabilityPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
+  "description": "test",
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
   "capabilities": {
-    "apis": [],
+    "available": {
+      "entities": {
+        "mutable": true
+      }
+    },
     "compatibilities": {},
     "flags": [
       "filter",
@@ -2197,7 +2569,6 @@ func TestCapabilityPatch(t *testing.T) {
     ],
     "formats": [],
     "ignores": [],
-    "mutable": [],
     "pagination": false,
     "shortself": false,
     "specversions": [

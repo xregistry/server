@@ -73,6 +73,8 @@ type Registry struct {
 	Entity
 	Capabilities *Capabilities `json"-"`
 	Model        *Model        `json:"-"`
+
+	oldCapabilities *Capabilities // as seen at the start of the tx
 }
 
 type Group struct {

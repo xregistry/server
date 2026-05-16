@@ -563,7 +563,7 @@ func TestAncestorWithSicky(t *testing.T) {
 		"(v1->v1,0)(v2->v1,1)(v3->v2,2)")
 
 	rm.SetMaxVersions(2)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
 	XNoErr(t, err)
@@ -694,11 +694,11 @@ func TestAncestorRoots(t *testing.T) {
 	XEqual(t, "", VAS2String(vas), "(v2->v2,0)(v1->v1,0)")
 
 	rm.SetSingleVersionRoot(false)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// Trying to turn singleversionroot=true should generate an error
 	rm.SetSingleVersionRoot(true)
-	err = reg.Model.VerifyAndSave()
+	err = reg.Model.VerifyAndSave(true)
 	XCheckErr(t, err, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -723,7 +723,7 @@ func TestAncestorRoots(t *testing.T) {
 	XEqual(t, "", VAS2String(vas), "(v1->v1,0)(v2->v1,2)")
 
 	rm.SetSingleVersionRoot(true)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// make sure an add of a root fails
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3",
@@ -869,7 +869,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
 
 	rm.SetMaxVersions(1)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// the circular ref shouldn't be an issue because we'll delete the
 	// oldest one due to maxversions
@@ -900,7 +900,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	//  v2->v1->v3->v3
 	// Should delete v3
 	rm.SetMaxVersions(2)
-	XNoErr(t, reg.Model.VerifyAndSave())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions":{"v1":{"ancestor":"v1"},"v2":{"ancestor":"v1"}}}`,

@@ -89,7 +89,7 @@ func TestTypesBasic(t *testing.T) {
 	rm.AddAttr("xidtype1", XIDTYPE)
 	rm.AddAttr("xidtype2", XIDTYPE)
 
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	/* no longer required
 	_, err = reg.Model.AddAttrXID("regptr_group", "")
@@ -189,7 +189,7 @@ func TestTypesBasic(t *testing.T) {
 
 	_, err = reg.Model.AddAttrXID("regptr_res", "/dirs/files")
 	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/")
 	XCheckErr(t, err, `{
@@ -226,7 +226,7 @@ func TestTypesBasic(t *testing.T) {
 
 	_, err = reg.Model.AddAttrXID("regptr_ver", "/dirs/files/versions")
 	XNoErr(t, err)
-	err = reg.SaveModel()
+	err = reg.SaveModel(true)
 	XCheckErr(t, err, ``)
 
 	_, err = reg.Model.AddAttrXID("regptr_res_ver", "/dirs/files/versions?asd")
@@ -258,7 +258,7 @@ func TestTypesBasic(t *testing.T) {
 	XNoErr(t, err)
 
 	// Model is fully defined, so save it
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
@@ -1121,7 +1121,7 @@ func TestTypesNameCharSet(t *testing.T) {
 		},
 	})
 	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel())
+	XNoErr(t, reg.SaveModel(true))
 
 	err = reg.SetSave("obj1.attr1-", "a1")
 	XCheck(t, err == nil, "set foo.attr1-: %s", err)

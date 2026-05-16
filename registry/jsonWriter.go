@@ -30,6 +30,7 @@ type JsonWriter struct {
 	// we sometimes need to force an entity to be next, LIFO order
 	cachedEntities [](*Entity)
 
+	// Did we already add a space? (blank line)
 	didCapModelSpace bool
 }
 

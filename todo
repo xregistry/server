@@ -2,12 +2,12 @@ OLD TODO:
 - Move the logic that takes the Path into account for the query into
   GenerateQuery
 - Make sure that the Path entity is always in the result set when filtering
-- twiddle the self and XXXUrls to include proper filter and inline stuff
+** twiddle the self and XXXUrls to include proper filter and inline stuff
 - see if we can get rid of the recursion stuff
 - should we add "/" to the end of the Path for non-collections, then
   we can just look for PATH/%  and not PATH + PATH/%
 - can we set the registry's path to "" instead of NULL ?? already did, test it
-- add support for boolean types (set/get/filter)
+** add support for boolean types (set/get/filter)
 
 TODOs:
 - add tests for multiple registries at the same time
@@ -31,30 +31,27 @@ TODOs:
 - fix it so that a failed call to model.Save() (e.g. verify fails) doesn't
   invalidate existing local variables. See if we can avoid redownloading the
   model from the DB
-- make sure we check for uniqueness of IDs - they're case insensitive and
+** make sure we check for uniqueness of IDs - they're case insensitive and
   unique within the scope of their parent
-- specversion strings compares MUST ignore the patch version #
+** specversion strings compares MUST ignore the patch version #
 
-- pagination
-- have DB generate the COLLECTIONcount attributes so people can query over
+** pagination
+** have DB generate the COLLECTIONcount attributes so people can query over
   them and we don't need the code to calculate them (can we due to filters?)
-- support overriding spec defined attributes - like "format"
-- support changing the model - test for invalid changes
+** support overriding spec defined attributes - like "format"
 - add tests for immutable attributes
 - test filtering on bool attributes where they search for attr=false
-- support the resource sticky/default attributes
+** support the resource sticky/default attributes
   - remove ?setdefault.. for some apis
   - process ?setdefaultversionid flag before we update things
   - make sure we support them as http headers too
-- support createdat and modifiedat as http headers
-- make sure we don't let go http add "content-type" header for docs w/o a value
-- add support for PUT / to update the model
+** support createdat and modifiedat as http headers
+** make sure we don't let go http add "content-type" header for docs w/o a value
 - add model tests for typemap - just that we can set via full model updates
-- support the DB vanishing for a while
+** support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
 - allow $meta on hasdoc=false resources
-- Split the model.verify stuff so it doesn't verify the data unless asked to
-- add support for shortself
+** add support for shortself
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
   use "$SINGULRid" for everything including Versions, but not Meta
 - test that we can't set defaultversionsticky when setdefaultversionsticky=false
@@ -68,9 +65,7 @@ TODOs:
     then we need to flag it as an error. Maybe clear it on Set() if not 
 	provided by a user (and sticky=false), and then at the end if null 
 	calc it, if not null if defVer!=calc value->error??
-- support PATCH on capabilities /cap and "cap" attr
-- bump registry.epoch when capabilities change
-- make meta.readonly a non-readonly attribute if the client is an admin
+** make meta.readonly a non-readonly attribute if the client is an admin
   - by making it mutable and changings it's meta-model
 - test cap.maxversions & creating resource type that violate it
 - test cap.stickyversions & creating resource type that violate it
@@ -78,75 +73,73 @@ TODOs:
 - add tests for immutable attributes - in particular extensions
 - see if we can add RESOURCEid to Versions so we don't need special logic
   to exclude them in the code (e.g. in rID's updatefn and validateobj)
-- why are "capabilities" and "model" readonly?
-- allow any model change, verify entities
-- make sure that maxversions=0 when we only support 1 means sitcky must be false
-- require "none" to be in "compats" enum
-- support PATCH on collections - fix testcase TestHTTPMissingBody
+** make sure that maxversions=0 when we only support 1 means sitcky must be false
+** support PATCH on collections - fix testcase TestHTTPMissingBody
 - test PATCH on collections - in particular versions
 - verify readonly attrs are ignored on writes, but readonly resources generate an error
 - add tests for POST / and POST /GROUPS/gID with filters and inlining
-- compat/compatauth
-- find a way to define rules to enforce constraints for extensions w/o making
+** find a way to define rules to enforce constraints for extensions w/o making
   people write code
   - for example
     - regexp for attr values
 	- 2 attributes must be the same( e.g. the envelope attr in msg spec)
 	- trying to mimize the code someone may need to write to create custom impl
-- add xr support to download as individual files
+** add xr support to download as individual files
 - add tests for model "description", "modelversion" and "compatwith"
-- ancestor
-- add support for deprecated
+** add support for deprecated
 - add docs for persistent DB/volume
 - add docs for auth via proxy
-- add support for setting capabilities.mutable to null and make sure things
+** add support for setting capabilities.mutable to null and make sure things
   aren't editable - like capabilities, model, entities
-- add all attributes to the model, including model/caps/COLLETIONS/RESOURCE/..
+** add all attributes to the model, including model/caps/COLLETIONS/RESOURCE/..
 - test to make sure we either override or error when someone tries to define
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestor correctly when server assigns the version
   ID. `ancestor=request`
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
-- support <, <=, >, >=, <>, !=
+** support <, <=, >, >=, <>, !=
   - make sure * can't be used when using <, >... just =, <> and !=
   - case insensitive compares
-- support and test "versionmode"
+** support and test "versionmode"
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
-- support patch / + capabilities - does patching of capabilities
-- support patch / + modelsource - full replacement
-- support "xr model group/resource create/update" with "--data"
-- make sure that * can appear in any string capability
-- add support for setversionid, and flag an error when not allowed
-- generate an error when setdefaultversionidsticky is false but they try
+** support patch / + capabilities - does patching of capabilities
+** support patch / + modelsource - full replacement
+** support "xr model group/resource create/update" with "--data"
+** make sure that * can appear in any string capability
+** add support for setversionid, and flag an error when not allowed
+** generate an error when setdefaultversionidsticky is false but they try
   to set it
-- support min/max in capabilities
-- support ximportresource being transitive
+** support min/max in capabilities
+** support ximportresource being transitive
 - add tests for xr model group update/upsert/create & --flags
 - add tests for groups.deprecated
-- support for modelsource=null or {} - erase everything
-- UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
-- UI: add support for wrapping the output text (style=text-wrap=wrap)
-- Send back Allow header on a 405 error
-- support OPTIONS
-- block editing to APIs based on capabilities.mutability
-- block access to APIs based on capabilities.APIs
+** support for modelsource=null or {} - erase everything
+** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
+** UI: add support for wrapping the output text (style=text-wrap=wrap)
+** Send back Allow header on a 405 error
+** support OPTIONS
+** disallow editing to APIs based on capabilities.mutability
 - make tests so they don't use model.verifyandsave - should go thru modelsource
-- make model changes via API show up in modelsource
-- ban model changes that turn on hasDoc if Resources have RESOURCE* attribute
+** make model changes via API show up in modelsource
+** ban model changes that turn on hasDoc if Resources have RESOURCE* attribute
   extension names
-- make sure ?defaultversionid only processed on write ops (bad_flag)
+** make sure ?defaultversionid only processed on write ops (bad_flag)
 - look for more bad_request error that we can specialize
 - add tests for setting modelsource with $include stuff - and upload data at the same time
-- support/test ignore=readonly
+** support/test ignore=readonly
 - test ?setdefaultversionid in all resource (and deeper) APIs
 - add more tests for our resource processing logic
-- fix 'xr' so that they can use --data to upload doc & --add for xreg metadata
+** fix 'xr' so that they can use --data to upload doc & --add for xreg metadata
 - test export & import - include readonly and xref resources
-- make sure the export/import flow is as UX friendly as possible
-- what should "xr create /" do? fail due to the reg already existing? import?
-- model add matchcase, def=false - remove internals.caseinsensitive
+** make sure the export/import flow is as UX friendly as possible
+** what should "xr create /" do? fail due to the reg already existing? import?
 - test for setting capabilities.formats/compat* at the same time as uploading data. Those capabilities need to take effect prior to committing the data to ensure conformance
 - MSFT schema docs: https://learn.microsoft.com/en-us/azure/event-hubs/schema-registry-concepts#backward-compatibility
 - more format/compat tests!!
-- removing a supported format plugin should do some checking on server startup
+** removing a supported format plugin should do some checking on server startup
+- add tests for "xr download" to make sure capabilities is correct
+** Replace FullTree view with updates to a huge props table in real-time
+- more testing around changing capabilities and model at the same time as using
+  query parameters and uploading data (import). Make sure we use the right
+  capability values (pre or post tx) for each capability & model

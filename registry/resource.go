@@ -504,7 +504,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 
 	// log.Printf("UpsertMeta: OBJ: %s", ToJSON(mu.obj))
 
-	if xErr := r.Registry.SaveModel(); xErr != nil {
+	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -803,7 +803,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				}
 			}
 
-			if xErr = meta.ValidateAndSave(); xErr != nil {
+			if xErr = meta.ValidateAndSave(false); xErr != nil {
 				return nil, false, xErr
 			}
 
@@ -822,7 +822,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	}
 
 	if !mu.more {
-		if xErr := r.ValidateResource(true); xErr != nil {
+		if xErr := r.ValidateResource(true, false); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -854,7 +854,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	log.VPrintf(3, ">Enter: UpsertVersion(%s,%v,%v)", vu.Id, vu.AddType, vu.More)
 	defer log.VPrintf(3, "<Exit: UpsertVersion")
 
-	if xErr := r.Registry.SaveModel(); xErr != nil {
+	if xErr := r.Registry.SaveModel(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -1002,7 +1002,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 
 		// Touch owning Resource to bump its epoch abd modifiedat timestamp
 		if r.Touch() {
-			if xErr = r.ValidateAndSave(); xErr != nil {
+			if xErr = r.ValidateAndSave(false); xErr != nil {
 				return nil, false, xErr
 			}
 		}
@@ -1134,7 +1134,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	// _, touchedTS := v.NewObject["createdat"]
 	// if touchedTS -> call EnsureLatest
 
-	if xErr = v.ValidateAndSave(); xErr != nil {
+	if xErr = v.ValidateAndSave(false); xErr != nil {
 		return nil, false, xErr
 	}
 
@@ -1158,12 +1158,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 		}
 
 		/*
-			if xErr = meta.ValidateAndSave(); xErr != nil {
+			if xErr = meta.ValidateAndSave(false); xErr != nil {
 				return nil, false, xErr
 			}
 		*/
 
-		if xErr = r.ValidateResource(false); xErr != nil {
+		if xErr = r.ValidateResource(false, false); xErr != nil {
 			return nil, false, xErr
 		}
 	}
@@ -1174,12 +1174,13 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 // Run all constrait check on the Resource - see:
 //
 //	spec.md#resource-processing-algorithm
-func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
+func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// onlyMetaChanged indicates whether we need to do ALL checks or just
 	// ones that might have changed due to a meta.* attribute.
 	// If any Version actually changed we should run all checks.
+	// "force" will check things even if they haven't changed.
 
-	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v)", r.UID, onlyMetaChanged)
+	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v, force:%v)", r.UID, onlyMetaChanged, force)
 	defer log.VPrintf(3, "<Exit: ValiateResource")
 
 	meta := r.MustFindMeta(false, FOR_WRITE)
@@ -1190,7 +1191,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 	}
 
 	/* DUG strict
-	if xErr := meta.ValidateAndSave(); xErr != nil {
+	if xErr := meta.ValidateAndSave(false, force); xErr != nil {
 		return xErr
 	}
 	*/
@@ -1208,7 +1209,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 	}
 
 	// Validate compat/format between Versions if needed
-	if xErr := r.EnsureCompat(false); xErr != nil {
+	if xErr := r.EnsureCompat(force); xErr != nil {
 		return xErr
 	}
 
@@ -1230,11 +1231,11 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool) *XRError {
 	}
 
 	// Save meta if needed
-	if xErr := meta.ValidateAndSave(); xErr != nil {
+	if xErr := meta.ValidateAndSave(force); xErr != nil {
 		return xErr
 	}
 
-	return r.ValidateAndSave()
+	return r.ValidateAndSave(force)
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {
@@ -1485,7 +1486,7 @@ func (r *Resource) Delete() *XRError {
 	}
 
 	if r.Group.Touch() {
-		if xErr := r.Group.ValidateAndSave(); xErr != nil {
+		if xErr := r.Group.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
 	}

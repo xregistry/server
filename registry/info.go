@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -13,9 +15,11 @@ type RequestInfo struct {
 	tx               *Tx
 	Registry         *Registry
 	BaseURL          string              // host+path to root of registry
-	OriginalPath     string              // /GROUPs/gID...?inline...
+	OriginalPath     string              // GROUPs/gID... (no leading /,query)
 	OriginalRequest  *http.Request       `json:"-"`
 	OriginalResponse http.ResponseWriter `json:"-"`
+	Body             []byte              `json:"-"`
+	ParsedBody       map[string]any      `jsom:"-"`
 	RootPath         string              // "", "model", "export", ...
 	Parts            []string            // Split /GROUPS/gID of OriginalPath
 	Root             string              // GROUPS/gID/..
@@ -63,6 +67,10 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 	originalPath := path
 
 	if ArrayContains(nonModelInlines, path) {
+		if path != "*" && !info.IsAvailable(path) {
+			return NewXRError("not_available", "/"+path)
+		}
+
 		info.Inlines = append(info.Inlines, &Inline{
 			Path:    NewPPP(path).DB(),
 			PP:      NewPPP(path),
@@ -256,11 +264,23 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 
 	info := NewRequestInfo(w, r)
 	info.tx = tx
+	tx.RequestInfo = info
 
 	// See which registry to use and twiddle some stuff in info if needed
 	xErr := info.ParseRegistryURL()
 	if xErr != nil {
 		return info, xErr
+	}
+
+	// Load the request's body
+	var err error
+	info.Body, err = io.ReadAll(info.OriginalRequest.Body)
+	if err != nil {
+		return info, NewXRError("parsing_data", "/"+info.OriginalPath,
+			"error_detail="+err.Error())
+	}
+	if len(info.Body) == 0 {
+		info.Body = nil
 	}
 
 	w.Header().Add("Access-Control-Allow-Origin", "*")
@@ -270,6 +290,11 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 
 	if log.GetVerbose() > 2 {
 		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
+	}
+
+	xErr = info.ProcessCapabilitiesModelSource()
+	if xErr != nil {
+		return info, xErr
 	}
 
 	if tmp := r.Header.Get("xRegistry~User"); tmp != "" {
@@ -421,11 +446,12 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 				SetDetailf("Can't find registry %q.", name)
 		}
 		info.Registry = reg
-		info.tx.Registry = reg
 	} else {
 		info.Registry = GetDefaultReg(info.tx)
-		info.tx.Registry = info.Registry
 	}
+
+	info.tx.Registry = info.Registry
+
 	return nil
 }
 
@@ -802,6 +828,7 @@ func (info *RequestInfo) HasFlag(name string) bool {
 
 		return false
 	}
+
 	_, ok := info.Flags[name]
 	return ok
 }
@@ -815,13 +842,40 @@ func (info *RequestInfo) FlagEnabled(name string) bool {
 	return true
 }
 
-func (info *RequestInfo) APIEnabled(name string) bool {
-	if info.Registry == nil || info.Registry.Capabilities == nil ||
-		!info.Registry.Capabilities.APIEnabled(name) {
+// When checking for "availablity" (visibility to a client) of the follow
+// data, use the capabilities.available values as seen prior to the current tx
+var oldAvails = map[string]bool{
+	"capabilities": true,
+	"model":        true,
+	"modelsource":  true,
+}
 
+func (info *RequestInfo) IsAvailable(name string) bool {
+	if info.Registry == nil || info.Registry.Capabilities == nil {
 		return false
 	}
-	return true
+
+	cap := info.Registry.Capabilities
+
+	if oldAvails[name] {
+		cap = info.Registry.oldCapabilities
+	}
+
+	return cap.IsAvailable(name)
+}
+
+func (info *RequestInfo) IsAvailableMutable(name string) bool {
+	if info.Registry == nil || info.Registry.Capabilities == nil {
+		return false
+	}
+
+	cap := info.Registry.Capabilities
+
+	if oldAvails[name] {
+		cap = info.Registry.oldCapabilities
+	}
+
+	return cap.IsAvailableMutable(name)
 }
 
 func (info *RequestInfo) DoDocView() bool {
@@ -836,4 +890,118 @@ func (info *RequestInfo) GetParts(num int) string {
 	PanicIf(num > len(info.Parts), "Asking for too many (%d): %s", num,
 		info.OriginalPath)
 	return "/" + strings.Join(info.Parts[:num], "/")
+}
+
+// This is called prior to partsing any of the URL bits (path,query params)
+// because we may need to change what features are available based on how
+// the capabilities or model is changed. This is only true when we're doing
+// a write to the root of the Registry and it includes the "capabilities"
+// or "modelsource" attributes.
+func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
+	// Only looking for operations that deal with the Registry entity itself
+	if info.OriginalPath != "" {
+		return nil
+	}
+
+	// Gotta be a 'write' operation (but NOT POST since that's just for
+	// updating child collections, not Reg-level attributes)
+	method := info.OriginalRequest.Method
+	if method != "PUT" && method != "PATCH" {
+		return nil
+	}
+
+	// Body must include at least "{}", if not just leave
+	if len(info.Body) < 2 {
+		return nil
+	}
+
+	obj := (map[string]any)(nil)
+	changed := false
+
+	err := Unmarshal(info.Body, &obj)
+	if err != nil {
+		return NewXRError("parsing_data", "/", "error_detail="+err.Error())
+	}
+
+	// Grab the ?ignore query parameter from THIS request to know if we
+	// should ignore the caps/modelSrc attributes or not.
+	ignores := info.OriginalRequest.URL.Query()["ignore"]
+	ignores = strings.Split(strings.Join(ignores, ","), ",")
+
+	// Note this will always be the capabilities before any possible
+	// updates to the capabilities (pre tx)
+	cap := info.Registry.Capabilities
+
+	newObj := map[string]any{}
+
+	if newCap, ok := obj["capabilities"]; ok {
+		delete(obj, "capabilities")
+		changed = true
+
+		if !cap.FlagEnabled("ignore") ||
+			!cap.IgnoresEnabled("capabilities") ||
+			!ArrayContains(ignores, "capabilities") {
+
+			newObj["capabilities"] = newCap
+		}
+	}
+
+	if _, ok := obj["modelsource"]; ok {
+		delete(obj, "modelsource")
+		changed = true
+
+		if !cap.FlagEnabled("ignore") ||
+			!cap.IgnoresEnabled("modelsource") ||
+			!ArrayContains(ignores, "modelsource") {
+
+			// We do this special logic so that "modelsource" isn't parsed
+			// into golang stuff because when serialized back as as JSON
+			// we'll lose the order of the map keys. Which I want to keep.
+			// I want the modelsource to look exactly like how the user
+			// provided it
+			tmpReg := struct {
+				ModelSource json.RawMessage
+			}{}
+			if err := json.Unmarshal(info.Body, &tmpReg); err != nil {
+				return NewXRError("parsing_data", "/",
+					"error_detail="+err.Error())
+			}
+
+			val := tmpReg.ModelSource
+			if ok {
+				// Notice that "null" means erase it, not "keep it as is"
+				var rawJson []byte
+
+				if IsNil(val) {
+					rawJson = []byte("{}")
+				} else {
+					var err error
+					rawJson = val // .(json.RawMessage)
+					rawJson, err = RemoveSchema(rawJson)
+					if err != nil {
+						return NewXRError("bad_request", "/",
+							"error_detail="+err.Error())
+					}
+				}
+
+				xErr := info.Registry.Model.ApplyNewModelFromJSON(rawJson, false)
+				if xErr != nil {
+					return xErr
+				}
+			}
+
+		}
+	}
+
+	if len(newObj) > 0 {
+		if xErr := info.Registry.Update(newObj, ADD_PATCH); xErr != nil {
+			return xErr
+		}
+	}
+
+	if changed {
+		info.Body = []byte(ToJSON(obj))
+	}
+
+	return nil
 }

@@ -111,7 +111,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	_, xErr = r.AddAttr("format", STRING)
 	ErrFatalf(xErr)
 
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
 
 	iter := 0
 
@@ -287,7 +287,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		_, xErr = newModel.AddAttrArray("arrobj", item)
 		ErrFatalf(xErr)
 
-		ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
+		ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
 
 		ErrFatalf(reg.SetSave("bool1", true))
 		ErrFatalf(reg.SetSave("int1", 1))
@@ -329,7 +329,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	_, xErr = newModel.AddAttrXID("resptr", "/dirs/files[/versions]")
 	ErrFatalf(xErr)
 
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
 
 	g, xErr := reg.AddGroup("dirs", "d1")
 	ErrFatalf(xErr)
@@ -527,7 +527,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	gm, _ := newModel.AddGroupModel("dirs", "dir")
 	gm.AddResourceModel("files", "file", 0, true, true, true)
 
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, ""))
+	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
 
 	maxD, maxF, maxV := 10, 150, 5
 	dirs, files, vers := 0, 0, 0
@@ -595,7 +595,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
         }
       }
     }
-    `)))
+    `), true))
 
 	g, _ := reg.AddGroup("documents", "mydoc1")
 	g.SetSave("labels.group", "g1")

@@ -86,6 +86,13 @@ func (e *Entity) SetNewObject(newObj map[string]any) {
 	PanicIf(e.AccessMode != FOR_WRITE, "%q isn't FOR_WRITE", e.XID)
 	e.NewObject = newObj
 
+	// Copy all system attributes from old Object so we don't lose them
+	for k, _ := range e.Object {
+		if k[0] == '#' {
+			e.NewObject[k] = e.Object[k]
+		}
+	}
+
 	// Enable the next line when we need to debug when NewObject was created
 	// e.NewObjectStack = GetStack()
 
@@ -440,7 +447,10 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 
 	// Set, Validate and Save
 	xErr := e.SetPP(pp, val)
-	return xErr.SetSubject(e.XID)
+	if xErr != nil {
+		return xErr.SetSubject(e.XID)
+	}
+	return nil
 }
 
 // Set the prop in the Entity but don't Validate or Save to the DB
@@ -510,12 +520,16 @@ func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	return nil
 }
 
-func (e *Entity) ValidateAndSave() *XRError {
+func (e *Entity) ValidateAndSave(force bool) *XRError {
 	log.VPrintf(3, ">Enter: ValidateAndSave %s/%s", e.Abstract, e.UID)
 	defer log.VPrintf(3, "<Exit: ValidateAndSave")
 
+	// Force will do a validate even if it doesn't look like anything changed.
+	// BUT if after validate() nothing still hasn't changed then it doesn't
+	// call save()
+
 	// If nothing changed, then exit
-	if e.NewObject == nil {
+	if !force && e.NewObject == nil {
 		return nil
 	}
 
@@ -529,6 +543,10 @@ func (e *Entity) ValidateAndSave() *XRError {
 
 	if xErr := e.Validate(); xErr != nil {
 		return xErr
+	}
+
+	if e.NewObject == nil {
+		return nil
 	}
 
 	return e.Save()
@@ -549,7 +567,7 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 		return xErr
 	}
 
-	xErr := e.ValidateAndSave()
+	xErr := e.ValidateAndSave(false)
 	if xErr != nil {
 		// If there's an error, and we're making the assumption that we're
 		// setting and saving all in one shot (and there are no other edits
@@ -1297,6 +1315,10 @@ var PropsFuncs = []*Attribute{
 				// do it
 				info := e.GetRequestInfo()
 				if info != nil && info.ShouldInline(NewPPP("capabilities").DB()) {
+					// Should have been caught in "info" processing
+					if !info.IsAvailable("capabilities") {
+						return NewXRError("not_available", "/capabilities")
+					}
 					capStr := e.GetAsString("#capabilities")
 					if capStr == "" {
 						return e.Registry.Capabilities
@@ -1330,7 +1352,7 @@ var PropsFuncs = []*Attribute{
 							return xErr
 						}
 					} else {
-						cap = DefaultCapabilities
+						cap = DefaultCapabilities.Clone()
 					}
 
 					if xErr = cap.Validate(); xErr != nil {
@@ -1358,6 +1380,10 @@ var PropsFuncs = []*Attribute{
 				// do it
 				info := e.GetRequestInfo()
 				if info != nil && info.ShouldInline(NewPPP("model").DB()) {
+					// Should have been caught in "info" processing
+					if !info.IsAvailable("model") {
+						return NewXRError("not_available", "model")
+					}
 					model := info.Registry.Model
 					if model == nil {
 						model = &Model{}
@@ -1377,6 +1403,10 @@ var PropsFuncs = []*Attribute{
 				// do it
 				info := e.GetRequestInfo()
 				if info != nil && info.ShouldInline(NewPPP("modelsource").DB()) {
+					// Should have been caught in "info" processing
+					if !info.IsAvailable("modelsource") {
+						return NewXRError("not_available", "modelsource")
+					}
 					model := info.Registry.Model
 					if model == nil || model.Source == "" {
 						return struct{}{}
@@ -1888,6 +1918,7 @@ func (e *Entity) Save() *XRError {
 	if log.GetVerbose() > 2 {
 		log.VPrintf(0, "Saving - %s (id:%s):\n%s\n", e.Abstract, e.UID,
 			ToJSON(e.NewObject))
+		// ShowStack()
 	}
 
 	// make a dup so we can delete some attributes
@@ -2167,7 +2198,13 @@ func (e *Entity) Validate() *XRError {
 			e.Type, e.UID, ToJSON(e.NewObject))
 		log.VPrintf(0, "Attrs: %v", SortedKeys(attrs))
 	}
-	return e.ValidateObject(e.NewObject, "strict", attrs, NewPP())
+
+	// If nothing changed then use the original data for validation
+	if e.NewObject == nil {
+		return e.ValidateObject(e.Object, "strict", attrs, NewPP())
+	} else {
+		return e.ValidateObject(e.NewObject, "strict", attrs, NewPP())
+	}
 }
 
 // This should be called after all type-specific calculated properties have
@@ -2347,8 +2384,10 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// If this attr has a func to update its value, call it
 			if attr.internals != nil && attr.internals.updateFn != nil {
-				if xErr := attr.internals.updateFn(e); xErr != nil {
-					return xErr
+				if e.NewObject != nil {
+					if xErr := attr.internals.updateFn(e); xErr != nil {
+						return xErr
+					}
 				}
 
 				// grab value in case it changed
@@ -2861,9 +2900,11 @@ func PrepUpdateEntity(e *Entity) *XRError {
 			}
 		*/
 
-		if attr.InType(e.Type) && attr.internals != nil && attr.internals.updateFn != nil {
-			if xErr := attr.internals.updateFn(e); xErr != nil {
-				return xErr
+		if e.NewObject != nil {
+			if attr.InType(e.Type) && attr.internals != nil && attr.internals.updateFn != nil {
+				if xErr := attr.internals.updateFn(e); xErr != nil {
+					return xErr
+				}
 			}
 		}
 	}
