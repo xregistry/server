@@ -42,5 +42,4 @@ func TestLoadModel(td *TD) {
 	td.MustEqual(xErr, nil, "Parsing model should work")
 
 	// td.Log("Model:\n%s", xrlib.ToJSON(data))
-	td.Fail("asd")
 }

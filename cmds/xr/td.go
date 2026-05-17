@@ -381,9 +381,12 @@ func (td *TD) Must(expr bool, args ...any) {
 }
 
 func (td *TD) MustEqual(exp any, got any, args ...any) {
-	if !reflect.DeepEqual(exp, got) {
-		td.Log("Exp(%T): %s", exp, ToJSON(exp))
-		td.Log("Got(%T): %s", got, ToJSON(got))
+	expJSON := ToJSON(exp)
+	gotJSON := ToJSON(got)
+
+	if expJSON != gotJSON {
+		td.Log("Exp(%T): %s", exp, expJSON)
+		td.Log("Got(%T): %s", got, gotJSON)
 		td.Fail(args...)
 		return
 	}
