@@ -28,12 +28,29 @@ $ curl localhost:8080
 }
 ```
 
+But, of course, the `xr` CLI is an easier option:
+
+```yaml
+$ xr get
+
+{
+  "specversion": "1.0-rc2",
+  "registryid": "xRegistry",
+  "self": "http://ubuntu:8080/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2025-05-20T16:06:00.652061965Z",
+  "modifiedat": "2025-05-20T16:06:00.652061965Z"
+}
+```
+
 Which shows some top-level metadata about the default Registry, which is in
 this case is empty. Append one of the sample Registry URL paths to explore
 another one:
 
 ```yaml
-$ curl localhost:8080/reg-DocStore
+$ export XR_SERVER=localhost:8080/reg-DocStore  # or use -s option on 'xr'
+$ xr get
 
 {
   "specversion": "1.0-rc2",

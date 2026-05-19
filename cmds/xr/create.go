@@ -123,11 +123,11 @@ Notes:
 func createFunc(cmd *cobra.Command, args []string) {
 	action, _, _ := strings.Cut(cmd.Use, " ")
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	if len(args) == 0 {

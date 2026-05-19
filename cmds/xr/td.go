@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
@@ -178,20 +179,24 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 	lastLog := len(td.Logs) - 1
 	Debug(out, "%sstat:%s sl:%v", indent, StatusText[td.Status], showLogs)
 	// if td.Status != FAIL && showLogs == false {
-	if showLogs == false {
-		for ; lastLog > 0; lastLog-- {
-			log := td.Logs[lastLog]
-			if log.Type == LOG {
-				Debug(out, "%s  dropping  le:%s", indent, log.Text)
-				continue
-			}
+	// I can't remember why I wanted to skip the trailing LOG messages, so
+	// for now just comment it out but keep it
+	/*
+		if showLogs == false {
+			for ; lastLog > 0; lastLog-- {
+				log := td.Logs[lastLog]
+				if log.Type == LOG {
+					Debug(out, "%s  dropping  le:%s", indent, log.Text)
+					continue
+				}
 
-			if (log.Type == FAIL || (log.Subtest != nil && log.Subtest.Status == FAIL)) || depth > 0 {
-				break
+				if (log.Type == FAIL || (log.Subtest != nil && log.Subtest.Status == FAIL)) || depth > 0 {
+					break
+				}
+				Debug(out, "%s  dropping  le:%s", indent, log.Text)
 			}
-			Debug(out, "%s  dropping  le:%s", indent, log.Text)
 		}
-	}
+	*/
 	Debug(out, "%sLL:%d len:%d depth:%d", indent, lastLog, len(td.Logs), depth)
 
 	for i := 0; i <= lastLog; i++ {
@@ -330,7 +335,8 @@ func (td *TD) DependsOn(fn TestFn) {
 		if prevTD.Status == FAIL {
 			td.FailNow("Dependency %q (cached), exiting", fn.Name())
 		} else {
-			td.Log("Dependency %q passed (cached)", fn.Name())
+			// td.Log("Dependency %q passed (cached)", fn.Name())
+			td.Pass("%s - Dependency (cached)", fn.Name())
 		}
 	} else {
 		newTD := td.Run(fn)
@@ -403,7 +409,7 @@ func (td *TD) MustNotEqual(exp any, got any, args ...any) {
 	td.Pass(args...)
 }
 
-func (td *TD) GetProp(obj map[string]any, prop string) (any, bool, error) {
+func (td *TD) GetObjProp(obj map[string]any, prop string) (any, bool, error) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
@@ -415,6 +421,7 @@ func (td *TD) NoError(errAny any, args ...any) {
 	if IsNil(errAny) {
 		return
 	}
+	td.Log("Unexcepted error: %s", errAny)
 	td.Fail(args...)
 }
 
@@ -422,10 +429,11 @@ func (td *TD) NoErrorStop(errAny any, args ...any) {
 	if IsNil(errAny) {
 		return
 	}
+	td.Log("Unexcepted error: %s", errAny)
 	td.FailNow(args...)
 }
 
-func (td *TD) PropMustEqual(obj map[string]any, prop string, exp any) {
+func (td *TD) ObjPropMustEqual(obj map[string]any, prop string, exp any) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
@@ -445,7 +453,7 @@ func (td *TD) PropMustEqual(obj map[string]any, prop string, exp any) {
 	td.Pass("%q = %q", prop, exp)
 }
 
-func (td *TD) PropMustNotEqual(obj map[string]any, prop string, exp any) {
+func (td *TD) ObjPropMustNotEqual(obj map[string]any, prop string, exp any) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
@@ -476,7 +484,7 @@ func MaxString(val any, maxLen int) string {
 	return str
 }
 
-func (td *TD) PropMustExist(obj map[string]any, prop string) {
+func (td *TD) ObjPropMustExist(obj map[string]any, prop string) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
@@ -485,11 +493,12 @@ func (td *TD) PropMustExist(obj map[string]any, prop string) {
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
 	if IsNil(res) {
 		td.Fail("Attribute %q must not be null", prop)
+		return
 	}
 	td.Pass("%q must exist", prop)
 }
 
-func (td *TD) PropMustNotExist(obj map[string]any, prop string) {
+func (td *TD) ObjPropMustNotExist(obj map[string]any, prop string) {
 	pp, err := PropPathFromUI(prop)
 	if err != nil {
 		td.FailNow("Error in test prep: %s(%s)", prop, err)
@@ -498,6 +507,7 @@ func (td *TD) PropMustNotExist(obj map[string]any, prop string) {
 	td.NoError(err, "Error getting prop(%s): %s", pp.UI(), err)
 	if !IsNil(res) {
 		td.Fail("Attribute %q must be null", prop)
+		return
 	}
 	td.Pass("%q must not exist", prop)
 }
@@ -505,6 +515,7 @@ func (td *TD) PropMustNotExist(obj map[string]any, prop string) {
 func (td *TD) Should(expr bool, args ...any) {
 	if !expr {
 		td.Warn(args...)
+		return
 	}
 	td.Pass(args...)
 }
@@ -514,8 +525,58 @@ func (td *TD) ShouldEqual(exp any, got any, args ...any) {
 		td.Log("Exp: %s", ToJSON(exp))
 		td.Log("Got: %s", ToJSON(got))
 		td.Warn(args...)
+		return
 	}
 	td.Pass(args...)
+}
+
+func (td *TD) HTTPStatusMustEqual(res *xrlib.HttpResponse, exp int, args ...any) {
+	if res == nil {
+		td.Fail(args...)
+		return
+	}
+	td.MustEqual(exp, res.Code, args...)
+}
+
+func (td *TD) HTTPStatusShouldEqual(res *xrlib.HttpResponse, exp int, args ...any) {
+	if res == nil {
+		td.Fail(args...)
+		return
+	}
+	td.ShouldEqual(exp, res.Code, args...)
+}
+
+func (td *TD) HTTPHeaderMustEqual(res *xrlib.HttpResponse, header, exp string, args ...any) {
+	if res == nil {
+		td.Fail(args...)
+		return
+	}
+	gotHeader := res.Header.Get(header)
+	td.MustEqual(exp, gotHeader, args...)
+}
+
+func (td *TD) HTTPGetProp(res *xrlib.HttpResponse, prop string) any {
+	if res == nil {
+		td.Fail("No HttpResponse")
+		return nil
+	}
+	return res.JSON[prop]
+}
+
+func (td *TD) HTTPPropMustEqual(res *xrlib.HttpResponse, prop string, exp any) {
+	if res == nil {
+		td.Fail("No HttpResponse")
+		return
+	}
+	td.ObjPropMustEqual(res.JSON, prop, exp)
+}
+
+func (td *TD) HTTPPropMustNotEqual(res *xrlib.HttpResponse, prop string, exp any) {
+	if res == nil {
+		td.Fail("No HttpResponse")
+		return
+	}
+	td.ObjPropMustNotEqual(res.JSON, prop, exp)
 }
 
 func PrettyPrint(indent string, prefix string, text string) string {
@@ -580,4 +641,33 @@ func PrettyPrint(indent string, prefix string, text string) string {
 	}
 
 	return string(str)
+}
+
+// Props funcs
+
+func (td *TD) GetProp(key string) any {
+	if td.Props == nil {
+		return nil
+	}
+	return td.Props[key]
+}
+
+func (td *TD) Set(key string, val any) *TD {
+	if td.Props == nil {
+		td.Props = map[string]any{}
+	}
+	td.Props[key] = val
+	return td
+}
+
+func (td *TD) GetRegistry() *xrlib.Registry {
+	val := td.GetProp("xreg")
+	if val == nil {
+		td.FailNow("Registry isn't set")
+	}
+	return val.(*xrlib.Registry)
+}
+
+func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
+	return td.Set("xreg", r)
 }

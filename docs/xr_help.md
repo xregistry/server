@@ -8,6 +8,7 @@ The `xr` CLI lets you interact with an xRegistry server:
 ```yaml
 xr [command]
   # Global flags:
+  -c, --config string   Config file ($HOME/.xrconfig)
       --errjson         Print errors as json
   -?, --help            Help for xr
       --help-all        Help for all commands
@@ -270,3 +271,18 @@ the `xr` command is executed:
 | Env Var    | Value |
 | ---------- | ----- |
 | XR_SERVER  | Location of the xRegistry API server (localhost:8080*) |
+
+## `xr` Configuration File
+
+- Found in `$HOME/.xrconfig`
+- Syntax:
+```
+# Comment
+NAME: VALUE
+```
+
+- Supported configuration names:
+  - `server.url` - location of the xRegistry server
+  - `header.KEY` - an HTTP header (KEY) to add to all xRegistry client
+                   requests. For example, for authentication headers
+

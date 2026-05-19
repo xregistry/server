@@ -279,7 +279,8 @@ func (reg *Registry) HttpDo(debug bool, verb, path string, body []byte) (*HttpRe
 	if xErr != nil {
 		return nil, xErr
 	}
-	return HttpDo(debug, verb, u.String(), body)
+
+	return HttpDo(debug, verb, u.String(), HTTPHeaders, body)
 }
 
 func (m *Model) FindGroupBySingular(singular string) *GroupModel {

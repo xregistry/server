@@ -72,7 +72,7 @@ func addDownloadCmd(parent *cobra.Command) {
 }
 
 func downloadFunc(cmd *cobra.Command, args []string) {
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
@@ -80,7 +80,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		Error("Missing the DIR argument")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	dir := args[0]

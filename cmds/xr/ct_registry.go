@@ -2,44 +2,28 @@ package main
 
 import (
 	// "fmt"
-	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
 func TestRoot(td *TD) {
 	// td.DependsOn(TestLoadModel)
-	reg := td.Props["xreg"].(*xrlib.Registry)
+	reg := td.GetRegistry()
 
-	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
-	td.NoErrorStop(xErr, "'GET /' should have worked: %s", xErr)
-
-	if res.Code != 200 {
-		td.Fail("'GET /' MUST return 200, not %d(%s)", res.Code, res.Body)
-	}
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
+	td.HTTPStatusMustEqual(res, 200, "'GET /' MUST return 200")
 
 	td.Must(len(res.Body) > 0, "'GET /' MUST return a non-empty body")
+	td.Log("GET response:\n%s", string(res.Body))
+	td.Must(res.JSON != nil, "'GET /' MUST return a JSON body")
 
-	if res.Body == nil {
-		tmp := " <empty>"
-		if len(res.Body) > 0 {
-			tmp = "\n" + string(res.Body)
-		}
-		td.Fail("'GET /' MUST return a JSON body, not:%s", tmp)
-	}
-	td.Log("GET / returned 200 + JSON body")
+	td.HTTPPropMustEqual(res, "specversion", SPECVERSION)
+	td.HTTPPropMustNotEqual(res, "registryid", "")
+	td.HTTPPropMustNotEqual(res, "self", "")
+	td.HTTPPropMustNotEqual(res, "epoch", "")
 
-	data := map[string]any{}
-	td.NoErrorStop(Unmarshal(res.Body, &data))
-
-	td.PropMustEqual(data, "specversion", SPECVERSION)
-	td.PropMustNotEqual(data, "registryid", "")
-	td.PropMustNotEqual(data, "self", "")
-	td.PropMustNotEqual(data, "epoch", "")
-	val, _, _ := td.GetProp(data, "epoch")
-	prop, err := AnyToUInt(val)
-	td.Log("\"epoch\": (%T) %s", prop, ToJSON(prop))
-	td.NoError(err, "Attribute %q %s(%v)", "epoch", err, val)
-	td.Must(prop >= 0, "\"epoch\" must be >= 0")
+	epoch, err := AnyToUInt(td.HTTPGetProp(res, "epoch"))
+	td.NoError(err, "Attribute %q %s(%v)", "epoch", err, epoch)
+	td.Must(epoch >= 0, "\"epoch\" (%v) must be >= 0", epoch)
 }
 
 func aTestAll2(td *TD) {

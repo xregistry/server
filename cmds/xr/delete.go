@@ -26,11 +26,11 @@ func addDeleteCmd(parent *cobra.Command) {
 }
 
 func deleteFunc(cmd *cobra.Command, args []string) {
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	force, _ := cmd.Flags().GetBool("force")

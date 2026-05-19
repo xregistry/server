@@ -358,7 +358,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"parsing_response": &XRError{
 		Code:  400,
-		Title: `There was an error parsing the response from the server: <error_detail>.`,
+		Title: `There was an error parsing the response from the server (<subject>): <error_detail>.`,
 	},
 	"talking_to_server": &XRError{
 		Code:  400,

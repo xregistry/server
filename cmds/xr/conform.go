@@ -1,11 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 
@@ -25,6 +21,11 @@ func TestAll2(td *TD) {
 }
 
 func TestGroups(td *TD) {
+	td.Should(false, "A should fail test")
+	td.Should(true, "A should pass test")
+	td.ShouldEqual(1, 2, "A shouldEqual fail test")
+	td.ShouldEqual(1, 1, "A shouldEqual pass test")
+	// td.MustEqual(1, 2, "A Equal fail test")
 }
 
 var depthCount = 0
@@ -32,15 +33,15 @@ var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
 var ShowLogs = EnvBool("XR_SHOWLOGS", false)
 
 func conformFunc(cmd *cobra.Command, args []string) {
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	if ConfigFile != "" {
 		Error(reg.LoadConfigFromFile(ConfigFile))
 	}
 
-	td := NewTD(Server)
-	td.Props["xreg"] = reg
+	td := NewTD(GetServer())
+	td.SetRegistry(reg)
 
 	FailFast = false
 	td.Run(TestAll)
@@ -153,7 +154,7 @@ func (xr *XRegistry) LoadConfigFromFile(filename string) *XRError {
 	}
 	buf, err := os.ReadFile(filename)
 	if err != nil {
-		return NewXRError("client_request", filename,
+		return NewXRError("client_error", "",
 			"error_detail="+
 				fmt.Sprintf("Error loading config file (%s): %s",
 					filename, err.Error()))
@@ -165,18 +166,22 @@ func (xr *XRegistry) LoadConfigFromFile(filename string) *XRError {
 // prop: value
 // # comment
 func (xr *XRegistry) LoadConfigFromBuffer(buffer string) *XRError {
-	lines := strings.Split(buffer, "/n")
+	lines := strings.Split(buffer, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || line[0] == '#' {
 			continue
 		}
 		name, value, _ := strings.Cut(line, ":")
+		name = strings.TrimSpace(name)
+
 		if name == "" {
 			return NewXRError("client_error", "",
 				"error_detail="+
 					fmt.Sprintf("Error in config data - no name: %q", line))
 		}
+
+		value = strings.TrimSpace(value)
 		xr.SetConfig(name, value)
 	}
 	return nil
@@ -209,99 +214,50 @@ func (xr *XRegistry) SetConfig(name string, value string) *XRError {
 	return nil
 }
 
-type HTTPResponse struct {
-	Error      *XRError
-	StatusCode int
-	Headers    http.Header
-	Body       []byte
-	JSON       map[string]any
-}
-
-func (xr *XRegistry) Get(path string) *HTTPResponse {
+func (xr *XRegistry) Get(path string) *xrlib.HttpResponse {
 	return xr.CurlWithHeaders("GET", path, nil, "")
 }
 
-func (xr *XRegistry) Put(path string, body string) *HTTPResponse {
+func (xr *XRegistry) Put(path string, body string) *xrlib.HttpResponse {
 	return xr.CurlWithHeaders("PUT", path, nil, body)
 }
 
-func (xr *XRegistry) Post(path string, body string) *HTTPResponse {
+func (xr *XRegistry) Post(path string, body string) *xrlib.HttpResponse {
 	return xr.CurlWithHeaders("POST", path, nil, body)
 }
 
-func (xr *XRegistry) Patch(path string, body string) *HTTPResponse {
+func (xr *XRegistry) Patch(path string, body string) *xrlib.HttpResponse {
 	return xr.CurlWithHeaders("PATCH", path, nil, body)
 }
 
-func (xr *XRegistry) Curl(verb string, path string, body string) *HTTPResponse {
+func (xr *XRegistry) Curl(verb string, path string, body string) *xrlib.HttpResponse {
 	return xr.CurlWithHeaders(verb, path, nil, body)
 }
 
 // HTTPResponse
 // golang error if things failed at the tranport level
-func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[string]string, body string) *HTTPResponse {
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}}
-	bodyReader := io.Reader(nil)
-	if body != "" {
-		bodyReader = bytes.NewReader([]byte(body))
-	}
+func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[string]string, body string) *xrlib.HttpResponse {
 
-	req, err := http.NewRequest(verb, xr.GetServerURL()+"/"+path, bodyReader)
-	if err != nil {
-		return &HTTPResponse{Error: NewXRError("talking_to_server",
-			xr.GetServerURL()+"/"+path,
-			"error_detail="+err.Error())}
-	}
-
+	// header.KEY:VALUE
+	prefix := "header."
 	for key, value := range xr.Config {
-		key = strings.TrimSpace(key[7:])
-		if !strings.HasSuffix(key, "header.") {
+		if !strings.HasSuffix(key, prefix) {
 			continue
 		}
-		key = strings.TrimSpace(key[7:])
+
+		key = strings.TrimSpace(key[len(prefix):])
 		if key == "" {
 			continue
 		}
-		value = strings.TrimSpace(value)
-		req.Header.Add(key, value) // ok even if value is ""
-	}
 
-	for key, value := range headers {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
+		if headers == nil {
+			headers = map[string]string{}
 		}
-		req.Header.Add(key, value)
+		headers[key] = value // ok even if value is ""
 	}
 
-	doRes, err := client.Do(req)
-	if err != nil || doRes == nil {
-		return &HTTPResponse{Error: NewXRError("talking_to_server",
-			xr.GetServerURL()+"/"+path,
-			"error_detail="+err.Error())}
-	}
-	defer doRes.Body.Close()
-
-	res := &HTTPResponse{
-		StatusCode: doRes.StatusCode,
-		Headers:    doRes.Header.Clone(),
-	}
-	res.Body, err = io.ReadAll(doRes.Body)
-	if err != nil {
-		return &HTTPResponse{Error: NewXRError("parsing_response",
-			xr.GetServerURL()+"/"+path,
-			"error_detail="+err.Error())}
-	}
-
-	if len(res.Body) > 0 {
-		// Ignore any error, just assume it's not JSON and keep going
-		json.Unmarshal(res.Body, &res.JSON)
-	}
-
-	return res
+	httpRes, _ := xrlib.HttpDo(false, verb, path, headers, []byte(body))
+	return httpRes
 }
 
 /*

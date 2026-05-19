@@ -5,41 +5,29 @@ import (
 )
 
 func TestSniffTest(td *TD) {
-	reg := td.Props["xreg"].(*xrlib.Registry)
+	reg := td.GetRegistry()
 	td.Log("Server URL: %s", reg.GetServerURL())
 
-	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "", nil)
-	td.NoErrorStop(xErr, "'GET /' should have worked: %s", xErr)
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "", nil)
+	td.Log("Body: %s", string(res.Body))
 
-	if res.Code != 200 {
-		td.Fail("'GET /' MUST return 200, not %d(%s)",
-			res.Code, string(res.Body))
-	}
-
+	td.HTTPStatusMustEqual(res, 200, "'GET /' MUST return 200")
 	td.Must(len(res.Body) > 0, "'GET /' MUST return a non-empty body")
-
-	if res.Body == nil {
-		tmp := " <empty>"
-		if len(res.Body) > 0 {
-			tmp = "\n" + string(res.Body)
-		}
-		td.Fail("'GET /' MUST return a JSON body, not:%s", tmp)
-	}
-
-	td.Log("GET / returned 200 + JSON body")
+	td.Log("GET response:\n%s", string(res.Body))
+	td.Must(res.JSON != nil, "'GET /' MUST return a JSON body")
 }
 
 func TestLoadModel(td *TD) {
 	td.DependsOn(TestSniffTest)
-	reg := td.Props["xreg"].(*xrlib.Registry)
+	reg := td.GetRegistry()
 
 	res, xErr := reg.HttpDo(VerboseCount > 2, "GET", "/model", nil)
-	td.NoErrorStop(xErr, "'GET /model' should have worked: %s", xErr)
+	td.Log("Model: %s", string(res.Body))
+
 	td.MustEqual(res.Code, 200, "'GET /model' MUST return 200")
 	td.MustNotEqual(res.Body, nil, "The model MUST NOT be empty")
+	td.Must(res.JSON != nil, "'GET /model' MUST return a JSON body")
 
 	_, xErr = xrlib.ParseModel(res.Body)
-	td.MustEqual(xErr, nil, "Parsing model should work")
-
-	// td.Log("Model:\n%s", xrlib.ToJSON(data))
+	td.NoError(xErr, "Parsing model MUST work")
 }

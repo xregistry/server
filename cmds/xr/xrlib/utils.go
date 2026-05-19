@@ -18,7 +18,11 @@ import (
 
 // var VerboseFlag = EnvBool("XR_VERBOSE", false)
 // var DebugFlag = EnvBool("XR_DEBUG", false)
+
+// If/when we remove this global "Server" we can then move HTTPHeaders
+// to the same spot and remove that global var too
 var Server = EnvString("XR_SERVER", "")
+var HTTPHeaders = map[string]string(nil) // headers for all server requests
 
 func Debug(args ...any) {
 	// if !DebugFlag || len(args) == 0 || IsNil(args[0]) {
@@ -74,75 +78,93 @@ type HttpResponse struct {
 	Status string
 	Body   []byte
 	Header http.Header
+
+	JSON  map[string]any
+	Error *XRError
 }
 
 // statusCode, body
 // Add headers (in and out) later
-func HttpDo(debug bool, verb string, url string, body []byte) (*HttpResponse, *XRError) {
-	client := &http.Client{}
-	// CheckRedirect: func(req *http.Request, via []*http.Request) error {
-	// return http.ErrUseLastResponse
-	// }}
+func HttpDo(debug bool, verb string, url string, headers map[string]string, body []byte) (*HttpResponse, *XRError) {
+	// client := &http.Client{}
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}
+
+	httpRes := &HttpResponse{}
 
 	bodyReader := bytes.NewReader(body)
 
 	req, err := http.NewRequest(verb, url, bodyReader)
 	if err != nil {
-		return nil, NewXRError("talking_to_server", url,
+		return httpRes, NewXRError("talking_to_server", url,
 			"error_detail="+err.Error())
+	}
+
+	for key, value := range headers {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		req.Header.Add(key, value) // ok even if value is ""
 	}
 
 	if debug {
 		Debug("Request: %s %s", verb, url)
+		if len(headers) != 0 {
+			for _, key := range SortedKeys(headers) {
+				Debug("Header: %q", key)
+			}
+		}
 		if len(body) != 0 {
-			Debug("Request Body:\n%s", string(body))
+			Debug("Body:\n%s", string(body))
 			Debug("--------------------")
 		}
 	}
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, NewXRError("talking_to_server", url,
+		httpRes.Error = NewXRError("talking_to_server", url,
 			"error_detail="+err.Error())
+		return httpRes, httpRes.Error
 	}
 
-	body, err = io.ReadAll(res.Body)
+	httpRes.Body, err = io.ReadAll(res.Body)
 	res.Body.Close()
+
 	if err != nil {
-		return nil, NewXRError("parsing_response", url,
+		httpRes.Error = NewXRError("parsing_response", url,
 			"error_detail="+err.Error())
+
+		return httpRes, httpRes.Error
+	}
+
+	httpRes.Code = res.StatusCode
+	httpRes.Status = res.Status
+	httpRes.Header = res.Header
+
+	if len(httpRes.Body) > 0 {
+		// Ignore any parsing error, just assume it's not JSON and keep going
+		json.Unmarshal(httpRes.Body, &httpRes.JSON)
 	}
 
 	var xErr *XRError
 	if res.StatusCode/100 != 2 {
-		tmp := res.Status
-		if len(body) != 0 {
-			tmp = string(body)
-		}
-
-		tmp = strings.TrimSpace(tmp)
-
 		// If response has no body then we need to say something back to
 		// the user. A non-zero exit code w/o any text isn't helpful.
-		if tmp == "" {
-			return nil, NewXRError("talking_to_server", url,
+		if len(httpRes.Body) == 0 {
+			xErr = NewXRError("talking_to_server", url,
 				"error_detail="+res.Status)
 		} else {
 			// If we 'think' it's an XRError then return it, else just
 			// return the raw data
-			err := json.Unmarshal([]byte(tmp), &xErr)
+			err := json.Unmarshal(httpRes.Body, &xErr)
 			if (err == nil && xErr.Type == "") || err != nil {
 				xErr = NewXRError("talking_to_server", url,
-					"error_detail="+tmp)
+					"error_detail="+strings.TrimSpace(string(httpRes.Body)))
 			}
 		}
-	}
-
-	httpRes := &HttpResponse{
-		Code:   res.StatusCode,
-		Status: res.Status,
-		Body:   body,
-		Header: res.Header,
 	}
 
 	if debug {
@@ -165,12 +187,13 @@ func HttpDo(debug bool, verb string, url string, body []byte) (*HttpResponse, *X
 			}
 		}
 
-		if len(body) != 0 {
-			Debug("Response Body:\n%s", string(body))
+		if len(httpRes.Body) != 0 {
+			Debug("Response Body:\n%s", string(httpRes.Body))
 			Debug("--------------------")
 		}
 	}
 
+	httpRes.Error = xErr
 	return httpRes, xErr
 }
 
@@ -466,7 +489,7 @@ func BoolStr(v bool, yes string, no string) string {
 }
 
 func DownloadObject(debug bool, urlPath string) (map[string]any, *XRError) {
-	res, xErr := HttpDo(debug, "GET", urlPath, nil)
+	res, xErr := HttpDo(debug, "GET", urlPath, nil, nil)
 	if xErr != nil {
 		return nil, xErr
 	}

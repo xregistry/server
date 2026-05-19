@@ -12,8 +12,10 @@ import (
 // Flags
 var NOMASK_TS = "NoMaskTS"
 var MASK_SERVER = "MaskServer"
+var MASK_LOGS = "MaskLogs"
 var NOMASK_INSTANCE = "NoMaskInstance"
 
+var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
 var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
@@ -21,6 +23,7 @@ var REG_DBHOST = `DB server: .*`
 var REG_INSTANCE = `"source": "[^"]*"`
 
 var SavedREs = map[string]*regexp.Regexp{
+	REG_LOGDATE:  regexp.MustCompile(REG_LOGDATE),
 	REG_RFC3339:  regexp.MustCompile(REG_RFC3339),
 	REG_TSSLASH:  regexp.MustCompile(REG_TSSLASH),
 	REG_COMMIT:   regexp.MustCompile(REG_COMMIT),
@@ -46,6 +49,11 @@ func MaskTimestamps(input string) string {
 	return re.ReplaceAllStringFunc(input, replaceFunc)
 }
 
+func MaskLogs(input string) string {
+	re := SavedREs[REG_LOGDATE]
+	return re.ReplaceAllString(input, "YYYY/MM/DD HH:MM:SS ")
+}
+
 func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string) {
 	t.Helper()
 	pos := 0
@@ -59,6 +67,17 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 		return
 	}
 
+	if len(exp) > 3 && exp[0] == '*' && exp[len(exp)-1] == '*' {
+		expRE := strings.ReplaceAll(exp, "*", ".*")
+		if match, _ := regexp.MatchString(expRE, got); match {
+			return
+		}
+		t.Fatalf(extra+orig+
+			"\nExpected:\n%s"+
+			"\nGot:\n%s",
+			exp, got)
+	}
+
 	flagsMap := map[string]bool{}
 	for _, f := range flags {
 		flagsMap[f] = true
@@ -68,6 +87,11 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	if !flagsMap[NOMASK_TS] {
 		got = MaskTimestamps(got)
 		exp = MaskTimestamps(exp)
+	}
+
+	if flagsMap[MASK_LOGS] {
+		got = MaskLogs(got)
+		exp = MaskLogs(exp)
 	}
 
 	if flagsMap[MASK_SERVER] {

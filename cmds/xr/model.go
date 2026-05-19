@@ -388,11 +388,11 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 		Error("Only one FILE is allowed to be specified")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	fileName := ""
@@ -427,11 +427,11 @@ func modelUpdateFunc(cmd *cobra.Command, args []string) {
 }
 
 func modelGetFunc(cmd *cobra.Command, args []string) {
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	output, _ := cmd.Flags().GetString("output")
@@ -868,11 +868,11 @@ func modelGroupListFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'table'")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -905,11 +905,11 @@ func modelGroupGetFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'table'")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -931,11 +931,11 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 		Error("--output must be one of 'json', 'none', 'table'")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModelSource()
@@ -1019,11 +1019,11 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 
 	force, _ := cmd.Flags().GetBool("force")
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModelSource()
@@ -1073,11 +1073,11 @@ func modelResourceListFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -1122,11 +1122,11 @@ func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModel()
@@ -1176,11 +1176,11 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		Error("A Group type name must be provided via the --group flag")
 	}
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	groupPlural, groupSingular, _ := strings.Cut(group, ":")
@@ -1434,11 +1434,11 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	force, _ := cmd.Flags().GetBool("force")
 
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	model, xErr := reg.GetModelSource()

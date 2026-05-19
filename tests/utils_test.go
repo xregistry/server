@@ -485,7 +485,7 @@ func XCLIServer(serverURL string) {
 	os.Setenv("XR_SERVER", serverURL)
 }
 
-func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
+func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...string) {
 	t.Helper()
 
 	args := strings.Split(line, " ")
@@ -509,8 +509,8 @@ func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool) {
 			stdout.String(), stderr.String())
 	}
 
-	XEqual(t, "Stdout:", stdout.String(), Eout)
-	XEqual(t, "Stderr:", stderr.String(), Eerr)
+	XEqual(t, "Stdout:", stdout.String(), Eout, flags...)
+	XEqual(t, "Stderr:", stderr.String(), Eerr, flags...)
 }
 
 func XServer(t *testing.T, line string, in, Eout, Eerr string, code int) {

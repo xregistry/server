@@ -8,17 +8,20 @@ import (
 	log "github.com/duglin/dlog"
 	"github.com/spf13/cobra"
 	// "github.com/spf13/pflag"
-	// "github.com/xregistry/server/cmds/xr/xrlib"
+	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
 var GitComit string
 var VerboseCount = 0
 
-var Server = "" // Will grab DefaultServer after we add the --server flag
-var DefaultServer = EnvString("XR_SERVER", "localhost:8080")
 var ErrJson = false
 
+var DefaultServer = "localhost:8080"
+var UserConfig = map[string]string{}
+var ConfigFileName = ".xrconfig"
+
+// Error():
 // string, args      -> Title=sprintf(string, args...)
 // xErr              -> use as is
 // err               -> Title=err.Error()
@@ -120,6 +123,115 @@ func Verbose(args ...any) {
 	}
 
 	fmt.Fprintf(os.Stderr, fmtStr, args[1:]...)
+}
+
+// File syntax:
+// prop: value
+// # comment
+func LoadConfigFromFile(fn string) *XRError {
+	if fn == "" {
+		if _, err := os.Stat("./" + ConfigFileName); err == nil {
+			fn = "./" + ConfigFileName
+		} else {
+			path, _ := os.UserHomeDir()
+			if path != "" {
+				path = path + "/" + ConfigFileName
+				if _, err := os.Stat(path); err == nil {
+					fn = path
+				} else {
+					// No config file, just return
+					return nil
+				}
+			}
+		}
+	}
+
+	buf, err := os.ReadFile(fn)
+	if err != nil {
+		return NewXRError("client_error", "",
+			"error_detail="+
+				fmt.Sprintf("Error loading config file (%s): %s",
+					fn, err.Error()))
+	}
+
+	return LoadConfigFromBuffer(string(buf))
+}
+
+// Buffer syntax:
+// prop: value
+// # comment
+func LoadConfigFromBuffer(buffer string) *XRError {
+	lines := strings.Split(buffer, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] == '#' {
+			continue
+		}
+		name, value, _ := strings.Cut(line, ":")
+		name = strings.TrimSpace(name)
+
+		if name == "" {
+			return NewXRError("client_error", "",
+				"error_detail="+
+					fmt.Sprintf("Error in config data - no name: %q", line))
+		}
+
+		value = strings.TrimSpace(value)
+		SetConfig(name, value)
+	}
+
+	xrlib.HTTPHeaders = GetHeaders()
+
+	return nil
+}
+
+func GetConfig(name string) string {
+	if UserConfig == nil {
+		return ""
+	}
+	return UserConfig[name]
+}
+
+func GetServer() string {
+	return GetConfig("server.url")
+}
+
+func GetHeaders() map[string]string {
+	headers := map[string]string(nil)
+
+	for key, value := range UserConfig {
+		if !strings.HasPrefix(key, "header.") {
+			continue
+		}
+		key = strings.TrimSpace(key[7:])
+		if key != "" {
+			if headers == nil {
+				headers = map[string]string{}
+			}
+			headers[key] = value
+		}
+	}
+	return headers
+}
+
+func SetConfig(name string, value string) *XRError {
+	name = strings.TrimSpace(name)
+	value = strings.TrimSpace(value)
+
+	if name == "" {
+		return NewXRError("client_error", "",
+			"error_detail="+
+				fmt.Sprintf("Config name can't be blank"))
+	}
+	if value == "" {
+		delete(UserConfig, name)
+	} else {
+		if UserConfig == nil {
+			UserConfig = map[string]string{}
+		}
+		UserConfig[name] = value
+	}
+	return nil
 }
 
 func mainFunc(cmd *cobra.Command, args []string) {
@@ -264,27 +376,51 @@ func main() {
 		SilenceUsage: true,
 
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// Just make sure Server starts with some variant of "http"
-			if Server != "" && !strings.HasPrefix(Server, "http") {
-				Server = "http://" + strings.TrimLeft(Server, "/")
-			}
+			log.SetVerbose(VerboseCount)
 
 			if b, _ := cmd.Flags().GetBool("version"); b {
 				fmt.Printf("Version: %s\n", GitCommit[:min(len(GitCommit), 12)])
 				os.Exit(0)
 			}
 
-			log.SetVerbose(VerboseCount)
+			// If config FN=="" then we'll look for it in $HOME
+			fn, _ := cmd.Flags().GetString("config")
+			Error(LoadConfigFromFile(fn))
+
+			// Calc Server: cmdline->env->configFile->default
+			server, _ := cmd.Flags().GetString("server")
+			if server == "" {
+				server = os.Getenv("XR_SERVER")
+
+				if server == "" {
+					server = GetServer()
+
+					if server == "" {
+						server = DefaultServer
+					}
+				}
+			}
+
+			// Clean & make sure 'server' starts with some variant of "http"
+			server = strings.TrimSpace(server)
+			if server != "" && !strings.HasPrefix(server, "http") {
+				server = "http://" + strings.TrimLeft(server, "/")
+			}
+
+			SetConfig("server.url", server)
 		},
 	}
+
 	xrCmd.CompletionOptions.HiddenDefaultCmd = true
-	xrCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
-		"Be chatty``")
-	xrCmd.PersistentFlags().StringVarP(&Server, "server", "s", "",
+	xrCmd.PersistentFlags().StringP("config", "c", "",
+		"Config file ($HOME/.xrconfig)")
+	xrCmd.PersistentFlags().StringP("server", "s", "",
 		"xRegistry server URL")
 	xrCmd.PersistentFlags().BoolVarP(&ErrJson, "errjson", "", false,
 		"Print errors as json")
 	xrCmd.PersistentFlags().BoolP("help", "?", false, "Help for xr")
+	xrCmd.PersistentFlags().CountVarP(&VerboseCount, "verbose", "v",
+		"Be chatty``")
 	xrCmd.PersistentFlags().BoolP("version", "", false,
 		"Print command version string")
 
@@ -313,10 +449,6 @@ func main() {
 	})
 
 	xrCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
-
-	// Set Server after we add the --server flag so we don't show the
-	// default value in the help text
-	Server = DefaultServer
 
 	addCreateCmd(xrCmd)
 	addDeleteCmd(xrCmd)

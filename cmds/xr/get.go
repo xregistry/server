@@ -29,11 +29,11 @@ func addGetCmd(parent *cobra.Command) {
 }
 
 func getFunc(cmd *cobra.Command, args []string) {
-	if Server == "" {
+	if GetServer() == "" {
 		Error("No Server address provided. Try either -s or XR_SERVER env var")
 	}
 
-	reg, xErr := xrlib.GetRegistry(Server)
+	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
 	inlines, _ := cmd.Flags().GetStringArray("inline")
@@ -93,6 +93,9 @@ func getFunc(cmd *cobra.Command, args []string) {
 	res, xErr := reg.HttpDo(VerboseCount > 1, "GET", path, nil)
 	Error(xErr)
 
+	path = strings.TrimRight(GetServer(), "/") + "/" +
+		strings.TrimLeft(path, "/")
+
 	if !resIsJSON {
 		fmt.Printf("%s", string(res.Body))
 		// Don't add a \n since that could mess people up if they're sending
@@ -107,7 +110,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "json" {
 		buf, err := PrettyPrintJSON(res.Body, "", "  ")
-		Error(err, NewXRError("parsing_response", "/",
+		Error(err, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(err)).
 			SetDetail("Response: "+string(res.Body)+"."))
 
@@ -117,7 +120,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 
 	if output == "table" {
 		err = json.Unmarshal(res.Body, &object)
-		Error(err, NewXRError("parsing_response", "/",
+		Error(err, NewXRError("parsing_response", path,
 			"error_detail="+Err2String(err)).
 			SetDetail("Response: "+string(res.Body)+"."))
 		fmt.Printf("%s\n", xrlib.Tablize(xid.String(), object))

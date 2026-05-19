@@ -1673,3 +1673,112 @@ func TestXRResourceType(t *testing.T) {
 	XCLI(t, "model resource upsert fs22:f22 -g dirs -v", "",
 		"", "Created Resource type: fs22\n", true)
 }
+
+func TestXRConfig(t *testing.T) {
+	reg := NewRegistry("TestXRConfig")
+	defer PassDeleteReg(t, reg)
+
+	tmphome, err := os.MkdirTemp("", "xrtest-home")
+	XNoErr(t, err)
+	defer os.RemoveAll(tmphome)
+
+	// Clear it so local env doesn't impact the test
+	os.Unsetenv("XR_SERVER")
+
+	configStr := `# a config file
+server.url: localhost:666
+header.foo: bar
+# another comment
+header.bar2: foo2`
+
+	// Set HOME to tmp dir but no config file YET
+	XNoErr(t, os.Setenv("HOME", tmphome))
+
+	// 0 - Just print help text
+	XCLI(t, "", "", "*", "", true)
+
+	// 1 - make sure we use default w/o config, cmd-line or env
+	// Should fail trying to GET localhost:8080
+	XCLI(t, "get", "", "", "*localhost:8080*", false)
+
+	// 2 - now add config file to HOME dir, make sure we try example.com
+	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+	// Should fail trying to GET localhost:666
+	XCLI(t, "get", "", "", "*localhost:666*", false)
+
+	// 3 - now add env var
+	os.Setenv("XR_SERVER", "localhost:9999")
+	// Should fail trying to GET localhost:9999
+	XCLI(t, "get", "", "", "*localhost:9999*", false)
+
+	// 4 - now add cmd line and make sure we use that
+	os.Setenv("XR_SERVER", "localhost:9999")
+	// Should fail trying to GET localhost:1234
+	XCLI(t, "get -s localhost:1234", "", "", "*localhost:1234*", false)
+
+	// 5 - Pointer to missing config file
+	XCLI(t, "-c bogusfile", "", "",
+		"Error loading config file (bogusfile): open bogusfile: no such file or directory.\n", false)
+
+	// Remove server.url from config and make sure we don't use it
+	// Clear env var too
+	configStr = `# a config file
+# server.url: localhost:666
+header.foo: bar
+# another comment
+header.bar2: foo2`
+	os.Unsetenv("XR_SERVER")
+
+	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+	XCLI(t, "get", "", "", "*localhost:8080*", false)
+
+	// Make config file point to our test server
+	configStr = `# a config file
+server.url: localhost:8181
+header.foo: bar
+# another comment
+header.bar2: foo2`
+	XNoErr(t, os.WriteFile(tmphome+"/.xrconfig", []byte(configStr), 0600))
+
+	// Make sure vanilla GET looks ok
+	XCLI(t, "get", "", `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestXRConfig",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-05-19T17:11:24.85742361Z",
+  "modifiedat": "2026-05-19T17:11:24.85742361Z"
+}
+`, "", true)
+
+	// Now make sure the headers are in the outbound msg
+	XCLI(t, "get -vv", "", `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestXRConfig",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+}
+`, `2026/05/19 18:01:50 Request: GET http://localhost:8181/
+2026/05/19 18:01:50 Header: "bar2"
+2026/05/19 18:01:50 Header: "foo"
+2026/05/19 18:01:50 Response: 200 OK
+2026/05/19 18:01:50 access-control-allow-methods: GET, PATCH, POST, PUT, DELETE
+2026/05/19 18:01:50 access-control-allow-origin: *
+2026/05/19 18:01:50 content-type: application/json
+2026/05/19 18:01:50 Response Body:
+{
+  "specversion": "1.0-rc2",
+  "registryid": "TestXRConfig",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2026-05-19T18:01:50.860438234Z",
+  "modifiedat": "2026-05-19T18:01:50.860438234Z"
+}
+2026/05/19 18:01:50 --------------------
+`, true, MASK_LOGS)
+}
