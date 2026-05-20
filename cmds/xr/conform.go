@@ -28,7 +28,7 @@ func TestGroups(td *TD) {
 	// td.MustEqual(1, 2, "A Equal fail test")
 }
 
-var depthCount = 0
+var depth = 0
 var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
 var ShowLogs = EnvBool("XR_SHOWLOGS", false)
 
@@ -48,13 +48,13 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	td.Run(TestAll2)
 
 	// td.Dump("")
-	if depthCount <= 0 { // == 0 || depthCount == -1 {
+	if depth <= 0 { // == 0 || depth == -1 {
 		// Can't actually do zero, so zero = -1 (all)
-		depthCount = 9999999
+		depth = 9999999
 	} else {
-		depthCount = depthCount + 1
+		// depth = depth + 1
 	}
-	td.Print(os.Stdout, "", ShowLogs, depthCount)
+	td.Print(os.Stdout, "", ShowLogs, depth-1)
 
 	if td.ExitCode() != 0 {
 		os.Exit(td.ExitCode())
@@ -72,7 +72,7 @@ func addConformCmd(parent *cobra.Command) {
 		"Location of config file")
 	conformCmd.Flags().BoolVarP(&ShowLogs, "logs", "l", ShowLogs,
 		"Show logs on success")
-	conformCmd.Flags().CountVarP(&depthCount, "depth", "d", "Console depth")
+	conformCmd.Flags().IntVarP(&depth, "depth", "d", depth, "Console depth")
 	conformCmd.Flags().BoolVarP(&tdDebug, "tdDebug", "t", tdDebug, "td debug")
 
 	parent.AddCommand(conformCmd)

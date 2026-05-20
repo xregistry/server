@@ -1717,7 +1717,7 @@ header.bar2: foo2`
 	XCLI(t, "get -s localhost:1234", "", "", "*localhost:1234*", false)
 
 	// 5 - Pointer to missing config file
-	XCLI(t, "-c bogusfile", "", "",
+	XCLI(t, "--config bogusfile", "", "",
 		"Error loading config file (bogusfile): open bogusfile: no such file or directory.\n", false)
 
 	// Remove server.url from config and make sure we don't use it

@@ -124,11 +124,13 @@ func (td *TD) Dump(indent string) {
 }
 
 func (td *TD) Print(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth != 0 || td.Status == FAIL {
+	if depth >= 0 || td.Status == FAIL {
 		td.write(out, indent, showLogs, depth)
-		fmt.Printf("\n"+indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
-			td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
+		fmt.Print("\n")
 	}
+
+	fmt.Printf(indent+"Pass: %d   Fail: %d   Warn: %d   Skip: %d\n",
+		td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 }
 
 var tdDebug = false
@@ -144,18 +146,14 @@ func Debug(out io.Writer, fmtStr string, args ...any) {
 }
 
 func (td *TD) write(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth != 0 || td.Status == FAIL {
+	if depth >= 0 || td.Status == FAIL {
 		td.writeHeader(out, indent, showLogs, depth)
-		nextDepth := depth
-		if depth > 0 {
-			nextDepth = nextDepth - 1
-		}
-		td.writeBody(out, indent, showLogs, nextDepth)
+		td.writeBody(out, indent, showLogs, depth-1)
 	}
 }
 
 func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth != 0 || td.Status == FAIL {
+	if depth >= 0 || td.Status == FAIL {
 		str := indent + StatusText[td.Status] + ": "
 
 		if tdDebug {
@@ -169,7 +167,7 @@ func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int
 }
 
 func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) {
-	if depth == 0 && td.Status != FAIL {
+	if depth < 0 && td.Status != FAIL {
 		return
 	}
 	saveIndent := indent
@@ -221,15 +219,15 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 				str = PrettyPrint(indent, "", le.Text)
 			}
 		} else { // subtest
-			nextDepth := depth
-			if depth > 0 {
-				nextDepth = nextDepth - 1
-			}
+			// nextDepth := depth
+			// if depth > 0 {
+			// nextDepth = nextDepth - 1
+			// }
 			if i == lastLog {
 				le.Subtest.writeHeader(out, endSaveIndent+"└─ ", showLogs, depth)
-				le.Subtest.writeBody(out, saveIndent+"   ", showLogs, nextDepth)
+				le.Subtest.writeBody(out, saveIndent+"   ", showLogs, depth-1)
 			} else /* if i < lastLog */ {
-				le.Subtest.write(out, indent, showLogs, nextDepth)
+				le.Subtest.write(out, indent, showLogs, depth)
 			}
 		}
 		out.Write([]byte(str))

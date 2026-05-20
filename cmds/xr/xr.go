@@ -412,7 +412,7 @@ func main() {
 	}
 
 	xrCmd.CompletionOptions.HiddenDefaultCmd = true
-	xrCmd.PersistentFlags().StringP("config", "c", "",
+	xrCmd.PersistentFlags().StringP("config", "", "",
 		"Config file ($HOME/.xrconfig)")
 	xrCmd.PersistentFlags().StringP("server", "s", "",
 		"xRegistry server URL")
