@@ -1359,6 +1359,8 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 					"(%s/capabilities): %s", host, err))
 	}
 
+	reg.oldCapabilities = reg.Capabilities.Clone()
+
 	return reg, nil
 }
 

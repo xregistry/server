@@ -459,12 +459,20 @@ func (c *Capabilities) SetAvailable(data string, mutable bool) {
 
 // Is the data GET-able
 func (c *Capabilities) IsAvailable(str string) bool {
+	if c.Available == nil {
+		return false
+	}
+
 	_, ok := c.Available[str]
 	return ok
 }
 
 // Is the data GET-able and mutable
 func (c *Capabilities) IsAvailableMutable(str string) bool {
+	if c.Available == nil {
+		return false
+	}
+
 	avail, ok := c.Available[str]
 	return ok && avail.Mutable
 }
