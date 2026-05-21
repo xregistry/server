@@ -396,6 +396,7 @@ func main() {
 	}
 
 	serverCmd := setupCmds()
+	ValidateCmd(serverCmd)
 
 	if err := serverCmd.Execute(); err != nil {
 		// fmt.Fprintf(os.Stderr, "%s\n", err)

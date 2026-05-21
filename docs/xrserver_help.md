@@ -25,47 +25,141 @@ xrserver [command]
       --verify              Verify loading and exit
       --version             Print command version string
 
+xrserver db [command]
+  # Manage mysql databases
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
+
 xrserver db create NAME
   # Create a new mysql DB
-  -f, --force   Delete existing DB first
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -f, --force               Delete existing DB first
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver db delete NAME
   # Delete a mysql DB
-  -f, --force   Ignore DB missing error
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -f, --force               Ignore DB missing error
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver db get NAME
   # Get details about a mysql DB
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver db list
   # List the databases
-  -o, --output string   Output format: json, table*
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -o, --output string       Output format: json, table*
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver help [command]
   # Help about any command
 
+xrserver registry [command]
+  # Manage xRegistries
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
+
 xrserver registry create ID...
   # Create one or more xRegistry
-  -f, --force   Ignore existing registry
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -f, --force               Ignore existing registry
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver registry delete ID...
   # Delete one or more registries
-  -f, --force   Ignore missing registry
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -f, --force               Ignore missing registry
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver registry get ID
   # Get details about a registry
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver registry list
   # List the registries
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+  -?, --help                Help for commands
+  -v, --verbose             Be chatty
+      --version             Print command version string
 
 xrserver run
   # Run server (the default command)
-      --dontcreate        Don't create DB/reg if missing
-  -p, --port int          API Listen port (8080*)
-      --recreatedb        Recreate the DB
-      --recreatereg       Recreate registry
-  -r, --registry string   Default Registry name(xRegistry*)
-      --samples           Load sample registries
-      --verify            Verify loading and exit
+      --db string           DB name (registry*)
+      --dbhost string       DB host address (127.0.0.1*)
+      --dbpassword string   DB password (password*)
+      --dbport int          DB host port (3306*)
+      --dbuser string       DB user (root*)
+      --dontcreate          Don't create DB/reg if missing
+  -?, --help                Help for commands
+  -p, --port int            API Listen port (8080*)
+      --recreatedb          Recreate the DB
+      --recreatereg         Recreate registry
+  -r, --registry string     Default Registry name(xRegistry*)
+      --samples             Load sample registries
+  -v, --verbose             Be chatty
+      --verify              Verify loading and exit
+      --version             Print command version string
 ```
 <!-- XRSERVER HELP END -->
 

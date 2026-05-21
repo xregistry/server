@@ -68,10 +68,8 @@ func addConformCmd(parent *cobra.Command) {
 		Run:     conformFunc,
 		GroupID: "Admin",
 	}
-	conformCmd.Flags().StringVarP(&ConfigFile, "config", "c", ConfigFile,
-		"Location of config file")
 	conformCmd.Flags().BoolVarP(&ShowLogs, "logs", "l", ShowLogs,
-		"Show logs on success")
+		"Show logs even on success")
 	conformCmd.Flags().IntVarP(&depth, "depth", "d", depth, "Console depth")
 	conformCmd.Flags().BoolVarP(&tdDebug, "tdDebug", "t", tdDebug, "td debug")
 

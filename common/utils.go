@@ -23,6 +23,7 @@ import (
 
 	log "github.com/duglin/dlog"
 	"github.com/google/uuid"
+	"github.com/spf13/cobra"
 )
 
 var count = 0 // UUID counter
@@ -1556,4 +1557,18 @@ func Err2String(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// This will catch conflicing definitions of cmd-line flags.
+// It'll generate a runtime error, so you'll need to run the
+// exe (xr or xrserver) to run the test.
+func ValidateCmd(cmd *cobra.Command) {
+	_ = cmd.Flags()
+	_ = cmd.InheritedFlags()
+	_ = cmd.LocalFlags()
+	_ = cmd.PersistentFlags()
+
+	for _, sub := range cmd.Commands() {
+		ValidateCmd(sub)
+	}
 }
