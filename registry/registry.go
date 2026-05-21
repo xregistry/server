@@ -1340,7 +1340,7 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	var xErr *XRError
 	reg.Model, xErr = ParseModel(data)
 	if xErr != nil {
-		return nil, xErr
+		return nil, xErr.SetDetail("Model:\n" + string(data) + ".")
 	}
 
 	// Download capabilities
