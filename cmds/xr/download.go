@@ -523,7 +523,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					"error_detail="+err.Error()))
 			}
 
-			caps, xErr := ParseCapabilitiesJSON(tmpData["capabilities"])
+			caps, xErr := ParseCapabilities(tmpData["capabilities"])
 			Error(xErr)
 
 			caps.Available = map[string]*AvailableObject{
@@ -558,7 +558,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	data, _ = Download(reg, "/capabilities")
 	if len(data) > 0 {
 		if modCap {
-			caps, xErr := ParseCapabilitiesJSON(data)
+			caps, xErr := ParseCapabilities(data)
 			Error(xErr)
 
 			caps.Available = map[string]*AvailableObject{

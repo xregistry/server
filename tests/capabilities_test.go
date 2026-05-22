@@ -366,7 +366,7 @@ func TestCapabilitySimple(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		c, xErr := ParseCapabilitiesJSON([]byte(test.Cap))
+		c, xErr := ParseCapabilities([]byte(test.Cap))
 		if xErr == nil {
 			xErr = c.Validate()
 		}

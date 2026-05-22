@@ -1,32 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
-
-func TestAll(td *TD) {
-	td.DependsOn(TestSniffTest)
-	td.Run(TestLoadModel)
-	td.Run(TestRoot)
-}
-
-func TestAll2(td *TD) {
-	td.Run(TestGroups)
-}
-
-func TestGroups(td *TD) {
-	td.Should(false, "A should fail test")
-	td.Should(true, "A should pass test")
-	td.ShouldEqual(1, 2, "A shouldEqual fail test")
-	td.ShouldEqual(1, 1, "A shouldEqual pass test")
-	// td.MustEqual(1, 2, "A Equal fail test")
-}
 
 var depth = 0
 var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
@@ -44,8 +24,7 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	td.SetRegistry(reg)
 
 	FailFast = false
-	td.Run(TestAll)
-	td.Run(TestAll2)
+	td.Run(TestRegistry)
 
 	// td.Dump("")
 	if depth <= 0 { // == 0 || depth == -1 {
@@ -113,150 +92,6 @@ func ToJSON(obj interface{}) string {
 	return string(buf)
 }
 */
-
-type XRegistry struct {
-	// Config values:
-	//   server.url: VALUE
-	//   header.NAME: VALUE
-	Config map[string]string
-}
-
-func NewXRegistry() (*XRegistry, *XRError) {
-	xreg := &XRegistry{}
-	return xreg, xreg.LoadConfig("")
-}
-
-func NewXRegistryWithConfigPath(path string) (*XRegistry, *XRError) {
-	xreg := &XRegistry{}
-	return xreg, xreg.LoadConfig(path)
-}
-
-func (xr *XRegistry) GetServerURL() string {
-	return xr.GetConfig("server.url")
-}
-
-func (xr *XRegistry) LoadConfig(path string) *XRError {
-	xErr := xr.LoadConfigFromFile(path)
-	if xErr != nil {
-		return xErr
-	}
-	return nil
-}
-
-// File syntax:
-// prop: value
-// # comment
-func (xr *XRegistry) LoadConfigFromFile(filename string) *XRError {
-	if filename == "" {
-		filename = "xr.config"
-	}
-	buf, err := os.ReadFile(filename)
-	if err != nil {
-		return NewXRError("client_error", "",
-			"error_detail="+
-				fmt.Sprintf("Error loading config file (%s): %s",
-					filename, err.Error()))
-	}
-	return xr.LoadConfigFromBuffer(string(buf))
-}
-
-// Buffer syntax:
-// prop: value
-// # comment
-func (xr *XRegistry) LoadConfigFromBuffer(buffer string) *XRError {
-	lines := strings.Split(buffer, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
-		}
-		name, value, _ := strings.Cut(line, ":")
-		name = strings.TrimSpace(name)
-
-		if name == "" {
-			return NewXRError("client_error", "",
-				"error_detail="+
-					fmt.Sprintf("Error in config data - no name: %q", line))
-		}
-
-		value = strings.TrimSpace(value)
-		xr.SetConfig(name, value)
-	}
-	return nil
-}
-
-func (xr *XRegistry) GetConfig(name string) string {
-	if xr.Config == nil {
-		return ""
-	}
-	return xr.Config[name]
-}
-
-func (xr *XRegistry) SetConfig(name string, value string) *XRError {
-	name = strings.TrimSpace(name)
-	value = strings.TrimSpace(value)
-
-	if name == "" {
-		return NewXRError("client_error", "",
-			"error_detail="+
-				fmt.Sprintf("Config name can't be blank"))
-	}
-	if value == "" {
-		delete(xr.Config, name)
-	} else {
-		if xr.Config == nil {
-			xr.Config = map[string]string{}
-		}
-		xr.Config[name] = value
-	}
-	return nil
-}
-
-func (xr *XRegistry) Get(path string) *xrlib.HttpResponse {
-	return xr.CurlWithHeaders("GET", path, nil, "")
-}
-
-func (xr *XRegistry) Put(path string, body string) *xrlib.HttpResponse {
-	return xr.CurlWithHeaders("PUT", path, nil, body)
-}
-
-func (xr *XRegistry) Post(path string, body string) *xrlib.HttpResponse {
-	return xr.CurlWithHeaders("POST", path, nil, body)
-}
-
-func (xr *XRegistry) Patch(path string, body string) *xrlib.HttpResponse {
-	return xr.CurlWithHeaders("PATCH", path, nil, body)
-}
-
-func (xr *XRegistry) Curl(verb string, path string, body string) *xrlib.HttpResponse {
-	return xr.CurlWithHeaders(verb, path, nil, body)
-}
-
-// HTTPResponse
-// golang error if things failed at the tranport level
-func (xr *XRegistry) CurlWithHeaders(verb string, path string, headers map[string]string, body string) *xrlib.HttpResponse {
-
-	// header.KEY:VALUE
-	prefix := "header."
-	for key, value := range xr.Config {
-		if !strings.HasSuffix(key, prefix) {
-			continue
-		}
-
-		key = strings.TrimSpace(key[len(prefix):])
-		if key == "" {
-			continue
-		}
-
-		if headers == nil {
-			headers = map[string]string{}
-		}
-		headers[key] = value // ok even if value is ""
-	}
-
-	httpRes, _ := xrlib.HttpDo(false, verb, path, headers, []byte(body))
-	return httpRes
-}
 
 /*
 func (j *JSON) JPath(path string) any {

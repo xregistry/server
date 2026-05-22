@@ -431,7 +431,7 @@ func (c *Capabilities) Validate() *XRError {
 	return nil
 }
 
-func ParseCapabilitiesJSON(buf []byte) (*Capabilities, *XRError) {
+func ParseCapabilities(buf []byte) (*Capabilities, *XRError) {
 	log.VPrintf(4, "Enter: ParseCapabilitiesJSON")
 	cap := Capabilities{}
 

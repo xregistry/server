@@ -533,7 +533,11 @@ func (td *TD) HTTPStatusMustEqual(res *xrlib.HttpResponse, exp int, args ...any)
 		td.Fail(args...)
 		return
 	}
-	td.MustEqual(exp, res.Code, args...)
+	str := ""
+	if len(args) > 0 {
+		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
+	}
+	td.MustEqual(exp, res.Code, "%sMUST return %d", str, exp)
 }
 
 func (td *TD) HTTPStatusShouldEqual(res *xrlib.HttpResponse, exp int, args ...any) {
@@ -575,6 +579,17 @@ func (td *TD) HTTPPropMustNotEqual(res *xrlib.HttpResponse, prop string, exp any
 		return
 	}
 	td.ObjPropMustNotEqual(res.JSON, prop, exp)
+}
+
+func (td *TD) HTTPBodyMustJSON(res *xrlib.HttpResponse, args ...any) {
+	str := ""
+	if len(args) > 0 {
+		str = "'" + fmt.Sprintf(args[0].(string), args[1:]...) + "' "
+	}
+
+	td.Log("%sBody:\n%s", str, string(res.Body))
+	td.Must(len(res.Body) > 0, "%sMUST return a non-empty body", str)
+	td.Must(res.JSON != nil, "%sMUST return a JSON body", str)
 }
 
 func PrettyPrint(indent string, prefix string, text string) string {
@@ -668,4 +683,28 @@ func (td *TD) GetRegistry() *xrlib.Registry {
 
 func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
 	return td.Set("xreg", r)
+}
+
+func (td *TD) GetModel() *xrlib.Model {
+	val := td.GetProp("model")
+	if val == nil {
+		td.FailNow("Model isn't set")
+	}
+	return val.(*xrlib.Model)
+}
+
+func (td *TD) SetModel(m *xrlib.Model) *TD {
+	return td.Set("model", m)
+}
+
+func (td *TD) GetCapabilities() *Capabilities {
+	val := td.GetProp("capabilities")
+	if val == nil {
+		td.FailNow("Capabilities isn't set")
+	}
+	return val.(*Capabilities)
+}
+
+func (td *TD) SetCapabilities(c *Capabilities) *TD {
+	return td.Set("capabilities", c)
 }

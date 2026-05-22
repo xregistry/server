@@ -343,7 +343,7 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	capStr := info.Registry.GetAsString("#capabilities")
 	if capStr != "" {
 		var xErr *XRError
-		cap, xErr = ParseCapabilitiesJSON([]byte(capStr))
+		cap, xErr = ParseCapabilities([]byte(capStr))
 		Must(xErr)
 	}
 
@@ -1609,7 +1609,7 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 			"action="+info.OriginalRequest.Method)
 	}
 
-	cap, xErr := ParseCapabilitiesJSON(reqBody)
+	cap, xErr := ParseCapabilities(reqBody)
 	if xErr != nil {
 		return xErr
 	}

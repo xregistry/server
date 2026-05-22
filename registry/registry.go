@@ -397,7 +397,7 @@ func (reg *Registry) LoadCapabilities() *Capabilities {
 		// Custom capabilities
 		capStr, ok := capVal.(string)
 		PanicIf(!ok, "not a byte array: %T", capVal)
-		cap, xErr := ParseCapabilitiesJSON([]byte(capStr))
+		cap, xErr := ParseCapabilities([]byte(capStr))
 		Must(xErr)
 		reg.Capabilities = cap
 	}
@@ -1347,7 +1347,7 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	data, err = DownloadURL(host + "/capabilities")
 	if err == nil {
 		var xErr *XRError
-		reg.Capabilities, xErr = ParseCapabilitiesJSON(data)
+		reg.Capabilities, xErr = ParseCapabilities(data)
 
 		if xErr != nil {
 			return nil, xErr

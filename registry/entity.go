@@ -1324,7 +1324,7 @@ var PropsFuncs = []*Attribute{
 						return e.Registry.Capabilities
 					}
 
-					cap, xErr := ParseCapabilitiesJSON([]byte(capStr))
+					cap, xErr := ParseCapabilities([]byte(capStr))
 					Must(xErr)
 					return cap
 				}
@@ -1347,7 +1347,7 @@ var PropsFuncs = []*Attribute{
 						// processing
 						valStr := ToJSON(val)
 
-						cap, xErr = ParseCapabilitiesJSON([]byte(valStr))
+						cap, xErr = ParseCapabilities([]byte(valStr))
 						if xErr != nil {
 							return xErr
 						}

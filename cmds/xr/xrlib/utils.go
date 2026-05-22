@@ -86,11 +86,13 @@ type HttpResponse struct {
 // statusCode, body
 // Add headers (in and out) later
 func HttpDo(debug bool, verb string, url string, headers map[string]string, body []byte) (*HttpResponse, *XRError) {
-	// client := &http.Client{}
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}}
+	client := &http.Client{}
+	/*
+		client := &http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			}}
+	*/
 
 	httpRes := &HttpResponse{}
 

@@ -2,19 +2,55 @@ package main
 
 import (
 	// "fmt"
+
+	"github.com/xregistry/server/cmds/xr/xrlib"
 	. "github.com/xregistry/server/common"
 )
 
+func TestRegistry(td *TD) {
+	td.DependsOn(TestSniff)
+	td.Run(TestCapabilities)
+	td.Run(TestModel)
+	td.Run(TestRoot)
+}
+
+func TestCapabilities(td *TD) {
+	td.DependsOn(TestSniff)
+	reg := td.GetRegistry()
+
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/capabilities", nil)
+	// td.Log("Capabilities: %s", string(res.Body))
+	td.HTTPStatusMustEqual(res, 200, "GET /capabilities")
+	td.HTTPBodyMustJSON(res, "GET /capabilities")
+
+	_, xErr := ParseCapabilities(res.Body)
+	td.NoError(xErr, "Parsing capabilities MUST work")
+}
+
+func TestModel(td *TD) {
+	td.DependsOn(TestSniff)
+	td.DependsOn(TestCapabilities)
+	reg := td.GetRegistry()
+
+	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/model", nil)
+	// td.Log("Model: %s", string(res.Body))
+	td.HTTPStatusMustEqual(res, 200, "GET /model")
+	td.HTTPBodyMustJSON(res, "GET /model")
+
+	_, xErr := xrlib.ParseModel(res.Body)
+	td.NoError(xErr, "Parsing model MUST work")
+}
+
 func TestRoot(td *TD) {
-	// td.DependsOn(TestLoadModel)
+	td.DependsOn(TestSniff)
+	td.DependsOn(TestCapabilities)
+	td.DependsOn(TestModel)
 	reg := td.GetRegistry()
 
 	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
-	td.HTTPStatusMustEqual(res, 200, "'GET /' MUST return 200")
-
-	td.Must(len(res.Body) > 0, "'GET /' MUST return a non-empty body")
-	td.Log("GET response:\n%s", string(res.Body))
-	td.Must(res.JSON != nil, "'GET /' MUST return a JSON body")
+	td.Log("Root: %s", string(res.Body))
+	td.HTTPStatusMustEqual(res, 200, "GET /model")
+	td.HTTPBodyMustJSON(res, "GET /model")
 
 	td.HTTPPropMustEqual(res, "specversion", SPECVERSION)
 	td.HTTPPropMustNotEqual(res, "registryid", "")
@@ -27,7 +63,7 @@ func TestRoot(td *TD) {
 }
 
 func aTestAll2(td *TD) {
-	td.DependsOn(TestSniffTest)
+	td.DependsOn(TestSniff)
 	td.Run(TestRegistry1)
 	td.DependsOn(TestRegistry1a)
 	td.DependsOn(TestRegistry2)
@@ -41,7 +77,7 @@ func aTestAll2(td *TD) {
 }
 
 func TestRegistry0(td *TD) {
-	td.DependsOn(TestSniffTest)
+	td.DependsOn(TestSniff)
 	td.Log("testreg0 log msg")
 }
 
