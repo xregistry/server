@@ -1589,16 +1589,19 @@ func KindIsScalar(k reflect.Kind) bool {
 func IsScalar(daType string) bool {
 	return daType == BOOLEAN || daType == DECIMAL || daType == INTEGER ||
 		daType == STRING || daType == TIMESTAMP || daType == UINTEGER ||
-		daType == URI || daType == URI_REFERENCE || daType == URI_TEMPLATE ||
-		daType == URL ||
+		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
+		daType == URITEMPLATE ||
+		daType == URL || daType == URLABSOLUTE || daType == URLRELATIVE ||
 		daType == XID || daType == XIDTYPE
 }
 
 // Is some string variant
 func IsString(daType string) bool {
-	return daType == STRING || daType == TIMESTAMP || daType == XID ||
-		daType == URI || daType == URI_REFERENCE || daType == URI_TEMPLATE ||
-		daType == URL
+	return daType == STRING || daType == TIMESTAMP ||
+		daType == URI || daType == URIABSOLUTE || daType == URIRELATIVE ||
+		daType == URITEMPLATE ||
+		daType == URL || daType == URLABSOLUTE || daType == URLRELATIVE ||
+		daType == XID || daType == XIDTYPE
 }
 
 func (a *Attribute) GetStrict() bool {
@@ -3191,11 +3194,16 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 			}
 		}
 
-		if attr.Target != "" && attr.Type != XID {
+		if attr.Target != "" && attr.Type != XID && attr.Type != URI &&
+			attr.Type != URIABSOLUTE && attr.Type != URIRELATIVE &&
+			attr.Type != URL && attr.Type != URLABSOLUTE &&
+			attr.Type != URLRELATIVE {
+
 			return NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("%q must not have a \"target\" value "+
-						"since \"type\" is not \"xid\"", path.UI()))
+						"since \"type\" is not \"xid\", \"uri*\" or \"url*\"",
+						path.UI()))
 		}
 
 		// Is it ok for strict=true and enum=[] ? Require no value???
@@ -3440,7 +3448,8 @@ var DefinedTypes = map[string]bool{
 	XID:    true, XIDTYPE: true,
 	STRING:    true,
 	TIMESTAMP: true,
-	URI:       true, URI_REFERENCE: true, URI_TEMPLATE: true, URL: true}
+	URI:       true, URIABSOLUTE: true, URIRELATIVE: true, URITEMPLATE: true,
+	URL: true, URLABSOLUTE: true, URLRELATIVE: true}
 
 // attr.Type must be a scalar
 // Used to check JSON type vs our types

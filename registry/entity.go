@@ -817,9 +817,7 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRErr
 		e.Object = map[string]any{}
 	}
 
-	if propType == STRING || propType == URI || propType == URI_REFERENCE ||
-		propType == URI_TEMPLATE || propType == URL || propType == TIMESTAMP ||
-		propType == XID || propType == XIDTYPE {
+	if IsString(propType) {
 		err = ObjectSetProp(e.Object, pp, *val)
 	} else if propType == BOOLEAN {
 		// Technically the "1" check shouldn't be needed, but just in case
@@ -2805,23 +2803,41 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 				"name="+path.UI(),
 				"error_detail="+"must be a uri"), false, nil
 		}
-	case URI_REFERENCE:
+	case URIABSOLUTE:
 		if valKind != reflect.String {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
-				"error_detail="+"must be a uri-reference"), false, nil
+				"error_detail="+"must be a uriabsolute"), false, nil
 		}
-	case URI_TEMPLATE:
+	case URIRELATIVE:
 		if valKind != reflect.String {
 			return NewXRError("invalid_attribute", e.XID,
 				"name="+path.UI(),
-				"error_detail="+"must be a uri-template"), false, nil
+				"error_detail="+"must be a urirelative"), false, nil
+		}
+	case URITEMPLATE:
+		if valKind != reflect.String {
+			return NewXRError("invalid_attribute", e.XID,
+				"name="+path.UI(),
+				"error_detail="+"must be a uritemplate"), false, nil
 		}
 	case URL:
 		if valKind != reflect.String {
 			return NewXRError("invalid_attribute", e.XID,
 				"name= "+path.UI(),
 				"error_detail="+"must be a url"), false, nil
+		}
+	case URLABSOLUTE:
+		if valKind != reflect.String {
+			return NewXRError("invalid_attribute", e.XID,
+				"name= "+path.UI(),
+				"error_detail="+"must be a urlabsolute"), false, nil
+		}
+	case URLRELATIVE:
+		if valKind != reflect.String {
+			return NewXRError("invalid_attribute", e.XID,
+				"name= "+path.UI(),
+				"error_detail="+"must be a urlrelative"), false, nil
 		}
 	case TIMESTAMP:
 		if valKind != reflect.String {

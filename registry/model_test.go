@@ -290,12 +290,12 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"x": {Name: "x", Type: STRING, Target: "/"}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"x\" must not have a \"target\" value since \"type\" is not \"xid\".",
+  "title": "There was an error in the model definition provided: \"x\" must not have a \"target\" value since \"type\" is not \"xid\", \"uri*\" or \"url*\".",
   "subject": "/model",
   "args": {
-    "error_detail": "\"x\" must not have a \"target\" value since \"type\" is not \"xid\""
+    "error_detail": "\"x\" must not have a \"target\" value since \"type\" is not \"xid\", \"uri*\" or \"url*\""
   },
-  "source": ":registry:shared_model:2891"
+  "source": "08e09a54a081:registry:shared_model:3202"
 }`},
 		{"err - type - xid - leading chars", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: XID,
@@ -404,15 +404,25 @@ func TestModelVerifyRegAttr(t *testing.T) {
 			Attributes: Attributes{"x": {Name: "x", Type: UINTEGER}}}, ``},
 		{"type - uri", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: URI}}}, ``},
-		{"type - urireference", Model{
-			Attributes: Attributes{"x": {Name: "x", Type: URI_REFERENCE}}}, ``},
-		{"type - uritempalte", Model{
-			Attributes: Attributes{"x": {Name: "x", Type: URI_TEMPLATE}}}, ``},
+		{"type - uriabs", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: URIABSOLUTE}}}, ``},
+		{"type - urirel", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: URIRELATIVE}}}, ``},
+		{"type - uritemplate", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: URITEMPLATE}}}, ``},
 		{"type - url", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: URL}}}, ``},
+		{"type - urlabs", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: URLABSOLUTE}}}, ``},
+		{"type - urlrel", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: URLRELATIVE}}}, ``},
+		{"type - xid", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: XID}}}, ``},
+		{"type - xidtype", Model{
+			Attributes: Attributes{"x": {Name: "x", Type: XIDTYPE}}}, ``},
 		{"type - any", Model{
 			Attributes: Attributes{"x": {Name: "x", Type: ANY}}}, ``},
-		{"type - any", Model{
+		{"type - wild any", Model{
 			Attributes: Attributes{"*": {Name: "*", Type: ANY}}}, ``},
 
 		{"type - array", Model{
@@ -889,11 +899,17 @@ func TestModelVerifyEnum(t *testing.T) {
 		{"empty enum - int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: URI, Enum: []any{"..."}}}}, ""},
 		{"empty enum - int", Model{Attributes: Attributes{
-			"x": {Name: "x", Type: URI_REFERENCE, Enum: []any{"..."}}}}, ""},
+			"x": {Name: "x", Type: URIABSOLUTE, Enum: []any{"..."}}}}, ""},
 		{"empty enum - int", Model{Attributes: Attributes{
-			"x": {Name: "x", Type: URI_TEMPLATE, Enum: []any{"..."}}}}, ""},
+			"x": {Name: "x", Type: URIRELATIVE, Enum: []any{"..."}}}}, ""},
+		{"empty enum - int", Model{Attributes: Attributes{
+			"x": {Name: "x", Type: URITEMPLATE, Enum: []any{"..."}}}}, ""},
 		{"empty enum - int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: URL, Enum: []any{"..."}}}}, ""},
+		{"empty enum - int", Model{Attributes: Attributes{
+			"x": {Name: "x", Type: URLABSOLUTE, Enum: []any{"..."}}}}, ""},
+		{"empty enum - int", Model{Attributes: Attributes{
+			"x": {Name: "x", Type: URLRELATIVE, Enum: []any{"..."}}}}, ""},
 	}
 
 	for _, test := range tests {

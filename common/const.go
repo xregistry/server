@@ -34,9 +34,12 @@ const STRING = "string"
 const TIMESTAMP = "timestamp"
 const UINTEGER = "uinteger"
 const URI = "uri"
-const URI_REFERENCE = "urireference"
-const URI_TEMPLATE = "uritemplate"
+const URIABSOLUTE = "uriabsolute"
+const URIRELATIVE = "urirelative"
+const URITEMPLATE = "uritemplate"
 const URL = "url"
+const URLABSOLUTE = "urlabsolute"
+const URLRELATIVE = "urlrelative"
 
 const IN_CHAR = '.'
 const IN_STR = string(IN_CHAR)

@@ -2381,11 +2381,17 @@ func TestHTTPRegistry(t *testing.T) {
 	XCheckErr(t, err, "")
 	_, err = reg.Model.AddAttr("myuri", URI)
 	XCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuriref", URI_REFERENCE)
+	_, err = reg.Model.AddAttr("myuriabs", URIABSOLUTE)
 	XCheckErr(t, err, "")
-	_, err = reg.Model.AddAttr("myuritemplate", URI_TEMPLATE)
+	_, err = reg.Model.AddAttr("myurirel", URIRELATIVE)
+	XCheckErr(t, err, "")
+	_, err = reg.Model.AddAttr("myuritemplate", URITEMPLATE)
 	XCheckErr(t, err, "")
 	_, err = reg.Model.AddAttr("myurl", URL)
+	XCheckErr(t, err, "")
+	_, err = reg.Model.AddAttr("myurlabs", URLABSOLUTE)
+	XCheckErr(t, err, "")
+	_, err = reg.Model.AddAttr("myurlrel", URLRELATIVE)
 	XCheckErr(t, err, "")
 
 	attr, err := reg.Model.AddAttrObj("myobj1")
@@ -2547,9 +2553,12 @@ func TestHTTPRegistry(t *testing.T) {
   "mytime": "2024-01-01T12:01:02Z",
   "myuint": 123,
   "myuri": "http://foo.com",
-  "myuriref": "/foo",
+  "myuriabs": "http://foo.com",
+  "myurirel": "/foo",
   "myuritemplate": "...",
   "myurl": "http://someurl.com",
+  "myurlabs": "http://someurl.com",
+  "myurlrel": "/bar",
   "myobj1": {
     "mystr1": "str1",
     "myint1": 345,
@@ -2624,9 +2633,12 @@ func TestHTTPRegistry(t *testing.T) {
   "mytime": "2024-01-01T12:01:02Z",
   "myuint": 123,
   "myuri": "http://foo.com",
-  "myuriref": "/foo",
+  "myuriabs": "http://foo.com",
+  "myurirel": "/foo",
   "myuritemplate": "...",
-  "myurl": "http://someurl.com"
+  "myurl": "http://someurl.com",
+  "myurlabs": "http://someurl.com",
+  "myurlrel": "/bar"
 }
 `,
 	})
@@ -2929,14 +2941,26 @@ func TestHTTPRegistry(t *testing.T) {
   "source": ":registry:entity:2519"
 }
 `},
-		{request: `{"myuriref": 123 }`,
+		{request: `{"myuriabs": 123 }`,
 			response: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"myuriref\" for \"/\" is not valid: must be a uri-reference.",
+  "title": "The attribute \"myuriabs\" for \"/\" is not valid: must be a uriabsolute.",
   "subject": "/",
   "args": {
-    "error_detail": "must be a uri-reference",
-    "name": "myuriref"
+    "error_detail": "must be a uriabsolute",
+    "name": "myuriabs"
+  },
+  "source": ":registry:entity:2525"
+}
+`},
+		{request: `{"myurirel": 123 }`,
+			response: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"myurirel\" for \"/\" is not valid: must be a urirelative.",
+  "subject": "/",
+  "args": {
+    "error_detail": "must be a urirelative",
+    "name": "myurirel"
   },
   "source": ":registry:entity:2525"
 }
@@ -2944,10 +2968,10 @@ func TestHTTPRegistry(t *testing.T) {
 		{request: `{"myuritemplate": 123 }`,
 			response: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"myuritemplate\" for \"/\" is not valid: must be a uri-template.",
+  "title": "The attribute \"myuritemplate\" for \"/\" is not valid: must be a uritemplate.",
   "subject": "/",
   "args": {
-    "error_detail": "must be a uri-template",
+    "error_detail": "must be a uritemplate",
     "name": "myuritemplate"
   },
   "source": ":registry:entity:2531"
@@ -2961,6 +2985,30 @@ func TestHTTPRegistry(t *testing.T) {
   "args": {
     "error_detail": "must be a url",
     "name": " myurl"
+  },
+  "source": ":registry:entity:2537"
+}
+`},
+		{request: `{"myurlabs": 123 }`,
+			response: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \" myurlabs\" for \"/\" is not valid: must be a urlabsolute.",
+  "subject": "/",
+  "args": {
+    "error_detail": "must be a urlabsolute",
+    "name": " myurlabs"
+  },
+  "source": ":registry:entity:2537"
+}
+`},
+		{request: `{"myurlrel": 123 }`,
+			response: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \" myurlrel\" for \"/\" is not valid: must be a urlrelative.",
+  "subject": "/",
+  "args": {
+    "error_detail": "must be a urlrelative",
+    "name": " myurlrel"
   },
   "source": ":registry:entity:2537"
 }
