@@ -48,26 +48,33 @@ func GetRegistry(url string) (*Registry, *XRError) {
 		return reg, nil
 	}
 
-	url = strings.TrimSpace(url)
-	if url == "" {
-		return nil, NewXRError("client_error", "", "No Server address provided")
+	reg, xErr := LoadRemoteRegistry(url)
+	if xErr != nil {
+		return nil, xErr
 	}
 
-	if !strings.HasPrefix(url, "http") {
-		url = "http://" + strings.TrimLeft(url, "/")
-	}
+	/*
+		url = strings.TrimSpace(url)
+		if url == "" {
+			return nil, NewXRError("client_error", "", "No Server address provided")
+		}
 
-	reg = &Registry{
-		Entity: Entity{
-			Type:     ENTITY_REGISTRY,
-			Path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
-			Abstract: "", // [GROUPS[/RESOURCES[/versions]]]
-		},
-		// server: url,
-		// config: map[string]any{},
-	}
-	reg.Entity.Registry = reg
-	reg.SetStuff("server", url)
+		if !strings.HasPrefix(url, "http") {
+			url = "http://" + strings.TrimLeft(url, "/")
+		}
+
+		reg = &Registry{
+			Entity: Entity{
+				Type:     ENTITY_REGISTRY,
+				Path:     "", // [GROUPS/gID[/RESOURCES/rID[/versions/vID]]]
+				Abstract: "", // [GROUPS[/RESOURCES[/versions]]]
+			},
+			// server: url,
+			// config: map[string]any{},
+		}
+		reg.Entity.Registry = reg
+		reg.SetStuff("server", url)
+	*/
 
 	Registries[url] = reg
 

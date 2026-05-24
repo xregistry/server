@@ -47,11 +47,12 @@ func TestRoot(td *TD) {
 	td.DependsOn(TestModel)
 	reg := td.GetRegistry()
 
+	// Get the root so we can check its attributes
 	res, _ := reg.HttpDo(VerboseCount > 2, "GET", "/", nil)
-	td.Log("Root: %s", string(res.Body))
-	td.HTTPStatusMustEqual(res, 200, "GET /model")
-	td.HTTPBodyMustJSON(res, "GET /model")
+	td.HTTPStatusMustEqual(res, 200, "GET /")
+	td.HTTPBodyMustJSON(res, "GET /")
 
+	td.Log("Root: %s", string(res.Body))
 	td.HTTPPropMustEqual(res, "specversion", SPECVERSION)
 	td.HTTPPropMustNotEqual(res, "registryid", "")
 	td.HTTPPropMustNotEqual(res, "self", "")

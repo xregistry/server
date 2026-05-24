@@ -33,7 +33,7 @@ func (pp *PropPath) Len() int {
 }
 
 func (pp *PropPath) Top() string {
-	if len(pp.Parts) == 0 {
+	if pp == nil || len(pp.Parts) == 0 {
 		return ""
 	}
 	return pp.Parts[0].Text

@@ -1326,15 +1326,38 @@ func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 	return resource.FindMeta(false, FOR_READ)
 }
 
+/*
 func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	reg := &Registry{}
+
+	rootObj := map[string]json.RawMessage(nil)
 
 	// Download model
 	data, err := DownloadURL(host + "/model")
 	if err != nil {
-		return nil, NewXRError("bad_request", host+"/model",
-			"error_detail="+
-				fmt.Sprintf("Error getting model (%s/model): %s", host, err))
+		data, err2 := DownloadURL(host + "?inline=model,capabilities")
+		if err2 != nil {
+			return nil, NewXRError("bad_request",
+				host+"?inline=model,capabilities",
+				"error_detail="+
+					fmt.Sprintf("Error getting (%s/model: %s", host, err))
+		}
+
+		err = json.Unmarshal(data, &rootObj)
+		if err != nil {
+			return nil, NewXRError("parsing_response", host,
+				"error_detail="+
+					fmt.Sprintf("Error parsing Registry root(%s): %s", host,
+						err))
+		}
+		tmp, ok := rootObj["model"]
+		if !ok {
+			return nil, NewXRError("bad_request", host,
+				"error_detail="+
+					fmt.Sprintf("Unable to find the model for %q from either "+
+						"/model or the \"model\" attribute", host))
+		}
+		data = []byte(tmp)
 	}
 
 	var xErr *XRError
@@ -1345,24 +1368,46 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 
 	// Download capabilities
 	data, err = DownloadURL(host + "/capabilities")
-	if err == nil {
-		var xErr *XRError
-		reg.Capabilities, xErr = ParseCapabilities(data)
+	if err != nil {
+		if rootObj == nil {
+			data, err2 := DownloadURL(host + "?inline=capabilities")
+			if err2 != nil {
+				return nil, NewXRError("bad_request",
+					host+"?inline=capabilities",
+					"error_detail="+
+						fmt.Sprintf("Error getting capabilities "+
+							"(%s/capabilities): %s", host, err))
+			}
 
-		if xErr != nil {
-			return nil, xErr
+			err = json.Unmarshal(data, &rootObj)
+			if err != nil {
+				return nil, NewXRError("parsing_response", host,
+					"error_detail="+
+						fmt.Sprintf("Error parsing Registry root(%s): %s", host,
+							err))
+			}
 		}
-	} else {
-		return nil, NewXRError("bad_request", host+"/capabilities",
-			"error_detail="+
-				fmt.Sprintf("Error getting capabilities "+
-					"(%s/capabilities): %s", host, err))
+		tmp, ok := rootObj["capabilities"]
+		if !ok {
+			return nil, NewXRError("bad_request", host,
+				"error_detail="+
+					fmt.Sprintf("Unable to find the capabilities for %q "+
+						"from either /capabilities or the \"capabilities\" "+
+						"attribute", host))
+		}
+		data = []byte(tmp)
+	}
+
+	reg.Capabilities, xErr = ParseCapabilities(data)
+	if xErr != nil {
+		return nil, xErr
 	}
 
 	reg.oldCapabilities = reg.Capabilities.Clone()
 
 	return reg, nil
 }
+*/
 
 func (r *Registry) VerifyData() *XRError {
 	// Start with the Registry itself

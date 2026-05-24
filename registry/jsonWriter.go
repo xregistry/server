@@ -107,6 +107,7 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 	baseURL := ""
 
 	inlineCollection := jw.info.ShouldInline(jw.Entity.Abstract)
+	filterString := ""
 
 	if jw.info.DoDocView() && inlineCollection {
 		// remove GET's base path
@@ -118,9 +119,11 @@ func (jw *JsonWriter) WriteCollectionHeader(extra string) (string, *XRError) {
 		baseURL = "#/" + path
 	} else {
 		baseURL = jw.info.BaseURL + "/" + path.Dir(jw.Entity.Path)
+		filterString = jw.info.FiltersRelativeToAbstract(jw.Entity.Abstract)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural, baseURL)
+	jw.Printf("%s\n%s\"%surl\": %q,\n", extra, jw.indent, myPlural,
+		baseURL+filterString)
 	extra = ""
 
 	count := 0
@@ -609,6 +612,8 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 	baseURL := ""
 	path := jw.collPaths[eType]
 
+	filterString := ""
+
 	if !jw.info.DoDocView() || !inlineCollection {
 		baseURL = jw.info.BaseURL
 	} else {
@@ -619,10 +624,11 @@ func (jw *JsonWriter) WriteEmptyCollection(hasXref bool, extra string, eType int
 		if strings.HasPrefix(path, "/") {
 			path = path[1:]
 		}
+		filterString = jw.info.FiltersRelativeToAbstract(p)
 	}
 
-	jw.Printf("%s\n%s\"%surl\": \"%s/%s%s\",\n", extra, jw.indent,
-		collName, baseURL, path, collName)
+	jw.Printf("%s\n%s\"%surl\": \"%s/%s%s%s\",\n", extra, jw.indent,
+		collName, baseURL, path, collName, filterString)
 
 	if inlineCollection {
 		jw.Printf("%s\"%s\": {},\n", jw.indent, collName)

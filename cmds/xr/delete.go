@@ -13,7 +13,7 @@ import (
 
 func addDeleteCmd(parent *cobra.Command) {
 	deleteCmd := &cobra.Command{
-		Use:     "delete XID ...",
+		Use:     "delete XID...",
 		Short:   "Delete an entity from the registry",
 		Run:     deleteFunc,
 		GroupID: "Entities",

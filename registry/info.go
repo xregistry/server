@@ -238,6 +238,71 @@ type FilterExpr struct {
 	PropName string
 }
 
+func (fe *FilterExpr) OpValue() string {
+	switch fe.Operator {
+	case FILTER_PRESENT:
+		return ""
+	case FILTER_ABSENT:
+		return "=null"
+	case FILTER_EQUAL:
+		return "=" + fe.Value
+	case FILTER_NOT_EQUAL:
+		return "!=" + fe.Value
+	}
+	panic(fmt.Sprintf("unknown op: %v", fe.Operator))
+}
+
+func (fe *FilterExpr) StringRelativeToAbstract(abs string) string {
+	// only grab filters that start with the Entity's abstract
+	if !strings.HasPrefix(fe.Path, abs) {
+		return ""
+	}
+
+	// remove entity's abstract from the filter
+	rest := fe.Path[len(abs):]
+	if rest[0] == ',' {
+		// Remove any leading ,
+		rest = rest[1:]
+	}
+	if len(rest) > 0 {
+		if rest[len(rest)-1] == ',' {
+			// remove any trailing ,
+			rest = rest[:len(rest)-1]
+		}
+		// Convert , into .
+		rest = strings.ReplaceAll(rest, string(DB_IN), ".")
+
+		return rest + fe.OpValue()
+	}
+
+	return ""
+}
+
+func (info *RequestInfo) FiltersRelativeToAbstract(abs string) string {
+	filterString := ""
+	for _, orFilters := range info.Filters { // [][]*Filter OR/AND
+		firstAnd := true
+		for _, filterExpr := range orFilters {
+			str := filterExpr.StringRelativeToAbstract(abs)
+			if str != "" {
+				if firstAnd {
+					if filterString == "" {
+						filterString += "?filter="
+					} else {
+						filterString += "&filter="
+					}
+					firstAnd = false
+				} else {
+					filterString += ","
+				}
+				filterString += str
+			}
+		}
+	}
+
+	return filterString
+}
+
 func NewRequestInfo(w http.ResponseWriter, r *http.Request) *RequestInfo {
 	info := &RequestInfo{
 		OriginalPath:     strings.Trim(r.URL.Path, " /"),
@@ -350,7 +415,7 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			pp, err := PropPathFromUI(path)
 			if err != nil {
 				return NewXRError("bad_filter", info.GetParts(0),
-					"filter_name="+path,
+					"value="+path,
 					"error_detail="+err.Error())
 			}
 			path = pp.DB()
@@ -358,7 +423,7 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			/*
 				if info.What != "Coll" && strings.Index(path, "/") < 0 {
 				return NewXRError("bad_filter", info.GetParts(0),
-				"filter_name=" + path,
+				"value=" + path,
 				"error_detail=" +
 				fmt.Sprintf("a filter with just an attribute " +
 				"name (%s) isn't allowed in this context",

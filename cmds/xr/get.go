@@ -14,7 +14,7 @@ import (
 
 func addGetCmd(parent *cobra.Command) {
 	getCmd := &cobra.Command{
-		Use:     "get [ XID ]",
+		Use:     "get [XID]",
 		Short:   "Retrieve entities from the registry",
 		Run:     getFunc,
 		GroupID: "Entities",

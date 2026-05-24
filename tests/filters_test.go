@@ -252,7 +252,7 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-12-01T12:00:01Z",
   "modifiedat": "2024-12-01T12:00:01Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirscount": 1
 }
 `,
@@ -272,7 +272,7 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-12-01T12:00:01Z",
   "modifiedat": "2024-12-01T12:00:01Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -282,7 +282,7 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-12-01T12:00:02Z",
       "modifiedat": "2024-12-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1=1elif",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -401,7 +401,7 @@ func TestFiltersBasic(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
 
-  "dirsurl": "http://localhost:8181/dirs",
+  "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirs": {
     "d2": {
       "dirid": "d2",
@@ -411,7 +411,7 @@ func TestFiltersBasic(t *testing.T) {
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
 
-      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=labels.file1",
       "files": {
         "f2": {
           "fileid": "f2",
@@ -1080,4 +1080,335 @@ func TestFiltersObjs(t *testing.T) {
 		t.Logf("Test name: %s", test.Name)
 		XCheckGet(t, reg, test.URL, test.Exp)
 	}
+}
+
+func TestFiltersURLs(t *testing.T) {
+	reg := NewRegistry("TestFiltersURLs")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	XNoErr(t, err)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, err)
+	_, err = gm.AddResourceModel("datas", "data", 0, true, true, true)
+	XNoErr(t, err)
+	XNoErr(t, reg.SaveModel(true))
+
+	// establish baseline
+	XHTTP(t, reg, "PUT", "/?inline=dirs", `{
+        "dirs": {
+            "d1": {
+                "files": {
+                    "f1": {},
+                    "f2": {}
+                },
+                "datas": {
+                "d1": {},
+                "d2": {}
+                }
+            },
+            "d2": {
+                "files": {
+                    "f1": {},
+                    "f2": {}
+                },
+                "datas": {
+                    "d1": {},
+                    "d2": {}
+                }
+            }
+        }
+    }`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestFiltersURLs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:02Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "datasurl": "http://localhost:8181/dirs/d1/datas",
+      "datascount": 2,
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 2
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "YYYY-MM-DDTHH:MM:02Z",
+      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+      "datasurl": "http://localhost:8181/dirs/d2/datas",
+      "datascount": 2,
+      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filescount": 2
+    }
+  },
+  "dirscount": 2
+}
+`)
+
+	// Now test the URLs have the appropriate subsetted filter expressions
+	// Start with AND testing
+	XHTTP(t, reg, "GET",
+		"/?inline=dirs&filter=dirs.dirid=d2,dirs.datas.dataid=d2",
+		``, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestFiltersURLs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-24T15:56:21.489831698Z",
+  "modifiedat": "2026-05-24T15:56:21.510904221Z",
+
+  "dirsurl": "http://localhost:8181/dirs?filter=dirid=d2,datas.dataid=d2",
+  "dirs": {
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "2026-05-24T15:56:21.510904221Z",
+      "modifiedat": "2026-05-24T15:56:21.510904221Z",
+
+      "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
+      "datascount": 1,
+      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filescount": 0
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "GET",
+		"/dirs?filter=dirid=d2,datas.dataid=d2",
+		``, 200, `{
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "2026-05-24T16:00:02.376527682Z",
+    "modifiedat": "2026-05-24T16:00:02.376527682Z",
+
+    "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
+    "datascount": 1,
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  }
+}
+`)
+
+	XHTTP(t, reg, "GET",
+		"/dirs/d2?filter=datas.dataid=d2",
+		``, 200, `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 1,
+  "createdat": "2026-05-24T16:01:01.865592732Z",
+  "modifiedat": "2026-05-24T16:01:01.865592732Z",
+
+  "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
+  "datascount": 1,
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`)
+
+	XHTTP(t, reg, "GET",
+		"/dirs/d2/datas?filter=dataid=d2",
+		``, 200, `{
+  "d2": {
+    "dataid": "d2",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d2/datas/d2$details",
+    "xid": "/dirs/d2/datas/d2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestor": "1",
+
+    "metaurl": "http://localhost:8181/dirs/d2/datas/d2/meta",
+    "versionsurl": "http://localhost:8181/dirs/d2/datas/d2/versions",
+    "versionscount": 1
+  }
+}
+`)
+
+	// Now make sure ORs work
+	XHTTP(t, reg, "GET",
+		"/?inline=dirs&filter=dirs.files.fileid=f1&filter=dirs.datas.dataid=d2",
+		``, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestFiltersURLs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-24T16:04:17.48194014Z",
+  "modifiedat": "2026-05-24T16:04:17.502254683Z",
+
+  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2026-05-24T16:04:17.502254683Z",
+      "modifiedat": "2026-05-24T16:04:17.502254683Z",
+
+      "datasurl": "http://localhost:8181/dirs/d1/datas?filter=dataid=d2",
+      "datascount": 1,
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1",
+      "filescount": 1
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "http://localhost:8181/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "2026-05-24T16:04:17.502254683Z",
+      "modifiedat": "2026-05-24T16:04:17.502254683Z",
+
+      "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
+      "datascount": 1,
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=fileid=f1",
+      "filescount": 1
+    }
+  },
+  "dirscount": 2
+}
+`)
+
+	XHTTP(t, reg, "GET",
+		"/dirs?filter=files.fileid=f1&filter=datas.dataid=d2",
+		``, 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "createdat": "2026-05-24T16:05:18.263946789Z",
+    "modifiedat": "2026-05-24T16:05:18.263946789Z",
+
+    "datasurl": "http://localhost:8181/dirs/d1/datas?filter=dataid=d2",
+    "datascount": 1,
+    "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1",
+    "filescount": 1
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "createdat": "2026-05-24T16:05:18.263946789Z",
+    "modifiedat": "2026-05-24T16:05:18.263946789Z",
+
+    "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
+    "datascount": 1,
+    "filesurl": "http://localhost:8181/dirs/d2/files?filter=fileid=f1",
+    "filescount": 1
+  }
+}
+`)
+
+	// Now test some other variants with filters
+
+	// Notice non-in-doc/local/relative URLs see the filters filters
+	XHTTP(t, reg, "GET", "/?doc&filter=dirs.files.fileid=f1",
+		``, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestFiltersURLs",
+  "self": "#/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-24T16:16:01.48254591Z",
+  "modifiedat": "2026-05-24T16:16:01.502446729Z",
+
+  "dirsurl": "http://localhost:8181/dirs?filter=files.fileid=f1",
+  "dirscount": 2
+}
+`)
+
+	// But local (in doc) URLs (e.g. dirsurl) don't see filters
+	XHTTP(t, reg, "GET", "/?doc&inline=dirs&filter=dirs.files.fileid=f1",
+		``, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestFiltersURLs",
+  "self": "#/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-24T16:17:02.012652627Z",
+  "modifiedat": "2026-05-24T16:17:02.032361913Z",
+
+  "dirsurl": "#/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "#/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2026-05-24T16:17:02.032361913Z",
+      "modifiedat": "2026-05-24T16:17:02.032361913Z",
+
+      "datasurl": "http://localhost:8181/dirs/d1/datas",
+      "datascount": 0,
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1",
+      "filescount": 1
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "#/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 1,
+      "createdat": "2026-05-24T16:17:02.032361913Z",
+      "modifiedat": "2026-05-24T16:17:02.032361913Z",
+
+      "datasurl": "http://localhost:8181/dirs/d2/datas",
+      "datascount": 0,
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=fileid=f1",
+      "filescount": 1
+    }
+  },
+  "dirscount": 2
+}
+`)
+
+}
+
+func TestFiltersMisc(t *testing.T) {
+	reg := NewRegistry("TestFiltersMisc")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	XNoErr(t, err)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	XNoErr(t, err)
+
+	XHTTP(t, reg, "PUT", "/?filter=dirs..dirid=d2", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (dirs..dirid): Unexpected \".\" in \"dirs..dirid\" at pos 6.",
+  "subject": "/",
+  "args": {
+    "error_detail": "Unexpected \".\" in \"dirs..dirid\" at pos 6",
+    "value": "dirs..dirid"
+  },
+  "source": "b51cea166ad9:registry:info:417"
+}
+`)
 }

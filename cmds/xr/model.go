@@ -25,7 +25,7 @@ func addModelCmd(parent *cobra.Command) {
 	parent.AddCommand(modelCmd)
 
 	normalizeCmd := &cobra.Command{
-		Use:   "normalize [ - | FILE ]",
+		Use:   "normalize [- | FILE]",
 		Short: "Parse and resolve 'includes' in an xRegistry model document",
 		Run:   modelNormalizeFunc,
 	}
@@ -34,7 +34,7 @@ func addModelCmd(parent *cobra.Command) {
 	modelCmd.AddCommand(normalizeCmd)
 
 	verifyCmd := &cobra.Command{
-		Use:   "verify [ - | FILE ... ]",
+		Use:   "verify [- | FILE...]",
 		Short: "Parse and verify xRegistry model documents",
 		Run:   modelVerifyFunc,
 	}
@@ -45,7 +45,7 @@ func addModelCmd(parent *cobra.Command) {
 	modelCmd.AddCommand(verifyCmd)
 
 	updateCmd := &cobra.Command{
-		Use:   "update [ - | FILE | -d ]",
+		Use:   "update [- | FILE | -d]",
 		Short: "Update the registry's model",
 		Run:   modelUpdateFunc,
 	}

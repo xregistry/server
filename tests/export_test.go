@@ -1717,7 +1717,7 @@ func TestExportBasic(t *testing.T) {
       "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
       "defaultversionsticky": false
     },
-    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions?filter=versionid=v2",
     "versionscount": 1
   },
   "fx": {

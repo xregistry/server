@@ -42,7 +42,7 @@ var md = goldmark.New(
 
 func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd := &cobra.Command{
-		Use:     "download DIR XID...",
+		Use:     "download DIR [XID...] ",
 		Short:   "Download entities from registry as individual files",
 		Run:     downloadFunc,
 		GroupID: "Entities",

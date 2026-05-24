@@ -47,7 +47,7 @@ xr create XID
   -v, --verbose              Be chatty
       --version              Print command version string
 
-xr delete XID ...
+xr delete XID...
   # Delete an entity from the registry
       --config string   Config file ($HOME/.xrconfig)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
@@ -58,7 +58,7 @@ xr delete XID ...
   -v, --verbose         Be chatty
       --version         Print command version string
 
-xr download DIR XID...
+xr download DIR [XID...] 
   # Download entities from registry as individual files
   -c, --capabilities              Modify capabilities for static site
       --config string             Config file ($HOME/.xrconfig)
@@ -76,7 +76,7 @@ xr download DIR XID...
   -v, --verbose                   Be chatty
       --version                   Print command version string
 
-xr get [ XID ]
+xr get [XID]
   # Retrieve entities from the registry
       --config string        Config file ($HOME/.xrconfig)
   -m, --details              Show resource metadata
@@ -89,7 +89,7 @@ xr get [ XID ]
   -v, --verbose              Be chatty
       --version              Print command version string
 
-xr import [ XID ]
+xr import [XID]
   # Import entities into the registry
       --config string   Config file ($HOME/.xrconfig)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
@@ -171,7 +171,7 @@ xr model group list
   -v, --verbose         Be chatty
       --version         Print command version string
 
-xr model normalize [ - | FILE ]
+xr model normalize [- | FILE]
   # Parse and resolve 'includes' in an xRegistry model document
       --config string   Config file ($HOME/.xrconfig)
       --errjson         Print errors as json
@@ -336,7 +336,7 @@ xr model resource upsert PLURAL:SINGULAR...
       --version                    Print command version string
       --version-mode string        Versioning algorithm
 
-xr model update [ - | FILE | -d ]
+xr model update [- | FILE | -d]
   # Update the registry's model
       --config string   Config file ($HOME/.xrconfig)
   -d, --data string     Data(json), @FILE, @URL, @-(stdin)
@@ -346,7 +346,7 @@ xr model update [ - | FILE | -d ]
   -v, --verbose         Be chatty
       --version         Print command version string
 
-xr model verify [ - | FILE ... ]
+xr model verify [- | FILE...]
   # Parse and verify xRegistry model documents
       --config string   Config file ($HOME/.xrconfig)
       --errjson         Print errors as json

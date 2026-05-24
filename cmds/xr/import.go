@@ -11,7 +11,7 @@ import (
 
 func addImportCmd(parent *cobra.Command) {
 	importCmd := &cobra.Command{
-		Use:     "import [ XID ]",
+		Use:     "import [XID]",
 		Short:   "Import entities into the registry",
 		Run:     importFunc,
 		GroupID: "Entities",

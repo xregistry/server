@@ -13,6 +13,10 @@ var ConfigFile = EnvString("XR_CONFORM_CONFIG", "")
 var ShowLogs = EnvBool("XR_SHOWLOGS", false)
 
 func conformFunc(cmd *cobra.Command, args []string) {
+	if len(args) > 0 {
+		Error("No arguments allowed for this command")
+	}
+
 	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 

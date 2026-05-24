@@ -604,7 +604,7 @@ func TestInlineResource(t *testing.T) {
 			Exp: `{
   "dirs": {
     "d1": {
-      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "files": {
         "f1-proxy": {
           "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -628,7 +628,7 @@ func TestInlineResource(t *testing.T) {
 			Exp: `{
   "dirs": {
     "d1": {
-      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1-proxy",
       "files": {
         "f1-proxy": {
           "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",

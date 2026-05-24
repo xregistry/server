@@ -2,7 +2,6 @@ OLD TODO:
 - Move the logic that takes the Path into account for the query into
   GenerateQuery
 - Make sure that the Path entity is always in the result set when filtering
-** twiddle the self and XXXUrls to include proper filter and inline stuff
 - see if we can get rid of the recursion stuff
 - should we add "/" to the end of the Path for non-collections, then
   we can just look for PATH/%  and not PATH + PATH/%
@@ -98,7 +97,7 @@ TODOs:
   ID. `ancestor=request`
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
-** support <, <=, >, >=, <>, !=
+** support <, <=, >, >=, <>, != for filtering
   - make sure * can't be used when using <, >... just =, <> and !=
   - case insensitive compares
 ** support and test "versionmode"
