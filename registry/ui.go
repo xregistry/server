@@ -281,7 +281,8 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 			}
 			filters += subF
 		}
-		filters = "<b>Filters:</b>\n    <textarea id=filters>" +
+		filters = "<b>Filters:</b> <div class=filterHelp>(each line=filterExpr)</div>\n" +
+			"    <textarea id=filters>" +
 			filters + "</textarea>\n"
 	}
 
@@ -631,6 +632,11 @@ toggleExp(null, false);
     font-size: 12px ;
     font-family: courier ;
     width: 100%
+  }
+  .filterHelp {
+    display: inline ;
+    font-size: 12px ;
+    font-family: courier ;
   }
   select {
     background: #407d16 ;
