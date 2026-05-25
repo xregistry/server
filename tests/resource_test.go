@@ -375,10 +375,11 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
+	// All sub-fields, with removal >= effective (valid)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12:00:00+07:00",
-        "removal": "2000-01-01T12:01:00+07",
+        "removal": "2124-01-01T12:01:00Z",
         "alternative": "some-url",
         "documentation": "another-url",
         "dep_zzz": "zzz",
@@ -393,8 +394,8 @@ func TestResourceDeprecated(t *testing.T) {
   "modifiedat": "2025-06-12T15:43:53.2Z",
   "readonly": false,
   "deprecated": {
-    "effective": "2123-01-01T12:00:00.3Z",
-    "removal": "2000-01-01T12:01:00.4Z",
+    "effective": "2123-01-01T05:00:00Z",
+    "removal": "2124-01-01T12:01:00Z",
     "alternative": "some-url",
     "documentation": "another-url",
     "dep_aaa": "foo",
@@ -407,6 +408,50 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
+	// removal before effective must be rejected (spec MUST NOT)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {
+        "effective": "2123-01-01T12:00:00Z",
+        "removal": "2000-01-01T12:00:00Z"
+      }
+    }  `, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"deprecated.removal\" for \"/dirs/d1/files/f1/meta\" is not valid: must not be sooner than deprecated.effective.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "must not be sooner than deprecated.effective",
+    "name": "deprecated.removal"
+  },
+  "source": "xxx"
+}
+`)
+
+	// removal equal to effective is valid
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": {
+        "effective": "2123-01-01T12:00:00Z",
+        "removal": "2123-01-01T12:00:00Z"
+      }
+    }  `, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:01Z",
+  "readonly": false,
+  "deprecated": {
+    "effective": "2123-01-01T12:00:00Z",
+    "removal": "2123-01-01T12:00:00Z"
+  },
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
+}
+`)
+
+	// malformed effective timestamp
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12"
@@ -419,10 +464,11 @@ func TestResourceDeprecated(t *testing.T) {
     "error_detail": "is a malformed timestamp",
     "name": "deprecated.effective"
   },
-  "source": "e4e59b8a76c4:registry:entity:2561"
+  "source": "xxx"
 }
 `)
 
+	// malformed removal timestamp
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {
         "effective": "2123-01-01T12:00:00",
@@ -436,7 +482,78 @@ func TestResourceDeprecated(t *testing.T) {
     "error_detail": "is a malformed timestamp",
     "name": "deprecated.removal"
   },
-  "source": "e4e59b8a76c4:registry:entity:2561"
+  "source": "xxx"
+}
+`)
+
+	// set deprecated, verify it appears on direct resource read (via $details?inline=meta)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": { "effective": "2099-06-01T00:00:00Z" }
+    }`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 4,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:01Z",
+  "readonly": false,
+  "deprecated": {
+    "effective": "2099-06-01T00:00:00Z"
+  },
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
+}
+`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details?inline=meta", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestor": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 4,
+    "createdat": "2025-01-01T00:00:00Z",
+    "modifiedat": "2025-01-01T00:00:01Z",
+    "readonly": false,
+    "deprecated": {
+      "effective": "2099-06-01T00:00:00Z"
+    },
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// clear deprecated by setting it to null
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+      "deprecated": null
+    }`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 5,
+  "createdat": "2025-06-12T15:43:53.1Z",
+  "modifiedat": "2025-06-12T15:43:53.2Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": false
 }
 `)
 }

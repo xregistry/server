@@ -326,7 +326,7 @@ func (jw *JsonWriter) WriteEntity() *XRError {
 						continue
 					}
 					v := daMap[k]
-					if ok {
+					if v != nil {
 						b.WriteString(fmt.Sprintf("%s%q: %q", extra, k, v))
 						extra = ",\n  " + jw.indent
 						gotOne = true

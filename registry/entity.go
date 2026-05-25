@@ -1437,8 +1437,31 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name:      "deprecated",
-		internals: &AttrInternals{},
+		Name: "deprecated",
+		internals: &AttrInternals{
+			updateFn: func(e *Entity) *XRError {
+				dep, ok := e.NewObject["deprecated"]
+				if !ok || IsNil(dep) {
+					return nil
+				}
+				depMap, ok := dep.(map[string]any)
+				if !ok {
+					return nil
+				}
+				effectiveStr, _ := depMap["effective"].(string)
+				removalStr, _ := depMap["removal"].(string)
+				if effectiveStr != "" && removalStr != "" {
+					effectiveTime, err1 := ConvertStrToTime(effectiveStr)
+					removalTime, err2 := ConvertStrToTime(removalStr)
+					if err1 == nil && err2 == nil && removalTime.Before(effectiveTime) {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=deprecated.removal",
+							"error_detail=must not be sooner than deprecated.effective")
+					}
+				}
+				return nil
+			},
+		},
 	},
 	{
 		Name: "ancestor",

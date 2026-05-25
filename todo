@@ -6,7 +6,6 @@ OLD TODO:
 - should we add "/" to the end of the Path for non-collections, then
   we can just look for PATH/%  and not PATH + PATH/%
 - can we set the registry's path to "" instead of NULL ?? already did, test it
-** add support for boolean types (set/get/filter)
 
 TODOs:
 - add tests for multiple registries at the same time
@@ -49,7 +48,7 @@ TODOs:
 - add model tests for typemap - just that we can set via full model updates
 ** support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
-- allow $meta on hasdoc=false resources
+** allow $meta on hasdoc=false resources
 ** add support for shortself
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
   use "$SINGULRid" for everything including Versions, but not Meta
@@ -85,7 +84,6 @@ TODOs:
 	- trying to mimize the code someone may need to write to create custom impl
 ** add xr support to download as individual files
 - add tests for model "description", "modelversion" and "compatwith"
-** add support for deprecated
 - add docs for persistent DB/volume
 - add docs for auth via proxy
 ** add support for setting capabilities.mutable to null and make sure things
@@ -109,7 +107,6 @@ TODOs:
 ** support min/max in capabilities
 ** support ximportresource being transitive
 - add tests for xr model group update/upsert/create & --flags
-- add tests for groups.deprecated
 ** support for modelsource=null or {} - erase everything
 ** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)

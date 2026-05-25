@@ -174,3 +174,56 @@ func TestGroupRequiredFields(t *testing.T) {
 	err = g1.SetSave("req", "again")
 	XNoErr(t, err)
 }
+
+func TestGroupDeprecated(t *testing.T) {
+	reg := NewRegistry("TestGroupDeprecated")
+	defer PassDeleteReg(t, reg)
+
+	gm, err := reg.Model.AddGroupModel("dirs", "dir")
+	XNoErr(t, err)
+	_, err = gm.AddResourceModelSimple("files", "file")
+	XNoErr(t, err)
+
+	// deprecated on a Group entity
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{
+      "deprecated": {
+        "effective": "2099-01-01T00:00:00Z",
+        "removal": "2100-01-01T00:00:00Z",
+        "alternative": "https://example.com/new"
+      }
+    }`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2025-06-12T15:43:53.1Z",
+  "modifiedat": "2025-06-12T15:43:53.1Z",
+  "deprecated": {
+    "alternative": "https://example.com/new",
+    "effective": "2099-01-01T00:00:00Z",
+    "removal": "2100-01-01T00:00:00Z"
+  },
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
+
+	// removal before effective must be rejected on a Group
+	XHTTP(t, reg, "PUT", "/dirs/d2", `{
+      "deprecated": {
+        "effective": "2099-01-01T00:00:00Z",
+        "removal": "2098-01-01T00:00:00Z"
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"deprecated.removal\" for \"/dirs/d2\" is not valid: must not be sooner than deprecated.effective.",
+  "subject": "/dirs/d2",
+  "args": {
+    "error_detail": "must not be sooner than deprecated.effective",
+    "name": "deprecated.removal"
+  },
+  "source": "xxx"
+}
+`)
+}
