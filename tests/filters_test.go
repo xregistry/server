@@ -820,18 +820,21 @@ func TestFiltersOps(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false) // nodoc
+	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false) // nodoc
 	XNoErr(t, err)
+	rm.AddAttr("count", INTEGER)
 	XNoErr(t, reg.SaveModel(true))
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
 	f.SetSaveDefault("name", "bob")
+	f.SetSaveDefault("count", 3)
 
 	f, _ = d.AddResource("files", "f2", "v1")
 	f.SetSaveDefault("name", "")
+	f.SetSaveDefault("count", 7)
 
-	d.AddResource("files", "f3", "v1") // no "name"
+	d.AddResource("files", "f3", "v1") // no "name", no "count"
 
 	PRE := "?oneline&inline=dirs.files&filter="
 	tests := []struct {
@@ -910,6 +913,262 @@ func TestFiltersOps(t *testing.T) {
 			Name: "non-root name!=bob || name (present)",
 			URL:  "/dirs/d1/files?oneline&filter=name!=bob&filter=name",
 			Exp:  `{"f1":{},"f2":{},"f3":{}}`,
+		},
+
+		// Case-insensitive string comparison (spec: strings MUST be compared case-insensitively)
+		{
+			Name: "name=BOB (case-insensitive =)",
+			URL:  PRE + "dirs.files.name=BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{}}}}}`,
+		},
+		{
+			Name: "name=Bob (case-insensitive =)",
+			URL:  PRE + "dirs.files.name=Bob",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{}}}}}`,
+		},
+		{
+			Name: "name!=BOB (case-insensitive !=)",
+			URL:  PRE + "dirs.files.name!=BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{},"f3":{}}}}}`,
+		},
+		{
+			Name: "name<>BOB (case-insensitive <>)",
+			URL:  PRE + "dirs.files.name<>BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{},"f3":{}}}}}`,
+		},
+		{
+			Name: "name<BOB (case-insensitive <)",
+			URL:  PRE + "dirs.files.name<BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{}}}}}`,
+		},
+		{
+			Name: "name<=BOB (case-insensitive <=)",
+			URL:  PRE + "dirs.files.name<=BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "name>bob upper (case-insensitive >)",
+			URL:  "/dirs/d1/files?oneline&filter=name>BOB",
+			Exp:  `{}`,
+		},
+		{
+			Name: "name>=BOB (case-insensitive >=)",
+			URL:  PRE + "dirs.files.name>=BOB",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{}}}}}`,
+		},
+
+		// Comparison operators - string field
+		{
+			Name: "name<bob",
+			URL:  PRE + "dirs.files.name<bob",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{}}}}}`,
+		},
+		{
+			Name: "name<=bob",
+			URL:  PRE + "dirs.files.name<=bob",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "name>\"\"",
+			URL:  PRE + "dirs.files.name>",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{}}}}}`,
+		},
+		{
+			Name: "name>=\"\"",
+			URL:  PRE + "dirs.files.name>=",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "name<>bob",
+			URL:  PRE + "dirs.files.name<>bob",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{},"f3":{}}}}}`,
+		},
+
+		// Comparison operators - non-root string field
+		{
+			Name: "non-root name<bob",
+			URL:  "/dirs/d1/files?oneline&filter=name<bob",
+			Exp:  `{"f2":{}}`,
+		},
+		{
+			Name: "non-root name<=bob",
+			URL:  "/dirs/d1/files?oneline&filter=name<=bob",
+			Exp:  `{"f1":{},"f2":{}}`,
+		},
+		{
+			Name: "non-root name>\"\"",
+			URL:  "/dirs/d1/files?oneline&filter=name>",
+			Exp:  `{"f1":{}}`,
+		},
+		{
+			Name: "non-root name>=\"\"",
+			URL:  "/dirs/d1/files?oneline&filter=name>=",
+			Exp:  `{"f1":{},"f2":{}}`,
+		},
+		{
+			Name: "non-root name<>bob",
+			URL:  "/dirs/d1/files?oneline&filter=name<>bob",
+			Exp:  `{"f2":{},"f3":{}}`,
+		},
+
+		// Comparison operators - integer field
+		{
+			Name: "count>3",
+			URL:  PRE + "dirs.files.count>3",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{}}}}}`,
+		},
+		{
+			Name: "count>=3",
+			URL:  PRE + "dirs.files.count>=3",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "count<7",
+			URL:  PRE + "dirs.files.count<7",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{}}}}}`,
+		},
+		{
+			Name: "count<=7",
+			URL:  PRE + "dirs.files.count<=7",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "count<>3",
+			URL:  PRE + "dirs.files.count<>3",
+			Exp:  `{"dirs":{"d1":{"files":{"f2":{},"f3":{}}}}}`,
+		},
+
+		// Comparison operators - non-root integer field
+		{
+			Name: "non-root count>3",
+			URL:  "/dirs/d1/files?oneline&filter=count>3",
+			Exp:  `{"f2":{}}`,
+		},
+		{
+			Name: "non-root count>=3",
+			URL:  "/dirs/d1/files?oneline&filter=count>=3",
+			Exp:  `{"f1":{},"f2":{}}`,
+		},
+		{
+			Name: "non-root count<7",
+			URL:  "/dirs/d1/files?oneline&filter=count<7",
+			Exp:  `{"f1":{}}`,
+		},
+		{
+			Name: "non-root count<=7",
+			URL:  "/dirs/d1/files?oneline&filter=count<=7",
+			Exp:  `{"f1":{},"f2":{}}`,
+		},
+		{
+			Name: "non-root count<>3",
+			URL:  "/dirs/d1/files?oneline&filter=count<>3",
+			Exp:  `{"f2":{},"f3":{}}`,
+		},
+
+		// Spec compliance: <> null must be FILTER_PRESENT (same as !=null)
+		{
+			Name: "name<>null is FILTER_PRESENT (spec)",
+			URL:  PRE + "dirs.files.name<>null",
+			Exp:  `{"dirs":{"d1":{"files":{"f1":{},"f2":{}}}}}`,
+		},
+		{
+			Name: "non-root name<>null is FILTER_PRESENT (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=name<>null",
+			Exp:  `{"f1":{},"f2":{}}`,
+		},
+
+		// Spec compliance: null not allowed with <, <=, >, >=
+		{
+			Name: "count<null is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count<null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count<null): null is not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "null is not allowed with <, <=, >, >= operators",
+    "value": "count<null"
+  },
+  "source": "xxx"
+}
+`,
+		},
+		{
+			Name: "count<=null is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count<=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count<=null): null is not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "null is not allowed with <, <=, >, >= operators",
+    "value": "count<=null"
+  },
+  "source": "xxx"
+}
+`,
+		},
+		{
+			Name: "count>null is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count>null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count>null): null is not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "null is not allowed with <, <=, >, >= operators",
+    "value": "count>null"
+  },
+  "source": "xxx"
+}
+`,
+		},
+		{
+			Name: "count>=null is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count>=null",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count>=null): null is not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "null is not allowed with <, <=, >, >= operators",
+    "value": "count>=null"
+  },
+  "source": "xxx"
+}
+`,
+		},
+
+		// Spec compliance: wildcards not allowed with <, <=, >, >=
+		{
+			Name: "count<3* is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count<3*",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count<3*): wildcards are not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "wildcards are not allowed with <, <=, >, >= operators",
+    "value": "count<3*"
+  },
+  "source": "xxx"
+}
+`,
+		},
+		{
+			Name: "count>=2* is bad_filter (spec)",
+			URL:  "/dirs/d1/files?oneline&filter=count>=2*",
+			Exp: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (count>=2*): wildcards are not allowed with <, <=, >, >= operators.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "wildcards are not allowed with <, <=, >, >= operators",
+    "value": "count>=2*"
+  },
+  "source": "xxx"
+}
+`,
 		},
 	}
 

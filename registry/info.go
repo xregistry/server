@@ -248,6 +248,14 @@ func (fe *FilterExpr) OpValue() string {
 		return "=" + fe.Value
 	case FILTER_NOT_EQUAL:
 		return "!=" + fe.Value
+	case FILTER_LESS:
+		return "<" + fe.Value
+	case FILTER_LESS_EQUAL:
+		return "<=" + fe.Value
+	case FILTER_GREATER:
+		return ">" + fe.Value
+	case FILTER_GREATER_EQUAL:
+		return ">=" + fe.Value
 	}
 	panic(fmt.Sprintf("unknown op: %v", fe.Operator))
 }
@@ -401,15 +409,43 @@ func (info *RequestInfo) ParseFilters() *XRError {
 					filterOp = FILTER_NOT_EQUAL
 				}
 			} else {
-				path, value, found = strings.Cut(expr, "=")
+				path, value, found = strings.Cut(expr, "<>")
 				if found {
-					if value == "null" {
-						filterOp = FILTER_ABSENT
+					// "<>null" is the same as present (no operator), per spec
+					if value != "null" {
+						filterOp = FILTER_NOT_EQUAL
+					}
+				} else {
+					path, value, found = strings.Cut(expr, "<=")
+					if found {
+						filterOp = FILTER_LESS_EQUAL
 					} else {
-						filterOp = FILTER_EQUAL
+						path, value, found = strings.Cut(expr, ">=")
+						if found {
+							filterOp = FILTER_GREATER_EQUAL
+						} else {
+							path, value, found = strings.Cut(expr, "<")
+							if found {
+								filterOp = FILTER_LESS
+							} else {
+								path, value, found = strings.Cut(expr, ">")
+								if found {
+									filterOp = FILTER_GREATER
+								} else {
+									path, value, found = strings.Cut(expr, "=")
+									if found {
+										if value == "null" {
+											filterOp = FILTER_ABSENT
+										} else {
+											filterOp = FILTER_EQUAL
+										}
+									}
+									// No operator means FILTER_PRESENT
+								}
+							}
+						}
 					}
 				}
-				// No "=" or "!=" means FILTER_PRESENT
 			}
 
 			pp, err := PropPathFromUI(path)
@@ -419,6 +455,21 @@ func (info *RequestInfo) ParseFilters() *XRError {
 					"error_detail="+err.Error())
 			}
 			path = pp.DB()
+
+			// Validate comparison operator constraints per spec
+			if filterOp == FILTER_LESS || filterOp == FILTER_LESS_EQUAL ||
+				filterOp == FILTER_GREATER || filterOp == FILTER_GREATER_EQUAL {
+				if value == "null" {
+					return NewXRError("bad_filter", info.GetParts(0),
+						"value="+expr,
+						"error_detail=null is not allowed with <, <=, >, >= operators")
+				}
+				if strings.ContainsRune(value, '*') {
+					return NewXRError("bad_filter", info.GetParts(0),
+						"value="+expr,
+						"error_detail=wildcards are not allowed with <, <=, >, >= operators")
+				}
+			}
 
 			/*
 				if info.What != "Coll" && strings.Index(path, "/") < 0 {

@@ -97,9 +97,6 @@ TODOs:
   ID. `ancestor=request`
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
-** support <, <=, >, >=, <>, != for filtering
-  - make sure * can't be used when using <, >... just =, <> and !=
-  - case insensitive compares
 ** support and test "versionmode"
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 ** support patch / + capabilities - does patching of capabilities

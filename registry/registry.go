@@ -1031,11 +1031,14 @@ eSID IN ( -- eSID from query
 					value, wildcard := WildcardIt(filter.Value)
 					args = append(args, value)
 					if !wildcard {
-						check += "PropValue=?"
+						// String types: case-insensitive per spec; others: exact match
+						args = append(args, value)
+						check += "((PropType='string' AND PropValue " + FILTER_CI_COLLATE + "=?)" +
+							" OR (PropType<>'string' AND PropValue=?))"
 					} else {
 						args = append(args, value)
 						check += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue LIKE ?))"
+							" OR (PropType='string' AND PropValue " + FILTER_CI_COLLATE + " LIKE ?))"
 					}
 					check += ")"
 					query += `
@@ -1056,13 +1059,44 @@ eSID IN ( -- eSID from query
 					value, wildcard := WildcardIt(filter.Value)
 					args = append(args, value)
 					if !wildcard {
-						query += "PropValue=?"
+						// String types: case-insensitive per spec; others: exact match
+						args = append(args, value)
+						query += "((PropType='string' AND PropValue " + FILTER_CI_COLLATE + "=?)" +
+							" OR (PropType<>'string' AND PropValue=?))"
 					} else {
 						args = append(args, value)
 						query += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue LIKE ?))"
+							" OR (PropType='string' AND PropValue " + FILTER_CI_COLLATE + " LIKE ?))"
 					}
 					query += "))"
+
+				} else if filter.Operator == FILTER_LESS ||
+					filter.Operator == FILTER_LESS_EQUAL ||
+					filter.Operator == FILTER_GREATER ||
+					filter.Operator == FILTER_GREATER_EQUAL { // ?filter=x<z etc
+
+					var sqlOp string
+					switch filter.Operator {
+					case FILTER_LESS:
+						sqlOp = "<"
+					case FILTER_LESS_EQUAL:
+						sqlOp = "<="
+					case FILTER_GREATER:
+						sqlOp = ">"
+					case FILTER_GREATER_EQUAL:
+						sqlOp = ">="
+					}
+
+					check := "(BINARY Abstract=? AND PropName=? AND "
+					args = append(args, reg.DbSID, filter.Abstract, filter.PropName)
+					// Numeric: numeric comparison; string and others: case-insensitive string comparison
+					args = append(args, filter.Value, filter.Value)
+					check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
+						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
+						" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
+					query += `
+          SELECT eSID,Type,Path FROM FullTree
+            WHERE RegSID=? AND ` + check
 
 				} else {
 					PanicIf(true, "Bad filter.op: %#v", filter)
