@@ -396,13 +396,26 @@ func (c *Capabilities) Validate() *XRError {
 		c.SpecVersions = []string{SPECVERSION}
 	}
 
-	c.SpecVersions, xErr = CleanArray(c.SpecVersions, SupportedSpecVersions,
-		"specversions")
-	if xErr != nil {
-		return xErr
+	// Validate specversions using normalized comparison
+	// (patch level is ignored), but preserve the original
+	// (lowercased) values for storage/display.
+	hasCurrentSpecVersion := false
+	for i, sv := range c.SpecVersions {
+		c.SpecVersions[i] = strings.ToLower(sv)
+		norm := NormalizeSpecVersion(sv)
+		if !ArrayContains(SupportedSpecVersions, norm) {
+			return NewXRError("capability_value", "/capabilities",
+				"value="+strings.ToLower(sv),
+				"field=specversions",
+				"list="+strings.Join(SupportedSpecVersions, ","))
+		}
+		if norm == NormalizeSpecVersion(SPECVERSION) {
+			hasCurrentSpecVersion = true
+		}
 	}
-
-	if !ArrayContainsAnyCase(c.SpecVersions, SPECVERSION) {
+	sort.Strings(c.SpecVersions)
+	c.SpecVersions = slices.Compact(c.SpecVersions)
+	if !hasCurrentSpecVersion {
 		return NewXRError("capability_missing_value", "/capabilities",
 			"name="+"specversions",
 			"value="+SPECVERSION)
@@ -493,8 +506,35 @@ func (c *Capabilities) ShortSelfEnabled(str string) bool {
 	return c.ShortSelf
 }
 
+// NormalizeSpecVersion strips any patch-level version component for comparison
+// per spec: only major.minor is compared; any suffix after the first "-" is
+// preserved as-is. Input is lowercased. Examples:
+//
+//	"1.0.1-rc2" -> "1.0-rc2"
+//	"1.0.5"     -> "1.0"
+//	"1.0-rc2"   -> "1.0-rc2"
+//	"1.0-RC2"   -> "1.0-rc2"
+func NormalizeSpecVersion(sv string) string {
+	sv = strings.ToLower(sv)
+	base, suffix, hasSuffix := strings.Cut(sv, "-")
+	parts := strings.SplitN(base, ".", 3)
+	if len(parts) >= 2 {
+		base = parts[0] + "." + parts[1]
+	}
+	if hasSuffix {
+		return base + "-" + suffix
+	}
+	return base
+}
+
 func (c *Capabilities) SpecVersionEnabled(str string) bool {
-	return ArrayContains(c.SpecVersions, str)
+	norm := NormalizeSpecVersion(str)
+	for _, sv := range c.SpecVersions {
+		if NormalizeSpecVersion(sv) == norm {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Capabilities) StickyVersionsEnabled() bool {

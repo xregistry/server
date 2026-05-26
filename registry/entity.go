@@ -944,11 +944,15 @@ var PropsFuncs = []*Attribute{
 			},
 			checkFn: func(e *Entity) *XRError {
 				tmp := e.NewObject["specversion"]
-				if !IsNil(tmp) && tmp != "" && tmp != SPECVERSION {
-					return NewXRError("invalid_attribute", e.XID,
-						"name=specversion",
-						"error_detail="+
-							fmt.Sprintf("invalid value: %v", tmp))
+				if !IsNil(tmp) && tmp != "" {
+					sv, _ := tmp.(string)
+					norm := NormalizeSpecVersion(sv)
+					if norm != NormalizeSpecVersion(SPECVERSION) {
+						return NewXRError("invalid_attribute", e.XID,
+							"name=specversion",
+							"error_detail="+
+								fmt.Sprintf("invalid value: %v", tmp))
+					}
 				}
 				return nil
 			},
@@ -1453,10 +1457,13 @@ var PropsFuncs = []*Attribute{
 				if effectiveStr != "" && removalStr != "" {
 					effectiveTime, err1 := ConvertStrToTime(effectiveStr)
 					removalTime, err2 := ConvertStrToTime(removalStr)
-					if err1 == nil && err2 == nil && removalTime.Before(effectiveTime) {
+					if err1 == nil && err2 == nil &&
+						removalTime.Before(effectiveTime) {
 						return NewXRError("invalid_attribute", e.XID,
 							"name=deprecated.removal",
-							"error_detail=must not be sooner than deprecated.effective")
+							"error_detail="+
+								"must not be sooner than"+
+								" deprecated.effective")
 					}
 				}
 				return nil

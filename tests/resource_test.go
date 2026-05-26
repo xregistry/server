@@ -486,7 +486,8 @@ func TestResourceDeprecated(t *testing.T) {
 }
 `)
 
-	// set deprecated, verify it appears on direct resource read (via $details?inline=meta)
+	// set deprecated, verify it appears on direct resource read
+	// (via $details?inline=meta)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": { "effective": "2099-06-01T00:00:00Z" }
     }`, 200, `{

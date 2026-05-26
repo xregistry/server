@@ -9059,6 +9059,241 @@ func TestHTTPSpecVersion(t *testing.T) {
 `)
 }
 
+func TestSpecVersionPatchIgnore(t *testing.T) {
+	reg := NewRegistry("TestSpecVersionPatchIgnore")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	// Expected capabilities body - same for all successful
+	// specversion requests.
+	caps := `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "` + SPECVERSION + `"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`
+
+	// Exact specversion match
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-rc2", ``, 200, caps)
+
+	// Patch version component is ignored: "1.0.5-rc2" -> "1.0-rc2"
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0.5-rc2", ``, 200, caps)
+
+	// Patch version zero is ignored: "1.0.0-rc2" -> "1.0-rc2"
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0.0-rc2", ``, 200, caps)
+
+	// Case-insensitive: "1.0-RC2" -> "1.0-rc2"
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-RC2", ``, 200, caps)
+
+	// Different suffix is rejected
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0-rc1", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
+  "title": "The specified \"specversion\" value (1.0-rc1) is not supported. Supported versions: 1.0-rc2.",
+  "subject": "/capabilities",
+  "args": {
+    "list": "1.0-rc2",
+    "specversion": "1.0-rc1"
+  },
+  "source": "xxx"
+}
+`)
+
+	// Different minor version is rejected
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.1-rc2", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
+  "title": "The specified \"specversion\" value (1.1-rc2) is not supported. Supported versions: 1.0-rc2.",
+  "subject": "/capabilities",
+  "args": {
+    "list": "1.0-rc2",
+    "specversion": "1.1-rc2"
+  },
+  "source": "xxx"
+}
+`)
+
+	// No suffix is rejected when current version has a suffix
+	XHTTP(t, reg, "GET", "/capabilities?specversion=1.0", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unsupported_specversion",
+  "title": "The specified \"specversion\" value (1.0) is not supported. Supported versions: 1.0-rc2.",
+  "subject": "/capabilities",
+  "args": {
+    "list": "1.0-rc2",
+    "specversion": "1.0"
+  },
+  "source": "xxx"
+}
+`)
+
+	// PUT capabilities with a specversion containing a patch component:
+	// the original value is preserved in the response (not normalized).
+	// Include "specversion" in flags and "capabilities" in available so the
+	// flag check and GET /capabilities remain active after the PUT.
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": false}
+  },
+  "specversions": ["1.0.5-rc2"],
+  "flags": ["specversion"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "specversion"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0.5-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// After setting specversions to ["1.0.5-rc2"], both the patched form and
+	// the canonical form are accepted since they normalize to the same value.
+	afterCaps := `{
+  "available": {
+    "capabilities": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "specversion"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0.5-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`
+	XHTTP(t, reg, "GET",
+		"/capabilities?specversion=1.0.5-rc2", ``, 200, afterCaps)
+	XHTTP(t, reg, "GET",
+		"/capabilities?specversion=1.0-rc2", ``, 200, afterCaps)
+}
+
 func TestHTTPMissingBody(t *testing.T) {
 	reg := NewRegistry("TestHTTPMissingBody")
 	defer PassDeleteReg(t, reg)
