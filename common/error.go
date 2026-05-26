@@ -180,6 +180,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request would cause Version "<subject>" to be non-compliant with its "format" (<format>).`,
 	},
+	"hasdocument_violation": &XRError{
+		Code:  400,
+		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model has "hasdocument" set to "false" but this Version has document content.`,
+	},
 	"groups_only": &XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is invalid. Only Group types are allowed to be specified on this request: <subject>.`,

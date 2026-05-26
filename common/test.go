@@ -63,10 +63,14 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 
 	orig := "\nRawGot:\n" + got + "\n"
 
+	// Should only be used in extreme cases. By default we should check
+	// all output byte-for-byte
 	if exp == "*" {
 		return
 	}
 
+	// Should only be used in extreme cases. By default we should check
+	// all output byte-for-byte
 	if len(exp) > 3 && exp[0] == '*' && exp[len(exp)-1] == '*' {
 		expRE := strings.ReplaceAll(exp, "*", ".*")
 		if match, _ := regexp.MatchString(expRE, got); match {

@@ -97,7 +97,6 @@ TODOs:
 ** support and test "versionmode"
 - clean-up the patch/merging of capabilities, logic isn't clean/optimal
 ** support patch / + capabilities - does patching of capabilities
-** support patch / + modelsource - full replacement
 ** support "xr model group/resource create/update" with "--data"
 ** make sure that * can appear in any string capability
 ** add support for setversionid, and flag an error when not allowed
@@ -106,7 +105,6 @@ TODOs:
 ** support min/max in capabilities
 ** support ximportresource being transitive
 - add tests for xr model group update/upsert/create & --flags
-** support for modelsource=null or {} - erase everything
 ** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)
 ** Send back Allow header on a 405 error
@@ -114,8 +112,6 @@ TODOs:
 ** disallow editing to APIs based on capabilities.mutability
 - make tests so they don't use model.verifyandsave - should go thru modelsource
 ** make model changes via API show up in modelsource
-** ban model changes that turn on hasDoc if Resources have RESOURCE* attribute
-  extension names
 ** make sure ?defaultversionid only processed on write ops (bad_flag)
 - look for more bad_request error that we can specialize
 - add tests for setting modelsource with $include stuff - and upload data at the same time
@@ -135,3 +131,5 @@ TODOs:
 - more testing around changing capabilities and model at the same time as using
   query parameters and uploading data (import). Make sure we use the right
   capability values (pre or post tx) for each capability & model
+** fix concurrency issues as seen in TestMiscConcurrency
+** fix DB locking - we need to lock entire entity, not just the rows touched

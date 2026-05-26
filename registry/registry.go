@@ -584,13 +584,26 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 		}
 	}
 
-	// If the model changed, save it to the DB and verify all data
-	if xErr := reg.Model.VerifyAndSave(true); xErr != nil {
+	// Save the registry attributes first (this applies reg.NewObject)
+	if xErr := reg.ValidateAndSave(false); xErr != nil {
 		return xErr
 	}
 
-	// Now we can save the registry itself
-	return reg.ValidateAndSave(false)
+	// If the model changed (tracked via SetStuff in ProcessCapabilitiesModelSource),
+	// verify all data. We can't use Model.VerifyAndSave() because the model was
+	// already saved in ProcessCapabilitiesModelSource and the changed flag is false.
+	if val, ok := reg.GetStuff("modelchanged"); ok && val == true {
+		if xErr := reg.VerifyData(); xErr != nil {
+			return xErr
+		}
+	} else {
+		// Normal path: save model if it changed
+		if xErr := reg.Model.VerifyAndSave(true); xErr != nil {
+			return xErr
+		}
+	}
+
+	return nil
 }
 
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {

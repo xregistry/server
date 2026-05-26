@@ -3064,3 +3064,433 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
 	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")
 }
+
+func TestHasDocumentValidation(t *testing.T) {
+	reg := NewRegistry("TestHasDocumentValidation")
+	defer PassDeleteReg(t, reg)
+
+	// Test 1: Create model with hasdocument=true, add resource with document
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Create a file with document content
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `hello world`, 201, `hello world`)
+
+	// Test 2: Try to change model to hasdocument=false via PUT /modelsource - should FAIL
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "xxx"
+}
+`)
+
+	// Test 3: Try to change model to hasdocument=false via PUT / with modelsource - should FAIL
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "plural": "dirs",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "plural": "files",
+            "hasdocument": false
+          }
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "xxx"
+}
+`)
+
+	// Test 4: Try to change model to hasdocument=false via PATCH / with modelsource - should FAIL
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "plural": "dirs",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "plural": "files",
+            "hasdocument": false
+          }
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "xxx"
+}
+`)
+
+	// Test 5: Change model but KEEP hasdocument=true (change description) - should SUCCEED
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "description": "A collection of files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "description": "A collection of files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Test 6: Delete the document content, then change model to hasdocument=false - should SUCCEED
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "")
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Test 7: Create a resource with file attribute (document inline), try to change to hasdocument=false - should FAIL
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f2$details", `{
+  "file": "This is some document content"
+}`, 201, `{
+  "fileid": "f2",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d2/files/f2$details",
+  "xid": "/dirs/d2/files/f2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "1",
+  "contenttype": "application/json",
+
+  "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
+  "versionsurl": "http://localhost:8181/dirs/d2/files/f2/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d2/files/f2/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d2/files/f2/versions/1",
+  "source": "xxx"
+}
+`)
+
+	// Test 8: Create a resource with fileurl attribute, try to change to hasdocument=false - should FAIL
+	// First, clean up from previous tests
+	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, "")
+	XHTTP(t, reg, "DELETE", "/dirs/d2", "", 204, "")
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d3", `{}`, 201, `{
+  "dirid": "d3",
+  "self": "http://localhost:8181/dirs/d3",
+  "xid": "/dirs/d3",
+  "epoch": 1,
+  "createdat": "2026-05-26T18:12:11.913710425Z",
+  "modifiedat": "2026-05-26T18:12:11.913710425Z",
+
+  "filesurl": "http://localhost:8181/dirs/d3/files",
+  "filescount": 0
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d3/files/f3/versions/1$details", `{
+  "fileurl": "http://example.com/somefile.txt"
+}`, 201, `{
+  "fileid": "f3",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d3/files/f3/versions/1$details",
+  "xid": "/dirs/d3/files/f3/versions/1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-05-26T18:14:26.813463329Z",
+  "modifiedat": "2026-05-26T18:14:26.813463329Z",
+  "ancestor": "1",
+
+  "fileurl": "http://example.com/somefile.txt"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d3/files/f3/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d3/files/f3/versions/1",
+  "source": "xxx"
+}
+`)
+
+	// Test 9: Create a resource with fileproxyurl attribute, try to change to hasdocument=false - should FAIL
+	// First, clean up from previous tests
+	XHTTP(t, reg, "DELETE", "/dirs/d3", "", 204, "")
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d4", `{}`, 201, `{
+  "dirid": "d4",
+  "self": "http://localhost:8181/dirs/d4",
+  "xid": "/dirs/d4",
+  "epoch": 1,
+  "createdat": "2026-05-26T18:12:11.913710425Z",
+  "modifiedat": "2026-05-26T18:12:11.913710425Z",
+
+  "filesurl": "http://localhost:8181/dirs/d4/files",
+  "filescount": 0
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d4/files/f4/versions/1$details", `{
+  "fileproxyurl": "http://example.com/proxy/doc.txt"
+}`, 201, `{
+  "fileid": "f4",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d4/files/f4/versions/1$details",
+  "xid": "/dirs/d4/files/f4/versions/1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-05-26T18:14:26.813463329Z",
+  "modifiedat": "2026-05-26T18:14:26.813463329Z",
+  "ancestor": "1",
+
+  "fileproxyurl": "http://example.com/proxy/doc.txt"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
+  "title": "The request would cause Version \"/dirs/d4/files/f4/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "subject": "/dirs/d4/files/f4/versions/1",
+  "source": "xxx"
+}
+`)
+}

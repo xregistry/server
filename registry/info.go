@@ -1105,6 +1105,7 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 				if xErr != nil {
 					return xErr
 				}
+				info.Registry.SetStuff("modelchanged", true)
 			}
 
 		}

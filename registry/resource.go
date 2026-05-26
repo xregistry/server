@@ -1171,6 +1171,45 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	return v, isNew, nil
 }
 
+// checkHasDocumentViolation returns non-nil XRError if hasdocument=false
+// but any versions have document content stored in ResourceContents DB table
+// or have singular/singularurl/singularproxyurl attributes set.
+func (r *Resource) checkHasDocumentViolation() *XRError {
+	singular := r.ResourceModel.Singular
+
+	// Query for any versions with document content in ResourceContents table
+	// or with singular/singularurl/singularproxyurl attributes in Props.
+	// Note: PropName includes DB_IN delimiter at the end (e.g., "fileurl,")
+	query := fmt.Sprintf(`
+		SELECT v.Path FROM Versions v
+		WHERE v.ResourceSID = ?
+		AND (
+			EXISTS (
+				SELECT 1 FROM ResourceContents rc
+				WHERE rc.VersionSID = v.SID
+			)
+			OR EXISTS (
+				SELECT 1 FROM Props p
+				WHERE p.EntitySID = v.SID
+				AND p.PropName IN ('%s%s', '%surl%s', '%sproxyurl%s')
+			)
+		)
+		LIMIT 1`, singular, string(DB_IN), singular, string(DB_IN),
+		singular, string(DB_IN))
+
+	results := Query(r.tx, query, r.DbSID)
+	defer results.Close()
+
+	row := results.NextRow()
+	if row != nil {
+		// Found a version with document content
+		versionPath := "/" + string((*(row[0])).([]byte))
+		return NewXRError("hasdocument_violation", versionPath)
+	}
+
+	return nil
+}
+
 // Run all constrait check on the Resource - see:
 //
 //	spec.md#resource-processing-algorithm
@@ -1195,6 +1234,13 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 		return xErr
 	}
 	*/
+
+	// Check hasdocument violations when force=true (model changed)
+	if force && !r.ResourceModel.GetHasDocument() {
+		if xErr := r.checkHasDocumentViolation(); xErr != nil {
+			return xErr
+		}
+	}
 
 	// Clean-up and verify all Ancestor attributes before we continue
 	if !onlyMetaChanged {

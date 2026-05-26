@@ -203,6 +203,14 @@ CREATE TABLE Props (
     DocView     BOOL NOT NULL,              # Should include during doc view?
     SystemProp  BOOL NOT NULL,              # System property
 
+    # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which is ',')
+    # For example: "fileurl," not "fileurl"
+    # This is used throughout the codebase to simplify attribute name parsing and
+    # prevent ambiguity (e.g., distinguishing "file" from "fileurl").
+    # When querying Props by name, always append DB_IN to the attribute name:
+    #   WHERE PropName = 'fileurl' || string(DB_IN)  -- CORRECT
+    #   WHERE PropName = 'fileurl'                    -- WRONG (will never match)
+
     # non-doc-view-able attributes are ones that are generated at runtime
     # due to things like showing the Default Version props in the Resource
     # or entities/props that materialize due to an xref. Normally a GET
