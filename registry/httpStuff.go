@@ -1642,7 +1642,13 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 			"action="+info.OriginalRequest.Method)
 	}
 
-	xErr := info.Registry.Model.ApplyNewModelFromJSON(info.Body, true)
+	// null and {} both mean "reset model to empty" — treat identically.
+	body := info.Body
+	if string(bytes.TrimSpace(body)) == "null" {
+		body = []byte("{}")
+	}
+
+	xErr := info.Registry.Model.ApplyNewModelFromJSON(body, true)
 	if xErr != nil {
 		return xErr
 	}
@@ -2226,8 +2232,12 @@ func ExtractIncomingObject(info *RequestInfo, body []byte) (Object, *XRError) {
 		}
 
 		// "modelsource" is sooo special! Don't parse it into a golang type
-		// keep it as []byte so that we preserve the order of the map keys
-		if len(info.Parts) == 0 && !IsNil(IncomingObj["modelsource"]) {
+		// keep it as []byte so that we preserve the order of the map keys.
+		// Check key existence (not non-nil) so explicit null is also
+		// captured as json.RawMessage("null"), not left as Go nil.
+		_, msExists := IncomingObj["modelsource"]
+
+		if len(info.Parts) == 0 && msExists {
 			tmpReg := struct {
 				ModelSource json.RawMessage
 			}{}

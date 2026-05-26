@@ -1085,22 +1085,23 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 
 			val := tmpReg.ModelSource
 			if ok {
-				// Notice that "null" means erase it, not "keep it as is"
+				// null and {} both mean "reset model to empty" — treat
+				// identically. json.RawMessage stores JSON null as the
+				// 4-byte string "null" (not Go nil), so check for both.
 				var rawJson []byte
-
-				if IsNil(val) {
+				if IsNil(val) || string(val) == "null" {
 					rawJson = []byte("{}")
 				} else {
 					var err error
-					rawJson = val // .(json.RawMessage)
+					rawJson = []byte(val)
 					rawJson, err = RemoveSchema(rawJson)
 					if err != nil {
 						return NewXRError("bad_request", "/",
 							"error_detail="+err.Error())
 					}
 				}
-
-				xErr := info.Registry.Model.ApplyNewModelFromJSON(rawJson, false)
+				xErr := info.Registry.Model.ApplyNewModelFromJSON(
+					rawJson, false)
 				if xErr != nil {
 					return xErr
 				}

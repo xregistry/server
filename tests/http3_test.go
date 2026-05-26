@@ -1061,7 +1061,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
-	// Notice "null" means erase model
+	// Notice "null" and {} both erase the model - they behave identically
 	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
   "modelsource": null
@@ -1175,7 +1175,8 @@ func TestHTTPModelSource(t *testing.T) {
         }
       }
     }
-  }
+  },
+  "modelsource": {}
 }
 `)
 

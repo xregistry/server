@@ -2570,3 +2570,221 @@ func TestModelUpdateSingular(t *testing.T) {
 `)
 
 }
+
+func TestModelSourceDelete(t *testing.T) {
+	reg := NewRegistry("TestModelSourceDelete")
+	defer PassDeleteReg(t, reg)
+
+	modelWithDirs := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`
+
+	// epoch: NewRegistry=1
+	// ---- PUT /modelsource {} ----
+	// epoch: PUT /modelsource=2
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, modelWithDirs+"\n")
+
+	// epoch: PUT /modelsource=3
+	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "{}\n")
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// ---- PUT /modelsource null ----
+	// epoch: PUT /modelsource=4
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	// epoch: PUT /modelsource null=5
+	XHTTP(t, reg, "PUT", "/modelsource", `null`, 200, "{}\n")
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// ---- PUT / {"modelsource": {}} ----
+	// epoch: PUT /modelsource=6
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	// epoch: PUT /=7
+	XHTTP(t, reg, "PUT", "/", `{"modelsource": {}}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceDelete",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// ---- PUT / {"modelsource": null} ----
+	// epoch: PUT /modelsource=8
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	// epoch: PUT /=9
+	XHTTP(t, reg, "PUT", "/", `{"modelsource": null}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceDelete",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// ---- PATCH / {"modelsource": {}} ----
+	// epoch: PUT /modelsource=10
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	// epoch: PATCH /=11
+	XHTTP(t, reg, "PATCH", "/", `{"modelsource": {}}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceDelete",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 11,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// ---- PATCH / {"modelsource": null} ----
+	// epoch: PUT /modelsource=12
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+	// epoch: PATCH /=13
+	XHTTP(t, reg, "PATCH", "/", `{"modelsource": null}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceDelete",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 13,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z"
+}
+`)
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+}
+
+// TestModelSourceSpecCompliance tests spec-required behaviors for modelsource:
+//   - Absent modelsource in PUT / MUST NOT change the model
+//   - Absent modelsource in PATCH / MUST NOT change the model
+//   - ?inline=* MUST NOT include modelsource
+//   - ?inline=modelsource MUST include modelsource
+func TestModelSourceSpecCompliance(t *testing.T) {
+	reg := NewRegistry("TestModelSourceSpecCompliance")
+	defer PassDeleteReg(t, reg)
+
+	modelWithDirs := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`
+
+	// epoch: NewRegistry=1, PUT /modelsource=2
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithDirs, 200,
+		modelWithDirs+"\n")
+
+	// ---- PUT / without modelsource → model MUST be unchanged ----
+	// epoch: PUT /=3
+	XHTTP(t, reg, "PUT", "/", `{
+  "registryid": "TestModelSourceSpecCompliance"
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceSpecCompliance",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+	// Model must still be intact after PUT without modelsource.
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, modelWithDirs+"\n")
+
+	// ---- PATCH / without modelsource → model MUST be unchanged ----
+	// epoch: PATCH /=4
+	XHTTP(t, reg, "PATCH", "/", `{}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceSpecCompliance",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+	// Model must still be intact after PATCH without modelsource.
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, modelWithDirs+"\n")
+
+	// ---- ?inline=* MUST NOT include modelsource ----
+	// Per spec: modelsource MUST only appear when explicitly requested.
+	// epoch: GET doesn't increment (still 4)
+	XHTTP(t, reg, "GET", "/?inline=*", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceSpecCompliance",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {},
+  "dirscount": 0
+}
+`)
+
+	// ---- ?inline=modelsource MUST include modelsource ----
+	// Explicit inline of modelsource must show it in the response.
+	// epoch: GET doesn't increment (still 4)
+	XHTTP(t, reg, "GET", "/?inline=modelsource", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourceSpecCompliance",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
+      }
+    }
+  },
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+}
