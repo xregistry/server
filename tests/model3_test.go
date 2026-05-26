@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -2787,4 +2788,279 @@ func TestModelSourceSpecCompliance(t *testing.T) {
   "dirscount": 0
 }
 `)
+}
+
+// TestModelSourcePatchReplacement tests that PATCH / with modelsource does
+// full replacement, not merge. Per spec: modelsource is never merged, always
+// replaced entirely.
+func TestModelSourcePatchReplacement(t *testing.T) {
+	reg := NewRegistry("TestModelSourcePatchReplacement")
+	defer PassDeleteReg(t, reg)
+
+	// ---- Test 1: PATCH replaces entire model (dirs → foos) ----
+	// Start with dirs/files model
+	// epoch: NewRegistry=1, PUT /modelsource=2
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}
+`)
+
+	// Verify dirs is in the model
+	res := XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
+	XCheck(t, strings.Contains(res.body, `"files"`), "Model should contain 'files' resource")
+	XCheck(t, !strings.Contains(res.body, `"foos"`), "Model should NOT contain 'foos' group yet")
+
+	// PATCH with completely different model (foos) - should replace, not merge
+	// epoch: PATCH /=3
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "foos": {
+        "singular": "foo"
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourcePatchReplacement",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`)
+
+	// Verify: dirs is GONE from model, only foos remains
+	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, !strings.Contains(res.body, `"dirs"`), "Model should NOT contain 'dirs' group anymore")
+	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
+	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")
+
+	// ---- Test 2: PATCH reuses group, adds new resource ----
+	// Reset: Start with dirs/files
+	// epoch: PUT /modelsource=4
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}
+`)
+
+	// PATCH with dirs/files AND dirs/data - should have both
+	// epoch: PATCH /=5
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          },
+          "data": {
+            "singular": "datum"
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourcePatchReplacement",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+	// Verify: dirs now has BOTH files and data in the model
+	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
+	XCheck(t, strings.Contains(res.body, `"files"`), "Model should contain 'files' resource")
+	XCheck(t, strings.Contains(res.body, `"data"`), "Model should contain 'data' resource")
+
+	// ---- Test 3: PATCH reuses group, replaces all resources ----
+	// PATCH with dirs/data only (no files) - files should be gone
+	// epoch: PATCH /=6
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "data": {
+            "singular": "datum"
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourcePatchReplacement",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 6,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+	// Verify: files is GONE from model, only data remains
+	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
+	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
+	XCheck(t, strings.Contains(res.body, `"data"`), "Model should contain 'data' resource")
+
+	// ---- Test 4: PATCH removes all resources from group ----
+	// PATCH with dirs but no resources
+	// epoch: PATCH /=7
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir"
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourcePatchReplacement",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+	// Verify: dirs exists but has NO resources in the model
+	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, strings.Contains(res.body, `"dirs"`), "Model should contain 'dirs' group")
+	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource")
+	XCheck(t, !strings.Contains(res.body, `"data"`), "Model should NOT contain 'data' resource")
+
+	// ---- Test 5: PATCH removes entire group ----
+	// Start with dirs AND foos
+	// epoch: PUT /modelsource=8
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "foos": {
+      "singular": "foo"
+    }
+  }
+}`, 200, `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "foos": {
+      "singular": "foo"
+    }
+  }
+}
+`)
+
+	// PATCH with only foos (no dirs) - dirs should be gone
+	// epoch: PATCH /=9
+	XHTTP(t, reg, "PATCH", "/", `{
+  "modelsource": {
+    "groups": {
+      "foos": {
+        "singular": "foo"
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestModelSourcePatchReplacement",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "foosurl": "http://localhost:8181/foos",
+  "fooscount": 0
+}
+`)
+
+	// Verify: dirs is GONE from model, only foos remains
+	res = XDoHTTP(t, reg, "GET", "/?inline=model", "")
+	XCheck(t, res.StatusCode == 200, "Expected 200, got %d", res.StatusCode)
+	XCheck(t, !strings.Contains(res.body, `"dirs"`), "Model should NOT contain 'dirs' group anymore")
+	XCheck(t, !strings.Contains(res.body, `"files"`), "Model should NOT contain 'files' resource anymore")
+	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")
 }
