@@ -4150,3 +4150,512 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
 }
 `)
 }
+
+func TestCapabilityWildcard(t *testing.T) {
+	reg := NewRegistry("TestCapabilityWildcard")
+	defer PassDeleteReg(t, reg)
+
+	// Enable capabilities so we can test them
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	reg.Capabilities.SetAvailable("capabilities", true)
+	XNoErr(t, reg.SaveCapabilities())
+
+	// Test 1: Using "*" for flags should expand to all available flags
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "flags": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify the flags are actually set
+	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 2: Using "*" with other values should fail for flags
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "flags": ["*", "inline"]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"flags\" includes a value of \"*\" then no other values are allowed.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "flags"
+  },
+  "source": ":common:capabilities:*"
+}
+`)
+
+	// Test 3: Using "*" for ignores should expand to all available ignores
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "ignores": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 4: Using "*" with other values should fail for ignores
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "ignores": ["epoch", "*"]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"ignores\" includes a value of \"*\" then no other values are allowed.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "ignores"
+  },
+  "source": ":common:capabilities:*"
+}
+`)
+
+	// Test 5: Using "*" for formats should expand to all available formats
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "formats": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 6: Using "*" with other values should fail for formats
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "formats": ["*", "numbers"]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"formats\" includes a value of \"*\" then no other values are allowed.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "formats"
+  },
+  "source": ":common:capabilities:*"
+}
+`)
+
+	// Test 7: Using "*" for versionmodes should expand to all available versionmodes
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "versionmodes": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+
+	// Test 8: Using "*" with other values should fail for versionmodes
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "versionmodes": ["manual", "*"]
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"versionmodes\" includes a value of \"*\" then no other values are allowed.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "versionmodes"
+  },
+  "source": ":common:capabilities:*"
+}
+`)
+
+	// Test 9: Using "*" for compatibilities for a specific format
+	// First, enable the format
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "formats": ["avro*"],
+  "compatibilities": {
+    "avro*": ["*"]
+  }
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [],
+  "formats": [
+    "avro*"
+  ],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 10: Using "*" with other values should fail for compatibilities
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "formats": ["avro*"],
+  "compatibilities": {
+    "avro*": ["*", "backward"]
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_wildcard",
+  "title": "When \"compatibilities[avro*]\" includes a value of \"*\" then no other values are allowed.",
+  "subject": "/capabilities",
+  "args": {
+    "field": "compatibilities[avro*]"
+  },
+  "source": ":common:capabilities:*"
+}
+`)
+
+	// Test 11: PATCH with wildcard should also work
+	XHTTP(t, reg, "PATCH", "/capabilities", `{
+  "flags": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*"
+  ],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 12: PATCH via root with wildcard
+	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
+  "capabilities": {
+    "ignores": ["*"]
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestCapabilityWildcard",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
+    "formats": [
+      "avro*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "`+SPECVERSION+`"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  }
+}
+`)
+
+	// Test 13: Multiple wildcards in one call (should all expand)
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true}
+  },
+  "flags": ["*"],
+  "ignores": ["*"],
+  "formats": ["*"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+}
