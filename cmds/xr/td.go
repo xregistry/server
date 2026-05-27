@@ -391,10 +391,36 @@ func (td *TD) MustEqual(exp any, got any, args ...any) {
 	if expJSON != gotJSON {
 		td.Log("Exp(%T): %s", exp, expJSON)
 		td.Log("Got(%T): %s", got, gotJSON)
+		td.Log("Diff(exp/got): %s", diff(expJSON, gotJSON))
 		td.Fail(args...)
 		return
 	}
 	td.Pass(args...)
+}
+
+func diff(exp string, got string) string {
+	expPos, gotPos := 0, 0
+	expLen, gotLen := len(exp), len(got)
+
+	for {
+		if expPos == expLen && gotPos == gotLen {
+			return ""
+		}
+		if expPos == expLen && gotPos < gotLen {
+			return fmt.Sprintf("Exp ended early. Remaining Got: %.20s",
+				got[gotPos:])
+		}
+		if expPos < expLen && gotPos == gotLen {
+			return fmt.Sprintf("Got ended early. Remaining Exp: %.20s",
+				exp[expPos:])
+		}
+		if exp[expPos] != got[gotPos] {
+			return fmt.Sprintf("(pos: %d) '%.15s' vs '%.15s'",
+				expPos, exp[expPos:], got[gotPos:])
+		}
+		expPos++
+		gotPos++
+	}
 }
 
 func (td *TD) MustNotEqual(exp any, got any, args ...any) {
@@ -407,12 +433,12 @@ func (td *TD) MustNotEqual(exp any, got any, args ...any) {
 	td.Pass(args...)
 }
 
-func (td *TD) GetObjProp(obj map[string]any, prop string) (any, bool, error) {
+func (td *TD) GetObjProp(obj map[string]any, prop string) (any, bool) {
 	pp, err := PropPathFromUI(prop)
-	if err != nil {
-		td.FailNow("Error in test prep: %s(%s)", prop, err)
-	}
-	return ObjectGetProp(obj, pp)
+	PanicIf(err != nil, "Error in test prop: %s(%s)", prop, err)
+	val, ok, err := ObjectGetProp(obj, pp)
+	PanicIf(err != nil, "Error in test prop: %s(%s)", prop, err)
+	return val, ok
 }
 
 func (td *TD) NoError(errAny any, args ...any) {

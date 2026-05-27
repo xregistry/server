@@ -1790,6 +1790,7 @@ func TestXRConformBasic(t *testing.T) {
 	os.Setenv("XR_SERVER", "localhost:8181")
 
 	// Make sure the minimumal looks ok
+	// Also verifies the default Registry is conformant
 	XCLI(t, "conform -d2", "", `PASS: http://localhost:8181
 └─ PASS: TestRegistry
 
