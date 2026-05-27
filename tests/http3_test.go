@@ -3002,14 +3002,13 @@ func TestHTTPIgnore(t *testing.T) {
 
 	// Make sure things will fails w/o ?ignore
 	XHTTP(t, reg, "PATCH", "/", `{"capabilities": 123}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"capabilities\" for \"/\" is not valid: must be a map[string] or object.",
-  "subject": "/",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_error",
+  "title": "There was an error in the capabilities provided: error parsing data: path '': expected \"struct\", got \"number\".",
+  "subject": "/capabilities",
   "args": {
-    "error_detail": "must be a map[string] or object",
-    "name": "capabilities"
+    "error_detail": "error parsing data: path '': expected \"struct\", got \"number\""
   },
-  "source": ":registry:entity:1987"
+  "source": "49e8ae95bbff:common:capabilities:458"
 }
 `)
 	XHTTP(t, reg, "PATCH", "/", `{"modelsource": 123}`, 400, `{

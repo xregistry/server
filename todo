@@ -95,8 +95,6 @@ TODOs:
 - test/support "target" using `/GROUPS/RESOURCES[/versions]` - meaning it
   can point to a resource or a version
 ** support and test "versionmode"
-- clean-up the patch/merging of capabilities, logic isn't clean/optimal
-** support patch / + capabilities - does patching of capabilities
 ** support "xr model group/resource create/update" with "--data"
 ** make sure that * can appear in any string capability
 ** add support for setversionid, and flag an error when not allowed

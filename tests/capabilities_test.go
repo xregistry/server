@@ -2558,17 +2558,87 @@ func TestCapabilityPatch(t *testing.T) {
 
   "capabilities": {
     "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
       "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
         "mutable": true
       }
     },
-    "compatibilities": {},
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
     "flags": [
       "filter",
       "inline"
     ],
-    "formats": [],
-    "ignores": [],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
     "pagination": false,
     "shortself": false,
     "specversions": [
@@ -2576,6 +2646,7 @@ func TestCapabilityPatch(t *testing.T) {
     ],
     "stickyversions": true,
     "versionmodes": [
+      "createdat",
       "manual"
     ]
   }
@@ -2613,4 +2684,1469 @@ func TestCapabilityPost(t *testing.T) {
 }
 `)
 
+}
+
+// TestCapabilityPatchRootSemantics verifies that PATCH / with capabilities
+// only updates specified top-level capabilities and preserves others
+func TestCapabilityPatchRootSemantics(t *testing.T) {
+	reg := NewRegistry("TestCapabilityPatchRootSemantics")
+	defer PassDeleteReg(t, reg)
+
+	// Step 1: Verify initial state has full capabilities
+	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+
+	// Step 2: PATCH / with only flags - should preserve all other capabilities
+	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
+  "capabilities": {
+    "flags": ["inline"]
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestCapabilityPatchRootSemantics",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": [
+      "inline"
+    ],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "`+SPECVERSION+`"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
+  }
+}
+`)
+
+	// Step 3: PATCH / with multiple capabilities - should preserve others
+	XHTTP(t, reg, "PATCH", "/", `{
+  "capabilities": {
+    "stickyversions": false,
+    "shortself": false
+  }
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityPatchRootSemantics",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2026-05-26T19:44:40.224959792Z",
+  "modifiedat": "2026-05-26T19:44:40.253314591Z"
+}
+`)
+
+	// Verify flags is still ["inline"] and other capabilities preserved
+	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "inline"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+}
+
+// TestPutRootCapabilitiesSemantics verifies that PUT / with capabilities
+// does complete replacement of all capabilities
+func TestCapabilityPutRootSemantics(t *testing.T) {
+	reg := NewRegistry("TestCapabilityPutRootSemantics")
+	defer PassDeleteReg(t, reg)
+
+	// Step 1: PUT / with minimal capabilities - should replace all
+	XHTTP(t, reg, "PUT", "/?inline=capabilities", `{
+  "registryid": "TestCapabilityPutRootSemantics",
+  "capabilities": {
+    "available": {
+      "capabilities": {"mutable": true},
+      "entities": {"mutable": true}
+    },
+    "flags": ["inline"],
+    "specversions": ["`+SPECVERSION+`"]
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestCapabilityPutRootSemantics",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "entities": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {},
+    "flags": [
+      "inline"
+    ],
+    "formats": [],
+    "ignores": [],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "`+SPECVERSION+`"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "manual"
+    ]
+  }
+}
+`)
+
+	// Verify missing capabilities got defaults (empty arrays/maps, false for booleans)
+	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+}
+
+// TestCapabilityPatchRootVsPatch verifies that PATCH / and PATCH /capabilities
+// have identical behavior for updating capabilities
+func TestCapabilityPatchRootVsPatch(t *testing.T) {
+	// Test with PATCH /capabilities
+	reg1 := NewRegistry("TestCapabilityPatchRootVsPatch")
+	defer PassDeleteReg(t, reg1)
+
+	XHTTP(t, reg1, "PATCH", "/capabilities", `{
+  "flags": ["inline"],
+  "stickyversions": false
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "inline"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+
+	// Verify result has flags=["inline"], stickyversions=false, and all
+	// other caps preserved
+	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "inline"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+
+	// Test with PATCH / with capabilities - should produce identical result
+	reg2 := NewRegistry("TestCapabilityPatchRootVsPatch2")
+	defer PassDeleteReg(t, reg2)
+
+	XHTTP(t, reg2, "PATCH", "/", `{
+  "capabilities": {
+    "flags": ["inline"],
+    "stickyversions": false
+  }
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityPatchRootVsPatch2",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-05-26T19:45:48.473861802Z",
+  "modifiedat": "2026-05-26T19:45:48.482776936Z"
+}
+`)
+
+	// Verify result has flags=["inline"], stickyversions=false, and all
+	// other caps preserved
+	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "inline"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": false,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+}
+
+// TestCapabilityNullHandling verifies that null value correctly resets
+// capabilities to defaults in both PATCH and PUT scenarios
+func TestCapabilityNullHandling(t *testing.T) {
+	// Test 1: PATCH / with null resets to defaults
+	reg1 := NewRegistry("TestCapabilityNullHandling1")
+	defer PassDeleteReg(t, reg1)
+
+	// Step 1: Reduce capabilities
+	XHTTP(t, reg1, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true},
+    "entities": {"mutable": true}
+  },
+  "flags": ["inline"],
+  "specversions": ["`+SPECVERSION+`"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify reduced state
+	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Step 2: Reset with null using PATCH /
+	XHTTP(t, reg1, "PATCH", "/?inline=capabilities", `{
+  "capabilities": null
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityNullHandling1",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": true
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": true
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": true
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": [
+      "binary",
+      "collections",
+      "doc",
+      "epoch",
+      "filter",
+      "ignore",
+      "inline",
+      "setdefaultversionid",
+      "sort",
+      "specversion"
+    ],
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc2"
+    ],
+    "stickyversions": true,
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
+  }
+}
+`)
+
+	// Should be back to default full capabilities
+	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+
+	// Test 2: PUT / with null also resets to defaults
+	reg2 := NewRegistry("TestCapabilityNullHandling2")
+	defer PassDeleteReg(t, reg2)
+
+	// Step 1: Reduce capabilities
+	XHTTP(t, reg2, "PUT", "/capabilities", `{
+  "available": {
+    "capabilities": {"mutable": true},
+    "entities": {"mutable": true}
+  },
+  "flags": ["filter"],
+  "specversions": ["`+SPECVERSION+`"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify reduced state
+	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Step 2: Reset with null using PUT /
+	XHTTP(t, reg2, "PUT", "/", `{
+  "registryid": "TestCapabilityNullHandling2",
+  "capabilities": null
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityNullHandling2",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+
+	// Should be back to default full capabilities
+	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "capabilitiesoffered": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": true
+    },
+    "export": {
+      "mutable": false
+    },
+    "model": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {
+    "avro*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "jsonschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "numbers": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "protobuf*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
+    "xmlschema*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ]
+  },
+  "flags": [
+    "binary",
+    "collections",
+    "doc",
+    "epoch",
+    "filter",
+    "ignore",
+    "inline",
+    "setdefaultversionid",
+    "sort",
+    "specversion"
+  ],
+  "formats": [
+    "avro*",
+    "jsonschema*",
+    "numbers",
+    "protobuf*",
+    "xmlschema*"
+  ],
+  "ignores": [
+    "capabilities",
+    "defaultversionid",
+    "defaultversionsticky",
+    "epoch",
+    "id",
+    "modelsource",
+    "readonly"
+  ],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "createdat",
+    "manual"
+  ]
+}
+`)
+}
+
+// TestCapabilityPatchIndividualNull verifies that PATCH operations with
+// individual capability properties set to null correctly reset those
+// properties to defaults per spec (core/http.md lines 603-608)
+func TestCapabilityPatchIndividualNull(t *testing.T) {
+	// Test 1: PATCH /capabilities with individual null properties
+	reg1 := NewRegistry("TestCapabilityPatchIndividualNull1")
+	defer PassDeleteReg(t, reg1)
+
+	// Step 1: Set some custom values
+	XHTTP(t, reg1, "PUT", "/capabilities", `{
+  "available": {"capabilities": {"mutable": true}, "entities": {"mutable": true}},
+  "flags": ["filter", "inline"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter",
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify custom values are set
+	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter",
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Step 2: PATCH /capabilities setting all properties to null except available
+	XHTTP(t, reg1, "PATCH", "/capabilities", `{
+  "compatibilities": null,
+  "flags": null,
+  "formats": null,
+  "ignores": null,
+  "pagination": null,
+  "shortself": null,
+  "specversions": null,
+  "stickyversions": null,
+  "versionmodes": null
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify all properties reset to defaults
+	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test 2: PATCH / with individual null properties in capabilities
+	reg2 := NewRegistry("TestCapabilityPatchIndividualNull2")
+	defer PassDeleteReg(t, reg2)
+
+	// Step 1: Set some custom values using PUT /
+	XHTTP(t, reg2, "PUT", "/capabilities", `{
+  "available": {"capabilities": {"mutable": true}, "entities": {"mutable": true}},
+  "flags": ["filter", "inline"]
+}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter",
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Verify custom values
+	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [
+    "filter",
+    "inline"
+  ],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Step 2: PATCH / with individual null properties in capabilities
+	XHTTP(t, reg2, "PATCH", "/", `{
+  "capabilities": {
+    "compatibilities": null,
+    "flags": null,
+    "formats": null,
+    "ignores": null,
+    "pagination": null,
+    "shortself": null,
+    "specversions": null,
+    "stickyversions": null,
+    "versionmodes": null
+  }
+}`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestCapabilityPatchIndividualNull2",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z"
+}
+`)
+
+	// Verify all properties reset to defaults
+	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "1.0-rc2"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
 }

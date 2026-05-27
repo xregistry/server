@@ -1048,8 +1048,6 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 	// updates to the capabilities (pre tx)
 	cap := info.Registry.Capabilities
 
-	newObj := map[string]any{}
-
 	if newCap, ok := obj["capabilities"]; ok {
 		delete(obj, "capabilities")
 		changed = true
@@ -1058,7 +1056,60 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 			!cap.IgnoresEnabled("capabilities") ||
 			!ArrayContains(ignores, "capabilities") {
 
-			newObj["capabilities"] = newCap
+			// Handle PATCH vs PUT semantics for capabilities
+			// Per spec (core/http.md lines 603-608):
+			// - PATCH: only update specified top-level capabilities
+			// - PUT: complete replacement of all capabilities
+			var capToUpdate any
+			if method == "PATCH" {
+				// For PATCH: merge with current capabilities (top-level only)
+				tmp := map[string]any{}
+				tmpJSON, _ := json.Marshal(info.Registry.Capabilities)
+				Must(Unmarshal(tmpJSON, &tmp))
+
+				// Override with new values
+				if newCapMap, ok := newCap.(map[string]any); ok {
+					for k, v := range newCapMap {
+						tmp[k] = v
+					}
+					capToUpdate = tmp
+				} else {
+					// If newCap is nil, use as-is (will reset to defaults)
+					capToUpdate = newCap
+				}
+			} else {
+				// For PUT: use as-is (complete replacement)
+				capToUpdate = newCap
+			}
+
+			// Parse and validate the capabilities
+			var newCapabilities *Capabilities
+			var xErr *XRError
+
+			if !IsNil(capToUpdate) {
+				valStr := ToJSON(capToUpdate)
+				newCapabilities, xErr = ParseCapabilities([]byte(valStr))
+				if xErr != nil {
+					return xErr
+				}
+			} else {
+				// NULL capabilities - reset to defaults per spec
+				newCapabilities = DefaultCapabilities.Clone()
+			}
+
+			if xErr = newCapabilities.Validate(); xErr != nil {
+				return xErr
+			}
+
+			// Set capabilities directly (like HTTPPUTCapabilities does)
+			xErr = info.Registry.SetSave("#capabilities",
+				ToJSON(newCapabilities))
+			if xErr != nil {
+				return xErr
+			}
+
+			// Update the in-memory capabilities
+			info.Registry.Capabilities = newCapabilities
 		}
 	}
 
@@ -1111,11 +1162,8 @@ func (info *RequestInfo) ProcessCapabilitiesModelSource() *XRError {
 		}
 	}
 
-	if len(newObj) > 0 {
-		if xErr := info.Registry.Update(newObj, ADD_PATCH); xErr != nil {
-			return xErr
-		}
-	}
+	// No need to call Registry.Update for capabilities - we handled it directly above
+	// This avoids confusion about ADD_PATCH semantics at the Registry level
 
 	if changed {
 		info.Body = []byte(ToJSON(obj))
