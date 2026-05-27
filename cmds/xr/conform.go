@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -27,15 +28,28 @@ func conformFunc(cmd *cobra.Command, args []string) {
 	td := NewTD(GetServer())
 	td.SetRegistry(reg)
 
-	FailFast = false
-	td.Run(TestRegistry)
+	FailFast, _ = cmd.Flags().GetBool("failfast")
+
+	runFunc, _ := cmd.Flags().GetString("run")
+	if runFunc == "" {
+		td.Run(TestRegistry)
+	} else {
+		funcs := map[string]TestFn{
+			"TestTDAllPass": TestTDAllPass,
+			"TestTDDepFail": TestTDDepFail,
+			"TestTDMixture": TestTDMixture,
+		}
+		fn := funcs[runFunc]
+		if fn == nil {
+			panic(fmt.Sprintf("No function by name: %s", runFunc))
+		}
+		td.Run(fn)
+	}
 
 	// td.Dump("")
-	if depth <= 0 { // == 0 || depth == -1 {
+	if depth <= 0 {
 		// Can't actually do zero, so zero = -1 (all)
 		depth = 9999999
-	} else {
-		// depth = depth + 1
 	}
 	td.Print(os.Stdout, "", ShowLogs, depth-1)
 
@@ -55,149 +69,73 @@ func addConformCmd(parent *cobra.Command) {
 		"Show logs even on success")
 	conformCmd.Flags().IntVarP(&depth, "depth", "d", depth, "Console depth")
 	conformCmd.Flags().BoolVarP(&tdDebug, "tdDebug", "t", tdDebug, "td debug")
+	conformCmd.Flags().Bool("failfast", false, "stop on first failure")
+	conformCmd.Flags().StringP("run", "r", "", "run function")
+
+	conformCmd.Flags().MarkHidden("run")
+	conformCmd.Flags().MarkHidden("tdDebug")
 
 	parent.AddCommand(conformCmd)
 }
 
-/*
-type JSON map[string]any
-
-func GetStack() []string {
-	stack := []string{}
-
-	for i := 1; i < 20; i++ {
-		pc, file, line, _ := runtime.Caller(i)
-		if line == 0 {
-			break
-		}
-		stack = append(stack,
-			fmt.Sprintf("%s - %s:%d",
-				path.Base(runtime.FuncForPC(pc).Name()), path.Base(file), line))
-		if strings.Contains(file, "main") || strings.Contains(file, "testing") {
-			break
-		}
-	}
-	return stack
+func TestTDAllPass(td *TD) {
+	td.DependsOn(TestTDInit)
+	td.Run(TestTDSimple1)
+	td.Pass("Local passing test")
+	td.Run(TestTDLevel2)
+	td.Run(TestTDLevel3) // dup, should be called in level2
+	td.Run(TestTDInit)
+	td.Run(TestTDLevel2a)
 }
 
-func ShowStack() {
-	stack := GetStack()
-	fmt.Println("----- Stack")
-	for _, line := range stack {
-		fmt.Println(line)
-	}
+func TestTDDepFail(td *TD) {
+	td.DependsOn(TestTDInitFail)
+	td.Run(TestTDSimple1)
 }
 
-func ToJSON(obj interface{}) string {
-	buf, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		panic(fmt.Sprintf("Error Marshaling: %s", err))
-	}
-	return string(buf)
-}
-*/
-
-/*
-func (j *JSON) JPath(path string) any {
-	tokens, err := TokenizeJPath(path)
-	if err != nil {
-		panic(fmt.Sprintf("Bad jpath: %q, %s", path, err))
-	}
-	if len(tokens) == 0 {
-		return nil
-	}
-	return nil
-}
-*/
-
-const (
-	NAME        = iota + 1
-	ROOT        // $
-	THIS        // @
-	CHILD       // .
-	DESCENDANTS // ..
-	WILDCARD    // *
-	AARRAY      // []
-	NUM         // 0-9
-)
-
-type Token struct {
-	kind  int
-	value string
+func TestTDMixture(td *TD) {
+	td.DependsOn(TestTDInit)
+	td.Run(TestTDSimple1)
+	td.Fail("Local fail test")
+	td.Run(TestTDSimpleFail)
+	td.Run(TestTDSimpleSkip)
+	td.Run(TestTDSimpleWarn)
+	td.Run(TestTDLevel2Fail)
+	td.Skip("Top-level-skip")
+	td.Run(TestTDLevel23Skip)
+	td.Run(TestTDLevel23Fail)
 }
 
-/*
-func TokenizeJPath(path string) ([]*Token, error) {
-	word := ""
-	tokens := []Token(nil)
+func TestTDInit(td *TD)       { td.Pass("Init") }
+func TestTDInitFail(td *TD)   { td.Fail("Init") }
+func TestTDSimple1(td *TD)    { td.Pass("Simple1") }
+func TestTDSimpleFail(td *TD) { td.Fail("SimpleFail") }
+func TestTDSimpleSkip(td *TD) { td.Skip("SimpleSkip") }
+func TestTDSimpleWarn(td *TD) { td.Warn("SimpleWarn") }
 
-	CalcGroup := func(ch byte) int {
-		switch ch {
-		case '.':
-			return 0
-		case '@':
-			return 1
-		case '$':
-			return 2
-		case '[':
-			return 3
-		case ']':
-			return 4
-		case '*':
-			return 5
-		case '\'':
-			return 6
-		}
-		if ch >= '0' && ch <= '9' {
-			return 7
-		}
-		if (ch == '_') || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
-			return 8
-		}
-		panic("what?" + string(ch))
-	}
-
-	// actionS + nextState
-	// 1:bldWord, 2:endWord, 3:startQuote, 4:endQuote, 5:endRoot, 6:endThis
-	// 7:endChild, 8:endDesc, 9: endWild, A:endArray, B: end
-	//    .   @   $   [   ]   *  '   09  _az
-	stateTable := [][]int{
-		{}, // Just so we don't use 0
-		{0, 0},
-	}
-
-	state := 1
-	for i := 0; i < len(path); i++ {
-		ch := path[i]
-		actions := stateTable[state][CalcGroup(ch)]
-		state = actions % 10
-
-		for actions = actions / 10; actions != 0; actions = actions / 10 {
-			switch actions % 10 {
-			case 1:
-				word += string(ch)
-			case 2:
-				tokens = append(tokens, &Token{NAME, word})
-				word = ""
-			case 3: //
-			case 4:
-				word += string(ch)
-			case 5:
-				tokens = append(tokens, &Token{NAME, word})
-				word = ""
-			case 6:
-				word += string(ch)
-			case 7:
-				tokens = append(tokens, &Token{NUM, word})
-				word = ""
-			}
-		}
-	}
-	DESCENDANTS // ..
-	WILDCARD    // *
-	AARRAY       // []
-	NUM         // 0-9
-
-	return tokens, nil
+func TestTDLevel2(td *TD) { td.Run(TestTDLevel3) }
+func TestTDLevel3(td *TD) {
+	td.DependsOn(TestTDInit)
+	td.Pass("Level3")
 }
-*/
+
+func TestTDLevel3Fail(td *TD) { td.Fail("Level3Fail") }
+
+func TestTDLevel23Skip(td *TD) {
+	td.DependsOn(TestTDLevel3Skip)
+	td.Pass("Level23Skip-2PASS")
+}
+
+func TestTDLevel3Skip(td *TD) { td.Skip("Level3skip") }
+
+func TestTDLevel2Fail(td *TD) {
+	td.Run(TestTDLevel3)
+	td.Pass("Level2Fail")
+}
+
+func TestTDLevel23Fail(td *TD) {
+	td.Run(TestTDLevel3Fail)
+	td.Pass("Level2Pass")
+}
+
+func TestTDLevel2a(td *TD) { td.Pass("Level2a") }

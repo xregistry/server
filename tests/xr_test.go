@@ -1782,3 +1782,92 @@ header.bar2: foo2`
 2026/05/19 18:01:50 --------------------
 `, true, MASK_LOGS)
 }
+
+func TestXRConformBasic(t *testing.T) {
+	reg := NewRegistry("TestXRConformBasic")
+	defer PassDeleteReg(t, reg)
+
+	os.Setenv("XR_SERVER", "localhost:8181")
+
+	// Make sure the minimumal looks ok
+	XCLI(t, "conform -d2", "", `PASS: http://localhost:8181
+└─ PASS: TestRegistry
+
+Pass: 99   Fail: 0   Warn: 0   Skip: 0
+`, ``, true, MASK_CONFORM_PASS)
+
+	XCLI(t, "conform --run TestTDAllPass", "", `PASS: http://localhost:8181
+└─ PASS: TestTDAllPass
+   ├─ PASS: TestTDInit
+   │  └─ PASS: Init
+   ├─ PASS: TestTDSimple1
+   │  └─ PASS: Simple1
+   ├─ PASS: Local passing test
+   ├─ PASS: TestTDLevel2
+   │  └─ PASS: TestTDLevel3
+   │     ├─ PASS: TestTDInit - Dependency (cached)
+   │     └─ PASS: Level3
+   ├─ PASS: TestTDLevel3
+   │  ├─ PASS: TestTDInit - Dependency (cached)
+   │  └─ PASS: Level3
+   ├─ PASS: TestTDInit
+   │  └─ PASS: Init
+   └─ PASS: TestTDLevel2a
+      └─ PASS: Level2a
+
+Pass: 18   Fail: 0   Warn: 0   Skip: 0
+`, ``, true)
+
+	XCLI(t, "conform --run TestTDDepFail", "", `FAIL: http://localhost:8181
+└─ FAIL: TestTDDepFail
+   ├─ FAIL: TestTDInitFail
+   │  └─ FAIL: Init
+   └─ Dependency "TestTDInitFail" failed, exiting
+
+Pass: 0   Fail: 4   Warn: 0   Skip: 0
+`, ``, false)
+
+	XCLI(t, "conform --run TestTDMixture", "", `FAIL: http://localhost:8181
+└─ FAIL: TestTDMixture
+   ├─ PASS: TestTDInit
+   │  └─ PASS: Init
+   ├─ PASS: TestTDSimple1
+   │  └─ PASS: Simple1
+   ├─ FAIL: Local fail test
+   ├─ FAIL: TestTDSimpleFail
+   │  └─ FAIL: SimpleFail
+   ├─ SKIP: TestTDSimpleSkip
+   │  └─ SKIP: SimpleSkip
+   ├─ WARN: TestTDSimpleWarn
+   │  └─ WARN: SimpleWarn
+   ├─ PASS: TestTDLevel2Fail
+   │  ├─ PASS: TestTDLevel3
+   │  │  ├─ PASS: TestTDInit - Dependency (cached)
+   │  │  └─ PASS: Level3
+   │  └─ PASS: Level2Fail
+   ├─ SKIP: Top-level-skip
+   ├─ SKIP: TestTDLevel23Skip
+   │  ├─ SKIP: TestTDLevel3Skip
+   │  │  └─ SKIP: Level3skip
+   │  └─ PASS: Level23Skip-2PASS
+   └─ FAIL: TestTDLevel23Fail
+      ├─ FAIL: TestTDLevel3Fail
+      │  └─ FAIL: Level3Fail
+      └─ PASS: Level2Pass
+
+Pass: 11   Fail: 8   Warn: 2   Skip: 6
+`, ``, false)
+
+	XCLI(t, "conform --run TestTDMixture --failfast", "",
+		`FAIL: http://localhost:8181
+└─ FAIL: TestTDMixture
+   ├─ PASS: TestTDInit
+   │  └─ PASS: Init
+   ├─ PASS: TestTDSimple1
+   │  └─ PASS: Simple1
+   └─ FAIL: Local fail test
+
+Pass: 4   Fail: 3   Warn: 0   Skip: 0
+`, ``, false)
+
+}

@@ -14,6 +14,7 @@ var NOMASK_TS = "NoMaskTS"
 var MASK_SERVER = "MaskServer"
 var MASK_LOGS = "MaskLogs"
 var NOMASK_INSTANCE = "NoMaskInstance"
+var MASK_CONFORM_PASS = "MaskConformPass"
 
 var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
@@ -21,14 +22,16 @@ var REG_TSSLASH = `\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}`
 var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
 var REG_DBHOST = `DB server: .*`
 var REG_INSTANCE = `"source": "[^"]*"`
+var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
 
 var SavedREs = map[string]*regexp.Regexp{
-	REG_LOGDATE:  regexp.MustCompile(REG_LOGDATE),
-	REG_RFC3339:  regexp.MustCompile(REG_RFC3339),
-	REG_TSSLASH:  regexp.MustCompile(REG_TSSLASH),
-	REG_COMMIT:   regexp.MustCompile(REG_COMMIT),
-	REG_DBHOST:   regexp.MustCompile(REG_DBHOST),
-	REG_INSTANCE: regexp.MustCompile(REG_INSTANCE),
+	REG_LOGDATE:           regexp.MustCompile(REG_LOGDATE),
+	REG_RFC3339:           regexp.MustCompile(REG_RFC3339),
+	REG_TSSLASH:           regexp.MustCompile(REG_TSSLASH),
+	REG_COMMIT:            regexp.MustCompile(REG_COMMIT),
+	REG_DBHOST:            regexp.MustCompile(REG_DBHOST),
+	REG_INSTANCE:          regexp.MustCompile(REG_INSTANCE),
+	REG_MASK_CONFORM_PASS: regexp.MustCompile(REG_MASK_CONFORM_PASS),
 }
 
 // Mask timestamps, but if (for the same input) the same TS is used, make sure
@@ -85,6 +88,11 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	flagsMap := map[string]bool{}
 	for _, f := range flags {
 		flagsMap[f] = true
+	}
+
+	if flagsMap[MASK_CONFORM_PASS] {
+		got = SavedREs[REG_MASK_CONFORM_PASS].ReplaceAllString(got, "Pass: xx")
+		exp = SavedREs[REG_MASK_CONFORM_PASS].ReplaceAllString(exp, "Pass: xx")
 	}
 
 	// See if they asked us to NOT mask timestamps

@@ -21,8 +21,6 @@ var MSG = 6 // Like LOG but will always be printed
 
 var StatusText = []string{"", "PASS", "FAIL", "WARN", "SKIP", "LOG", "MSG"}
 
-var ConsoleDepth = -1
-var LogfileDepth = -1
 var FailFast = false
 var IgnoreWarn = true
 var TestsRun = map[string]*TD{}
@@ -180,20 +178,22 @@ func (td *TD) writeBody(out io.Writer, indent string, showLogs bool, depth int) 
 	// I can't remember why I wanted to skip the trailing LOG messages, so
 	// for now just comment it out but keep it
 	/*
-		if showLogs == false {
-			for ; lastLog > 0; lastLog-- {
-				log := td.Logs[lastLog]
-				if log.Type == LOG {
-					Debug(out, "%s  dropping  le:%s", indent, log.Text)
-					continue
-				}
+				if showLogs == false {
+					for ; lastLog > 0; lastLog-- {
+						log := td.Logs[lastLog]
+						if log.Type == LOG {
+							Debug(out, "%s  dropping  le:%s", indent, log.Text)
+							continue
+						}
 
-				if (log.Type == FAIL || (log.Subtest != nil && log.Subtest.Status == FAIL)) || depth > 0 {
-					break
+						if (log.Type == FAIL ||
+		                (log.Subtest != nil && log.Subtest.Status == FAIL)) ||
+		                depth > 0 {
+							break
+						}
+						Debug(out, "%s  dropping  le:%s", indent, log.Text)
+					}
 				}
-				Debug(out, "%s  dropping  le:%s", indent, log.Text)
-			}
-		}
 	*/
 	Debug(out, "%sLL:%d len:%d depth:%d", indent, lastLog, len(td.Logs), depth)
 

@@ -21,10 +21,10 @@ xr conform
       --config string   Config file ($HOME/.xrconfig)
   -d, --depth int       Console depth
       --errjson         Print errors as json
+      --failfast        stop on first failure
   -?, --help            Help for xr
   -l, --logs            Show logs even on success
   -s, --server string   xRegistry server URL
-  -t, --tdDebug         td debug
   -v, --verbose         Be chatty
       --version         Print command version string
 
