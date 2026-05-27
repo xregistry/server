@@ -154,13 +154,29 @@ func (td *TD) writeHeader(out io.Writer, indent string, showLogs bool, depth int
 	if depth >= 0 || td.Status == FAIL {
 		str := indent + StatusText[td.Status] + ": "
 
-		if tdDebug {
-			td.TestName += fmt.Sprintf(" (hd: %d", depth)
-		}
-		out.Write([]byte(str + td.TestName + "\n"))
+		str += td.TestName
 
-		// Debug(out,"%s%s %d/%d/%d/%d",
-		// str, td.TestName, td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
+		if td.NumSkip > 0 || td.NumWarn > 0 {
+			str += " ("
+			if td.NumSkip > 0 {
+				str += fmt.Sprintf("skip:%d", td.NumSkip)
+			}
+			if td.NumWarn > 0 {
+				if td.NumSkip > 0 {
+					str += ","
+				}
+				str += fmt.Sprintf("warn:%d", td.NumWarn)
+			}
+			str += ")"
+		}
+
+		if tdDebug {
+			str += fmt.Sprintf(" (hd: %d", depth)
+		}
+		out.Write([]byte(str + "\n"))
+
+		// Debug(out,"%s %d/%d/%d/%d",
+		// str, td.NumPass, td.NumFail, td.NumWarn, td.NumSkip)
 	}
 }
 
@@ -243,24 +259,13 @@ func (td *TD) AddStatus(status int) {
 		fmt.Printf(" ( %d / %d / %d / %d\n", td.NumPass, td.NumFail,
 		td.NumWarn, td.NumSkip)
 	*/
-	switch td.Status {
-	case 0, PASS:
-		td.Status = status
-	case WARN:
-		switch status {
-		case FAIL:
-			td.Status = status
-		}
-	case SKIP:
-		switch status {
-		case FAIL:
-			td.Status = status
-		case WARN:
-			td.Status = status
-		}
+
+	if status == FAIL {
+		td.Status = FAIL
 	}
 
 	// Recalc totals, up the chain
+	// [] = Pass, Fail, Warn, Skip
 	for p := td; p != nil; p = p.Parent {
 		// fmt.Printf("    Recalc'ing: %s\n", p.TestName)
 		sums := [4]int{0, 0, 0, 0}
@@ -289,7 +294,7 @@ func (td *TD) AddStatus(status int) {
 		td.NumWarn, td.NumSkip)
 	*/
 
-	if td.Parent != nil {
+	if status == FAIL && td.Parent != nil {
 		td.Parent.AddStatus(td.Status)
 	}
 }
@@ -329,23 +334,19 @@ func (td *TD) Msg(args ...any)     { td.Report(MSG, args...) }
 func (td *TD) Stop()               { panic("stop") }
 
 func (td *TD) DependsOn(fn TestFn) {
+	depStatus := PASS
+
 	if prevTD, ok := TestsRun[fn.Name()]; ok {
-		if prevTD.Status == FAIL {
-			td.FailNow("Dependency %q (cached), exiting", fn.Name())
-		} else {
-			// td.Log("Dependency %q passed (cached)", fn.Name())
-			td.Pass("%s - Dependency (cached)", fn.Name())
-		}
+		depStatus = prevTD.Status
+		td.Report(prevTD.Status, "%s (cached)", fn.Name())
 	} else {
 		newTD := td.Run(fn)
+		depStatus = newTD.Status
+	}
 
-		if newTD.Status == FAIL {
-			td.Msg("Dependency %q failed, exiting", fn.Name())
-			td.Stop()
-			return
-		} else {
-			// td.Pass("Dependency %q", fn.Name())
-		}
+	if depStatus == FAIL {
+		td.Msg("Dependency %q failed, leaving", fn.Name())
+		td.Stop()
 	}
 }
 
@@ -391,14 +392,14 @@ func (td *TD) MustEqual(exp any, got any, args ...any) {
 	if expJSON != gotJSON {
 		td.Log("Exp(%T): %s", exp, expJSON)
 		td.Log("Got(%T): %s", got, gotJSON)
-		td.Log("Diff(exp/got): %s", diff(expJSON, gotJSON))
+		td.Log("Diff(exp/got): %s", Diff(expJSON, gotJSON))
 		td.Fail(args...)
 		return
 	}
 	td.Pass(args...)
 }
 
-func diff(exp string, got string) string {
+func Diff(exp string, got string) string {
 	expPos, gotPos := 0, 0
 	expLen, gotLen := len(exp), len(got)
 

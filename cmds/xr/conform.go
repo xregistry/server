@@ -102,7 +102,10 @@ func TestTDMixture(td *TD) {
 	td.Run(TestTDSimpleWarn)
 	td.Run(TestTDLevel2Fail)
 	td.Skip("Top-level-skip")
+	td.Run(TestTDDepDepFail)
+	td.Run(TestTDLevel2DepF)
 	td.Run(TestTDLevel23Skip)
+	td.Run(TestTDDepCacheFail)
 	td.Run(TestTDLevel23Fail)
 }
 
@@ -119,9 +122,16 @@ func TestTDLevel3(td *TD) {
 	td.Pass("Level3")
 }
 
+func TestTDLevel2DepF(td *TD) { td.Run(TestTDLevel3DepF) }
+func TestTDLevel3DepF(td *TD) {
+	td.DependsOn(TestTDInitFail)
+	td.Pass("Level3")
+}
+
 func TestTDLevel3Fail(td *TD) { td.Fail("Level3Fail") }
 
 func TestTDLevel23Skip(td *TD) {
+	td.DependsOn(TestTDSimpleSkip)
 	td.DependsOn(TestTDLevel3Skip)
 	td.Pass("Level23Skip-2PASS")
 }
@@ -139,3 +149,10 @@ func TestTDLevel23Fail(td *TD) {
 }
 
 func TestTDLevel2a(td *TD) { td.Pass("Level2a") }
+
+func TestTDDepDepFail(td *TD) { td.DependsOn(TestTDLevel3DepF) }
+
+func TestTDDepCacheFail(td *TD) {
+	td.DependsOn(TestTDSimpleFail)
+	td.Pass("Should never see this")
+}

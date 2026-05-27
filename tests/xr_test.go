@@ -1806,10 +1806,10 @@ Pass: 99   Fail: 0   Warn: 0   Skip: 0
    ├─ PASS: Local passing test
    ├─ PASS: TestTDLevel2
    │  └─ PASS: TestTDLevel3
-   │     ├─ PASS: TestTDInit - Dependency (cached)
+   │     ├─ PASS: TestTDInit (cached)
    │     └─ PASS: Level3
    ├─ PASS: TestTDLevel3
-   │  ├─ PASS: TestTDInit - Dependency (cached)
+   │  ├─ PASS: TestTDInit (cached)
    │  └─ PASS: Level3
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
@@ -1823,13 +1823,13 @@ Pass: 18   Fail: 0   Warn: 0   Skip: 0
 └─ FAIL: TestTDDepFail
    ├─ FAIL: TestTDInitFail
    │  └─ FAIL: Init
-   └─ Dependency "TestTDInitFail" failed, exiting
+   └─ Dependency "TestTDInitFail" failed, leaving
 
 Pass: 0   Fail: 4   Warn: 0   Skip: 0
 `, ``, false)
 
-	XCLI(t, "conform --run TestTDMixture", "", `FAIL: http://localhost:8181
-└─ FAIL: TestTDMixture
+	XCLI(t, "conform --run TestTDMixture", "", `FAIL: http://localhost:8181 (skip:3,warn:1)
+└─ FAIL: TestTDMixture (skip:3,warn:1)
    ├─ PASS: TestTDInit
    │  └─ PASS: Init
    ├─ PASS: TestTDSimple1
@@ -1837,26 +1837,40 @@ Pass: 0   Fail: 4   Warn: 0   Skip: 0
    ├─ FAIL: Local fail test
    ├─ FAIL: TestTDSimpleFail
    │  └─ FAIL: SimpleFail
-   ├─ SKIP: TestTDSimpleSkip
+   ├─ PASS: TestTDSimpleSkip (skip:1)
    │  └─ SKIP: SimpleSkip
-   ├─ WARN: TestTDSimpleWarn
+   ├─ PASS: TestTDSimpleWarn (warn:1)
    │  └─ WARN: SimpleWarn
    ├─ PASS: TestTDLevel2Fail
    │  ├─ PASS: TestTDLevel3
-   │  │  ├─ PASS: TestTDInit - Dependency (cached)
+   │  │  ├─ PASS: TestTDInit (cached)
    │  │  └─ PASS: Level3
    │  └─ PASS: Level2Fail
    ├─ SKIP: Top-level-skip
-   ├─ SKIP: TestTDLevel23Skip
-   │  ├─ SKIP: TestTDLevel3Skip
+   ├─ FAIL: TestTDDepDepFail
+   │  ├─ FAIL: TestTDLevel3DepF
+   │  │  ├─ FAIL: TestTDInitFail
+   │  │  │  └─ FAIL: Init
+   │  │  └─ Dependency "TestTDInitFail" failed, leaving
+   │  └─ Dependency "TestTDLevel3DepF" failed, leaving
+   ├─ FAIL: TestTDLevel2DepF
+   │  └─ FAIL: TestTDLevel3DepF
+   │     ├─ FAIL: TestTDInitFail (cached)
+   │     └─ Dependency "TestTDInitFail" failed, leaving
+   ├─ PASS: TestTDLevel23Skip (skip:1)
+   │  ├─ PASS: TestTDSimpleSkip (cached)
+   │  ├─ PASS: TestTDLevel3Skip (skip:1)
    │  │  └─ SKIP: Level3skip
    │  └─ PASS: Level23Skip-2PASS
+   ├─ FAIL: TestTDDepCacheFail
+   │  ├─ FAIL: TestTDSimpleFail (cached)
+   │  └─ Dependency "TestTDSimpleFail" failed, leaving
    └─ FAIL: TestTDLevel23Fail
       ├─ FAIL: TestTDLevel3Fail
       │  └─ FAIL: Level3Fail
       └─ PASS: Level2Pass
 
-Pass: 11   Fail: 8   Warn: 2   Skip: 6
+Pass: 16   Fail: 17   Warn: 1   Skip: 3
 `, ``, false)
 
 	XCLI(t, "conform --run TestTDMixture --failfast", "",
