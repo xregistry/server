@@ -103,7 +103,6 @@ TODOs:
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)
 ** Send back Allow header on a 405 error
 ** support OPTIONS
-** disallow editing to APIs based on capabilities.mutability
 - make tests so they don't use model.verifyandsave - should go thru modelsource
 ** make model changes via API show up in modelsource
 ** make sure ?defaultversionid only processed on write ops (bad_flag)

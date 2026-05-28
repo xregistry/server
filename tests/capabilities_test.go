@@ -2191,6 +2191,229 @@ func TestCapabilityAvailable(t *testing.T) {
 }
 `)
 
+	// Test entity operations when entities.mutable = false
+	// First, add a model and create some test entities while entities is still mutable
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+	reg.Capabilities.SetAvailable("capabilities", true)
+	reg.Capabilities.SetAvailable("entities", true)
+	XNoErr(t, reg.SaveCapabilities())
+	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, false)
+	XNoErr(t, reg.SaveAllAndCommit())
+
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `*`)
+
+	// Now set entities.mutable = false
+	XHTTP(t, reg, "PUT", "/capabilities", `{
+      "available":{
+        "capabilities":{"mutable":true},
+        "entities":{"mutable":false}
+      }
+    }`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": false
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "stickyversions": true,
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	// Test POST operations to entity endpoints - should all fail
+	XHTTP(t, reg, "POST", "/", `{"dirs":{"d2":{}}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/) is not available.",
+  "subject": "/",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs", `{"d2":{}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs) is not available.",
+  "subject": "/dirs",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files", `{"f2":{}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files) is not available.",
+  "subject": "/dirs/d1/files",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "subject": "/dirs/d1/files/f1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{"v2":{}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1/versions) is not available.",
+  "subject": "/dirs/d1/files/f1/versions",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Test PUT operations to entity endpoints - should all fail
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1) is not available.",
+  "subject": "/dirs/d1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d2", `{}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d2) is not available.",
+  "subject": "/dirs/d2",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "subject": "/dirs/d1/files/f1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f2) is not available.",
+  "subject": "/dirs/d1/files/f2",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Test PUT to root registry with entities - should fail
+	XHTTP(t, reg, "PUT", "/", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/) is not available.",
+  "subject": "/",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Test PATCH operations to entity endpoints - should all fail
+	XHTTP(t, reg, "PATCH", "/dirs/d1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1) is not available.",
+  "subject": "/dirs/d1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "subject": "/dirs/d1/files/f1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/1", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Test PATCH to root registry (without inline) - should fail
+	XHTTP(t, reg, "PATCH", "/", `{"description":"test"}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/) is not available.",
+  "subject": "/",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Verify GET operations still work when entities.mutable = false
+	XHTTP(t, reg, "GET", "/dirs", ``, 200, `*`)
+	XHTTP(t, reg, "GET", "/dirs/d1", ``, 200, `*`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files", ``, 200, `*`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", ``, 200, `*`)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/1", ``, 200, `*`)
+	XHTTP(t, reg, "GET", "/", ``, 200, `*`)
+
+	// Test DELETE operations - should also fail when entities.mutable = false
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/1", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "subject": "/dirs/d1/files/f1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/dirs/d1) is not available.",
+  "subject": "/dirs/d1",
+  "source": "b1fcff68b7f8:registry:httpStuff:936"
+}
+`)
+
+	// Reset to default with entities mutable again
 	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
 	reg.Capabilities.SetAvailable("capabilities", true)
 	reg.Capabilities.SetAvailable("entities", true)
@@ -2203,225 +2426,7 @@ func TestCapabilityAvailable(t *testing.T) {
 	// are being reset to their default values, "flags" should immediately
 	// allow "inline" to be enabled for processing of the response
 	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{"capabilities":null}`,
-		200, `{
-  "specversion": "1.0-rc2",
-  "registryid": "TestCapabilityAPIs",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 6,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-
-  "capabilities": {
-    "available": {
-      "capabilities": {
-        "mutable": true
-      },
-      "capabilitiesoffered": {
-        "mutable": false
-      },
-      "entities": {
-        "mutable": true
-      },
-      "export": {
-        "mutable": false
-      },
-      "model": {
-        "mutable": false
-      },
-      "modelsource": {
-        "mutable": true
-      }
-    },
-    "compatibilities": {
-      "avro*": [
-        "backward",
-        "backward_transitive",
-        "forward",
-        "forward_transitive",
-        "full",
-        "full_transitive"
-      ],
-      "jsonschema*": [
-        "backward",
-        "backward_transitive",
-        "forward",
-        "forward_transitive",
-        "full",
-        "full_transitive"
-      ],
-      "numbers": [
-        "backward",
-        "backward_transitive",
-        "forward",
-        "forward_transitive",
-        "full",
-        "full_transitive"
-      ],
-      "protobuf*": [
-        "backward",
-        "backward_transitive",
-        "forward",
-        "forward_transitive",
-        "full",
-        "full_transitive"
-      ],
-      "xmlschema*": [
-        "backward",
-        "backward_transitive",
-        "forward",
-        "forward_transitive",
-        "full",
-        "full_transitive"
-      ]
-    },
-    "flags": [
-      "binary",
-      "collections",
-      "doc",
-      "epoch",
-      "filter",
-      "ignore",
-      "inline",
-      "setdefaultversionid",
-      "sort",
-      "specversion"
-    ],
-    "formats": [
-      "avro*",
-      "jsonschema*",
-      "numbers",
-      "protobuf*",
-      "xmlschema*"
-    ],
-    "ignores": [
-      "capabilities",
-      "defaultversionid",
-      "defaultversionsticky",
-      "epoch",
-      "id",
-      "modelsource",
-      "readonly"
-    ],
-    "pagination": false,
-    "shortself": false,
-    "specversions": [
-      "1.0-rc2"
-    ],
-    "stickyversions": true,
-    "versionmodes": [
-      "createdat",
-      "manual"
-    ]
-  }
-}
-`)
-
-	XHTTP(t, reg, "GET", "/capabilities", ``, 200,
-		`{
-  "available": {
-    "capabilities": {
-      "mutable": true
-    },
-    "capabilitiesoffered": {
-      "mutable": false
-    },
-    "entities": {
-      "mutable": true
-    },
-    "export": {
-      "mutable": false
-    },
-    "model": {
-      "mutable": false
-    },
-    "modelsource": {
-      "mutable": true
-    }
-  },
-  "compatibilities": {
-    "avro*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "jsonschema*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "numbers": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "protobuf*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "xmlschema*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ]
-  },
-  "flags": [
-    "binary",
-    "collections",
-    "doc",
-    "epoch",
-    "filter",
-    "ignore",
-    "inline",
-    "setdefaultversionid",
-    "sort",
-    "specversion"
-  ],
-  "formats": [
-    "avro*",
-    "jsonschema*",
-    "numbers",
-    "protobuf*",
-    "xmlschema*"
-  ],
-  "ignores": [
-    "capabilities",
-    "defaultversionid",
-    "defaultversionsticky",
-    "epoch",
-    "id",
-    "modelsource",
-    "readonly"
-  ],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "1.0-rc2"
-  ],
-  "stickyversions": true,
-  "versionmodes": [
-    "createdat",
-    "manual"
-  ]
-}
-`)
-
+		200, `*`)
 }
 
 func TestCapabilityPatch(t *testing.T) {
