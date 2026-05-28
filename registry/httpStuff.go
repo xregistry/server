@@ -955,8 +955,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	if (numParts == 4 || numParts == 6) && !metaInBody && method == "PATCH" {
+		entityType := "Resource"
+		if numParts == 6 {
+			entityType = "Version"
+		}
 		return NewXRError("details_required", "/"+info.OriginalPath).
-			SetDetail("PATCH is not allowed on Resource documents.")
+			SetDetail("PATCH is not allowed on " + entityType + " documents.")
 	}
 
 	// Ok, now start to deal with the incoming request

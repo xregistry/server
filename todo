@@ -29,8 +29,6 @@ TODOs:
 - fix it so that a failed call to model.Save() (e.g. verify fails) doesn't
   invalidate existing local variables. See if we can avoid redownloading the
   model from the DB
-** make sure we check for uniqueness of IDs - they're case insensitive and
-  unique within the scope of their parent
 
 ** pagination
 ** have DB generate the COLLECTIONcount attributes so people can query over
@@ -42,7 +40,6 @@ TODOs:
   - remove ?setdefault.. for some apis
   - process ?setdefaultversionid flag before we update things
   - make sure we support them as http headers too
-** support createdat and modifiedat as http headers
 ** make sure we don't let go http add "content-type" header for docs w/o a value
 - add model tests for typemap - just that we can set via full model updates
 ** support the DB vanishing for a while

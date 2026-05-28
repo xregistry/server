@@ -474,7 +474,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
-  "detail": "PATCH is not allowed on Resource documents.",
+  "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "source": ":registry:httpStuff:1884"
 }
@@ -4294,7 +4294,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/dir1/files/f1/versions/v1.",
-  "detail": "PATCH is not allowed on Resource documents.",
+  "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/dir1/files/f1/versions/v1",
   "source": ":registry:httpStuff:1884"
 }
@@ -5732,7 +5732,7 @@ func TestHTTPURLs(t *testing.T) {
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/http.md#details_required",
   "title": "$details suffix is needed when using PATCH for the entity: /dirs/d2/files/f1/versions/v5.",
-  "detail": "PATCH is not allowed on Resource documents.",
+  "detail": "PATCH is not allowed on Version documents.",
   "subject": "/dirs/d2/files/f1/versions/v5",
   "source": ":registry:httpStuff:1884"
 }
@@ -9743,4 +9743,154 @@ func TestHTTPEmptyIDs(t *testing.T) {
   "source": ":registry:info:692"
 }
 `)
+}
+
+func TestHTTPTimestampHeaders(t *testing.T) {
+	reg := NewRegistry("TestHTTPTimestampHeaders")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	// Test 1: PUT Resource with both timestamps
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT Resource with both timestamps",
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-createdat: 2020-03-01T14:00:00Z",
+			"xRegistry-modifiedat: 2020-03-01T14:05:00Z",
+		},
+		ReqBody: `This is document content`,
+		Code:    201,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2020-03-01T14:00:00Z",
+			"xRegistry-modifiedat: 2020-03-01T14:05:00Z",
+			"xRegistry-ancestor: 1",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Location: http://localhost:8181/dirs/d1/files/f1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"Content-Disposition:f1",
+		},
+		ResBody: `This is document content`,
+	})
+
+	// Test 2: PUT Resource with modifiedat only (createdat unchanged)
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT Resource with modifiedat only",
+		URL:    "/dirs/d1/files/f1",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-modifiedat: 2020-03-01T15:00:00Z",
+		},
+		ReqBody: `Updated content`,
+		Code:    200,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 1",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1",
+			"xRegistry-xid: /dirs/d1/files/f1",
+			"xRegistry-epoch: 2",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2020-03-01T14:00:00Z",
+			"xRegistry-modifiedat: 2020-03-01T15:00:00Z",
+			"xRegistry-ancestor: 1",
+			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
+			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
+			"xRegistry-versionscount: 1",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
+			"Content-Disposition:f1",
+		},
+		ResBody: `Updated content`,
+	})
+
+	// Test 3: POST to create new version with timestamps
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "POST Resource to create version",
+		URL:    "/dirs/d1/files/f1",
+		Method: "POST",
+		ReqHeaders: []string{
+			"xRegistry-createdat: 2020-03-02T10:00:00Z",
+			"xRegistry-modifiedat: 2020-03-02T10:05:00Z",
+		},
+		ReqBody: `Version 2 content`,
+		Code:    201,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 2",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1/versions/2",
+			"xRegistry-xid: /dirs/d1/files/f1/versions/2",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2020-03-02T10:00:00Z",
+			"xRegistry-modifiedat: 2020-03-02T10:05:00Z",
+			"xRegistry-ancestor: 1",
+			"Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
+			"Content-Disposition:f1",
+		},
+		ResBody: `Version 2 content`,
+	})
+
+	// Test 4: PUT Version with both timestamps
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT Version with both timestamps",
+		URL:    "/dirs/d1/files/f1/versions/3",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-createdat: 2020-04-01T12:00:00Z",
+			"xRegistry-modifiedat: 2020-04-01T12:10:00Z",
+		},
+		ReqBody: `Version 3 content`,
+		Code:    201,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 3",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1/versions/3",
+			"xRegistry-xid: /dirs/d1/files/f1/versions/3",
+			"xRegistry-epoch: 1",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2020-04-01T12:00:00Z",
+			"xRegistry-modifiedat: 2020-04-01T12:10:00Z",
+			"xRegistry-ancestor: 2",
+			"Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
+			"Content-Disposition:f1",
+		},
+		ResBody: `Version 3 content`,
+	})
+
+	// Test 5: PUT Version with modifiedat only (createdat unchanged)
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:   "PUT Version with modifiedat only",
+		URL:    "/dirs/d1/files/f1/versions/3",
+		Method: "PUT",
+		ReqHeaders: []string{
+			"xRegistry-modifiedat: 2020-04-01T13:00:00Z",
+		},
+		ReqBody: `Updated V3 content`,
+		Code:    200,
+		ResHeaders: []string{
+			"xRegistry-fileid: f1",
+			"xRegistry-versionid: 3",
+			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1/versions/3",
+			"xRegistry-xid: /dirs/d1/files/f1/versions/3",
+			"xRegistry-epoch: 2",
+			"xRegistry-isdefault: true",
+			"xRegistry-createdat: 2020-04-01T12:00:00Z",
+			"xRegistry-modifiedat: 2020-04-01T13:00:00Z",
+			"xRegistry-ancestor: 2",
+			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
+			"Content-Disposition:f1",
+		},
+		ResBody: `Updated V3 content`,
+	})
 }
