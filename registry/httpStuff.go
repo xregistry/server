@@ -1729,6 +1729,10 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		return NewXRError("action_not_supported", "/", "action=DELETE")
 	}
 
+	if !info.IsAvailableMutable("entities") {
+		return NewXRError("not_available", "/"+info.OriginalPath)
+	}
+
 	var xErr *XRError
 	var err error
 	epochStr := info.GetFlag("epoch")
