@@ -3,7 +3,6 @@ package registry
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -61,13 +60,14 @@ func (pw *PageWriter) Done() {
 		}
 	}
 
-	if !pw.Info.SentStatus {
-		pw.Info.SentStatus = true
-		if pw.Info.StatusCode == 0 {
-			pw.Info.StatusCode = http.StatusOK
-		}
-		pw.Info.OriginalResponse.WriteHeader(pw.Info.StatusCode)
-	}
+	// Let DefaultWriter.Write() handle setting SentStatus and writing headers
+	// if !pw.Info.SentStatus {
+	// 	pw.Info.SentStatus = true
+	// 	if pw.Info.StatusCode == 0 {
+	// 		pw.Info.StatusCode = http.StatusOK
+	// 	}
+	// 	pw.Info.OriginalResponse.WriteHeader(pw.Info.StatusCode)
+	// }
 
 	data := pw.Buffer.Bytes()
 

@@ -102,7 +102,6 @@ TODOs:
 ** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)
 ** Send back Allow header on a 405 error
-** support OPTIONS
 - make tests so they don't use model.verifyandsave - should go thru modelsource
 ** make model changes via API show up in modelsource
 ** make sure ?defaultversionid only processed on write ops (bad_flag)

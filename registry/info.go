@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -22,22 +23,30 @@ type RequestInfo struct {
 	ParsedBody       map[string]any      `jsom:"-"`
 	RootPath         string              // "", "model", "export", ...
 	Parts            []string            // Split /GROUPS/gID of OriginalPath
-	Root             string              // GROUPS/gID/..
-	Abstract         string              // /GROUPS/RESOUCES (no IDs)
-	GroupType        string
-	GroupUID         string
-	GroupModel       *GroupModel
-	ResourceType     string
-	ResourceUID      string
-	ResourceModel    *ResourceModel
-	VersionUID       string
-	What             string            // Registry, Coll, Entity
-	Flags            map[string]string // Query params (and str value, if there)
-	Ignores          map[string]bool   // key=ignore-value
-	Inlines          []*Inline
-	Filters          [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
-	ShowDetails      bool            //	is $details present
-	SortKey          string          // [-]AttrName  - => descending
+
+	// Original path components before any modifications during request processing.
+	// Some operations (e.g., POST creating a resource/version) may modify Parts
+	// and RootPath to point to the created entity for response generation, but
+	// CORS headers need to reflect the original request path.
+	OriginalRootPath string
+	OriginalParts    []string
+
+	Root          string // GROUPS/gID/..
+	Abstract      string // /GROUPS/RESOUCES (no IDs)
+	GroupType     string
+	GroupUID      string
+	GroupModel    *GroupModel
+	ResourceType  string
+	ResourceUID   string
+	ResourceModel *ResourceModel
+	VersionUID    string
+	What          string            // Registry, Coll, Entity
+	Flags         map[string]string // Query params (and str value, if there)
+	Ignores       map[string]bool   // key=ignore-value
+	Inlines       []*Inline
+	Filters       [][]*FilterExpr // [OR][AND] filter=e,e(and) &(or) filter=e
+	ShowDetails   bool            //	is $details present
+	SortKey       string          // [-]AttrName  - => descending
 
 	StatusCode int
 	SentStatus bool
@@ -356,11 +365,6 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 		info.Body = nil
 	}
 
-	w.Header().Add("Access-Control-Allow-Origin", "*")
-	w.Header().Add("Access-Control-Allow-Methods",
-		"GET, PATCH, POST, PUT, DELETE")
-	w.Header().Add("Link", fmt.Sprintf("<%s>;rel=xregistry-root", info.BaseURL))
-
 	if log.GetVerbose() > 2 {
 		defer func() { log.Printf("Info:\n%s\n", ToJSON(info)) }()
 	}
@@ -379,6 +383,12 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	if xErr != nil {
 		return info, xErr
 	}
+
+	// Save the original Parts and RootPath for operations that need them
+	// (they may be modified during request processing)
+	info.OriginalParts = make([]string, len(info.Parts))
+	copy(info.OriginalParts, info.Parts)
+	info.OriginalRootPath = info.RootPath
 
 	if log.GetVerbose() > 3 {
 		log.Printf("Info: %s", ToJSON(info))
@@ -996,6 +1006,91 @@ func (info *RequestInfo) IsAvailableMutable(name string) bool {
 
 func (info *RequestInfo) DoDocView() bool {
 	return info.HasFlag("doc") || info.RootPath == "export"
+}
+
+// GetAllowedMethods returns the list of HTTP methods allowed for the current
+// request path based on capabilities
+func (info *RequestInfo) GetAllowedMethods() []string {
+	methods := []string{}
+
+	// Use original Parts/RootPath (they may have been modified during processing)
+	parts := info.OriginalParts
+	rootPath := info.OriginalRootPath
+	numParts := len(parts)
+
+	// Check special endpoints
+	if rootPath == "capabilities" {
+		if info.IsAvailable("capabilities") {
+			methods = append(methods, "GET")
+			if info.IsAvailableMutable("capabilities") {
+				methods = append(methods, "PUT", "PATCH")
+			}
+		}
+	} else if rootPath == "capabilitiesoffered" {
+		if info.IsAvailable("capabilitiesoffered") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "export" {
+		if info.IsAvailable("export") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "model" {
+		if info.IsAvailable("model") {
+			methods = append(methods, "GET")
+		}
+	} else if rootPath == "modelsource" {
+		if info.IsAvailable("modelsource") {
+			methods = append(methods, "GET")
+			if info.IsAvailableMutable("modelsource") {
+				methods = append(methods, "PUT")
+			}
+		}
+	} else if info.IsAvailable("entities") {
+		// Standard entity endpoints
+		isMutable := info.IsAvailableMutable("entities")
+
+		// GET is always supported for entities
+		methods = append(methods, "GET")
+
+		if isMutable {
+			// Determine which write methods are supported based on path
+			if numParts == 0 {
+				// / - Registry root
+				methods = append(methods, "PUT", "PATCH", "POST")
+			} else if numParts == 1 {
+				// /GROUPS - Collection
+				methods = append(methods, "POST", "PATCH", "DELETE")
+			} else if numParts == 2 {
+				// /GROUPS/gID - Group entity
+				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
+			} else if numParts == 3 {
+				// /GROUPS/gID/RESOURCES - Resource collection
+				methods = append(methods, "POST", "PATCH", "DELETE")
+			} else if numParts == 4 {
+				// /GROUPS/gID/RESOURCES/rID - Resource entity
+				methods = append(methods, "PUT", "PATCH", "POST", "DELETE")
+			} else if numParts == 5 {
+				if parts[4] == "meta" {
+					// /GROUPS/gID/RESOURCES/rID/meta
+					methods = append(methods, "PUT", "PATCH", "DELETE")
+				} else if parts[4] == "versions" {
+					// /GROUPS/gID/RESOURCES/rID/versions
+					methods = append(methods, "POST", "PATCH", "DELETE")
+				}
+			} else if numParts == 6 {
+				// /GROUPS/gID/RESOURCES/rID/versions/vID
+				methods = append(methods, "PUT", "PATCH", "DELETE")
+			}
+		}
+	}
+
+	// Always include OPTIONS
+	methods = append(methods, "OPTIONS")
+
+	// Sort alphabetically for consistent output
+	sort.Strings(methods)
+
+	return methods
 }
 
 func (info *RequestInfo) GetParts(num int) string {

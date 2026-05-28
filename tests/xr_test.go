@@ -1766,7 +1766,7 @@ header.bar2: foo2`
 2026/05/19 18:01:50 Header: "bar2"
 2026/05/19 18:01:50 Header: "foo"
 2026/05/19 18:01:50 Response: 200 OK
-2026/05/19 18:01:50 access-control-allow-methods: GET, PATCH, POST, PUT, DELETE
+2026/05/19 18:01:50 access-control-allow-methods: GET, OPTIONS, PATCH, POST, PUT
 2026/05/19 18:01:50 access-control-allow-origin: *
 2026/05/19 18:01:50 content-type: application/json
 2026/05/19 18:01:50 Response Body:

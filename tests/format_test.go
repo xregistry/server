@@ -217,7 +217,7 @@ func TestFormatSimple(t *testing.T) {
 		Code:    200,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f2",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -293,7 +293,7 @@ func TestFormatSimple(t *testing.T) {
 		Code:    200,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f2",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -339,7 +339,7 @@ func TestFormatSimple(t *testing.T) {
 		Code:    200,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f2",
 			"content-location: http://localhost:8181/dirs/d1/files/f2/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -403,7 +403,7 @@ func TestFormatSimple(t *testing.T) {
 		Code:    201,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f3",
 			"content-location: http://localhost:8181/dirs/d1/files/f3/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -591,7 +591,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		Code:    201,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f1",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -670,7 +670,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		Code:    200,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f1",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"content-type: text/plain; charset=utf-8",
@@ -745,7 +745,7 @@ func TestFormatCompatSimple(t *testing.T) {
 		Code:    201,
 		ResHeaders: []string{
 			"access-control-allow-origin: *",
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"content-disposition: f1",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"content-type: text/plain; charset=utf-8",

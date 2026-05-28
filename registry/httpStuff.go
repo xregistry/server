@@ -181,6 +181,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			xErr = HTTPPutPost(info)
 		case "DELETE":
 			xErr = HTTPDelete(info)
+		case "OPTIONS":
+			xErr = HTTPOptions(info)
 		default:
 			xErr = NewXRError("action_not_supported", "/"+info.OriginalPath,
 				"action="+r.Method)
@@ -220,6 +222,25 @@ type DefaultWriter struct {
 
 func (dw *DefaultWriter) Write(b []byte) (int, error) {
 	if !dw.Info.SentStatus {
+		// Set all response headers before writing status
+
+		// CORS headers
+		dw.AddHeader("Access-Control-Allow-Origin", "*")
+		methods := dw.Info.GetAllowedMethods()
+		methodsStr := strings.Join(methods, ", ")
+		dw.AddHeader("Access-Control-Allow-Methods", methodsStr)
+
+		// For OPTIONS requests, also set the Allow header
+		if dw.Info.OriginalRequest.Method == "OPTIONS" {
+			dw.AddHeader("Allow", methodsStr)
+		}
+
+		// Link header for xRegistry root - add only if not already present
+		if len(dw.GetHeaderValues("Link")) == 0 {
+			dw.AddHeader("Link",
+				fmt.Sprintf("<%s>;rel=xregistry-root", dw.Info.BaseURL))
+		}
+
 		dw.Info.SentStatus = true
 		if dw.Info.StatusCode == 0 {
 			dw.Info.StatusCode = http.StatusOK
@@ -640,6 +661,16 @@ FROM FullTree WHERE RegSID=? AND `
 	}
 
 	info.Write(buf.([]byte))
+
+	return nil
+}
+
+func HTTPOptions(info *RequestInfo) *XRError {
+	log.VPrintf(3, ">Enter: HTTPOptions(%s)", info.OriginalPath)
+	defer log.VPrintf(3, "<Exit: HTTPOptions")
+
+	// Headers will be set automatically by DefaultWriter.Write()
+	info.StatusCode = 200
 
 	return nil
 }

@@ -1518,7 +1518,7 @@ func TestMetaLabels(t *testing.T) {
 		ReqBody: `my doc`,
 		Code:    200,
 		ResHeaders: []string{
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"access-control-allow-origin: *",
 			"content-disposition: f1",
 			"content-length: 6",
@@ -1617,7 +1617,7 @@ func TestMetaXregHeaders(t *testing.T) {
 		ReqBody: `my doc`,
 		Code:    201,
 		ResHeaders: []string{
-			"access-control-allow-methods: GET, PATCH, POST, PUT, DELETE",
+			"access-control-allow-methods: DELETE, GET, OPTIONS, PATCH, POST, PUT",
 			"access-control-allow-origin: *",
 			"content-disposition: f1",
 			"content-length: 6",
