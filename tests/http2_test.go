@@ -655,15 +655,13 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 }
 `)
 
-	/*
-			XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `{
-		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionid_request",
-		  "title": "Processing \"/dirs/d1/files/f1\", the \"defaultversionid\" attribute is not allowed to be \"request\" since a Version wasn't processed.",
-		  "subject": "/dirs/d1/files/f1",
-		  "source": ":registry:httpStuff:2617"
-		}
-		`)
-	*/
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=request", "{}", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionid_request",
+  "title": "Processing \"/dirs/d1/files/f1/versions\", the \"defaultversionid\" attribute is not allowed to be \"request\" since a Version wasn't processed.",
+  "subject": "/dirs/d1/files/f1/versions",
+  "source": "6567a49b4de4:registry:httpStuff:1435"
+}
+`)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1?setdefaultversionid", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
@@ -9059,8 +9057,8 @@ func TestHTTPSpecVersion(t *testing.T) {
 `)
 }
 
-func TestSpecVersionPatchIgnore(t *testing.T) {
-	reg := NewRegistry("TestSpecVersionPatchIgnore")
+func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
+	reg := NewRegistry("TestHTTPSpecVersionPatchIgnore")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -9893,4 +9891,521 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 		},
 		ResBody: `Updated V3 content`,
 	})
+}
+
+func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
+	reg := NewRegistry("TestHTTPSetDefaultVersionIDRequirements")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	reg.AddGroup("dirs", "d1")
+
+	// Create initial resources for testing
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `{}`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2", `{}`, 201, `{}`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2/versions/v1", `{}`, 201, `{}`)
+
+	// Test 1: Use on operation that modifies multiple Resources MUST generate bad_flag error
+	// POST to /files collection with setdefaultversionid should fail
+	XHTTP(t, reg, "POST", "/dirs/d1/files?setdefaultversionid=v1", `{
+  "f3": {
+    "versions": {
+      "v1": {}
+    }
+  },
+  "f4": {
+    "versions": {
+      "v1": {}
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "title": "The specified flag (setdefaultversionid) is not allowed in this context: /dirs/d1/files.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "flag": "setdefaultversionid"
+  },
+  "source": "?"
+}
+`)
+
+	// PATCH to /files collection with setdefaultversionid should also fail
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files?setdefaultversionid=v1", `{
+  "f1": {
+    "versions": {
+      "v3": {}
+    }
+  },
+  "f2": {
+    "versions": {
+      "v2": {}
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "title": "The specified flag (setdefaultversionid) is not allowed in this context: /dirs/d1/files.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "flag": "setdefaultversionid"
+  },
+  "source": "?"
+}
+`)
+
+	// Even with just one resource in body, operation "allows for" multiple so should fail
+	XHTTP(t, reg, "POST", "/dirs/d1/files?setdefaultversionid=v1", `{
+  "f5": {
+    "versions": {
+      "v1": {}
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_flag",
+  "title": "The specified flag (setdefaultversionid) is not allowed in this context: /dirs/d1/files.",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "flag": "setdefaultversionid"
+  },
+  "source": "?"
+}
+`)
+
+	// Test 2: Invalid versionid after processing MUST generate unknown_id error
+	// Try to set default to a version that doesn't exist
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?setdefaultversionid=nonexistent", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"nonexistent\" cannot be found.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "id": "nonexistent",
+    "singular": "version"
+  },
+  "source": "?"
+}
+`)
+
+	// Also test with PATCH on meta
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta?setdefaultversionid=v99", `{}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1/meta\", the \"version\" with a \"versionid\" value of \"v99\" cannot be found.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "id": "v99",
+    "singular": "version"
+  },
+  "source": "?"
+}
+`)
+
+	// Test 3: Flag MUST override meta.defaultversionid and meta.defaultversionsticky in request body
+	// First, verify current state (v2 should be default)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionsticky": false
+}
+`)
+
+	// Now PATCH with both body values (defaultversionid=v2, sticky=false) AND query param (setdefaultversionid=v1)
+	// Query param should override body, making v1 default and sticky=true
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta?setdefaultversionid=v1", `{
+  "defaultversionid": "v2",
+  "defaultversionsticky": false
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Verify it stuck
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test with PUT on resource - body says v1, query param says null (remove sticky)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?setdefaultversionid=null", `{
+  "versions": {
+    "v1": {},
+    "v2": {}
+  }
+}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	// Verify: should be v2 (newest) and sticky=false
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionsticky": false
+}
+`)
+}
+
+func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
+	reg := NewRegistry("TestHTTPSetDefaultVersionIDAllAPIs")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, true, true)
+
+	reg.AddGroup("dirs", "d1")
+
+	// Test setdefaultversionid on all write APIs at resource level and deeper
+	// Verify that the flag overrides any values in the request body
+
+	// Test 1: PUT on Resource $details with body containing defaultversionid in meta
+	// Flag should override body value (v2 becomes default, not v1 from body)
+	// When multiple versions are created simultaneously, ancestor chain is alphabetical:
+	// v3->v2->v1->v1, so v2's ancestor is v1
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?setdefaultversionid=v2", `{
+  "versions": {
+    "v1": {},
+    "v2": {},
+    "v3": {}
+  },
+  "meta": {
+    "defaultversionid": "v1",
+    "defaultversionsticky": false
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	// Verify meta shows v2 as default with sticky=true (from flag, not body)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 2: PATCH on Resource $details - flag overrides body
+	// defaultversionid should be in meta sub-object
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details?setdefaultversionid=v1", `{
+  "versions": {
+    "v4": {}
+  },
+  "meta": {
+    "defaultversionid": "v3"
+  }
+}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 4
+}
+`)
+
+	// Verify v1 is now default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 3: PUT on /meta with body values - flag overrides
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta?setdefaultversionid=v3", `{
+  "defaultversionid": "v2",
+  "defaultversionsticky": false
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
+  "readonly": false,
+
+  "defaultversionid": "v3",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 4: PATCH on /meta with body values - flag overrides
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta?setdefaultversionid=v4", `{
+  "defaultversionid": "v1",
+  "defaultversionsticky": false
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:04Z",
+  "readonly": false,
+
+  "defaultversionid": "v4",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 5: POST on /versions - flag sets v2 as default after creating v5
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions?setdefaultversionid=v2", `{
+  "v5": {}
+}`, 200, `{
+  "v5": {
+    "fileid": "f1",
+    "versionid": "v5",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
+    "xid": "/dirs/d1/files/f1/versions/v5",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2024-01-01T12:00:05Z",
+    "modifiedat": "2024-01-01T12:00:05Z",
+    "ancestor": "v4"
+  }
+}
+`)
+
+	// Verify v2 is default (from flag), not v5 (from body)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:05Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 6: PATCH on /versions - flag sets v1 as default after creating v6
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions?setdefaultversionid=v1", `{
+  "v6": {}
+}`, 200, `{
+  "v6": {
+    "fileid": "f1",
+    "versionid": "v6",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v6$details",
+    "xid": "/dirs/d1/files/f1/versions/v6",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2024-01-01T12:00:06Z",
+    "modifiedat": "2024-01-01T12:00:06Z",
+    "ancestor": "v5"
+  }
+}
+`)
+
+	// Verify v1 is default (from flag), not v6
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 6,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:06Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 7: PUT on specific version with flag
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3$details?setdefaultversionid=v3", `{}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+  "xid": "/dirs/d1/files/f1/versions/v3",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:07Z",
+  "ancestor": "v2"
+}
+`)
+
+	// Verify v3 is now default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 7,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:07Z",
+  "readonly": false,
+
+  "defaultversionid": "v3",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 8: PATCH on specific version with flag
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v5$details?setdefaultversionid=v5", `{}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v5",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
+  "xid": "/dirs/d1/files/f1/versions/v5",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:05Z",
+  "modifiedat": "2024-01-01T12:00:08Z",
+  "ancestor": "v4"
+}
+`)
+
+	// Verify v5 is now default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 8,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:08Z",
+  "readonly": false,
+
+  "defaultversionid": "v5",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 9: POST to Resource (create new version) with ?setdefaultversionid=request
+	// For hasDocument resources, POST without $details creates a new version
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1$details?setdefaultversionid=request", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "xid": "/dirs/d1/files/f1/versions/1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:09Z",
+  "modifiedat": "2024-01-01T12:00:09Z",
+  "ancestor": "v6"
+}
+`)
+
+	// Verify version 1 is default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 9,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:09Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+  "defaultversionsticky": true
+}
+`)
+
+	// Test 10: DELETE version with ?setdefaultversionid to choose new default
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/1?setdefaultversionid=v6", ``, 204, ``)
+
+	// Verify v6 is now default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 10,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:10Z",
+  "readonly": false,
+
+  "defaultversionid": "v6",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v6$details",
+  "defaultversionsticky": true
+}
+`)
 }

@@ -9265,12 +9265,9 @@ func TestHTTPDefault(t *testing.T) {
 		ResHeaders:  []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Processing \"/dirs/d1/files/f1\", the \"setdefaultversionid\" flag is not allowed to be specified for entities of type \"file\".",
+  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
   "subject": "/dirs/d1/files/f1",
-  "args": {
-    "singular": "file"
-  },
-  "source": ":registry:httpStuff:2597"
+  "source": "6567a49b4de4:registry:resource:908"
 }
 `,
 	})
@@ -9286,12 +9283,9 @@ func TestHTTPDefault(t *testing.T) {
 		ResHeaders:  []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Processing \"/dirs/d1/files/f1\", the \"setdefaultversionid\" flag is not allowed to be specified for entities of type \"file\".",
+  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
   "subject": "/dirs/d1/files/f1",
-  "args": {
-    "singular": "file"
-  },
-  "source": ":registry:httpStuff:2597"
+  "source": "6567a49b4de4:registry:resource:908"
 }
 `,
 	})
@@ -9355,12 +9349,9 @@ func TestHTTPDefault(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Processing \"/dirs/d1/files/f1\", the \"setdefaultversionid\" flag is not allowed to be specified for entities of type \"file\".",
+  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
   "subject": "/dirs/d1/files/f1",
-  "args": {
-    "singular": "file"
-  },
-  "source": ":registry:httpStuff:2597"
+  "source": "6567a49b4de4:registry:resource:908"
 }
 `,
 	})
@@ -9373,12 +9364,9 @@ func TestHTTPDefault(t *testing.T) {
 		Code:    400,
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Processing \"/dirs/d1/files/f1\", the \"setdefaultversionid\" flag is not allowed to be specified for entities of type \"file\".",
+  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
   "subject": "/dirs/d1/files/f1",
-  "args": {
-    "singular": "file"
-  },
-  "source": ":registry:httpStuff:2597"
+  "source": "6567a49b4de4:registry:resource:908"
 }
 `,
 	})

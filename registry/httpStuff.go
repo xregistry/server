@@ -1177,6 +1177,19 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
 
+	// Check StickyVersions capability enforcement
+	if setDefVerID != "" &&
+		!info.Registry.Capabilities.StickyVersionsEnabled() {
+		if method == "PUT" || method == "PATCH" || method == "POST" ||
+			method == "DELETE" {
+
+			if !info.Registry.Capabilities.StickyVersionsEnabled() {
+				return NewXRError("setdefaultversionid_not_allowed",
+					"/"+info.OriginalPath)
+			}
+		}
+	}
+
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
 	// URL: /GROUPs/gID/RESOURCEs/rID
@@ -1188,6 +1201,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	if numParts == 3 {
 		// POST GROUPs/gID/RESOURCEs + body:map[id]Resource
+
+		// Check if setdefaultversionid flag is present - it's not allowed on
+		// operations that allow modifying multiple Resources
+		if setDefVerID != "" {
+			return NewXRError("bad_flag", info.GetParts(0),
+				"flag=setdefaultversionid")
+		}
 
 		objMap, xErr := IncomingObj2Map(IncomingObj, "Resource")
 		if xErr != nil {
@@ -1236,7 +1256,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	if numParts == 4 && (method == "PUT" || method == "PATCH") {
-		// PUT GROUPs/gID/RESOURCEs/rID [$details]
+		// PUT|PATCH GROUPs/gID/RESOURCEs/rID [$details]
 
 		if resource != nil {
 			// version, xErr = resource.GetDefault(FOR_WRITE)
@@ -1356,7 +1376,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 		}
 
-		// DUG do we still need this? I think so
+		// setdefaultversionid flag MUST override any values in request body
 		if setDefVerID != "" {
 			IncomingObj["defaultversionid"] = setDefVerID
 			IncomingObj["defaultversionsticky"] = true
@@ -1408,7 +1428,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		thisVersion := (*Version)(nil)
+		// ?setdefaultversionid=request w/o any versions is an error
+		if len(objMap) == 0 && setDefVerID == "request" {
+			return NewXRError("defaultversionid_request", "/"+info.OriginalPath)
+		}
 
 		if resource == nil {
 			// Implicitly create the resource
@@ -1442,10 +1465,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-
-			v, xErr := resource.GetDefault(FOR_WRITE)
-			Must(xErr)
-			thisVersion = v
 
 			// Remove the newly created default version from objMap so we
 			// won't process it again, but add it to the reuslts collection
@@ -1501,12 +1520,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			}
 		}
 
-		// DUG do we still need this given what we do above?
-		xErr = ProcessSetDefaultVersionIDFlag(info, resource, thisVersion)
-		if xErr != nil {
-			return xErr
-		}
-
 		if len(paths) == 0 {
 			paths = []string{"!"} // Force an empty collection to be returned
 		}
@@ -1560,12 +1573,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	PanicIf(xErr != nil, "err should be nil")
-
-	// Process any ?setdefaultversionid query parameter there might be
-	xErr = ProcessSetDefaultVersionIDFlag(info, resource, version)
-	if xErr != nil {
-		return xErr
-	}
 
 	// Make sure everything is ok before we send back the results
 	info.tx.Validate(info)
@@ -1695,62 +1702,6 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	}
 
 	return HTTPGETModelSource(info)
-}
-
-// Process the ?setdefaultversionid query parameter
-// "resource" is the resource we're processing
-// "version" is the version that was processed
-func ProcessSetDefaultVersionIDFlag(info *RequestInfo, resource *Resource, version *Version) *XRError {
-	return nil
-	vIDs := info.GetFlagValues("setdefaultversionid")
-	if len(vIDs) == 0 {
-		return nil
-	}
-
-	/*
-		if info.ResourceModel.GetSetDefaultSticky() == false {
-			return NewXRError("setdefaultversionid_not_allowed", resource.XID,
-				"singular="+info.ResourceModel.Singular)
-		}
-	*/
-
-	if len(info.Parts) >= 5 {
-		vID := vIDs[0]
-
-		/*
-			if vID == "" {
-				return NewXRError("bad_defaultversionid", resource.XID,
-					"value="+`""`,
-					"error_detail=value must not be empty")
-			}
-		*/
-
-		// "null" and "request" have special meaning
-		if vID == "null" {
-			// Unstick the default version and go back to newest=default
-			return resource.SetDefault(nil)
-		}
-
-		if vID == "request" {
-			if version == nil {
-				return NewXRError("defaultversionid_request", resource.XID)
-			}
-			// stick default version to current one we just processed
-			return resource.SetDefault(version)
-		}
-
-		version, xErr := resource.FindVersion(vID, false, FOR_READ)
-		if xErr != nil {
-			return xErr
-		}
-		if version == nil {
-			return NewXRError("unknown_id", resource.XID,
-				"singular=version",
-				"id="+vID)
-		}
-	}
-
-	return resource.SetDefault(version)
 }
 
 func HTTPDelete(info *RequestInfo) *XRError {
@@ -1910,6 +1861,13 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			}
 		}
 		nextDefault := info.GetFlag("setdefaultversionid")
+
+		// Check StickyVersions capability enforcement
+		if nextDefault != "" && !info.Registry.Capabilities.StickyVersionsEnabled() {
+			return NewXRError("setdefaultversionid_not_allowed",
+				resource.XID+"/meta")
+		}
+
 		xErr = version.DeleteSetNextVersion(nextDefault)
 		if xErr != nil {
 			return xErr
@@ -2110,6 +2068,13 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 
 func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	nextDefault := info.GetFlag("setdefaultversionid")
+
+	// Check StickyVersions capability enforcement
+	if nextDefault != "" && !info.Registry.Capabilities.StickyVersionsEnabled() {
+		return NewXRError("setdefaultversionid_not_allowed",
+			"/"+info.GroupType+"/"+info.GroupUID+"/"+info.ResourceType+
+				"/"+info.ResourceUID+"/meta")
+	}
 
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {

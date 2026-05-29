@@ -397,6 +397,11 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 
 	if ru.DefaultVersionID != "" {
+		// Check StickyVersions capability before setting sticky to true
+		if !g.Registry.Capabilities.StickyVersionsEnabled() {
+			return nil, false, NewXRError("setdefaultversionid_not_allowed",
+				r.XID+"/meta")
+		}
 		meta.JustSet("defaultversionid", ru.DefaultVersionID)
 		meta.JustSet("defaultversionsticky", true)
 	}
@@ -512,6 +517,11 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		} else if ru.DefaultVersionID == "request" {
 			// Do nothing right now
 		} else if ru.DefaultVersionID != "" {
+			// Check StickyVersions capability before setting sticky to true
+			if !g.Registry.Capabilities.StickyVersionsEnabled() {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					r.XID+"/meta")
+			}
 			metaObj["defaultversionid"] = ru.DefaultVersionID
 			metaObj["defaultversionsticky"] = true
 		}
@@ -588,9 +598,19 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			metaObj["defaultversionsticky"] = false
 		} else if ru.DefaultVersionID == "request" {
 			// MUST only be one, so grab its ID
+			// Check StickyVersions capability before setting sticky to true
+			if !g.Registry.Capabilities.StickyVersionsEnabled() {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					r.XID+"/meta")
+			}
 			metaObj["defaultversionid"] = defaultVersion.GetAsString("versionid")
 			metaObj["defaultversionsticky"] = true
 		} else if ru.DefaultVersionID != "" {
+			// Check StickyVersions capability before setting sticky to true
+			if !g.Registry.Capabilities.StickyVersionsEnabled() {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					r.XID+"/meta")
+			}
 			metaObj["defaultversionid"] = ru.DefaultVersionID
 			metaObj["defaultversionsticky"] = true
 		}

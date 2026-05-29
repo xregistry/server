@@ -209,11 +209,54 @@ XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
 
 **Exceptions:** Timestamps and hostnames are auto-masked by test framework.
 
+### Timestamp Masking Pattern
+
+Test framework masks timestamps with pattern `YYYY-MM-DDTHH:MM:SSZ` where:
+- Date/time portions (YYYY-MM-DDTHH:MM) are masked as literal strings
+- Seconds (SS) start at `:01Z` and increment for each operation: `:01Z`, `:02Z`, `:03Z`, etc.
+
+```go
+// First operation
+"createdat": "YYYY-MM-DDTHH:MM:01Z",
+"modifiedat": "YYYY-MM-DDTHH:MM:01Z"
+
+// Second operation (PATCH)
+"modifiedat": "YYYY-MM-DDTHH:MM:02Z"  // Seconds increment
+
+// Third operation
+"modifiedat": "YYYY-MM-DDTHH:MM:03Z"  // And so on
+```
+
+**Key Points:**
+- Timestamps start at `:01Z` (not `:00Z`)
+- Each write operation increments the seconds counter
+- Read operations don't affect the counter
+- Epoch can advance without timestamp changing if operations happen quickly
+
 ### No Epoch Masks
 
 Per user requirement: Always verify `epoch` increments correctly. Do NOT use `epochMask` to hide epoch values.
 
 **Code Location:** `tests/model3_test.go` - Examples with explicit epoch values in expected output
+
+### Testing Resources with hasDocument=true
+
+Resources with `hasdocument=true` have two access patterns:
+- **Document view:** Direct resource URL returns the document content
+- **Metadata view:** Use `$details` endpoint to access xRegistry metadata
+
+```go
+// WRONG: Can't PATCH metadata directly on hasDocument=true resource
+XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{"description": "x"}`, ...)
+
+// CORRECT: Use $details for metadata operations
+XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details", `{"description": "x"}`, ...)
+
+// TESTING TIP: Set hasDocument=false in test models to simplify tests
+_, err = gm.AddResourceModel("files", "file", 0, true, true, false)  // false = hasDocument
+```
+
+**Code Location:** `tests/capabilities_test.go` - Examples using hasDocument=false for simpler tests
 
 ---
 

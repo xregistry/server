@@ -583,6 +583,26 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.NewObject["defaultversionid"] = nil
 		}
 
+		// Check StickyVersions capability enforcement
+		stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
+		verIDValue, verIDOk := meta.NewObject["defaultversionid"]
+
+		// If stickyversions capability is disabled, check for violations
+		if !r.Registry.Capabilities.StickyVersionsEnabled() {
+			// Check if trying to set defaultversionsticky to true
+			if stickyOk && stickyValue == true {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					meta.XID)
+			}
+
+			// Check if trying to explicitly set defaultversionid (non-null)
+			// which would implicitly set sticky to true
+			if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					meta.XID)
+			}
+		}
+
 		// Patching, so copy missing existing attributes.
 		xr, ok := meta.NewObject["xref"]
 		xrefSet := (ok && !IsNil(xr) && xr != "")
@@ -593,6 +613,28 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				if _, ok := meta.NewObject[k]; !ok {
 					meta.NewObject[k] = val
 				}
+			}
+		}
+	}
+
+	// Check StickyVersions capability enforcement for PUT operations
+	if meta.NewObject != nil && mu.addType != ADD_PATCH {
+		stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
+		verIDValue, verIDOk := meta.NewObject["defaultversionid"]
+
+		// If stickyversions capability is disabled, check for violations
+		if !r.Registry.Capabilities.StickyVersionsEnabled() {
+			// Check if trying to set defaultversionsticky to true
+			if stickyOk && stickyValue == true {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					meta.XID)
+			}
+
+			// Check if trying to explicitly set defaultversionid (non-null)
+			// which would implicitly set sticky to true
+			if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
+				return nil, false, NewXRError("setdefaultversionid_not_allowed",
+					meta.XID)
 			}
 		}
 	}
@@ -863,8 +905,8 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	}
 
 	if vu.DefaultVersionID != "" && !r.ResourceModel.GetSetDefaultSticky() {
-		return nil, false, NewXRError("setdefaultversionid_not_allowed", r.XID,
-			"singular="+r.ResourceModel.Singular)
+		return nil, false, NewXRError("setdefaultversionid_not_allowed", r.XID)
+
 	}
 
 	meta := r.MustFindMeta(false, FOR_WRITE)

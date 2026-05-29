@@ -278,7 +278,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"setdefaultversionid_not_allowed": &XRError{
 		Code:  400,
-		Title: `Processing "<subject>", the "setdefaultversionid" flag is not allowed to be specified for entities of type "<singular>".`,
+		Title: `Setting "defaultversionid" is not allowed for "<subject>".`,
 	},
 	"setdefaultversionsticky_false": &XRError{
 		Code:  400,
