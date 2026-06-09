@@ -866,7 +866,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false, false)
 
 	rm.SetMaxVersions(1)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
@@ -900,6 +900,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	//  v2->v1->v3->v3
 	// Should delete v3
 	rm.SetMaxVersions(2)
+	rm.SetSetDefaultSticky(true)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",

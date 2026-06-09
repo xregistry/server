@@ -697,3 +697,11 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 
 	return resources, nil
 }
+
+func (g *Group) CheckConstraints() *XRError {
+	constraints := g.Object["constraints"]
+	if !IsNil(constraints) {
+		return NewXRError("constraint_failure", g.XID, "path=...")
+	}
+	return nil
+}

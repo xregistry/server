@@ -203,40 +203,40 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 	// }
 	// if ur.SetVersionId != nil {
 	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
-		NotNilBoolPtr(ur.SetVersionId)))
+		((*ResourceModel)(ur).GetSetVersionId())))
 	// }
 	// if ur.SetDefaultSticky != nil {
 	buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
-		NotNilBoolPtr(ur.SetDefaultSticky)))
+		((*ResourceModel)(ur).GetSetDefaultSticky())))
 	// }
 	// if ur.HasDocument != nil {
 	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
-		NotNilBoolPtr(ur.HasDocument)))
+		((*ResourceModel)(ur).GetHasDocument())))
 	// }
-	if ur.VersionMode != "" {
-		buf.WriteString(`,"versionmode":"`)
-		buf.WriteString(ur.VersionMode)
-		buf.WriteRune('"')
-	}
+	// if ur.VersionMode != "" {
+	buf.WriteString(`,"versionmode":"`)
+	buf.WriteString(((*ResourceModel)(ur)).GetVersionMode())
+	buf.WriteRune('"')
+	// }
 	// if ur.GetSingleVersionRoot != nil {
 	buf.WriteString(fmt.Sprintf(`,"singleversionroot":%v`,
-		NotNilBoolPtr(ur.SingleVersionRoot)))
+		((*ResourceModel)(ur)).GetSingleVersionRoot()))
 	// }
 	// if ur.ValidateFormat != nil {
 	buf.WriteString(fmt.Sprintf(`,"validateformat":%v`,
-		NotNilBoolPtr(ur.ValidateFormat)))
+		((*ResourceModel)(ur).GetValidateFormat())))
 	// }
 	// if ur.ValidateCompatibility != nil {
 	buf.WriteString(fmt.Sprintf(`,"validatecompatibility":%v`,
-		NotNilBoolPtr(ur.ValidateCompatibility)))
+		((*ResourceModel)(ur).GetValidateCompatibility())))
 	// }
 	// if ur.StrictValidation != nil {
 	buf.WriteString(fmt.Sprintf(`,"strictvalidation":%v`,
-		NotNilBoolPtr(ur.StrictValidation)))
+		((*ResourceModel)(ur).GetStrictValidation())))
 	// }
 	// if ur.ConsistentFormat != nil {
 	buf.WriteString(fmt.Sprintf(`,"consistentformat":%v`,
-		NotNilBoolPtr(ur.ConsistentFormat)))
+		((*ResourceModel)(ur).GetConsistentFormat())))
 	// }
 	if len(ur.TypeMap) > 0 {
 		buf.WriteString(`,"typemap":`)

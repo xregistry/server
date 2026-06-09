@@ -579,29 +579,32 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				meta.NewObject["defaultversionsticky"] = false
 			}
 		}
+
 		if !newVerIDok && newStickyok && IsNil(newStickyAny) {
 			meta.NewObject["defaultversionid"] = nil
 		}
 
-		// Check StickyVersions capability enforcement
-		stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
-		verIDValue, verIDOk := meta.NewObject["defaultversionid"]
+		/*
+			// Check StickyVersions capability enforcement
+			stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
+			verIDValue, verIDOk := meta.NewObject["defaultversionid"]
 
-		// If stickyversions capability is disabled, check for violations
-		if !r.Registry.Capabilities.StickyVersionsEnabled() {
-			// Check if trying to set defaultversionsticky to true
-			if stickyOk && stickyValue == true {
-				return nil, false, NewXRError("setdefaultversionid_not_allowed",
-					meta.XID)
-			}
+			// If stickyversions capability is disabled, check for violations
+				if !r.Registry.Capabilities.StickyVersionsEnabled() {
+					// Check if trying to set defaultversionsticky to true
+					if stickyOk && stickyValue == true {
+						return nil, false, NewXRError("setdefaultversionid_not_allowed",
+							meta.XID)
+					}
 
-			// Check if trying to explicitly set defaultversionid (non-null)
-			// which would implicitly set sticky to true
-			if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
-				return nil, false, NewXRError("setdefaultversionid_not_allowed",
-					meta.XID)
-			}
-		}
+					// Check if trying to explicitly set defaultversionid (non-null)
+					// which would implicitly set sticky to true
+					if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
+						return nil, false, NewXRError("setdefaultversionid_not_allowed",
+							meta.XID)
+					}
+				}
+		*/
 
 		// Patching, so copy missing existing attributes.
 		xr, ok := meta.NewObject["xref"]
@@ -617,27 +620,37 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 	}
 
-	// Check StickyVersions capability enforcement for PUT operations
-	if meta.NewObject != nil && mu.addType != ADD_PATCH {
-		stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
-		verIDValue, verIDOk := meta.NewObject["defaultversionid"]
-
-		// If stickyversions capability is disabled, check for violations
-		if !r.Registry.Capabilities.StickyVersionsEnabled() {
-			// Check if trying to set defaultversionsticky to true
-			if stickyOk && stickyValue == true {
-				return nil, false, NewXRError("setdefaultversionid_not_allowed",
-					meta.XID)
-			}
-
-			// Check if trying to explicitly set defaultversionid (non-null)
-			// which would implicitly set sticky to true
-			if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
-				return nil, false, NewXRError("setdefaultversionid_not_allowed",
-					meta.XID)
-			}
+	if !r.ResourceModel.GetSetDefaultSticky() {
+		newStickyAny, newStickyok = meta.NewObject["defaultversionsticky"]
+		if newStickyok && newStickyAny != false {
+			return nil, false, NewXRError("defaultversionsticky_not_allowed",
+				meta.XID)
 		}
 	}
+
+	// Check StickyVersions capability enforcement for PUT operations
+	/*
+		if meta.NewObject != nil && mu.addType != ADD_PATCH {
+			stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
+			verIDValue, verIDOk := meta.NewObject["defaultversionid"]
+
+			// If stickyversions capability is disabled, check for violations
+			if !r.Registry.Capabilities.StickyVersionsEnabled() {
+				// Check if trying to set defaultversionsticky to true
+				if stickyOk && stickyValue == true {
+					return nil, false, NewXRError("setdefaultversionid_not_allowed",
+						meta.XID)
+				}
+
+				// Check if trying to explicitly set defaultversionid (non-null)
+				// which would implicitly set sticky to true
+				if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
+					return nil, false, NewXRError("setdefaultversionid_not_allowed",
+						meta.XID)
+				}
+			}
+		}
+	*/
 
 	// Mure sure these attributes are present in NewObject, and if not
 	// grab them from the previous version of NewObject or Object

@@ -694,7 +694,7 @@ func LoadRemoteRegistry(url string) (*Registry, *XRError) {
 	}
 
 	var xErr *XRError
-	reg.Model, xErr = ParseModel(data)
+	reg.Model, xErr = ParseModel(data, reg)
 	if xErr != nil {
 		return nil, xErr.SetDetail("Model:\n" + string(data) + ".")
 	}

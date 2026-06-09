@@ -82,7 +82,7 @@ func TestModel(td *TD) {
 	td.HTTPStatusMustEqual(res, 200, "GET /model")
 	td.HTTPBodyMustJSON(res, "GET /model")
 
-	_, xErr := xrlib.ParseModel(res.Body)
+	_, xErr := xrlib.ParseModel(res.Body, reg)
 	td.NoError(xErr, "Parsing model MUST work")
 }
 

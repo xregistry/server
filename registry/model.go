@@ -208,7 +208,7 @@ func LoadModel(reg *Registry) *Model {
 	}
 	results.Close()
 
-	model, xErr := ParseModel(modelBuf)
+	model, xErr := ParseModel(modelBuf, reg)
 	if xErr != nil {
 		return nil
 	}
@@ -292,7 +292,7 @@ func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {
 		return NewXRError("bad_request", "/", "error_detail="+err.Error())
 	}
 
-	model, xErr := ParseModel(buf)
+	model, xErr := ParseModel(buf, m.Registry)
 	if xErr != nil {
 		return xErr
 	}
@@ -315,8 +315,8 @@ func (rm *ResourceModel) VerifyData() *XRError {
 		return xErr
 	}
 
-	// First, let's make sure each Resource doesn't have too many Versions
-	// or has too many root versions
+	// For each Resource, make this it's compliant with all of the various
+	// constraints/rules that are defined
 
 	group := (*Group)(nil)
 	resource := (*Resource)(nil)

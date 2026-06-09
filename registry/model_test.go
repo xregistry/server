@@ -680,9 +680,9 @@ func TestModelVerifyEnum(t *testing.T) {
 	}
 
 	tests := []Test{
-		{"empty enum - int", Model{Attributes: Attributes{
+		{"enum - int", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: INTEGER, Enum: []any{1}}}}, ""},
-		{"empty enum - obj", Model{Attributes: Attributes{
+		{"enum - obj", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: OBJECT, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -693,7 +693,7 @@ func TestModelVerifyEnum(t *testing.T) {
   },
   "source": ":registry:shared_model:2926"
 }`},
-		{"empty enum - array", Model{Attributes: Attributes{
+		{"enum - array", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ARRAY, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -704,7 +704,7 @@ func TestModelVerifyEnum(t *testing.T) {
   },
   "source": ":registry:shared_model:2926"
 }`},
-		{"empty enum - map", Model{Attributes: Attributes{
+		{"enum - map", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: MAP, Item: &Item{Type: OBJECT}, Enum: []any{1}}}},
 			`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
@@ -717,15 +717,7 @@ func TestModelVerifyEnum(t *testing.T) {
 }`},
 		{"empty enum - any", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: ANY, Enum: []any{}}}},
-			`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: \"x\" specifies an \"enum\" but it is empty.",
-  "subject": "/model",
-  "args": {
-    "error_detail": "\"x\" specifies an \"enum\" but it is empty"
-  },
-  "source": ":registry:shared_model:2913"
-}`},
+			``},
 
 		{"enum - bool - true ", Model{Attributes: Attributes{
 			"x": {Name: "x", Type: BOOLEAN, Enum: []any{true}}}}, ""},

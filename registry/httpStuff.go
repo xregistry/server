@@ -1435,6 +1435,10 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 		if resource == nil {
 			// Implicitly create the resource
+
+			// Creating a Resource w/o any Versions is an error.
+			// We could create a dummy Version but the user explicitly
+			// left the map empty...so we have no idea what they really meant.
 			if len(objMap) == 0 {
 				return NewXRError("missing_versions", "/"+info.OriginalPath)
 			}
@@ -1627,8 +1631,6 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 			"error_detail="+err.Error())
 	}
 
-	cap := &Capabilities{}
-
 	method := info.OriginalRequest.Method
 	if method == "PUT" {
 		// Fall thru
@@ -1651,23 +1653,13 @@ func HTTPPUTCapabilities(info *RequestInfo) *XRError {
 			"action="+info.OriginalRequest.Method)
 	}
 
-	cap, xErr := ParseCapabilities(reqBody)
+	xErr := (*XRError)(nil)
+	info.Registry.Capabilities, xErr = ParseCapabilities(reqBody)
 	if xErr != nil {
 		return xErr
 	}
 
-	xErr = cap.Validate()
-	if xErr != nil {
-		return xErr
-	}
-
-	if xErr = info.Registry.SetSave("#capabilities", ToJSON(cap)); xErr != nil {
-		return xErr
-	}
-
-	// Now make sure all of the data in the Registry is ok. If not
-	// we can't allow the capabilities to be updated
-	if xErr = info.Registry.Model.Verify(); xErr != nil {
+	if xErr = info.Registry.SaveCapabilities(); xErr != nil {
 		return xErr
 	}
 

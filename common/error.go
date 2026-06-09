@@ -79,7 +79,7 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 }
 
 var Type2Error = map[string]*XRError{
-	// CODE SPEC
+	// spec: spec.md
 	"action_not_supported": &XRError{
 		Code:  405,
 		Title: `The specified action (<action>) is not supported for: <subject>.`,
@@ -152,6 +152,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request would cause one or more Versions of "<subject>" to violate its compatibility rule (<compat>).`,
 	},
+	"constraint_failure": &XRError{
+		Code:  400,
+		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "equal" constraint for attribute "<path>".`,
+	},
 	"data_retrieval_error": &XRError{
 		Code:  500,
 		Title: `The server was unable to retrieve all of the requested data.`,
@@ -159,6 +163,10 @@ var Type2Error = map[string]*XRError{
 	"defaultversionid_request": &XRError{
 		Code:  400,
 		Title: `Processing "<subject>", the "defaultversionid" attribute is not allowed to be "request" since a Version wasn't processed.`,
+	},
+	"defaultversionsticky_not_allowed": &XRError{
+		Code:  400,
+		Title: `Setting "defaultversionsticky" to "true" is not allowed for "<subject>".`,
 	},
 	"extra_xref_attribute": &XRError{
 		Code:  400,
@@ -180,13 +188,13 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request would cause Version "<subject>" to be non-compliant with its "format" (<format>).`,
 	},
-	"hasdocument_violation": &XRError{
-		Code:  400,
-		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model has "hasdocument" set to "false" but this Version has document content.`,
-	},
 	"groups_only": &XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is invalid. Only Group types are allowed to be specified on this request: <subject>.`,
+	},
+	"hasdocument_violation": &XRError{
+		Code:  400,
+		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model has "hasdocument" set to "false" but this Version has document content.`,
 	},
 	"inline_noninlineable": &XRError{
 		Code:  400,
@@ -219,10 +227,6 @@ var Type2Error = map[string]*XRError{
 	"misplaced_epoch": &XRError{
 		Code:  400,
 		Title: `The specified "epoch" value for "<subject>" needs to be within a "meta" entity.`,
-	},
-	"missing_versions": &XRError{
-		Code:  400,
-		Title: `At least one Version needs to be included in the request to process "<subject>".`,
 	},
 	"model_compliance_error": &XRError{
 		Code:  400,
@@ -320,10 +324,12 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `While creating a new Version for "<subject>", a "versionid" was specified but the "setversionid" model aspect for entities of type "<plural>" is "false".`,
 	},
+	// end-spec: spec.md
 
-	// MODEL SPEC
+	// spec: model.md
+	// end-spec: model.md
 
-	// HTTP SPEC
+	// spec: http.md
 	"api_not_found": &XRError{
 		Type:  HTTP_SPECURL + "#api_not_found",
 		Code:  404,
@@ -349,6 +355,11 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request is missing an HTTP body - try '{}'.`,
 	},
+	"missing_versions": &XRError{
+		Code:  400,
+		Title: `At least one Version needs to be included in the request to process "<subject>".`,
+	},
+	// end-spec: http.md
 
 	// CLIENT
 	"exists": &XRError{

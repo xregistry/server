@@ -9291,6 +9291,36 @@ func TestHTTPDefault(t *testing.T) {
 	})
 
 	XCheckHTTP(t, reg, &HTTPTest{
+		Name:    "PATCH file f1/meta - defaultversionid",
+		URL:     "/dirs/d1/files/f1/meta",
+		Method:  "PATCH",
+		ReqBody: `{"defaultversionid": "1"}`,
+		Code:    400,
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "source": "08e2e2f5ead9:registry:resource:625"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
+		Name:    "PATCH file f1/meta - defaultversionsticky",
+		URL:     "/dirs/d1/files/f1/meta",
+		Method:  "PATCH",
+		ReqBody: `{"defaultversionsticky": true}`,
+		Code:    400,
+		ResBody: `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "source": "08e2e2f5ead9:registry:resource:625"
+}
+`,
+	})
+
+	XCheckHTTP(t, reg, &HTTPTest{
 		Name:        "PUT file f1/1 - no setdefault",
 		URL:         "/dirs/d1/files/f1/versions/1",
 		Method:      "PUT",

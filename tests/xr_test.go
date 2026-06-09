@@ -1522,7 +1522,8 @@ func TestXRResourceType(t *testing.T) {
 	XCLI(t, "model resource create f3s:f3 -g dirs -o table "+
 		"--consistent-format --description desc --docs docURL --has-doc "+
 		"--icon iconURL --label foo=bar --label=abc=def --max-versions 1 "+
-		"--model-compat-with mcw --model-version 1.0 --set-default-sticky "+
+		"--model-compat-with mcw --model-version 1.0 "+
+		"--set-default-sticky=false "+
 		"--set-version-id --single-version-root --strict-validation "+
 		"--type-map tm1=json --type-map tm2=string --validate-compat "+
 		"--validate-format --version-mode=createdat", "",
@@ -1531,7 +1532,7 @@ func TestXRResourceType(t *testing.T) {
   Documentation       : docURL
   Max versions        : 1
   Set version id      : true
-  Set version sticky  : true
+  Set version sticky  : false
   Has document        : true
   Version mode        : createdat
   Single version root : true

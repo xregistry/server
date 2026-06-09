@@ -2790,8 +2790,6 @@ func TestHTTPModelEnum(t *testing.T) {
 }
 `, 200, `*`)
 
-	return
-
 	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
@@ -2803,7 +2801,7 @@ func TestHTTPModelEnum(t *testing.T) {
             "item": {
               "type": "string"
             },
-            "enum": { 1 }
+            "enum": { "1" : "2" }
           }
         }
       }
@@ -2814,7 +2812,446 @@ func TestHTTPModelEnum(t *testing.T) {
     "d2": { "strs": [ "aaa", "bbb" ] }
   }
 }
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#parsing_data",
+  "title": "There was an error parsing the data: path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "path '.groups[\"dirs\"].attributes[\"strs\"].enum': expected \"slice\", got \"object\""
+  },
+  "source": "08e2e2f5ead9:registry:shared_model:242"
+}
+`)
+
+	// make sure empty enum is ok - strict=false
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "ints": {
+            "type": "integer",
+            "enum": [],
+            "strict": false
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "ints": 1 }
+  }
+}
 `, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2026-06-09T16:56:01.827574966Z",
+  "modifiedat": "2026-06-09T16:56:01.939136182Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// make sure empty enum is ok - strict=true
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "ints": {
+            "type": "integer",
+            "enum": [],
+            "strict": true
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "ints": 1 }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-06-09T16:56:01.827574966Z",
+  "modifiedat": "2026-06-09T16:56:01.939136182Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// empty enum, strict is ignored so no check to ensure default is in enum
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "ints": {
+            "type": "integer",
+            "enum": [],
+            "strict": true,
+            "required": true,
+            "default": 2
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "ints": 1 }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 6,
+  "createdat": "2026-06-09T16:59:10.315187203Z",
+  "modifiedat": "2026-06-09T16:59:10.496141617Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// make sure default is within enum - pass
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "ints": {
+            "type": "integer",
+            "enum": [ 3, 1, 2 ],
+            "strict": true,
+            "required": true,
+            "default": 2
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "ints": 1 }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 7,
+  "createdat": "2026-06-09T16:59:28.679927193Z",
+  "modifiedat": "2026-06-09T16:59:28.859396573Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// make sure default is within enum - fail
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "attributes": {
+          "ints": {
+            "type": "integer",
+            "enum": [ 3, 1, 2 ],
+            "strict": true,
+            "required": true,
+            "default": 5
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": { "ints": 3 }
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"groups.dirs.ints\" default value \"5\" must be one of the specified enum values (3, 1, 2) since \"strict\" is \"true\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"groups.dirs.ints\" default value \"5\" must be one of the specified enum values (3, 1, 2) since \"strict\" is \"true\""
+  },
+  "source": "08e2e2f5ead9:registry:shared_model:3354"
+}
+`)
+
+	// same but do it with a spec defined attr - first pass (no enum)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files.meta", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "metaattributes": {
+              "defaultversionsticky": {
+                "type": "boolean",
+                "required": true,
+                "default": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionsticky": true
+          }
+        }
+      }
+    }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 8,
+  "createdat": "2026-06-09T17:06:18.951828521Z",
+  "modifiedat": "2026-06-09T17:06:19.160126764Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 7,
+      "createdat": "2026-06-09T17:06:18.996549746Z",
+      "modifiedat": "2026-06-09T17:06:19.160126764Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2026-06-09T17:06:19.160126764Z",
+          "modifiedat": "2026-06-09T17:06:19.160126764Z",
+          "ancestor": "1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "2026-06-09T17:06:19.160126764Z",
+            "modifiedat": "2026-06-09T17:06:19.160126764Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1$details",
+            "defaultversionsticky": true
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versionscount": 1
+        }
+      },
+      "filescount": 1
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	// same but do it with a spec defined attr - fail
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "metaattributes": {
+              "defaultversionsticky": {
+                "enum": [ false ],
+                "type": "boolean",
+                "required": true,
+                "default": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionsticky": true
+          }
+        }
+      }
+    }
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\""
+  },
+  "source": "08e2e2f5ead9:registry:shared_model:3354"
+}
+`)
+
+	// Not really a model test but for completeness - try to set sticky and fail
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "metaattributes": {
+              "defaultversionsticky": {
+                "enum": [ false ],
+                "type": "boolean",
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionsticky": true
+          }
+        }
+      }
+    }
+  }
+}
+`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "08e2e2f5ead9:registry:entity:2919"
+}
+`)
+
+	// Trying to set model.sticky to false should error on f1 since it's true
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "metaattributes": {
+              "defaultversionsticky": {
+                "enum": [ false ],
+                "type": "boolean",
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "08e2e2f5ead9:registry:entity:2927"
+}
+`)
+
+	// Remove data so tests start from scratch
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+
+	// Not really a model test but for completeness - let it default to false
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file",
+            "metaattributes": {
+              "defaultversionsticky": {
+                "enum": [ false ],
+                "type": "boolean",
+                "required": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {}
+      }
+    }
+  }
+}
+`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPModelEnum",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "2026-06-09T17:18:12.673276374Z",
+  "modifiedat": "2026-06-09T17:18:12.98922291Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
 }
 `)
 

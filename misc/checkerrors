@@ -9,10 +9,14 @@ echo "Checking common/error.go against the spec's error definitions"
 declare -A codeMap
 declare -A specMap
 
+TMPFILE1=/tmp/file$RANDOM
+TMPFILE2=/tmp/file$RANDOM
+
+trap 'rm -f $TMPFILE1 $TMPFILE2' EXIT
+
 echo "> Making sure all defined errors are used"
 while read line ; do
   # Find the start of a new error definition
-  # [[ ! "$line" =~ $regexp ]] && continue
   [[ ! "$line" =~ \"[a-z][a-z0-9_]*\":\ \&XRError\{ ]] && continue
 
   id=$( echo $line | sed "s/.*\"\(.*\)\":.*/\1/" )
@@ -33,7 +37,7 @@ while read line ; do
 
   if ! grep -qlr "NewXRError.*\"$id\"" cmds common registry > /dev/null ; then
     echo "  - \"$id\" appears to be unused"
-    rc=1
+    exit 1
   fi
 
   codeMap[$id]="$code: $title"
@@ -47,6 +51,19 @@ fi
 
 for file in $* ; do
   echo "> Processing spec file: $file"
+
+  baseFile=${file##*/}
+  sed -n '/start-err-def/,/end-err-def/p' <(${specCmd}/$file) | \
+    grep "^#" | sed "s/^#* //" > $TMPFILE1
+
+  sed -n "/ spec: $baseFile/,/end-spec: $baseFile/p" < common/error.go | \
+    grep '&XRError' | sed 's/^[[:blank:]]*"//g' | sed 's/":.*//' > $TMPFILE2
+
+  echo "> Checking spec vs code error definitions (spec vs common/errors.go)"
+  if ! diff $TMPFILE1 $TMPFILE2 ; then
+    exit 1
+  fi
+
   id=""
   while read line ; do
     [[ ! "$line" =~ .*start-err-def.* ]] && continue
@@ -63,7 +80,7 @@ for file in $* ; do
             echo "    ** Diff for ID: $id"
             echo "    code: ${codeMap[$id]}"
             echo "    spec: $code: $title"
-            rc=1
+            exit 1
           fi
         fi
         id=$(echo $line | sed "s/.*##*\s*\([a-z][a-z0-9_]*\).*/\1/")
@@ -85,4 +102,4 @@ for file in $* ; do
   done < <(${specCmd}/$file)
 done
 
-exit $rc
+echo "> All good"

@@ -229,7 +229,7 @@ type ResourceModel struct {
 	effectivePropsMap     map[string]*Attribute
 }
 
-func ParseModel(buf []byte) (*Model, *XRError) {
+func ParseModel(buf []byte, reg *Registry) (*Model, *XRError) {
 	buf, err := RemoveSchema(buf)
 	if err != nil {
 		return nil, NewXRError("parsing_data", "/model",
@@ -242,7 +242,7 @@ func ParseModel(buf []byte) (*Model, *XRError) {
 		return nil, NewXRError("parsing_data", "/model",
 			"error_detail="+err.Error())
 	}
-	model.ApplyDefaults()
+	model.ApplyDefaults(reg)
 	model.SetSpecPropsFields()
 	model.SetPointers()
 	return &model, nil
@@ -288,7 +288,13 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 		r.SetVersionId = PtrBool(SETVERSIONID)
 	}
 	if r.SetDefaultSticky == nil {
-		r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
+        // If the capability is disabled then this must always be false
+		reg := rm.GroupModel.Model.Registry
+		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
+		    r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
+        } else {
+		    r.SetDefaultSticky = PtrBool(false)
+        }
 	}
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
@@ -320,20 +326,20 @@ func (m *Model) GetSourceAsModel() *Model {
 		return nil
 	}
 
-	srcModel, xErr := ParseModel([]byte(m.Source))
+	srcModel, xErr := ParseModel([]byte(m.Source), m.Registry)
 	PanicIf(xErr != nil, "Error with src: %s", m.Source)
 	return srcModel
 }
 
-func (m *Model) ApplyDefaults() {
+func (m *Model) ApplyDefaults(reg *Registry) {
 	for _, gm := range m.Groups {
 		for _, rm := range gm.Resources {
-			rm.ApplyDefaults()
+			rm.ApplyDefaults(reg)
 		}
 	}
 }
 
-func (r *ResourceModel) ApplyDefaults() {
+func (r *ResourceModel) ApplyDefaults(reg *Registry) {
 	if r.MaxVersions == nil {
 		r.MaxVersions = PtrInt(MAXVERSIONS)
 	}
@@ -341,7 +347,13 @@ func (r *ResourceModel) ApplyDefaults() {
 		r.SetVersionId = PtrBool(SETVERSIONID)
 	}
 	if r.SetDefaultSticky == nil {
-		r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
+		// If the capability is disabled then this must always be false
+		// reg := r.GroupModel.Model.Registry
+		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
+			r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
+		} else {
+			r.SetDefaultSticky = PtrBool(false)
+		}
 	}
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
@@ -1012,40 +1024,28 @@ func (gm *GroupModel) DelAttribute(name string) *XRError {
 }
 
 func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*ResourceModel, *XRError) {
+	// All other attributes will be set by the Verify() funcs
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:                plural,
-		Singular:              singular,
-		MaxVersions:           PtrInt(MAXVERSIONS),
-		SetVersionId:          PtrBool(SETVERSIONID),
-		SetDefaultSticky:      PtrBool(SETDEFAULTSTICKY),
-		HasDocument:           PtrBool(HASDOCUMENT),
-		VersionMode:           VERSIONMODE,
-		SingleVersionRoot:     PtrBool(SINGLEVERSIONROOT),
-		ValidateFormat:        PtrBool(VALIDATEFORMAT),
-		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
-		StrictValidation:      PtrBool(STRICTVALIDATION),
-		ConsistentFormat:      PtrBool(CONSISTENTFORMAT),
+		Plural:   plural,
+		Singular: singular,
 	})
 }
 
 func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, setDefaultSticky bool, hasDocument bool) (*ResourceModel, *XRError) {
+	// All other attributes will be set by the Verify() funcs
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:                plural,
-		Singular:              singular,
-		MaxVersions:           PtrInt(maxVersions),
-		SetVersionId:          PtrBool(setVerId),
-		SetDefaultSticky:      PtrBool(setDefaultSticky),
-		HasDocument:           PtrBool(hasDocument),
-		VersionMode:           VERSIONMODE,
-		SingleVersionRoot:     PtrBool(SINGLEVERSIONROOT),
-		ValidateFormat:        PtrBool(VALIDATEFORMAT),
-		ValidateCompatibility: PtrBool(VALIDATECOMPATIBILITY),
-		StrictValidation:      PtrBool(STRICTVALIDATION),
-		ConsistentFormat:      PtrBool(CONSISTENTFORMAT),
+		Plural:           plural,
+		Singular:         singular,
+		MaxVersions:      PtrInt(maxVersions),
+		SetVersionId:     PtrBool(setVerId),
+		SetDefaultSticky: PtrBool(setDefaultSticky),
+		HasDocument:      PtrBool(hasDocument),
 	})
 }
 
 func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *XRError) {
+	rm.GroupModel = gm
+
 	if rm.Plural == "" {
 		return nil, NewXRError("model_error", "/model",
 			"error_detail="+
@@ -1093,10 +1093,7 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *
 	}
 
 	rm.SID = NewUUID()
-	rm.GroupModel = gm
-
 	gm.Resources[rm.Plural] = rm
-
 	rm.GroupModel.Model.SetChanged(true)
 
 	return rm, nil
@@ -2357,20 +2354,27 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
 				fmt.Sprintf(`Resource %q has a "singular" value (%s) that `+
-					`matches another Resource's "plural" value`, rmName, rm.Singular))
+					`matches another Resource's "plural" value`,
+					rmName, rm.Singular))
 	}
 
 	if xErr := IsValidModelName(rm.Singular); xErr != nil {
 		return xErr
 	}
 
-	rm.ApplyDefaults()
+	rm.ApplyDefaults(rm.GroupModel.Model.Registry)
 
-	if rm.MaxVersions != nil && *rm.MaxVersions < 0 {
-		return NewXRError("model_error", "/model",
-			"error_detail="+
-				fmt.Sprintf("Resource %q must have a 'maxversions' value >= 0",
-					rmName))
+	if rm.MaxVersions != nil {
+		if *rm.MaxVersions < 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
+						*(rm.MaxVersions)))
+		}
+
+		if *rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
+			return NewXRError("setdefaultversionsticky_false", "/model")
+		}
 	}
 
 	if rm.GetValidateCompatibility() && !rm.GetValidateFormat() {
@@ -2510,12 +2514,27 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 	// no Registry then we're not connected to a backend and there's no data
 	// to verify
 	if rm.GroupModel.Model.Registry != nil {
-		// Should we be able to verify this when Registry is nil ?
-		if !rm.GroupModel.Model.Registry.Capabilities.VersionModeEnabled(rm.VersionMode) {
+		reg := rm.GroupModel.Model.Registry
+
+		// Make sure SetDefaultSticky isn't set when the Regsitry's capability
+		// doesn't allow it
+		if rm.GetSetDefaultSticky() &&
+			!reg.Capabilities.StickyVersionsEnabled() {
+
 			return NewXRError("model_error", "/model",
 				"error_detail="+
-					fmt.Sprintf("Resource %q has an invalid 'versionmode' value "+
-						"(%s). Must be one of: %s",
+					fmt.Sprintf("Resource %q has 'setdefaultsticky' set to "+
+						"'true' but the server's 'stickyversions' capability "+
+						"is 'false'",
+						rm.Plural))
+		}
+
+		// Should we be able to verify this when Registry is nil ?
+		if !reg.Capabilities.VersionModeEnabled(rm.VersionMode) {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Resource %q has an invalid 'versionmode' "+
+						"value (%s). Must be one of: %s",
 						rmName, rm.VersionMode,
 						strings.Join(SupportedVersionModes, ",")))
 		}
@@ -2672,7 +2691,13 @@ func (rm *ResourceModel) SetSetVersionId(val bool) {
 
 func (rm *ResourceModel) GetSetDefaultSticky() bool {
 	if rm.SetDefaultSticky == nil {
-		return SETDEFAULTSTICKY
+		// If the capability is disabled then this must always be false
+		reg := rm.GroupModel.Model.Registry
+		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
+			return SETDEFAULTSTICKY
+		} else {
+			return false
+		}
 	}
 	return *rm.SetDefaultSticky
 }
@@ -2713,6 +2738,9 @@ func (rm *ResourceModel) ClearHasDocument() {
 }
 
 func (rm *ResourceModel) GetVersionMode() string {
+	if rm.VersionMode == "" {
+		return VERSIONMODE
+	}
 	return rm.VersionMode
 }
 
@@ -2828,8 +2856,6 @@ func (rm *ResourceModel) ClearConsistentFormat() {
 		rm.GroupModel.Model.SetChanged(true)
 	}
 }
-
-// DUG
 
 func (rm *ResourceModel) GetBaseMetaAttributes() Attributes {
 	attrs := Attributes{}
@@ -3221,12 +3247,14 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		}
 
 		// check enum values
+		/* Not true
 		if attr.Enum != nil && len(attr.Enum) == 0 {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("%q specifies an \"enum\" but it is empty",
 						path.UI()))
 		}
+		*/
 		if len(attr.Enum) > 0 {
 			daType := attr.Type
 
@@ -3268,6 +3296,24 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 			if attr.Required == false {
 				return NewXRError("model_required_true", "/model",
 					"name="+path.UI())
+			}
+
+			if attr.GetStrict() && len(attr.Enum) > 0 {
+				found := false
+				for _, enumVal := range attr.Enum {
+					if enumVal == val {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return NewXRError("model_error", "/model",
+						"error_detail="+
+							fmt.Sprintf("%q default value \"%v\" must be "+
+								"one of the specified enum values (%s) since "+
+								"\"strict\" is \"true\"", path.UI(),
+								val, attr.EnumsAsString()))
+				}
 			}
 		}
 
@@ -3539,4 +3585,16 @@ func (attr *Attribute) Clone(newName string) *Attribute {
 	}
 
 	return &newAttr
+}
+
+func (attr *Attribute) EnumsAsString() string {
+	str := ""
+
+	for i, v := range attr.Enum {
+		if i > 0 {
+			str += ", "
+		}
+		str += fmt.Sprintf("%v", v)
+	}
+	return str
 }

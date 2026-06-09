@@ -108,7 +108,7 @@ func (reg *Registry) RefreshModel() *XRError {
 			"error_detail="+err.Error()).
 			SetDetailf("Response: %s.", string(res.Body))
 	}
-	reg.Model.ApplyDefaults()
+	reg.Model.ApplyDefaults(reg)
 	reg.Model.SetPointers()
 	return nil
 }

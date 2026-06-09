@@ -4757,10 +4757,28 @@ func TestCapabilityStickyVersions(t *testing.T) {
 	// Setup model - use hasDoc=false to avoid needing $details
 	gm, err = reg2.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
 	XNoErr(t, err)
 
-	// Disable stickyversions capability
+	// Disable stickyversions capability - should fails due to current
+	// "files" resource's meta.setstickyversion=true
+	XHTTP(t, reg2, "PATCH", "/capabilities", `{
+  "stickyversions": false
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Resource \"files\" has 'setdefaultsticky' set to 'true' but the server's 'stickyversions' capability is 'false'.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Resource \"files\" has 'setdefaultsticky' set to 'true' but the server's 'stickyversions' capability is 'false'"
+  },
+  "source": "08e2e2f5ead9:registry:shared_model:2566"
+}
+`)
+
+	// Change "files.meta.setdefaultversionsticky to false
+	rm.SetSetDefaultSticky(false)
+
+	// Now updating the capabilities should work
 	XHTTP(t, reg2, "PATCH", "/capabilities", `{
   "stickyversions": false
 }`, 200, `{
@@ -4909,10 +4927,10 @@ func TestCapabilityStickyVersions(t *testing.T) {
 	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
   "defaultversionsticky": true
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "6567a49b4de4:registry:resource:594"
+  "source": "08e2e2f5ead9:registry:resource:625"
 }
 `)
 
@@ -4920,10 +4938,10 @@ func TestCapabilityStickyVersions(t *testing.T) {
 	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
   "defaultversionid": "v2"
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "6567a49b4de4:registry:resource:594"
+  "source": "08e2e2f5ead9:registry:resource:625"
 }
 `)
 
@@ -5000,17 +5018,18 @@ func TestCapabilityStickyVersions(t *testing.T) {
 	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f3", `{
   "fileid": "f3",
   "meta": {
-    "defaultversionid": "v2"
+    "defaultversionid": "v2",
+    "defaultversionsticky": true
   },
   "versions": {
     "v1": {},
     "v2": {}
   }
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f3/meta\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f3/meta\".",
   "subject": "/dirs/d1/files/f3/meta",
-  "source": "6567a49b4de4:registry:resource:636"
+  "source": "08e2e2f5ead9:registry:resource:625"
 }
 `)
 

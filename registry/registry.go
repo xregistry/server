@@ -446,7 +446,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 		return xErr
 	}
 
-	model, xErr := ParseModel(buf)
+	model, xErr := ParseModel(buf, reg)
 	if xErr != nil {
 		return NewXRError("parsing_data", file,
 			"error_detail="+
@@ -1408,7 +1408,7 @@ func LoadRemoteRegistry(host string) (*Registry, *XRError) {
 	}
 
 	var xErr *XRError
-	reg.Model, xErr = ParseModel(data)
+	reg.Model, xErr = ParseModel(data, reg)
 	if xErr != nil {
 		return nil, xErr.SetDetail("Model:\n" + string(data) + ".")
 	}
