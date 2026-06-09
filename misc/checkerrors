@@ -6,6 +6,8 @@ echo "Checking common/error.go against the spec's error definitions"
 # so it must be a dir name (w/o trailing /). If not set then this will use
 # the specs from the github repo - via "curl URL"
 
+set -e
+
 declare -A codeMap
 declare -A specMap
 
@@ -45,7 +47,7 @@ done < common/error.go
 
 specURL="https://raw.githubusercontent.com/xregistry/spec/refs/heads/main"
 specCmd="curl -s ${specURL}"
-if [[ "$XR_SPEC" != "" ]]; then
+if test -f "${XR_SPEC}/core/spec.md" ; then
   specCmd="cat ${XR_SPEC}"
 fi
 
