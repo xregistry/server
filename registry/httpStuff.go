@@ -371,7 +371,7 @@ func HTTPGETCapabilities(info *RequestInfo) *XRError {
 	buf, err = json.MarshalIndent(cap, "", "  ")
 	if err != nil {
 		return NewXRError("server_error", "/").
-			SetDetailf("Error parsing capabilities: %s", err.Error())
+			SetDetailf("Error parsing capabilities: %s.", err.Error())
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -392,7 +392,7 @@ func HTTPGETCapabilitiesOffered(info *RequestInfo) *XRError {
 	buf, err = json.MarshalIndent(offered, "", "  ")
 	if err != nil {
 		return NewXRError("server_error", "/capabilitiesoffered").
-			SetDetailf("Error parsing capabilitiesoffered: %s", err.Error())
+			SetDetailf("Error parsing capabilitiesoffered: %s.", err.Error())
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -437,15 +437,16 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 	if model == nil {
 		model = &Model{}
 	}
+
 	modelSrc := model.Source
 	if modelSrc == "" {
-		modelSrc = "{}"
+		modelSrc = `{}`
 	}
 
 	buf, err := PrettyPrintJSON([]byte(modelSrc), "", "  ")
 	if err != nil {
 		return NewXRError("server_error", "/modelsource").
-			SetDetailf("Error parsing modelsource: %s", err.Error())
+			SetDetailf("Error parsing modelsource: %s.", err.Error())
 	}
 
 	info.SetHeader("Content-Type", "application/json")
@@ -488,7 +489,7 @@ FROM FullTree WHERE RegSID=? AND `
 		if xErr != nil {
 			log.Printf("Error loading entity: %s", xErr)
 			return NewXRError("server_error", "/"+path).SetDetailf(
-				"error loading entity: %s", xErr.GetTitle())
+				"error loading entity: %s.", xErr.GetTitle())
 		} else {
 			return NewXRError("not_found", "/"+path)
 		}
@@ -502,7 +503,7 @@ FROM FullTree WHERE RegSID=? AND `
 		group, err := info.Registry.FindGroup(info.GroupType, info.GroupUID, false, FOR_READ)
 		if err != nil {
 			return NewXRError("server_error",
-				info.GetParts(2)).SetDetailf("Error finding Group: %s", err)
+				info.GetParts(2)).SetDetailf("Error finding Group: %s.", err)
 		}
 		if group == nil {
 			return NewXRError("not_found", info.GetParts(2))
@@ -512,7 +513,7 @@ FROM FullTree WHERE RegSID=? AND `
 			info.ResourceUID, false, FOR_READ)
 		if err != nil {
 			return NewXRError("server_error", info.GetParts(4)).
-				SetDetailf("Error finding Resource: %s", err)
+				SetDetailf("Error finding Resource: %s.", err)
 		}
 		if resource == nil {
 			return NewXRError("not_found", info.GetParts(4))
@@ -535,7 +536,7 @@ FROM FullTree WHERE RegSID=? AND `
 
 			if v == nil && version == nil {
 				return NewXRError("server_error", resource.XID+"/versions/"+vID).
-					SetDetailf("Error finding Version: %s", err)
+					SetDetailf("Error finding Version: %s.", err)
 			}
 			if v == nil {
 				break
@@ -1677,8 +1678,13 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 	}
 
 	// null and {} both mean "reset model to empty" — treat identically.
-	body := info.Body
-	if string(bytes.TrimSpace(body)) == "null" {
+	body := bytes.TrimSpace(info.Body)
+
+	if len(body) == 0 {
+		return NewXRError("missing_body", "/"+info.OriginalPath)
+	}
+
+	if string(body) == "null" {
 		body = []byte("{}")
 	}
 

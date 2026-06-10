@@ -1757,21 +1757,8 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name: "defaultversionsticky",
-		internals: &AttrInternals{
-			updateFn: func(e *Entity) *XRError {
-				// No defaultversionid, must be xref, just exit
-				if IsNil(e.NewObject["defaultversionid"]) {
-					return nil
-				}
-
-				val := e.NewObject["defaultversionsticky"]
-				if IsNil(val) {
-					e.NewObject["defaultversionsticky"] = false
-				}
-				return nil
-			},
-		},
+		Name:      "defaultversionsticky",
+		internals: &AttrInternals{},
 	},
 	{
 		Name:      "$space",

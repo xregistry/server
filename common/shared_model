@@ -1756,6 +1756,13 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 		}
 	}
 
+	if !IsNil(specAttr.Default) && IsNil(userAttr.Default) {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have a default value defined`,
+					specAttr.Name))
+	}
+
 	if specAttr.Type != userAttr.Type {
 		return NewXRError("model_error", "/model",
 			"error_detail="+

@@ -3144,7 +3144,8 @@ func TestHTTPModelEnum(t *testing.T) {
               "defaultversionsticky": {
                 "enum": [ false ],
                 "type": "boolean",
-                "required": true
+                "required": true,
+                "default": false
               }
             }
           }
@@ -3189,7 +3190,8 @@ func TestHTTPModelEnum(t *testing.T) {
               "defaultversionsticky": {
                 "enum": [ false ],
                 "type": "boolean",
-                "required": true
+                "required": true,
+                "default": false
               }
             }
           }
@@ -3225,7 +3227,8 @@ func TestHTTPModelEnum(t *testing.T) {
               "defaultversionsticky": {
                 "enum": [ false ],
                 "type": "boolean",
-                "required": true
+                "required": true,
+                "default": false
               }
             }
           }

@@ -2678,6 +2678,8 @@ func TestModelSourceDelete(t *testing.T) {
 }
 
 // TestModelSourceSpecCompliance tests spec-required behaviors for modelsource:
+//   - empty modelsource = {} not ""
+//   - missing body = error
 //   - Absent modelsource in PUT / MUST NOT change the model
 //   - Absent modelsource in PATCH / MUST NOT change the model
 //   - ?inline=* MUST NOT include modelsource
@@ -2685,6 +2687,18 @@ func TestModelSourceDelete(t *testing.T) {
 func TestModelSourceSpecCompliance(t *testing.T) {
 	reg := NewRegistry("TestModelSourceSpecCompliance")
 	defer PassDeleteReg(t, reg)
+
+	// Empty modelsource
+	XHTTP(t, reg, "GET", "/modelsource", ``, 200, "{}\n")
+
+	// Test missing body
+	XHTTP(t, reg, "PUT", "/modelsource", ``, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#missing_body",
+  "title": "The request is missing an HTTP body - try '{}'.",
+  "subject": "/modelsource",
+  "source": "445837e170ad:registry:httpStuff:1683"
+}
+`)
 
 	modelWithDirs := `{
   "groups": {

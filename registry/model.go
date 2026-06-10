@@ -277,12 +277,14 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 
 func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {
 	modelSource := string(buf)
+	modelSource = strings.TrimSpace(modelSource)
+
 	if modelSource == "" {
-		modelSource = "{}"
+		return NewXRError("missing_body", "/")
 	}
 
 	// Don't allow local files to be included (e.g. ../foo)
-	buf, xErr := ProcessIncludes("", buf, false)
+	buf, xErr := ProcessIncludes("", []byte(modelSource), false)
 	if xErr != nil {
 		return xErr
 	}
