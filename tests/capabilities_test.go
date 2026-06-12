@@ -117,7 +117,6 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -230,7 +229,6 @@ func TestCapabilitySimple(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -262,7 +260,6 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -295,7 +292,6 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -328,7 +324,6 @@ func TestCapabilitySimple(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -481,7 +476,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -520,7 +514,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -588,7 +581,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -622,7 +614,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -647,7 +638,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -734,7 +724,6 @@ func TestCapabilityPath(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "stickyversions": true,
   "versionmodes": [ "createdat", "manual" ]
 }`, 200,
 		`{
@@ -833,7 +822,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -937,7 +925,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -965,7 +952,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -990,7 +976,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -1001,8 +986,7 @@ func TestCapabilityPath(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/capabilities", `{
     "available":{"capabilities":{"mutable":true}},
 	"pagination": false,
-	"shortself": false,
-    "stickyversions": false
+	"shortself": false
 }`, 200, `{
   "available": {
     "capabilities": {
@@ -1021,7 +1005,6 @@ func TestCapabilityPath(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "manual"
   ]
@@ -1152,7 +1135,6 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -1169,7 +1151,6 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": null,
   "shortself": null,
   "specversions": null,
-  "stickyversions": null,
   "versionmodes": null
 }}`, 200,
 		`{
@@ -1201,7 +1182,6 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -1279,7 +1259,6 @@ func TestCapabilityAttr(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [ "`+SPECVERSION+`" ],
-  "stickyversions": false,
   "versionmodes": [ "createdat", "manual" ]
 }}`, 200,
 		`{
@@ -1387,7 +1366,6 @@ func TestCapabilityAttr(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": false,
     "versionmodes": [
       "createdat",
       "manual"
@@ -1492,7 +1470,6 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -1512,7 +1489,6 @@ func TestCapabilityAttr(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": ["`+SPECVERSION+`"],
-    "stickyversions": true,
     "versionmodes": [ "manual" ]
   }
 }`, 200,
@@ -1545,7 +1521,6 @@ func TestCapabilityAttr(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -1592,7 +1567,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/capabilities", `{
       "available":{
@@ -1619,7 +1594,6 @@ func TestCapabilityFlagsOff(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -1918,13 +1892,6 @@ func TestCapabilityOffered(t *testing.T) {
       "type": "string"
     }
   },
-  "stickyversions": {
-    "type": "boolean",
-    "enum": [
-      false,
-      true
-    ]
-  },
   "versionmodes": {
     "type": "array",
     "enum": [
@@ -1966,7 +1933,6 @@ func TestCapabilityAvailable(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -2088,7 +2054,6 @@ func TestCapabilityAvailable(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -2126,7 +2091,6 @@ func TestCapabilityAvailable(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -2200,7 +2164,7 @@ func TestCapabilityAvailable(t *testing.T) {
 	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, reg.SaveAllAndCommit())
 
 	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
@@ -2230,7 +2194,6 @@ func TestCapabilityAvailable(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -2435,8 +2398,7 @@ func TestCapabilityPatch(t *testing.T) {
 
 	// Try to clear it all
 	XHTTP(t, reg, "PATCH", "/capabilities", `{
-      "flags": ["inline"],
-      "stickyversions": false
+      "flags": ["inline"]
     }`, 200, `{
   "available": {
     "capabilities": {
@@ -2524,7 +2486,6 @@ func TestCapabilityPatch(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -2548,8 +2509,7 @@ func TestCapabilityPatch(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/?inline=capabilities", `{
   "capabilities": {
-    "flags": [ "inline", "filter" ],
-    "stickyversions": true
+    "flags": [ "inline", "filter" ]
 }
 }`, 200, `{
   "specversion": "`+SPECVERSION+`",
@@ -2649,7 +2609,6 @@ func TestCapabilityPatch(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -2794,7 +2753,6 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -2903,7 +2861,6 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -2915,7 +2872,6 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
 	// Step 3: PATCH / with multiple capabilities - should preserve others
 	XHTTP(t, reg, "PATCH", "/", `{
   "capabilities": {
-    "stickyversions": false,
     "shortself": false
   }
 }`, 200, `{
@@ -3017,7 +2973,6 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3072,7 +3027,6 @@ func TestCapabilityPutRootSemantics(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -3101,7 +3055,6 @@ func TestCapabilityPutRootSemantics(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3117,8 +3070,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 	defer PassDeleteReg(t, reg1)
 
 	XHTTP(t, reg1, "PATCH", "/capabilities", `{
-  "flags": ["inline"],
-  "stickyversions": false
+  "flags": ["inline"]
 }`, 200, `{
   "available": {
     "capabilities": {
@@ -3206,7 +3158,6 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3214,7 +3165,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 }
 `)
 
-	// Verify result has flags=["inline"], stickyversions=false, and all
+	// Verify result has flags=["inline"], and all
 	// other caps preserved
 	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
   "available": {
@@ -3303,7 +3254,6 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3317,8 +3267,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 
 	XHTTP(t, reg2, "PATCH", "/", `{
   "capabilities": {
-    "flags": ["inline"],
-    "stickyversions": false
+    "flags": ["inline"]
   }
 }`, 200, `{
   "specversion": "1.0-rc2",
@@ -3331,7 +3280,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 }
 `)
 
-	// Verify result has flags=["inline"], stickyversions=false, and all
+	// Verify result has flags=["inline"], and all
 	// other caps preserved
 	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
   "available": {
@@ -3420,7 +3369,6 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": false,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3464,7 +3412,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3492,7 +3439,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3607,7 +3553,6 @@ func TestCapabilityNullHandling(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -3713,7 +3658,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3753,7 +3697,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3781,7 +3724,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3900,7 +3842,6 @@ func TestCapabilityNullHandling(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -3942,7 +3883,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3971,7 +3911,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3987,7 +3926,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": null,
   "shortself": null,
   "specversions": null,
-  "stickyversions": null,
   "versionmodes": null
 }`, 200, `{
   "available": {
@@ -4007,7 +3945,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4033,7 +3970,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4069,7 +4005,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4098,7 +4033,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4115,7 +4049,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
     "pagination": null,
     "shortself": null,
     "specversions": null,
-    "stickyversions": null,
     "versionmodes": null
   }
 }`, 200, `{
@@ -4148,7 +4081,6 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4200,7 +4132,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4237,7 +4168,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4293,7 +4223,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4347,7 +4276,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4395,7 +4323,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -4459,7 +4386,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4529,7 +4455,6 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -4598,7 +4523,6 @@ func TestCapabilityWildcard(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -4657,455 +4581,9 @@ func TestCapabilityWildcard(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
-}
-`)
-}
-
-func TestCapabilityStickyVersions(t *testing.T) {
-	// Test 1: With stickyversions=true (default), should allow sticky operations
-	reg1 := NewRegistry("TestStickyVersionsEnabled")
-	defer PassDeleteReg(t, reg1)
-
-	// Setup model - use hasDoc=false to avoid needing $details
-	gm, err := reg1.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
-	XNoErr(t, err)
-
-	// Create a group
-	XHTTP(t, reg1, "PUT", "/dirs/d1", `{"dirid":"d1"}`, 201, `{
-  "dirid": "d1",
-  "self": "http://localhost:8181/dirs/d1",
-  "xid": "/dirs/d1",
-  "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-
-  "filesurl": "http://localhost:8181/dirs/d1/files",
-  "filescount": 0
-}
-`)
-
-	// Create resource with two versions
-	XHTTP(t, reg1, "PUT", "/dirs/d1/files/f1", `{
-  "fileid": "f1",
-  "versions": {
-    "v1": {},
-    "v2": {}
-  }
-}`, 201, `{
-  "fileid": "f1",
-  "versionid": "v2",
-  "self": "http://localhost:8181/dirs/d1/files/f1",
-  "xid": "/dirs/d1/files/f1",
-  "epoch": 1,
-  "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
-
-  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-  "versionscount": 2
-}
-`)
-
-	// PATCH meta to set defaultversionsticky=true (should succeed)
-	XHTTP(t, reg1, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionsticky": true
-}`, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "readonly": false,
-
-  "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
-  "defaultversionsticky": true
-}
-`)
-
-	// PATCH meta to set defaultversionid explicitly (should succeed)
-	XHTTP(t, reg1, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionid": "v1"
-}`, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "readonly": false,
-
-  "defaultversionid": "v1",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
-  "defaultversionsticky": true
-}
-`)
-
-	// Test 2: With stickyversions=false, should reject sticky operations
-	reg2 := NewRegistry("TestStickyVersionsDisabled")
-	defer PassDeleteReg(t, reg2)
-
-	// Setup model - use hasDoc=false to avoid needing $details
-	gm, err = reg2.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
-	XNoErr(t, err)
-
-	// Disable stickyversions capability - should fails due to current
-	// "files" resource's meta.setstickyversion=true
-	XHTTP(t, reg2, "PATCH", "/capabilities", `{
-  "stickyversions": false
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: Resource \"files\" has 'setdefaultsticky' set to 'true' but the server's 'stickyversions' capability is 'false'.",
-  "subject": "/model",
-  "args": {
-    "error_detail": "Resource \"files\" has 'setdefaultsticky' set to 'true' but the server's 'stickyversions' capability is 'false'"
-  },
-  "source": "08e2e2f5ead9:registry:shared_model:2566"
-}
-`)
-
-	// Change "files.meta.setdefaultversionsticky to false
-	rm.SetSetDefaultSticky(false)
-
-	// Now updating the capabilities should work
-	XHTTP(t, reg2, "PATCH", "/capabilities", `{
-  "stickyversions": false
-}`, 200, `{
-  "available": {
-    "capabilities": {
-      "mutable": true
-    },
-    "capabilitiesoffered": {
-      "mutable": false
-    },
-    "entities": {
-      "mutable": true
-    },
-    "export": {
-      "mutable": false
-    },
-    "model": {
-      "mutable": false
-    },
-    "modelsource": {
-      "mutable": true
-    }
-  },
-  "compatibilities": {
-    "avro*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "jsonschema*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "numbers": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "protobuf*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ],
-    "xmlschema*": [
-      "backward",
-      "backward_transitive",
-      "forward",
-      "forward_transitive",
-      "full",
-      "full_transitive"
-    ]
-  },
-  "flags": [
-    "binary",
-    "collections",
-    "doc",
-    "epoch",
-    "filter",
-    "ignore",
-    "inline",
-    "setdefaultversionid",
-    "sort",
-    "specversion"
-  ],
-  "formats": [
-    "avro*",
-    "jsonschema*",
-    "numbers",
-    "protobuf*",
-    "xmlschema*"
-  ],
-  "ignores": [
-    "capabilities",
-    "defaultversionid",
-    "defaultversionsticky",
-    "epoch",
-    "id",
-    "modelsource",
-    "readonly"
-  ],
-  "pagination": false,
-  "shortself": false,
-  "specversions": [
-    "1.0-rc2"
-  ],
-  "stickyversions": false,
-  "versionmodes": [
-    "createdat",
-    "manual"
-  ]
-}
-`)
-
-	// Create a group
-	XHTTP(t, reg2, "PUT", "/dirs/d1", `{"dirid":"d1"}`, 201, `{
-  "dirid": "d1",
-  "self": "http://localhost:8181/dirs/d1",
-  "xid": "/dirs/d1",
-  "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-
-  "filesurl": "http://localhost:8181/dirs/d1/files",
-  "filescount": 0
-}
-`)
-
-	// Create resource with versions (should succeed, sticky defaults to false)
-	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f1", `{
-  "fileid": "f1",
-  "versions": {
-    "v1": {},
-    "v2": {}
-  }
-}`, 201, `{
-  "fileid": "f1",
-  "versionid": "v2",
-  "self": "http://localhost:8181/dirs/d1/files/f1",
-  "xid": "/dirs/d1/files/f1",
-  "epoch": 1,
-  "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
-
-  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-  "versionscount": 2
-}
-`)
-
-	// Attempt to PATCH meta to set defaultversionsticky=true (should fail)
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionsticky": true
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
-  "subject": "/dirs/d1/files/f1/meta",
-  "source": "08e2e2f5ead9:registry:resource:625"
-}
-`)
-
-	// Attempt to set defaultversionid explicitly via PATCH (should fail)
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionid": "v2"
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
-  "subject": "/dirs/d1/files/f1/meta",
-  "source": "08e2e2f5ead9:registry:resource:625"
-}
-`)
-
-	// Setting defaultversionsticky=false should succeed
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionsticky": false
-}`, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "readonly": false,
-
-  "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
-  "defaultversionsticky": false
-}
-`)
-
-	// Attempt to create resource with explicit defaultversionid via ?setdefaultversionid (should fail)
-	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f2?setdefaultversionid=v2", `{
-  "fileid": "f2",
-  "versions": {
-    "v1": {},
-    "v2": {}
-  }
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f2\".",
-  "subject": "/dirs/d1/files/f2",
-  "source": "6567a49b4de4:registry:httpStuff:1187"
-}
-`)
-
-	// Attempt PATCH on Resource with ?setdefaultversionid (should fail)
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1?setdefaultversionid=v1", `{}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
-  "subject": "/dirs/d1/files/f1",
-  "source": "6567a49b4de4:registry:httpStuff:1187"
-}
-`)
-
-	// Attempt PATCH on meta with ?setdefaultversionid (should fail)
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta?setdefaultversionid=v1", `{}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1/meta\".",
-  "subject": "/dirs/d1/files/f1/meta",
-  "source": "6567a49b4de4:registry:httpStuff:1187"
-}
-`)
-
-	// Attempt DELETE on Version with ?setdefaultversionid (should fail)
-	XHTTP(t, reg2, "DELETE", "/dirs/d1/files/f1/versions/v2?setdefaultversionid=v1", ``, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1/meta\".",
-  "subject": "/dirs/d1/files/f1/meta",
-  "source": "6567a49b4de4:registry:httpStuff:1867"
-}
-`)
-
-	// Attempt PUT on Version with ?setdefaultversionid (should fail)
-	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f1/versions/v1?setdefaultversionid=v1", `{}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1/versions/v1\".",
-  "subject": "/dirs/d1/files/f1/versions/v1",
-  "source": "6567a49b4de4:registry:httpStuff:1187"
-}
-`)
-
-	// Attempt to create resource with explicit meta.defaultversionid (should fail)
-	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f3", `{
-  "fileid": "f3",
-  "meta": {
-    "defaultversionid": "v2",
-    "defaultversionsticky": true
-  },
-  "versions": {
-    "v1": {},
-    "v2": {}
-  }
-}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f3/meta\".",
-  "subject": "/dirs/d1/files/f3/meta",
-  "source": "08e2e2f5ead9:registry:resource:625"
-}
-`)
-
-	// Create resource without explicit defaultversionid (should succeed)
-	XHTTP(t, reg2, "PUT", "/dirs/d1/files/f4", `{
-  "fileid": "f4",
-  "versions": {
-    "v1": {}
-  }
-}`, 201, `{
-  "fileid": "f4",
-  "versionid": "v1",
-  "self": "http://localhost:8181/dirs/d1/files/f4",
-  "xid": "/dirs/d1/files/f4",
-  "epoch": 1,
-  "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
-
-  "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f4/versions",
-  "versionscount": 1
-}
-`)
-
-	// Setting defaultversionid to null/empty should succeed
-	// Per spec: null sets sticky=false, and server keeps managing defaultversionid
-	XHTTP(t, reg2, "PATCH", "/dirs/d1/files/f1/meta", `{
-  "defaultversionid": null
-}`, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "readonly": false,
-
-  "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
-  "defaultversionsticky": false
-}
-`)
-
-	// GET requests with ?setdefaultversionid should be ignored (no error even when capability is disabled)
-	XHTTP(t, reg2, "GET", "/dirs/d1/files/f1?setdefaultversionid=v1", ``, 200, `{
-  "fileid": "f1",
-  "versionid": "v2",
-  "self": "http://localhost:8181/dirs/d1/files/f1",
-  "xid": "/dirs/d1/files/f1",
-  "epoch": 1,
-  "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
-
-  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
-  "versionscount": 2
-}
-`)
-
-	// GET on meta with ?setdefaultversionid should also be ignored
-	XHTTP(t, reg2, "GET", "/dirs/d1/files/f1/meta?setdefaultversionid=v1", ``, 200, `{
-  "fileid": "f1",
-  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "readonly": false,
-
-  "defaultversionid": "v2",
-  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
-  "defaultversionsticky": false
 }
 `)
 }

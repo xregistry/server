@@ -439,6 +439,27 @@ func TestHTTPModelSource(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -472,14 +493,12 @@ func TestHTTPModelSource(t *testing.T) {
             "singular": "file",
             "maxversions": 0,
             "setversionid": true,
-            "setdefaultversionsticky": true,
             "hasdocument": true,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -2291,7 +2310,6 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -2338,7 +2356,6 @@ func TestHTTPJsonSchema(t *testing.T) {
   "specversions": [
     "`+SPECVERSION+`"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -3349,7 +3366,7 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 
 	// baseline
@@ -3432,7 +3449,7 @@ func TestHTTPIgnore(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `*`)

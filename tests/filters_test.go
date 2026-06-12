@@ -12,7 +12,7 @@ func TestFiltersBasic(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel(true))
 
@@ -496,7 +496,7 @@ func TestFiltersANDOR(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel(true))
 
@@ -511,7 +511,7 @@ func TestFiltersANDOR(t *testing.T) {
 
 	gm, err = reg.Model.AddGroupModel("schemagroups", "schemagroup")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("schemas", "schema", 0, true, true, true)
+	_, err = gm.AddResourceModel("schemas", "schema", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel(true))
 
@@ -623,7 +623,7 @@ func TestFiltersWildcards(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel(true))
 
@@ -820,7 +820,7 @@ func TestFiltersOps(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false) // nodoc
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false) // nodoc
 	XNoErr(t, err)
 	rm.AddAttr("count", INTEGER)
 	XNoErr(t, reg.SaveModel(true))
@@ -1347,9 +1347,9 @@ func TestFiltersURLs(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("datas", "data", 0, true, true, true)
+	_, err = gm.AddResourceModel("datas", "data", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.SaveModel(true))
 
@@ -1656,7 +1656,7 @@ func TestFiltersMisc(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 
 	XHTTP(t, reg, "PUT", "/?filter=dirs..dirid=d2", ``, 400, `{

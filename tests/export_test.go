@@ -12,7 +12,7 @@ func TestExportBasic(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world" }}`, 201, `*`)
@@ -134,7 +134,6 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -444,7 +443,6 @@ func TestExportBasic(t *testing.T) {
     "specversions": [
       "`+SPECVERSION+`"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -690,6 +688,27 @@ func TestExportBasic(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -723,14 +742,12 @@ func TestExportBasic(t *testing.T) {
             "singular": "file",
             "maxversions": 0,
             "setversionid": true,
-            "setdefaultversionsticky": true,
             "hasdocument": true,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -2689,7 +2706,7 @@ func TestExportNoDoc(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
   "fileid": "f1",

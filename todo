@@ -57,7 +57,6 @@ TODOs:
 ** make meta.readonly a non-readonly attribute if the client is an admin
   - by making it mutable and changings it's meta-model
 - test cap.maxversions & creating resource type that violate it
-- test cap.stickyversions & creating resource type that violate it
 - test default values - incuding within objects
 - add tests for immutable attributes - in particular extensions
 - see if we can add RESOURCEid to Versions so we don't need special logic
@@ -121,3 +120,6 @@ TODOs:
 ** move capa.sticky tests that are really about meta.sticky out of the capa test files. Make sure the capa.sticky tests are complete
 ** make sure the meta.sticky tests are complete
 ** support constraints
+** support matchversions
+- test to see what happens if someone sets defaultversionsticky's enum to just 'true'
+- re-enable the format_test funcs once we support constraints, look for DUG

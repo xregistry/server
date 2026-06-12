@@ -13,7 +13,7 @@ func TestMultiReg(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 	reg.SaveAllAndCommit()
 
@@ -22,7 +22,7 @@ func TestMultiReg(t *testing.T) {
 	XNoErr(t, err)
 	gm, err = reg2.Model.AddGroupModel("reg2_dirs", "reg2_dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("reg2_files", "reg2_file", 0, true, true,
+	_, err = gm.AddResourceModel("reg2_files", "reg2_file", 0, true,
 		true)
 	XNoErr(t, err)
 	reg2.SaveAllAndCommit()

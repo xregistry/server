@@ -584,28 +584,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.NewObject["defaultversionid"] = nil
 		}
 
-		/*
-			// Check StickyVersions capability enforcement
-			stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
-			verIDValue, verIDOk := meta.NewObject["defaultversionid"]
-
-			// If stickyversions capability is disabled, check for violations
-				if !r.Registry.Capabilities.StickyVersionsEnabled() {
-					// Check if trying to set defaultversionsticky to true
-					if stickyOk && stickyValue == true {
-						return nil, false, NewXRError("setdefaultversionid_not_allowed",
-							meta.XID)
-					}
-
-					// Check if trying to explicitly set defaultversionid (non-null)
-					// which would implicitly set sticky to true
-					if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
-						return nil, false, NewXRError("setdefaultversionid_not_allowed",
-							meta.XID)
-					}
-				}
-		*/
-
 		// Patching, so copy missing existing attributes.
 		xr, ok := meta.NewObject["xref"]
 		xrefSet := (ok && !IsNil(xr) && xr != "")
@@ -619,38 +597,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			}
 		}
 	}
-
-	if !r.ResourceModel.GetSetDefaultSticky() {
-		newStickyAny, newStickyok = meta.NewObject["defaultversionsticky"]
-		if newStickyok && newStickyAny != false {
-			return nil, false, NewXRError("defaultversionsticky_not_allowed",
-				meta.XID)
-		}
-	}
-
-	// Check StickyVersions capability enforcement for PUT operations
-	/*
-		if meta.NewObject != nil && mu.addType != ADD_PATCH {
-			stickyValue, stickyOk := meta.NewObject["defaultversionsticky"]
-			verIDValue, verIDOk := meta.NewObject["defaultversionid"]
-
-			// If stickyversions capability is disabled, check for violations
-			if !r.Registry.Capabilities.StickyVersionsEnabled() {
-				// Check if trying to set defaultversionsticky to true
-				if stickyOk && stickyValue == true {
-					return nil, false, NewXRError("setdefaultversionid_not_allowed",
-						meta.XID)
-				}
-
-				// Check if trying to explicitly set defaultversionid (non-null)
-				// which would implicitly set sticky to true
-				if verIDOk && !IsNil(verIDValue) && verIDValue != "" {
-					return nil, false, NewXRError("setdefaultversionid_not_allowed",
-						meta.XID)
-				}
-			}
-		}
-	*/
 
 	// Mure sure these attributes are present in NewObject, and if not
 	// grab them from the previous version of NewObject or Object
@@ -915,11 +861,6 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 
 	if xErr := CheckAttrs(vu.Obj, r.XID+"/versions/"+vu.Id); xErr != nil {
 		return nil, false, xErr
-	}
-
-	if vu.DefaultVersionID != "" && !r.ResourceModel.GetSetDefaultSticky() {
-		return nil, false, NewXRError("setdefaultversionid_not_allowed", r.XID)
-
 	}
 
 	meta := r.MustFindMeta(false, FOR_WRITE)
@@ -1569,6 +1510,12 @@ func (r *Resource) EnsureMaxVersions() *XRError {
 		}
 		verIDs = verIDs[1:]
 	}
+
+	meta := r.MustFindMeta(false, FOR_READ)
+	if rm.GetMaxVersions() == 1 && meta.Get("defaultversionsticky") == true {
+		return NewXRError("setdefaultversionsticky_false", meta.XID)
+	}
+
 	return nil
 }
 
@@ -1830,22 +1777,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		return nil
 	}
 
-	prevFormat := ""
-
 	// Loop over all of the Resource's Versions
-	for i, va := range orderedVAs {
+	for _, va := range orderedVAs {
 		ver, xErr := r.FindVersion(va.VID, false, FOR_READ)
 		if xErr != nil {
 			return xErr
-		}
-
-		if r.ResourceModel.GetConsistentFormat() {
-			format := ver.GetAsString("format")
-			if i > 0 && format != prevFormat {
-				return NewXRError("format_inconsistent", r.XID).
-					SetDetailf("Formats: %q vs %q.", prevFormat, format)
-			}
-			prevFormat = format
 		}
 
 		// For each Version, save it's list of ancestors for easy lookup later.

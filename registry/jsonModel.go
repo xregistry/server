@@ -205,10 +205,6 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 	buf.WriteString(fmt.Sprintf(`,"setversionid":%v`,
 		((*ResourceModel)(ur).GetSetVersionId())))
 	// }
-	// if ur.SetDefaultSticky != nil {
-	buf.WriteString(fmt.Sprintf(`,"setdefaultversionsticky":%v`,
-		((*ResourceModel)(ur).GetSetDefaultSticky())))
-	// }
 	// if ur.HasDocument != nil {
 	buf.WriteString(fmt.Sprintf(`,"hasdocument":%v`,
 		((*ResourceModel)(ur).GetHasDocument())))
@@ -233,10 +229,6 @@ func (ur *UserResourceModel) MarshalJSON() ([]byte, error) {
 	// if ur.StrictValidation != nil {
 	buf.WriteString(fmt.Sprintf(`,"strictvalidation":%v`,
 		((*ResourceModel)(ur).GetStrictValidation())))
-	// }
-	// if ur.ConsistentFormat != nil {
-	buf.WriteString(fmt.Sprintf(`,"consistentformat":%v`,
-		((*ResourceModel)(ur).GetConsistentFormat())))
 	// }
 	if len(ur.TypeMap) > 0 {
 		buf.WriteString(`,"typemap":`)

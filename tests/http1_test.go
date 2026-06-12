@@ -700,6 +700,27 @@ func TestHTTPModel(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -733,14 +754,12 @@ func TestHTTPModel(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1071,14 +1090,12 @@ func TestHTTPModel(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
-          "strictvalidation": false,
-          "consistentformat": false
+          "strictvalidation": false
         }
       }
     }
@@ -1098,14 +1115,12 @@ func TestHTTPModel(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
-          "strictvalidation": false,
-          "consistentformat": false
+          "strictvalidation": false
         }
       }
     }
@@ -1339,6 +1354,27 @@ func TestHTTPModel(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -1372,14 +1408,12 @@ func TestHTTPModel(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1963,6 +1997,27 @@ func TestHTTPModel(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -1996,14 +2051,12 @@ func TestHTTPModel(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -3427,7 +3480,7 @@ func TestHTTPGroups(t *testing.T) {
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddAttr("format", STRING)
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	attr, _ := gm.AddAttrObj("myobj")
 	attr.AddAttr("foo", STRING)
@@ -3992,9 +4045,9 @@ func TestHTTPRegGroups(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	gm, _ = reg.Model.AddGroupModel("foos", "foo")
-	gm.AddResourceModel("bars", "bat", 0, true, true, true)
+	gm.AddResourceModel("bars", "bat", 0, true, true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PATCH / - update name",
@@ -4479,7 +4532,7 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "dir1")
 
@@ -5344,7 +5397,7 @@ func TestHTTPCases(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	d, _ := reg.AddGroup("dirs", "d1")
 	d.AddResource("files", "f1", "v1")
 
@@ -6028,7 +6081,7 @@ func TestHTTPResourcesContentHeaders(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	d, _ := reg.AddGroup("dirs", "d1")
 
@@ -6232,7 +6285,7 @@ func TestHTTPVersions(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 
@@ -7403,7 +7456,7 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	XNoErr(t, reg.SaveAllAndCommit())
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, reg.SaveAllAndCommit())
 	reg.Refresh(registry.FOR_WRITE)
 	regEpoch := reg.GetAsInt("epoch")
@@ -8973,7 +9026,7 @@ func TestHTTPNonStrings(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true /* L */, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true /* L */, true)
 
 	// rm.AddAttr("myint", INTEGER)
 	attr, _ := rm.AddAttr("myint", INTEGER)
@@ -9145,7 +9198,7 @@ func TestHTTPDefault(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true /* L */, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true /* L */, true)
 
 	reg.AddGroup("dirs", "d1")
 
@@ -9252,7 +9305,7 @@ func TestHTTPDefault(t *testing.T) {
 		ResBody: `hello`,
 	})
 
-	rm.SetSetDefaultSticky(false)
+	rm.EnableSticky(false)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:        "PUT file f1/2 - setdefault=2 - diff server",
@@ -9264,10 +9317,14 @@ func TestHTTPDefault(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
-  "subject": "/dirs/d1/files/f1",
-  "source": "6567a49b4de4:registry:resource:908"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2925"
 }
 `,
 	})
@@ -9282,10 +9339,14 @@ func TestHTTPDefault(t *testing.T) {
 		HeaderMasks: []string{},
 		ResHeaders:  []string{},
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
-  "subject": "/dirs/d1/files/f1",
-  "source": "6567a49b4de4:registry:resource:908"
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2925"
 }
 `,
 	})
@@ -9297,10 +9358,14 @@ func TestHTTPDefault(t *testing.T) {
 		ReqBody: `{"defaultversionid": "1"}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "08e2e2f5ead9:registry:resource:625"
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2925"
 }
 `,
 	})
@@ -9312,10 +9377,14 @@ func TestHTTPDefault(t *testing.T) {
 		ReqBody: `{"defaultversionsticky": true}`,
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#defaultversionsticky_not_allowed",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed for \"/dirs/d1/files/f1/meta\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (true) must be one of the enum values: false.",
   "subject": "/dirs/d1/files/f1/meta",
-  "source": "08e2e2f5ead9:registry:resource:625"
+  "args": {
+    "error_detail": "value (true) must be one of the enum values: false",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2925"
 }
 `,
 	})
@@ -9378,10 +9447,14 @@ func TestHTTPDefault(t *testing.T) {
 		ReqBody: "{}",
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"x\" cannot be found.",
   "subject": "/dirs/d1/files/f1",
-  "source": "6567a49b4de4:registry:resource:908"
+  "args": {
+    "id": "x",
+    "singular": "version"
+  },
+  "source": "9263661f51d9:registry:resource:436"
 }
 `,
 	})
@@ -9393,16 +9466,20 @@ func TestHTTPDefault(t *testing.T) {
 		ReqBody: "{}",
 		Code:    400,
 		ResBody: `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionid_not_allowed",
-  "title": "Setting \"defaultversionid\" is not allowed for \"/dirs/d1/files/f1\".",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
+  "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"x\" cannot be found.",
   "subject": "/dirs/d1/files/f1",
-  "source": "6567a49b4de4:registry:resource:908"
+  "args": {
+    "id": "x",
+    "singular": "version"
+  },
+  "source": "9263661f51d9:registry:resource:436"
 }
 `,
 	})
 
 	// Enable client-side setting
-	rm.SetSetDefaultSticky(true)
+	rm.EnableSticky(true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "POST file f1?setdefault - empty",
@@ -9670,12 +9747,216 @@ func TestHTTPDefault(t *testing.T) {
 
 }
 
+func TestHTTPSticky(t *testing.T) {
+	reg := NewRegistry("TestHTTPSticky")
+	defer PassDeleteReg(t, reg)
+
+	// First try to limit sticky to "true" but set default to "false"
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "metaattributes": {
+                  "defaultversionsticky": {
+                    "type": "boolean",
+                    "required": true,
+                    "enum": [ true ],
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.defaultversionsticky\" default value \"false\" must be one of the specified enum values (true) since \"strict\" is \"true\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"false\" must be one of the specified enum values (true) since \"strict\" is \"true\""
+  },
+  "source": "9263661f51d9:registry:shared_model:3268"
+}
+`)
+
+	// Now do the opposite
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "metaattributes": {
+                  "defaultversionsticky": {
+                    "type": "boolean",
+                    "required": true,
+                    "enum": [ false ],
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"groups.dirs.resources.files.defaultversionsticky\" default value \"true\" must be one of the specified enum values (false) since \"strict\" is \"true\""
+  },
+  "source": "9263661f51d9:registry:shared_model:3268"
+}
+`)
+
+	// Only allow true
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "hasdocument": false,
+                "metaattributes": {
+                  "defaultversionsticky": {
+                    "type": "boolean",
+                    "required": true,
+                    "enum": [ true ],
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+            }
+          }
+        }
+      }
+    }`, 200, `{
+  "specversion": "1.0-rc2",
+  "registryid": "TestHTTPSticky",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-06-11T19:44:51.423249753Z",
+  "modifiedat": "2026-06-11T19:44:51.442854724Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "createdat": "2026-06-11T19:46:23.016128293Z",
+  "modifiedat": "2026-06-11T19:46:23.016128293Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+  "defaultversionsticky": true
+}
+`)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/2",
+  "xid": "/dirs/d1/files/f1/versions/2",
+  "epoch": 1,
+  "isdefault": false,
+  "createdat": "2026-06-11T19:48:59.447315489Z",
+  "modifiedat": "2026-06-11T19:48:59.447315489Z",
+  "ancestor": "1"
+}
+`)
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/1", ``, 204, ``)
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2026-06-11T19:50:05.071640132Z",
+  "modifiedat": "2026-06-11T19:50:05.178685997Z",
+  "readonly": false,
+
+  "defaultversionid": "2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/2",
+  "defaultversionsticky": true
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"defaultversionsticky":false}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (false) must be one of the enum values: true.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (false) must be one of the enum values: true",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2929"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=null", `{}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (false) must be one of the enum values: true.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (false) must be one of the enum values: true",
+    "name": "defaultversionsticky"
+  },
+  "source": "9263661f51d9:registry:entity:2929"
+}
+`)
+
+}
+
 func TestHTTPDelete(t *testing.T) {
 	reg := NewRegistry("TestHTTPDelete")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 	reg.AddGroup("dirs", "d2")
@@ -10886,7 +11167,7 @@ func TestHTTPRequiredFields(t *testing.T) {
 	})
 	XNoErr(t, err)
 
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	_, err = rm.AddAttribute(&registry.Attribute{
 		Name:     "req3",
 		Type:     STRING,

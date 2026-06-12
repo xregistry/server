@@ -107,7 +107,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	newModel := &registry.Model{}
 	g, xErr := newModel.AddGroupModel("apiproviders", "apiprovider")
 	ErrFatalf(xErr)
-	r, xErr := g.AddResourceModel("apis", "api", 2, true, true, true)
+	r, xErr := g.AddResourceModel("apis", "api", 2, true, true)
 	_, xErr = r.AddAttr("format", STRING)
 	ErrFatalf(xErr)
 
@@ -314,14 +314,14 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	Verbose("Loading: /reg-%s", reg.UID)
 	gm, xErr := newModel.AddGroupModel("dirs", "dir")
 	ErrFatalf(xErr)
-	rm, xErr := gm.AddResourceModel("files", "file", 2, true, true, true)
+	rm, xErr := gm.AddResourceModel("files", "file", 2, true, true)
 	_, xErr = rm.AddMetaAttr("rext", STRING)
 	ErrFatalf(xErr)
 	_, xErr = rm.AddMetaAttr("*", ANY)
 	ErrFatalf(xErr)
 	_, xErr = rm.AddAttr("vext", STRING)
 	ErrFatalf(xErr)
-	rm, xErr = gm.AddResourceModel("datas", "data", 2, true, true, false)
+	rm, xErr = gm.AddResourceModel("datas", "data", 2, true, false)
 	ErrFatalf(xErr)
 	_, xErr = rm.AddAttr("*", STRING)
 	ErrFatalf(xErr)
@@ -412,7 +412,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 4))
-	ErrFatalf(r.SetDefault(v))
+	// ErrFatalf(r.SetDefault(v))
 
 	r, xErr = g.AddResource("messages", "deleted", "v1.0")
 	ErrFatalf(xErr)
@@ -525,7 +525,7 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 	newModel := &registry.Model{}
 
 	gm, _ := newModel.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
 

@@ -20,7 +20,6 @@ type Capabilities struct {
 	Pagination      bool                        `json:"pagination"`
 	ShortSelf       bool                        `json:"shortself"`
 	SpecVersions    []string                    `json:"specversions"`
-	StickyVersions  *bool                       `json:"stickyversions"`
 	VersionModes    []string                    `json:"versionmodes"`
 }
 
@@ -53,7 +52,6 @@ type Offered struct {
 	Pagination      OfferedCapability `json:"pagination,omitempty"`
 	ShortSelf       OfferedCapability `json:"shortself,omitempty"`
 	SpecVersions    OfferedCapability `json:"specversions,omitempty"`
-	StickyVersions  OfferedCapability `json:"stickyversions,omitempty"`
 	VersionModes    OfferedCapability `json:"versionmodes,omitempty"`
 }
 
@@ -103,7 +101,6 @@ var DefaultCapabilities = &Capabilities{
 	Pagination:      false,
 	ShortSelf:       false,
 	SpecVersions:    SupportedSpecVersions,
-	StickyVersions:  PtrBool(true),
 	VersionModes:    SupportedVersionModes,
 }
 
@@ -219,10 +216,6 @@ func GetOffered() *Offered {
 				Type: "string",
 			},
 			Enum: String2AnySlice(SupportedSpecVersions),
-		},
-		StickyVersions: OfferedCapability{
-			Type: "boolean",
-			Enum: []any{false, true},
 		},
 		VersionModes: OfferedCapability{
 			Type: "array",
@@ -421,10 +414,6 @@ func (c *Capabilities) Validate() *XRError {
 			"value="+SPECVERSION)
 	}
 
-	if c.StickyVersions == nil {
-		c.StickyVersions = DefaultCapabilities.StickyVersions
-	}
-
 	if c.VersionModes == nil {
 		c.VersionModes = []string{VERSIONMODE}
 	}
@@ -535,10 +524,6 @@ func (c *Capabilities) SpecVersionEnabled(str string) bool {
 		}
 	}
 	return false
-}
-
-func (c *Capabilities) StickyVersionsEnabled() bool {
-	return c.StickyVersions != nil && (*c.StickyVersions) == true
 }
 
 func (c *Capabilities) VersionModeEnabled(str string) bool {

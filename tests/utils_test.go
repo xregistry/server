@@ -448,7 +448,7 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 	if strings.HasPrefix(test.ResBody, "^") {
 		re := regexp.MustCompile(test.ResBody)
 		if !re.Match(resBody) {
-			t.Fatalf("Test: %s\nExpected:\n%s\nGot:\n%s",
+			t.Fatalf("Test: %s\nRegexp Expected:\n%s\nGot:\n%s",
 				test.Name, test.ResBody, string(resBody))
 			t.FailNow()
 		}

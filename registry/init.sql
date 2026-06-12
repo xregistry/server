@@ -80,7 +80,6 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parentSID=Group)
     # For Resources
     MaxVersions         INT,
     SetVersionId        BOOL,
-    SetDefaultSticky    BOOL,
     HasDocument         BOOL,
     SingleVersionRoot   BOOL,
     TypeMap             JSON,

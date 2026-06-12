@@ -12,7 +12,7 @@ func TestResourceCreate(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	d1, _ := reg.AddGroup("dirs", "d1")
 
 	_, err := d1.AddResource("foos", "f1", "v1")
@@ -133,7 +133,7 @@ func TestResourceSet(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	rm.AddAttr("ext1", STRING)
 	rm.AddAttr("ext2", INTEGER)
 
@@ -171,7 +171,7 @@ func TestResourceRequiredFields(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	_, err := rm.AddAttribute(&registry.Attribute{
 		Name:     "req",
 		Type:     STRING,
@@ -243,26 +243,28 @@ func TestResourceMaxVersions(t *testing.T) {
 	// reg.LoadModel()
 
 	// gm = reg.Model.FindGroupModel(gm.Plural)
+	/*
+	   	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
+	   		Plural:      "files",
+	   		Singular:    "file",
+	   		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
+	   	})
+	   	XCheckErr(t, err, `{
+	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
+	     "title": "The model attribute \"setdefaultversionsticky\" needs to be \"false\" since \"maxversions\" is \"1\".",
+	     "subject": "/model",
+	     "source": "e4e59b8a76c4:registry:shared_model:1017"
+	   }`)
+	*/
+	// reg.LoadModel()
+
+	// gm = reg.Model.FindGroupModel(gm.Plural)
 	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
 		Plural:      "files",
 		Singular:    "file",
 		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
 	})
-	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
-  "title": "The model attribute \"setdefaultversionsticky\" needs to be \"false\" since \"maxversions\" is \"1\".",
-  "subject": "/model",
-  "source": "e4e59b8a76c4:registry:shared_model:1017"
-}`)
-	// reg.LoadModel()
-
-	// gm = reg.Model.FindGroupModel(gm.Plural)
-	rm, err = gm.AddResourceModelFull(&registry.ResourceModel{
-		Plural:           "files",
-		Singular:         "file",
-		MaxVersions:      PtrInt(1), // ONLY ALLOW 1 VERSION
-		SetDefaultSticky: PtrBool(false),
-	})
+	rm.EnableSticky(false)
 	XNoErr(t, err)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
@@ -287,6 +289,7 @@ func TestResourceMaxVersions(t *testing.T) {
 	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
 
 	rm.SetMaxVersions(2)
+	rm.EnableSticky(true)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// Create v3, but keep v2 as default
@@ -338,7 +341,34 @@ func TestResourceMaxVersions(t *testing.T) {
 		"err: %q defaultV: %s", err, ToJSON(defaultV))
 
 	// Now set maxVer to 1 and just v5 should remain
+	/*
+	   	XNoErr(t, f1.SetDefault(nil))
+	   	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
+	     "fileid": "f1",
+	     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+	     "xid": "/dirs/d1/files/f1/meta",
+	     "epoch": 1,
+	     "createdat": "2026-06-10T23:03:16.127884682Z",
+	     "modifiedat": "2026-06-10T23:03:16.127884682Z",
+	     "readonly": false,
+
+	     "defaultversionid": "v9",
+	     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v9$details",
+	     "defaultversionsticky": false
+	   }
+	   `)
+	*/
+
 	rm.SetMaxVersions(1)
+	XCheckErr(t, reg.Model.VerifyAndSave(true), `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "source": "9263661f51d9:registry:resource:1516"
+}`)
+
+	XNoErr(t, f1.SetDefault(nil))
+	rm.SetMaxVersions(1) // probably not needed
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	vers, err = f1.GetVersions()
@@ -346,7 +376,57 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
 	XCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
-	XCheck(t, vers[0].Object["versionid"] == "v5", "0=v5")
+	// DUG CHECK THIS - REMOVING STICKY
+	// Not sure why this is v5 and not v9
+	XCheck(t, vers[0].Object["versionid"] == "v5", "%s", ToJSON(vers[0].Object))
+
+	rm.SetMaxVersions(2)
+	rm.EnableSticky(true)
+	XNoErr(t, reg.Model.VerifyAndSave(true))
+
+	// Set a sticky version
+	XHTTP(t, reg, "PUT",
+		"/dirs/d1/files/f1$details?inline=meta&setdefaultversionid=v5",
+		`{}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v5",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-06-10T22:08:00.537178943Z",
+  "modifiedat": "2026-06-10T22:08:00.83551978Z",
+  "ancestor": "v5",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2026-06-10T22:08:00.537178943Z",
+    "modifiedat": "2026-06-10T22:08:00.83551978Z",
+    "readonly": false,
+
+    "defaultversionid": "v5",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Now set maxversions and we should get an error because sticky is set
+	// but it's not allowed to be when maxversions=1
+	rm.SetMaxVersions(1)
+	XCheckErr(t, reg.Model.VerifyAndSave(true), `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "source": "9263661f51d9:registry:resource:1516"
+}`)
+
 }
 
 func TestResourceDeprecated(t *testing.T) {
@@ -564,8 +644,8 @@ func TestResourceSamples(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) //hasdoc=false
-	rm.SetVersionMode("cREATEdAt")                                      // weird casing
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) //hasdoc=false
+	rm.SetVersionMode("cREATEdAt")                                // weird casing
 
 	// Create single Resource with empty content - PUT
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{}`, 201, `{
@@ -3583,7 +3663,7 @@ func TestResourceFlow(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) //hasdoc=false
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) //hasdoc=false
 	rm.SetVersionMode("createdat")
 
 	// NOT PART OF THE resource.md doc

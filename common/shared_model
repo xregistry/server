@@ -121,19 +121,20 @@ type AttrInternals struct {
 // from the golang default value, or for any attr that you don't want to
 // show-up in modelsource by default
 type Attribute struct {
-	Model       *Model `json:"-"`
-	Name        string `json:"name,omitempty"`
-	Type        string `json:"type,omitempty"`
-	Target      string `json:"target,omitempty"`
-	NameCharSet string `json:"namecharset,omitempty"`
-	Description string `json:"description,omitempty"`
-	Enum        []any  `json:"enum,omitempty"` // just scalars though
-	Strict      *bool  `json:"strict,omitempty"`
-	MatchCase   bool   `json:"matchcase,omitempty"`
-	ReadOnly    bool   `json:"readonly,omitempty"`
-	Immutable   bool   `json:"immutable,omitempty"`
-	Required    bool   `json:"required,omitempty"`
-	Default     any    `json:"default,omitempty"`
+	Model         *Model `json:"-"`
+	Name          string `json:"name,omitempty"`
+	Type          string `json:"type,omitempty"`
+	Target        string `json:"target,omitempty"`
+	NameCharSet   string `json:"namecharset,omitempty"`
+	Description   string `json:"description,omitempty"`
+	Enum          []any  `json:"enum,omitempty"` // just scalars though
+	Strict        *bool  `json:"strict,omitempty"`
+	MatchCase     bool   `json:"matchcase,omitempty"`
+	MatchVersions bool   `json:"matchversions,omitempty"`
+	ReadOnly      bool   `json:"readonly,omitempty"`
+	Immutable     bool   `json:"immutable,omitempty"`
+	Required      bool   `json:"required,omitempty"`
+	Default       any    `json:"default,omitempty"`
 
 	Attributes Attributes `json:"attributes,omitempty"` // for Objs
 	Item       *Item      `json:"item,omitempty"`       // for maps & arrays
@@ -177,11 +178,18 @@ type GroupModel struct {
 
 	// [ GROUPS/RESOURCES * ]
 	XImportResources []string                  `json:"ximportresources,omitempty"`
+	Constraints      map[string]*Constraint    `json:"constraints,omitempty"`
 	Resources        map[string]*ResourceModel `json:"resources,omitempty"` // Plural
 
 	propsOrdered []*Attribute
 	propsMap     map[string]*Attribute
 	imports      map[string]*ResourceModel
+}
+
+type Constraint struct {
+	Default string `json:"default,omitempty"`
+	Enum    []any  `json:"enum,omitempty"`
+	Equals  string `json:"equals,omitempty"`
 }
 
 type ResourceModel struct {
@@ -199,14 +207,12 @@ type ResourceModel struct {
 
 	MaxVersions           *int              `json:"maxversions,omitempty"`
 	SetVersionId          *bool             `json:"setversionid,omitempty"`
-	SetDefaultSticky      *bool             `json:"setdefaultversionsticky,omitempty"`
 	HasDocument           *bool             `json:"hasdocument,omitempty"`
 	VersionMode           string            `json:"versionmode,omitempty"`
 	SingleVersionRoot     *bool             `json:"singleversionroot,omitempty"`
 	ValidateFormat        *bool             `json:"validateformat,omitempty"`
 	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
 	StrictValidation      *bool             `json:"strictvalidation,omitempty"`
-	ConsistentFormat      *bool             `json:"consistentformat,omitempty"`
 	TypeMap               map[string]string `json:"typemap,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
@@ -287,15 +293,6 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	if r.SetVersionId == nil {
 		r.SetVersionId = PtrBool(SETVERSIONID)
 	}
-	if r.SetDefaultSticky == nil {
-        // If the capability is disabled then this must always be false
-		reg := rm.GroupModel.Model.Registry
-		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
-		    r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
-        } else {
-		    r.SetDefaultSticky = PtrBool(false)
-        }
-	}
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
 	}
@@ -313,9 +310,6 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) *XRError {
 	}
 	if r.StrictValidation == nil {
 		r.StrictValidation = PtrBool(STRICTVALIDATION)
-	}
-	if r.ConsistentFormat == nil {
-		r.ConsistentFormat = PtrBool(CONSISTENTFORMAT)
 	}
 	return nil
 }
@@ -346,15 +340,6 @@ func (r *ResourceModel) ApplyDefaults(reg *Registry) {
 	if r.SetVersionId == nil {
 		r.SetVersionId = PtrBool(SETVERSIONID)
 	}
-	if r.SetDefaultSticky == nil {
-		// If the capability is disabled then this must always be false
-		// reg := r.GroupModel.Model.Registry
-		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
-			r.SetDefaultSticky = PtrBool(SETDEFAULTSTICKY)
-		} else {
-			r.SetDefaultSticky = PtrBool(false)
-		}
-	}
 	if r.HasDocument == nil {
 		r.HasDocument = PtrBool(HASDOCUMENT)
 	}
@@ -372,9 +357,6 @@ func (r *ResourceModel) ApplyDefaults(reg *Registry) {
 	}
 	if r.StrictValidation == nil {
 		r.StrictValidation = PtrBool(STRICTVALIDATION)
-	}
-	if r.ConsistentFormat == nil {
-		r.ConsistentFormat = PtrBool(CONSISTENTFORMAT)
 	}
 }
 
@@ -1031,15 +1013,14 @@ func (gm *GroupModel) AddResourceModelSimple(plural, singular string) (*Resource
 	})
 }
 
-func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, setDefaultSticky bool, hasDocument bool) (*ResourceModel, *XRError) {
+func (gm *GroupModel) AddResourceModel(plural string, singular string, maxVersions int, setVerId bool, hasDocument bool) (*ResourceModel, *XRError) {
 	// All other attributes will be set by the Verify() funcs
 	return gm.AddResourceModelFull(&ResourceModel{
-		Plural:           plural,
-		Singular:         singular,
-		MaxVersions:      PtrInt(maxVersions),
-		SetVersionId:     PtrBool(setVerId),
-		SetDefaultSticky: PtrBool(setDefaultSticky),
-		HasDocument:      PtrBool(hasDocument),
+		Plural:       plural,
+		Singular:     singular,
+		MaxVersions:  PtrInt(maxVersions),
+		SetVersionId: PtrBool(setVerId),
+		HasDocument:  PtrBool(hasDocument),
 	})
 }
 
@@ -1063,10 +1044,6 @@ func (gm *GroupModel) AddResourceModelFull(rm *ResourceModel) (*ResourceModel, *
 				"error_detail="+
 					fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
 						*(rm.MaxVersions)))
-		}
-
-		if *rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
-			return nil, NewXRError("setdefaultversionsticky_false", "/model")
 		}
 	}
 
@@ -1609,6 +1586,10 @@ func (a *Attribute) GetMatchCase() bool {
 	return a.MatchCase
 }
 
+func (a *Attribute) GetMatchVersions() bool {
+	return a.MatchVersions
+}
+
 func (a *Attribute) InOnlyType(eType int) bool {
 	PanicIf(a.internals == nil, "nil")
 	/*
@@ -1656,6 +1637,13 @@ func (a *Attribute) SetStrict(val bool) {
 func (a *Attribute) SetMatchCase(val bool) {
 	if a.MatchCase != val {
 		a.MatchCase = val
+		a.Model.SetChanged(true)
+	}
+}
+
+func (a *Attribute) SetMatchVersions(val bool) {
+	if a.MatchVersions != val {
+		a.MatchVersions = val
 		a.Model.SetChanged(true)
 	}
 }
@@ -1741,6 +1729,13 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 		return nil
 	}
 
+	if specAttr.Type != userAttr.Type {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have a "type" of %q`,
+					userAttr.Name, specAttr.Type))
+	}
+
 	if specAttr.Required {
 		if userAttr.Required == false {
 			return NewXRError("model_error", "/model",
@@ -1763,11 +1758,45 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 					specAttr.Name))
 	}
 
-	if specAttr.Type != userAttr.Type {
+	if len(specAttr.Enum) > 0 && specAttr.GetStrict() {
+		if len(userAttr.Enum) == 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf(`"model.%s" must have an "enum" set that `+
+						`contains at least one of: %s`,
+						specAttr.Name, specAttr.EnumsAsString()))
+		}
+
+		for _, uVal := range userAttr.Enum {
+			match := false
+			for _, sVal := range specAttr.Enum {
+				if uVal == sVal {
+					match = true
+					break
+				}
+			}
+			if match == false {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf(`"model.%s" has an "enum" val (%s) that `+
+							`isn't allowed. Must be one of: %s`,
+							specAttr.Name, uVal, specAttr.EnumsAsString()))
+			}
+		}
+	}
+
+	if specAttr.GetStrict() == true && userAttr.GetStrict() == false {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
-				fmt.Sprintf(`"model.%s" must have a "type" of %q`,
-					userAttr.Name, specAttr.Type))
+				fmt.Sprintf(`"model.%s" must have "strict" set to "true"`,
+					specAttr.Name))
+	}
+
+	if specAttr.GetMatchVersions() && !userAttr.GetMatchVersions() {
+		return NewXRError("model_error", "/model",
+			"error_detail="+
+				fmt.Sprintf(`"model.%s" must have "matchversions" set to `+
+					`"true"`, specAttr.Name))
 	}
 
 	// TODO DUG align other aspects of the attrs too
@@ -2378,10 +2407,6 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 					fmt.Sprintf(`"maxversions"(%d) must be >= 0`,
 						*(rm.MaxVersions)))
 		}
-
-		if *rm.MaxVersions == 1 && rm.GetSetDefaultSticky() != false {
-			return NewXRError("setdefaultversionsticky_false", "/model")
-		}
 	}
 
 	if rm.GetValidateCompatibility() && !rm.GetValidateFormat() {
@@ -2522,19 +2547,6 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 	// to verify
 	if rm.GroupModel.Model.Registry != nil {
 		reg := rm.GroupModel.Model.Registry
-
-		// Make sure SetDefaultSticky isn't set when the Regsitry's capability
-		// doesn't allow it
-		if rm.GetSetDefaultSticky() &&
-			!reg.Capabilities.StickyVersionsEnabled() {
-
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("Resource %q has 'setdefaultsticky' set to "+
-						"'true' but the server's 'stickyversions' capability "+
-						"is 'false'",
-						rm.Plural))
-		}
 
 		// Should we be able to verify this when Registry is nil ?
 		if !reg.Capabilities.VersionModeEnabled(rm.VersionMode) {
@@ -2696,33 +2708,6 @@ func (rm *ResourceModel) SetSetVersionId(val bool) {
 	}
 }
 
-func (rm *ResourceModel) GetSetDefaultSticky() bool {
-	if rm.SetDefaultSticky == nil {
-		// If the capability is disabled then this must always be false
-		reg := rm.GroupModel.Model.Registry
-		if reg != nil && reg.Capabilities.StickyVersionsEnabled() {
-			return SETDEFAULTSTICKY
-		} else {
-			return false
-		}
-	}
-	return *rm.SetDefaultSticky
-}
-
-func (rm *ResourceModel) SetSetDefaultSticky(val bool) {
-	if rm.SetDefaultSticky == nil || *rm.SetDefaultSticky != val {
-		rm.SetDefaultSticky = PtrBool(val)
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
-func (rm *ResourceModel) ClearSetDefaultSticky() {
-	if rm.SetDefaultSticky != nil {
-		rm.SetDefaultSticky = nil
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
 func (rm *ResourceModel) GetHasDocument() bool {
 	if rm.HasDocument == nil {
 		return HASDOCUMENT
@@ -2839,27 +2824,6 @@ func (rm *ResourceModel) SetStrictValidation(val bool) {
 func (rm *ResourceModel) ClearStrictValidation() {
 	if rm.StrictValidation != nil {
 		rm.StrictValidation = nil
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
-func (rm *ResourceModel) GetConsistentFormat() bool {
-	if rm.ConsistentFormat == nil {
-		return CONSISTENTFORMAT
-	}
-	return *rm.ConsistentFormat
-}
-
-func (rm *ResourceModel) SetConsistentFormat(val bool) {
-	if rm.ConsistentFormat == nil || *rm.ConsistentFormat != val {
-		rm.ConsistentFormat = PtrBool(val)
-		rm.GroupModel.Model.SetChanged(true)
-	}
-}
-
-func (rm *ResourceModel) ClearConsistentFormat() {
-	if rm.ConsistentFormat != nil {
-		rm.ConsistentFormat = nil
 		rm.GroupModel.Model.SetChanged(true)
 	}
 }
@@ -3022,6 +2986,46 @@ func (rm *ResourceModel) MapContentType(ct string) string {
 	}
 
 	return "binary"
+}
+
+func (rm *ResourceModel) EnableSticky(b bool) {
+	attr := rm.MetaAttributes["defaultversionsticky"]
+
+	if attr == nil {
+		var xErr *XRError
+		attr, xErr = rm.AddMetaAttr("defaultversionsticky", BOOLEAN)
+		PanicIf(xErr != nil, "Error: %s", xErr)
+		attr.Default = false
+		attr.Required = true
+		attr.SetModel(rm.GroupModel.Model)
+	}
+
+	if b {
+		if attr.Enum != nil || attr.Default != false {
+			attr.Enum = nil
+			attr.Default = false
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	} else {
+		if attr.Enum == nil || len(attr.Enum) != 1 || attr.Enum[0] != false || attr.Default != false {
+			attr.Enum = []any{false}
+			attr.Default = false
+			rm.GroupModel.Model.SetChanged(true)
+		}
+	}
+}
+
+func (rm *ResourceModel) StickyEnabled() bool {
+	attr := rm.MetaAttributes["defaultversionsticky"]
+	if attr == nil || attr.Enum == nil {
+		return true
+	}
+	for _, v := range attr.Enum {
+		if v == true {
+			return true
+		}
+	}
+	return false
 }
 
 type LevelData struct {

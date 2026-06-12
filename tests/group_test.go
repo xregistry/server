@@ -13,7 +13,7 @@ func TestGroupCreate(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	_, err := reg.AddGroup("foos", "d1")
 	XCheckErr(t, err, `{

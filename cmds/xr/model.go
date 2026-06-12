@@ -222,13 +222,6 @@ func AddResourceFlags(cmd *cobra.Command) {
 		"Version ID is settable (true*)")
 	cmd.Flag("set-version-id").DefValue = ""
 
-	PanicIf(SETDEFAULTSTICKY != true, "fix me")
-	cmd.Flags().Bool("no-set-default-sticky", false,
-		"Can't set sticky version")
-	cmd.Flags().Bool("set-default-sticky", SETDEFAULTSTICKY,
-		"Can set sticky version (true*)")
-	cmd.Flag("set-default-sticky").DefValue = ""
-
 	PanicIf(HASDOCUMENT != true, "fix me")
 	cmd.Flags().Bool("no-has-doc", false,
 		"Doesn't support domain doc")
@@ -265,13 +258,6 @@ func AddResourceFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("strict-validation", false,
 		"Enforce strict validation")
 	cmd.Flag("no-strict-validation").DefValue = ""
-
-	PanicIf(CONSISTENTFORMAT != false, "fix me")
-	cmd.Flags().Bool("no-consistent-format", true,
-		"Allow varying format values (true*)")
-	cmd.Flags().Bool("consistent-format", false,
-		"Enforce same format values")
-	cmd.Flag("no-consistent-format").DefValue = ""
 }
 
 func modelNormalizeFunc(cmd *cobra.Command, args []string) {
@@ -570,14 +556,12 @@ func PrintResourceModel(rm *xrlib.ResourceModel, format string, indent string, a
 	PrintNotEmpty(indent+"  Documentation       ", rm.Documentation, os.Stdout)
 	PrintNotEmpty(indent+"  Max versions        ", rm.GetMaxVersions(), os.Stdout)
 	PrintNotEmpty(indent+"  Set version id      ", rm.SetVersionId, os.Stdout)
-	PrintNotEmpty(indent+"  Set version sticky  ", rm.SetDefaultSticky, os.Stdout)
 	PrintNotEmpty(indent+"  Has document        ", rm.HasDocument, os.Stdout)
 	PrintNotEmpty(indent+"  Version mode        ", rm.VersionMode, os.Stdout)
 	PrintNotEmpty(indent+"  Single version root ", rm.SingleVersionRoot, os.Stdout)
 	PrintNotEmpty(indent+"  Validate format     ", rm.ValidateFormat, os.Stdout)
 	PrintNotEmpty(indent+"  Validate compat     ", rm.ValidateCompatibility, os.Stdout)
 	PrintNotEmpty(indent+"  Strict valiation    ", rm.StrictValidation, os.Stdout)
-	PrintNotEmpty(indent+"  Consistent format   ", rm.ConsistentFormat, os.Stdout)
 	PrintNotEmpty(indent+"  Icon URL            ", rm.Icon, os.Stdout)
 	PrintNotEmpty(indent+"  Model version       ", rm.ModelVersion, os.Stdout)
 	PrintNotEmpty(indent+"  Model Compat with   ", rm.ModelCompatibleWith, os.Stdout)
@@ -1161,7 +1145,6 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	ExclusiveFlags(cmd, "validate-format", "no-validate-format")
 	ExclusiveFlags(cmd, "validate-compat", "no-validate-compat")
 	ExclusiveFlags(cmd, "strict-validation", "no-strict-validation")
-	ExclusiveFlags(cmd, "consistent-format", "no-consitent-format")
 
 	output, _ := cmd.Flags().GetString("output")
 	all, _ := cmd.Flags().GetBool("all")
@@ -1340,10 +1323,6 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			rm.SetSetVersionId(b)
 		}
 
-		if b, setIt := SetBoolFlag(cmd, "set-default-sticky"); setIt {
-			rm.SetSetDefaultSticky(b)
-		}
-
 		if b, setIt := SetBoolFlag(cmd, "has-doc"); setIt {
 			rm.SetHasDocument(b)
 		}
@@ -1367,10 +1346,6 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 
 		if b, setIt := SetBoolFlag(cmd, "strict-validation"); setIt {
 			rm.SetStrictValidation(b)
-		}
-
-		if b, setIt := SetBoolFlag(cmd, "consistent-format"); setIt {
-			rm.SetConsistentFormat(b)
 		}
 
 		actionStr := "Created"

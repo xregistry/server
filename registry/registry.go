@@ -450,7 +450,7 @@ func (reg *Registry) LoadModelFromFile(file string) *XRError {
 	if xErr != nil {
 		return NewXRError("parsing_data", file,
 			"error_detail="+
-				fmt.Sprintf("processing %q: %s", file, err))
+				fmt.Sprintf("processing %q: %s", file, xErr))
 	}
 
 	model.Registry = reg

@@ -13,7 +13,7 @@ func TestVersionCreate(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	d1, _ := reg.AddGroup("dirs", "d1")
 
 	f1, err := d1.AddResource("files", "f1", "v1")
@@ -269,7 +269,7 @@ func TestVersionDefault(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
@@ -600,7 +600,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 3, true, true, true)
+	gm.AddResourceModel("files", "file", 3, true, true)
 
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "v1")
@@ -753,7 +753,7 @@ func TestVersionRequiredFields(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	_, err := rm.AddAttribute(&registry.Attribute{
 		Name:     "req",
 		Type:     STRING,
@@ -814,7 +814,7 @@ func TestVersionOrdering(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "z5")
 	f1.AddVersionWithObject("v2", Object{"ancestor": "v2"})
@@ -902,7 +902,7 @@ func TestVersionOrdering2(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	ts1 := "2020-01-02T12:00:00Z"
 
@@ -988,7 +988,7 @@ func TestVersionExtensions(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false)
 	_, err := rm.AddAttribute(&registry.Attribute{
 		Name: "*",
 		Type: ANY,

@@ -548,7 +548,6 @@ func TestRegistryRoot(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "createdat",
       "manual"
@@ -589,7 +588,6 @@ func TestRegistryRoot(t *testing.T) {
   "specversions": [
     "1.0-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -630,7 +628,6 @@ func TestRegistryRoot(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -679,7 +676,6 @@ func TestRegistryRoot(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]
@@ -724,7 +720,6 @@ func TestRegistryRoot(t *testing.T) {
     "specversions": [
       "1.0-rc2"
     ],
-    "stickyversions": true,
     "versionmodes": [
       "manual"
     ]

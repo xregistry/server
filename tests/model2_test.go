@@ -19,7 +19,7 @@ func TestModelLabels(t *testing.T) {
 	XCheck(t, gm != nil && err == nil, "gm should have worked")
 	gm.AddLabel("g-label", "g-value")
 
-	rm, err := gm.AddResourceModel("rms", "rm", 0, true, true, true)
+	rm, err := gm.AddResourceModel("rms", "rm", 0, true, true)
 	XCheck(t, rm != nil && err == nil, "rm should have worked: %s", err)
 	rm.AddLabel("r-label", "r-value")
 
@@ -250,6 +250,27 @@ func TestModelLabels(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "rmsurl": {
           "name": "rmsurl",
           "type": "url",
@@ -286,14 +307,12 @@ func TestModelLabels(t *testing.T) {
           },
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rmid": {
               "name": "rmid",
@@ -835,6 +854,27 @@ func TestModelLabels(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "rmsurl": {
           "name": "rmsurl",
           "type": "url",
@@ -868,14 +908,12 @@ func TestModelLabels(t *testing.T) {
           "singular": "rm",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rmid": {
               "name": "rmid",
@@ -1456,6 +1494,27 @@ func TestModelLabels(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -1492,14 +1551,12 @@ func TestModelLabels(t *testing.T) {
           },
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1873,7 +1930,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false)
 
 	// Registry level
 	obj, err := reg.Model.AddAttrObj("obj")
@@ -2019,6 +2076,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "compatibility": 13,
     "compatibilityvalidated": 22,
     "compatibilityvalidatedreason": 28,
+    "constraints": 11,
     "contenttype": 11,
     "createdat": 9,
     "defaultversionid": 16,
@@ -2141,6 +2199,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
           },
           "compatibilityvalidatedreason": {
             "name": "compatibilityvalidatedreason",
+            "type": "integer"
+          },
+          "constraints": {
+            "name": "constraints",
             "type": "integer"
           },
           "contenttype": {
@@ -2410,6 +2472,27 @@ func TestModelUseSpecAttrs(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "obj": {
             "name": "obj",
             "type": "object",
@@ -2432,6 +2515,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
               },
               "compatibilityvalidatedreason": {
                 "name": "compatibilityvalidatedreason",
+                "type": "integer"
+              },
+              "constraints": {
+                "name": "constraints",
                 "type": "integer"
               },
               "contenttype": {
@@ -2593,14 +2680,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "singular": "file",
             "maxversions": 0,
             "setversionid": true,
-            "setdefaultversionsticky": true,
             "hasdocument": false,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -2732,6 +2817,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                   },
                   "compatibilityvalidatedreason": {
                     "name": "compatibilityvalidatedreason",
+                    "type": "integer"
+                  },
+                  "constraints": {
+                    "name": "constraints",
                     "type": "integer"
                   },
                   "contenttype": {
@@ -3058,6 +3147,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "name": "compatibilityvalidatedreason",
                     "type": "integer"
                   },
+                  "constraints": {
+                    "name": "constraints",
+                    "type": "integer"
+                  },
                   "contenttype": {
                     "name": "contenttype",
                     "type": "integer"
@@ -3236,6 +3329,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "compatibility": 13,
         "compatibilityvalidated": 22,
         "compatibilityvalidatedreason": 28,
+        "constraints": 11,
         "contenttype": 11,
         "createdat": 9,
         "defaultversionid": 16,
@@ -3287,6 +3381,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "compatibility": 13,
             "compatibilityvalidated": 22,
             "compatibilityvalidatedreason": 28,
+            "constraints": 11,
             "contenttype": 11,
             "createdat": 9,
             "defaultversionid": 16,
@@ -3338,6 +3433,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "compatibility": 13,
               "compatibilityvalidated": 22,
               "compatibilityvalidatedreason": 28,
+              "constraints": 11,
               "contenttype": 11,
               "createdat": 9,
               "defaultversionid": 16,
@@ -3396,6 +3492,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "compatibility": 13,
                 "compatibilityvalidated": 22,
                 "compatibilityvalidatedreason": 28,
+                "constraints": 11,
                 "contenttype": 11,
                 "createdat": 9,
                 "defaultversionid": 16,
@@ -3723,6 +3820,27 @@ func TestModelCompatibleWith(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "datasurl": {
           "name": "datasurl",
           "type": "url",
@@ -3809,14 +3927,12 @@ func TestModelCompatibleWith(t *testing.T) {
           "modelversion": "3.2",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "dataid": {
               "name": "dataid",
@@ -4131,14 +4247,12 @@ func TestModelCompatibleWith(t *testing.T) {
           "modelcompatiblewith": "some-url2",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -4452,14 +4566,12 @@ func TestModelCompatibleWith(t *testing.T) {
           "modelcompatiblewith": "some-url3",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fooid": {
               "name": "fooid",
@@ -5356,6 +5468,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -5389,14 +5522,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -5973,6 +6104,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -6006,14 +6158,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -6413,6 +6563,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "typesurl": {
           "name": "typesurl",
           "type": "url",
@@ -6446,14 +6617,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "type",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -7117,6 +7286,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -7150,14 +7340,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -7557,6 +7745,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "typesurl": {
           "name": "typesurl",
           "type": "url",
@@ -7590,14 +7799,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "type",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -8167,6 +8374,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -8200,14 +8428,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -8607,6 +8833,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "typesurl": {
           "name": "typesurl",
           "type": "url",
@@ -8640,14 +8887,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "type",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -9217,6 +9462,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -9250,14 +9516,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -9657,6 +9921,27 @@ func TestModelIncludes(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "typesurl": {
           "name": "typesurl",
           "type": "url",
@@ -9690,14 +9975,12 @@ func TestModelIncludes(t *testing.T) {
           "singular": "type",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "typeid": {
               "name": "typeid",
@@ -10351,6 +10634,27 @@ func TestModelMissingFields(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "gext": {
           "name": "gext",
           "type": "string"
@@ -10388,14 +10692,12 @@ func TestModelMissingFields(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",

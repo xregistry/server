@@ -102,7 +102,7 @@ func TestHTTPOptionsWithGroups(t *testing.T) {
 	// Add group and resource models
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 
 	// Create a group
@@ -161,7 +161,7 @@ func TestHTTPOptionsWithResources(t *testing.T) {
 	// Add group and resource models
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 
 	// Create a group and resource
@@ -239,7 +239,7 @@ func TestHTTPOptionsWithCapabilities(t *testing.T) {
 	// Add group and resource models
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 
 	// Disable entities.mutable capability

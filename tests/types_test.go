@@ -70,7 +70,7 @@ func TestTypesBasic(t *testing.T) {
 	attr, _ = gm.AddAttrObj("dirobj")
 	attr.AddAttr("*", ANY)
 
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	rm.AddAttr("filebool1", BOOLEAN)
 	rm.AddAttr("filebool2", BOOLEAN)
 	rm.AddAttr("filedec1", DECIMAL)
@@ -806,7 +806,7 @@ func TestTypesWildcardBool(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 	XNoErr(t, reg.Model.Save())
 

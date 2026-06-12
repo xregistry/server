@@ -10,7 +10,7 @@ func TestTypeMap(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 
 	XCheck(t, rm.TypeMap == nil, "Should be empty")
 

@@ -193,7 +193,6 @@ xr model resource create PLURAL:SINGULAR...
   # Create a new Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xrconfig)
-      --consistent-format          Enforce same format values
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -206,9 +205,7 @@ xr model resource create PLURAL:SINGULAR...
       --max-versions int           Max versions allowed (0=unlimited*)
       --model-compat-with string   URI of model
       --model-version string       Model version string
-      --no-consistent-format       Allow varying format values (true*)
       --no-has-doc                 Doesn't support domain doc
-      --no-set-default-sticky      Can't set sticky version
       --no-set-version-id          VersionID is not settable
       --no-single-version-root     Allow multiple verson roots (true*)
       --no-strict-validation       Disable strict validation (true*)
@@ -216,7 +213,6 @@ xr model resource create PLURAL:SINGULAR...
       --no-validate-format         Disable format validation (true*)
   -o, --output string              Output format: none*, table, json
   -s, --server string              xRegistry server URL
-      --set-default-sticky         Can set sticky version (true*)
       --set-version-id             Version ID is settable (true*)
       --single-version-root        Restrict to single root
       --strict-validation          Enforce strict validation
@@ -265,7 +261,6 @@ xr model resource update PLURAL...
   # Update a Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xrconfig)
-      --consistent-format          Enforce same format values
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -278,9 +273,7 @@ xr model resource update PLURAL...
       --max-versions int           Max versions allowed (0=unlimited*)
       --model-compat-with string   URI of model
       --model-version string       Model version string
-      --no-consistent-format       Allow varying format values (true*)
       --no-has-doc                 Doesn't support domain doc
-      --no-set-default-sticky      Can't set sticky version
       --no-set-version-id          VersionID is not settable
       --no-single-version-root     Allow multiple verson roots (true*)
       --no-strict-validation       Disable strict validation (true*)
@@ -288,7 +281,6 @@ xr model resource update PLURAL...
       --no-validate-format         Disable format validation (true*)
   -o, --output string              Output format: none*, table, json
   -s, --server string              xRegistry server URL
-      --set-default-sticky         Can set sticky version (true*)
       --set-version-id             Version ID is settable (true*)
       --single-version-root        Restrict to single root
       --strict-validation          Enforce strict validation
@@ -303,7 +295,6 @@ xr model resource upsert PLURAL:SINGULAR...
   # UPdate, or inSERT as appropriate, a Model Resource type
   -a, --all                        Include default attributes in output
       --config string              Config file ($HOME/.xrconfig)
-      --consistent-format          Enforce same format values
       --description string         Description text
       --docs string                Documenations URL
       --errjson                    Print errors as json
@@ -315,9 +306,7 @@ xr model resource upsert PLURAL:SINGULAR...
       --max-versions int           Max versions allowed (0=unlimited*)
       --model-compat-with string   URI of model
       --model-version string       Model version string
-      --no-consistent-format       Allow varying format values (true*)
       --no-has-doc                 Doesn't support domain doc
-      --no-set-default-sticky      Can't set sticky version
       --no-set-version-id          VersionID is not settable
       --no-single-version-root     Allow multiple verson roots (true*)
       --no-strict-validation       Disable strict validation (true*)
@@ -325,7 +314,6 @@ xr model resource upsert PLURAL:SINGULAR...
       --no-validate-format         Disable format validation (true*)
   -o, --output string              Output format: none*, table, json
   -s, --server string              xRegistry server URL
-      --set-default-sticky         Can set sticky version (true*)
       --set-version-id             Version ID is settable (true*)
       --single-version-root        Restrict to single root
       --strict-validation          Enforce strict validation

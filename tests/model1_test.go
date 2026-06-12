@@ -462,228 +462,25 @@ func TestGroupModelCreate(t *testing.T) {
               "type": "any"
             }
           }
-        }
-      }
-    }
-  }
-}
-`)
-
-	XCheckGet(t, reg, "/model", `{
-  "attributes": {
-    "specversion": {
-      "name": "specversion",
-      "type": "string",
-      "readonly": true,
-      "required": true
-    },
-    "registryid": {
-      "name": "registryid",
-      "type": "string",
-      "matchcase": true,
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "self": {
-      "name": "self",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "xid": {
-      "name": "xid",
-      "type": "xid",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "epoch": {
-      "name": "epoch",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "name": {
-      "name": "name",
-      "type": "string"
-    },
-    "description": {
-      "name": "description",
-      "type": "string"
-    },
-    "documentation": {
-      "name": "documentation",
-      "type": "url"
-    },
-    "icon": {
-      "name": "icon",
-      "type": "url"
-    },
-    "labels": {
-      "name": "labels",
-      "type": "map",
-      "item": {
-        "type": "string"
-      }
-    },
-    "createdat": {
-      "name": "createdat",
-      "type": "timestamp",
-      "required": true
-    },
-    "modifiedat": {
-      "name": "modifiedat",
-      "type": "timestamp",
-      "required": true
-    },
-    "capabilities": {
-      "name": "capabilities",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "model": {
-      "name": "model",
-      "type": "object",
-      "readonly": true,
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "modelsource": {
-      "name": "modelsource",
-      "type": "object",
-      "attributes": {
-        "*": {
-          "name": "*",
-          "type": "any"
-        }
-      }
-    },
-    "dirsurl": {
-      "name": "dirsurl",
-      "type": "url",
-      "readonly": true,
-      "immutable": true,
-      "required": true
-    },
-    "dirscount": {
-      "name": "dirscount",
-      "type": "uinteger",
-      "readonly": true,
-      "required": true
-    },
-    "dirs": {
-      "name": "dirs",
-      "type": "map",
-      "item": {
-        "type": "object",
-        "attributes": {
-          "*": {
-            "name": "*",
-            "type": "any"
-          }
-        }
-      }
-    }
-  },
-  "groups": {
-    "dirs": {
-      "plural": "dirs",
-      "singular": "dir",
-      "attributes": {
-        "dirid": {
-          "name": "dirid",
-          "type": "string",
-          "matchcase": true,
-          "immutable": true,
-          "required": true
         },
-        "self": {
-          "name": "self",
-          "type": "url",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "xid": {
-          "name": "xid",
-          "type": "xid",
-          "readonly": true,
-          "immutable": true,
-          "required": true
-        },
-        "epoch": {
-          "name": "epoch",
-          "type": "uinteger",
-          "readonly": true,
-          "required": true
-        },
-        "name": {
-          "name": "name",
-          "type": "string"
-        },
-        "description": {
-          "name": "description",
-          "type": "string"
-        },
-        "documentation": {
-          "name": "documentation",
-          "type": "url"
-        },
-        "icon": {
-          "name": "icon",
-          "type": "url"
-        },
-        "labels": {
-          "name": "labels",
-          "type": "map",
-          "item": {
-            "type": "string"
-          }
-        },
-        "createdat": {
-          "name": "createdat",
-          "type": "timestamp",
-          "required": true
-        },
-        "modifiedat": {
-          "name": "modifiedat",
-          "type": "timestamp",
-          "required": true
-        },
-        "deprecated": {
-          "name": "deprecated",
+        "constraints": {
+          "name": "constraints",
           "type": "object",
           "attributes": {
-            "alternative": {
-              "name": "alternative",
-              "type": "url"
-            },
-            "documentation": {
-              "name": "documentation",
-              "type": "url"
-            },
-            "effective": {
-              "name": "effective",
-              "type": "timestamp"
-            },
-            "removal": {
-              "name": "removal",
-              "type": "timestamp"
-            },
-            "*": {
-              "name": "*",
+            "default": {
+              "name": "default",
               "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
             }
           }
         }
@@ -908,6 +705,272 @@ func TestGroupModelCreate(t *testing.T) {
             "*": {
               "name": "*",
               "type": "any"
+            }
+          }
+        },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
+
+	XCheckGet(t, reg, "/model", `{
+  "attributes": {
+    "specversion": {
+      "name": "specversion",
+      "type": "string",
+      "readonly": true,
+      "required": true
+    },
+    "registryid": {
+      "name": "registryid",
+      "type": "string",
+      "matchcase": true,
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "self": {
+      "name": "self",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "xid": {
+      "name": "xid",
+      "type": "xid",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "epoch": {
+      "name": "epoch",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "name": {
+      "name": "name",
+      "type": "string"
+    },
+    "description": {
+      "name": "description",
+      "type": "string"
+    },
+    "documentation": {
+      "name": "documentation",
+      "type": "url"
+    },
+    "icon": {
+      "name": "icon",
+      "type": "url"
+    },
+    "labels": {
+      "name": "labels",
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    },
+    "createdat": {
+      "name": "createdat",
+      "type": "timestamp",
+      "required": true
+    },
+    "modifiedat": {
+      "name": "modifiedat",
+      "type": "timestamp",
+      "required": true
+    },
+    "capabilities": {
+      "name": "capabilities",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "model": {
+      "name": "model",
+      "type": "object",
+      "readonly": true,
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "modelsource": {
+      "name": "modelsource",
+      "type": "object",
+      "attributes": {
+        "*": {
+          "name": "*",
+          "type": "any"
+        }
+      }
+    },
+    "dirsurl": {
+      "name": "dirsurl",
+      "type": "url",
+      "readonly": true,
+      "immutable": true,
+      "required": true
+    },
+    "dirscount": {
+      "name": "dirscount",
+      "type": "uinteger",
+      "readonly": true,
+      "required": true
+    },
+    "dirs": {
+      "name": "dirs",
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "dirid": {
+          "name": "dirid",
+          "type": "string",
+          "matchcase": true,
+          "immutable": true,
+          "required": true
+        },
+        "self": {
+          "name": "self",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "xid": {
+          "name": "xid",
+          "type": "xid",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "epoch": {
+          "name": "epoch",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "name": {
+          "name": "name",
+          "type": "string"
+        },
+        "description": {
+          "name": "description",
+          "type": "string"
+        },
+        "documentation": {
+          "name": "documentation",
+          "type": "url"
+        },
+        "icon": {
+          "name": "icon",
+          "type": "url"
+        },
+        "labels": {
+          "name": "labels",
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        },
+        "createdat": {
+          "name": "createdat",
+          "type": "timestamp",
+          "required": true
+        },
+        "modifiedat": {
+          "name": "modifiedat",
+          "type": "timestamp",
+          "required": true
+        },
+        "deprecated": {
+          "name": "deprecated",
+          "type": "object",
+          "attributes": {
+            "alternative": {
+              "name": "alternative",
+              "type": "url"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "effective": {
+              "name": "effective",
+              "type": "timestamp"
+            },
+            "removal": {
+              "name": "removal",
+              "type": "timestamp"
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          }
+        },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
             }
           }
         }
@@ -948,30 +1011,30 @@ func TestResourceModelCreate(t *testing.T) {
 	XNoErr(t, err)
 	XCheck(t, gm != nil, "gm should have worked")
 
-	rm, err := gm.AddResourceModel("files", "file", 5, true, true, true)
+	rm, err := gm.AddResourceModel("files", "file", 5, true, true)
 	XNoErr(t, err)
 	XCheck(t, rm != nil, "rm should have worked")
 
-	rm2, err := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm2, err := gm.AddResourceModel("files", "file", 0, true, true)
 	XCheck(t, rm2 == nil && err != nil, "rm2 should have failed")
 
-	rm2, err = gm.AddResourceModel("files2", "file", 0, true, true, true)
+	rm2, err = gm.AddResourceModel("files2", "file", 0, true, true)
 	XCheck(t, rm2 == nil && err != nil, "rm2 should have failed")
 
-	rm2, err = gm.AddResourceModel("", "file2", 0, true, true, true)
+	rm2, err = gm.AddResourceModel("", "file2", 0, true, true)
 	XCheck(t, rm2 == nil && err != nil, "rm2 should have failed")
 
-	rm2, err = gm.AddResourceModel("files2", "", 0, true, true, true)
+	rm2, err = gm.AddResourceModel("files2", "", 0, true, true)
 	XCheck(t, rm2 == nil && err != nil, "rm2 should have failed")
 
-	rm2, err = gm.AddResourceModel("files2", "file2", -1, true, true, true)
+	rm2, err = gm.AddResourceModel("files2", "file2", -1, true, true)
 	XCheck(t, rm2 == nil && err != nil, "rm2 should have failed")
 
 	gm2, err := reg.Model.AddGroupModel("dirs2", "dir2")
 	XNoErr(t, err)
 	XCheck(t, gm != nil, "gm2 should have worked")
 
-	rm2, err = gm2.AddResourceModel("files", "file", 0, true, true, true)
+	rm2, err = gm2.AddResourceModel("files", "file", 0, true, true)
 	XCheck(t, rm != nil && err == nil, "gm2/rm2 should have worked")
 
 	XCheckGet(t, reg, "/model", `{
@@ -1218,6 +1281,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -1251,14 +1335,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 5,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1658,6 +1740,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -1691,14 +1794,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2257,6 +2358,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -2290,14 +2412,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 5,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -2694,6 +2814,27 @@ func TestResourceModelCreate(t *testing.T) {
             "*": {
               "name": "*",
               "type": "any"
+            }
+          }
+        },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
             }
           }
         }
@@ -2947,6 +3088,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -2980,14 +3142,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 5,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -3386,6 +3546,27 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "any"
             }
           }
+        },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
         }
       }
     }
@@ -3612,6 +3793,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -3645,14 +3847,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 5,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -4184,6 +4384,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -4217,14 +4438,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 5,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -4555,7 +4774,6 @@ func TestResourceModelCreate(t *testing.T) {
 						Singular:              "file",
 						MaxVersions:           PtrInt(6),
 						SetVersionId:          PtrBool(true),
-						SetDefaultSticky:      PtrBool(false),
 						HasDocument:           PtrBool(false),
 						SingleVersionRoot:     PtrBool(false),
 						ValidateCompatibility: PtrBool(false),
@@ -4789,6 +5007,27 @@ func TestResourceModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -4822,14 +5061,12 @@ func TestResourceModelCreate(t *testing.T) {
           "singular": "file",
           "maxversions": 6,
           "setversionid": true,
-          "setdefaultversionsticky": false,
           "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -5380,6 +5617,27 @@ func TestResourceModelCreate(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -5413,14 +5671,12 @@ func TestResourceModelCreate(t *testing.T) {
             "singular": "file",
             "maxversions": 6,
             "setversionid": true,
-            "setdefaultversionsticky": false,
             "hasdocument": false,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -5763,7 +6019,6 @@ func TestResourceModelCreate(t *testing.T) {
 						Singular:              "file",
 						MaxVersions:           PtrInt(6),
 						SetVersionId:          PtrBool(true),
-						SetDefaultSticky:      PtrBool(false),
 						HasDocument:           PtrBool(false),
 						SingleVersionRoot:     PtrBool(false),
 						ValidateCompatibility: PtrBool(false),
@@ -6003,6 +6258,27 @@ func TestResourceModelCreate(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "files2url": {
             "name": "files2url",
             "type": "url",
@@ -6036,14 +6312,12 @@ func TestResourceModelCreate(t *testing.T) {
             "singular": "file",
             "maxversions": 6,
             "setversionid": true,
-            "setdefaultversionsticky": false,
             "hasdocument": false,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -6594,6 +6868,27 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "any"
               }
             }
+          },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
           }
         }
       }
@@ -6852,6 +7147,27 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "any"
               }
             }
+          },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
           }
         }
       }
@@ -6872,19 +7188,20 @@ func TestMultModelCreate(t *testing.T) {
 	gm1, err := reg.Model.AddGroupModel("gms1", "gm1")
 	XCheck(t, gm1 != nil && err == nil, "gm1 should have worked")
 
-	rm1, err := gm1.AddResourceModel("rms1", "rm1", 0, true, true, true)
+	rm1, err := gm1.AddResourceModel("rms1", "rm1", 0, true, true)
 	XCheck(t, rm1 != nil && err == nil, "rm1 should have worked: %s", err)
 
-	rm2, err := gm1.AddResourceModel("rms2", "rm2", 1, true, false, true)
+	rm2, err := gm1.AddResourceModel("rms2", "rm2", 1, true, true)
 	XCheck(t, rm2 != nil && err == nil, "rm2 should have worked: %s", err)
+	rm2.EnableSticky(false)
 
 	gm2, err := reg.Model.AddGroupModel("gms2", "gm2")
 	XCheck(t, gm1 != nil && err == nil, "gm1 should have worked: %s", err)
 
-	rm21, err := gm2.AddResourceModel("rms1", "rm1", 2, true, true, true)
+	rm21, err := gm2.AddResourceModel("rms1", "rm1", 2, true, true)
 	XCheck(t, rm21 != nil && err == nil, "rm21 should have worked: %s", err)
 
-	rm22, err := gm2.AddResourceModel("rms2", "rm2", 3, true, true, true)
+	rm22, err := gm2.AddResourceModel("rms2", "rm2", 3, true, true)
 	XCheck(t, rm22 != nil && err == nil, "rm12 should have worked: %s", err)
 
 	XCheckGet(t, reg, "/model", `{
@@ -7131,6 +7448,27 @@ func TestMultModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "rms1url": {
           "name": "rms1url",
           "type": "url",
@@ -7190,14 +7528,12 @@ func TestMultModelCreate(t *testing.T) {
           "singular": "rm1",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rm1id": {
               "name": "rm1id",
@@ -7510,14 +7846,12 @@ func TestMultModelCreate(t *testing.T) {
           "singular": "rm2",
           "maxversions": 1,
           "setversionid": true,
-          "setdefaultversionsticky": false,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rm2id": {
               "name": "rm2id",
@@ -7820,6 +8154,9 @@ func TestMultModelCreate(t *testing.T) {
             "defaultversionsticky": {
               "name": "defaultversionsticky",
               "type": "boolean",
+              "enum": [
+                false
+              ],
               "required": true,
               "default": false
             }
@@ -7917,6 +8254,27 @@ func TestMultModelCreate(t *testing.T) {
             }
           }
         },
+        "constraints": {
+          "name": "constraints",
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
+              "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
+            }
+          }
+        },
         "rms1url": {
           "name": "rms1url",
           "type": "url",
@@ -7976,14 +8334,12 @@ func TestMultModelCreate(t *testing.T) {
           "singular": "rm1",
           "maxversions": 2,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rm1id": {
               "name": "rm1id",
@@ -8296,14 +8652,12 @@ func TestMultModelCreate(t *testing.T) {
           "singular": "rm2",
           "maxversions": 3,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "rm2id": {
               "name": "rm2id",
@@ -8623,10 +8977,11 @@ func TestModelAPI(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs1", "dir1")
-	gm.AddResourceModel("files", "file", 2, true, false, true)
+	rm, _ := gm.AddResourceModel("files", "file", 2, true, true)
+	rm.EnableSticky(false)
 
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, false, true, true)
+	gm2.AddResourceModel("files", "file", 0, false, true)
 
 	m := reg.LoadModel()
 	XJSONCheck(t, m, reg.Model)
@@ -8641,7 +8996,8 @@ func TestMultModel2Create(t *testing.T) {
 	reg.Refresh(registry.FOR_WRITE)
 
 	gm, _ := reg.Model.AddGroupModel("dirs1", "dir1")
-	gm.AddResourceModel("files", "file", 2, true, false, true)
+	rm, _ := gm.AddResourceModel("files", "file", 2, true, true)
+	rm.EnableSticky(false)
 
 	d, _ := reg.AddGroup("dirs1", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
@@ -8651,7 +9007,7 @@ func TestMultModel2Create(t *testing.T) {
 	f.AddVersion("v1.1")
 
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, true, true, true)
+	gm2.AddResourceModel("files", "file", 0, true, true)
 	d2, _ := reg.AddGroup("dirs2", "d2")
 	_, err := d2.AddResource("files", "f2", "v1")
 	XNoErr(t, err)
@@ -8915,6 +9271,27 @@ func TestMultModel2Create(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -8948,14 +9325,12 @@ func TestMultModel2Create(t *testing.T) {
             "singular": "file",
             "maxversions": 2,
             "setversionid": true,
-            "setdefaultversionsticky": false,
             "hasdocument": true,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -9258,6 +9633,9 @@ func TestMultModel2Create(t *testing.T) {
               "defaultversionsticky": {
                 "name": "defaultversionsticky",
                 "type": "boolean",
+                "enum": [
+                  false
+                ],
                 "required": true,
                 "default": false
               }
@@ -9355,6 +9733,27 @@ func TestMultModel2Create(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "filesurl": {
             "name": "filesurl",
             "type": "url",
@@ -9388,14 +9787,12 @@ func TestMultModel2Create(t *testing.T) {
             "singular": "file",
             "maxversions": 0,
             "setversionid": true,
-            "setdefaultversionsticky": true,
             "hasdocument": true,
             "versionmode": "manual",
             "singleversionroot": false,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "attributes": {
               "fileid": {
                 "name": "fileid",
@@ -9912,15 +10309,15 @@ func TestMultModel2Create(t *testing.T) {
 `)
 
 	gm, _ = reg.Model.AddGroupModel("dirs0", "dir0")
-	gm.AddResourceModel("files", "file", 2, true, false, true)
+	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
 	gm, _ = reg.Model.AddGroupModel("dirs3", "dir3")
-	gm.AddResourceModel("files", "file", 2, true, false, true)
+	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs0":{},"dirs1":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}},"dirs2":{"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{}}}}}},"dirs3":{}}`)
 
 	gm, _ = reg.Model.AddGroupModel("dirs15", "dir15")
-	gm.AddResourceModel("files", "file", 2, true, false, true)
+	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs0":{},"dirs1":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}},"dirs15":{},"dirs2":{"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{}}}}}},"dirs3":{}}`)

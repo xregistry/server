@@ -18,8 +18,8 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	XNoErr(t, err)
 
 	// plural, singular, versions, verId bool, isDefault bool, hasDocument bool
-	_, err = gm.AddResourceModel("bars", "bar", 0, true, true, true)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("bars", "bar", 0, true, true)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
 	XNoErr(t, err)
 	_, err = rm.AddAttr("*", STRING)
 	XNoErr(t, err)
@@ -352,12 +352,11 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	XNoErr(t, err)
 
 	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
-		Plural:           "files",
-		Singular:         "file",
-		MaxVersions:      PtrInt(0),
-		SetVersionId:     PtrBool(true),
-		SetDefaultSticky: PtrBool(true),
-		HasDocument:      PtrBool(true),
+		Plural:       "files",
+		Singular:     "file",
+		MaxVersions:  PtrInt(0),
+		SetVersionId: PtrBool(true),
+		HasDocument:  PtrBool(true),
 	})
 	XNoErr(t, err)
 
@@ -563,7 +562,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "create res?setdefault=request",
@@ -835,7 +834,7 @@ func TestHTTPContent(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 
@@ -2290,7 +2289,7 @@ func TestHTTPContent2(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 
@@ -2584,7 +2583,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 	reg.AddGroup("dirs", "dir1")
 
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -3747,7 +3746,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
 	gm.AddAttr("gext", STRING)
 
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, true)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
 	rm.AddAttr("rext", STRING)
 
 	g, _ := reg.AddGroup("dirs", "dir1")
@@ -4506,7 +4505,7 @@ func TestHTTPEpoch(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`,
 		201, `{
@@ -4573,7 +4572,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	g, _ := reg.AddGroup("dirs", "dir1")
 	_, err := g.AddResource("files", "f1", "v1")
@@ -4655,7 +4654,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	// Files + empty
 	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
@@ -4912,7 +4911,7 @@ func TestHTTPmeta(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201,
 		`{
@@ -5015,7 +5014,7 @@ func TestHTTPURLs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	// Just simple tests to make sure the most basic tests against the APIs
 	// work
@@ -5864,8 +5863,8 @@ func TestHTTPGroupResources(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
-	gm.AddResourceModel("datas", "data", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
+	gm.AddResourceModel("datas", "data", 0, true, true)
 
 	// Upload some resources into a preexisting group
 	// First create the group
@@ -6084,7 +6083,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	// Registry + Nested Groups
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -6529,7 +6528,7 @@ func TestHTTPNestedResources(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	// Registry + Nested Groups
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -7494,7 +7493,7 @@ func TestHTTPExport(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + init load",
@@ -7617,7 +7616,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{}`, 201,
 		`{
@@ -9062,7 +9061,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	// Expected capabilities body - same for all successful
 	// specversion requests.
@@ -9162,7 +9161,6 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   "specversions": [
     "` + SPECVERSION + `"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "createdat",
     "manual"
@@ -9251,7 +9249,6 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   "specversions": [
     "1.0.5-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -9280,7 +9277,6 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   "specversions": [
     "1.0.5-rc2"
   ],
-  "stickyversions": true,
   "versionmodes": [
     "manual"
   ]
@@ -9297,8 +9293,8 @@ func TestHTTPMissingBody(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)  //doc
-	_, err = gm.AddResourceModel("datas", "data", 0, true, true, false) //nodoc
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)  //doc
+	_, err = gm.AddResourceModel("datas", "data", 0, true, false) //nodoc
 	XNoErr(t, err)
 
 	// Just check for an error about a missing body based on the path + method
@@ -9748,7 +9744,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	// Test 1: PUT Resource with both timestamps
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -9898,7 +9894,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 
@@ -10097,7 +10093,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	reg.AddGroup("dirs", "d1")
 

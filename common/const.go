@@ -10,7 +10,6 @@ const HTTP_SPECURL = "https://github.com/xregistry/spec/blob/main/core/http.md"
 const STRICT = true
 const MAXVERSIONS = 0
 const SETVERSIONID = true
-const SETDEFAULTSTICKY = true
 const HASDOCUMENT = true
 const VERSIONMODE = "manual"
 const SINGLEVERSIONROOT = false

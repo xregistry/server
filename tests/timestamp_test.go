@@ -67,7 +67,7 @@ func TestTimestampRegistry(t *testing.T) {
 
 	// Now test with Groups and Resources
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, true)
+	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
 
 	d, _ := reg.AddGroup("dirs", "d1")

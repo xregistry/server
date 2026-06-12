@@ -11,7 +11,7 @@ func TestMetaSimple(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) // noDoc
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) // noDoc
 	rm.AddMetaAttr("foo", ANY)
 
 	// Simple no body create PUT
@@ -564,7 +564,7 @@ func TestMetaCombos(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false) // noDoc
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) // noDoc
 	rm.AddMetaAttr("foo", ANY)
 
 	// Create Resource and set the versionID
@@ -1480,7 +1480,7 @@ func TestMetaLabels(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
@@ -1566,7 +1566,7 @@ func TestMetaXregHeaders(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",

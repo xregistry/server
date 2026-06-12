@@ -12,7 +12,7 @@ func TestXrefBasic(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
 	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
@@ -611,7 +611,7 @@ func TestXrefErrors(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 
 	gm2, _ := reg.Model.AddGroupModel("bars", "bar")
 
@@ -906,7 +906,7 @@ func TestXrefRevert(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, false)
+	gm.AddResourceModel("files", "file", 0, true, false)
 	d, _ := reg.AddGroup("dirs", "d1")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v9",
@@ -1511,7 +1511,7 @@ func TestXrefDocs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello world", 201, "hello world")
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details?inline=file",

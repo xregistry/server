@@ -16,7 +16,7 @@ func TestAncestorBasic(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `{
   "fileid": "f1",
@@ -519,7 +519,7 @@ func TestAncestorWithSicky(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{
       "meta":{"defaultversionsticky": true,"defaultversionid": "v1"},
@@ -580,7 +580,7 @@ func TestAncestorOrdering(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	// Timestamps should be the determining factor.
 	// "versionsid" make sure we don't create the implied Version "1"
@@ -672,7 +672,7 @@ func TestAncestorRoots(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
 
 	// Start with singlversionroot=default (which should be 'false')
 
@@ -812,7 +812,7 @@ func TestAncestorCircles(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions":{"v1":{"ancestor":"v1"},"v2":{"ancestor":"v1"}}}`,
@@ -866,9 +866,10 @@ func TestAncestorMaxVersions(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false, false)
+	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
 
 	rm.SetMaxVersions(1)
+	rm.EnableSticky(false)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// the circular ref shouldn't be an issue because we'll delete the
@@ -900,7 +901,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	//  v2->v1->v3->v3
 	// Should delete v3
 	rm.SetMaxVersions(2)
-	rm.SetSetDefaultSticky(true)
+	rm.EnableSticky(true)
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
@@ -986,7 +987,7 @@ func TestAncestorErrors(t *testing.T) {
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
 	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true, false)
+	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,

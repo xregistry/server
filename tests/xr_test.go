@@ -94,14 +94,12 @@ GROUP: dirs / dir
   RESOURCE: files / file
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 `, "", true)
 
 	XCLI(t, "model get -a", "",
@@ -134,6 +132,10 @@ ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
 GROUP: dirs / dir
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ constraints       object       -     -    y
+  │ ├ default         any          -     -    y
+  │ ├ enum            array/any    -     -    y
+  │ └ equals          string       -     -    y
   ├ createdat         timestamp    y     -    y
   ├ deprecated        object       -     -    y
   │ ├ alternative     url          -     -    y
@@ -159,14 +161,12 @@ GROUP: dirs / dir
   RESOURCE: files / file
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 
     ATTRIBUTES:                      TYPE         REQ   RO   MUT   DEFAULT
     ├ ancestor                       string       y     -    y
@@ -304,14 +304,12 @@ GROUP: dirs / dir
   RESOURCE: files / file
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 
 GROUP: docs / doc
 
@@ -324,14 +322,12 @@ GROUP: docs / doc
   RESOURCE: types / type
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 
 GROUP: gt2s / gt2
 
@@ -344,14 +340,12 @@ GROUP: gt2s / gt2
   RESOURCE: rt2s / rt2
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 
 GROUP: gts / gt
 
@@ -364,14 +358,12 @@ GROUP: gts / gt
   RESOURCE: rts / rt
     Max versions        : 0
     Set version id      : true
-    Set version sticky  : true
     Has document        : true
     Version mode        : manual
     Single version root : false
     Validate format     : false
     Validate compat     : false
     Strict valiation    : false
-    Consistent format   : false
 `, "", true)
 
 	// Test some ifvalues
@@ -645,6 +637,27 @@ func TestXRGroupType(t *testing.T) {
   "plural": "dirs3",
   "singular": "dir3",
   "attributes": {
+    "constraints": {
+      "name": "constraints",
+      "type": "object",
+      "attributes": {
+        "default": {
+          "name": "default",
+          "type": "any"
+        },
+        "enum": {
+          "name": "enum",
+          "type": "array",
+          "item": {
+            "type": "any"
+          }
+        },
+        "equals": {
+          "name": "equals",
+          "type": "string"
+        }
+      }
+    },
     "createdat": {
       "name": "createdat",
       "type": "timestamp",
@@ -739,6 +752,10 @@ func TestXRGroupType(t *testing.T) {
 		`GROUP: dirs4 / dir4
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ constraints       object       -     -    y
+  │ ├ default         any          -     -    y
+  │ ├ enum            array/any    -     -    y
+  │ └ equals          string       -     -    y
   ├ createdat         timestamp    y     -    y
   ├ deprecated        object       -     -    y
   │ ├ alternative     url          -     -    y
@@ -762,6 +779,10 @@ func TestXRGroupType(t *testing.T) {
 		`GROUP: dirs5 / dir5
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
+  ├ constraints       object       -     -    y
+  │ ├ default         any          -     -    y
+  │ ├ enum            array/any    -     -    y
+  │ └ equals          string       -     -    y
   ├ createdat         timestamp    y     -    y
   ├ deprecated        object       -     -    y
   │ ├ alternative     url          -     -    y
@@ -791,6 +812,27 @@ func TestXRGroupType(t *testing.T) {
   "plural": "dirs2",
   "singular": "dir2",
   "attributes": {
+    "constraints": {
+      "name": "constraints",
+      "type": "object",
+      "attributes": {
+        "default": {
+          "name": "default",
+          "type": "any"
+        },
+        "enum": {
+          "name": "enum",
+          "type": "array",
+          "item": {
+            "type": "any"
+          }
+        },
+        "equals": {
+          "name": "equals",
+          "type": "string"
+        }
+      }
+    },
     "createdat": {
       "name": "createdat",
       "type": "timestamp",
@@ -887,6 +929,27 @@ func TestXRGroupType(t *testing.T) {
     "plural": "dirs2",
     "singular": "dir2",
     "attributes": {
+      "constraints": {
+        "name": "constraints",
+        "type": "object",
+        "attributes": {
+          "default": {
+            "name": "default",
+            "type": "any"
+          },
+          "enum": {
+            "name": "enum",
+            "type": "array",
+            "item": {
+              "type": "any"
+            }
+          },
+          "equals": {
+            "name": "equals",
+            "type": "string"
+          }
+        }
+      },
       "createdat": {
         "name": "createdat",
         "type": "timestamp",
@@ -979,6 +1042,27 @@ func TestXRGroupType(t *testing.T) {
     "plural": "dirs",
     "singular": "dir",
     "attributes": {
+      "constraints": {
+        "name": "constraints",
+        "type": "object",
+        "attributes": {
+          "default": {
+            "name": "default",
+            "type": "any"
+          },
+          "enum": {
+            "name": "enum",
+            "type": "array",
+            "item": {
+              "type": "any"
+            }
+          },
+          "equals": {
+            "name": "equals",
+            "type": "string"
+          }
+        }
+      },
       "createdat": {
         "name": "createdat",
         "type": "timestamp",
@@ -1083,14 +1167,12 @@ GROUP: dirs / dir
 		`RESOURCE: files2 / file2
   Max versions        : 0
   Set version id      : true
-  Set version sticky  : true
   Has document        : true
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, "Created Resource type: files2\n", true)
 
 	XCLI(t, "model resource create -v -g dirs7 files2:file2 -o table", "",
@@ -1100,14 +1182,12 @@ GROUP: dirs / dir
 		`RESOURCE: files2 / file2
   Max versions        : 0
   Set version id      : true
-  Set version sticky  : true
   Has document        : true
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, `Created Group type: dirs7:dir7
 Created Resource type: files2
 `, true)
@@ -1140,14 +1220,12 @@ files2 / file2   true      0
     "singular": "file2",
     "maxversions": 0,
     "setversionid": true,
-    "setdefaultversionsticky": true,
     "hasdocument": true,
     "versionmode": "manual",
     "singleversionroot": false,
     "validateformat": false,
     "validatecompatibility": false,
     "strictvalidation": false,
-    "consistentformat": false,
     "attributes": {
       "ancestor": {
         "name": "ancestor",
@@ -1509,21 +1587,18 @@ func TestXRResourceType(t *testing.T) {
 		`RESOURCE: f2s / f2
   Max versions        : 0
   Set version id      : true
-  Set version sticky  : true
   Has document        : true
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, "", true)
 
 	XCLI(t, "model resource create f3s:f3 -g dirs -o table "+
-		"--consistent-format --description desc --docs docURL --has-doc "+
+		"--description desc --docs docURL --has-doc "+
 		"--icon iconURL --label foo=bar --label=abc=def --max-versions 1 "+
 		"--model-compat-with mcw --model-version 1.0 "+
-		"--set-default-sticky=false "+
 		"--set-version-id --single-version-root --strict-validation "+
 		"--type-map tm1=json --type-map tm2=string --validate-compat "+
 		"--validate-format --version-mode=createdat", "",
@@ -1532,14 +1607,12 @@ func TestXRResourceType(t *testing.T) {
   Documentation       : docURL
   Max versions        : 1
   Set version id      : true
-  Set version sticky  : false
   Has document        : true
   Version mode        : createdat
   Single version root : true
   Validate format     : true
   Validate compat     : true
   Strict valiation    : true
-  Consistent format   : true
   Icon URL            : iconURL
   Model version       : 1.0
   Model Compat with   : mcw
@@ -1550,93 +1623,83 @@ func TestXRResourceType(t *testing.T) {
 `, ``, true)
 
 	XCLI(t, "model resource create f4s:f4 -g dirs -o table "+
-		"--consistent-format=true --has-doc=true "+
-		"--set-default-sticky=true --set-version-id=true "+
-		"--single-version-root=true --strict-validation=true "+
+		"--has-doc=true "+
+		"--set-version-id=true "+
+		"--no-single-version-root=false --strict-validation=true "+
 		"--validate-compat=true --validate-format=true", "",
 		`RESOURCE: f4s / f4
   Max versions        : 0
   Set version id      : true
-  Set version sticky  : true
   Has document        : true
   Version mode        : manual
   Single version root : true
   Validate format     : true
   Validate compat     : true
   Strict valiation    : true
-  Consistent format   : true
 `, ``, true)
 
 	XCLI(t, "model resource create f5s:f5 -g dirs -o table "+
-		"--consistent-format=false --has-doc=false "+
-		"--set-default-sticky=false --set-version-id=false "+
+		"--has-doc=false "+
+		"--set-version-id=false "+
 		"--single-version-root=false --strict-validation=false "+
 		"--validate-compat=false --validate-format=false", "",
 		`RESOURCE: f5s / f5
   Max versions        : 0
   Set version id      : false
-  Set version sticky  : false
   Has document        : false
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, ``, true)
 
 	XCLI(t, "model resource create f6s:f6 -g dirs -o table "+
-		"--no-consistent-format --no-has-doc "+
-		"--no-set-default-sticky --no-set-version-id "+
+		"--no-has-doc "+
+		"--no-set-version-id "+
 		"--no-single-version-root --no-strict-validation "+
 		"--no-validate-compat --no-validate-format", "",
 		`RESOURCE: f6s / f6
   Max versions        : 0
   Set version id      : false
-  Set version sticky  : false
   Has document        : false
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, ``, true)
 
 	XCLI(t, "model resource create f7s:f7 -g dirs -o table "+
-		"--no-consistent-format=true --no-has-doc=true "+
-		"--no-set-default-sticky=true --no-set-version-id=true "+
+		"--no-has-doc=true "+
+		"--no-set-version-id=true "+
 		"--no-single-version-root=true --no-strict-validation=true "+
 		"--no-validate-compat=true --no-validate-format=true", "",
 		`RESOURCE: f7s / f7
   Max versions        : 0
   Set version id      : false
-  Set version sticky  : false
   Has document        : false
   Version mode        : manual
   Single version root : false
   Validate format     : false
   Validate compat     : false
   Strict valiation    : false
-  Consistent format   : false
 `, ``, true)
 
 	XCLI(t, "model resource create f8s:f8 -g dirs -o table "+
-		"--no-consistent-format=false --no-has-doc=false "+
-		"--no-set-default-sticky=false --no-set-version-id=false "+
+		"--no-has-doc=false "+
+		"--no-set-version-id=false "+
 		"--no-single-version-root=false --no-strict-validation=false "+
 		"--no-validate-compat=false --no-validate-format=false", "",
 		`RESOURCE: f8s / f8
   Max versions        : 0
   Set version id      : true
-  Set version sticky  : true
   Has document        : true
   Version mode        : manual
   Single version root : true
   Validate format     : true
   Validate compat     : true
   Strict valiation    : true
-  Consistent format   : true
 `, ``, true)
 
 	// Some errors and test create vs update vs upsert

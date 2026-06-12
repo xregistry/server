@@ -537,12 +537,16 @@ func (e *Entity) ValidateAndSave(force bool) *XRError {
 	e.tx.NewTx()
 
 	if log.GetVerbose() > 2 {
-		log.VPrintf(0, "Validating %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
+		log.Printf("Pre validate %s/%s\ne.Object:\n%s\n\ne.NewObject:\n%s",
 			e.Abstract, e.UID, ToJSON(e.Object), ToJSON(e.NewObject))
 	}
 
 	if xErr := e.Validate(); xErr != nil {
 		return xErr
+	}
+
+	if log.GetVerbose() > 2 {
+		log.Printf("Post validate(%s): %s", e.XID, ToJSON(e.NewObject))
 	}
 
 	if e.NewObject == nil {
@@ -1471,6 +1475,10 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
+		Name:      "constraints",
+		internals: &AttrInternals{},
+	},
+	{
 		Name: "ancestor",
 		internals: &AttrInternals{
 			updateFn: func(e *Entity) *XRError {
@@ -1757,8 +1765,17 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name:      "defaultversionsticky",
-		internals: &AttrInternals{},
+		Name: "defaultversionsticky",
+		internals: &AttrInternals{
+			checkFn: func(e *Entity) *XRError {
+				if e.GetResourceModel().GetMaxVersions() == 1 {
+					if e.NewObject["defaultversionsticky"] == true {
+						return NewXRError("setdefaultversionsticky_false", e.XID)
+					}
+				}
+				return nil
+			},
+		},
 	},
 	{
 		Name:      "$space",

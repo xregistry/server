@@ -1178,19 +1178,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
 
-	// Check StickyVersions capability enforcement
-	if setDefVerID != "" &&
-		!info.Registry.Capabilities.StickyVersionsEnabled() {
-		if method == "PUT" || method == "PATCH" || method == "POST" ||
-			method == "DELETE" {
-
-			if !info.Registry.Capabilities.StickyVersionsEnabled() {
-				return NewXRError("setdefaultversionid_not_allowed",
-					"/"+info.OriginalPath)
-			}
-		}
-	}
-
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
 	// URL: /GROUPs/gID/RESOURCEs/rID
@@ -1860,12 +1847,6 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		}
 		nextDefault := info.GetFlag("setdefaultversionid")
 
-		// Check StickyVersions capability enforcement
-		if nextDefault != "" && !info.Registry.Capabilities.StickyVersionsEnabled() {
-			return NewXRError("setdefaultversionid_not_allowed",
-				resource.XID+"/meta")
-		}
-
 		xErr = version.DeleteSetNextVersion(nextDefault)
 		if xErr != nil {
 			return xErr
@@ -2066,13 +2047,6 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 
 func HTTPDeleteVersions(info *RequestInfo) *XRError {
 	nextDefault := info.GetFlag("setdefaultversionid")
-
-	// Check StickyVersions capability enforcement
-	if nextDefault != "" && !info.Registry.Capabilities.StickyVersionsEnabled() {
-		return NewXRError("setdefaultversionid_not_allowed",
-			"/"+info.GroupType+"/"+info.GroupUID+"/"+info.ResourceType+
-				"/"+info.ResourceUID+"/meta")
-	}
 
 	list, xErr := LoadEpochMap(info)
 	if xErr != nil {

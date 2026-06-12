@@ -368,6 +368,28 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
+		Name: "constraints",
+		Type: OBJECT,
+		Attributes: Attributes{
+			"enum": &Attribute{
+				Type: ARRAY,
+				Item: &Item{
+					Type: ANY,
+				},
+			},
+			"default": &Attribute{
+				Type: ANY,
+			},
+			"equals": &Attribute{
+				Type: STRING,
+			},
+		},
+
+		internals: &AttrInternals{
+			types: StrTypes(ENTITY_GROUP),
+		},
+	},
+	{
 		Name:      "ancestor",
 		Type:      STRING,
 		MatchCase: true,

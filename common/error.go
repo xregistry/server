@@ -154,7 +154,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"constraint_failure": &XRError{
 		Code:  400,
-		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "equal" constraint for attribute "<path>".`,
+		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "equals" constraint for attribute "<path>".`,
 	},
 	"data_retrieval_error": &XRError{
 		Code:  500,
@@ -164,10 +164,6 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `Processing "<subject>", the "defaultversionid" attribute is not allowed to be "request" since a Version wasn't processed.`,
 	},
-	"defaultversionsticky_not_allowed": &XRError{
-		Code:  400,
-		Title: `Setting "defaultversionsticky" to "true" is not allowed for "<subject>".`,
-	},
 	"extra_xref_attribute": &XRError{
 		Code:  400,
 		Title: `Attribute "<name>" is not allowed to be present since the Resource (<subject>) uses "xref".`,
@@ -175,10 +171,6 @@ var Type2Error = map[string]*XRError{
 	"format_external": &XRError{
 		Code:  400,
 		Title: `Version "<subject>" references a document stored outside of the Registry, therefore no validation was performed.`,
-	},
-	"format_inconsistent": &XRError{
-		Code:  400,
-		Title: `One or more Versions of Resource "<subject>" do not have the same "format" value as mandated by their owning Resource model's "consistentformat" attribute being set.`,
 	},
 	"format_unknown": &XRError{
 		Code:  400,
@@ -280,13 +272,9 @@ var Type2Error = map[string]*XRError{
 		Code:  500,
 		Title: `An unexpected error occurred, please try again later.`,
 	},
-	"setdefaultversionid_not_allowed": &XRError{
-		Code:  400,
-		Title: `Setting "defaultversionid" is not allowed for "<subject>".`,
-	},
 	"setdefaultversionsticky_false": &XRError{
 		Code:  400,
-		Title: `The model attribute "setdefaultversionsticky" needs to be "false" since "maxversions" is "1".`,
+		Title: `Setting "defaultversionsticky" to "true" is not allowed since "maxversions" is "1".`,
 	},
 	"sort_noncollection": &XRError{
 		Code:  400,

@@ -295,7 +295,7 @@ func TestModelResourceAttrs(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true, false)
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, false)
 
 	_, err := rm.AddResourceAttr("rstring", STRING)
 	XNoErr(t, err)
@@ -562,14 +562,12 @@ func TestModelResourceAttrs(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1155,14 +1153,12 @@ func TestModelResourceAttrs(t *testing.T) {
           "singular": "file",
           "maxversions": 0,
           "setversionid": true,
-          "setdefaultversionsticky": true,
           "hasdocument": true,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "consistentformat": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -1660,14 +1656,12 @@ func TestModelFullModel(t *testing.T) {
                 "modelcompatiblewith": "rcw1",
                 "maxversions": 5,
                 "setversionid": true,
-                "setdefaultversionsticky": false,
                 "hasdocument": false,
                 "versionmode": "manual",
                 "singleversionroot": true,
                 "validateformat": false,
                 "validatecompatibility": false,
                 "strictvalidation": false,
-                "consistentformat": false,
                 "typemap": {
                   "text/mine": "json"
                 },
@@ -1983,6 +1977,27 @@ func TestModelFullModel(t *testing.T) {
               }
             }
           },
+          "constraints": {
+            "name": "constraints",
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
+                "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
+              }
+            }
+          },
           "gext1": {
             "name": "gext1",
             "type": "string"
@@ -2028,14 +2043,12 @@ func TestModelFullModel(t *testing.T) {
             "modelcompatiblewith": "rcw1",
             "maxversions": 5,
             "setversionid": true,
-            "setdefaultversionsticky": false,
             "hasdocument": false,
             "versionmode": "manual",
             "singleversionroot": true,
             "validateformat": false,
             "validatecompatibility": false,
             "strictvalidation": false,
-            "consistentformat": false,
             "typemap": {
               "text/mine": "json"
             },
@@ -3505,6 +3518,69 @@ func TestHasDocumentValidation(t *testing.T) {
   "title": "The request would cause Version \"/dirs/d4/files/f4/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
   "subject": "/dirs/d4/files/f4/versions/1",
   "source": "xxx"
+}
+`)
+}
+
+func TestModelStrictEnum(t *testing.T) {
+	reg := NewRegistry("TestModelStrictEnum")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file",
+              "metaattributes": {
+                "compatibility": {
+                  "type": "string",
+                  "enum": [ "backward" ],
+                  "strict": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"model.compatibility\" must have \"strict\" set to \"true\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"model.compatibility\" must have \"strict\" set to \"true\""
+  },
+  "source": "9263661f51d9:registry:shared_model:1743"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file",
+              "metaattributes": {
+                "compatibility": {
+                  "type": "string",
+                  "enum": [ "foo" ],
+                  "strict": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"model.compatibility\" has an \"enum\" val (foo) that isn't allowed. Must be one of: backward, backward_transitive, forward, forward_transitive, full, full_transitive.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"model.compatibility\" has an \"enum\" val (foo) that isn't allowed. Must be one of: backward, backward_transitive, forward, forward_transitive, full, full_transitive"
+  },
+  "source": "9263661f51d9:registry:shared_model:1779"
 }
 `)
 }

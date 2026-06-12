@@ -15,7 +15,7 @@ func TestInlineBasic(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	d, _ := reg.AddGroup("dirs", "d1")
 	f, _ := d.AddResource("files", "f1", "v1")
@@ -25,7 +25,7 @@ func TestInlineBasic(t *testing.T) {
 	f.AddVersion("v1.1")
 
 	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, true, true, true)
+	gm2.AddResourceModel("files", "file", 0, true, true)
 	d2, _ := reg.AddGroup("dirs2", "d2")
 	d2.AddResource("files", "f2", "v1")
 
@@ -467,7 +467,7 @@ func TestInlineResource(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	d, _ := reg.AddGroup("dirs", "d1")
 
@@ -802,7 +802,7 @@ func TestInlineWildcards(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world"}}`, 201, `*`)
@@ -1543,7 +1543,7 @@ func TestInlineEmpty(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true, true)
+	gm.AddResourceModel("files", "file", 0, true, true)
 
 	XHTTP(t, reg, "GET", "/?inline", "", 200, `{
   "specversion": "`+SPECVERSION+`",
