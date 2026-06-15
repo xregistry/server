@@ -115,11 +115,6 @@ TODOs:
   capability values (pre or post tx) for each capability & model
 ** fix concurrency issues as seen in TestMiscConcurrency
 ** fix DB locking - we need to lock entire entity, not just the rows touched
-** validate that the default value for an attribute is within the enum range when enum is specified and strict=true
-** explicitly set strict to true by default when enum is present and not empty in the model verify logic
-** move capa.sticky tests that are really about meta.sticky out of the capa test files. Make sure the capa.sticky tests are complete
-** make sure the meta.sticky tests are complete
 ** support constraints
 ** support matchversions
-- test to see what happens if someone sets defaultversionsticky's enum to just 'true'
 - re-enable the format_test funcs once we support constraints, look for DUG

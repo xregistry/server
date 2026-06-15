@@ -1821,7 +1821,8 @@ func TestHTTPModel(t *testing.T) {
       "enum": [
         "one",
         "two"
-      ]
+      ],
+      "strict": true
     },
     "documentation": {
       "name": "documentation",
@@ -9851,6 +9852,10 @@ func TestHTTPSticky(t *testing.T) {
                     "default": true
                   }
                 }
+              },
+              "datas": {
+                "singular": "data",
+                "hasdocument": false
               }
             }
           }
@@ -9948,6 +9953,304 @@ func TestHTTPSticky(t *testing.T) {
   "source": "9263661f51d9:registry:entity:2929"
 }
 `)
+
+	// Just some more misc default/sticky stuff
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", ``, 204, ``)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v2&inline=meta", `{
+      "versions": {
+        "v1": {},
+        "v2": {},
+        "v3": {}
+      }
+    }`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v3", `{}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-06-14T14:00:37.708458885Z",
+  "modifiedat": "2026-06-14T14:00:37.708458885Z",
+  "ancestor": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=", `{}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_defaultversionid",
+  "title": "An error was found in the \"defaultversionid\" value specified (\"\"): value must not be empty.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "error_detail": "value must not be empty",
+    "value": "\"\""
+  },
+  "source": "923b0240301e:registry:info:739"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=null", `{}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"defaultversionsticky\" for \"/dirs/d1/files/f1/meta\" is not valid: value (false) must be one of the enum values: true.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "value (false) must be one of the enum values: true",
+    "name": "defaultversionsticky"
+  },
+  "source": "923b0240301e:registry:entity:2929"
+}
+`)
+
+	// Normally this would ignore defaultversionid=v1 but since the default
+	// value for defaultversionsticky=true, setting defver here sticks
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":"v1"}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2026-06-14T19:37:17.098167214Z",
+  "modifiedat": "2026-06-14T19:37:17.214604042Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "defaultversionsticky": true
+}
+`)
+
+	// Make sure the opposite is true for sticky=false by default
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v2&inline=meta", `{
+      "versions": {
+        "v1": {},
+        "v2": {},
+        "v3": {}
+      }
+    }`, 201, `{
+  "dataid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/datas/f1",
+  "xid": "/dirs/d1/datas/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-06-14T23:53:39.277285499Z",
+  "modifiedat": "2026-06-14T23:53:39.277285499Z",
+  "ancestor": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/datas/f1/meta",
+  "meta": {
+    "dataid": "f1",
+    "self": "http://localhost:8181/dirs/d1/datas/f1/meta",
+    "xid": "/dirs/d1/datas/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-06-14T23:53:39.277285499Z",
+    "modifiedat": "2026-06-14T23:53:39.277285499Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/datas/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/datas/f1/versions",
+  "versionscount": 3
+}
+`)
+
+	// Should be v3 because we're implicitly setting sticky=false
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionid":"v1"}`, 200, `{
+  "dataid": "f1",
+  "self": "http://localhost:8181/dirs/d1/datas/f1/meta",
+  "xid": "/dirs/d1/datas/f1/meta",
+  "epoch": 2,
+  "createdat": "2026-06-14T19:37:17.098167214Z",
+  "modifiedat": "2026-06-14T19:37:17.214604042Z",
+  "readonly": false,
+
+  "defaultversionid": "v3",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/f1/versions/v3",
+  "defaultversionsticky": false
+}
+`)
+
+	// Test some patching
+
+	// v2+implicit sticky=true
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":"v2"}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 4,
+  "createdat": "2026-06-14T19:37:17.098167214Z",
+  "modifiedat": "2026-06-14T19:37:17.214604042Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+  "defaultversionsticky": true
+}
+`)
+
+	// v2+implicit sticky=true
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionid":"v2"}`, 200, `{
+  "dataid": "f1",
+  "self": "http://localhost:8181/dirs/d1/datas/f1/meta",
+  "xid": "/dirs/d1/datas/f1/meta",
+  "epoch": 3,
+  "createdat": "2026-06-14T19:37:17.098167214Z",
+  "modifiedat": "2026-06-14T19:37:17.214604042Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/datas/f1/versions/v2",
+  "defaultversionsticky": true
+}
+`)
+
+	// ---
+
+	// put defverid=null
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*$`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// now do it -> v3 + sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": true.*$`)
+
+	// now do it -> v3 + not-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionid":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
+
+	// patch defverid=null
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// now do it -> v3 + sticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": true.*$`)
+
+	// now do it -> v3 + no-sticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionid":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
+
+	// ---
+
+	// put defversticky=false
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// Now do it -> err
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionsticky":false}`, 400,
+		`^(?s)^.*false. must be one of.*$`)
+
+	// Now do it -> v3 + not-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionsticky":false}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
+
+	// patch defversticky=false
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// Now do it -> err
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"defaultversionsticky":false}`, 400,
+		`^(?s)^.*false. must be one of.*$`)
+
+	// now do it -> v3 + no-sticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionsticky":false}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
+
+	// ---
+
+	// put defversticky=null
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// Now do it -> v3 + sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionsticky":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": true.*$`)
+
+	// Now do it -> v3 + not-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionsticky":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
+
+	// first reset to v1-sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/datas/f1?setdefaultversionid=v1",
+		`{}`, 200, `^(?m)^.*versionid": "v1.*`)
+
+	// Now do it -> v3 + sticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/meta",
+		`{"defaultversionsticky":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": true.*$`)
+
+	// Now do it -> v3 + not-sticky
+	XHTTP(t, reg, "PATCH", "/dirs/d1/datas/f1/meta",
+		`{"defaultversionsticky":null}`, 200,
+		`^(?s)^.*versionid": "v3.*sticky": false.*$`)
 
 }
 

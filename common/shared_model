@@ -3288,6 +3288,10 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 								"type %q", path.UI(), val, daType))
 				}
 			}
+
+			if attr.Strict == nil {
+				attr.Strict = PtrBool(true)
+			}
 		}
 
 		if !IsNil(attr.Default) {

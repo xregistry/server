@@ -8157,6 +8157,7 @@ func TestMultModelCreate(t *testing.T) {
               "enum": [
                 false
               ],
+              "strict": true,
               "required": true,
               "default": false
             }
@@ -9636,6 +9637,7 @@ func TestMultModel2Create(t *testing.T) {
                 "enum": [
                   false
                 ],
+                "strict": true,
                 "required": true,
                 "default": false
               }

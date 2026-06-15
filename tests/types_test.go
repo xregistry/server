@@ -808,7 +808,7 @@ func TestTypesWildcardBool(t *testing.T) {
 	XNoErr(t, err)
 	_, err = gm.AddResourceModel("files", "file", 0, true, true)
 	XNoErr(t, err)
-	XNoErr(t, reg.Model.Save())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	dir, err := reg.AddGroup("dirs", "d1")
 	XNoErr(t, err)
@@ -844,7 +844,7 @@ func TestTypesWildcardAny(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	reg.Model.AddAttr("*", ANY)
-	XNoErr(t, reg.Model.Save())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	// Make sure we can set the same attr to two different types
 	err := reg.SetSave("ext1", 5.5)
@@ -887,7 +887,7 @@ func TestTypesWildcard2Layers(t *testing.T) {
 		},
 	})
 	XCheck(t, err == nil, "")
-	XNoErr(t, reg.Model.Save())
+	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	err = reg.SetSave("obj.map.k1", 5)
 	XCheck(t, err == nil, "set foo.k1: %s", err)

@@ -402,6 +402,18 @@ func (r *Resource) EnsureLatest() *XRError {
 
 	// log.Printf("In %s.ensurelatest, defID: %q", r.UID, currentDefault)
 
+	// Since defaultversionid and defaultversionsticky are so closely related
+	// we need to make sure that defaultversionsticky's default value is
+	// applied before we calculate the defaultversionid if it's missing.
+	if meta.NewObject != nil && meta.NewObject["defaultversionsticky"] == nil {
+		def := r.ResourceModel.MetaAttributes["defaultversionsticky"].Default
+
+		// Should never be nil but just in case
+		if !IsNil(def) {
+			meta.NewObject["defaultversionsticky"] = def
+		}
+	}
+
 	if meta.Get("defaultversionsticky") != true || currentDefault == "" {
 		newDefault, xErr := r.GetNewestVersionID()
 		Must(xErr)
@@ -576,7 +588,8 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 				meta.NewObject["defaultversionsticky"] = true
 			} else {
 				// defaultversionid = null
-				meta.NewObject["defaultversionsticky"] = false
+				def := r.ResourceModel.MetaAttributes["defaultversionsticky"].Default
+				meta.NewObject["defaultversionsticky"] = def
 			}
 		}
 
