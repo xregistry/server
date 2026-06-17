@@ -174,6 +174,17 @@ func XCheckErr(t *testing.T, errAny any, errStr string) {
 		t.Fatalf("Test failed: %s", errAny)
 	}
 
+	if errStr[0] == '^' {
+		gotStr := fmt.Sprintf("%v", errAny)
+		re := regexp.MustCompile(errStr[1:])
+		if !re.MatchString(gotStr) {
+			t.Fatalf("Regexp Expected:\n%s\nGot:\n%s",
+				errStr, gotStr)
+			t.FailNow()
+		}
+		return
+	}
+
 	XEqual(t, "", errAny, errStr)
 }
 

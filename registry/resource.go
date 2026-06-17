@@ -1268,6 +1268,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 		return xErr
 	}
 
+	// Make sure all attribtues with matchversions=true are the same for
+	// all versions
+	if xErr := r.EnsureMatchVersions(force); xErr != nil {
+		return xErr
+	}
+
 	if !onlyMetaChanged {
 		// If we've reached the maximum # of Versions, then delete oldest
 		if xErr := r.EnsureMaxVersions(); xErr != nil {
@@ -2024,6 +2030,58 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			return NewXRError("compatibility_unknown", r.XID+"/meta",
 				"compat="+newCompat.(string),
 				"format=n/a")
+		}
+	}
+
+	return nil
+}
+
+// Check to make sure all attributes with matchversions=true are validated
+// to be the same across all Versions
+func (r *Resource) EnsureMatchVersions(force bool) *XRError {
+	log.VPrintf(3, ">Enter: EnsureMatchVersions(%s)", r.UID)
+	defer log.VPrintf(3, "<Exit: MatchVersions")
+
+	mvs := r.ResourceModel.GetMatchVersionAttributes()
+
+	for _, mv := range mvs {
+		binary := ""
+		if mv.MatchCase {
+			binary = "BINARY"
+		}
+
+		query := fmt.Sprintf(`
+            SELECT count(*),p.PropName,p.PropValue FROM Entities e
+            LEFT JOIN Props AS p ON ( p.EntitySID=e.eSID AND p.PropName=?)
+            WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
+            GROUP BY %s PropValue`, binary)
+
+		results := Query(r.tx, query, mv.Path.DB(),
+			r.Registry.DbSID, r.DbSID, ENTITY_VERSION)
+		defer results.Close()
+
+		numEmpty := 0
+		numNonEmpty := 0
+		numValues := 0
+		for {
+			row := results.NextRow()
+			if row == nil {
+				break
+			}
+			if IsNil(*row[2]) {
+				// if NotNilString(row[2]) == ""
+				numEmpty = NotNilInt(row[0])
+			} else {
+				numNonEmpty++
+			}
+			numValues++
+		}
+
+		if numValues > 1 {
+			return NewXRError("mismatched_version_attribute", r.XID,
+				"name="+mv.Path.UI()).
+				SetDetailf("Unique values: %d. Versions w/o values: %d.",
+					numNonEmpty, numEmpty)
 		}
 	}
 

@@ -1072,6 +1072,8 @@ func TestFormatStrict(t *testing.T) {
 	rmFile.SetValidateFormat(true)
 	rmFile.SetValidateCompatibility(true)
 	rmFile.SetStrictValidation(true)
+	attr, _ := rmFile.AddAttr("format", STRING)
+	attr.SetMatchVersions(true)
 	rmNoFile.SetValidateFormat(true)
 	rmNoFile.SetValidateCompatibility(true)
 	rmNoFile.SetStrictValidation(true)
@@ -1092,7 +1094,14 @@ func TestFormatStrict(t *testing.T) {
           "singleversionroot": false,
           "validateformat": true,
           "validatecompatibility": true,
-          "strictvalidation": true
+          "strictvalidation": true,
+          "attributes": {
+            "format": {
+              "name": "format",
+              "type": "string",
+              "matchversions": true
+            }
+          }
         },
         "nofiles": {
           "plural": "nofiles",
@@ -1157,7 +1166,7 @@ func TestFormatStrict(t *testing.T) {
 		},
 		{
 			Name:          "xmlschema",
-			MixedName:     "XmLSHema",
+			MixedName:     "XmLScHema",
 			GoodFile:      `<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>`,
 			BadFile:       "bad one",
 			AltFormat:     "nUmbers",
@@ -1277,12 +1286,11 @@ func TestFormatStrict(t *testing.T) {
 `)
 
 		// varying format - 1
-		/* DUG FIX ONCE WE SUPPORT CONSTRAINTS
-				XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
 		   "versions": {
 		    "v1": {
 		      "format": "`+af.MixedName+`",
-		      "file": "1"
+		      "file": "`+af.GoodFile+`"
 		    },
 		    "v2": {
 		      "format": "`+af.AltFormat+`",
@@ -1290,18 +1298,19 @@ func TestFormatStrict(t *testing.T) {
 		    }
 		  }
 		}`, 400, `{
-		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
-		  "title": "One or more Versions of Resource \"/dirs/d1/files/f.`+af.Name+`\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
-		  "detail": "Formats: \"`+af.MixedName+`\" vs \"`+af.AltFormat+`\".",
-		  "subject": "/dirs/d1/files/f.`+af.Name+`",
-		  "source": "79ab0198e6b4:registry:resource:1749"
-		}
-		`)
-		*/
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_version_attribute",
+  "title": "The request would cause the \"format\" attribute across the Versions of \"/dirs/d1/files/f2.`+af.Name+`\" to be different.",
+  "detail": "Unique values: 2. Versions w/o values: 0.",
+  "subject": "/dirs/d1/files/f2.`+af.Name+`",
+  "args": {
+    "name": "format"
+  },
+  "source": "3225fb09cd3a:registry:resource:2081"
+}
+`)
 
 		// varying format - 2
-		/* DUG FIX ONCE WE SUPPORT CONSTRAINTS
-				XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
 		   "versions": {
 		    "v1": {
 		      "format": null,
@@ -1313,14 +1322,16 @@ func TestFormatStrict(t *testing.T) {
 		    }
 		  }
 		}`, 400, `{
-		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
-		  "title": "One or more Versions of Resource \"/dirs/d1/files/f2.`+af.Name+`\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
-		  "detail": "Formats: \"\" vs \"`+af.AltFormat+`\".",
-		  "subject": "/dirs/d1/files/f2",
-		  "source": "79ab0198e6b4:registry:resource:1749"
-		}
-		`)
-		*/
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_version_attribute",
+  "title": "The request would cause the \"format\" attribute across the Versions of \"/dirs/d1/files/f2.`+af.Name+`\" to be different.",
+  "detail": "Unique values: 1. Versions w/o values: 1.",
+  "subject": "/dirs/d1/files/f2.`+af.Name+`",
+  "args": {
+    "name": "format"
+  },
+  "source": "3225fb09cd3a:registry:resource:2081"
+}
+`)
 
 		// varying format - 3
 		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
@@ -1376,9 +1387,13 @@ func TestFormatNotStrict(t *testing.T) {
 	rmFile.SetValidateFormat(true)
 	rmFile.SetValidateCompatibility(true)
 	rmFile.SetStrictValidation(false)
+	attr, _ := rmFile.AddAttr("format", STRING)
+	attr.SetMatchVersions(true)
 	rmNoFile.SetValidateFormat(true)
 	rmNoFile.SetValidateCompatibility(true)
 	rmNoFile.SetStrictValidation(false)
+	attr, _ = rmNoFile.AddAttr("format", STRING)
+	attr.SetMatchVersions(true)
 
 	XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
   "groups": {
@@ -1396,7 +1411,14 @@ func TestFormatNotStrict(t *testing.T) {
           "singleversionroot": false,
           "validateformat": true,
           "validatecompatibility": true,
-          "strictvalidation": false
+          "strictvalidation": false,
+          "attributes": {
+            "format": {
+              "name": "format",
+              "type": "string",
+              "matchversions": true
+            }
+          }
         },
         "nofiles": {
           "plural": "nofiles",
@@ -1408,7 +1430,14 @@ func TestFormatNotStrict(t *testing.T) {
           "singleversionroot": false,
           "validateformat": true,
           "validatecompatibility": true,
-          "strictvalidation": false
+          "strictvalidation": false,
+          "attributes": {
+            "format": {
+              "name": "format",
+              "type": "string",
+              "matchversions": true
+            }
+          }
         }
       }
     }
@@ -1461,7 +1490,7 @@ func TestFormatNotStrict(t *testing.T) {
 		},
 		{
 			Name:          "xmlschema",
-			MixedName:     "XmLSHema",
+			MixedName:     "XmLScHema",
 			GoodFile:      `<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"/>`,
 			BadFile:       "bad one",
 			AltFormat:     "nUmbers",
@@ -1593,12 +1622,11 @@ func TestFormatNotStrict(t *testing.T) {
 `)
 
 		// varying format - 1
-		/* DUG FIX ONCE WE SUPPORT CONSTRAINTS
-				XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
 		   "versions": {
 		    "v1": {
 		      "format": "`+af.MixedName+`",
-		      "file": "1"
+		      "file": "`+af.GoodFile+`"
 		    },
 		    "v2": {
 		      "format": "`+af.AltFormat+`",
@@ -1606,18 +1634,19 @@ func TestFormatNotStrict(t *testing.T) {
 		    }
 		  }
 		}`, 400, `{
-		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
-		  "title": "One or more Versions of Resource \"/dirs/d1/files/f.`+af.Name+`\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
-		  "detail": "Formats: \"`+af.MixedName+`\" vs \"`+af.AltFormat+`\".",
-		  "subject": "/dirs/d1/files/f.`+af.Name+`",
-		  "source": "79ab0198e6b4:registry:resource:1749"
-		}
-		`)
-		*/
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_version_attribute",
+  "title": "The request would cause the \"format\" attribute across the Versions of \"/dirs/d1/files/f2.`+af.Name+`\" to be different.",
+  "detail": "Unique values: 2. Versions w/o values: 0.",
+  "subject": "/dirs/d1/files/f2.`+af.Name+`",
+  "args": {
+    "name": "format"
+  },
+  "source": "3225fb09cd3a:registry:resource:2081"
+}
+`)
 
 		// varying format - 2
-		/* DUG FIX ONCE WE SUPPORT CONSTRAINTS
-				XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
 		   "versions": {
 		    "v1": {
 		      "format": null,
@@ -1629,14 +1658,16 @@ func TestFormatNotStrict(t *testing.T) {
 		    }
 		  }
 		}`, 400, `{
-		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#format_inconsistent",
-		  "title": "One or more Versions of Resource \"/dirs/d1/files/f2.`+af.Name+`\" do not have the same \"format\" value as mandated by their owning Resource model's \"consistentformat\" attribute being set.",
-		  "detail": "Formats: \"\" vs \"`+af.AltFormat+`\".",
-		  "subject": "/dirs/d1/files/f2",
-		  "source": "79ab0198e6b4:registry:resource:1749"
-		}
-		`)
-		*/
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_version_attribute",
+  "title": "The request would cause the \"format\" attribute across the Versions of \"/dirs/d1/files/f2.`+af.Name+`\" to be different.",
+  "detail": "Unique values: 1. Versions w/o values: 1.",
+  "subject": "/dirs/d1/files/f2.`+af.Name+`",
+  "args": {
+    "name": "format"
+  },
+  "source": "3225fb09cd3a:registry:resource:2081"
+}
+`)
 
 		// varying format - 3
 		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{

@@ -116,5 +116,4 @@ TODOs:
 ** fix concurrency issues as seen in TestMiscConcurrency
 ** fix DB locking - we need to lock entire entity, not just the rows touched
 ** support constraints
-** support matchversions
-- re-enable the format_test funcs once we support constraints, look for DUG
+- see why xr model get | xr model update for reg-CloudEvents fails

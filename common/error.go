@@ -216,6 +216,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The specified "<singular>id" value (<invalid_id>) for "<subject>" needs to be "<expected_id>".`,
 	},
+	"mismatched_version_attribute": &XRError{
+		Code:  400,
+		Title: `The request would cause the "<name>" attribute across the Versions of "<subject>" to be different.`,
+	},
 	"misplaced_epoch": &XRError{
 		Code:  400,
 		Title: `The specified "epoch" value for "<subject>" needs to be within a "meta" entity.`,

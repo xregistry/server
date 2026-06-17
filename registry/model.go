@@ -219,6 +219,14 @@ func LoadModel(reg *Registry) *Model {
 }
 
 func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError {
+	if newM == nil && len(src) != 0 {
+		var xErr *XRError
+		newM, xErr = ParseModel([]byte(src), m.Registry)
+		if xErr != nil {
+			return xErr
+		}
+	}
+
 	newM.Registry = m.Registry
 	// log.Printf("ApplyNewModel:\n%s\n", ToJSON(newM))
 
