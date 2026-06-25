@@ -9,8 +9,18 @@ import (
 	log "github.com/duglin/dlog"
 )
 
+const NO_INDEX = -1
+const WILDCARD_INDEX = -2
+
 type PropPath struct {
 	Parts []PropPart
+
+	// Are any parts a wildcard (*) ?
+	// Note, this info will never be saved in the DB. This is just
+	// FYI data for server processing of requests. This is used to
+	// avoid having to loop over all parts just to know if a wildcard
+	// is being used.
+	HasWild bool
 }
 
 func NewPPP(prop string) *PropPath {
@@ -57,13 +67,6 @@ func (pp *PropPath) Bottom() string {
 	return last.Text
 }
 
-func (pp *PropPath) IsIndexed() int {
-	if pp.Len() > 1 && pp.Parts[1].Index >= 0 {
-		return pp.Parts[1].Index
-	}
-	return -1
-}
-
 func (pp *PropPath) First() *PropPath {
 	if pp.Len() == 0 {
 		return nil
@@ -82,6 +85,15 @@ func (pp *PropPath) Next() *PropPath {
 	}
 }
 
+func (pp *PropPath) FromIndex(i int) *PropPath {
+	if i > pp.Len() {
+		return nil
+	}
+	return &PropPath{
+		Parts: pp.Parts[i:],
+	}
+}
+
 func MustPropPathFromPath(str string) *PropPath {
 	pp, _ := PropPathFromPath(str)
 	return pp
@@ -97,7 +109,7 @@ func PropPathFromPath(str string) (*PropPath, error) {
 	for _, p := range parts {
 		res.Parts = append(res.Parts, PropPart{
 			Text:  p,
-			Index: -1,
+			Index: NO_INDEX,
 		})
 	}
 	return res, nil
@@ -165,7 +177,7 @@ func PropPathFromDB(str string) (*PropPath, error) {
 		str = strings.TrimRight(str, string(DB_IN))
 		res.Parts = append(res.Parts, PropPart{
 			Text:  str,
-			Index: -1,
+			Index: NO_INDEX,
 		})
 	} else {
 		// Assume what's in the DB is correct, so no error checking
@@ -175,7 +187,7 @@ func PropPathFromDB(str string) (*PropPath, error) {
 			if p == "" {
 				continue // should only happen on trailing DB_IN
 			}
-			index := -1
+			index := NO_INDEX
 			if p[0] == DB_INDEX {
 				p = p[1:]
 				var err error
@@ -194,20 +206,32 @@ func PropPathFromDB(str string) (*PropPath, error) {
 
 var stateTable = [][]string{
 	// TODO: switch to a-z instead of 0-9 for state char if we need more than 10
-	// nextState + ACTIONS    nextState of '/' means stop
-	// a-z*  0-9    -      _      .       [      ]     '     \0    else
-	{"1  ", "/U ", "/U ", "2BI", "/U ", "9I ", "/U ", "/U", "/U", "/U"}, // 0-nothing
-	{"2BI", "2BI", "/U ", "2BI", "/U ", "/U ", "/U ", "/U", "/U", "/U"}, // 1-strtAttr
-	{"2BI", "2BI", "2BI", "2BI", "1IS", "3IS", "/U ", "/U", "/S", "/U"}, // 2-in attr
-	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U"}, // 3-start [
-	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "5IN", "/U", "/U", "/U"}, // 4-in [
-	{"/U ", "/U ", "/U ", "/U ", "1IA", "3I ", "/U ", "/U", "/ ", "/U"}, // 5-post ]
-	{"7BI", "7BI", "/U ", "/U ", "/U ", "/U ", "/U ", "/U", "/U", "/U"}, // 6-start ['
-	{"7BI", "7BI", "7BI", "7BI", "7BI", "/U ", "/U ", "8I", "/U", "/U"}, // 7-in ['
-	{"/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "5IS", "8I", "/U", "/U"}, // 8-in ['..'
-	{"/Q ", "/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U"}, // 9-str [
+	// Each entry is made up of: "nextState" + "Actions" (1 or more)
+	// NextState of "/" means stop processing
+	// Spaces in "Actions" is just to make the table look pretty
+	//
+	// a-z   0-9    -      _      .       [      ]     '     \0    else   *
+	// A      B      C      D      E      F      G      H     I     J     K
+	// 0      1      2      3      4      5      6      7     8     9     10
+	{"1  ", "/U ", "/U ", "2BI", "/U ", "9I ", "/U ", "/U", "/U", "/U", "1  "}, // 0-nothing
+	{"2BI", "2BI", "/U ", "2BI", "/U ", "/U ", "/U ", "/U", "/U", "/U", "2BI"}, // 1-strtAttr
+	{"2BI", "2BI", "2BI", "2BI", "1IS", "3IS", "/U ", "/U", "/S", "/U", "2BI"}, // 2-in attr
+	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U", "4BI"}, // 3-start [
+	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "5IN", "/U", "/U", "/U", "4BI"}, // 4-in [
+	{"/U ", "/U ", "/U ", "/U ", "1IA", "3I ", "/U ", "/U", "/ ", "/U", "/U "}, // 5-post ]
+	{"7BI", "7BI", "/U ", "/U ", "/U ", "/U ", "/U ", "/U", "/U", "/U", "7BI"}, // 6-start ['
+	{"7BI", "7BI", "7BI", "7BI", "7BI", "/U ", "/U ", "8I", "/U", "/U", "7BI"}, // 7-in ['
+	{"/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "5IS", "8I", "/U", "/U", "/U "}, // 8-in ['..'
+	{"/Q ", "/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U", "/Q "}, // 9-str [
+	//
+	// B = buffer char
+	// I = move to next char
+	// S = end of string
+	// N = end of array index
+	// P, Q, U are all error actions
 }
 
+// Mapping of "char" -> "column" in state table
 var ch2Col = map[byte]int{}
 
 func init() {
@@ -226,7 +250,7 @@ func init() {
 	ch2Col['\''] = 7
 	ch2Col[0] = 8
 
-	ch2Col['*'] = 0
+	ch2Col['*'] = 10
 }
 
 func MustPropPathFromUI(str string) *PropPath {
@@ -242,35 +266,36 @@ func PropPathFromUI(str string) (*PropPath, error) {
 	}
 
 	if str[0] == '#' {
+		// I believe that we treat props that start with "#" as special.
+		// They're just for internal attributes. Just use the rest of the
+		// string (unparsed) as the Text
 		res.Parts = append(res.Parts, PropPart{
 			Text:  str,
-			Index: -1,
+			Index: NO_INDEX,
 		})
 	} else {
 		chIndex := 0
 		ch := str[chIndex]
 		buf := strings.Builder{}
+		hasStar := false
 		for state := 0; state != 255; { // '/' (exit) in stateTable
 			col, ok := ch2Col[ch]
-			if !ok {
+			if !ok { // "else" column
 				col = 9
 			}
 
 			actions := stateTable[state][col]
 			PanicIf(actions[0] < '/' || actions[0] > '9',
 				"Bad state: %xx%x", state, col)
-			/*
-				if str == "a1." {
-					fmt.Printf("S: %d B:%q c:%c ACT:%q\n",
-						state, buf.String(), ch, actions)
-				}
-			*/
 			state = int(actions[0] - '0')
 			for i := 1; i < len(actions); i++ {
 				switch actions[i] {
 				case ' ': // ignore
 				case 'B': // buffer it
 					buf.WriteRune(rune(ch))
+					if ch == '*' {
+						hasStar = true
+					}
 				case 'I': // increment ch
 					chIndex++
 					if chIndex < len(str) {
@@ -279,22 +304,52 @@ func PropPathFromUI(str string) (*PropPath, error) {
 						ch = 0
 					}
 				case 'S': // end of string part
-					res.Parts = append(res.Parts, PropPart{
-						Text:  buf.String(),
-						Index: -1,
-					})
-					buf.Reset()
-				case 'N': // end of index(numeric) part
-					tmp, err := strconv.Atoi(buf.String())
-					if err != nil {
-						return nil, fmt.Errorf("%q should be an integer",
+					// if not in [] and buf has more than just *, err
+					if state != 5 && buf.Len() > 1 && hasStar {
+						return nil, fmt.Errorf("Unexpected \"*\" in %q",
 							buf.String())
 					}
 					res.Parts = append(res.Parts, PropPart{
 						Text:  buf.String(),
-						Index: tmp,
+						Index: NO_INDEX,
+
+						// is wildcard unless we're in []
+						IsWild: hasStar && state != 5,
+					})
+
+					if hasStar && state != 5 { // bubble up if true
+						res.HasWild = true
+					}
+
+					buf.Reset()
+					hasStar = false
+				case 'N': // end of array index part
+					strBuf := buf.String()
+
+					index := 0
+					var err error
+
+					// [*] is a special case
+					if len(strBuf) == 1 && hasStar {
+						index = WILDCARD_INDEX
+						res.HasWild = true // bubble up if true
+					} else if len(strBuf) > 1 && hasStar {
+						return nil, fmt.Errorf("Unexpected \"*\" in %q",
+							buf.String())
+					} else {
+						index, err = strconv.Atoi(strBuf)
+						if err != nil {
+							return nil, fmt.Errorf("%q should be an integer",
+								strBuf)
+						}
+					}
+					res.Parts = append(res.Parts, PropPart{
+						Text:   strBuf,
+						Index:  index,
+						IsWild: hasStar,
 					})
 					buf.Reset()
+					hasStar = false
 				case 'P': // error case
 					return nil,
 						fmt.Errorf("Expecting an integer at pos %d in %q",
@@ -363,7 +418,7 @@ func (pp *PropPath) Prop(prop string) *PropPath {
 	newPP := NewPP()
 	newPP.Parts = append(pp.Parts, PropPart{
 		Text:  prop,
-		Index: -1,
+		Index: NO_INDEX,
 	})
 	return newPP
 }
@@ -403,8 +458,9 @@ func (pp *PropPath) HasPrefix(other *PropPath) bool {
 }
 
 type PropPart struct {
-	Text  string
-	Index int
+	Text   string
+	Index  int
+	IsWild bool // only true when [*] or .* not ['*']
 }
 
 func (pp *PropPart) ToInt() int {

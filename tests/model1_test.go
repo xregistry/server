@@ -465,22 +465,25 @@ func TestGroupModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         }
@@ -710,22 +713,25 @@ func TestGroupModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         }
@@ -955,22 +961,25 @@ func TestGroupModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         }
@@ -1283,22 +1292,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -1742,22 +1754,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -2360,22 +2375,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -2819,22 +2837,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         }
@@ -3090,22 +3111,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -3549,22 +3573,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         }
@@ -3795,22 +3822,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -4386,22 +4416,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -5009,22 +5042,25 @@ func TestResourceModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -5619,22 +5655,25 @@ func TestResourceModelCreate(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           },
@@ -6260,22 +6299,25 @@ func TestResourceModelCreate(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           },
@@ -6871,22 +6913,25 @@ func TestResourceModelCreate(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           }
@@ -7150,22 +7195,25 @@ func TestResourceModelCreate(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           }
@@ -7450,22 +7498,25 @@ func TestMultModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -8257,22 +8308,25 @@ func TestMultModelCreate(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -9274,22 +9328,25 @@ func TestMultModel2Create(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           },
@@ -9737,22 +9794,25 @@ func TestMultModel2Create(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           },

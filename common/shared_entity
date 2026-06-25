@@ -82,6 +82,17 @@ type Registry struct {
 type Group struct {
 	Entity
 	Registry *Registry
+
+	// "constraints" is the full set of constraints for the group.
+	// - the ones defined at the instance + groupType/model level
+	// nil means we haven't built the list of constraints yet.
+	// Zero-len  map means we've done the analysis & there are no constraints.
+	// So nil is NOT the same as {} !!!
+	constraints map[string]*Constraint
+
+	// there are just the ones defined at the group instance level.
+	// basically just parse "constraints" attribute
+	groupConstraints map[string]*Constraint
 }
 
 type Resource struct {
@@ -369,19 +380,22 @@ var OrderedSpecProps = []*Attribute{
 	},
 	{
 		Name: "constraints",
-		Type: OBJECT,
-		Attributes: Attributes{
-			"enum": &Attribute{
-				Type: ARRAY,
-				Item: &Item{
+		Type: MAP,
+		Item: &Item{
+			Type: OBJECT,
+			Attributes: Attributes{
+				"enum": &Attribute{
+					Type: ARRAY,
+					Item: &Item{
+						Type: ANY,
+					},
+				},
+				"default": &Attribute{
 					Type: ANY,
 				},
-			},
-			"default": &Attribute{
-				Type: ANY,
-			},
-			"equals": &Attribute{
-				Type: STRING,
+				"equals": &Attribute{
+					Type: STRING,
+				},
 			},
 		},
 

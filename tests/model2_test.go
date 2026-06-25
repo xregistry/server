@@ -252,22 +252,25 @@ func TestModelLabels(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -856,22 +859,25 @@ func TestModelLabels(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -1496,22 +1502,25 @@ func TestModelLabels(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -2474,22 +2483,25 @@ func TestModelUseSpecAttrs(t *testing.T) {
           },
           "constraints": {
             "name": "constraints",
-            "type": "object",
-            "attributes": {
-              "default": {
-                "name": "default",
-                "type": "any"
-              },
-              "enum": {
-                "name": "enum",
-                "type": "array",
-                "item": {
+            "type": "map",
+            "item": {
+              "type": "object",
+              "attributes": {
+                "default": {
+                  "name": "default",
                   "type": "any"
+                },
+                "enum": {
+                  "name": "enum",
+                  "type": "array",
+                  "item": {
+                    "type": "any"
+                  }
+                },
+                "equals": {
+                  "name": "equals",
+                  "type": "string"
                 }
-              },
-              "equals": {
-                "name": "equals",
-                "type": "string"
               }
             }
           },
@@ -3822,22 +3834,25 @@ func TestModelCompatibleWith(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -5470,22 +5485,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -6106,22 +6124,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -6565,22 +6586,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -7288,22 +7312,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -7747,22 +7774,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -8376,22 +8406,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -8835,22 +8868,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -9464,22 +9500,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -9923,22 +9962,25 @@ func TestModelIncludes(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },
@@ -10636,22 +10678,25 @@ func TestModelMissingFields(t *testing.T) {
         },
         "constraints": {
           "name": "constraints",
-          "type": "object",
-          "attributes": {
-            "default": {
-              "name": "default",
-              "type": "any"
-            },
-            "enum": {
-              "name": "enum",
-              "type": "array",
-              "item": {
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "default": {
+                "name": "default",
                 "type": "any"
+              },
+              "enum": {
+                "name": "enum",
+                "type": "array",
+                "item": {
+                  "type": "any"
+                }
+              },
+              "equals": {
+                "name": "equals",
+                "type": "string"
               }
-            },
-            "equals": {
-              "name": "equals",
-              "type": "string"
             }
           }
         },

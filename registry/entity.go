@@ -1475,8 +1475,28 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name:      "constraints",
-		internals: &AttrInternals{},
+		Name: "constraints",
+		internals: &AttrInternals{
+			checkFn: func(e *Entity) *XRError {
+				g := e.Self.(*Group)
+				// Note, this will not actually do the constaint checks,
+				// this just verifies the constraint defintions are valid.
+				// The checks over the data will happen right before we
+				// commit the tx - in g.Validate()
+				constraints := map[string]*Constraint(nil)
+				val := e.Get("constraints")
+				if !IsNil(val) {
+					err := Unmarshal([]byte(ToJSON(val)), &constraints)
+					if err != nil {
+						return NewXRError("bad_request", g.XID,
+							"error_detail="+err.Error())
+					}
+					g.groupConstraints = constraints
+					return g.GroupModel.ValidateConstraints(g, constraints)
+				}
+				return nil
+			},
+		},
 	},
 	{
 		Name: "ancestor",
@@ -1966,6 +1986,13 @@ func (e *Entity) Save() *XRError {
 		// ShowStack()
 	}
 
+	// If we're saving a Group then something must have changed, so
+	// we need to add it to our "validate" list (e.g. check its constraints).
+	// And at the end of the tx we'll validate all of them at once.
+	if e.Type == ENTITY_GROUP {
+		e.tx.AddGroupToValidate(e.Self.(*Group))
+	}
+
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
 
@@ -2344,13 +2371,15 @@ func (e *Entity) ValidateObject(val any, namecharset string, origAttrs Attribute
 
 			// A Default value is defined but there's no value, so set it
 			// and then let normal processing continue
-			if !IsNil(attr.Default) && (!keyPresent || IsNil(val)) {
+			daDefault := e.CalcAttrDefault(attr, path)
+
+			if !IsNil(daDefault) && (!keyPresent || IsNil(val)) {
 				// When meta.xref is set we skip any attributes with default
 				// values. However, if this ever changes where some do need
 				// to be set, add a flag to the OrderedSpecProps stuff
 				// so we don't need to special case each one
 				if e.Type != ENTITY_META || e.GetAsString("xref") == "" {
-					val = attr.Default
+					val = daDefault
 					newObj[key] = val
 					keyPresent = true
 				}
@@ -2545,7 +2574,7 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 	} else if IsScalar(attr.Type) {
 		return e.ValidateScalar(val, attr, path)
 	} else if attr.Type == MAP {
-		return e.ValidateMap(val, attr.Item, path), false, nil
+		return e.ValidateMap(attr, val, path), false, nil
 	} else if attr.Type == ARRAY {
 		return e.ValidateArray(attr, val, path), false, nil
 	} else if attr.Type == OBJECT {
@@ -2566,12 +2595,12 @@ func (e *Entity) ValidateAttribute(val any, attr *Attribute, path *PropPath) (*X
 	panic(fmt.Sprintf("Unknown type(%s): %s", path.UI(), attr.Type))
 }
 
-func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
+func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRError {
 	log.VPrintf(3, ">Enter: ValidateMap(%s)", path)
 	defer log.VPrintf(3, "<Exit: ValidateMap")
 
 	if log.GetVerbose() > 2 {
-		log.VPrintf(0, " item: %v", ToJSON(item))
+		log.VPrintf(0, " item: %v", ToJSON(mapAttr.Item))
 		log.VPrintf(0, " val: %v", ToJSON(val))
 	}
 
@@ -2588,10 +2617,13 @@ func (e *Entity) ValidateMap(val any, item *Item, path *PropPath) *XRError {
 
 	// All values in the map must be of the same type
 	attr := &Attribute{
-		Type:       item.Type,
-		Item:       item.Item,
-		Attributes: item.Attributes,
+		Type:       mapAttr.Item.Type,
+		Item:       mapAttr.Item.Item,
+		Attributes: mapAttr.Item.Attributes,
+		// Enum:       e.CalcAttrEnum(mapAttr, path), // mapAttr.Enum,
+		Strict: mapAttr.Strict,
 	}
+	attr.Enum, _ = e.CalcAttrEnum(mapAttr, path)
 
 	for _, k := range valValue.MapKeys() {
 		if k.Kind() != reflect.String {
@@ -2652,9 +2684,10 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Type:       arrayAttr.Item.Type,
 		Item:       arrayAttr.Item.Item,
 		Attributes: arrayAttr.Item.Attributes,
-		Enum:       arrayAttr.Enum,
-		Strict:     arrayAttr.Strict,
+		// Enum:       e.CalcAttrEnum(arrayAttr, path), // arrayAttr.Enum,
+		Strict: arrayAttr.Strict,
 	}
+	attr.Enum, _ = e.CalcAttrEnum(arrayAttr, path)
 
 	for i := 0; i < valValue.Len(); i++ {
 		v := valValue.Index(i).Interface()
@@ -2906,32 +2939,15 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
 	}
 
-	// don't "return nil" above, we may need to check enum values
-	if len(attr.Enum) > 0 && attr.GetStrict() {
-		foundOne := false
-		valStr := fmt.Sprintf("%v", val)
-
-		if attr.MatchCase == false {
-			valStr = strings.ToLower(valStr)
-		}
-
-		for _, enumVal := range attr.Enum {
-			enumValStr := fmt.Sprintf("%v", enumVal)
-			if attr.MatchCase == false {
-				enumValStr = strings.ToLower(enumValStr)
-			}
-			if enumValStr == valStr {
-				foundOne = true
-				break
-			}
-		}
-		if !foundOne {
-			return NewXRError("invalid_attribute", e.XID,
-				"name="+path.UI(),
-				"error_detail="+
-					fmt.Sprintf("value (%v) must be one of the enum "+
-						"values: %s", val, attr.EnumsAsString())), false, nil
-		}
+	// check against enum values - calc enum list from attr+constraints
+	enums, strict := e.CalcAttrEnum(attr, path)
+	// log.Printf("Checking: %q: %q vs %q", attr.Name, val, EnumAsString(enums))
+	if strict && !IsValidEnum(val, enums, attr.GetMatchCase()) {
+		return NewXRError("invalid_attribute", e.XID,
+			"name="+path.UI(),
+			"error_detail="+
+				fmt.Sprintf("value (%v) must be one of the enum "+
+					"values: %s", val, EnumAsString(enums))), false, nil
 	}
 
 	return nil, replace, newValue
@@ -3155,4 +3171,42 @@ func CheckAttrs(obj map[string]any, source string) *XRError {
 		}
 	}
 	return nil
+}
+
+func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
+	if e.Type != ENTITY_VERSION {
+		return attr.Default
+	}
+
+	v := e.Self.(*Version)
+	g := v.Resource.Group
+
+	if c := g.GetAttrConstraint(v, attr, path.P(attr.Name)); c != nil {
+		if !IsNil(c.Default) {
+			return c.Default
+		}
+	}
+
+	return attr.Default
+}
+
+// return:   enum: []any , isStrict: bool
+func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
+	isStrict := attr.GetStrict()
+
+	if e.Type != ENTITY_VERSION {
+		return attr.Enum, isStrict
+	}
+
+	v := e.Self.(*Version)
+	g := v.Resource.Group
+
+	if c := g.GetAttrConstraint(v, attr, path); c != nil {
+		if len(c.Enum) > 0 {
+			// Enums from constraints are always "strict"
+			return c.Enum, true
+		}
+	}
+
+	return attr.Enum, isStrict
 }

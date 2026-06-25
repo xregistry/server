@@ -129,6 +129,8 @@ type Tx struct {
 	User          string
 	RequestInfo   *RequestInfo
 	ClearFullTree bool
+	Locked        bool // no more writes allowed!
+	Validated     bool // just to make sure it's not called more than once
 
 	// Cache of entities this Tx is dealing with. Things can get funky if
 	// we have more than one instance of the same entity in memory.
@@ -137,6 +139,11 @@ type Tx struct {
 	// for all entities in the Tx - then people don't need to call save
 	// explicitly
 	Cache map[string]*Entity // e.Path
+
+	// List of Group XIDs of all the Groups we need to run verfication on
+	// w.r.t. constraints. This isn't always the same as "groups that changed"
+	// since it's possible only a Resource change could break a constraint.
+	GroupsToValidate map[string]*Group
 
 	// For debugging
 	uuid  string   // just a unique ID for the TXs map key
@@ -303,7 +310,23 @@ func (tx *Tx) RemoveFromCache(e *Entity) {
 	delete(tx.Cache, e.Registry.UID+"/"+e.Path)
 }
 
-func (tx *Tx) Validate(info *RequestInfo) {
+func (tx *Tx) Lock() {
+	tx.Locked = true
+}
+
+func (tx *Tx) IsLocked() bool {
+	return tx.Locked
+}
+
+func (tx *Tx) Validate(info *RequestInfo) *XRError {
+	// DUG see if we can add this back in
+	// PanicIf(tx.Validated, "Already validated. tx: %p", tx)
+
+	tx.Validated = true
+
+	// If not already locked, lock it
+	tx.Lock()
+
 	/*
 		if info != nil {
 			log.Printf("--- %s %s", info.OriginalRequest.Method, info.OriginalPath)
@@ -320,6 +343,12 @@ func (tx *Tx) Validate(info *RequestInfo) {
 		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
 	}
 
+	for _, g := range tx.GroupsToValidate {
+		if xErr := g.Validate(); xErr != nil {
+			return xErr
+		}
+	}
+
 	// At one point we almost called a ValidateResources type of func to
 	// double check everthing is ok. We shouldn't need to, but something
 	// to think about if things get complicated
@@ -331,6 +360,8 @@ func (tx *Tx) Validate(info *RequestInfo) {
 		// Check again just to be sure ValidateResources didn't mess up
 		PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
 	*/
+
+	return nil
 }
 
 func (tx *Tx) IsCacheDirty() bool {
@@ -378,6 +409,13 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 	return nil
 }
 
+func (tx *Tx) AddGroupToValidate(g *Group) {
+	if tx.GroupsToValidate == nil {
+		tx.GroupsToValidate = map[string]*Group{}
+	}
+	tx.GroupsToValidate[g.XID] = g
+}
+
 // Only call from tests
 func (tx *Tx) SaveCommitRefresh() *XRError {
 	// savedCache := maps.Clone(tx.Cache)
@@ -403,18 +441,35 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 	return nil
 }
 
-func (tx *Tx) SaveAllAndCommit() *XRError {
+func (tx *Tx) SaveAll() *XRError {
 	if xErr := tx.WriteCache(true); xErr != nil {
 		return xErr
 	}
+	return nil
+}
 
-	tx.Validate(nil)
+func (tx *Tx) SaveAllAndCommit() *XRError {
+	if xErr := tx.SaveAll(); xErr != nil {
+		return xErr
+	}
+
+	if xErr := tx.Validate(nil); xErr != nil {
+		return xErr
+	}
 
 	return tx.Commit()
 }
 
 func (tx *Tx) Commit() *XRError {
 	// ShowStack()
+
+	if !tx.IsLocked() {
+		// DUG see if we can add this back in
+		// panic("Tx isn't locked!!")
+	}
+
+	tx.Locked = false
+
 	if tx.tx == nil {
 		return nil
 	}
@@ -431,6 +486,7 @@ func (tx *Tx) Commit() *XRError {
 	tx.tx = nil
 	tx.CreateTime = ""
 	tx.Cache = nil
+	tx.GroupsToValidate = nil
 	tx.uuid = ""
 
 	return nil
@@ -774,6 +830,11 @@ var inDo = false
 func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
 
+	if tx.IsLocked() {
+		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
+		panic("Tx is locked!!")
+	}
+
 	if !inDo {
 		if strings.Index(cmd, "INSERT") >= 0 ||
 			strings.Index(cmd, "DELETE") >= 0 ||
@@ -795,7 +856,9 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	defer ps.Close()
 
 	result, err := ps.Exec(args...)
-	PanicIf(err != nil, "doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
+	if err != nil {
+		Panicf("doCount:Error DB(%s)->%s\n", SubQuery(cmd, args), err)
+	}
 
 	count, _ := result.RowsAffected()
 	log.VPrintf(4, "doCount: %d rows", count)

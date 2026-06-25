@@ -1231,6 +1231,11 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v, force:%v)", r.UID, onlyMetaChanged, force)
 	defer log.VPrintf(3, "<Exit: ValiateResource")
 
+	// If anything changed in the Resource, causing us to validate it, then
+	// assume we need to run its Group's Validate() func as well to ensure
+	// the constraints are still valid
+	r.tx.AddGroupToValidate(r.Group)
+
 	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	// If xref is set then we don't need to check anything
@@ -2052,7 +2057,7 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 
 		query := fmt.Sprintf(`
             SELECT count(*),p.PropName,p.PropValue FROM Entities e
-            LEFT JOIN Props AS p ON ( p.EntitySID=e.eSID AND p.PropName=?)
+            LEFT JOIN FullTree AS p ON ( p.eSID=e.eSID AND p.PropName=?)
             WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
             GROUP BY %s PropValue`, binary)
 

@@ -34,6 +34,7 @@ TODOs:
 ** have DB generate the COLLECTIONcount attributes so people can query over
   them and we don't need the code to calculate them (can we due to filters?)
 ** support overriding spec defined attributes - like "format"
+- add tests to make sure changing spec defined attributes are still valid
 - add tests for immutable attributes
 - test filtering on bool attributes where they search for attr=false
 ** make sure we don't let go http add "content-type" header for docs w/o a value
@@ -115,5 +116,8 @@ TODOs:
   capability values (pre or post tx) for each capability & model
 ** fix concurrency issues as seen in TestMiscConcurrency
 ** fix DB locking - we need to lock entire entity, not just the rows touched
-** support constraints
 - see why xr model get | xr model update for reg-CloudEvents fails
+** support arrays
+- test for arrays (and indexes) & maps in filter querys. Do arrays need indexes?
+- time our tests and see which ones are the slowest, fix them
+- support wildcards in filters for map keys and array indexes

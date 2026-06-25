@@ -268,9 +268,17 @@ func GetStackAsString() string {
 	return strings.Join(GetStack(), "\n")
 }
 
-func ShowStack() {
+// [ fmtStr [ args... ] ]
+func ShowStack(args ...any) {
 	stack := GetStack()
-	log.VPrintf(0, "----- Stack")
+
+	fmt := ""
+	if len(args) > 0 {
+		fmt = args[0].(string)
+		args = args[1:]
+	}
+
+	log.VPrintf(0, "----- Stack "+fmt, args...)
 	for _, line := range stack {
 		log.VPrintf(0, " %s", line)
 	}

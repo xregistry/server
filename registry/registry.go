@@ -47,6 +47,18 @@ func (r *Registry) Rollback() *XRError {
 	return nil
 }
 
+func (r *Registry) SaveAll() *XRError {
+	if r != nil {
+		if r.Model.GetChanged() {
+			if xErr := r.SaveModel(false); xErr != nil {
+				return xErr
+			}
+		}
+		return r.tx.SaveAll()
+	}
+	return nil
+}
+
 func (r *Registry) SaveAllAndCommit() *XRError {
 	if r != nil {
 		if r.Model.GetChanged() {

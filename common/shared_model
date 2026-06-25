@@ -9,6 +9,7 @@ import (
 	"maps"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -178,7 +179,7 @@ type GroupModel struct {
 
 	// [ GROUPS/RESOURCES * ]
 	XImportResources []string                  `json:"ximportresources,omitempty"`
-	Constraints      map[string]*Constraint    `json:"constraints,omitempty"`
+	Constraints      Constraints               `json:"constraints,omitempty"`
 	Resources        map[string]*ResourceModel `json:"resources,omitempty"` // Plural
 
 	propsOrdered []*Attribute
@@ -186,10 +187,27 @@ type GroupModel struct {
 	imports      map[string]*ResourceModel
 }
 
+type Constraints map[string]*Constraint
+
 type Constraint struct {
-	Default string `json:"default,omitempty"`
+	Default any    `json:"default,omitempty"`
 	Enum    []any  `json:"enum,omitempty"`
 	Equals  string `json:"equals,omitempty"`
+
+	// Cached for performance
+	rm   *ResourceModel
+	attr *Attribute
+}
+
+func (c *Constraint) Clone() *Constraint {
+	return &Constraint{
+		Default: c.Default,
+		Enum:    slices.Clone(c.Enum),
+		Equals:  c.Equals,
+
+		rm:   c.rm,
+		attr: c.attr,
+	}
 }
 
 type MatchVersionsInfo struct {
@@ -227,7 +245,7 @@ type ResourceModel struct {
 	versionPropsMap     map[string]*Attribute
 
 	// List of "version attributes" that have a "matchversions" aspect=true.
-	// is []string{} (empty) when there are none. nil=haven't built list yet
+	// Is []string{} (empty) when there are none. nil=haven't built list yet
 	matchVersions []*MatchVersionsInfo // `json:"matchversions,omitempty"`
 
 	// "ResourceAttributes" are Resource-only (not Version-level) attributes
@@ -1804,7 +1822,10 @@ func EnsureAttrOK(userAttr *Attribute, specAttr *Attribute) *XRError {
 		}
 	}
 
-	if specAttr.GetStrict() == true && userAttr.GetStrict() == false {
+	// Strict needs to match ONLY IF there's an enum at the spec level
+	if len(specAttr.Enum) > 0 && specAttr.GetStrict() == true &&
+		userAttr.GetStrict() == false {
+
 		return NewXRError("model_error", "/model",
 			"error_detail="+
 				fmt.Sprintf(`"model.%s" must have "strict" set to "true"`,
@@ -2205,6 +2226,12 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 
 	if err := gm.Attributes.Verify("strict", ld); err != nil {
 		return err
+	}
+
+	// Validate any Group-type level constraints
+	xErr := gm.ValidateConstraints(nil, gm.Constraints)
+	if xErr != nil {
+		return xErr
 	}
 
 	return nil
@@ -3031,6 +3058,7 @@ func (rm *ResourceModel) EnableSticky(b bool) {
 	}
 }
 
+/*
 func (rm *ResourceModel) StickyEnabled() bool {
 	attr := rm.MetaAttributes["defaultversionsticky"]
 	if attr == nil || attr.Enum == nil {
@@ -3043,6 +3071,7 @@ func (rm *ResourceModel) StickyEnabled() bool {
 	}
 	return false
 }
+*/
 
 func (rm *ResourceModel) GetMatchVersionAttributes() []*MatchVersionsInfo {
 	if rm.matchVersions != nil {
@@ -3052,9 +3081,11 @@ func (rm *ResourceModel) GetMatchVersionAttributes() []*MatchVersionsInfo {
 	rm.matchVersions = []*MatchVersionsInfo{}
 
 	var processAttrs func(*PropPath, Attributes, *[]*MatchVersionsInfo)
-	var processItem func(*PropPath, *Item, *[]*MatchVersionsInfo)
+	// var processItem func(*PropPath, *Item, *[]*MatchVersionsInfo)
 
-	processAttrs = func(path *PropPath, attrs Attributes, mvi *[]*MatchVersionsInfo) {
+	processAttrs = func(path *PropPath, attrs Attributes,
+		mvi *[]*MatchVersionsInfo) {
+
 		for _, attr := range attrs {
 			if attr.GetMatchVersions() {
 				*mvi = append(*mvi, &MatchVersionsInfo{
@@ -3066,21 +3097,26 @@ func (rm *ResourceModel) GetMatchVersionAttributes() []*MatchVersionsInfo {
 
 			if attr.Attributes != nil {
 				processAttrs(path.P(attr.Name), attr.Attributes, mvi)
-			} else if attr.Type == MAP && attr.Item != nil {
-				processItem(path.P(attr.Name), attr.Item, mvi)
-			}
+			} /* only do the else if we want to support maps of scalars
+			            else if attr.Type == MAP && attr.Item != nil {
+							processItem(path.P(attr.Name), attr.Item, mvi)
+						}
+			*/
 		}
 	}
 
-	processItem = func(path *PropPath, item *Item, mvi *[]*MatchVersionsInfo) {
-		if item != nil {
-			if item.Attributes != nil {
-				processAttrs(path, item.Attributes, mvi)
-			} else if item.Type == MAP && item.Item != nil {
-				processItem(path, item.Item, mvi)
+	/*
+		processItem = func(path *PropPath, item *Item, mvi *[]*MatchVersionsInfo) {
+			if item != nil {
+				if item.Attributes != nil {
+					processAttrs(path, item.Attributes, mvi)
+				}
+				            else if item.Type == MAP && item.Item != nil {
+								processItem(path, item.Item, mvi)
+							}
 			}
 		}
-	}
+	*/
 
 	processAttrs(NewPP(), rm.VersionAttributes, &rm.matchVersions)
 
@@ -3382,7 +3418,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 		if len(attr.Enum) > 0 {
 			daType := attr.Type
 
-			if attr.Type == ARRAY {
+			if attr.Type == ARRAY || attr.Type == MAP {
 				daType = attr.Item.Type
 			}
 
@@ -3426,22 +3462,15 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 					"name="+tmpLD.UI())
 			}
 
-			if attr.GetStrict() && len(attr.Enum) > 0 {
-				found := false
-				for _, enumVal := range attr.Enum {
-					if enumVal == val {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return NewXRError("model_error", "/model",
-						"error_detail="+
-							fmt.Sprintf("%q default value \"%v\" must be "+
-								"one of the specified enum values (%s) since "+
-								"\"strict\" is \"true\"", tmpLD.UI(),
-								val, attr.EnumsAsString()))
-				}
+			if attr.GetStrict() &&
+				!IsValidEnum(val, attr.Enum, attr.GetMatchCase()) {
+
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q default value \"%v\" must be "+
+							"one of the specified enum values (%s) since "+
+							"\"strict\" is \"true\"", tmpLD.UI(),
+							val, attr.EnumsAsString()))
 			}
 		}
 
@@ -3589,6 +3618,68 @@ func (attrs Attributes) SetSpecPropsFields(singular string) {
 			attr.internals = specProp.internals
 		}
 	}
+}
+
+// Note that maps/arrays should include the index/key part
+// mymap.key.attr becomes mymap.attr
+// myarray[index].attr becomes myarray.attr
+// Return array of Attributes - the heirarchy of them, first is top/root attr
+func (attrs Attributes) FindAbstractAttribute(pp *PropPath) ([]*Attribute, *XRError) {
+
+	res := []*Attribute{}
+	depth := NewPP()
+
+	for i, part := range pp.Parts {
+		attr, ok := attrs[part.Text]
+		if !ok {
+			if depth.Len() == 0 {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("Attribute %q can not be found", part.Text))
+			}
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Attribute %q can not be found in %q",
+						part.Text, depth.UI()))
+		}
+
+		res = append(res, attr)
+		depth = depth.P(part.Text)
+
+		// Reach end of pp
+		if i+1 == pp.Len() {
+			break
+		}
+
+		if attr.Type == OBJECT {
+			attrs = attr.Attributes
+		} else if attr.Type == MAP {
+			attrs = attr.Item.Attributes
+		} else if attr.Type == ARRAY {
+			attrs = attr.Item.Attributes
+		} else {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Attribute %q is scalar, so %q is invalid",
+						part.Text, pp.FromIndex(i+1).UI()))
+		}
+
+		/*
+			if attr.Type != OBJECT && len(attrs) == 0 {
+				return nil, NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("Attribute %q has scalar items, so %q is "+
+							"invalid", part.Text, pp.FromIndex(i+1).UI()))
+			}
+		*/
+	}
+
+	return res, nil
+}
+
+// DUG
+func (attrs Attributes) FindConstraintAtrribute(pp *PropPath) ([]*Attribute, *XRError) {
+	return nil, nil
 }
 
 func (ifvalues IfValues) SetModel(m *Model) {
@@ -3766,13 +3857,304 @@ func (attr *Attribute) Clone(newName string) *Attribute {
 }
 
 func (attr *Attribute) EnumsAsString() string {
+	return EnumAsString(attr.Enum)
+}
+
+func EnumAsString(enum []any) string {
 	str := ""
 
-	for i, v := range attr.Enum {
+	for i, v := range enum {
 		if i > 0 {
 			str += ", "
 		}
 		str += fmt.Sprintf("%v", v)
 	}
 	return str
+}
+
+// Note that an empty enum will always return 'true'
+func IsValidEnum(val any, enum []any, matchCase bool) bool {
+	if len(enum) == 0 {
+		return true
+	}
+
+	// matchCase should only be false for string types
+	if !matchCase {
+		if reflect.ValueOf(val).Kind() == reflect.String {
+			val = strings.ToLower(val.(string))
+		}
+
+		// Don't touch original enum
+		tmpEnum := make([]any, len(enum))
+		for i, v := range enum {
+			if reflect.ValueOf(v).Kind() == reflect.String {
+				tmpEnum[i] = strings.ToLower(v.(string))
+			}
+			tmpEnum[i] = enum[i]
+		}
+		enum = tmpEnum
+	}
+
+	for _, v := range enum {
+		if v == val {
+			return true
+		}
+	}
+
+	return false
+}
+
+// We use "g" (*Group) to know we're processing a Group instance's constraints
+// instead of a Group model's. This is important for what kind of error
+// message to generate and to know what other constraints we need to compare
+// with for error checking.
+
+func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XRError {
+	prefix := "Group Type \"" + gm.Plural + "\" constraint %q"
+	errType := "model_error"
+	subject := "/model"
+
+	if g != nil {
+		prefix = "Group \"" + g.XID + "\" constraint %q"
+		errType = "bad_request"
+		subject = g.XID
+	}
+
+	for key, constraint := range constraints {
+		gmConstraint := (*Constraint)(nil)
+
+		// If in a Group (not GroupModel) save any GM.Constraints for this key
+		if g != nil && g.GroupModel.Constraints != nil {
+			gmConstraint, _ = g.GroupModel.Constraints[key]
+		}
+
+		// Must be of the form <RESOURCE>.<PATH>
+		resPlural, path, ok := strings.Cut(key, ".")
+		if !ok {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid key. It must "+
+					"be of the form \"<RESOURCES>.<PATH>\"", key))
+		}
+
+		// Must be a known Resource type
+		rm := gm.FindResourceModel(resPlural)
+		if rm == nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an unknown Resource type %q", key,
+					resPlural))
+		}
+		constraint.rm = rm
+
+		// Must be a valid attribute name/path - at leat format-wise
+		pp, err := PropPathFromUI(path)
+		if err != nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): %s", key, path,
+					err.Error()))
+		}
+		// Missing path after the '."
+		if pp.Len() == 0 {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an empty reference to an attribute",
+					key))
+		}
+
+		// Now make sure it points to a valid attribute
+		attrStack, xErr := rm.VersionAttributes.FindAbstractAttribute(pp)
+		if xErr != nil {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): %s", key,
+					path, xErr.Args["error_detail"]))
+		}
+
+		// for now FindAbstractAttribute allows maps/arrays, but we don't
+		for i := 0; i < len(attrStack)-1; i++ {
+			a := attrStack[i]
+			if a.Type == ARRAY {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a path (%s) that includes "+
+						"an array (%s), which is not allowed",
+						key, path, a.Name))
+			} else if a.Type == MAP {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a path (%s) that includes "+
+						"a map (%s), which is not allowed", key, path, a.Name))
+			}
+		}
+
+		// Last one in the stack is the one of interest, make sure it's scalar
+		attr := attrStack[len(attrStack)-1]
+		if !IsScalar(attr.Type) {
+			return NewXRError(errType, subject, "error_detail="+
+				fmt.Sprintf(prefix+" has an invalid path (%s): "+
+					"%q must be a scalar", key, path, attr.Name))
+		}
+		constraint.attr = attr
+
+		// Syntax-wise it should be ok. Now, let's check semantics (the data)
+
+		daType := attr.Type
+		if attr.Type == ARRAY || attr.Type == MAP {
+			// Should never happen since we don't allow arrays/maps,
+			// but just in case
+			daType = attr.Item.Type
+		}
+
+		// effectiveEnum is the enum we're going to valid "Default" against.
+		// It could come from different spots based on what we're given
+		effectiveEnum := []any{}
+		if len(attr.Enum) > 0 && attr.GetStrict() {
+			// Start with the attr's Enum set if strict=true
+			effectiveEnum = attr.Enum
+		}
+
+		// If we're in a Group instance and the GroupModel has a constraints for
+		// the same RESOURCE.ATTR AND it has an enum, use that enum instead
+		if gmConstraint != nil && len(gmConstraint.Enum) > 0 {
+			effectiveEnum = gmConstraint.Enum
+		}
+
+		// Treat empty Enum the same as no-Enum... skip it
+		if len(constraint.Enum) > 0 {
+			// If constraints has an Enum then must be subset of effectiveEnum
+			for _, cVal := range constraint.Enum {
+				// Constraint Enum value MUST be of the same type as the attr
+				if !IsOfType(cVal, daType) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an enum value (%v) that must "+
+							"be of type %q", key, cVal, daType))
+				}
+
+				// Check for proper subset (note if effective=[] then it's ok)
+				if !IsValidEnum(cVal, effectiveEnum, attr.GetMatchCase()) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an enum value (%v) that "+
+							"isn't part of the inherited attribute's enum "+
+							"list (%s)",
+							key, cVal, EnumAsString(effectiveEnum)))
+				}
+			}
+
+			// New enum is ok - so set effectiveEnum to be this subset
+			effectiveEnum = constraint.Enum
+		}
+
+		// Validate it's Default value if present
+		if !IsNil(constraint.Default) {
+			// Correct type?
+			if !IsOfType(constraint.Default, daType) {
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a default value (%v) that must "+
+						"be of type %q", key, constraint.Default, daType))
+			}
+
+			// Check it's in enum (note if effective=[] then it's ok)
+			if !IsValidEnum(constraint.Default, effectiveEnum,
+				attr.GetMatchCase()) {
+
+				return NewXRError(errType, subject, "error_detail="+
+					fmt.Sprintf(prefix+" has a default value (%v) "+
+						"that isn't part of the base attribute's enum "+
+						"list (%s)", key, constraint.Default,
+						EnumAsString(effectiveEnum)))
+			}
+		} else {
+			// If we have an enum (not effective), then we need to make sure any
+			// inherited Default value is part of that enum
+
+			if len(constraint.Enum) > 0 {
+				// If GroupModel has same constraint(by key) & default value,
+				// check it
+				if gmConstraint != nil && !IsNil(gmConstraint.Default) {
+					if !IsValidEnum(gmConstraint.Default, constraint.Enum,
+						attr.MatchCase) {
+
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has an enum set (%v) that "+
+								"doesn't include the Group Model's default "+
+								"value (%v) for the same constraint",
+								key, EnumAsString(constraint.Enum),
+								gmConstraint.Default))
+					}
+				} else if !IsNil(attr.Default) {
+					// Otherwise check against attr's default value (if there)
+					if !IsValidEnum(attr.Default, constraint.Enum,
+						attr.MatchCase) {
+
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has an enum set (%v) that "+
+								"doesn't include the attribute's default "+
+								"value (%v)",
+								key, EnumAsString(constraint.Enum),
+								attr.Default))
+					}
+				}
+			}
+		}
+
+		if constraint.Equals != "" {
+			// g.constraint.equals (if set) MUST be same as gm's (if set)
+			if gmConstraint != nil && gmConstraint.Equals != "" {
+				if constraint.Equals != gmConstraint.Equals {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" value (%s) "+
+							"that differs from the one defined in the Group "+
+							"Type (%s)", key, constraint.Equals,
+							gmConstraint.Equals))
+				}
+			} else {
+				// Make sure the attribute exists
+				pp, err := PropPathFromUI(constraint.Equals)
+				if err != nil {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" value (%v) "+
+							"that is not valid: %s",
+							key, constraint.Equals, err.Error()))
+				}
+
+				attrStack, xErr := gm.Attributes.FindAbstractAttribute(pp)
+				if xErr != nil {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" reference "+
+							"(%s) that isn't valid: %s",
+							key, constraint.Equals, xErr.Args["error_detail"]))
+				}
+
+				// for now FindAbstractAttribute allows maps/arrays,but we don't
+				for i := 0; i < len(attrStack)-1; i++ {
+					a := attrStack[i]
+					if a.Type == ARRAY {
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has a path (%s) that "+
+								"includes an array (%s), which is not "+
+								"allowed", key, constraint.Equals, a.Name))
+					} else if a.Type == MAP {
+						return NewXRError(errType, subject, "error_detail="+
+							fmt.Sprintf(prefix+" has a path (%s) that "+
+								"includes a map (%s), which is not "+
+								"allowed", key, constraint.Equals, a.Name))
+					}
+				}
+
+				eAttr := attrStack[len(attrStack)-1]
+				if !IsScalar(eAttr.Type) {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" has an \"equals\" reference "+
+							"(%s) that must be a scalar",
+							key, constraint.Equals))
+				}
+
+				if eAttr.Type != attr.Type {
+					return NewXRError(errType, subject, "error_detail="+
+						fmt.Sprintf(prefix+" references an attribute of "+
+							"type %q but its \"equals\" "+
+							"(%s) references an attribute of type %q. They "+
+							"need to match",
+							key, attr.Type, constraint.Equals, eAttr.Type))
+				}
+			}
+		}
+	}
+
+	return nil
 }

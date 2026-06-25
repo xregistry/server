@@ -172,6 +172,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// send a response back to the client.
 		switch r.Method {
 		case "GET":
+			tx.Lock()
 			xErr = HTTPGet(info)
 		case "PUT":
 			xErr = HTTPPutPost(info)
@@ -182,6 +183,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "DELETE":
 			xErr = HTTPDelete(info)
 		case "OPTIONS":
+			tx.Lock()
 			xErr = HTTPOptions(info)
 		default:
 			xErr = NewXRError("action_not_supported", "/"+info.OriginalPath,
@@ -740,7 +742,9 @@ func SerializeQuery(info *RequestInfo, resPaths map[string][]string,
 	what string, filters [][]*FilterExpr) *XRError {
 
 	// Make sure everything is ok before we send back the results
-	info.tx.Validate(info)
+	if xErr := info.tx.Validate(info); xErr != nil {
+		return xErr
+	}
 
 	// resPaths is used to group the items we want to return. In most cases
 	// the items will all be part of one group where that group name doesn't
@@ -1567,7 +1571,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	PanicIf(xErr != nil, "err should be nil")
 
 	// Make sure everything is ok before we send back the results
-	info.tx.Validate(info)
+	if xErr := info.tx.Validate(info); xErr != nil {
+		return xErr
+	}
 
 	originalLen := numParts
 
@@ -1730,8 +1736,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		info.tx.Validate(info)
-		return nil
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID...
@@ -1756,7 +1761,9 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.tx.Validate(info)
+		if xErr := info.tx.Validate(info); xErr != nil {
+			return xErr
+		}
 
 		info.StatusCode = http.StatusNoContent
 		return nil
@@ -1773,8 +1780,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		info.tx.Validate(info)
-		return nil
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID...
@@ -1804,7 +1810,9 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.tx.Validate(info)
+		if xErr := info.tx.Validate(info); xErr != nil {
+			return xErr
+		}
 
 		info.StatusCode = http.StatusNoContent
 		return nil
@@ -1823,8 +1831,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.tx.Validate(info)
-		return nil
+		return info.tx.Validate(info)
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs/rID/versions/vID...
@@ -1852,7 +1859,9 @@ func HTTPDelete(info *RequestInfo) *XRError {
 			return xErr
 		}
 
-		info.tx.Validate(info)
+		if xErr := info.tx.Validate(info); xErr != nil {
+			return xErr
+		}
 
 		info.StatusCode = http.StatusNoContent
 		return nil

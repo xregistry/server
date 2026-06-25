@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 
 	log "github.com/duglin/dlog"
@@ -676,5 +677,200 @@ func (g *Group) CheckConstraints() *XRError {
 	if !IsNil(constraints) {
 		return NewXRError("constraint_failure", g.XID, "path=...")
 	}
+	return nil
+}
+
+func (g *Group) GetConstraints() (map[string]*Constraint, *XRError) {
+	if g.constraints == nil {
+		// Do NOT use maps.Clone(), we need a zero-size map instead
+		g.constraints = map[string]*Constraint{}
+
+		// Grab the model-level constraints first
+		for k, c := range g.GroupModel.Constraints {
+			g.constraints[k] = c // .Clone()
+		}
+
+		// Now merge in the group-instance level constraints
+		/*
+			constraintsAny := g.Get("constraints")
+			groupConstraints := map[string]*Constraint(nil)
+
+			if !IsNil(constraintsAny) {
+				err := Unmarshal([]byte(ToJSON(constraintsAny)), &groupConstraints)
+				if err != nil {
+					return nil, NewXRError("bad_request", g.XID,
+						"error_detail="+err.Error())
+				}
+				// groupConstraints = constraintsAny.(map[string]Constraint)
+			}
+		*/
+
+		// If the incoming request has g.constraints then g.groupConstraints
+		// should already been filled in by checkFn. So this is for cases
+		// where the constraints are from the DB - so parse 'em.
+		if g.groupConstraints == nil {
+			if val := g.Get("constraints"); !IsNil(val) {
+				err := Unmarshal([]byte(ToJSON(val)), &g.groupConstraints)
+				if err != nil {
+					return nil, NewXRError("bad_request", g.XID,
+						"error_detail="+err.Error())
+				}
+				// Not sure this is needed since if this wasn't dont in
+				// checkFn then it's an old value - which should have already
+				// been checked. But for now keep it just to be safe
+				xErr := g.GroupModel.ValidateConstraints(g, g.groupConstraints)
+				if xErr != nil {
+					return nil, xErr
+				}
+			}
+		}
+
+		for k, instanceC := range g.groupConstraints {
+			var c *Constraint
+
+			// See if one already exists (ie. was defined at the GM level)
+			if c = g.constraints[k]; c != nil {
+				// clone it and apply updated fields
+				c = c.Clone()
+				if !IsNil(instanceC.Default) {
+					c.Default = instanceC.Default
+				}
+				if len(instanceC.Enum) != 0 {
+					c.Enum = slices.Clone(instanceC.Enum)
+				}
+				if instanceC.Equals != "" {
+					c.Equals = instanceC.Equals
+				}
+			} else {
+				c = instanceC.Clone()
+			}
+
+			g.constraints[k] = c
+		}
+	}
+
+	return g.constraints, nil
+}
+
+// path = PATH-TO-ATTR, including attr.Name
+func (g *Group) GetAttrConstraint(v *Version, attr *Attribute, path *PropPath) *Constraint {
+	constraints, xErr := g.GetConstraints()
+	// Any error should have aleady been checked/reported
+	PanicIf(xErr != nil, "%s", xErr)
+
+	// Quick return - calculating the key is too expensive
+	if len(constraints) == 0 {
+		return nil
+	}
+
+	key := v.ResourceModel.Plural + "." + path.UI()
+
+	return constraints[key]
+}
+
+func (g *Group) Validate() *XRError {
+	log.VPrintf(3, ">Enter Validate(%s)", g.XID)
+	defer log.VPrintf(3, "<Exit Validate")
+
+	constraints, xErr := g.GetConstraints()
+	if xErr != nil {
+		return xErr
+	}
+
+	for key, constraint := range constraints {
+		if constraint.Equals == "" {
+			continue
+		}
+
+		// groupAttr parsed into a PP
+		gPP, _ := PropPathFromUI(constraint.Equals)
+
+		// If the attr is missing at the group level then don't bother
+		// to check it
+		if IsNil(g.GetPP(gPP)) {
+			continue
+		}
+
+		resPlural, attrPath, _ := strings.Cut(key, ".")
+		pp, _ := PropPathFromUI(attrPath)
+
+		// set to BINARY for case sensitive search
+		binary := ""
+
+		if constraint.attr == nil {
+			constraint.rm = g.GroupModel.FindResourceModel(resPlural)
+			attrStack, xErr :=
+				constraint.rm.VersionAttributes.FindAbstractAttribute(pp)
+			Must(xErr)
+			constraint.attr = attrStack[len(attrStack)-1]
+		}
+
+		if constraint.attr.GetMatchCase() {
+			binary = "BINARY"
+		}
+
+		query := fmt.Sprintf(`
+            # I'm hoping generating the view once will speed things up
+            WITH tmpFullTree AS ( SELECT * FROM FullTree )
+            SELECT
+                r.Path, v.UID, vp.PropValue
+            FROM Resources r
+            JOIN Entities AS v ON (
+                v.RegSID=r.RegistrySID AND
+                v.ParentSID=r.SID AND
+                v.Type=?
+            )
+            JOIN tmpFullTree AS gp ON (
+                gp.RegSID=r.RegistrySID AND
+                gp.eSID=r.GroupSID AND
+                gp.PropName=?
+            )
+            LEFT JOIN tmpFullTree AS vp ON (
+                vp.RegSID=v.RegSID AND
+                vp.eSID=v.eSID AND
+                vp.PropName=?
+            )
+            WHERE
+                r.RegistrySID=? AND
+                r.GroupSID=? AND
+                r.Plural=? AND
+                (vp.PropValue IS NULL OR %s vp.PropValue<>gp.PropValue)
+            `, binary)
+
+		// log.Printf("%q vs %q", gPP.DB(), pp.DB())
+		results := Query(g.tx, query,
+			ENTITY_VERSION, gPP.DB(), pp.DB(),
+			g.Registry.DbSID, g.DbSID, resPlural)
+		defer results.Close()
+
+		rID := ""
+		failures := []string{}
+
+		for {
+			row := results.NextRow()
+			if row == nil {
+				break
+			}
+
+			// log.Printf("%q %q %q",
+			// NotNilString(row[0]), NotNilString(row[1]),
+			// NotNilString(row[2]))
+
+			// Stop on 2nd Resource
+			if rID != "" && rID != NotNilString(row[0]) {
+				break
+			}
+			rID = NotNilString(row[0])
+			failures = append(failures, NotNilString(row[1]))
+
+		}
+
+		if len(failures) > 0 {
+			return NewXRError("constraint_failure", "/"+rID,
+				"path="+pp.UI()).SetDetailf("Versions: %s.",
+				strings.Join(failures, ","))
+		}
+	}
+
 	return nil
 }

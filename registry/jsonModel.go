@@ -131,6 +131,12 @@ func (ug *UserGroupModel) MarshalJSON() ([]byte, error) {
 		buf.Write(b)
 	}
 
+	if len(ug.Constraints) > 0 {
+		b, _ := json.Marshal(ug.Constraints)
+		buf.WriteString(`,"constraints":`)
+		buf.Write(b)
+	}
+
 	if len(ug.Resources) > 0 {
 		buf.WriteString(extra)
 		buf.WriteString(`"resources":{`)

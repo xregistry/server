@@ -132,7 +132,7 @@ ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
 GROUP: dirs / dir
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
-  ├ constraints       object       -     -    y
+  ├ constraints       map/object   -     -    y
   │ ├ default         any          -     -    y
   │ ├ enum            array/any    -     -    y
   │ └ equals          string       -     -    y
@@ -639,22 +639,25 @@ func TestXRGroupType(t *testing.T) {
   "attributes": {
     "constraints": {
       "name": "constraints",
-      "type": "object",
-      "attributes": {
-        "default": {
-          "name": "default",
-          "type": "any"
-        },
-        "enum": {
-          "name": "enum",
-          "type": "array",
-          "item": {
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "default": {
+            "name": "default",
             "type": "any"
+          },
+          "enum": {
+            "name": "enum",
+            "type": "array",
+            "item": {
+              "type": "any"
+            }
+          },
+          "equals": {
+            "name": "equals",
+            "type": "string"
           }
-        },
-        "equals": {
-          "name": "equals",
-          "type": "string"
         }
       }
     },
@@ -752,7 +755,7 @@ func TestXRGroupType(t *testing.T) {
 		`GROUP: dirs4 / dir4
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
-  ├ constraints       object       -     -    y
+  ├ constraints       map/object   -     -    y
   │ ├ default         any          -     -    y
   │ ├ enum            array/any    -     -    y
   │ └ equals          string       -     -    y
@@ -779,7 +782,7 @@ func TestXRGroupType(t *testing.T) {
 		`GROUP: dirs5 / dir5
 
   ATTRIBUTES:         TYPE         REQ   RO   MUT   DEFAULT
-  ├ constraints       object       -     -    y
+  ├ constraints       map/object   -     -    y
   │ ├ default         any          -     -    y
   │ ├ enum            array/any    -     -    y
   │ └ equals          string       -     -    y
@@ -814,22 +817,25 @@ func TestXRGroupType(t *testing.T) {
   "attributes": {
     "constraints": {
       "name": "constraints",
-      "type": "object",
-      "attributes": {
-        "default": {
-          "name": "default",
-          "type": "any"
-        },
-        "enum": {
-          "name": "enum",
-          "type": "array",
-          "item": {
+      "type": "map",
+      "item": {
+        "type": "object",
+        "attributes": {
+          "default": {
+            "name": "default",
             "type": "any"
+          },
+          "enum": {
+            "name": "enum",
+            "type": "array",
+            "item": {
+              "type": "any"
+            }
+          },
+          "equals": {
+            "name": "equals",
+            "type": "string"
           }
-        },
-        "equals": {
-          "name": "equals",
-          "type": "string"
         }
       }
     },
@@ -931,22 +937,25 @@ func TestXRGroupType(t *testing.T) {
     "attributes": {
       "constraints": {
         "name": "constraints",
-        "type": "object",
-        "attributes": {
-          "default": {
-            "name": "default",
-            "type": "any"
-          },
-          "enum": {
-            "name": "enum",
-            "type": "array",
-            "item": {
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
               "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
             }
-          },
-          "equals": {
-            "name": "equals",
-            "type": "string"
           }
         }
       },
@@ -1044,22 +1053,25 @@ func TestXRGroupType(t *testing.T) {
     "attributes": {
       "constraints": {
         "name": "constraints",
-        "type": "object",
-        "attributes": {
-          "default": {
-            "name": "default",
-            "type": "any"
-          },
-          "enum": {
-            "name": "enum",
-            "type": "array",
-            "item": {
+        "type": "map",
+        "item": {
+          "type": "object",
+          "attributes": {
+            "default": {
+              "name": "default",
               "type": "any"
+            },
+            "enum": {
+              "name": "enum",
+              "type": "array",
+              "item": {
+                "type": "any"
+              }
+            },
+            "equals": {
+              "name": "equals",
+              "type": "string"
             }
-          },
-          "equals": {
-            "name": "equals",
-            "type": "string"
           }
         }
       },
