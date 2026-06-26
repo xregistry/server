@@ -323,6 +323,8 @@ func TestTypesBasic(t *testing.T) {
 			{"regobj.objbool", true, nil, ""},
 			{"regobj.objint", 345, nil, ""},
 			{"regobj.objobj.ooint", 999, nil, ""},
+			{"regobj['objobj'].ooint", 999, nil, ""},
+			{`regobj['objobj']["ooint"]`, 999, nil, ""},
 			{"regobj.objstr", "in1", nil, ""},
 
 			{"reganyobj.nestobj.int", 123, nil, ""},

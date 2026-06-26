@@ -207,50 +207,87 @@ func PropPathFromDB(str string) (*PropPath, error) {
 var stateTable = [][]string{
 	// TODO: switch to a-z instead of 0-9 for state char if we need more than 10
 	// Each entry is made up of: "nextState" + "Actions" (1 or more)
-	// NextState of "/" means stop processing
+	// NextState of "`" means stop processing
 	// Spaces in "Actions" is just to make the table look pretty
 	//
-	// a-z   0-9    -      _      .       [      ]     '     \0    else   *
-	// A      B      C      D      E      F      G      H     I     J     K
-	// 0      1      2      3      4      5      6      7     8     9     10
-	{"1  ", "/U ", "/U ", "2BI", "/U ", "9I ", "/U ", "/U", "/U", "/U", "1  "}, // 0-nothing
-	{"2BI", "2BI", "/U ", "2BI", "/U ", "/U ", "/U ", "/U", "/U", "/U", "2BI"}, // 1-strtAttr
-	{"2BI", "2BI", "2BI", "2BI", "1IS", "3IS", "/U ", "/U", "/S", "/U", "2BI"}, // 2-in attr
-	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U", "4BI"}, // 3-start [
-	{"/P ", "4BI", "/U ", "/U ", "/U ", "/U ", "5IN", "/U", "/U", "/U", "4BI"}, // 4-in [
-	{"/U ", "/U ", "/U ", "/U ", "1IA", "3I ", "/U ", "/U", "/ ", "/U", "/U "}, // 5-post ]
-	{"7BI", "7BI", "/U ", "/U ", "/U ", "/U ", "/U ", "/U", "/U", "/U", "7BI"}, // 6-start ['
-	{"7BI", "7BI", "7BI", "7BI", "7BI", "/U ", "/U ", "8I", "/U", "/U", "7BI"}, // 7-in ['
-	{"/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "5IS", "8I", "/U", "/U", "/U "}, // 8-in ['..'
-	{"/Q ", "/U ", "/U ", "/U ", "/U ", "/U ", "/U ", "6I", "/U", "/U", "/Q "}, // 9-str [
+	// a-z  0-9    -     _     .     [     ]     '     \0   else  *     "
+	// A     B     C     D     E     F     G     H     I     J    K     L
+	// 0     1     2     3     4     5     6     7     8     9    10    11
+	{"cB", "`U", "`U", "cB", "`U", "j ", "`U", "`U", "`U", "`U", "cB", "`U"}, // a-nothing
+	{"cB", "cB", "`U", "cB", "`U", "`U", "`U", "`U", "`U", "`U", "cB", "`U"}, // b-seen attr[
+	{"cB", "cB", "cB", "cB", "bS", "dS", "`U", "`U", "`S", "`U", "cB", "`U"}, // c-in attr..
+	{"`P", "eB", "`U", "`U", "`U", "`U", "`U", "g ", "`U", "`U", "eB", "k "}, // d-seen attr[
+	{"`P", "eB", "`U", "`U", "`U", "`U", "fN", "`U", "`U", "`U", "eB", "`U"}, // e-in [..
+	{"`U", "`U", "`U", "`U", "bA", "d ", "`U", "`U", "` ", "`U", "`U", "`U"}, // f-seen ..]
+	{"hB", "hB", "`U", "`U", "`U", "`U", "`U", "`U", "`U", "`U", "hB", "`U"}, // g-seen ['
+	{"hB", "hB", "hB", "hB", "hB", "`U", "`U", "i ", "`U", "`U", "hB", "hB"}, // h-in ['..
+	{"`U", "`U", "`U", "`U", "`U", "`U", "fS", "`U", "`U", "`U", "`U", "`U"}, // i-seen ['..'
+	{"`Q", "`U", "`U", "`U", "`U", "`U", "`U", "g ", "`U", "`U", "`Q", "k "}, // j-seen root [
+	{"lB", "lB", "`U", "`U", "`U", "`U", "`U", "lB", "`U", "`U", "lB", "`U"}, // k-seen ["
+	{"lB", "lB", "lB", "lB", "lB", "`U", "`U", "lB", "`U", "`U", "lB", "m "}, // l-in ["..
+	{"`U", "`U", "`U", "`U", "`U", "`U", "fS", "`U", "`U", "`U", "`U", "`U"}, // m-seen [".."
 	//
 	// B = buffer char
-	// I = move to next char
 	// S = end of string
 	// N = end of array index
 	// P, Q, U are all error actions
 }
+var stateTableSize = byte(len(stateTable))
 
 // Mapping of "char" -> "column" in state table
-var ch2Col = map[byte]int{}
+var OLDch2Col = map[byte]int{}
+var ch2Col = [256]int{} // array lookup is faster than map
 
 func init() {
+	for i := 0; i < 256; i++ {
+		if i >= 'a' && i <= 'z' {
+			ch2Col[i] = 0
+		} else if i >= 'A' && i <= 'Z' {
+			ch2Col[i] = 0
+		} else if i >= '0' && i <= '9' {
+			ch2Col[i] = 1
+		} else if i == '-' {
+			ch2Col[i] = 2
+		} else if i == '_' {
+			ch2Col[i] = 3
+		} else if i == '.' {
+			ch2Col[i] = 4
+		} else if i == '[' {
+			ch2Col[i] = 5
+		} else if i == ']' {
+			ch2Col[i] = 6
+		} else if i == '\'' {
+			ch2Col[i] = 7
+		} else if i == 0 {
+			ch2Col[i] = 8
+		} else if i == '*' {
+			ch2Col[i] = 10
+		} else if i == '"' {
+			ch2Col[i] = 11
+		} else {
+			ch2Col[i] = 9
+		}
+	}
+
+	// Old way
+
 	for ch := 'a'; ch <= 'z'; ch++ {
-		ch2Col[byte(ch)] = 0
-		ch2Col[byte('A'+(ch-'a'))] = 0
+		OLDch2Col[byte(ch)] = 0
+		OLDch2Col[byte('A'+(ch-'a'))] = 0
 	}
 	for ch := '0'; ch <= '9'; ch++ {
-		ch2Col[byte(ch)] = 1
+		OLDch2Col[byte(ch)] = 1
 	}
-	ch2Col['-'] = 2
-	ch2Col['_'] = 3
-	ch2Col['.'] = 4
-	ch2Col['['] = 5
-	ch2Col[']'] = 6
-	ch2Col['\''] = 7
-	ch2Col[0] = 8
+	OLDch2Col['-'] = 2
+	OLDch2Col['_'] = 3
+	OLDch2Col['.'] = 4
+	OLDch2Col['['] = 5
+	OLDch2Col[']'] = 6
+	OLDch2Col['\''] = 7
+	OLDch2Col[0] = 8
 
-	ch2Col['*'] = 10
+	OLDch2Col['*'] = 10
+	OLDch2Col['"'] = 11
 }
 
 func MustPropPathFromUI(str string) *PropPath {
@@ -278,30 +315,25 @@ func PropPathFromUI(str string) (*PropPath, error) {
 		ch := str[chIndex]
 		buf := strings.Builder{}
 		hasStar := false
-		for state := 0; state != 255; { // '/' (exit) in stateTable
-			col, ok := ch2Col[ch]
-			if !ok { // "else" column
-				col = 9
-			}
+		for state := 0; state != 255; { // 255(`) = "exit" in stateTable
+			col := ch2Col[ch]
+			// Still not sure which is faster - or if it matters
+			// col, ok := OLDch2Col[ch]
+			// if !ok { // "else" column
+			// col = 9
+			// }
 
 			actions := stateTable[state][col]
-			PanicIf(actions[0] < '/' || actions[0] > '9',
-				"Bad state: %xx%x", state, col)
-			state = int(actions[0] - '0')
-			for i := 1; i < len(actions); i++ {
+			PanicIf(actions[0] < '`' || actions[0] > '`'+stateTableSize,
+				"Bad state: Ch:%x(%c) Col:%v Actions:%q", ch, ch, col, actions)
+			state = int(actions[0] - 'a')
+			for i := 1; i < len(actions); i++ { // 1=Skip next state char
 				switch actions[i] {
 				case ' ': // ignore
 				case 'B': // buffer it
 					buf.WriteRune(rune(ch))
 					if ch == '*' {
 						hasStar = true
-					}
-				case 'I': // increment ch
-					chIndex++
-					if chIndex < len(str) {
-						ch = str[chIndex]
-					} else {
-						ch = 0
 					}
 				case 'S': // end of string part
 					// if not in [] and buf has more than just *, err
@@ -362,11 +394,22 @@ func PropPathFromUI(str string) (*PropPath, error) {
 						return nil,
 							fmt.Errorf("Unexpected end of property in %q", str)
 					} else {
-						return nil, fmt.Errorf("Unexpected \"%c\" in %q "+
+						qCH := '"'
+						if ch == '"' {
+							qCH = '\''
+						}
+						return nil, fmt.Errorf("Unexpected %c%c%c in %q "+
 							"at pos %d",
-							ch, str, chIndex+1)
+							qCH, ch, qCH, str, chIndex+1)
 					}
 				}
+			}
+			// Move to next char
+			chIndex++
+			if chIndex < len(str) {
+				ch = str[chIndex]
+			} else {
+				ch = 0
 			}
 		}
 	}
