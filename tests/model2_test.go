@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -4908,6 +4909,8 @@ func TestModelIncludes(t *testing.T) {
 	// First try w/o any includes
 	buf, err := os.ReadFile("files/sample-model.json")
 	XNoErr(t, err)
+
+	buf = regexp.MustCompile("SPECVERSION").ReplaceAll(buf, []byte(SPECVERSION))
 
 	XHTTP(t, reg, "PUT", "/modelsource", string(buf), 200, `{
   "attributes": {

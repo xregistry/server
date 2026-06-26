@@ -2864,7 +2864,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2898,7 +2898,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2934,7 +2934,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2970,7 +2970,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3050,7 +3050,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3265,7 +3265,7 @@ func TestHTTPModelEnum(t *testing.T) {
   }
 }
 `, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPModelEnum",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3556,7 +3556,7 @@ func TestHTTPIgnore(t *testing.T) {
 
 	XHTTP(t, reg, "PATCH", "/?ignore=capabilities", `{"capabilities": 123}`,
 		200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3570,7 +3570,7 @@ func TestHTTPIgnore(t *testing.T) {
 `)
 	XHTTP(t, reg, "PATCH", "/?ignore=modelsource", `{"modelsource": 123}`,
 		200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4117,7 +4117,7 @@ func TestHTTPIgnore(t *testing.T) {
     }
     `,
 		200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4170,7 +4170,7 @@ func TestHTTPIgnore(t *testing.T) {
 }
 `)
 	XHTTP(t, reg, "PUT", "/?ignore=id", `{"registryid": "foo"}`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",

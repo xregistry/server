@@ -9879,7 +9879,7 @@ func TestHTTPSticky(t *testing.T) {
         }
       }
     }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPSticky",
   "self": "http://localhost:8181/",
   "xid": "/",

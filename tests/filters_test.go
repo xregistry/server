@@ -1378,7 +1378,7 @@ func TestFiltersURLs(t *testing.T) {
             }
         }
     }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1424,7 +1424,7 @@ func TestFiltersURLs(t *testing.T) {
 	XHTTP(t, reg, "GET",
 		"/?inline=dirs&filter=dirs.dirid=d2,dirs.datas.dataid=d2",
 		``, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1513,7 +1513,7 @@ func TestFiltersURLs(t *testing.T) {
 	XHTTP(t, reg, "GET",
 		"/?inline=dirs&filter=dirs.files.fileid=f1&filter=dirs.datas.dataid=d2",
 		``, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1591,7 +1591,7 @@ func TestFiltersURLs(t *testing.T) {
 	// Notice non-in-doc/local/relative URLs see the filters filters
 	XHTTP(t, reg, "GET", "/?doc&filter=dirs.files.fileid=f1",
 		``, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
   "self": "#/",
   "xid": "/",
@@ -1607,7 +1607,7 @@ func TestFiltersURLs(t *testing.T) {
 	// But local (in doc) URLs (e.g. dirsurl) don't see filters
 	XHTTP(t, reg, "GET", "/?doc&inline=dirs&filter=dirs.files.fileid=f1",
 		``, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestFiltersURLs",
   "self": "#/",
   "xid": "/",

@@ -1769,7 +1769,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
     }`
 
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", data, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestConstraintsGroupTypeRuntime",
   "self": "http://localhost:8181/",
   "xid": "/",

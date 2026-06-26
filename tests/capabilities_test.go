@@ -335,11 +335,11 @@ func TestCapabilitySimple(t *testing.T) {
 			Cap:  `{"specversions":[]}`,
 			Exp: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
-  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
+  "title": "The \"specversions\" capability needs to contain \"` + SPECVERSION + `\".",
   "subject": "/capabilities",
   "args": {
     "name": "specversions",
-    "value": "1.0-rc2"
+    "value": "` + SPECVERSION + `"
   },
   "source": ":common:capabilities:232"
 }`,
@@ -1056,11 +1056,11 @@ func TestCapabilityPath(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/capabilities", `{ "specversions": [] }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
-  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
+  "title": "The \"specversions\" capability needs to contain \"`+SPECVERSION+`\".",
   "subject": "/capabilities",
   "args": {
     "name": "specversions",
-    "value": "1.0-rc2"
+    "value": "`+SPECVERSION+`"
   },
   "source": ":common:capabilities:236"
 }
@@ -1364,7 +1364,7 @@ func TestCapabilityAttr(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "createdat",
@@ -1533,11 +1533,11 @@ func TestCapabilityAttr(t *testing.T) {
 	    {"specversions": [] }}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_missing_value",
-  "title": "The \"specversions\" capability needs to contain \"1.0-rc2\".",
+  "title": "The \"specversions\" capability needs to contain \"`+SPECVERSION+`\".",
   "subject": "/capabilities",
   "args": {
     "name": "specversions",
-    "value": "1.0-rc2"
+    "value": "`+SPECVERSION+`"
   },
   "source": ":common:capabilities:236"
 }
@@ -2496,7 +2496,7 @@ func TestCapabilityPatch(t *testing.T) {
 	XHTTP(t, reg, "PATCH", "/", `{
   "description": "test"
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -2875,7 +2875,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "shortself": false
   }
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPatchRootSemantics",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3156,7 +3156,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "createdat",
@@ -3270,7 +3270,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
     "flags": ["inline"]
   }
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPatchRootVsPatch2",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3410,7 +3410,7 @@ func TestCapabilityNullHandling(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -3449,7 +3449,7 @@ func TestCapabilityNullHandling(t *testing.T) {
 	XHTTP(t, reg1, "PATCH", "/?inline=capabilities", `{
   "capabilities": null
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityNullHandling1",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3551,7 +3551,7 @@ func TestCapabilityNullHandling(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "createdat",
@@ -3735,7 +3735,7 @@ func TestCapabilityNullHandling(t *testing.T) {
   "registryid": "TestCapabilityNullHandling2",
   "capabilities": null
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityNullHandling2",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -3881,7 +3881,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -3909,7 +3909,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -3943,7 +3943,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -3968,7 +3968,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -4003,7 +4003,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -4031,7 +4031,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -4052,7 +4052,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
     "versionmodes": null
   }
 }`, 200, `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestCapabilityPatchIndividualNull2",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -4079,7 +4079,7 @@ func TestCapabilityPatchIndividualNull(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"

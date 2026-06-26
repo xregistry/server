@@ -3677,11 +3677,6 @@ func (attrs Attributes) FindAbstractAttribute(pp *PropPath) ([]*Attribute, *XREr
 	return res, nil
 }
 
-// DUG
-func (attrs Attributes) FindConstraintAtrribute(pp *PropPath) ([]*Attribute, *XRError) {
-	return nil, nil
-}
-
 func (ifvalues IfValues) SetModel(m *Model) {
 	if ifvalues == nil {
 		return

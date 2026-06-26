@@ -18,7 +18,7 @@ any HTTP client, such as `curl`:
 $ curl localhost:8080
 
 {
-  "specversion": "1.0-rc2",
+  "specversion": "1.0-rc3",
   "registryid": "xRegistry",
   "self": "http://ubuntu:8080/",
   "xid": "/",
@@ -34,7 +34,7 @@ But, of course, the `xr` CLI is an easier option:
 $ xr get
 
 {
-  "specversion": "1.0-rc2",
+  "specversion": "1.0-rc3",
   "registryid": "xRegistry",
   "self": "http://ubuntu:8080/",
   "xid": "/",
@@ -53,7 +53,7 @@ $ export XR_SERVER=localhost:8080/reg-DocStore  # or use -s option on 'xr'
 $ xr get
 
 {
-  "specversion": "1.0-rc2",
+  "specversion": "1.0-rc3",
   "registryid": "DocStore",
   "self": "http://localhost:8080/reg-DocStore/",
   "xid": "/",

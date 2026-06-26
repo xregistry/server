@@ -1818,7 +1818,7 @@ header.bar2: foo2`
 
 	// Make sure vanilla GET looks ok
 	XCLI(t, "get", "", `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestXRConfig",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1830,7 +1830,7 @@ header.bar2: foo2`
 
 	// Now make sure the headers are in the outbound msg
 	XCLI(t, "get -vv", "", `{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestXRConfig",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -1847,7 +1847,7 @@ header.bar2: foo2`
 2026/05/19 18:01:50 content-type: application/json
 2026/05/19 18:01:50 Response Body:
 {
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestXRConfig",
   "self": "http://localhost:8181/",
   "xid": "/",

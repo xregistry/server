@@ -2,7 +2,7 @@ package common
 
 var GitCommit = ""
 
-const SPECVERSION = "1.0-rc2"
+const SPECVERSION = "1.0-rc3"
 const CORE_SPECURL = "https://github.com/xregistry/spec/blob/main/core/spec.md"
 const HTTP_SPECURL = "https://github.com/xregistry/spec/blob/main/core/http.md"
 

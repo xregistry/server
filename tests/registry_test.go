@@ -444,7 +444,7 @@ func TestRegistryRoot(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
 		`{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRoot",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -546,7 +546,7 @@ func TestRegistryRoot(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "createdat",
@@ -586,7 +586,7 @@ func TestRegistryRoot(t *testing.T) {
   "pagination": false,
   "shortself": false,
   "specversions": [
-    "1.0-rc2"
+    "`+SPECVERSION+`"
   ],
   "versionmodes": [
     "manual"
@@ -597,7 +597,7 @@ func TestRegistryRoot(t *testing.T) {
 	// Minimal + epoch=2
 	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
 		`{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRoot",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -626,7 +626,7 @@ func TestRegistryRoot(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "manual"
@@ -645,7 +645,7 @@ func TestRegistryRoot(t *testing.T) {
 	// epoch=3
 	XHTTP(t, reg, "GET", "/?inline=capabilities,modelsource", ``, 200,
 		`{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRoot",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -674,7 +674,7 @@ func TestRegistryRoot(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "manual"
@@ -689,7 +689,7 @@ func TestRegistryRoot(t *testing.T) {
 	// Now, make sure we don't lose anything on a PUT
 	XHTTP(t, reg, "PUT", "/?inline=capabilities,modelsource", `{}`, 200,
 		`{
-  "specversion": "1.0-rc2",
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRoot",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -718,7 +718,7 @@ func TestRegistryRoot(t *testing.T) {
     "pagination": false,
     "shortself": false,
     "specversions": [
-      "1.0-rc2"
+      "`+SPECVERSION+`"
     ],
     "versionmodes": [
       "manual"
