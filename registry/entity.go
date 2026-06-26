@@ -453,6 +453,19 @@ func (e *Entity) eSetSave(path string, val any) *XRError {
 	return nil
 }
 
+// Set the prop in the Entity (parsing path) but don't Validate or Save
+// to the DB
+func (e *Entity) eJustSetPath(path string, val any) *XRError {
+	pp, err := PropPathFromUI(path)
+	if err != nil {
+		return NewXRError("bad_request", e.XID,
+			"error_detail="+
+				fmt.Sprintf("Bad attribute path in \"%s\": %s",
+					e.XID, err))
+	}
+	return e.eJustSet(pp, val)
+}
+
 // Set the prop in the Entity but don't Validate or Save to the DB
 func (e *Entity) eJustSet(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: JustSet([%d] %s.%s=%v)", e.Type, e.UID, pp.UI(), val)

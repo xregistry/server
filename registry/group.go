@@ -17,7 +17,7 @@ func (g *Group) Get(name string) any {
 }
 
 func (g *Group) JustSet(name string, val any) *XRError {
-	return g.Entity.eJustSet(NewPPP(name), val)
+	return g.Entity.eJustSetPath(name, val)
 }
 
 func (g *Group) SetSave(name string, val any) *XRError {

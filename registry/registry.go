@@ -237,7 +237,7 @@ func (reg *Registry) JustSet(name string, val any) *XRError {
 	// code to re-Find with FOR_WRITE, we'll just make it easy and these
 	// variants of 'update' will just lock it automatically
 	reg.Lock()
-	return reg.Entity.eJustSet(NewPPP(name), val)
+	return reg.Entity.eJustSetPath(name, val)
 }
 
 func (reg *Registry) SetSave(name string, val any) *XRError {

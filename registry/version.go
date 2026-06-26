@@ -14,7 +14,7 @@ func (v *Version) Get(name string) any {
 }
 
 func (v *Version) JustSet(name string, val any) *XRError {
-	return v.Entity.eJustSet(NewPPP(name), val)
+	return v.Entity.eJustSetPath(name, val)
 }
 
 func (v *Version) SetSave(name string, val any) *XRError {

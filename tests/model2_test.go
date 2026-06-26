@@ -2068,9 +2068,11 @@ func TestModelUseSpecAttrs(t *testing.T) {
 	XNoErr(t, err)
 
 	for k, v := range vals {
-		XNoErr(t, v1.SetSave(k, v))
-		XNoErr(t, meta.SetSave(k, v))
+		XNoErr(t, v1.JustSet(k, v))
+		XNoErr(t, meta.JustSet(k, v))
 	}
+	XNoErr(t, v1.ValidateAndSave(false))
+	XNoErr(t, meta.ValidateAndSave(false))
 
 	XHTTP(t, reg, "GET", "?inline=*,model", "", 200, `{
   "specversion": "`+SPECVERSION+`",

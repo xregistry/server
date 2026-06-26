@@ -2482,3 +2482,664 @@ func TestConstraintsGroupRuntime(t *testing.T) {
 		`^(?s)^.*"name": "z"`)
 
 }
+
+// TestConstraintsLayering tests merging of group model (gm) and group instance
+// (g) constraints when each contributes a different subset of
+// {default, enum, equals}.
+func TestConstraintsLayering(t *testing.T) {
+	reg := NewRegistry("TestConstraintsLayering")
+	defer PassDeleteReg(t, reg)
+
+	// --- Case 1: gm.{default:"b"} + g.{enum:["a","b"]} ---
+	// Success: gm.default is within g.enum, so resource gets "b"
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "b" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "constraints":{"files.name":{"enum":["a","b"]}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "b"`)
+
+	// --- Case 2: gm.{default:"n"} + g.{equals:"name"} ---
+	// Success: group.name matches gm.default so equals constraint is satisfied
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "n" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "n",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "n"`)
+
+	// Error: group.name differs from gm.default (which is applied as default)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "n" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "x",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{}}}}}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// No group.name: equals check skipped; resource still gets gm.default
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "n" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "n"`)
+
+	// --- Case 3: gm.{enum:["a","b"]} + g.{equals:"name"} ---
+	// Success: resource value in gm.enum and equals group.name
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "enum": ["a","b"] }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "a",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{"name":"a"}}}}}`, 200,
+		`^(?s)^.*"name": "a"`)
+
+	// Error: resource value not in gm.enum (even if it matches group.name)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "enum": ["a","b"] }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "c",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{"name":"c"}}}}}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// --- Case 4: gm.{equals:"name"} + g.{default:"n"} ---
+	// Success: g.default matches group.name so equals constraint is satisfied
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "n",
+	    "constraints":{"files.name":{"default":"n"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "n"`)
+
+	// Error: g.default is applied but group.name differs
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "x",
+	    "constraints":{"files.name":{"default":"n"}},
+	    "files":{"f1":{}}}}}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// No group.name: equals check skipped; resource gets g.default
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "constraints":{"files.name":{"default":"n"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "n"`)
+
+	// --- Case 5: gm.{equals:"name"} + g.{enum:["a","b"]} ---
+	// Success: resource in g.enum and equals group.name
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "a",
+	    "constraints":{"files.name":{"enum":["a","b"]}},
+	    "files":{"f1":{"name":"a"}}}}}`, 200,
+		`^(?s)^.*"name": "a"`)
+
+	// Error: resource value not in g.enum
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "c",
+	    "constraints":{"files.name":{"enum":["a","b"]}},
+	    "files":{"f1":{"name":"c"}}}}}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// --- Case 6: gm.{default:"a",enum:["a","b"]} + g.{equals:"name"} ---
+	// Success: resource gets gm.default, in gm.enum, equals group.name
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "a", "enum": ["a","b"] }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "a",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "a"`)
+
+	// Error: gm.default("a") applied but group.name("b") differs via equals
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "a", "enum": ["a","b"] }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "b",
+	    "constraints":{"files.name":{"equals":"name"}},
+	    "files":{"f1":{}}}}}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// --- Case 7: gm.{default:"a",equals:"name"} + g.{enum:["a","b"]} ---
+	// Success: g.enum includes gm.default; gm.equals check satisfied
+	// (The error case where gm.default not in g.enum is tested in
+	// TestConstraintsGroupErrors)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "default": "a", "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "a",
+	    "constraints":{"files.name":{"enum":["a","b"]}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "a"`)
+
+	// --- Case 8: gm.{enum:["a","b"],equals:"name"} + g.{default:"a"} ---
+	// Success: g.default in gm.enum; equals check satisfied
+	// (The error case where g.default not in gm.enum is tested in
+	// TestConstraintsGroupErrors)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "enum": ["a","b"], "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "a",
+	    "constraints":{"files.name":{"default":"a"}},
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"name": "a"`)
+
+	// --- Empty equals in g with gm.equals set ---
+	// g.equals="" is treated as "not set"; gm.equals still applies
+	// Error: group.name exists and differs from resource value
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "x",
+	    "constraints":{"files.name":{"equals":""}},
+	    "files":{"f1":{"name":"y"}}}}}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// Success: group.name matches resource value (gm.equals still applies via "")
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.name": { "equals": "name" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes":{}}}}}},
+	  "dirs":{"d1":{
+	    "name": "z",
+	    "constraints":{"files.name":{"equals":""}},
+	    "files":{"f1":{"name":"z"}}}}}`, 200,
+		`^(?s)^.*"name": "z"`)
+}
+
+// TestConstraintsEqualsNestedGroupPath tests that 'equals' can reference a
+// nested group attribute path (e.g., "gobj.gfoo") and is validated at model
+// definition time and enforced at runtime.
+func TestConstraintsEqualsNestedGroupPath(t *testing.T) {
+	reg := NewRegistry("TestConstraintsEqualsNestedGroupPath")
+	defer PassDeleteReg(t, reg)
+
+	// Model validation: nested group attribute path for equals is accepted
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "attributes": {
+	      "gobj": {
+	        "type": "object",
+	        "attributes": { "gfoo": { "type": "string" } }
+	      }
+	    },
+	    "constraints": {
+	      "files.mystr": { "equals": "gobj.gfoo" }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": { "mystr": { "type": "string" } } } } } } }`
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+
+	// Runtime: gobj.gfoo="abc", mystr="abc" => equals satisfied
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{
+	    "gobj": {"gfoo": "abc"},
+	    "files":{"f1":{"mystr":"abc"}}}}}`, 200,
+		`^(?s)^.*"mystr": "abc"`)
+
+	// Runtime: gobj.gfoo="abc", mystr="xyz" => equals fails
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{
+	    "gobj": {"gfoo": "abc"},
+	    "files":{"f1":{"mystr":"xyz"}}}}}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// Runtime: gobj absent => equals check skipped
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{
+	    "files":{"f1":{"mystr":"anything"}}}}}`, 200,
+		`^(?s)^.*"mystr": "anything"`)
+
+	// Model error: equals path traverses through ifvalues-only attribute
+	// (gfoo is defined only via ifvalues siblingattributes, not static attrs)
+	modelSrcBad := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "attributes": {
+	      "gobj": {
+	        "type": "object",
+	        "ifvalues": {
+	          "special": {
+	            "siblingattributes": { "gfoo": { "type": "string" } }
+	          }
+	        }
+	      }
+	    },
+	    "constraints": {
+	      "files.mystr": { "equals": "gfoo" }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": { "mystr": { "type": "string" } } } } } } }`
+	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrcBad, true),
+		`^(?s)^.*model_error.*equals.*gfoo.*can not be found`)
+
+	reg.Model.SetChanged(false)
+}
+
+// TestConstraintsEqualsWildcardModelError tests that 'equals' referencing a
+// wildcard ('*') group attribute is rejected at model definition time.
+func TestConstraintsEqualsWildcardModelError(t *testing.T) {
+	reg := NewRegistry("TestConstraintsEqualsWildcardModelError")
+	defer PassDeleteReg(t, reg)
+
+	// Model error: equals references "*" which is a wildcard, not a named attr
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "attributes": {
+	      "*": { "type": "string" }
+	    },
+	    "constraints": {
+	      "files.mystr": { "equals": "someattr" }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": { "mystr": { "type": "string" } } } } } } }`
+	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true),
+		`^(?s)^.*model_error.*equals.*someattr.*can not be found`)
+
+	reg.Model.SetChanged(false)
+}
+
+// TestConstraintsMultipleResourceTypes verifies that constraints for different
+// resource types within the same group are independent and don't bleed into
+// each other.
+func TestConstraintsMultipleResourceTypes(t *testing.T) {
+	reg := NewRegistry("TestConstraintsMultipleResourceTypes")
+	defer PassDeleteReg(t, reg)
+
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "constraints": {
+	      "files.mystr": {
+	        "default": "file-default",
+	        "enum": ["file-default","file-other"] },
+	      "docs.mystr": {
+	        "default": "doc-default",
+	        "enum": ["doc-default","doc-other"] }
+	    },
+	    "resources": {
+	      "files": {"singular": "file", "hasdocument": false,
+	        "attributes": { "mystr": { "type": "string" } }},
+	      "docs":  {"singular": "doc",  "hasdocument": false,
+	        "attributes": { "mystr": { "type": "string" } }}
+	    } } } }`
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+
+	// Each resource type gets its own default from constraints
+	// (JSON output orders docs before files alphabetically)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files,dirs.docs",
+		`{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{
+	    "files":{"f1":{}},
+	    "docs":{"d1":{}}}}}`, 200,
+		`^(?s)^.*"mystr": "doc-default".*"mystr": "file-default"`)
+
+	// Constraints don't bleed: file with "doc-other" is rejected
+	// (not in files enum)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details",
+		`{"mystr":"doc-other"}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// Constraints don't bleed: doc with "file-other" is rejected
+	// (not in docs enum)
+	XHTTP(t, reg, "PUT", "/dirs/d1/docs/d2$details",
+		`{"mystr":"file-other"}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// Valid values within each type's enum work fine
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3$details",
+		`{"mystr":"file-other"}`, 201,
+		`^(?s)^.*"mystr": "file-other"`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/docs/d3$details",
+		`{"mystr":"doc-other"}`, 201,
+		`^(?s)^.*"mystr": "doc-other"`)
+
+	// Group instance constraints also stay per-type
+	// Use subsets of gm enums that include the gm defaults
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files,dirs.docs",
+		`{"modelsource": `+modelSrc+`,
+	  "dirs":{"d2":{
+	    "constraints":{
+	      "files.mystr":{"enum":["file-default","file-other"]},
+	      "docs.mystr": {"enum":["doc-default","doc-other"]}
+	    },
+	    "files":{"f1":{"mystr":"file-other"}},
+	    "docs":{"d1":{"mystr":"doc-other"}}}}}`, 200,
+		`^(?s)^.*"mystr": "doc-other".*"mystr": "file-other"`)
+
+	// Cross-type enum contamination would reject valid values
+	// Restrict files in d3 to just "file-default"; "file-other" is rejected
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d3":{
+	    "constraints":{
+	      "files.mystr":{"enum":["file-default"]}
+	    },
+	    "files":{"f2":{"mystr":"file-other"}}}}}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	reg.Model.SetChanged(false)
+}
+
+// TestConstraintsDefaultNotRequiresRequired verifies that a constraint default
+// can be applied to a resource attribute that is not marked required at the
+// model level.
+func TestConstraintsDefaultNotRequiresRequired(t *testing.T) {
+	reg := NewRegistry("TestConstraintsDefaultNotRequiresRequired")
+	defer PassDeleteReg(t, reg)
+
+	// Attribute is optional (no required, no model-level default)
+	// Constraint default should still be applied when resource is created
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.optattr": { "default": "constrained-default" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes": {
+	      "optattr": { "type": "string" }
+	    }}}}}},
+	  "dirs":{"d1":{
+	    "files":{"f1":{}}}}}`, 200,
+		`^(?s)^.*"optattr": "constrained-default"`)
+
+	// Explicitly providing a value overrides the constraint default
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.optattr": { "default": "constrained-default" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes": {
+	      "optattr": { "type": "string" }
+	    }}}}}},
+	  "dirs":{"d1":{
+	    "files":{"f1":{"optattr":"my-value"}}}}}`, 200,
+		`^(?s)^.*"optattr": "my-value"`)
+
+	// Explicitly nulling the attribute is treated as absent, so
+	// the constraint default is still applied
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.optattr": { "default": "constrained-default" }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes": {
+	      "optattr": { "type": "string" }
+	    }}}}}},
+	  "dirs":{"d1":{
+	    "files":{"f1":{"optattr":null}}}}}`, 200,
+		`^(?s)^.*"optattr": "constrained-default"`)
+}
+
+// TestConstraintsDeepNestedPath tests constraint paths at 3 or more levels
+// deep (e.g., files.a.b.c).
+func TestConstraintsDeepNestedPath(t *testing.T) {
+	reg := NewRegistry("TestConstraintsDeepNestedPath")
+	defer PassDeleteReg(t, reg)
+
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "constraints": {
+	      "files.a.b.c": { "enum": ["x","y"] }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": {
+	        "a": {
+	          "type": "object",
+	          "attributes": {
+	            "b": {
+	              "type": "object",
+	              "attributes": {
+	                "c": { "type": "string" }
+	              }
+	            }
+	          }
+	        }
+	      } } } } } }`
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+
+	// Valid: a.b.c value is in enum
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"x"}}}}}}}`, 200,
+		`^(?s)^.*"c": "x"`)
+
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"y"}}}}}}}`, 200,
+		`^(?s)^.*"c": "y"`)
+
+	// Error: a.b.c value not in enum
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"z"}}}}}}}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// Model error: path stops at non-object
+	modelSrcBadPath := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "constraints": {
+	      "files.a.b.c.d": { "enum": ["x","y"] }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": {
+	        "a": {
+	          "type": "object",
+	          "attributes": {
+	            "b": {
+	              "type": "object",
+	              "attributes": {
+	                "c": { "type": "string" }
+	              }
+	            }
+	          }
+	        }
+	      } } } } } }`
+	XCheckErr(t, reg.Model.ApplyNewModel(nil, modelSrcBadPath, true),
+		`^(?s)^.*model_error.*a.b.c.d.*c.*scalar`)
+
+	reg.Model.SetChanged(false)
+}
+
+// TestConstraintsGroupInstanceNewKey tests that a group instance can add a
+// constraint key not present in the group model's constraints, and that both
+// gm and g constraints apply independently.
+func TestConstraintsGroupInstanceNewKey(t *testing.T) {
+	reg := NewRegistry("TestConstraintsGroupInstanceNewKey")
+	defer PassDeleteReg(t, reg)
+
+	// gm has a constraint for files.mystr; g adds a NEW key files.myint
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
+	  "groups":{"dirs":{"singular":"dir","constraints":{
+	    "files.mystr": { "enum": ["a","b"] }
+	  },
+	  "resources": {"files": {"singular":"file","hasdocument":false,
+	    "attributes": {
+	      "mystr": { "type": "string" },
+	      "myint": { "type": "integer" }
+	    }}}}}},
+	  "dirs":{"d1":{
+	    "constraints":{
+	      "files.myint": {"default": 5}
+	    },
+	    "files":{"f1":{"mystr":"a"}}}}}`, 200,
+		`^(?s)^.*"myint": 5.*"mystr": "a"`)
+
+	// Both constraints apply: gm.enum for mystr
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"mystr":"c"}`, 400,
+		`^(?s)^.*invalid_attribute`)
+
+	// Both constraints apply: g.default for myint even with explicit mystr
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"mystr":"b"}`, 201,
+		`^(?s)^.*"myint": 5.*"mystr": "b"`)
+}
+
+// TestConstraintsMatchVersionsWithEquals tests that matchversions and an equals
+// constraint can coexist on the same attribute and are both independently
+// enforced.
+func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
+	reg := NewRegistry("TestConstraintsMatchVersionsWithEquals")
+	defer PassDeleteReg(t, reg)
+
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "attributes": { "gattr": { "type": "string" } },
+	    "constraints": {
+	      "files.myattr": { "equals": "gattr" }
+	    },
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": {
+	        "myattr": { "type": "string", "matchversions": true }
+	      } } } } } }`
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+
+	// Setup: group gattr="x", resource f1 with myattr="x" - both checks pass
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
+	  "dirs":{"d1":{
+	    "gattr": "x",
+	    "files":{"f1":{"versions":{"v1":{"myattr":"x"}}}}}}}`, 200,
+		`^(?s)^.*"myattr": "x"`)
+
+	// matchversions: trying to create v2 with a different myattr value fails
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details",
+		`{"myattr":"y"}`, 400,
+		`^(?s)^.*mismatched_version_attribute`)
+
+	// matchversions: creating v2 with the same value is ok
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details",
+		`{"myattr":"x"}`, 201,
+		`^(?s)^.*"myattr": "x"`)
+
+	// equals: updating group gattr to a different value triggers
+	// constraint_failure
+	XHTTP(t, reg, "PATCH", "/dirs/d1?inline=files", `{"gattr":"y"}`, 400,
+		`^(?s)^.*constraint_failure`)
+
+	// equals: updating group gattr to match resource value is ok
+	XHTTP(t, reg, "PATCH", "/dirs/d1", `{"gattr":"x"}`, 200,
+		`^(?s)^.*"gattr": "x"`)
+
+	reg.Model.SetChanged(false)
+}
+
+// TestConstraintsXref tests that constraint defaults are NOT applied to xref'd
+// resources (per spec). Note: per-spec, enum and equals SHOULD be enforced for
+// xref'd resources, but that enforcement is not yet implemented.
+//
+// The source resource lives in a group instance with NO constraint so its
+// "name" attribute is genuinely absent. The xref resource lives in a group
+// instance that HAS a constraint default. If the default were incorrectly
+// applied to the xref, "name" would appear in the response.
+func TestConstraintsXref(t *testing.T) {
+	reg := NewRegistry("TestConstraintsXref")
+	defer PassDeleteReg(t, reg)
+
+	// No group-TYPE constraint; constraint lives only on group instance d2.
+	// This ensures d1/s1 has no "name" when created with {}.
+	modelSrc := `{
+	  "groups": { "dirs": {
+	    "singular": "dir",
+	    "resources": {"files": {"singular": "file", "hasdocument": false,
+	      "attributes": {} } } } } }`
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+
+	// Create source resource s1 in d1 (no constraint on d1) - name stays absent
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/s1$details", `{}`, 201,
+		`^(?s)^.*"epoch": 1,\n *"isdefault`) // no "name"
+
+	// Create d2 with a group-instance constraint default for files.name
+	XHTTP(t, reg, "PATCH", "/dirs/d2",
+		`{"constraints":{"files.name":{"default":"constrained-default"}}}`, 201, `*`)
+
+	// Confirm the constraint default IS applied to a normal resource in d2
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1$details", `{}`, 201,
+		`^(?s)^.*"name": "constrained-default"`)
+
+	// Create xref resource fx in d2 pointing to s1 (which has no name)
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/fx/meta",
+		`{"xref":"/dirs/d1/files/s1"}`, 201, `*`)
+
+	// GET fx: constraint default MUST NOT be applied to the xref'd resource.
+	// "name" appears between "epoch" and "isdefault" in the JSON output, so
+	// the pattern below verifies "name" is absent.
+	XHTTP(t, reg, "GET", "/dirs/d2/files/fx$details", ``, 200,
+		`^(?s)^.*"epoch": 1,\n *"isdefault`) // no "name"
+
+	reg.Model.SetChanged(false)
+}

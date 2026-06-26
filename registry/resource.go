@@ -226,13 +226,13 @@ func (r *Resource) IsXref() bool {
 
 func (m *Meta) JustSet(name string, val any) *XRError {
 	log.VPrintf(4, "JustSet: m(%s).JustSet(%s,%v)", m.Resource.UID, name, val)
-	return m.Entity.eJustSet(NewPPP(name), val)
+	return m.Entity.eJustSetPath(name, val)
 }
 
 func (r *Resource) JustSetMeta(name string, val any) *XRError {
 	log.VPrintf(4, "JustSetMeta: r(%s).Set(%s,%v)", r.UID, name, val)
 	meta := r.MustFindMeta(false, FOR_WRITE)
-	return meta.Entity.eJustSet(NewPPP(name), val)
+	return meta.Entity.eJustSetPath(name, val)
 }
 
 func (r *Resource) JustSet(name string, val any) *XRError {
