@@ -590,3 +590,37 @@ func TestJsonParser(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitCommandLine(t *testing.T) {
+	type Test struct {
+		In  string
+		Exp []string
+	}
+
+	tests := []Test{
+		{`hello world`, []string{`hello`, `world`}},
+		{`"hello world"`, []string{`hello world`}},
+		{`hello\ world`, []string{`hello world`}},
+		{`don\'t`, []string{`don't`}},
+		{`"don\'t"`, []string{`don't`}},
+		{`""`, []string{``}},
+		{`"" ""`, []string{``, ``}},
+		{`""""`, []string{``}},
+		{`"hello""world"`, []string{`helloworld`}},
+		{`hello"world"foo`, []string{`helloworldfoo`}},
+		{`  leading and trailing  `, []string{`leading`, `and`, `trailing`}},
+		{`arg1 "arg two" arg3`, []string{`arg1`, `arg two`, `arg3`}},
+		{`escaped quote: \"hello\"`, []string{`escaped`, `quote:`, `"hello"`}},
+		{`single\\double`, []string{`single\double`}},
+		{`''`, []string{``}},
+		{`'it\'s a test'`, []string{`it's a test`}},
+		{`mix "double 'single inside'" end`,
+			[]string{`mix`, `double 'single inside'`, `end`}},
+	}
+
+	for _, test := range tests {
+		res := ToJSON(SplitCommandLine(test.In))
+		exp := ToJSON(test.Exp)
+		XEqual(t, "", res, exp)
+	}
+}

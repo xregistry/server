@@ -483,6 +483,19 @@ func TestXRUpdateRegistry(t *testing.T) {
 	reg := NewRegistry("TestXRUpdateRegistry")
 	defer PassDeleteReg(t, reg)
 
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+     "attributes": {
+      "bool":{"type":"boolean"},
+      "int":{"type":"integer"},
+      "decimal":{"type":"decimal"},
+      "obj":{"type":"object","attributes":{"age":{"type":"integer"}}},
+      "map":{"type":"map","item":{"type":"integer"}},
+      "arrint":{"type":"array","item":{"type":"integer"}},
+      "arrstr":{"type":"array","item":{"type":"string"}},
+      "arrarr":{"type":"array","item":{"type":"array","item":{"type":"string"}}}
+     }
+    }`, 200, `*`)
+
 	XCLIServer("localhost:8181")
 
 	XCLI(t, "create", "",
@@ -500,7 +513,7 @@ func TestXRUpdateRegistry(t *testing.T) {
 	XCLI(t, "update -vo json /", "",
 		`{
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 4,
+  "epoch": 5,
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
@@ -509,10 +522,33 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "Updated: /\n", true)
 
-	XCLI(t, "update -o=json / --set name=myreg", "",
+	// Del on non-existing attrs
+	XCLI(t, "update -o=json / --del name --del arrstr "+
+		"--del arrint[0] --del obj --del map", "",
 		`{
+  "createdat": "2026-06-27T18:24:46.263369607Z",
+  "epoch": 6,
+  "modifiedat": "2026-06-27T18:24:46.505533726Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, "", true)
+
+	// Simple set
+	XCLI(t, "update -o=json / --set name=myreg --set arrstr[0]=hi "+
+		"--set arrstr[1]=bye --set map.env=2", "",
+		`{
+  "arrstr": [
+    "hi",
+    "bye"
+  ],
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "epoch": 5,
+  "epoch": 7,
+  "map": {
+    "env": 2
+  },
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "name": "myreg",
   "registryid": "TestXRUpdateRegistry",
@@ -522,67 +558,43 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "", true)
 
-	XCLI(t, "update -o=json / --set name= --set=description=cool", "",
+	// Append more data
+	XCLI(t, "update -o=json / --set name=xxx --set arrstr[2]=foo "+
+		"--set map.dev=1", "",
 		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "description": "cool",
-  "epoch": 6,
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "name": "",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
-}
-`, "", true)
-
-	XCLI(t, "update -o=json / --set name --set=description=5", "",
-		"", `The attribute "description" for "/" is not valid: must be a string.
-`, false)
-
-	XCLI(t, "update -o=json / --set name --set=description=\"5\"", "",
-		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "description": "5",
-  "epoch": 7,
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "registryid": "TestXRUpdateRegistry",
-  "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
-  "xid": "/"
-}
-`, "", true)
-
-	XCLI(t, "update / -o=json --set=labels.foo=5 --del description "+
-		"--del=labels", "",
-		"", `The attribute "labels.foo" for "/" is not valid: must be a string.
-`, false)
-
-	XCLI(t, "update / -o=json --set=labels.foo=\"5\" --del description "+
-		"--del=labels", "",
-		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "arrstr": [
+    "hi",
+    "bye",
+    "foo"
+  ],
+  "createdat": "2026-06-27T18:29:47.744969641Z",
   "epoch": 8,
-  "labels": {
-    "foo": "5"
+  "map": {
+    "dev": 1,
+    "env": 2
   },
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "modifiedat": "2026-06-27T18:29:48.057338381Z",
+  "name": "xxx",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
+  "specversion": "1.0-rc3",
   "xid": "/"
 }
 `, "", true)
 
-	XCLI(t, "update / -o=json --add=labels.bar=zzz", "",
+	// Now do some deletes
+	XCLI(t, "update -o=json / --del name --del arrstr[1] --del map.env", "",
 		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "arrstr": [
+    "hi",
+    "foo"
+  ],
+  "createdat": "2026-06-27T19:08:11.933679098Z",
   "epoch": 9,
-  "labels": {
-    "bar": "zzz",
-    "foo": "5"
+  "map": {
+    "dev": 1
   },
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "modifiedat": "2026-06-27T19:08:12.305014327Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
   "specversion": "`+SPECVERSION+`",
@@ -590,21 +602,192 @@ func TestXRUpdateRegistry(t *testing.T) {
 }
 `, "", true)
 
-	XCLI(t, "update / -o=json --add=labels.yyy=yay --del=labels.foo", "",
+	// Load 'em up..
+	XCLI(t, "update -o=json / --set=name=nam --set description=desc "+
+		"--set labels.foo=bar", "",
 		`{
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "arrstr": [
+    "hi",
+    "foo"
+  ],
+  "createdat": "2026-06-27T19:43:16.483570589Z",
+  "description": "desc",
   "epoch": 10,
   "labels": {
-    "bar": "zzz",
-    "yyy": "yay"
+    "foo": "bar"
+  },
+  "map": {
+    "dev": 1
+  },
+  "modifiedat": "2026-06-27T19:43:16.920061355Z",
+  "name": "nam",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, "", true)
+
+	// Now set some odd values delete name, desc="" , load labels
+	XCLI(t, "update -o=json / --set=name --set description= "+
+		"--set labels.foo=null --set bool=false", "",
+		`{
+  "arrstr": [
+    "hi",
+    "foo"
+  ],
+  "bool": false,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "description": "",
+  "epoch": 11,
+  "labels": {},
+  "map": {
+    "dev": 1
   },
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
   "registryid": "TestXRUpdateRegistry",
   "self": "http://localhost:8181/",
-  "specversion": "`+SPECVERSION+`",
+  "specversion": "1.0-rc3",
   "xid": "/"
 }
 `, "", true)
+
+	// More odd...
+	XCLI(t, `update -o=json / --set name="a b" --set bool=true `+
+		`--set int=5 --set description='"4"' --set labels.foo='"null"' `+
+		`--set obj={} --set arrstr=[] --set labels.bar='""'`, ``,
+		`{
+  "arrstr": [],
+  "bool": true,
+  "createdat": "2026-06-27T20:01:02.444326941Z",
+  "description": "4",
+  "epoch": 12,
+  "int": 5,
+  "labels": {
+    "bar": "",
+    "foo": "null"
+  },
+  "map": {
+    "dev": 1
+  },
+  "modifiedat": "2026-06-27T20:01:02.9970089Z",
+  "name": "a b",
+  "obj": {},
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, "", true)
+
+	// Empty obj and array
+	XCLI(t, "update -o=json / --set obj={} --set arrstr=[]", "",
+		`{
+  "arrstr": [],
+  "bool": true,
+  "createdat": "2026-06-27T20:04:03.803481557Z",
+  "description": "4",
+  "epoch": 13,
+  "int": 5,
+  "labels": {
+    "bar": "",
+    "foo": "null"
+  },
+  "map": {
+    "dev": 1
+  },
+  "modifiedat": "2026-06-27T20:04:04.387255719Z",
+  "name": "a b",
+  "obj": {},
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, ``, true)
+
+	// Make sure order is taken into account
+	XCLI(t, `update / -o=json --set name=foo --del name `+
+		`--set map.dev=2 --set map.dev=4 --del map --set map.dev=3 `+
+		`--del labels.bar --set labels={} --del labels --set labels.x=y`, ``,
+		`{
+  "arrstr": [],
+  "bool": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "description": "4",
+  "epoch": 14,
+  "int": 5,
+  "labels": {
+    "x": "y"
+  },
+  "map": {
+    "dev": 3
+  },
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "obj": {},
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, ``, true)
+
+	// just for fun, delete everything
+	// Note timestamps should be the same
+	XCLI(t, `update / -o=json --del arrstr --del bool --del description `+
+		`--del int --del labels --del map --del obj --del createdat `+
+		`--del epoch --del modifiedat --del registryid --del self `+
+		`--del xid --del specversion`, ``,
+		`{
+  "createdat": "2026-06-27T20:13:02.574334308Z",
+  "epoch": 15,
+  "modifiedat": "2026-06-27T20:13:02.574334308Z",
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, ``, true)
+
+	// set using json string + --del + --set
+	XCLI(t, `update / -o=json --data '{"obj":{},"description":"foo"}' `+
+		`--set name=myname --del description`, ``,
+		`{
+  "createdat": "2026-06-27T20:24:00.486466752Z",
+  "epoch": 16,
+  "modifiedat": "2026-06-27T20:24:00.584401628Z",
+  "name": "myname",
+  "obj": {},
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, ``, true)
+
+	// set using json stdin + --del + --set
+	XCLI(t, `update / -o=json --data @- --set description=cool --del name`, `{
+          "obj": { "age": 12 },
+          "name": "joe"
+        }`,
+		`{
+  "createdat": "2026-06-27T20:27:45.622157547Z",
+  "description": "cool",
+  "epoch": 17,
+  "modifiedat": "2026-06-27T20:27:45.72520573Z",
+  "obj": {
+    "age": 12
+  },
+  "registryid": "TestXRUpdateRegistry",
+  "self": "http://localhost:8181/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}
+`, ``, true)
+
+	// delete unknown attr
+	XCLI(t, `update / -o=json --del bad`, ``, ``,
+		"An unknown attribute (bad) was specified for \"/\".\n", false)
 
 }
 

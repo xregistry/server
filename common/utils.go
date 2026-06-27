@@ -1580,3 +1580,69 @@ func ValidateCmd(cmd *cobra.Command) {
 		ValidateCmd(sub)
 	}
 }
+
+func SplitCommandLine(input string) []string {
+	var args []string
+	var current strings.Builder
+	inSingle := false
+	inDouble := false
+	escaped := false
+	inArg := false
+
+	for _, r := range input {
+		if escaped {
+			current.WriteRune(r)
+			escaped = false
+			inArg = true
+			continue
+		}
+
+		if r == '\\' {
+			escaped = true
+			continue
+		}
+
+		if r == '\'' && !inDouble {
+			wasIn := inSingle
+			inSingle = !inSingle
+			if !wasIn && inSingle {
+				inArg = true
+			}
+			continue
+		}
+
+		if r == '"' && !inSingle {
+			wasIn := inDouble
+			inDouble = !inDouble
+			if !wasIn && inDouble {
+				inArg = true
+			}
+			continue
+		}
+
+		if unicode.IsSpace(r) && !inSingle && !inDouble {
+			if inArg {
+				args = append(args, current.String())
+				current.Reset()
+				inArg = false
+			}
+			continue
+		}
+
+		// regular character
+		current.WriteRune(r)
+		inArg = true
+	}
+
+	// handle trailing backslash
+	if escaped {
+		current.WriteRune('\\')
+		inArg = true
+	}
+
+	if inArg || current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
+}

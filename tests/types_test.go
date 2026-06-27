@@ -798,6 +798,58 @@ func TestTypesBasic(t *testing.T) {
   "dirscount": 2
 }
 `)
+
+	// Clear everything
+	XHTTP(t, reg, "PUT", "/", "{}", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestTypesBasic",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
+	reg.Refresh(registry.FOR_WRITE)
+
+	// Make sure deleting an array item from missing array is a no-op
+	err = reg.SetSave("regarrayint[0]", nil)
+	XCheck(t, err == nil, "set regarrayint[0]=nil: %s", err)
+	XHTTP(t, reg, "GET", "/", "", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestTypesBasic",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
+	// Make sure deleting a map item from missing map is a no-op
+	err = reg.SetSave("regmapstring.key", nil)
+	XCheck(t, err == nil, "set regmapstring.key=nil: %s", err)
+	XHTTP(t, reg, "GET", "/", "", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestTypesBasic",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
+
 }
 
 func TestTypesWildcardBool(t *testing.T) {

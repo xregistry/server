@@ -582,7 +582,8 @@ func NestedGetProp(obj any, pp *PropPath, prev *PropPath) (any, bool, error) {
 // Given a PropPath and a value this will add the necessary golang data
 // structures to 'obj' to materialize PropPath and set the appropriate
 // fields to 'val'
-func ObjectSetProp(obj map[string]any, pp *PropPath, val any) error {
+// FLAGS: SHRINK_ARRAYS - nils in arrays should remove index
+func ObjectSetProp(obj map[string]any, pp *PropPath, val any, flags ...string) error {
 	log.VPrintf(4, "ObjectSetProp(%s=%v)", pp, val)
 	if pp.Len() == 0 && IsNil(val) {
 		// A bit of a special case, not 100% sure if this is ok.
@@ -595,12 +596,12 @@ func ObjectSetProp(obj map[string]any, pp *PropPath, val any) error {
 	}
 	PanicIf(pp.Len() == 0, "Can't be zero w/non-nil val")
 
-	_, err := MaterializeProp(obj, pp, val, nil)
+	_, err := MaterializeProp(obj, pp, val, nil, flags...)
 	return err
 }
 
-func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, error) {
-	log.VPrintf(4, ">Enter: MaterializeProp(%s)", pp)
+func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath, flags ...string) (any, error) {
+	log.VPrintf(4, ">Enter: MaterializeProp(%s, %v)", pp, flags)
 	log.VPrintf(4, "<Exit: MaterializeProp")
 
 	// current is existing value, used for adding to maps/arrays
@@ -621,6 +622,12 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 		// TODO look for cases where Kind(val) == array too - maybe?
 		var daArray []any
 
+		// If part of tree isn't there but we're going to be deleting
+		// the element, do nothing. DO NOT create the tree
+		if IsNil(current) && IsNil(val) {
+			return nil, nil
+		}
+
 		if current != nil {
 			daArray, ok = current.([]any)
 			if !ok {
@@ -634,17 +641,43 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 			daArray = append(daArray, make([]any, diff)...)
 		}
 
-		// Trim the end of the array if there are nil's
+		// Set the index
 		daArray[index], err = MaterializeProp(daArray[index], pp.Next(), val,
-			prev.Append(pp.First()))
-		for len(daArray) > 0 && daArray[len(daArray)-1] == nil {
-			daArray = daArray[:len(daArray)-1]
+			prev.Append(pp.First()), flags...)
+
+		if ArrayContains(flags, "SHRINK_ARRAYS") {
+			// Remove any nil entries since they asked for them to be deleted
+			altArray := []any(nil)
+			for i := 0; i < len(daArray); i++ {
+				if val := daArray[i]; IsNil(val) {
+					if IsNil(altArray) {
+						altArray = daArray[:i]
+					}
+				} else if !IsNil(altArray) {
+					altArray = append(altArray, val)
+				}
+			}
+			if !IsNil(altArray) {
+				daArray = altArray
+			}
+		} else {
+			// Trim the end of the array if there are nil's
+			for len(daArray) > 0 && daArray[len(daArray)-1] == nil {
+				daArray = daArray[:len(daArray)-1]
+			}
 		}
+
 		return daArray, err
 	}
 
 	// Is a map/object
 	// TODO look for cases where Kind(val) == obj/map too - maybe?
+
+	// As with arrays above, if tree is missing and we're deleting something
+	// just exit, do not create the tree
+	if IsNil(current) && IsNil(val) {
+		return nil, nil
+	}
 
 	daMap := map[string]any{}
 	if !IsNil(current) {
@@ -655,7 +688,7 @@ func MaterializeProp(current any, pp *PropPath, val any, prev *PropPath) (any, e
 	}
 
 	res, err := MaterializeProp(daMap[pp.Top()], pp.Next(), val,
-		prev.Append(pp.First()))
+		prev.Append(pp.First()), flags...)
 	if err != nil {
 		return nil, err
 	}

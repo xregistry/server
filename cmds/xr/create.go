@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,8 +25,8 @@ func addCreateCmd(parent *cobra.Command) {
 
 	createCmd.Long = createCmd.Short + "\n" + `
 Notes:
-- Order of attribute flags processing: --data, --del, --set, --add
-- Using --del, --set or --add implicitly enables --details
+- --data is processed first, then set/del based on command line order
+- Using --set or --del or implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
@@ -43,8 +44,6 @@ Notes:
 	createCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	createCmd.Flags().StringArray("set", nil,
 		"Set an attribute: --set NAME[=(VALUE | \"STRING\")]")
-	createCmd.Flags().StringArray("add", nil,
-		"Add to an attribute: --add NAME[=(VALUE | \"STRING\")]")
 	createCmd.Flags().StringArray("del", nil,
 		"Delete an attribute: --del NAME")
 
@@ -62,8 +61,8 @@ func addUpsertCmd(parent *cobra.Command) {
 
 	upsertCmd.Long = upsertCmd.Short + "\n" + `
 Notes:
-- Order of attribute flags processing: --data, --del, --set, --add
-- Using --del, --set or --add implicitly enables --details
+- --data is processed first, then set/del based on command line order
+- Using --set or --del implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
@@ -80,7 +79,6 @@ Notes:
 		"Skip pre-flight checks")
 	upsertCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	upsertCmd.Flags().StringArray("set", nil, "Set an attribute")
-	upsertCmd.Flags().StringArray("add", nil, "Add to an attribute")
 	upsertCmd.Flags().StringArray("del", nil, "Delete an attribute")
 
 	parent.AddCommand(upsertCmd)
@@ -96,8 +94,8 @@ func addUpdateCmd(parent *cobra.Command) {
 
 	updateCmd.Long = updateCmd.Short + "\n" + `
 Notes:
-- Order of attribute flags processing: --data, --del, --set, --add
-- Using --del, --set or --add implicitly enables --details
+- --data is processed first, then set/del based on command line order
+- Using --set or --del implicitly enables --details
 - When setting attributes use escaped double-quotes (e.g. --set prop=\"5\") to
   force it to be a string
 `
@@ -114,7 +112,6 @@ Notes:
 		"Force a 'create' if missing, no pre-flight checks")
 	updateCmd.Flags().StringArray("ignore", nil, "Skip certain checks")
 	updateCmd.Flags().StringArray("set", nil, "Set an attribute")
-	updateCmd.Flags().StringArray("add", nil, "Add to an attribute")
 	updateCmd.Flags().StringArray("del", nil, "Delete an attribute")
 
 	parent.AddCommand(updateCmd)
@@ -168,58 +165,80 @@ func createFunc(cmd *cobra.Command, args []string) {
 		data = string(buf)
 	}
 
-	sets, _ := cmd.Flags().GetStringArray("set")
-	adds, _ := cmd.Flags().GetStringArray("add")
-	dels, _ := cmd.Flags().GetStringArray("del")
-
-	if len(sets)+len(adds)+len(dels) > 0 {
+	if cmd.Flags().Changed("set") || cmd.Flags().Changed("del") {
 		isMetadata = true
-
-		oldData := map[string]any(nil)
 		dataMap := map[string]any{}
 
-		if (len(dels) > 0 || len(adds) > 0) && action == "update" {
-			oldData, xErr = reg.DownloadObject(xid.String())
-			if !xErr.IsType("not_found") {
-				Error(xErr)
-			}
+		ops := GetArgOrder(cmd, os.Args)
+
+		oldData, xErr := reg.DownloadObject(xid.String())
+		if !xErr.IsType("not_found") {
+			Error(xErr)
 		}
 
 		if len(data) > 0 {
+			// We don't really care if it's not valid json from a CLI
+			// perspective unless they're going to del/set something.
+			// That's why we don't do this outside of this if-changed block
 			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
 				Error(NewXRError("parsing_data",
 					"error_detail="+err.Error()))
 			}
 		}
 
-		setsIndex := len(dels)
-		sets = append(dels, sets...)
-		addsIndex := len(sets)
-		sets = append(sets, adds...)
-		// --set foo           set to null  (erase attr)
-		// --set foo=          set to ""
-		// --set foo=null      set to null  (erase attr)
-		// --set foo=abc       set to "abc"
-		// --set foo="foo bar" set to "foo bar"
-		// --set foo=true      set to true (bool)
-		// --set foo=5         set to 5 (int)
-		// --set foo='"5"'     set to "5"
-		// --set foo='"null"'  set to "null"
-		// --set foo='""'      set to ""
-		// --add label.foo=bar   adds foo=bar to existing labels
-		// --del foo           same as: --set foo  or  --set foo=
-		for i, arg := range sets {
-			doDel := (i < setsIndex)
-			doAdd := (i >= addsIndex)
+		// --del attr             # attr
+		// --del obj              # del entire obj (maps are same as obj)
+		// --del array            # delete entire array
 
-			var val any
+		// --del obj.key          # del just the one key
+		// --del array[2]         # del just the index 2, 0 for first
+		// --del array[-1]        # del last
+
+		// --set attr             # set to null (erase attr)
+		// --set attr=            # set to ""
+		// --set attr=null        # set to null (erase attr)
+		// --set attr=abc         # set to 'abc"
+		// --set attr="foo bar"   # set to "foo bar"
+		// --set attr=true        # set to true (bool)
+		// --set attr=5           # set to 5 (int)
+		// --set attr='"5"'       # set to "5" (string)
+		// --set attr='"null"'    # set to "null" (string)
+		// --set attr='""'        # set to ""
+		// --set labels.foo=bar   # add foo=bar to existing labels
+		// --del attr             # same as --set attr  or  (--set attr= ??)
+
+		// --set obj={}           # create empty obj/map, clear it present
+		// --set array=[]         # create empty array, clear if present
+
+		// --set attr=...         # set scalar attribute
+		// --set obj.key=...      # set key
+		// --set array[2]=...     # set index 2
+		// --set array[2:]=...    # insert before index 2 (0 = add to start)
+		// --set array[-1]=...    # add to end of array
+
+		// NOT SUPPORTED YET:
+		//   array[2:]
+		//   array[-1]
+
+		for _, op := range ops {
+			action := op.Action
+			arg := op.Value
+
+			// Only process know ops - everything else is an arg we don't
+			// care about for the purposes of set/del...
+			if action != "set" && action != "del" {
+				continue
+			}
+
+			val := any(nil) // assume we're deleting attr fornow
+
 			name, valStr, ok := strings.Cut(arg, "=")
 			if name == "" {
 				Error("Missing a NAME on %q", arg)
 			}
 
-			if doDel && ok {
-				Error("\"=\" isn't allowed on \"--del %q\"", arg)
+			if action == "del" && ok {
+				Error(`"=" isn't allowed on --del %q`, arg)
 			}
 
 			if !ok || valStr == "null" {
@@ -240,9 +259,10 @@ func createFunc(cmd *cobra.Command, args []string) {
 				}
 				val = valStr[1 : len(valStr)-1]
 			} else {
-				ok, err := regexp.MatchString(`^(\.[0-9]+()|([0-9]+(\.[0
--9]+)?))$`,
-					valStr)
+				// Look for a floating point number: .NUM+ or NUM+(.NUM+)?
+				ok, err :=
+					regexp.MatchString(`^(\.[0-9]+()|([0-9]+(\.[0-9]+)?))$`,
+						valStr)
 				Error(err)
 				if ok {
 					fl, err := strconv.ParseFloat(valStr, 64)
@@ -254,27 +274,40 @@ func createFunc(cmd *cobra.Command, args []string) {
 				}
 			}
 
-			if doDel || doAdd {
-				tmpName, _, _ := strings.Cut(name, ".")
-				if tmpName != "" && IsNil(dataMap[tmpName]) &&
-					!IsNil(oldData[tmpName]) {
+			pp, err := PropPathFromUI(name)
+			Error(err)
 
-					dataMap[tmpName] = oldData[tmpName]
+			rootName := pp.Top()
+
+			oldVal, ok := dataMap[rootName]
+			if !ok {
+				oldVal = oldData[rootName]
+				if !IsNil(oldVal) {
+					dataMap[rootName] = oldVal
 				}
 			}
 
-			pp, err := PropPathFromUI(name)
-			Error(err)
-			err = ObjectSetProp(dataMap, pp, val)
+			/*
+				if action == "del" || action == "add" {
+					// Grab top-level attribute's value from oldData so we can
+					// add to it, only if we don't already have data in dataMap
+					if IsNil(dataMap[rootName]) && !IsNil(oldData[rootName]) {
+						dataMap[rootName] = oldData[rootName]
+					}
+				}
+			*/
+
+			err = ObjectSetProp(dataMap, pp, val, "SHRINK_ARRAYS")
 			Error(err)
 
 			// Not sure if this is smart or a hack but until something breaks
-			// do it. We need this because ObjectSetProp doesn't apply a patch
+			// do it. We need this because ObjectSetProp doesn't apply a patch,
 			// it will erase an attribute being set to null rather than storing
 			// the attribute with a value of "nil" which is what we need for
-			// our PATCH
+			// our PATCH call to the server. Notice this just applies for the
+			// root attr processing.
 			if pp.Len() == 1 && val == nil {
-				dataMap[pp.Top()] = nil
+				dataMap[rootName] = nil
 			}
 		}
 

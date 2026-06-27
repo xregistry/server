@@ -19,6 +19,7 @@ func addGetCmd(parent *cobra.Command) {
 		Run:     getFunc,
 		GroupID: "Entities",
 	}
+	getCmd.Flags().StringArrayP("filter", "f", nil, "Filter: expr[,expr]")
 	getCmd.Flags().StringArrayP("inline", "i", nil, "Inline entities: *, ...")
 	getCmd.Flags().Bool("doc", false, "Retieve document view of entities")
 	getCmd.Flags().StringP("output", "o", "json", "Output format: json*, table")
@@ -36,6 +37,7 @@ func getFunc(cmd *cobra.Command, args []string) {
 	reg, xErr := xrlib.GetRegistry(GetServer())
 	Error(xErr)
 
+	filters, _ := cmd.Flags().GetStringArray("filter")
 	inlines, _ := cmd.Flags().GetStringArray("inline")
 	docView, _ := cmd.Flags().GetBool("doc")
 	output, _ := cmd.Flags().GetString("output")
@@ -84,6 +86,10 @@ func getFunc(cmd *cobra.Command, args []string) {
 	if docView {
 		path = AddQuery(path, "doc")
 	}
+	if len(filters) > 0 {
+		path = AddQuery(path, "filter="+strings.Join(filters, ","))
+	}
+
 	if cmd.Flags().Changed("inline") && len(inlines) == 0 {
 		path = AddQuery(path, "inline")
 	} else if len(inlines) > 0 {

@@ -30,8 +30,6 @@ xr conform
 
 xr create XID
   # Create a new entity in the registry
-      --add stringArray      Add to an attribute: --add NAME[=(VALUE |
-                             "STRING")]
       --config string        Config file ($HOME/.xrconfig)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute: --del NAME
@@ -82,6 +80,7 @@ xr get [XID]
   -m, --details              Show resource metadata
       --doc                  Retieve document view of entities
       --errjson              Print errors as json
+  -f, --filter stringArray   Filter: expr[,expr]
   -?, --help                 Help for xr
   -i, --inline stringArray   Inline entities: *, ...
   -o, --output string        Output format: json*, table
@@ -356,7 +355,6 @@ xr serve DIR
 
 xr update XID
   # Update an entity in the registry
-      --add stringArray      Add to an attribute
       --config string        Config file ($HOME/.xrconfig)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute
@@ -374,7 +372,6 @@ xr update XID
 
 xr upsert XID
   # UPdate, or inSERT as appropriate, an entity in the registry
-      --add stringArray      Add to an attribute
       --config string        Config file ($HOME/.xrconfig)
   -d, --data string          Data, @FILE, @URL, @-(stdin)
       --del stringArray      Delete an attribute

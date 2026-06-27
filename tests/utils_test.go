@@ -488,7 +488,7 @@ func XCLIServer(serverURL string) {
 func XCLI(t *testing.T, line string, in, Eout, Eerr string, work bool, flags ...string) {
 	t.Helper()
 
-	args := strings.Split(line, " ")
+	args := SplitCommandLine(line)
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
 
