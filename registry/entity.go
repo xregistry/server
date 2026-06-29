@@ -2204,7 +2204,11 @@ func (e *Entity) GetCollections() [][2]string {
 func (e *Entity) GetAttributes(obj Object) Attributes {
 	attrs := e.GetBaseAttributes()
 	if obj == nil {
-		obj = e.NewObject
+		if e.NewObject != nil {
+			obj = e.NewObject
+		} else {
+			obj = e.Object
+		}
 	}
 
 	attrs.AddIfValuesAttributes(obj)

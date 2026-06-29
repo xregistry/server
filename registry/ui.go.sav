@@ -714,46 +714,12 @@ toggleExp(null, false);
     padding-bottom: 4px ;
     border-bottom: 1px solid #e0e0e0 ;
   }
-  .boolGrid {
+  .optionsGrid {
     display: grid ;
     grid-template-columns: repeat(3, 1fr) ;
-    gap: 6px 10px ;
+    gap: 4px 12px ;
     margin-bottom: 8px ;
   }
-  .boolCell {
-    display: flex ;
-    flex-direction: row ;
-    align-items: center ;
-    gap: 4px ;
-  }
-  .boolCell label {
-    font-size: 11px ;
-    font-weight: bold ;
-    color: #444 ;
-    width: 130px ;
-    flex-shrink: 0 ;
-  }
-  .boolSeg {
-    display: inline-flex ;
-    border: 1px solid #ccc ;
-    border-radius: 8px ;
-    overflow: hidden ;
-    height: 24px ;
-  }
-  .boolSegBtn {
-    border: none ;
-    padding: 1px 4px ;
-    font-size: 12px ;
-    cursor: pointer ;
-    background: #f5f5f5 ;
-    color: #000 ;
-    line-height: 20px ;
-  }
-  .boolSegBtn:not(:last-child) { border-right: 1px solid #ccc ; }
-  .boolSegBtn.boolSegActive { background: #4a7c24 ; color: #fff ; }
-  .boolSegBtn:hover:not(.boolSegActive) { background: #e8e8e8 ; }
-  .boolSegReadOnly .boolSegBtn { cursor: default ; pointer-events: none ; }
-  .boolSegReadOnly .boolSegBtn:not(.boolSegActive) { color: #bbb ; }
   .editorBtn {
     border-radius: 8px ;
     border: 1px solid #407d16 ;
@@ -1570,10 +1536,7 @@ function saveAttrFrom(attrsObj, origKey) {
   var enm = collectEnum('ef_enum') ;
   if (enm.length) attr.enum = enm ;
   ['required','readonly','immutable','matchcase','matchversions','strict'].forEach(function(f) {
-    var v = fvBool('ef_'+f) ;
-    if (v === true) attr[f] = true ;
-    else if (v === false) attr[f] = false ;
-    else delete attr[f] ;
+    var el = document.getElementById('ef_'+f) ; if (el && el.checked) attr[f] = true ;
   }) ;
   // Preserve nested structures edited via drill-down (not part of this form)
   if (existing.attributes) attr.attributes = existing.attributes ;
@@ -1615,10 +1578,7 @@ function saveResourceFields(gk, rk) {
   if (maxv !== '') res.maxversions = parseInt(maxv, 10) || 0 ; else delete res.maxversions ;
   setOrDel(res, 'versionmode', fv('ef_versionmode')) ;
   ['setversionid','hasdocument','singleversionroot','validateformat','validatecompatibility','strictvalidation'].forEach(function(f) {
-    var v = fvBool('ef_'+f) ;
-    if (v === true) res[f] = true ;
-    else if (v === false) res[f] = false ;
-    else delete res[f] ;
+    var el = document.getElementById('ef_'+f) ; if (el) res[f] = el.checked ;
   }) ;
   var lbls = collectLabels('ef_labels') ;
   if (Object.keys(lbls).length) res.labels = lbls ; else delete res.labels ;
@@ -1688,16 +1648,22 @@ function renderResourceFields(div, gk, rk) {
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   div.appendChild(optSec) ;
   var optList = [
-    ['hasdocument',          'Has Document',          r.hasdocument],
-    ['setversionid',         'Set Version ID',         r.setversionid],
-    ['singleversionroot',    'Single Version Root',    r.singleversionroot],
-    ['strictvalidation',     'Strict Validation',      r.strictvalidation],
-    ['validatecompatibility','Validate Compatibility', r.validatecompatibility],
-    ['validateformat',       'Validate Format',        r.validateformat]
+    ['hasdocument',          'Has Document',          r.hasdocument !== false],
+    ['setversionid',         'Set Version ID',         r.setversionid !== false],
+    ['singleversionroot',    'Single Version Root',    r.singleversionroot||false],
+    ['strictvalidation',     'Strict Validation',      r.strictvalidation||false],
+    ['validatecompatibility','Validate Compatibility', r.validatecompatibility||false],
+    ['validateformat',       'Validate Format',        r.validateformat||false]
   ] ;
-  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
-  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
-  div.appendChild(boolGrid) ;
+  var grid = document.createElement('div') ; grid.className = 'optionsGrid' ;
+  optList.forEach(function(t) {
+    var row = document.createElement('div') ; row.style.display = 'flex' ; row.style.alignItems = 'center' ; row.style.gap = '5px' ;
+    var cb = document.createElement('input') ; cb.type = 'checkbox' ; cb.id = 'ef_'+t[0] ; cb.checked = t[2] ;
+    var lbl = document.createElement('label') ; lbl.textContent = t[1] ; lbl.htmlFor = 'ef_'+t[0] ;
+    lbl.style.fontSize = '12px' ; lbl.style.color = '#555' ; lbl.style.fontWeight = 'normal' ;
+    row.appendChild(cb) ; row.appendChild(lbl) ; grid.appendChild(row) ;
+  }) ;
+  div.appendChild(grid) ;
   div.appendChild(makeLabelsEditor('ef_labels', r.labels||{})) ;
 }
 
@@ -1819,18 +1785,24 @@ function renderAttrForm(div, attr) {
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   div.appendChild(optSec) ;
   var optList = [
-    ['immutable',  'Immutable',  attr.immutable],
-    ['matchcase',  'Match Case', attr.matchcase],
-    ['readonly',   'Read Only',  attr.readonly],
-    ['required',   'Required',   attr.required],
-    ['strict',     'Strict',     attr.strict]
+    ['immutable',  'Immutable',  attr.immutable||false],
+    ['matchcase',  'Match Case', attr.matchcase||false],
+    ['readonly',   'Read Only',  attr.readonly||false],
+    ['required',   'Required',   attr.required||false],
+    ['strict',     'Strict',     attr.strict === true]
   ] ;
-  if (isVersionAttrs) optList.push(['matchversions','Match Versions', attr.matchversions]) ;
+  if (isVersionAttrs) optList.push(['matchversions','Match Versions', attr.matchversions||false]) ;
   // Sort alphabetically by label
   optList.sort(function(a,b){ return a[1].localeCompare(b[1]) ; }) ;
-  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
-  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
-  div.appendChild(boolGrid) ;
+  var grid = document.createElement('div') ; grid.className = 'optionsGrid' ;
+  optList.forEach(function(t) {
+    var row = document.createElement('div') ; row.style.display = 'flex' ; row.style.alignItems = 'center' ; row.style.gap = '5px' ;
+    var cb = document.createElement('input') ; cb.type = 'checkbox' ; cb.id = 'ef_'+t[0] ; cb.checked = t[2] ;
+    var lbl = document.createElement('label') ; lbl.textContent = t[1] ; lbl.htmlFor = 'ef_'+t[0] ;
+    lbl.style.fontSize = '12px' ; lbl.style.color = '#555' ; lbl.style.fontWeight = 'normal' ;
+    row.appendChild(cb) ; row.appendChild(lbl) ; grid.appendChild(row) ;
+  }) ;
+  div.appendChild(grid) ;
 
   // If-Values drill-down button — left-aligned under section header
   var ifvSec = document.createElement('div') ; ifvSec.className = 'editorSectionLabel' ; ifvSec.textContent = 'If-Values' ;
@@ -1943,12 +1915,18 @@ function renderItemForm(div, item) {
   var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
   complexSec.appendChild(optSec) ;
   var optList = [
-    ['item_readonly', 'Read Only', item.readonly],
-    ['item_strict',   'Strict',    item.strict]
+    ['item_readonly', 'Read Only', item.readonly||false],
+    ['item_strict',   'Strict',    item.strict === true]
   ] ;
-  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
-  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
-  complexSec.appendChild(boolGrid) ;
+  var grid = document.createElement('div') ; grid.className = 'optionsGrid' ;
+  optList.forEach(function(t) {
+    var row = document.createElement('div') ; row.style.display = 'flex' ; row.style.alignItems = 'center' ; row.style.gap = '5px' ;
+    var cb = document.createElement('input') ; cb.type = 'checkbox' ; cb.id = 'ef_'+t[0] ; cb.checked = t[2] ;
+    var lbl = document.createElement('label') ; lbl.textContent = t[1] ; lbl.htmlFor = 'ef_'+t[0] ;
+    lbl.style.fontSize = '12px' ; lbl.style.color = '#555' ; lbl.style.fontWeight = 'normal' ;
+    row.appendChild(cb) ; row.appendChild(lbl) ; grid.appendChild(row) ;
+  }) ;
+  complexSec.appendChild(grid) ;
   div.appendChild(complexSec) ;
 
   function syncItemTypeFields() {
@@ -1980,8 +1958,8 @@ function saveItemForm(parentAttr) {
   if (ncsEl && !ncsEl.disabled) { var ncs = ncsEl.value ; if (ncs) itm.namecharset = ncs ; else delete itm.namecharset ; }
   var enm = collectEnum('ef_item_enum') ;
   if (enm.length) itm.enum = enm ; else delete itm.enum ;
-  var rov = fvBool('ef_item_readonly') ; if (rov === true) itm.readonly = true ; else if (rov === false) itm.readonly = false ; else delete itm.readonly ;
-  var stv = fvBool('ef_item_strict') ; if (stv === true) itm.strict = true ; else if (stv === false) itm.strict = false ; else delete itm.strict ;
+  var roEl = document.getElementById('ef_item_readonly') ; if (roEl) { if (roEl.checked) itm.readonly = true ; else delete itm.readonly ; }
+  var stEl = document.getElementById('ef_item_strict') ; if (stEl) { if (stEl.checked) itm.strict = true ; else delete itm.strict ; }
 }
 
 function uniqueKey(obj, base) {
@@ -2108,37 +2086,6 @@ function ecb(id, label, checked) {
   var cb = document.createElement('input') ; cb.type = 'checkbox' ; cb.id = id ; cb.checked = checked ;
   var lbl = document.createElement('label') ; lbl.textContent = label ; lbl.htmlFor = id ;
   row.appendChild(cb) ; row.appendChild(lbl) ; return row ;
-}
-
-function efBool(id, label, value) {
-  var cell = document.createElement('div') ; cell.className = 'boolCell' ;
-  var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
-  var seg = document.createElement('div') ;
-  var cur = (value === true) ? 'true' : (value === false) ? 'false' : '' ;
-  seg.className = 'boolSeg' + (_modelReadOnly ? ' boolSegReadOnly' : '') ;
-  seg.id = id ; seg.dataset.val = cur ;
-  var btns = [['true','true'],['false','false'],['\u2014','']] ;
-  btns.forEach(function(b) {
-    var btn = document.createElement('button') ; btn.type = 'button' ;
-    btn.textContent = b[0] ; btn.className = 'boolSegBtn' + (cur === b[1] ? ' boolSegActive' : '') ;
-    if (b[1] === '') btn.title = 'Unspecified' ;
-    btn.onclick = function() {
-      seg.dataset.val = b[1] ;
-      seg.querySelectorAll('.boolSegBtn').forEach(function(x){ x.classList.remove('boolSegActive') ; }) ;
-      btn.classList.add('boolSegActive') ;
-      markDirty() ;
-    } ;
-    seg.appendChild(btn) ;
-  }) ;
-  cell.appendChild(lbl) ; cell.appendChild(seg) ; return cell ;
-}
-
-function fvBool(id) {
-  var el = document.getElementById(id) ;
-  if (!el) return null ;
-  if (el.dataset.val === 'true') return true ;
-  if (el.dataset.val === 'false') return false ;
-  return null ;
 }
 
 function makeLabelsEditor(containerId, labels) {

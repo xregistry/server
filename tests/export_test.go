@@ -2788,3 +2788,160 @@ func TestExportNoDoc(t *testing.T) {
 `)
 
 }
+
+func TestExportImportModel(t *testing.T) {
+	reg := NewRegistry("TestExportImportModel")
+	defer PassDeleteReg(t, reg)
+
+	// We had a bug where if-values were being lost during a model update
+	// during the verificatino phase - so it complained about unknown attrs
+
+	src := `{
+      "modelsource": {
+        "attributes": {
+          "name": {
+            "type": "string",
+            "ifvalues": {
+              "john": {
+                "siblingattributes": {
+                  "ext": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "hasdocument": false,
+                "attributes": {
+                  "test": { "type": "string" },
+                  "name": {
+                    "type": "string",
+                    "enum": [ "joe", "mary" ],
+                    "ifvalues": {
+                      "joe": {
+                        "siblingattributes": {
+                          "foo": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } ,
+            "constraints": {
+              "files.test": {
+                "enum": [ "see me", "d1" ],
+                "default": "d1",
+                "equals": "dirid"
+              }
+            }
+          }
+        }
+      },
+      "name": "john",
+      "ext": 666,
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "name": "joe",
+              "foo": "bar"
+            }
+          }
+        }
+      }
+    }`
+
+	XHTTP(t, reg, "PUT", "/?inline", src, 200, `{
+  "specversion": "1.0-rc3",
+  "registryid": "TestExportImportModel",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "name": "john",
+  "createdat": "2026-06-29T21:14:59.423677142Z",
+  "modifiedat": "2026-06-29T21:14:59.433057599Z",
+  "ext": 666,
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2026-06-29T21:14:59.433057599Z",
+      "modifiedat": "2026-06-29T21:14:59.433057599Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "1",
+          "self": "http://localhost:8181/dirs/d1/files/f1",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "name": "joe",
+          "isdefault": true,
+          "createdat": "2026-06-29T21:14:59.433057599Z",
+          "modifiedat": "2026-06-29T21:14:59.433057599Z",
+          "ancestor": "1",
+          "foo": "bar",
+          "test": "d1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 1,
+            "createdat": "2026-06-29T21:14:59.433057599Z",
+            "modifiedat": "2026-06-29T21:14:59.433057599Z",
+            "readonly": false,
+
+            "defaultversionid": "1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "1": {
+              "fileid": "f1",
+              "versionid": "1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+              "xid": "/dirs/d1/files/f1/versions/1",
+              "epoch": 1,
+              "name": "joe",
+              "isdefault": true,
+              "createdat": "2026-06-29T21:14:59.433057599Z",
+              "modifiedat": "2026-06-29T21:14:59.433057599Z",
+              "ancestor": "1",
+              "foo": "bar",
+              "test": "d1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 1
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	// Now export the model so we can re-add it
+	res := XDoHTTP(t, reg, "GET", "/model", "")
+	XCheck(t, res.StatusCode == 200, "Should be 200")
+
+	// Import it and make sure it passes
+	XHTTP(t, reg, "PUT", "/modelsource", res.body, 200, res.body)
+
+	// GET /model should return it too
+	XHTTP(t, reg, "GET", "/model", "", 200, res.body)
+}

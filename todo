@@ -116,7 +116,6 @@ TODOs:
   capability values (pre or post tx) for each capability & model
 ** fix concurrency issues as seen in TestMiscConcurrency
 ** fix DB locking - we need to lock entire entity, not just the rows touched
-- see why xr model get | xr model update for reg-CloudEvents fails
 ** support arrays
 - test for arrays (and indexes) & maps in filter querys. Do arrays need indexes?
 - time our tests and see which ones are the slowest, fix them
