@@ -540,6 +540,8 @@ toggleExp(null, false);
     user-select: none ;
     vertical-align: middle ;
     margin-right: 6px ;
+    display: inline-block ;
+    transform: scaleX(-1) ;
   }
   .viewTogglePencil:hover { background: #d0d0d0 ; }
   .viewTogglePencilActive { background: #407d16 ; color: white ; border-color: #407d16 ; }
@@ -587,6 +589,22 @@ toggleExp(null, false);
     background: #f8f8f8 ;
     border-bottom: 2px solid #bbb ;
     flex-shrink: 0 ;
+    display: flex ;
+    align-items: center ;
+    flex-wrap: wrap ;
+    gap: 4px ;
+  }
+  .navToggleBtn {
+    display: none ;
+    background: none ;
+    border: none ;
+    font-size: 20px ;
+    cursor: pointer ;
+    padding: 0 4px ;
+    color: #333 ;
+    flex-shrink: 0 ;
+    align-self: center ;
+    line-height: 1 ;
   }
   .bcLink { cursor: pointer ; color: #2060a0 ; }
   .bcLink:hover { text-decoration: underline ; }
@@ -596,6 +614,7 @@ toggleExp(null, false);
     display: flex ;
     flex: 1 ;
     overflow: hidden ;
+    position: relative ;
   }
   .editorLeftNav {
     width: 200px ;
@@ -617,13 +636,9 @@ toggleExp(null, false);
     display: flex ;
     align-items: center ;
   }
-  .navItem:hover { background: #e8eef8 ; }
   .navItemSelected { background: #dde8f8 ; font-weight: bold ; color: #1a3a6a ; }
-  .navItemSelected:hover { background: #dde8f8 ; }
   .navItemArrow { margin-left: auto ; color: #555 ; font-size: 18px ; font-weight: bold ; }
-  .navItemDel { margin-left: 6px ; color: #a00 ; font-size: 11px ; cursor: pointer ; padding: 0 4px ; border-radius: 3px ; visibility: hidden ; flex-shrink: 0 ; }
-  .navItem:hover .navItemDel { visibility: visible ; }
-  .navItemDel:hover { background: #fee ; }
+  .navItemDel { margin-left: 6px ; color: #a00 ; font-size: 11px ; cursor: pointer ; padding: 0 4px ; border-radius: 3px ; flex-shrink: 0 ; }
   .navItemAdd {
     padding: 7px 12px ;
     color: #407d16 ;
@@ -633,10 +648,16 @@ toggleExp(null, false);
     border-bottom: 1px solid #e8e8e8 ;
     user-select: none ;
   }
-  .navItemAdd:hover { background: #e8f8e0 ; }
+  @media (hover: hover) {
+    .navItem:hover { background: #e8eef8 ; }
+    .navItemSelected:hover { background: #dde8f8 ; }
+    .navItemDel:hover { background: #fee ; }
+    .navItemAdd:hover { background: #e8f8e0 ; }
+  }
   .editorRightPanel {
     flex: 1 ;
     overflow-y: auto ;
+    overflow-x: hidden ;
     padding: 16px 20px ;
   }
   .editorHint {
@@ -657,6 +678,7 @@ toggleExp(null, false);
   .editorField {
     display: flex ;
     align-items: center ;
+    flex-wrap: wrap ;
     gap: 10px ;
     margin-bottom: 8px ;
   }
@@ -670,6 +692,7 @@ toggleExp(null, false);
   }
   .editorInput {
     flex: 1 ;
+    min-width: 120px ;
     border: 1px solid #ccc ;
     border-radius: 4px ;
     padding: 3px 6px ;
@@ -716,7 +739,8 @@ toggleExp(null, false);
   }
   .boolGrid {
     display: grid ;
-    grid-template-columns: repeat(3, 1fr) ;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) ;
+    width: 100% ;
     gap: 6px 10px ;
     margin-bottom: 8px ;
   }
@@ -724,30 +748,35 @@ toggleExp(null, false);
     display: flex ;
     flex-direction: row ;
     align-items: center ;
-    gap: 4px ;
+    gap: 6px ;
   }
   .boolCell label {
     font-size: 11px ;
     font-weight: bold ;
     color: #444 ;
-    width: 130px ;
+    width: 65px ;
     flex-shrink: 0 ;
+    white-space: normal ;
+    line-height: 1.3 ;
   }
   .boolSeg {
     display: inline-flex ;
     border: 1px solid #ccc ;
     border-radius: 8px ;
     overflow: hidden ;
-    height: 24px ;
+    height: 28px ;
+    flex-shrink: 0 ;
   }
   .boolSegBtn {
     border: none ;
-    padding: 1px 4px ;
+    padding: 0 4px ;
+    min-width: 34px ;
     font-size: 12px ;
     cursor: pointer ;
     background: #f5f5f5 ;
     color: #000 ;
-    line-height: 20px ;
+    line-height: 28px ;
+    text-align: center ;
   }
   .boolSegBtn:not(:last-child) { border-right: 1px solid #ccc ; }
   .boolSegBtn.boolSegActive { background: #4a7c24 ; color: #fff ; }
@@ -820,6 +849,31 @@ toggleExp(null, false);
   .savingSpinner { width:36px; height:36px; border:4px solid #ddd; border-top-color:#555;
     border-radius:50%; animation:spin 0.8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  @media (max-width: 768px) {
+    body { flex-direction: column ; height: 100dvh ; }
+    #left { border-right: none ; border-bottom: 2px solid lightgray ; min-width: unset ; width: 100% ; }
+    #right { flex: 1 ; min-height: 0 ; overflow: hidden ; }
+    .navToggleBtn { display: inline-flex ; align-items: center ; }
+    .editorLeftNav {
+      display: none ;
+      position: fixed ;
+      top: 0 ; left: 0 ;
+      width: 80% ; max-width: 280px ;
+      overflow-y: auto ;
+      padding-bottom: env(safe-area-inset-bottom, 0px) ;
+      z-index: 100 ;
+      box-shadow: 4px 0 16px rgba(0,0,0,0.25) ;
+      border-right: 1px solid #ccc ;
+    }
+    .editorLeftNav.navOpen { display: flex ; }
+    .editorActionBar { position: sticky ; top: 0 ; z-index: 10 ; }
+    .editorField { flex-direction: column ; align-items: stretch ; gap: 4px ; }
+    .editorField label { width: auto ; }
+    .editorInput { font-size: 16px ; }
+    .editorBtn { min-height: 36px ; }
+    .boolSeg { height: 18px ; }
+    .boolSegBtn { line-height: 18px ; }
+  }
 `
 
 		editorJS = `
@@ -895,6 +949,9 @@ function doSwitchView(mode) {
     if (leftNav) leftNav.style.display = '' ;
     if (myOut) { myOut.style.display = '' ; myOut.style.flexDirection = '' ;
                  myOut.style.padding = '' ; myOut.style.overflow = '' ; }
+    // Move expandAll div back to its fixed position in myOutput
+    var exAll = document.getElementById('expandAll') ;
+    if (exAll && myOut) { exAll.style.position = '' ; exAll.style.marginLeft = '' ; myOut.insertBefore(exAll, myOut.firstChild) ; }
     if (jBtn) jBtn.className = 'viewToggleBtn viewToggleBtnActive' ;
     if (fBtn) fBtn.className = 'viewToggleBtn' ;
     if (eBtn) eBtn.style.display = 'none' ;
@@ -1106,13 +1163,13 @@ function addNewIfValue() {
   var ifv = ctx.ifvMap ; if (!ifv) return ;
   var k = uniqueKey(ifv, 'value') ;
   ifv[k] = {siblingattributes:{}} ;
-  _navSelected = k ; renderEditor() ;
+  markDirty() ; _navSelected = k ; renderEditor() ;
 }
 
 function deleteIfValue(k) {
   var ctx = resolveAttrNesting(false) ;
   if (ctx.ifvMap) delete ctx.ifvMap[k] ;
-  if (_navSelected === k) _navSelected = null ; renderEditor() ;
+  markDirty() ; if (_navSelected === k) _navSelected = null ; renderEditor() ;
 }
 
 function drillIntoIfValueSiblings() {
@@ -1142,7 +1199,7 @@ function renderIfValueForm(div, valueKey, ifvMap) {
   drilledBtnRow.style.marginTop = '8px' ;
   var spacer = document.createElement('label') ; spacer.style.visibility = 'hidden' ;
   drilledBtnRow.appendChild(spacer) ;
-  var drilledBtn = document.createElement('button') ; drilledBtn.className = 'editorBtn' ;
+  var drilledBtn = document.createElement('button') ; drilledBtn.className = 'editorBtn navDrillBtn' ;
   drilledBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
   drilledBtn.textContent = '\u25b6 Edit Sibling Attributes' + (sibCount ? ' ('+sibCount+')' : '') ;
   drilledBtn.onclick = drillIntoIfValueSiblings ;
@@ -1163,6 +1220,13 @@ function saveIfValueFrom(ifvMap, origKey) {
 
 function renderEditor() {
   var div = document.getElementById('modelEditor') ;
+  // Rescue #expandAll from the old breadcrumb before wiping innerHTML
+  var exAll = document.getElementById('expandAll') ;
+  var myOut = document.getElementById('myOutput') ;
+  if (exAll && div.contains(exAll) && myOut) {
+    exAll.style.position = '' ; exAll.style.marginLeft = '' ;
+    myOut.insertBefore(exAll, myOut.firstChild) ;
+  }
   div.innerHTML = '' ;
 
   // Action bar
@@ -1196,7 +1260,16 @@ function renderEditor() {
   }
 
   // Breadcrumb (replaces tab bar)
-  var bc = buildBreadcrumb() ; div.appendChild(bc) ;
+  var bc = buildBreadcrumb() ;
+  // Mobile nav toggle button — insert before breadcrumb content
+  var toggleBtn = document.createElement('button') ;
+  toggleBtn.className = 'navToggleBtn' ; toggleBtn.type = 'button' ;
+  toggleBtn.textContent = '\u2630' ; toggleBtn.title = 'Show navigation' ;
+  bc.insertBefore(toggleBtn, bc.firstChild) ;
+  // Move the view-toggle buttons into the breadcrumb (right-aligned)
+  var exAll = document.getElementById('expandAll') ;
+  if (exAll) { exAll.style.position = 'static' ; exAll.style.marginLeft = 'auto' ; bc.appendChild(exAll) ; }
+  div.appendChild(bc) ;
 
   // Body: left nav + right panel
   var body = document.createElement('div') ; body.className = 'editorBody' ;
@@ -1204,7 +1277,24 @@ function renderEditor() {
   buildLeftNav(lnav) ;
   var rpanel = document.createElement('div') ; rpanel.className = 'editorRightPanel' ;
   buildRightPanel(rpanel) ;
-  body.appendChild(lnav) ; body.appendChild(rpanel) ;
+  // Backdrop for nav overlay (mobile only)
+  var backdrop = document.createElement('div') ;
+  backdrop.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99;' ;
+  function openNav() {
+    var bc = document.querySelector('.editorBreadcrumb') ;
+    var topPx = bc ? (bc.offsetTop + bc.offsetHeight) : 0 ;
+    lnav.style.top = topPx + 'px' ;
+    lnav.style.maxHeight = 'calc(100dvh - ' + topPx + 'px - env(safe-area-inset-bottom, 0px))' ;
+    backdrop.style.top = lnav.style.top ;
+    lnav.classList.add('navOpen') ; backdrop.style.display = 'block' ; toggleBtn.textContent = '\u2715' ;
+  }
+  window._editorOpenNav = openNav ;
+  function closeNav() {
+    lnav.classList.remove('navOpen') ; backdrop.style.display = 'none' ; toggleBtn.textContent = '\u2630' ;
+  }
+  toggleBtn.onclick = function() { lnav.classList.contains('navOpen') ? closeNav() : openNav() ; } ;
+  backdrop.onclick = closeNav ;
+  body.appendChild(backdrop) ; body.appendChild(lnav) ; body.appendChild(rpanel) ;
   div.appendChild(body) ;
 
   if (_modelReadOnly) applyReadOnly(div) ;
@@ -1306,7 +1396,7 @@ function buildLeftNav(div) {
     if (deleteFn && !_modelReadOnly) {
       var del = document.createElement('span') ; del.className = 'navItemDel' ;
       del.textContent = '\u2715' ; del.title = 'Remove' ;
-      del.onclick = function(e) { e.stopPropagation() ; deleteFn() ; } ;
+      del.onclick = function(e) { e.stopPropagation() ; confirmDel('"' + (typeof label === 'string' ? label : el.textContent.trim()) + '"', deleteFn) ; } ;
       el.appendChild(del) ;
     }
     if (isContainer) {
@@ -1441,7 +1531,13 @@ function buildLeftNav(div) {
 function buildRightPanel(div) {
   if (!_navSelected) {
     var hint = document.createElement('div') ; hint.className = 'editorHint' ;
-    hint.textContent = '\u2190 Select an item from the left' ; div.appendChild(hint) ; return ;
+    hint.textContent = '\u2190 Select an item from the left' ; div.appendChild(hint) ;
+    // On mobile the nav is hidden in a dropdown — auto-open it so user isn't stranded
+    var toggleBtn = document.querySelector('.navToggleBtn') ;
+    if (toggleBtn && getComputedStyle(toggleBtn).display !== 'none') {
+      setTimeout(function() { var o = window._editorOpenNav ; if (o) o() ; }, 50) ;
+    }
+    return ;
   }
 
   // Nested attribute context
@@ -1761,7 +1857,7 @@ function renderAttrForm(div, attr) {
   var nestLblSpacer = document.createElement('label') ; nestLblSpacer.style.visibility = 'hidden' ;
   nestBtnRow.appendChild(nestLblSpacer) ;
   var nestBtn = document.createElement('button') ;
-  nestBtn.className = 'editorBtn' ;
+  nestBtn.className = 'editorBtn navDrillBtn' ;
   nestBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
   var currentAttrKey = _navSelected ;
   function updateNestBtn() {
@@ -1841,7 +1937,7 @@ function renderAttrForm(div, attr) {
     ifvNone.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
     div.appendChild(ifvNone) ;
   } else {
-    var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn' ;
+    var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn navDrillBtn' ;
     ifvBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-bottom:6px;' ;
     ifvBtn.textContent = '\u25b6 If-Values' + (ifvCount ? ' ('+ifvCount+')' : '') ;
     ifvBtn.onclick = function() {
@@ -1886,9 +1982,8 @@ function renderItemForm(div, item) {
   nestBtnRow.style.marginBottom = '6px' ;
   var nestLblSpacer2 = document.createElement('label') ; nestLblSpacer2.style.visibility = 'hidden' ;
   nestBtnRow.appendChild(nestLblSpacer2) ;
-  var nestBtn = document.createElement('button') ; nestBtn.className = 'editorBtn' ;
+  var nestBtn = document.createElement('button') ; nestBtn.className = 'editorBtn navDrillBtn' ;
   nestBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
-  nestBtn.textContent = '\u25b6 Edit Nested Attributes' ;
   function updateItemNestBtn() {
     var t = typeSel.value ;
     if (t === 'object') {
@@ -1994,7 +2089,7 @@ function addNewGroup() {
   var m = _modelData || {} ; if (!m.groups) m.groups = {} ;
   var key = uniqueKey(m.groups, 'new') ;
   m.groups[key] = {plural:'',singular:''} ;
-  _navTab = 'groups' ; _navPath = [key] ; _navSelected = 'fields' ; renderEditor() ;
+  markDirty() ; _navTab = 'groups' ; _navPath = [key] ; _navSelected = 'fields' ; renderEditor() ;
 }
 
 function addNewResource(gk) {
@@ -2003,7 +2098,7 @@ function addNewResource(gk) {
   if (!grp.resources) grp.resources = {} ;
   var key = uniqueKey(grp.resources, 'new') ;
   grp.resources[key] = {plural:'',singular:''} ;
-  _navPath = [gk,'resources',key] ; _navSelected = 'fields' ; renderEditor() ;
+  markDirty() ; _navPath = [gk,'resources',key] ; _navSelected = 'fields' ; renderEditor() ;
 }
 
 function addNewAttr() {
@@ -2017,7 +2112,7 @@ function addNewAttr() {
       if (!nestedAttrs) return ;
       var key = uniqueKey(nestedAttrs, 'new') ;
       nestedAttrs[key] = {name:key, type:'string'} ;
-      _navSelected = key ; renderEditor() ;
+      markDirty() ; _navSelected = key ; renderEditor() ;
     }
     return ;
   }
@@ -2038,18 +2133,22 @@ function addNewAttr() {
   if (!attrsObj) return ;
   var key = uniqueKey(attrsObj, 'new') ;
   attrsObj[key] = {name:key, type:'string'} ;
-  _navSelected = key ; renderEditor() ;
+  markDirty() ; _navSelected = key ; renderEditor() ;
+}
+
+function confirmDel(label, fn) {
+  if (confirm('Delete ' + label + '?')) fn() ;
 }
 
 function deleteGroup(gk) {
   var m = _modelData || {} ; if (m.groups) delete m.groups[gk] ;
-  _navPath = [] ; _navSelected = null ; renderEditor() ;
+  markDirty() ; _navPath = [] ; _navSelected = null ; renderEditor() ;
 }
 
 function deleteResource(gk, rk) {
   var m = _modelData || {} ; var grp = (m.groups||{})[gk] ;
   if (grp && grp.resources) delete grp.resources[rk] ;
-  _navPath = [gk,'resources'] ; _navSelected = null ; renderEditor() ;
+  markDirty() ; _navPath = [gk,'resources'] ; _navSelected = null ; renderEditor() ;
 }
 
 function deleteAttr(key) {
@@ -2059,7 +2158,7 @@ function deleteAttr(key) {
     if (!top.isItem && !top.isIfValues) {
       var ctx = resolveAttrNesting(false) ;
       if (ctx.attrsObj) delete ctx.attrsObj[key] ;
-      if (_navSelected === key) _navSelected = null ; renderEditor() ;
+      markDirty() ; if (_navSelected === key) _navSelected = null ; renderEditor() ;
     }
     return ;
   }
@@ -2076,7 +2175,7 @@ function deleteAttr(key) {
     }
   }
   if (attrsObj) delete attrsObj[key] ;
-  if (_navSelected === key) _navSelected = null ; renderEditor() ;
+  markDirty() ; if (_navSelected === key) _navSelected = null ; renderEditor() ;
 }
 
 // ---- UI helpers ----
@@ -2173,7 +2272,7 @@ function makeLabelRow(k, v) {
   var vi = document.createElement('input') ; vi.type = 'text' ; vi.placeholder = 'value' ;
   vi.value = v ; vi.className = 'editorInput labelVal' ;
   var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-  rb.onclick = function() { row.remove() ; } ;
+  rb.onclick = function() { confirmDel('this label', function() { row.remove() ; }) ; } ;
   row.appendChild(ki) ; row.appendChild(vi) ; row.appendChild(rb) ; return row ;
 }
 
@@ -2219,7 +2318,7 @@ function makeEnumRow(val) {
   var inp = document.createElement('input') ; inp.type = 'text' ; inp.placeholder = 'value' ;
   inp.value = val ; inp.className = 'editorInput' ; inp.style.flex = '1' ;
   var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-  rb.onclick = function() { row.remove() ; } ;
+  rb.onclick = function() { confirmDel('this enum value', function() { row.remove() ; }) ; } ;
   row.appendChild(inp) ; row.appendChild(rb) ; return row ;
 }
 
@@ -2298,7 +2397,7 @@ function makeConstraintRow(key, constraint, gk) {
   titleSpan.textContent = key || 'New Constraint' ; blockHdr.appendChild(titleSpan) ;
   if (!_modelReadOnly) {
     var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-    rb.onclick = function() { block.remove() ; } ;
+    rb.onclick = function() { confirmDel('"' + (titleSpan.textContent || 'this constraint') + '"', function() { block.remove() ; }) ; } ;
     blockHdr.appendChild(rb) ;
   }
   block.appendChild(blockHdr) ;
@@ -2450,7 +2549,7 @@ function undoModel() {
 
 function applyReadOnly(container) {
   container.querySelectorAll('input, select, textarea').forEach(function(el) { el.disabled = true ; }) ;
-  container.querySelectorAll('.editorBtn, .rmBtn, .navItemAdd, .navItemDel').forEach(function(el) { el.style.display = 'none' ; }) ;
+  container.querySelectorAll('.editorBtn:not(.navDrillBtn), .rmBtn, .navItemAdd, .navItemDel').forEach(function(el) { el.style.display = 'none' ; }) ;
 }
 
 function saveModel(onSuccess) {
@@ -2492,6 +2591,7 @@ function saveModel(onSuccess) {
 	}
 
 	html := `<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head>
 <style>
   a:visited {
     color: black ;
@@ -2499,12 +2599,13 @@ function saveModel(onSuccess) {
   form {
     display: inline ;
   }
+  html, body { overflow: hidden ; }
   body {
     display: flex ;
     flex-direction: row ;
     flex-wrap: nowrap ;
     justify-content: flex-start ;
-    height: 100% ;
+    height: 100vh ;
     margin: 0 ;
   }
   #left {
@@ -2522,7 +2623,7 @@ function saveModel(onSuccess) {
     flex-wrap: nowrap ;
     justify-content: flex-start ;
     width: 100% ;
-    overflow: auto ;
+    overflow: hidden ;
   }
   #url {
     background-color: lightgray;
@@ -2943,7 +3044,7 @@ function dokeydown(event) {
     <b>Path:</b> ` + urlPath + `
   </div>
   <div id=myOutput tabindex=0 onkeydown=dokeydown(event)
-    ><div class=expandAll>
+    ><div id=expandAll class=expandAll>
       ` + editBtn + `
       <span id=expAll class=expandBtn title="Collapse/Expand all" onclick=toggleExp(null,false)>` + HTML_MIN + `</span>
     </div
