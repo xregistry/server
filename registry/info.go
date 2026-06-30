@@ -337,6 +337,10 @@ func NewRequestInfo(w http.ResponseWriter, r *http.Request) *RequestInfo {
 		if strings.HasPrefix(tmp, "https:") {
 			info.BaseURL = "https" + info.BaseURL[4:]
 		}
+	} else if tmp := r.Header.Get("Forwarded"); tmp != "" {
+		if strings.Contains(tmp, "https") {
+			info.BaseURL = "https" + info.BaseURL[4:]
+		}
 	}
 
 	return info
