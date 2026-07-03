@@ -30,6 +30,7 @@ var VerboseCount = 0 // to change, do it as definition of -v flag
 var DontCreate = false
 var RecreateDB = false
 var RecreateReg = false
+var UIDir = ""
 
 func ErrStop(errAny any, args ...any) {
 	ErrStopTx(errAny, nil, args...)
@@ -138,6 +139,8 @@ func setupCmds() *cobra.Command {
 		"Be chatty``")
 	serverCmd.PersistentFlags().BoolP("version", "", false,
 		"Print command version string")
+	serverCmd.Flags().StringVarP(&UIDir, "ui-dir", "", UIDir,
+		"Serve new UI from this directory (dev mode)")
 
 	serverCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
@@ -169,6 +172,7 @@ func setupCmds() *cobra.Command {
 	serverCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		log.SetVerbose(VerboseCount)
 		registry.DB_Name = DBName
+		registry.UIDir = UIDir
 
 		if b, _ := cmd.Flags().GetBool("version"); b {
 			fmt.Printf("Version: %s\n", GitCommit[:min(len(GitCommit), 12)])

@@ -1,0 +1,474 @@
+{
+  "capabilities": {
+    "available": {
+      "capabilities": {
+        "mutable": false
+      },
+      "capabilitiesoffered": {
+        "mutable": false
+      },
+      "entities": {
+        "mutable": false
+      },
+      "export": {
+        "mutable": false
+      },
+      "model": {
+        "mutable": false
+      },
+      "modelsource": {
+        "mutable": false
+      }
+    },
+    "compatibilities": {
+      "avro*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "jsonschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "numbers": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "protobuf*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
+      "xmlschema*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ]
+    },
+    "flags": null,
+    "formats": [
+      "avro*",
+      "jsonschema*",
+      "numbers",
+      "protobuf*",
+      "xmlschema*"
+    ],
+    "ignores": [
+      "capabilities",
+      "defaultversionid",
+      "defaultversionsticky",
+      "epoch",
+      "id",
+      "modelsource",
+      "readonly"
+    ],
+    "pagination": false,
+    "shortself": false,
+    "specversions": [
+      "1.0-rc3"
+    ],
+    "versionmodes": [
+      "createdat",
+      "manual"
+    ]
+  },
+  "createdat": "2026-07-02T20:39:15.784578963Z",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "#/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 2,
+      "createdat": "2026-07-02T23:09:18.670387558Z",
+      "modifiedat": "2026-07-02T23:10:04.506159745Z",
+      "filesurl": "#/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "self": "#/dirs/d1/files/f1",
+          "xid": "/dirs/d1/files/f1",
+          "metaurl": "#/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "#/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 3,
+            "createdat": "2026-07-02T23:09:18.670387558Z",
+            "modifiedat": "2026-07-02T23:09:27.969221352Z",
+            "readonly": false,
+            "defaultversionid": "v3.0",
+            "defaultversionurl": "#/dirs/d1/files/f1/versions/v3.0",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "#/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1.0": {
+              "fileid": "f1",
+              "versionid": "v1.0",
+              "self": "#/dirs/d1/files/f1/versions/v1.0",
+              "xid": "/dirs/d1/files/f1/versions/v1.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:18.670387558Z",
+              "modifiedat": "2026-07-02T23:09:18.670387558Z",
+              "ancestor": "v1.0",
+              "filebase64": ""
+            },
+            "v2.0": {
+              "fileid": "f1",
+              "versionid": "v2.0",
+              "self": "#/dirs/d1/files/f1/versions/v2.0",
+              "xid": "/dirs/d1/files/f1/versions/v2.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:23.442857961Z",
+              "modifiedat": "2026-07-02T23:09:23.442857961Z",
+              "ancestor": "v1.0",
+              "filebase64": ""
+            },
+            "v3.0": {
+              "fileid": "f1",
+              "versionid": "v3.0",
+              "self": "#/dirs/d1/files/f1/versions/v3.0",
+              "xid": "/dirs/d1/files/f1/versions/v3.0",
+              "epoch": 2,
+              "isdefault": true,
+              "createdat": "2026-07-02T23:09:27.969221352Z",
+              "modifiedat": "2026-07-02T23:15:59.27529706Z",
+              "ancestor": "v2.0",
+              "filebase64": "aGVsbG8gdGhlcmU="
+            }
+          },
+          "versionscount": 3
+        },
+        "f2": {
+          "fileid": "f2",
+          "self": "#/dirs/d1/files/f2",
+          "xid": "/dirs/d1/files/f2",
+          "metaurl": "#/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "#/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 3,
+            "createdat": "2026-07-02T23:10:04.506159745Z",
+            "modifiedat": "2026-07-02T23:10:08.322493927Z",
+            "readonly": false,
+            "defaultversionid": "v1.0",
+            "defaultversionurl": "#/dirs/d1/files/f2/versions/v1.0",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "#/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1.0": {
+              "fileid": "f2",
+              "versionid": "v1.0",
+              "self": "#/dirs/d1/files/f2/versions/v1.0",
+              "xid": "/dirs/d1/files/f2/versions/v1.0",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2026-07-02T23:10:08.322493927Z",
+              "modifiedat": "2026-07-02T23:10:08.322493927Z",
+              "ancestor": "v2.0",
+              "filebase64": ""
+            },
+            "v2.0": {
+              "fileid": "f2",
+              "versionid": "v2.0",
+              "self": "#/dirs/d1/files/f2/versions/v2.0",
+              "xid": "/dirs/d1/files/f2/versions/v2.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:10:06.551058868Z",
+              "modifiedat": "2026-07-02T23:10:06.551058868Z",
+              "ancestor": "v3.0",
+              "filebase64": ""
+            },
+            "v3.0": {
+              "fileid": "f2",
+              "versionid": "v3.0",
+              "self": "#/dirs/d1/files/f2/versions/v3.0",
+              "xid": "/dirs/d1/files/f2/versions/v3.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:10:04.506159745Z",
+              "modifiedat": "2026-07-02T23:10:04.506159745Z",
+              "ancestor": "v3.0",
+              "filebase64": ""
+            }
+          },
+          "versionscount": 3
+        }
+      },
+      "filescount": 2
+    },
+    "d2": {
+      "dirid": "d2",
+      "self": "#/dirs/d2",
+      "xid": "/dirs/d2",
+      "epoch": 2,
+      "createdat": "2026-07-02T23:09:36.711513789Z",
+      "modifiedat": "2026-07-02T23:09:52.322608124Z",
+      "filesurl": "#/dirs/d2/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "self": "#/dirs/d2/files/f1",
+          "xid": "/dirs/d2/files/f1",
+          "metaurl": "#/dirs/d2/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "#/dirs/d2/files/f1/meta",
+            "xid": "/dirs/d2/files/f1/meta",
+            "epoch": 3,
+            "createdat": "2026-07-02T23:09:36.711513789Z",
+            "modifiedat": "2026-07-02T23:09:40.814288223Z",
+            "readonly": false,
+            "defaultversionid": "v1.0",
+            "defaultversionurl": "#/dirs/d2/files/f1/versions/v1.0",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "#/dirs/d2/files/f1/versions",
+          "versions": {
+            "v1.0": {
+              "fileid": "f1",
+              "versionid": "v1.0",
+              "self": "#/dirs/d2/files/f1/versions/v1.0",
+              "xid": "/dirs/d2/files/f1/versions/v1.0",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2026-07-02T23:09:40.814288223Z",
+              "modifiedat": "2026-07-02T23:09:40.814288223Z",
+              "ancestor": "v2.0",
+              "filebase64": ""
+            },
+            "v2.0": {
+              "fileid": "f1",
+              "versionid": "v2.0",
+              "self": "#/dirs/d2/files/f1/versions/v2.0",
+              "xid": "/dirs/d2/files/f1/versions/v2.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:38.889432211Z",
+              "modifiedat": "2026-07-02T23:09:38.889432211Z",
+              "ancestor": "v3.0",
+              "filebase64": ""
+            },
+            "v3.0": {
+              "fileid": "f1",
+              "versionid": "v3.0",
+              "self": "#/dirs/d2/files/f1/versions/v3.0",
+              "xid": "/dirs/d2/files/f1/versions/v3.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:36.711513789Z",
+              "modifiedat": "2026-07-02T23:09:36.711513789Z",
+              "ancestor": "v3.0",
+              "filebase64": ""
+            }
+          },
+          "versionscount": 3
+        },
+        "f2": {
+          "fileid": "f2",
+          "self": "#/dirs/d2/files/f2",
+          "xid": "/dirs/d2/files/f2",
+          "metaurl": "#/dirs/d2/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "#/dirs/d2/files/f2/meta",
+            "xid": "/dirs/d2/files/f2/meta",
+            "epoch": 3,
+            "createdat": "2026-07-02T23:09:52.322608124Z",
+            "modifiedat": "2026-07-02T23:09:57.101380678Z",
+            "readonly": false,
+            "defaultversionid": "v3.0",
+            "defaultversionurl": "#/dirs/d2/files/f2/versions/v3.0",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "#/dirs/d2/files/f2/versions",
+          "versions": {
+            "v1.0": {
+              "fileid": "f2",
+              "versionid": "v1.0",
+              "self": "#/dirs/d2/files/f2/versions/v1.0",
+              "xid": "/dirs/d2/files/f2/versions/v1.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:52.322608124Z",
+              "modifiedat": "2026-07-02T23:09:52.322608124Z",
+              "ancestor": "v1.0",
+              "filebase64": ""
+            },
+            "v2.0": {
+              "fileid": "f2",
+              "versionid": "v2.0",
+              "self": "#/dirs/d2/files/f2/versions/v2.0",
+              "xid": "/dirs/d2/files/f2/versions/v2.0",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2026-07-02T23:09:54.86261168Z",
+              "modifiedat": "2026-07-02T23:09:54.86261168Z",
+              "ancestor": "v1.0",
+              "filebase64": ""
+            },
+            "v3.0": {
+              "fileid": "f2",
+              "versionid": "v3.0",
+              "self": "#/dirs/d2/files/f2/versions/v3.0",
+              "xid": "/dirs/d2/files/f2/versions/v3.0",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2026-07-02T23:09:57.101380678Z",
+              "modifiedat": "2026-07-02T23:09:57.101380678Z",
+              "ancestor": "v2.0",
+              "filebase64": ""
+            }
+          },
+          "versionscount": 3
+        }
+      },
+      "filescount": 2
+    }
+  },
+  "dirscount": 2,
+  "dirsurl": "#/dirs",
+  "epoch": 5,
+  "modelsource": {
+    "source": "{}\n",
+    "attributes": {
+      "capabilities": {
+        "name": "capabilities",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "createdat": {
+        "name": "createdat",
+        "type": "timestamp",
+        "required": true
+      },
+      "description": {
+        "name": "description",
+        "type": "string"
+      },
+      "documentation": {
+        "name": "documentation",
+        "type": "url"
+      },
+      "epoch": {
+        "name": "epoch",
+        "type": "uinteger",
+        "readonly": true,
+        "required": true
+      },
+      "icon": {
+        "name": "icon",
+        "type": "url"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "map",
+        "item": {
+          "type": "string"
+        }
+      },
+      "model": {
+        "name": "model",
+        "type": "object",
+        "readonly": true,
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modelsource": {
+        "name": "modelsource",
+        "type": "object",
+        "attributes": {
+          "*": {
+            "name": "*",
+            "type": "any"
+          }
+        }
+      },
+      "modifiedat": {
+        "name": "modifiedat",
+        "type": "timestamp",
+        "required": true
+      },
+      "name": {
+        "name": "name",
+        "type": "string"
+      },
+      "registryid": {
+        "name": "registryid",
+        "type": "string",
+        "matchcase": true,
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "self": {
+        "name": "self",
+        "type": "url",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      },
+      "specversion": {
+        "name": "specversion",
+        "type": "string",
+        "readonly": true,
+        "required": true
+      },
+      "xid": {
+        "name": "xid",
+        "type": "xid",
+        "readonly": true,
+        "immutable": true,
+        "required": true
+      }
+    },
+    "groups": {
+      "dirs": {
+        "plural": "dirs",
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "plural": "files",
+            "singular": "file"
+          }
+        }
+      }
+    }
+  },
+  "modifiedat": "2026-07-02T23:09:36.711513789Z",
+  "registryid": "xRegistry",
+  "self": "#/",
+  "specversion": "1.0-rc3",
+  "xid": "/"
+}

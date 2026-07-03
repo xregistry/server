@@ -1,0 +1,15 @@
+content-disposition:f1
+content-length:0
+content-location:$HOST/ui/xreg/dirs/d2/files/f1/versions/v1.0
+xregistry-ancestor:v2.0
+xregistry-createdat:2026-07-02T23:09:40.814288223Z
+xregistry-epoch:1
+xregistry-fileid:f1
+xregistry-isdefault:true
+xregistry-metaurl:$HOST/ui/xreg/dirs/d2/files/f1/meta
+xregistry-modifiedat:2026-07-02T23:09:40.814288223Z
+xregistry-self:$HOST/ui/xreg/dirs/d2/files/f1
+xregistry-versionid:v1.0
+xregistry-versionscount:3
+xregistry-versionsurl:$HOST/ui/xreg/dirs/d2/files/f1/versions
+xregistry-xid:/dirs/d2/files/f1

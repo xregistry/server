@@ -779,3 +779,25 @@ func LoadRemoteRegistry(url string) (*Registry, *XRError) {
 
 	return reg, nil
 }
+
+// SpecAttrInfo carries the name and entity-type membership for one spec-defined attribute.
+// Types is the StrTypes string: "0"=Registry, "1"=Group, "2"=Resource, "3"=Meta, "4"=Version;
+// empty string means the attribute applies to all entity types.
+type SpecAttrInfo struct {
+	Name  string
+	Types string
+}
+
+// GetOrderedSpecAttrTypes returns name+types for every entry in OrderedSpecProps,
+// in declaration order. Used by cmds/genspecattrs to generate registry/ui/specattrs.js.
+func GetOrderedSpecAttrTypes() []SpecAttrInfo {
+	result := make([]SpecAttrInfo, 0, len(OrderedSpecProps))
+	for _, attr := range OrderedSpecProps {
+		types := ""
+		if attr.internals != nil {
+			types = attr.internals.types
+		}
+		result = append(result, SpecAttrInfo{Name: attr.Name, Types: types})
+	}
+	return result
+}

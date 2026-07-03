@@ -124,6 +124,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Serve the new SPA UI for /ui and /ui/...
+	if r.URL.Path == "/ui" || strings.HasPrefix(r.URL.Path, "/ui/") {
+		ServeUIStatic(w, r)
+		return
+	}
+
 	tx, xErr := NewTx()
 	if xErr != nil {
 		log.Printf("Error talking to the DB creating new Tx: %s",

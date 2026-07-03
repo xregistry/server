@@ -1,0 +1,12 @@
+content-disposition:f1
+content-length:0
+content-location:$HOST/ui/xreg/dirs/d2/files/f1/versions/v2.0
+xregistry-ancestor:v3.0
+xregistry-createdat:2026-07-02T23:09:38.889432211Z
+xregistry-epoch:1
+xregistry-fileid:f1
+xregistry-isdefault:false
+xregistry-modifiedat:2026-07-02T23:09:38.889432211Z
+xregistry-self:$HOST/ui/xreg/dirs/d2/files/f1/versions/v2.0
+xregistry-versionid:v2.0
+xregistry-xid:/dirs/d2/files/f1/versions/v2.0

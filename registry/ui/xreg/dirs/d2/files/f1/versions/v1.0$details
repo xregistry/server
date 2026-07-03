@@ -1,0 +1,11 @@
+{
+  "ancestor": "v2.0",
+  "createdat": "2026-07-02T23:09:40.814288223Z",
+  "epoch": 1,
+  "fileid": "f1",
+  "isdefault": true,
+  "modifiedat": "2026-07-02T23:09:40.814288223Z",
+  "self": "$HOST/ui/xreg/dirs/d2/files/f1/versions/v1.0",
+  "versionid": "v1.0",
+  "xid": "/dirs/d2/files/f1/versions/v1.0"
+}

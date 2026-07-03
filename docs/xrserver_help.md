@@ -21,6 +21,7 @@ xrserver [command]
       --recreatereg         Recreate registry
   -r, --registry string     Default Registry name
       --samples             Load sample registries
+      --ui-dir string       Serve new UI from this directory (dev mode)
   -v, --verbose             Be chatty
       --verify              Verify loading and exit
       --version             Print command version string

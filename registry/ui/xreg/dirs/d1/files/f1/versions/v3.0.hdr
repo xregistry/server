@@ -1,0 +1,13 @@
+content-disposition:f1
+content-length:11
+content-location:$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0
+content-type:text/plain; charset=utf-8
+xregistry-ancestor:v2.0
+xregistry-createdat:2026-07-02T23:09:27.969221352Z
+xregistry-epoch:2
+xregistry-fileid:f1
+xregistry-isdefault:true
+xregistry-modifiedat:2026-07-02T23:15:59.27529706Z
+xregistry-self:$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0
+xregistry-versionid:v3.0
+xregistry-xid:/dirs/d1/files/f1/versions/v3.0

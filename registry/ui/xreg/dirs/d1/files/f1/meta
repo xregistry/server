@@ -1,0 +1,12 @@
+{
+  "createdat": "2026-07-02T23:09:18.670387558Z",
+  "defaultversionid": "v3.0",
+  "defaultversionsticky": false,
+  "defaultversionurl": "$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0",
+  "epoch": 3,
+  "fileid": "f1",
+  "modifiedat": "2026-07-02T23:09:27.969221352Z",
+  "readonly": false,
+  "self": "$HOST/ui/xreg/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta"
+}
