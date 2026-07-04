@@ -119,8 +119,10 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_REGISTRY),
-			dontStore: true,
+			types:       StrTypes(ENTITY_REGISTRY),
+			dontStore:   true,
+			uiMonospace: true,
+			uiLabel:     "Spec Version",
 		},
 	},
 	{
@@ -134,6 +136,7 @@ var OrderedSpecProps = []*Attribute{
 			types:        "", // Yes even ENTITY_RESOURCE
 			xrefrequired: true,
 			cantOverride: []string{"MatchCase"},
+			uiMonospace:  true,
 		},
 	},
 	{
@@ -146,6 +149,8 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:        StrTypes(ENTITY_VERSION),
 			cantOverride: []string{"MatchCase"},
+			uiMonospace:  true,
+			uiLabel:      "Version ID",
 		},
 	},
 	{
@@ -193,7 +198,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: URL,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types:   StrTypes(ENTITY_META),
+			uiLabel: "XRef",
 		},
 	},
 	{
@@ -224,6 +230,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_VERSION),
 			dontStore: true,
+			uiLabel:   "Is Default",
 		},
 	},
 	{
@@ -338,7 +345,8 @@ var OrderedSpecProps = []*Attribute{
 		Default:  false,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types:   StrTypes(ENTITY_META),
+			uiLabel: "Read Only",
 		},
 	},
 	{
@@ -350,7 +358,8 @@ var OrderedSpecProps = []*Attribute{
 		Required: false,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types:        StrTypes(ENTITY_META),
+			uiMonospace:  true,
 		},
 	},
 	{
@@ -412,6 +421,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:        StrTypes(ENTITY_VERSION),
 			cantOverride: []string{"MatchCase"},
+			uiMonospace:  true,
 		},
 	},
 	{
@@ -419,8 +429,10 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: &AttrInternals{
-			types:      StrTypes(ENTITY_VERSION),
-			httpHeader: "Content-Type",
+			types:       StrTypes(ENTITY_VERSION),
+			httpHeader:  "Content-Type",
+			uiMonospace: true,
+			uiLabel:     "Content Type",
 		},
 	},
 	{
@@ -428,7 +440,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_VERSION),
+			types:       StrTypes(ENTITY_VERSION),
+			uiMonospace: true,
 		},
 	},
 	{
@@ -439,6 +452,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_VERSION),
 			noDocView: true,
+			uiLabel:   "Format Validated",
 		},
 	},
 	{
@@ -447,8 +461,10 @@ var OrderedSpecProps = []*Attribute{
 		ReadOnly: true,
 
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_VERSION),
-			noDocView: true,
+			types:       StrTypes(ENTITY_VERSION),
+			noDocView:   true,
+			uiMonospace: true,
+			uiLabel:     "Format Validated Reason",
 		},
 	},
 	{
@@ -459,6 +475,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_VERSION),
 			noDocView: true,
+			uiLabel:   "Compatibility Validated",
 		},
 	},
 	{
@@ -467,8 +484,10 @@ var OrderedSpecProps = []*Attribute{
 		ReadOnly: true,
 
 		internals: &AttrInternals{
-			types:     StrTypes(ENTITY_VERSION),
-			noDocView: true,
+			types:       StrTypes(ENTITY_VERSION),
+			noDocView:   true,
+			uiMonospace: true,
+			uiLabel:     "Compatibility Validated Reason",
 		},
 	},
 	{
@@ -562,6 +581,8 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:        StrTypes(ENTITY_META),
 			cantOverride: []string{"MatchCase"},
+			uiMonospace:  true,
+			uiLabel:      "Default Version ID",
 		},
 	},
 	{
@@ -573,6 +594,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:     StrTypes(ENTITY_META),
 			dontStore: true,
+			uiLabel:   "Default Version URL",
 		},
 	},
 	{
@@ -582,7 +604,8 @@ var OrderedSpecProps = []*Attribute{
 		Default:  false,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_META),
+			types:   StrTypes(ENTITY_META),
+			uiLabel: "Default Version Sticky",
 		},
 	},
 	{
@@ -784,8 +807,10 @@ func LoadRemoteRegistry(url string) (*Registry, *XRError) {
 // Types is the StrTypes string: "0"=Registry, "1"=Group, "2"=Resource, "3"=Meta, "4"=Version;
 // empty string means the attribute applies to all entity types.
 type SpecAttrInfo struct {
-	Name  string
-	Types string
+	Name        string
+	Types       string
+	UIMonospace bool
+	UILabel     string
 }
 
 // GetOrderedSpecAttrTypes returns name+types for every entry in OrderedSpecProps,
@@ -794,10 +819,14 @@ func GetOrderedSpecAttrTypes() []SpecAttrInfo {
 	result := make([]SpecAttrInfo, 0, len(OrderedSpecProps))
 	for _, attr := range OrderedSpecProps {
 		types := ""
+		mono := false
+		label := ""
 		if attr.internals != nil {
 			types = attr.internals.types
+			mono = attr.internals.uiMonospace
+			label = attr.internals.uiLabel
 		}
-		result = append(result, SpecAttrInfo{Name: attr.Name, Types: types})
+		result = append(result, SpecAttrInfo{Name: attr.Name, Types: types, UIMonospace: mono, UILabel: label})
 	}
 	return result
 }

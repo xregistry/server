@@ -25,7 +25,8 @@
 
 var _state = {
   view:        'home',  // 'home' | 'tile' | 'table' | 'json'
-  homeView:    'grid',  // 'grid' | 'table'
+  homeGroup:   'registry',  // 'registry' | 'types' — overridden from localStorage in init()
+  homeLayout:  'grid',      // 'grid' | 'list'      — overridden from localStorage in init()
   dataView:    'grid',  // 'grid' | 'table' | 'json'
   serverURL:   '',      // full URL to registry root, e.g. 'http://localhost:8080'
                         // '' = same origin as the SPA
@@ -60,6 +61,19 @@ function saveOpts() {
 }
 
 function optClickToCopy() { return !!_opts.clickToCopy; }
+function optHomeGroup()   {
+  // migrate legacy homeView key
+  if (_opts.homeView !== undefined) {
+    var g = _opts.homeView === 'flat' ? 'types' : 'registry';
+    var l = _opts.homeView === 'table' ? 'list' : 'grid';
+    _opts.homeGroup  = g;
+    _opts.homeLayout = l;
+    delete _opts.homeView;
+    saveOpts();
+  }
+  return _opts.homeGroup || 'registry';
+}
+function optHomeLayout()  { return _opts.homeLayout || 'grid'; }
 
 function loadServers() {
   try {
@@ -96,6 +110,8 @@ window.addEventListener('popstate', function() { loadStateFromURL(); renderHeade
 window.addEventListener('resize', function() { renderHeader(); });
 
 function init() {
+  _state.homeGroup  = optHomeGroup();
+  _state.homeLayout = optHomeLayout();
   loadStateFromURL();
   renderHeader();
   refresh();
@@ -205,8 +221,10 @@ function renderHeader() {
   setHeaderCompact(false);
   el('edit-btn').style.display       = isData ? '' : 'none';
 
-  var hvt = el('home-view-toggle');
+  var hvt = el('home-group-toggle');
+  var hlt = el('home-layout-btn');
   if (hvt) hvt.style.display = isHome ? '' : 'none';
+  if (hlt) hlt.style.display = isHome ? '' : 'none';
   var dvt = el('data-view-toggle');
   if (dvt) dvt.style.display = isData ? '' : 'none';
   if (isData) {
@@ -216,9 +234,16 @@ function renderHeader() {
   }
 
   if (isHome) {
-    qsa('[data-hview]').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.hview === _state.homeView);
+    // inject folder icon SVG into the group toggle button (can't put it in HTML easily)
+    var fi = el('hg-folder-icon');
+    if (fi && !fi.innerHTML) fi.innerHTML = FOLDER_ICON;
+    qsa('[data-hgroup]').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.hgroup === _state.homeGroup);
     });
+    if (hlt) {
+      var hltBtn = hlt.querySelector('.view-btn');
+      if (hltBtn) hltBtn.classList.toggle('active', _state.homeLayout === 'list');
+    }
   }
 
   var gb = el('gear-btn');
@@ -237,11 +262,27 @@ function goToConfig() {
   pushState({view: 'config', editMode: false});
 }
 
-function setHomeView(v) {
-  _state.homeView = v;
-  qsa('[data-hview]').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.hview === v);
+function setHomeGroup(v) {
+  _state.homeGroup = v;
+  _opts.homeGroup  = v;
+  saveOpts();
+  qsa('[data-hgroup]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.hgroup === v);
   });
+  renderBreadcrumbs();
+  renderHome();
+}
+
+function toggleHomeLayout() {
+  var v = _state.homeLayout === 'list' ? 'grid' : 'list';
+  _state.homeLayout = v;
+  _opts.homeLayout  = v;
+  saveOpts();
+  var hlt = el('home-layout-btn');
+  if (hlt) {
+    var hltBtn = hlt.querySelector('.view-btn');
+    if (hltBtn) hltBtn.classList.toggle('active', v === 'list');
+  }
   renderHome();
 }
 
@@ -325,7 +366,7 @@ var _bcSegs = []; // current segments, shared with popup openers
 
 // Returns [{label, onclick|null, isCurrent}] for the current state
 function buildBreadcrumbSegments() {
-  if (_state.view === 'home')   return [{label:'Registries', onclick:null, isCurrent:true}];
+  if (_state.view === 'home')   return [{label: _state.homeGroup === 'types' ? 'Group Types' : 'Registries', onclick:null, isCurrent:true}];
   if (_state.view === 'config') return [{label:'Config',     onclick:null, isCurrent:true}];
 
   var segs = [];
@@ -470,9 +511,11 @@ function buildCompactMenuItems() {
   var isHome = (_state.view === 'home');
   var isData = !isHome && _state.view !== 'config';
   if (isHome) {
-    var hv = _state.homeView;
-    items.push({label: 'Grid view',  onclick: "setHomeView('grid')",  active: hv === 'grid'});
-    items.push({label: 'Table view', onclick: "setHomeView('table')", active: hv === 'table'});
+    var hg = _state.homeGroup;
+    var hl = _state.homeLayout;
+    items.push({label: 'By Registry',    onclick: "setHomeGroup('registry')", active: hg === 'registry'});
+    items.push({label: 'By Group Type',  onclick: "setHomeGroup('types')",    active: hg === 'types'});
+    items.push({label: 'List view',      onclick: 'toggleHomeLayout()',       active: hl === 'list'});
     items.push({sep: true});
     items.push({label: 'Config', onclick: 'goToConfig()'});
   }
@@ -488,14 +531,16 @@ function buildCompactMenuItems() {
 
 function setHeaderCompact(compact) {
   _headerCompact = compact;
-  var homeToggle = el('home-view-toggle');
+  var homeGroupToggle = el('home-group-toggle');
+  var homeLayoutBtn   = el('home-layout-btn');
   var dataToggle = el('data-view-toggle');
   var editBtn    = el('edit-btn');
   var gearBtn    = el('gear-btn');
   var compactBtn = el('compact-menu-btn');
   if (!compactBtn) return;
   if (compact) {
-    if (homeToggle) homeToggle.style.display = 'none';
+    if (homeGroupToggle) homeGroupToggle.style.display = 'none';
+    if (homeLayoutBtn)   homeLayoutBtn.style.display   = 'none';
     if (dataToggle) dataToggle.style.display = 'none';
     if (editBtn)    editBtn.style.display    = 'none';
     if (gearBtn)    gearBtn.style.display    = 'none';
@@ -506,8 +551,11 @@ function setHeaderCompact(compact) {
   }
 }
 
-// Close popup on outside click
-document.addEventListener('click', function() { closeHeaderPopup(); });
+// Close header popup and any open error popups on outside click
+document.addEventListener('click', function() {
+  closeHeaderPopup();
+  qsa('.server-card-err-popup').forEach(function(p) { p.style.display = 'none'; });
+});
 
 function crumb(label, clickExpr) {
   if (!clickExpr) return '<span class="bc-current">' + esc(label) + '</span>';
@@ -590,30 +638,39 @@ function renderHome() {
   var servers = loadServers();
   var allServers = [origin].concat(servers.filter(function(u) { return u !== origin; }));
 
-  if (_state.homeView === 'table') {
-    renderHomeTable(main, allServers);
+  var g = _state.homeGroup;
+  var l = _state.homeLayout;
+  if (g === 'types') {
+    l === 'list' ? renderHomeFlatList(main, allServers) : renderHomeFlatGrid(main, allServers);
   } else {
-    renderHomeGrid(main, allServers);
+    l === 'list' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
   }
 }
 
 function renderHomeGrid(main, servers) {
+  var sorted = servers.slice().sort(function(a, b) {
+    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
+  });
   var html = '<div class="home-page"><div class="home-grid">';
-  servers.forEach(function(url) { html += serverCard(url); });
+  sorted.forEach(function(url) { html += serverCard(url); });
   html += '</div></div>';
   main.innerHTML = html;
   probeAllCards(main);
 }
 
 function renderHomeTable(main, servers) {
+  var sorted = servers.slice().sort(function(a, b) {
+    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
+  });
   var html = '<div class="home-page">'
     + '<table class="home-table"><thead><tr>'
-    +   '<th>Name</th><th>Group Types</th><th>Location</th><th></th>'
+    +   '<th>Registry</th><th>Group Types</th><th>Location</th>'
     + '</tr></thead><tbody>';
-  servers.forEach(function(url) {
+  sorted.forEach(function(url) {
     html += '<tr data-server-url="' + esc(url) + '">'
       + '<td class="ht-name" style="position:relative">'
-      +   '<span class="ht-name-text">' + esc(serverLabel(url)) + '</span>'
+      +   '<span class="ht-name-text ht-name-link" onclick="doBrowse(\'' + esc(url) + '\')">' + esc(serverLabel(url)) + '</span>'
+      +   '<div class="ht-desc" style="display:none"></div>'
       +   '<div class="server-card-err-popup" style="display:none">'
       +     '<div class="server-card-err-popup-title">Connection Error</div>'
       +     '<div class="server-card-err-popup-msg"></div>'
@@ -623,7 +680,6 @@ function renderHomeTable(main, servers) {
       + '</td>'
       + '<td class="ht-groups"><div class="ht-groups-inner"><span class="ht-loading">…</span></div></td>'
       + '<td class="ht-url">' + esc(url) + '</td>'
-      + '<td class="ht-action"><button class="home-btn" onclick="doBrowse(\'' + esc(url) + '\')">Browse</button></td>'
       + '</tr>';
   });
   html += '</tbody></table></div>';
@@ -634,6 +690,8 @@ function renderHomeTable(main, servers) {
       var nameEl   = row.querySelector('.ht-name-text');
       var groupsEl = row.querySelector('.ht-groups-inner');
       if (info.error) {
+        // disable the name link and show error badge with popup
+        if (nameEl) { nameEl.classList.remove('ht-name-link'); nameEl.removeAttribute('onclick'); }
         var badge = document.createElement('span');
         badge.className = 'server-card-err-badge';
         badge.textContent = '!';
@@ -644,27 +702,145 @@ function renderHomeTable(main, servers) {
           var popup = row.querySelector('.server-card-err-popup');
           if (!popup) return;
           var showing = popup.style.display !== 'none';
-          popup.style.display = showing ? 'none' : '';
-          if (!showing) popup.querySelector('.server-card-err-popup-msg').textContent = info.error;
+          // close all open error popups first
+          qsa('.server-card-err-popup').forEach(function(p) { p.style.display = 'none'; });
+          if (!showing) {
+            popup.style.display = '';
+            popup.querySelector('.server-card-err-popup-msg').textContent = info.error;
+          }
         });
         var nameCell = row.querySelector('.ht-name');
         if (nameCell) nameCell.appendChild(badge);
         if (groupsEl) groupsEl.textContent = '';
       } else {
         if (nameEl && info.label) nameEl.textContent = info.label;
+        var descEl = row.querySelector('.ht-desc');
+        if (descEl && info.description) { descEl.textContent = info.description; descEl.style.display = ''; }
         if (groupsEl) {
           groupsEl.innerHTML = info.colls.length
             ? info.colls.map(function(c) {
-                return '<span class="group-type-item">' + esc(c.name) + ' (' + c.count + ')</span>';
+                return '<span class="group-type-item">' + esc(c.plural) + ' (' + c.count + ')</span>';
               }).join('')
             : '<span class="group-type-none">none</span>';
         }
       }
+      sortServerElements(row.closest('tbody'));
     });
   });
 }
 
+function renderHomeFlatGrid(main, servers) {
+  main.innerHTML = '<div class="home-page"><div class="home-grid flat-home-grid" id="flat-grid"><span style="color:#aaa;font-size:13px">Loading…</span></div></div>';
+
+  var pending = servers.length;
+  var allTiles = [];
+
+  function finish() {
+    allTiles.sort(function(a, b) {
+      var n = a.plural.localeCompare(b.plural);
+      return n !== 0 ? n : a.regLabel.localeCompare(b.regLabel);
+    });
+    var grid = el('flat-grid');
+    if (!grid) return;
+    if (allTiles.length === 0) {
+      grid.innerHTML = '<span style="color:#aaa;font-size:13px;font-style:italic">No group types found</span>';
+      return;
+    }
+    grid.innerHTML = allTiles.map(function(t) {
+      var onclick = 'browseGroupCollection(\'' + esc(t.serverUrl) + '\',\'' + esc(t.plural) + '\')';
+      return groupTileHTML(t, onclick, '', t.regLabel);
+    }).join('');
+  }
+
+  if (pending === 0) { finish(); return; }
+
+  servers.forEach(function(url) {
+    probeRegistry(url, function(info) {
+      if (!info.error) {
+        var label = info.label || serverLabel(url);
+        info.colls.forEach(function(c) {
+          allTiles.push({plural: c.plural, count: c.count, serverUrl: url, regLabel: label,
+                         description: c.description || '', resources: c.resources || []});
+        });
+      }
+      pending--;
+      if (pending === 0) finish();
+    });
+  });
+}
+
+function browseGroupCollection(serverUrl, collName) {
+  var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
+  pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], editMode: false});
+}
+
+function renderHomeFlatList(main, servers) {
+  main.innerHTML = '<div class="home-page">'
+    + '<table class="home-table"><thead><tr>'
+    +   '<th>Group Type</th><th>Items</th><th>Resource Types</th><th>Registry</th>'
+    + '</tr></thead><tbody id="flat-list-body"><tr><td colspan="4" style="color:#aaa;font-size:13px">Loading…</td></tr></tbody></table></div>';
+
+  var pending = servers.length;
+  var allRows = [];
+
+  function finish() {
+    allRows.sort(function(a, b) {
+      var n = a.plural.localeCompare(b.plural);
+      return n !== 0 ? n : a.regLabel.localeCompare(b.regLabel);
+    });
+    var tbody = el('flat-list-body');
+    if (!tbody) return;
+    if (allRows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#aaa;font-size:13px;font-style:italic">No group types found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = allRows.map(function(r) {
+      var onclick = 'browseGroupCollection(\'' + esc(r.serverUrl) + '\',\'' + esc(r.plural) + '\')';
+      var descHtml = r.description ? '<div class="ht-desc">' + esc(r.description) + '</div>' : '';
+      return '<tr>'
+        + '<td class="ht-name ht-name-link" style="font-weight:bold" onclick="' + onclick + '">' + esc(r.plural) + descHtml + '</td>'
+        + '<td class="ht-groups">' + r.count + '</td>'
+        + '<td class="ht-groups"><div class="ht-groups-inner">'
+        +   (r.resources.length
+              ? r.resources.map(function(res) { return '<span class="group-type-item">' + esc(res) + '</span>'; }).join('')
+              : '<span class="group-type-none">none</span>')
+        + '</div></td>'
+        + '<td class="ht-url">' + esc(r.regLabel) + '<div class="ht-desc">' + esc(r.serverUrl) + '</div></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  if (pending === 0) { finish(); return; }
+
+  servers.forEach(function(url) {
+    probeRegistry(url, function(info) {
+      if (!info.error) {
+        var label = info.label || serverLabel(url);
+        info.colls.forEach(function(c) {
+          allRows.push({plural: c.plural, count: c.count, resources: c.resources || [],
+                        description: c.description || '', serverUrl: url, regLabel: label});
+        });
+      }
+      pending--;
+      if (pending === 0) finish();
+    });
+  });
+}
+
+
+function sortServerElements(container) {
+  if (!container) return;
+  var els = Array.prototype.slice.call(container.querySelectorAll('[data-server-url]'));
+  els.sort(function(a, b) {
+    var la = (a.querySelector('.server-card-name, .ht-name-text') || a).textContent.trim().toLowerCase();
+    var lb = (b.querySelector('.server-card-name, .ht-name-text') || b).textContent.trim().toLowerCase();
+    return la.localeCompare(lb);
+  });
+  els.forEach(function(el) { container.appendChild(el); });
+}
+
 function probeAllCards(main) {
+  var container = main.querySelector('.home-grid, tbody');
   main.querySelectorAll('[data-server-url]').forEach(function(card) {
     probeRegistry(card.dataset.serverUrl, function(info) {
       var nameEl   = card.querySelector('.server-card-name');
@@ -701,11 +877,12 @@ function probeAllCards(main) {
         if (groupsEl) {
           groupsEl.innerHTML = info.colls.length
             ? info.colls.map(function(c) {
-                return '<span class="group-type-item">' + esc(c.name) + ' (' + c.count + ')</span>';
+                return '<span class="group-type-item">' + esc(c.plural) + ' (' + c.count + ')</span>';
               }).join('')
             : '<span class="group-type-none">none</span>';
         }
       }
+      sortServerElements(container);
     });
   });
 }
@@ -729,15 +906,24 @@ function serverCard(url) {
 
 function probeRegistry(url, cb) {
   var normUrl = normalizeURL(url);
-  fetchJSON(normUrl + '/')
-    .then(function(data) {
+  var rootP  = fetchJSON(normUrl + '/');
+  var modelP = fetch(normUrl + '/model').then(function(r) { return r.json(); }).catch(function() { return null; });
+  Promise.all([rootP, modelP])
+    .then(function(results) {
+      var data  = results[0];
+      var model = results[1];
       if (!data.specversion || !data.registryid) {
         cb({label: '', colls: [], icon: '', error: 'Not a valid xRegistry (missing specversion or registryid)'});
         return;
       }
-      var label = data.name || data.registryid || '';
+      var label = data.registryid || '';
       if (label) _labelCache[normUrl] = label;
-      var colls = findCollectionRefs(data);
+      var colls = findCollectionRefs(model, [], data);
+      colls.forEach(function(c) {
+        var grpDef = model && model.groups && model.groups[c.plural];
+        c.resources    = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
+        c.description  = (grpDef && grpDef.description) || '';
+      });
       cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', error: null});
     })
     .catch(function(err) { cb({label: '', colls: [], icon: '', error: (err && err.message) ? err.message : String(err)}); });
@@ -877,28 +1063,48 @@ function renderTileView(data) {
   }
 
   var html = '<div id="tile-container">';
-  // Pick icon based on collection depth: groups=folder, resources=doc
+  // Pick icon based on collection depth: groups=folder, resources+versions=doc
   var tileIcon = '';
-  if (_state.path.length === 1)      tileIcon = FOLDER_ICON;
-  else if (_state.path.length === 3) tileIcon = DOC_ICON;
+  if (_state.path.length === 1)                        tileIcon = FOLDER_ICON;
+  else if (_state.path.length === 3 || _state.path.length === 5) tileIcon = DOC_ICON;
 
   items.forEach(function(item) {
     var id   = itemNavKey(item);
-    var name = item.name || '';
     var desc = item.description || '';
-    var colls = findCollectionRefs(item);
-    var countStr = colls.map(function(c) {
-      return esc(c.name) + ': ' + c.count;
-    }).join(' · ');
+    var svBase   = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var model    = _modelCache[normalizeURL(svBase)] || null;
+    var itemPath = _state.path.concat([id]);
+    var colls = findCollectionRefs(model, itemPath, item);
+
+    // Build the full-width sub-collection footer (outside tile-body so it spans full width)
+    var footerHtml = '';
+    if (_state.path.length === 1) {
+      var collItems = colls.length
+        ? colls.map(function(c) {
+            return '<span class="coll-tile-res-pill">' + esc(c.plural) + ' (' + c.count + ')</span>';
+          }).join('')
+        : '<span class="coll-tile-res-none">none</span>';
+      footerHtml = '<hr class="coll-tile-divider">'
+            + '<div class="coll-tile-res-hdr">Resources:</div>'
+            + '<div class="coll-tile-res">' + collItems + '</div>';
+    } else if (_state.path.length === 3 && colls.length) {
+      var verItems = colls.map(function(c) {
+        return '<span class="coll-tile-res-pill">' + esc(c.plural) + ': ' + c.count + '</span>';
+      }).join('');
+      footerHtml = '<hr class="coll-tile-divider">'
+            + '<div class="coll-tile-res">' + verItems + '</div>';
+    }
 
     html += '<div class="tile" onclick="navigateTo(\'' + esc(id) + '\')">';
+    html += '<div class="tile-top">';
     if (tileIcon) html += '<div class="tile-icon">' + tileIcon + '</div>';
     html += '<div class="tile-body">';
     html += '<div class="tile-id">' + esc(id) + '</div>';
-    if (name)     html += '<div class="tile-name">'  + esc(name)    + '</div>';
-    if (desc)     html += '<div class="tile-desc">'  + esc(desc)    + '</div>';
-    if (countStr) html += '<div class="tile-count">' + countStr     + '</div>';
-    html += '</div></div>';
+    if (item.name) html += '<div class="tile-name">' + esc(item.name) + '</div>';
+    if (desc)      html += '<div class="tile-desc">' + esc(desc) + '</div>';
+    html += '</div></div>'; // close tile-body + tile-top
+    html += footerHtml;
+    html += '</div>'; // close tile
   });
   html += '</div>';
   main.innerHTML = html;
@@ -926,7 +1132,20 @@ function renderTableView(data) {
     });
   }
 
-  var cols = deriveColumns(items);
+  // Build collKeySet from model so deriveColumns can exclude collection structural keys
+  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  // items are one depth deeper than current path (each item is at path + [id])
+  var itemPath = _state.path.concat(['__item__']);
+  var colls = items.length > 0 ? findCollectionRefs(model, itemPath, items[0]) : [];
+  var collKeySet = {};
+  colls.forEach(function(c) {
+    collKeySet[c.plural] = true;
+    collKeySet[c.plural + 'url'] = true;
+    collKeySet[c.plural + 'count'] = true;
+  });
+
+  var cols = deriveColumns(items, collKeySet);
   var html = '<div id="table-container"><table class="xr-table"><thead><tr>';
   cols.forEach(function(col) {
     var cls = col === _sortCol ? (_sortAsc ? ' sorted-asc' : ' sorted-desc') : '';
@@ -968,11 +1187,15 @@ function renderSingleEntity(data) {
     return;
   }
 
-  var colls  = findCollectionRefs(data);
+  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var colls  = findCollectionRefs(model, _state.path, data);
   var collKeys = {};
-  colls.forEach(function(c) { collKeys[c.name + 'url'] = true; collKeys[c.name + 'count'] = true; });
+  colls.forEach(function(c) { collKeys[c.plural + 'url'] = true; collKeys[c.plural + 'count'] = true; });
 
-  // Priority ordering for scalar props
+  // Priority ordering for scalar props — hand-tuned for UX, not spec declaration order.
+  // specAttrOrder() gives spec-canonical order but it doesn't match what's most useful
+  // to show first in the UI.
   var priority = ['registryid','xid','name','description','specversion',
     'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
   var scalarKeys = Object.keys(data).filter(function(k) {
@@ -991,8 +1214,8 @@ function renderSingleEntity(data) {
     html += '<table class="xr-table" style="margin-bottom:16px">'
       + '<thead><tr><th>Collection</th><th>Count</th></tr></thead><tbody>';
     colls.forEach(function(c) {
-      html += '<tr onclick="navigateTo(\'' + esc(c.name) + '\')" style="cursor:pointer">'
-        + '<td class="cell-id">' + esc(c.name) + '</td>'
+      html += '<tr onclick="navigateTo(\'' + esc(c.plural) + '\')" style="cursor:pointer">'
+        + '<td class="cell-id">' + esc(c.plural) + '</td>'
         + '<td>' + c.count + '</td>'
         + '</tr>';
     });
@@ -1043,19 +1266,11 @@ function getSingularName(model, path) {
 }
 
 // Attributes that are part of xRegistry structure — not shown as extensions
-var KNOWN_ATTRS = {
-  registryid:1, groupid:1, resourceid:1, versionid:1,
-  xid:1, self:1, shortself:1, icon:1,
-  name:1, description:1, documentation:1, specversion:1,
-  epoch:1, createdat:1, modifiedat:1, isdefault:1, ancestor:1,
-  labels:1, contenttype:1
-};
-
 // specAttrLevel returns the SPEC_ATTRS sub-object for the given path depth.
 // Resource entities (depth 4) blend resource + version attrs since GET /resource
 // returns the default version flattened.
 function specAttrLevel(path) {
-  if (typeof SPEC_ATTRS === 'undefined') return KNOWN_ATTRS; // fallback pre-load
+  if (typeof SPEC_ATTRS === 'undefined') return {}; // specattrs.js not yet loaded
   var depth = path.length;
   if (depth === 0) return SPEC_ATTRS.registry;
   if (depth === 2) return SPEC_ATTRS.group;
@@ -1069,10 +1284,121 @@ function specAttrLevel(path) {
   }
   if (depth === 5) return SPEC_ATTRS.meta; // [G,gId,R,rId,"meta"]
   if (depth >= 6) return SPEC_ATTRS.version;
-  return KNOWN_ATTRS;
+  return {}; // unrecognized depth — treat all attrs as extensions
 }
 
-// isSpecAttr checks whether attribute key k is spec-defined at the given level.
+// specAttrLevelName returns the SPEC_ATTRS_ORDER level name string for the path.
+// For depth 4 (resource showing flattened version), returns 'version' since most
+// user-visible attrs come from that level.
+function specAttrLevelName(path) {
+  var depth = path ? path.length : 0;
+  if (depth === 0) return 'registry';
+  if (depth === 2) return 'group';
+  if (depth === 4) return 'version'; // resource shows flattened default version
+  if (depth === 5) return 'meta';
+  if (depth >= 6) return 'version';
+  return null;
+}
+
+// specAttrOrder returns the SPEC_ATTRS_ORDER array for the given path, or [].
+function specAttrOrder(path) {
+  if (typeof SPEC_ATTRS_ORDER === 'undefined') return [];
+  var name = specAttrLevelName(path);
+  return (name && SPEC_ATTRS_ORDER[name]) || [];
+}
+
+// isMonoSpecAttr returns true if key k should be rendered monospaced because
+// it is both a spec-defined attribute at the current entity level AND is in
+// MONO_ATTRS (string-typed spec attrs that are technical, not human prose).
+// The dynamic "id" entry in MONO_ATTRS matches any <singular>id field.
+function isMonoSpecAttr(k, specLevel, singular) {
+  if (!isSpecAttr(k, specLevel, singular, null)) return false;
+  // Find the MONO_ATTRS sub-object that corresponds to this specLevel
+  var monoSet = null;
+  if (typeof MONO_ATTRS !== 'undefined' && typeof SPEC_ATTRS !== 'undefined') {
+    var levelNames = ['registry','group','resource','meta','version'];
+    for (var i = 0; i < levelNames.length; i++) {
+      if (SPEC_ATTRS[levelNames[i]] === specLevel) {
+        monoSet = MONO_ATTRS[levelNames[i]] || {};
+        break;
+      }
+    }
+  }
+  if (!monoSet) return false;
+  if (monoSet[k]) return true;
+  // dynamic id pattern: MONO_ATTRS.*.id covers <singular>id fields
+  if (monoSet.id && singular && k === singular + 'id') return true;
+  return false;
+}
+
+// getAttr returns the full Attribute definition object from the model for
+// the given attribute key path (array) within an entity at entityPath depth.
+// attrKeyPath is an array for nested traversal, e.g. ['myattr'] or ['obj','child'].
+// Falls back to the '*' wildcard entry for undeclared extension attributes.
+// Returns null only on model compliance violation (should not happen in practice).
+//
+// TODO(ifvalues): when ifvalues support is added, a 'data' parameter (the actual
+// entity JSON) will be needed here so conditional sibling-attribute rules can be
+// evaluated to find additional attributes introduced by ifvalues matches.
+function getAttr(model, entityPath, attrKeyPath) {
+  if (!model || !attrKeyPath || attrKeyPath.length === 0) return null;
+  var depth = entityPath ? entityPath.length : 0;
+
+  // Find the top-level attributes map for this entity depth
+  var attrs;
+  if (depth === 0) {
+    attrs = model.attributes;
+  } else if (depth === 2) {
+    var gm = model.groups && model.groups[entityPath[0]];
+    attrs = gm && gm.attributes;
+  } else if (depth >= 4) {
+    var gm2 = model.groups && model.groups[entityPath[0]];
+    var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
+    attrs = rm && rm.attributes;
+  }
+  if (!attrs) return null;
+
+  // Traverse attrKeyPath, following .attributes for nested objects
+  var attr = null;
+  for (var i = 0; i < attrKeyPath.length; i++) {
+    var key = attrKeyPath[i];
+    attr = attrs[key] || attrs['*'] || null;
+    if (!attr) return null;
+    if (i < attrKeyPath.length - 1) {
+      attrs = attr.attributes;
+      if (!attrs) return null;
+    }
+  }
+  return attr;
+}
+
+// Convenience wrapper — returns just the type string (or null).
+function getAttrType(model, entityPath, attrKeyPath) {
+  var attr = getAttr(model, entityPath, attrKeyPath);
+  return attr ? (attr.type || null) : null;
+}
+
+// Like getAttrType but returns null when the attr is only matched by the '*'
+// wildcard catch-all (i.e., not explicitly named in the model). Used for
+// monospace decisions so that extension attributes don't inherit the
+// wildcard's type (often ANY) and get incorrectly formatted as monospace.
+function getExplicitAttrType(model, entityPath, key) {
+  if (!model || !key) return null;
+  var depth = entityPath ? entityPath.length : 0;
+  var attrs;
+  if (depth === 0) {
+    attrs = model.attributes;
+  } else if (depth === 2) {
+    var gm = model.groups && model.groups[entityPath[0]];
+    attrs = gm && gm.attributes;
+  } else if (depth >= 4) {
+    var gm2 = model.groups && model.groups[entityPath[0]];
+    var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
+    attrs = rm && rm.attributes;
+  }
+  if (!attrs || !attrs[key]) return null;
+  return attrs[key].type || null;
+}
 // Handles the two dynamic name patterns from OrderedSpecProps:
 //   "id"          → matches <singular>id  (e.g. "messageid", "registryid")
 //   "$RESOURCE*"  → matches <resourceSingular>, <resourceSingular>url,
@@ -1116,23 +1442,50 @@ var INFO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" 
 function collectionTile(coll) {
   var onclick = coll.count === 0
     ? 'showToast(\'Nothing to show\')'
-    : 'navigateTo(\'' + esc(coll.name) + '\')';
+    : 'navigateTo(\'' + esc(coll.plural) + '\')';
   var emptyCls = coll.count === 0 ? ' coll-tile-empty' : '';
-  return '<div class="coll-tile' + emptyCls + '" onclick="' + onclick + '">'
-    + '<div class="coll-tile-icon">' + FOLDER_ICON + '</div>'
-    + '<div class="coll-tile-body">'
-    +   '<div class="coll-tile-name">' + esc(coll.name) + '</div>'
-    +   '<div class="coll-tile-count">' + coll.count + ' item' + (coll.count !== 1 ? 's' : '') + '</div>'
+  return groupTileHTML(coll, onclick, emptyCls, '');
+}
+
+function groupTileHTML(coll, onclick, extraCls, regLabel) {
+  var descHtml = coll.description
+    ? '<div class="coll-tile-desc">' + esc(coll.description) + '</div>'
+    : '';
+  // Only show Resource Types section when the model has provided the list (depth 0 group tiles)
+  var resHtml = '';
+  if (coll.resources !== undefined) {
+    var resItems = coll.resources.length
+      ? coll.resources.map(function(r) { return '<span class="coll-tile-res-pill">' + esc(r) + '</span>'; }).join('')
+      : '<span class="coll-tile-res-none">none</span>';
+    resHtml = '<hr class="coll-tile-divider">'
+      + '<div class="coll-tile-res-hdr">Resource Types:</div>'
+      + '<div class="coll-tile-res">' + resItems + '</div>';
+  }
+  var regHtml = regLabel
+    ? '<div class="coll-tile-reg">' + esc(regLabel) + '</div>'
+    : '';
+  return '<div class="coll-tile' + (extraCls || '') + '" onclick="' + onclick + '">'
+    + '<div class="coll-tile-top">'
+    +   '<div class="coll-tile-icon">' + FOLDER_ICON + '</div>'
+    +   '<div class="coll-tile-summary">'
+    +     '<div class="coll-tile-name">' + esc(coll.plural) + '</div>'
+    +     '<div class="coll-tile-count">' + coll.count + ' item' + (coll.count !== 1 ? 's' : '') + '</div>'
+    +   '</div>'
     + '</div>'
+    + descHtml
+    + resHtml
+    + regHtml
     + '</div>';
 }
 
 function docTile(singular, contenttype) {
   return '<div class="coll-tile coll-tile-meta" onclick="openDocument(\'' + esc(singular) + '\')">'
-    + '<div class="coll-tile-icon">' + DOC_ICON + '</div>'
-    + '<div class="coll-tile-body">'
-    +   '<div class="coll-tile-name">' + esc(singular) + ' document</div>'
-    +   '<div class="coll-tile-count">' + esc(contenttype || '') + '</div>'
+    + '<div class="coll-tile-top">'
+    +   '<div class="coll-tile-icon">' + DOC_ICON + '</div>'
+    +   '<div class="coll-tile-summary">'
+    +     '<div class="coll-tile-name">' + esc(singular) + ' document</div>'
+    +     '<div class="coll-tile-count">' + esc(contenttype || '') + '</div>'
+    +   '</div>'
     + '</div>'
     + '</div>';
 }
@@ -1178,23 +1531,19 @@ function openDocument(singular) {
   showToast('Document not available');
 }
 
-var ATTR_LABELS = {
-  defaultversionid:             'Default Version ID',
-  defaultversionsticky:         'Default Version Sticky',
-  defaultversionurl:            'Default Version URL',
-  compatibility:                'Compatibility',
-  compatibilityvalidated:       'Compatibility Validated',
-  compatibilityvalidatedreason: 'Compatibility Validated Reason',
-  readonly:                     'Read Only',
-  xref:                         'XRef',
-  isdefault:                    'Is Default',
-  versionid:                    'Version ID',
-  contenttype:                  'Content Type',
-  formatvalidated:              'Format Validated',
-  formatvalidatedreason:        'Format Validated Reason',
-};
-
-function labelFor(k) { return ATTR_LABELS[k] || k; }
+// ATTR_LABELS replaced by generated LABEL_ATTRS in specattrs.js (see AttrInternals.uiLabel).
+// labelFor returns the display label for attribute key k.
+// When specLevel+singular are provided, LABEL_ATTRS is only applied for genuine
+// spec-defined attrs at that entity level — extension attrs with coincidentally
+// matching names fall back to the raw key, avoiding misleading labels.
+function labelFor(k, specLevel, singular) {
+  if (typeof LABEL_ATTRS !== 'undefined' && LABEL_ATTRS[k]) {
+    if (!specLevel || isSpecAttr(k, specLevel, singular || '', null)) {
+      return LABEL_ATTRS[k];
+    }
+  }
+  return k;
+}
 
 var _toastTimer = null;
 function showToast(msg) {
@@ -1263,9 +1612,12 @@ function renderValueTree(val, depth) {
 
   if (Array.isArray(val)) {
     if (val.length === 0) return '<span class="vt-empty">empty</span>';
-    var items = val.map(function(item) {
-      return '<div class="vt-arr-item" ' + indent + '>'
-           + renderValueTree(item, depth + 1) + '</div>';
+    var items = val.map(function(item, idx) {
+      var isComplex = item !== null && typeof item === 'object';
+      var sep    = (isComplex && idx > 0) ? '<div class="vt-arr-sep"></div>' : '';
+      var badge  = '<span class="vt-arr-idx">[' + idx + ']</span>';
+      return sep + '<div class="vt-arr-item" ' + indent + '>'
+           + badge + renderValueTree(item, depth) + '</div>';
     });
     return '<div class="vt-arr">' + items.join('') + '</div>';
   }
@@ -1278,7 +1630,7 @@ function renderValueTree(val, depth) {
     var isComplex = child !== null && typeof child === 'object';
     if (isComplex) {
       return '<div class="vt-kv vt-kv-block" ' + indent + '>'
-           + '<span class="vt-key">' + esc(k) + '</span>'
+           + '<span class="vt-key">' + esc(k) + ':</span>'
            + renderValueTree(child, depth + 1)
            + '</div>';
     }
@@ -1293,6 +1645,11 @@ function renderValueTree(val, depth) {
 function copyable(text) {
   if (!optClickToCopy()) return '<span class="eg-value">' + esc(text) + '</span>';
   return '<span class="eg-copyable" data-copy="' + esc(text) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(text) + '</span>';
+}
+
+function copyableMonospace(text) {
+  if (!optClickToCopy()) return '<span class="eg-value eg-mono">' + esc(text) + '</span>';
+  return '<span class="eg-copyable eg-mono" data-copy="' + esc(text) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(text) + '</span>';
 }
 
 function copyEntityJSON() {
@@ -1312,7 +1669,8 @@ function toggleMetaBox() {
   twisty.textContent = opening ? '▼' : '▶';
   if (!opening) return;
   if (_metaData) {
-    box.innerHTML = renderMetaContent(_metaData);
+    var svURL = normalizeURL(_state.serverURL || window.location.origin);
+    box.innerHTML = renderMetaContent(_metaData, _modelCache[svURL] || null);
     return;
   }
   box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
@@ -1320,11 +1678,15 @@ function toggleMetaBox() {
   if (!metaUrl) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#aaa">No meta URL available</span></div>'; return; }
   fetch(metaUrl)
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function(d) { _metaData = d; box.innerHTML = renderMetaContent(d); })
+    .then(function(d) {
+      _metaData = d;
+      var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
+      box.innerHTML = renderMetaContent(d, _modelCache[svURL2] || null);
+    })
     .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
 }
 
-function renderMetaContent(d) {
+function renderMetaContent(d, model) {
   var html = '';
   var metaRendered = {};
 
@@ -1332,20 +1694,19 @@ function renderMetaContent(d) {
   if (_metaResourceIdField) metaRendered[_metaResourceIdField] = 1;
   // Suppress internal/nav fields
   metaRendered.metaurl     = 1;
-  metaRendered.specversion = 1;
   // Mark defaultversionid/url as handled (rendered below after tech row)
   metaRendered.defaultversionid  = 1;
   metaRendered.defaultversionurl = 1;
 
   // 1. Temporal
-  if (d.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>'  + copyable(d.createdat)  + '</div>';
-  if (d.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyable(d.modifiedat) + '</div>';
+  if (d.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>'  + copyableMonospace(d.createdat)  + '</div>';
+  if (d.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyableMonospace(d.modifiedat) + '</div>';
   metaRendered.createdat  = 1;
   metaRendered.modifiedat = 1;
 
   // 2. Tech row: epoch + self/shortself/xid as copy buttons
   var techRow = '';
-  if (d.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyable(String(d.epoch)) + '</span>';
+  if (d.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyableMonospace(String(d.epoch)) + '</span>';
   if (d.self)      techRow += copyBtn('Self', d.self);
   if (d.shortself) techRow += copyBtn('ShortSelf', d.shortself);
   if (d.xid)       techRow += copyBtn('XID', d.xid);
@@ -1358,7 +1719,7 @@ function renderMetaContent(d) {
   // 3. Default version ID with → View + URL ↗ buttons (after epoch)
   if (d.defaultversionid !== undefined) {
     var dvid = String(d.defaultversionid);
-    var dvRow = copyable(dvid);
+    var dvRow = copyableMonospace(dvid);
     dvRow += ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(dvid) + '" '
            + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
     if (d.defaultversionurl) {
@@ -1390,10 +1751,10 @@ function renderMetaContent(d) {
 
   // 5. defaultversionsticky, readonly
   if (d.defaultversionsticky !== undefined)
-    html += row('Default Version Sticky', copyable(String(d.defaultversionsticky)));
+    html += row('Default Version Sticky', copyableMonospace(String(d.defaultversionsticky)));
   metaRendered.defaultversionsticky = 1;
   if (d.readonly !== undefined)
-    html += row('Read Only', copyable(String(d.readonly)));
+    html += row('Read Only', copyableMonospace(String(d.readonly)));
   metaRendered.readonly = 1;
 
   // 6. Remaining: spec attrs above <hr>, user extensions below
@@ -1408,15 +1769,19 @@ function renderMetaContent(d) {
     if (v !== null && typeof v === 'object') {
       var isEmpty = Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0;
       if (isEmpty) {
-        html += row(labelFor(k), '<span class="vt-empty">empty</span>');
+        html += row(labelFor(k, metaSpecLevel, _metaSing), '<span class="vt-empty">empty</span>');
       } else {
         html += '<div class="eg-ext-complex">'
-              + '<div class="eg-ext-complex-key">' + esc(labelFor(k)) + '</div>'
+              + '<div class="eg-ext-complex-key">' + esc(labelFor(k, metaSpecLevel, _metaSing)) + ':</div>'
               + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0) + '</div>'
               + '</div>';
       }
     } else {
-      html += row(labelFor(k), copyable(String(v)));
+      // meta entity: use same logic as renderAttrRow with explicit-type-only monospace check
+      var attrTypeMeta = getExplicitAttrType(model, _state.path, k);
+      var isMono = isMonoSpecAttr(k, metaSpecLevel, _metaSing)
+        || (attrTypeMeta !== null && attrTypeMeta !== 'string');
+      html += row(labelFor(k, metaSpecLevel, _metaSing), isMono ? copyableMonospace(String(v)) : copyable(String(v)));
     }
   }
   specKeys.forEach(metaAttrRow);
@@ -1437,7 +1802,6 @@ function row(label, value, cls) {
 
 function renderEntityGrid(data) {
   var main = el('main-view');
-  var colls = findCollectionRefs(data);
   var depth = _state.path.length;
 
   // Meta page (depth 5) is replaced by the inline meta box on the resource page — redirect up
@@ -1445,13 +1809,6 @@ function renderEntityGrid(data) {
     pushState({path: _state.path.slice(0, 4), editMode: false});
     return;
   }
-
-  var collKeys = {};
-  colls.forEach(function(c) {
-    collKeys[c.name] = true;          // inline collection object
-    collKeys[c.name + 'url'] = true;
-    collKeys[c.name + 'count'] = true;
-  });
 
   // ---- Resolve entity type from model (path-based, not field-based) ----
   var svBase   = (_state.serverURL || window.location.origin).replace(/\/$/, '');
@@ -1465,6 +1822,33 @@ function renderEntityGrid(data) {
   }
   var model      = _modelCache[modelKey] || null;
   var entityType = getSingularName(model, _state.path);
+
+  var colls = findCollectionRefs(model, _state.path, data);
+  var collKeys = {};
+  colls.forEach(function(c) {
+    collKeys[c.plural] = true;
+    collKeys[c.plural + 'url'] = true;
+    collKeys[c.plural + 'count'] = true;
+  });
+
+  // Attach model info to collection tiles
+  if (model && model.groups) {
+    if (depth === 0) {
+      // Group-type tiles: attach resource type list + description from model
+      colls.forEach(function(c) {
+        var grpDef = model.groups[c.plural];
+        c.resources   = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
+        c.description = (grpDef && grpDef.description) || '';
+      });
+    } else if (depth === 2) {
+      // Resource-type tiles: attach description from model.groups[g].resources[r]
+      var grpDef2 = model.groups[_state.path[0]];
+      colls.forEach(function(c) {
+        var resDef = grpDef2 && grpDef2.resources && grpDef2.resources[c.plural];
+        c.description = (resDef && resDef.description) || '';
+      });
+    }
+  }
   // ID field name is <singular>id (e.g. "dir" → "dirid"); last path segment as fallback
   var idFieldName = entityType.toLowerCase() + 'id';
   var idVal = data[idFieldName] !== undefined ? data[idFieldName]
@@ -1547,9 +1931,21 @@ function renderEntityGrid(data) {
     html += '<div class="eg-details eg-meta-details" id="eg-meta-box" style="display:none"></div>';
   }
 
-  var detailsLabel = depth === 4
-    ? 'Default Version' + (data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '') + ' Details'
-    : 'Details';
+  var capType = entityType.charAt(0).toUpperCase() + entityType.slice(1);
+  var detailsLabel;
+  if (depth === 0) {
+    detailsLabel = 'Registry Details';
+  } else if (depth === 2) {
+    detailsLabel = capType + ' Details';
+  } else if (depth === 4) {
+    detailsLabel = 'Default ' + capType + ' Version'
+      + (data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '')
+      + ' Details';
+  } else if (depth >= 6) {
+    detailsLabel = 'Version Details';
+  } else {
+    detailsLabel = 'Details'; // meta (depth 5) — leave as is
+  }
   html += '<div class="eg-section-header eg-details-header">' + detailsLabel
         + '<button class="eg-copy-json-btn" onclick="copyEntityJSON()">{ } Copy JSON</button>'
         + '</div>';
@@ -1574,7 +1970,7 @@ function renderEntityGrid(data) {
     versionParentIdField = versionParentSingular.toLowerCase() + 'id';
     if (data[versionParentIdField] !== undefined) {
       var _docId = String(data[versionParentIdField]);
-      var _docRow = copyable(_docId)
+      var _docRow = copyableMonospace(_docId)
         + ' <button class="eg-link-btn eg-link-btn-nav" onclick="navigateToParentResource()">→ Visit</button>';
       html += '<div class="eg-row"><span class="eg-label">' + esc(versionParentSingular + ' ID') + ':</span>'
             + '<span class="eg-value">' + _docRow + '</span></div>';
@@ -1584,7 +1980,7 @@ function renderEntityGrid(data) {
   // If name was used in the title, show ID: <id> after description
   if (data.name && idVal != null) {
     html += '<div class="eg-row"><span class="eg-label">' + esc(idFieldName) + ':</span>'
-          + copyable(String(idVal)) + '</div>';
+          + copyableMonospace(String(idVal)) + '</div>';
   }
 
   // Documentation
@@ -1596,17 +1992,16 @@ function renderEntityGrid(data) {
   }
 
   // Row 4: temporal — created on its own line, modified on the next
-  if (data.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>' + copyable(data.createdat) + '</div>';
-  if (data.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyable(data.modifiedat) + '</div>';
+  if (data.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>' + copyableMonospace(data.createdat) + '</div>';
+  if (data.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyableMonospace(data.modifiedat) + '</div>';
 
   // Row 5: epoch + self/shortself/xid as pill buttons
   var techRow = '';
-  if (data.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyable(String(data.epoch)) + '</span>';
+  if (data.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyableMonospace(String(data.epoch)) + '</span>';
   if (data.self)      techRow += copyBtn('Self', data.self);
   if (data.shortself) techRow += copyBtn('ShortSelf', data.shortself);
   if (data.xid)       techRow += copyBtn('XID', data.xid);
   if (techRow) html += '<div class="eg-row eg-technical">' + techRow + '</div>';
-  if (data.specversion) html += row('Spec Version', copyable(data.specversion));
 
   // Row 6: labels
   if (data.labels && typeof data.labels === 'object') {
@@ -1633,7 +2028,7 @@ function renderEntityGrid(data) {
     // Resource: show default Version ID and Ancestor Version ID; suppress isdefault
     if (data.versionid !== undefined) {
       var _vid = String(data.versionid);
-      var _vidRow = copyable(_vid)
+      var _vidRow = copyableMonospace(_vid)
         + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vid) + '" '
         + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
       html += '<div class="eg-row"><span class="eg-label">Version ID:</span>'
@@ -1642,7 +2037,7 @@ function renderEntityGrid(data) {
     extraRendered.versionid = 1;
     if (data.ancestor !== undefined && data.ancestor !== null) {
       var _anc = String(data.ancestor);
-      var _ancRow = copyable(_anc)
+      var _ancRow = copyableMonospace(_anc)
         + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_anc) + '" '
         + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
       html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
@@ -1656,7 +2051,7 @@ function renderEntityGrid(data) {
     extraRendered[versionParentIdField] = 1;  // already rendered above
     if (data.ancestor !== undefined && data.ancestor !== null) {
       var _vancId = String(data.ancestor);
-      var _vancRow = copyable(_vancId)
+      var _vancRow = copyableMonospace(_vancId)
         + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vancId) + '" '
         + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
       html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
@@ -1664,7 +2059,7 @@ function renderEntityGrid(data) {
     }
     extraRendered.ancestor = 1;
     if (data.isdefault !== undefined) {
-      html += row('Is Default', copyable(String(data.isdefault)));
+      html += row('Is Default', copyableMonospace(String(data.isdefault)));
     }
     extraRendered.isdefault = 1;
   }
@@ -1673,7 +2068,7 @@ function renderEntityGrid(data) {
   var renderedAttrs = {
     labels:1, name:1, description:1, documentation:1, icon:1,
     createdat:1, modifiedat:1, epoch:1,
-    self:1, shortself:1, xid:1, specversion:1, metaurl:1
+    self:1, shortself:1, xid:1, metaurl:1
   };
   renderedAttrs[idFieldName] = 1;
   Object.keys(extraRendered).forEach(function(k) { renderedAttrs[k] = 1; });
@@ -1693,15 +2088,24 @@ function renderEntityGrid(data) {
     if (v !== null && typeof v === 'object') {
       var isEmpty = Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0;
       if (isEmpty) {
-        html += row(labelFor(k), '<span class="vt-empty">empty</span>');
+        html += row(labelFor(k, specLevel, _singular), '<span class="vt-empty">empty</span>');
       } else {
         html += '<div class="eg-ext-complex">'
-              + '<div class="eg-ext-complex-key">' + esc(labelFor(k)) + '</div>'
+              + '<div class="eg-ext-complex-key">' + esc(labelFor(k, specLevel, _singular)) + ':</div>'
               + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0) + '</div>'
               + '</div>';
       }
     } else {
-      html += row(labelFor(k), copyable(String(v)));
+      // Monospace decision:
+      // 1. String-typed spec attrs listed in MONO_ATTRS (generated from AttrInternals.uiMonospace)
+      //    that are confirmed spec attrs at THIS entity level → always monospace.
+      // 2. Explicitly model-named (non-wildcard) attrs with non-string type → monospace.
+      //    Extension attrs that only match the '*' wildcard use null type → not monospace.
+      var attrType = getExplicitAttrType(model, _state.path, k);
+      var isMono = isMonoSpecAttr(k, specLevel, _singular)
+        || (attrType !== null && attrType !== 'string');
+      var valHtml = isMono ? copyableMonospace(String(v)) : copyable(String(v));
+      html += row(labelFor(k, specLevel, _singular), valHtml);
     }
   }
 
@@ -1745,7 +2149,9 @@ function renderJSONLeftPanel(data) {
     + lpCheck('lp-col', 'collections', _state.collections)
     + '</div><hr class="lp-divider">';
 
-  var inlineOpts = inlineOptions(data);
+  var svBase2 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var model2  = _modelCache[normalizeURL(svBase2)] || null;
+  var inlineOpts = inlineOptions(model2, _state.path, data);
   if (inlineOpts.length) {
     html += '<div class="lp-section"><div class="lp-title">Inlines</div>';
     inlineOpts.forEach(function(opt, i) {
@@ -1780,21 +2186,27 @@ function applyJSONOptions() {
   });
 }
 
-// Derive inline options from the keys visible in the current response.
-// Excludes metadata scalars; includes nested objects/collections.
-function inlineOptions(data) {
+// Derive inline options from the model and current response.
+// Model-defined collection plurals are offered as inline options.
+// Excludes metadata scalars and collection structural keys.
+function inlineOptions(model, path, data) {
   if (!data || typeof data !== 'object') return [];
   var skip = new Set(['epoch','createdat','modifiedat','labels']);
+  var colls = findCollectionRefs(model, path, data);
+  var collKeySet = {};
+  colls.forEach(function(c) {
+    collKeySet[c.plural] = true;
+    collKeySet[c.plural + 'url'] = true;
+    collKeySet[c.plural + 'count'] = true;
+  });
   var opts = [];
   Object.keys(data).forEach(function(k) {
-    if (!skip.has(k) && typeof data[k] === 'object' && data[k] !== null
-        && !k.endsWith('url') && !k.endsWith('count')) {
+    if (!skip.has(k) && !collKeySet[k] && typeof data[k] === 'object' && data[k] !== null) {
       opts.push(k);
     }
-    // Also suggest <name> for any <name>url/<name>count pairs
   });
-  findCollectionRefs(data).forEach(function(c) {
-    if (!opts.includes(c.name)) opts.push(c.name);
+  colls.forEach(function(c) {
+    if (!opts.includes(c.plural)) opts.push(c.plural);
   });
   return opts;
 }
@@ -1839,25 +2251,49 @@ function itemNavKey(item) {
   return item.__mapKey || '';
 }
 
-// Find <name>url + <name>count pairs in an entity — these represent navigable
-// sub-collections (groups in registry root, resources in groups, etc.)
-function findCollectionRefs(data) {
+// Find navigable sub-collections using the model definition.
+// model: the registry model object (may be null — falls back to scanning data)
+// path: current navigation path array ([] = registry root, [G,gId] = group instance, etc.)
+// data: the entity JSON object
+// Returns [{plural, count, url}]
+function findCollectionRefs(model, path, data) {
   if (!data || typeof data !== 'object') return [];
+  var plurals = [];
+  var depth = path ? path.length : 0;
+
+  if (model && model.groups) {
+    if (depth === 0) {
+      // Registry root — collections are group types
+      plurals = Object.keys(model.groups);
+    } else if (depth === 2) {
+      // Group instance — collections are resource types
+      var grpDef = model.groups[path[0]];
+      if (grpDef && grpDef.resources) plurals = Object.keys(grpDef.resources);
+    }
+    // depth 4+ (resource instance) has no sub-collections in xRegistry
+  }
+
+  // Fallback: scan data for *url/*count pairs (model unavailable)
+  if (plurals.length === 0) {
+    Object.keys(data).forEach(function(k) {
+      if (k.endsWith('url') && data[k.slice(0, -3) + 'count'] !== undefined)
+        plurals.push(k.slice(0, -3));
+    });
+  }
+
   var result = [];
-  Object.keys(data).forEach(function(k) {
-    if (k.endsWith('url')) {
-      var name = k.slice(0, -3);          // strip 'url'
-      var countKey = name + 'count';
-      if (data[countKey] !== undefined) {
-        result.push({name: name, count: data[countKey], url: data[k]});
-      }
+  plurals.forEach(function(p) {
+    var urlVal   = data[p + 'url'];
+    var countVal = data[p + 'count'];
+    if (urlVal !== undefined || countVal !== undefined) {
+      result.push({plural: p, count: countVal !== undefined ? countVal : 0, url: urlVal || ''});
     }
   });
-  result.sort(function(a, b) { return a.name.localeCompare(b.name); });
+  result.sort(function(a, b) { return a.plural.localeCompare(b.plural); });
   return result;
 }
 
-function deriveColumns(items) {
+function deriveColumns(items, collKeySet) {
   // Prefer xid first (shows navigable id), then common fields
   var priority = ['xid','name','description','epoch','createdat','modifiedat',
     'versionid','isdefault','ancestor','contenttype'];
@@ -1867,9 +2303,10 @@ function deriveColumns(items) {
       seen[c] = true; cols.push(c);
     }
   });
+  var skip = collKeySet || {};
   items.forEach(function(item) {
     Object.keys(item).forEach(function(k) {
-      if (!seen[k] && !k.startsWith('__') && !k.endsWith('url') && !k.endsWith('count')) {
+      if (!seen[k] && !k.startsWith('__') && !skip[k]) {
         var v = item[k];
         if (typeof v !== 'object' || v === null) { seen[k] = true; cols.push(k); }
       }

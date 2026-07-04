@@ -1,15 +1,46 @@
 {
+  "specversion": "1.0-rc3",
+  "registryid": "HardCoded",
+  "self": "$HOST/ui/xreg/",
+  "shortself": "http://tiny/reg",
+  "xid": "/",
+  "epoch": 5,
+  "name": "Hard-Coded xReg Sample",
+  "description": "A hard-coded xRegistry sample registry for testing purposes. It should have ALL possible attributes specified even if the reference implementation doesn't support that feature yet.",
+  "documentation": "http://example.com",
+  "icon": "https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/xregistry/icon/black/xregistry-icon-black.svg",
+  "labels": { "env": "production", "owner": "joe" },
   "createdat": "2026-07-02T20:39:15.784578963Z",
+  "modifiedat": "2026-07-02T23:09:36.711513789Z",
+
   "dirscount": 2,
   "dirsurl": "$HOST/ui/xreg/dirs",
-  "epoch": 5,
-  "modifiedat": "2026-07-02T23:09:36.711513789Z",
-  "registryid": "xRegistry",
-  "self": "$HOST/ui/xreg/",
-  "specversion": "1.0-rc3",
-  "xid": "/",
+
+  "extarray": [ "abc", "def", 123 ],
+  "extarrayobj": [
+    { "a1": "foo", "a2": "bar" },
+    { "c1": "foo", "obj": { "xxx":"xxx"},"c2": "bar" },
+    { "d1": "foo", "obj": { "xxx":"xxx"},"z2": "bar" },
+    { "b1": "foo", "objempty": {}, "b2": "bar" },
+    {}
+  ],
+  "extarrayempty": [],
+
   "extmap": {
     "ext1": "val1",
     "ext2": "val2"
+  },
+  "extmapempty": {},
+
+  "extobj": {
+    "attrStr": "aString",
+    "attrObj": {
+      "nestedStr": "nestedString",
+      "nestedArr": [ 1,2,3],
+      "nestedObj": {
+        "anattr": "hello"
+      }
+    }
   }
+
 }

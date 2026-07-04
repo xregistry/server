@@ -8,5 +8,7 @@
   "modifiedat": "2026-07-02T23:09:40.814288223Z",
   "readonly": false,
   "self": "$HOST/ui/xreg/dirs/d2/files/f1/meta",
-  "xid": "/dirs/d2/files/f1/meta"
+  "xid": "/dirs/d2/files/f1/meta",
+  "specversion": "not monospaced",
+  "extatr": "not monospaced"
 }

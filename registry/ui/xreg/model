@@ -129,6 +129,7 @@
     "dirs": {
       "plural": "dirs",
       "singular": "dir",
+      "description": "A directory of files",
       "attributes": {
         "dirid": {
           "name": "dirid",
@@ -265,12 +266,16 @@
               }
             }
           }
+        },
+        "*": {
+          "type": "any"
         }
       },
       "resources": {
         "files": {
           "plural": "files",
           "singular": "file",
+          "description": "A bunch of ordered bytes on disk",
           "maxversions": 0,
           "setversionid": true,
           "hasdocument": true,
@@ -583,6 +588,10 @@
               "type": "boolean",
               "required": true,
               "default": false
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
             }
           }
         }

@@ -112,6 +112,8 @@ type AttrInternals struct {
 	xrefrequired    bool     // required in meta even when xref is set
 	cantOverride    []string // blindly set from spec defined values
 	noDocView       bool     // exclude from docView
+	uiMonospace     bool     // render value in monospace in the UI
+	uiLabel         string   // display label override for the UI
 
 	getFn    func(*Entity) any      // return prop's value
 	checkFn  func(*Entity) *XRError // validate incoming prop

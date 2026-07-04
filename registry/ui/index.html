@@ -11,7 +11,7 @@
   <div id="app">
     <header id="header">
       <div id="header-left">
-        <a id="logo-link" href="#" onclick="pushState({view:'home',path:[],editMode:false});return false;"         title="xRegistry Home">
+        <a id="logo-link" href="#" onclick="pushState({view:'home',path:[],editMode:false});return false;"         title="All Registries">
           <svg id="xreg-logo" width="20" height="20" viewBox="0 0 663 800" fill="none" aria-hidden="true">
             <g clip-path="url(#clip0)">
               <path d="M490.6 800H662.2L494.2 461.6C562.2 438.2 648.6 380.5 648.6 238.8C648.6 5.3 413.9 0 413.9 0H3.40002L80.39 155.3H391.8C391.8 155.3 492.3 153.8 492.3 238.9C492.3 323.9 391.8 322.5 391.8 322.5H390.6L316.2 449L490.6 800Z" fill="black"/>
@@ -35,11 +35,16 @@
       <div id="header-spacer"></div>
 
       <div id="header-right">
-        <div id="home-view-toggle" role="group" aria-label="Home view mode" style="display:none">
-          <span class="view-btn" data-hview="grid"  onclick="setHomeView('grid')"  title="Grid view">
-            <span class="hv-grid-icon"><span></span><span></span><span></span><span></span></span>
+        <div id="home-group-toggle" role="group" aria-label="Home grouping" style="display:none">
+          <span class="view-btn" data-hgroup="registry" onclick="setHomeGroup('registry')" title="By Registry">
+            <span class="hg-xr-sym"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 800" width="12" height="14" aria-hidden="true"><path d="M490.6 800H662.2L494.2 461.6C562.2 438.2 648.6 380.5 648.6 238.8C648.6 5.3 413.9 0 413.9 0H3.4L80.4 155.3H391.8C391.8 155.3 492.3 153.8 492.3 238.9C492.3 323.9 391.8 322.5 391.8 322.5H390.6L316.2 449L490.6 800Z" fill="#111"/><path d="M392.7 322.4H281L266.7 346.6L196.4 466.2L111.7 322.4H0L140.5 561.2L0 800H111.7L196.4 656.2L281 800H392.7L252.2 561.2L317.9 449.6L392.7 322.4Z" fill="#0066FF"/></svg></span>
           </span>
-          <span class="view-btn" data-hview="table" onclick="setHomeView('table')" title="Table view"><span class="hv-table-sym">&#8801;</span></span>
+          <span class="view-btn" data-hgroup="types" onclick="setHomeGroup('types')" title="By Group Type">
+            <span class="hg-folder-sym" id="hg-folder-icon"></span>
+          </span>
+        </div>
+        <div id="home-layout-btn" role="group" style="display:none">
+          <span class="view-btn" onclick="toggleHomeLayout()" title="List view"><span class="hv-table-sym">&#8801;</span></span>
         </div>
         <div id="data-view-toggle" role="group" aria-label="Data view mode" style="display:none">
           <span class="view-btn" data-dview="grid"  title="Grid view">
