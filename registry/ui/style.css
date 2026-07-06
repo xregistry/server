@@ -529,7 +529,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   white-space: pre;
   font-family: monospace;
   font-size: 13px;
-  line-height: 16px;
+  line-height: 17px;
   tab-size: 2;
 }
 
@@ -693,16 +693,30 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
 }
 .fb-seg-label { font-size: 11px; color: #666; flex-shrink: 0; width: 78px; }
+.sort-label {
+  font-size: 12px; font-weight: bold; color: #333; flex-shrink: 0;
+}
+.sort-order-row { gap: 6px; }
+.sort-order-label { font-size: 11px; color: #666; flex-shrink: 0; }
+.boolSeg.sort-order-seg { height: 18px; }
+.boolSeg.sort-order-seg .boolSegBtn {
+  font-size: 11px; min-width: 28px; padding: 0 6px;
+}
 .fb-seg-select, .fb-op-select {
-  flex: 1; font-size: 11px; padding: 2px 3px; border: 1px solid #ccc;
-  border-radius: 4px;
+  flex: 1; min-width: 0; font-size: 11px; padding: 2px 3px;
+  border: 1px solid #ccc; border-radius: 4px;
+  text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
 }
 .fb-seg-custom, .fb-val-input {
-  flex: 1; font-size: 11px; font-family: monospace; padding: 2px 4px;
-  border: 1px solid #ccc; border-radius: 4px;
+  flex: 1; min-width: 0; font-size: 11px; font-family: monospace;
+  padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px;
 }
 .fb-op-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .fb-error { color: #c33; font-size: 11px; margin-bottom: 4px; }
+.sort-clear-btn {
+  font-size: 11px; color: #888; cursor: pointer; margin-left: auto;
+}
+.sort-clear-btn:hover { color: #c33; text-decoration: underline; }
 .fb-add-row { display: flex; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
 /* Split "+ Add (AND)" button: the button + an overlay <select> showing
    only "F1"/"F2"/... on its right edge, so the AND-target picker reads

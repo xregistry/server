@@ -38,6 +38,7 @@ var _state = {
   // JSON-view query options
   inlines:     [],
   filters:     [],
+  sort:        '',
   docView:     false,
   binary:      false,
   collections: false,
@@ -59,6 +60,8 @@ var _fbDraftKey     = null;  // server|section|path this draft belongs to
 // page load (not persisted to localStorage); stays as toggled while
 // navigating during the current session.
 var _filtersCollapsed = true;
+var _sortDraft        = null;  // sort-picker working draft, see sortXxx() funcs
+var _sortDraftKey      = null;  // server|section|path this draft belongs to
 
 // ---- Options (persisted) --------------------------------------------------
 var _opts = (function() {
@@ -223,6 +226,7 @@ function loadStateFromURL() {
   _state.editMode    = p.get('edit') === '1';
   _state.inlines     = csvList(p.get('inline'));
   _state.filters     = (p.get('filter') || '').split('\n').filter(Boolean);
+  _state.sort        = p.get('sort') || '';
   _state.docView     = p.get('doc')         === '1';
   _state.binary      = p.get('binary')      === '1';
   _state.collections = p.get('collections') === '1';
@@ -248,6 +252,7 @@ function buildURL(st) {
   if (inJsonView) {
     if (st.inlines && st.inlines.length)   p.set('inline',      st.inlines.join(','));
     if (st.filters && st.filters.length)   p.set('filter',      st.filters.join('\n'));
+    if (st.sort)                           p.set('sort',        st.sort);
     if (st.docView)                        p.set('doc',         '1');
     if (st.binary)                         p.set('binary',      '1');
     if (st.collections)                    p.set('collections', '1');
@@ -315,7 +320,7 @@ function pushStateReal(patch) {
     }
     // Prepend defaults so explicit values in patch still win
     patch = Object.assign({
-      inlines: [], filters: [], docView: false, binary: false, collections: false,
+      inlines: [], filters: [], sort: '', docView: false, binary: false, collections: false,
       useExport: false, section: 'data', dataView: savedView
     }, patch);
   }
@@ -387,6 +392,7 @@ function buildAPIURL() {
   var q = [];
   _state.inlines.forEach(function(i) { q.push('inline=' + encodeURIComponent(i)); });
   _state.filters.forEach(function(f) { q.push('filter=' + encodeURIComponent(f)); });
+  if (_state.sort)        q.push('sort=' + encodeURIComponent(_state.sort));
   if (_state.docView)     q.push('doc');
   if (_state.binary)      q.push('binary');
   if (_state.collections) q.push('collections');
@@ -3003,6 +3009,24 @@ function renderJSONLeftPanel() {
     var hasExport  = avail2 && avail2['export'];
     if (hasModel || hasMSource || hasCap || hasCapOff || hasExport) {
       html += '<div class="lp-section"><div class="lp-title">Registry Endpoints</div>';
+      // "Registry Data (Export)" is listed first so it's always one click
+      // away to get back from a Model/Capabilities section view, and so
+      // the active Export state is highlighted the same way Model/Source
+      // etc are, instead of the old checkmark-only indicator.
+      var dataActive   = _state.section === 'data' && !_state.useExport;
+      var exportActive = _state.section === 'data' && _state.useExport;
+      html += '<div class="lp-nav-row">'
+        + '<span class="lp-nav-item lp-nav-inline'
+        + (dataActive ? ' lp-nav-active' : '') + '" onclick="pushState('
+        + '{section:\'data\',path:[],editMode:false,useExport:false})">'
+        + 'Registry Data</span>';
+      if (hasExport) {
+        html += ' <span class="lp-nav-sub">(<span class="lp-nav-item '
+          + 'lp-nav-inline' + (exportActive ? ' lp-nav-active' : '')
+          + '" onclick="pushState({section:\'data\',path:[],'
+          + 'editMode:false,useExport:true})">Export</span>)</span>';
+      }
+      html += '</div>';
       // "Model (Source)" and "Capabilities (Offered)" share one line each
       // (matches the old ui.go layout) instead of 4 stacked rows, to save
       // vertical space — the sub-link only appears when that endpoint is
@@ -3011,17 +3035,6 @@ function renderJSONLeftPanel() {
         'Source', 'modelsource', hasMSource);
       html += lpNavPairRow('Capabilities', 'capabilities', hasCap,
         'Offered', 'capabilitiesoffered', hasCapOff);
-      // Export as a nav item — toggles useExport on the registry root data view
-      if (hasExport && _state.section === 'data') {
-        var exportActive = _state.useExport;
-        html += '<div class="lp-nav-item' + (exportActive ? ' lp-nav-active' : '') + '" '
-          + 'onclick="pushState({useExport:' + (!exportActive) + ',section:\'data\'})">'
-          + 'Export' + (exportActive ? ' ✓' : '') + '</div>';
-      }
-      // "Data" link to return from a section view
-      if (_state.section !== 'data') {
-        html += '<div class="lp-nav-item" onclick="pushState({section:\'data\',path:[],editMode:false,useExport:false})">← Registry Data</div>';
-      }
       html += '</div>';
       if (!filterHasApplyDivider) html += '<hr class="lp-divider">';
     }
@@ -3049,6 +3062,21 @@ function renderJSONLeftPanel() {
         + '<div class="lp-section" id="lp-filter-section">'
         + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups))
         + (_filtersCollapsed ? '' : buildFilterSectionInner(model2))
+        + '</div><hr class="lp-divider">';
+    }
+
+    // Sort — only if server supports 'sort' and the current path points at
+    // a collection (Groups/Resources/Versions); sorting a single entity
+    // isn't meaningful, per the spec's sort_noncollection error. Kept to
+    // one line ("Sort:" + attribute dropdown) until an attribute is
+    // actually chosen, at which point the map-key/order/clear rows appear
+    // below — no twisty needed since there's only ever one control (unlike
+    // Filters, which can grow to many expressions).
+    if (hasF('sort') && isCollection(_state.path)) {
+      hasOpts = true;
+      ensureSortDraft();
+      html += '<div class="lp-section" id="lp-sort-section">'
+        + buildSortSectionInner(model2)
         + '</div><hr class="lp-divider">';
     }
 
@@ -3629,6 +3657,207 @@ function fbOptionsHTML(options, chosen) {
     return '<option value="' + esc(o.value) + '"' + sel + '>'
       + esc(o.label) + '</option>';
   }).join('');
+}
+
+// ---- Sort picker (JSON left panel) ----------------------------------------
+//
+// Builds a single `?sort=<ATTRIBUTE>[=asc|desc]` value (see the spec's
+// "Sort Flag" section). Much simpler than the Filter Builder: only one
+// attribute may be chosen (no AND/OR groups, no comparison operator), and
+// per spec the attribute MUST be a scalar (or a map value, e.g.
+// `labels.stage`) directly on the collection's entities — no drilling into
+// a nested child collection. So this reuses the Filter Builder's
+// model-driven attribute enumeration (fbRootContext/fbPathAnchor) and its
+// <select>-based picker styling (.fb-seg-row/.fb-seg-select/.fb-seg-custom),
+// but with the "step into a child collection" choices left out entirely.
+//
+// _sortDraft: {mode, attr, mapKey, custom, desc}
+//   mode: '' (none chosen) | 'attr' (plain scalar) | 'map' (needs a key)
+//         | 'custom' (freeform dot-path)
+//   attr: chosen attribute name when mode is 'attr' or 'map'
+//   mapKey: the key typed in for a chosen map attribute (mode 'map')
+//   custom: freeform dot-path text (mode 'custom')
+//   desc: boolean, true = descending order
+
+function sortKey() {
+  return serverBase() + '|' + _state.section + '|' + _state.path.join('/');
+}
+
+function ensureSortDraft() {
+  var key = sortKey();
+  if (!_sortDraft || _sortDraftKey !== key) {
+    var parts = trimSplit(_state.sort || '', '=');
+    var attrPath = parts[0] || '';
+    var desc = parts[1] === 'desc';
+    _sortDraft = sortDraftFromPath(attrPath, desc);
+    _sortDraftKey = key;
+  }
+}
+
+// Reconstructs a draft {mode, attr, mapKey, custom, desc} from a wire-format
+// attribute path (e.g. '', 'name', 'labels.stage') — used both when a
+// draft is first created from _state.sort, and there's no model context
+// needed here since we're just splitting text, not validating it against
+// the model (validation only affects which choices the <select> offers).
+function sortDraftFromPath(attrPath, desc) {
+  if (!attrPath) {
+    return {mode: '', attr: '', mapKey: '', custom: '', desc: desc};
+  }
+  var dot = attrPath.indexOf('.');
+  if (dot === -1) {
+    return {mode: 'attr', attr: attrPath, mapKey: '', custom: '', desc: desc};
+  }
+  return {
+    mode: 'map', attr: attrPath.slice(0, dot),
+    mapKey: attrPath.slice(dot + 1), custom: '', desc: desc
+  };
+}
+
+function sortRerender() {
+  var host = el('lp-sort-section');
+  if (!host) return;
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  host.innerHTML = buildSortSectionInner(model);
+}
+
+// Collection-shadow attribute names to exclude from the Sort picker at
+// the Group-collection level (depth 1): a Group entity's JSON inlines
+// `{plural}`/`{plural}count`/`{plural}url` for each of its child Resource
+// types, which are redundant/invalid as sort targets (sort must not
+// traverse into a nested collection). Resource- and Version-level
+// contexts don't need this (fbRootContext already excludes the
+// meta/versions shadow attrs for Resources, and Versions have no
+// children at all).
+function sortShadowNames(model) {
+  var anchor = fbPathAnchor(model);
+  if (anchor.gPlural && !anchor.rPlural) {
+    var gm = model && model.groups && model.groups[anchor.gPlural];
+    return fbCollectionShadowNames(Object.keys((gm && gm.resources) || {}));
+  }
+  return null;
+}
+
+// Builds the Sort attribute <select> options: scalar ("leaf") attributes
+// directly, map attributes (need a follow-up key input), plus a trailing
+// "(other / custom attribute)" freeform escape hatch. Object/array
+// attributes are excluded entirely — not valid sort targets.
+function sortAttrOptions(attrsMap, shadowNames) {
+  var opts = [];
+  Object.keys(attrsMap || {}).sort().forEach(function(k) {
+    if (k === '*') return;
+    if (shadowNames && shadowNames[k]) return;
+    var kind = fbAttrKind(attrsMap[k]);
+    if (kind !== 'leaf' && kind !== 'map') return;
+    var suffix = kind === 'map'
+      ? '  (map — pick a key)' : '  (' + attrsMap[k].type + ')';
+    opts.push({value: k, label: k + suffix});
+  });
+  opts.push({value: '__custom__', label: '(other / custom attribute)'});
+  return opts;
+}
+
+// The wire-format attribute path implied by the current draft, or '' if
+// nothing usable has been chosen yet (e.g. a map attribute with no key
+// typed in, or an empty custom field).
+function sortDraftPath() {
+  if (!_sortDraft) return '';
+  if (_sortDraft.mode === 'attr')   return _sortDraft.attr;
+  if (_sortDraft.mode === 'map') {
+    return _sortDraft.mapKey ? _sortDraft.attr + '.' + _sortDraft.mapKey : '';
+  }
+  if (_sortDraft.mode === 'custom') return _sortDraft.custom;
+  return '';
+}
+
+// Returns the wire-format `sort=` value to send (e.g. '', 'name',
+// 'name=desc') — read by applyJSONOptions().
+function sortCollectValue() {
+  var path = sortDraftPath();
+  if (!path) return '';
+  return _sortDraft.desc ? path + '=desc' : path;
+}
+
+function sortSetAttr(value, model) {
+  if (value === '__custom__') {
+    _sortDraft.mode = 'custom'; _sortDraft.attr = ''; _sortDraft.mapKey = '';
+  } else if (value === '') {
+    _sortDraft.mode = ''; _sortDraft.attr = '';
+    _sortDraft.mapKey = ''; _sortDraft.custom = '';
+  } else {
+    var ctx  = fbRootContext(model, {});
+    var kind = fbAttrKind(ctx.attrsMap[value]);
+    _sortDraft.mode = (kind === 'map') ? 'map' : 'attr';
+    _sortDraft.attr = value;
+    _sortDraft.mapKey = '';
+  }
+  sortRerender();
+}
+
+function sortSetMapKey(value) {
+  _sortDraft.mapKey = value;
+  sortRerender();
+}
+
+function sortSetCustom(value) {
+  _sortDraft.custom = value;
+  sortRerender();
+}
+
+function sortSetOrder(desc) {
+  _sortDraft.desc = desc;
+  sortRerender();
+}
+
+function sortClear() {
+  _sortDraft = {mode: '', attr: '', mapKey: '', custom: '', desc: false};
+  sortRerender();
+}
+
+function buildSortSectionInner(model) {
+  var ctx        = fbRootContext(model, {});
+  var shadow     = sortShadowNames(model);
+  var options    = sortAttrOptions(ctx.attrsMap, shadow);
+  var chosenVal  = _sortDraft.mode === 'custom'
+    ? '__custom__' : _sortDraft.attr;
+  var html = '<div class="fb-seg-row"><span class="sort-label">'
+    + 'Sort:</span><select class="fb-seg-select" '
+    + 'onchange="sortSetAttr(this.value, '
+    + '_modelCache[normalizeURL(serverBase())])">'
+    + '<option value="">-- none --</option>'
+    + fbOptionsHTML(options, chosenVal)
+    + '</select></div>';
+
+  if (_sortDraft.mode === 'map') {
+    html += '<div class="fb-seg-row">'
+      + '<input type="text" class="fb-seg-custom" '
+      + 'placeholder="key name (e.g. stage)" '
+      + 'value="' + esc(_sortDraft.mapKey) + '" '
+      + 'onchange="sortSetMapKey(this.value)"></div>';
+  } else if (_sortDraft.mode === 'custom') {
+    html += '<div class="fb-seg-row">'
+      + '<input type="text" class="fb-seg-custom" '
+      + 'placeholder="dot-path e.g. labels.stage" '
+      + 'value="' + esc(_sortDraft.custom) + '" '
+      + 'onchange="sortSetCustom(this.value)"></div>';
+  }
+
+  if (sortDraftPath()) {
+    html += '<div class="fb-seg-row sort-order-row">'
+      + '<span class="sort-order-label">Order:</span>'
+      + '<div class="boolSeg sort-order-seg">'
+      + '<button type="button" class="boolSegBtn'
+      + (!_sortDraft.desc ? ' boolSegActive' : '')
+      + '" onclick="sortSetOrder(false)">asc</button>'
+      + '<button type="button" class="boolSegBtn'
+      + (_sortDraft.desc ? ' boolSegActive' : '')
+      + '" onclick="sortSetOrder(true)">desc</button>'
+      + '</div>'
+      + '<span class="sort-clear-btn" onclick="sortClear()">Clear sort</span>'
+      + '</div>';
+  }
+
+  return html;
 }
 
 function fbSelectRow(label, options, chosen, onchangeAttr) {
@@ -4350,6 +4579,7 @@ function applyJSONOptions() {
   cbs.forEach(function(cb) { if (cb.checked) inlines.push(cb.value); });
   pushState({
     filters:     fbCollectFilters(),
+    sort:        _sortDraft ? sortCollectValue() : _state.sort,
     docView:     doc ? doc.checked : false,
     binary:      bin ? bin.checked : false,
     collections: col ? col.checked : false,

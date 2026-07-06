@@ -647,6 +647,98 @@ Two follow-up fixes requested after the above:
    line-height/content-box mismatch that can cause visible drift with
    other fonts/OSes) and confirmed no visual regression via screenshot.
 
+## Sort Flag support (JSON view)
+
+Added `?sort=<ATTRIBUTE>[=asc|desc]` support to the SPA's JSON view, per
+the spec's "Sort Flag" section. Modeled closely on the Filter Builder
+(`registry/ui/app.js`), reusing its model-driven attribute-enumeration
+helpers rather than duplicating any model-walking logic, but intentionally
+much simpler since sort allows only a single attribute + order (no AND/OR
+groups, no comparison operator, and — per spec — no drilling into a
+nested child collection).
+
+- `_state.sort` — a string holding the wire-format value verbatim (e.g.
+  `''`, `'name'`, `'labels.stage=desc'`), threaded through
+  `loadStateFromURL()`/`buildURL()`/`buildAPIURL()`/`pushStateReal()`'s
+  default-reset object exactly like `_state.filters`.
+- Gated in `renderJSONLeftPanel()` by `hasF('sort') &&
+  isCollection(_state.path)` — only shown for Group/Resource/Version
+  collection pages, matching the spec's `sort_noncollection` restriction.
+- `_sortDraft` — working draft `{mode, attr, mapKey, custom, desc}`,
+  keyed per server/section/path (`sortKey()`, mirrors `fbKey()`),
+  rebuilt from `_state.sort` via `sortDraftFromPath()` whenever the key
+  changes (so browser back/forward and page reloads restore the picker
+  correctly).
+- Attribute picker reuses `fbRootContext(model, {})` — already computes
+  exactly the attribute map of whatever collection is currently being
+  browsed (Group/Resource/Version, based purely on `_state.path` via
+  `fbPathAnchor()`), so no new model-traversal code was needed. Options
+  are built by a new `sortAttrOptions()` (adapted from `fbAttrOptions()`)
+  that keeps only `leaf` and `map`-kind attributes (via `fbAttrKind()`),
+  excluding `object`/`array` entirely, plus a trailing "(other / custom
+  attribute)" freeform escape hatch — same UX pattern as the Filter
+  Builder's attribute picker.
+- New `sortShadowNames()` excludes a Group-collection's child-resource
+  shadow attrs (`{plural}`/`{plural}count`/`{plural}url`, e.g.
+  `messages`/`messagescount`/`messagesurl`) from the picker at the
+  Group-collection level (depth 1) — sort must not target a nested
+  collection even though it appears as a `map`-typed attribute on the
+  parent. Resource/Version levels don't need this: `fbRootContext()`
+  already excludes the meta/versions shadow attrs for Resources, and
+  Versions have no children.
+- Map attributes (e.g. `labels`) reveal a follow-up "key name" text
+  input (`sortSetMapKey()`), producing a `labels.<key>` wire path —
+  same sub-flow style as the Filter Builder's map-key input. The
+  "(other / custom attribute)" choice reveals a freeform dot-path input
+  instead (`sortSetCustom()`), for anything not directly enumerable.
+- Kept to one line ("Sort:" label + attribute dropdown, reusing
+  `.fb-seg-label`/`.fb-seg-select`) until an attribute is actually chosen
+  — no twisty/collapse needed, unlike Filters, since Sort only ever has
+  one control (a multi-expression collapsible section didn't make sense
+  here). Once chosen, the map-key/order/clear rows appear below.
+- Order toggle is a 2-state Asc/Desc control reusing the existing
+  `.boolSeg`/`.boolSegBtn` widget/CSS as-is (no new CSS needed) — only
+  shown once a usable attribute path has been chosen. A "Clear sort"
+  text link (new `.sort-clear-btn` style) below it clears the sort
+  entirely — an explicit "✕" next to the asc/desc pill was tried first
+  but read as clearing just the order, not the whole sort, so it was
+  replaced with a separate labeled link on its own row.
+- Draft isn't committed to `_state.sort` until the existing shared
+  "Apply" button is clicked — `applyJSONOptions()` gained one field,
+  `sort: sortCollectValue()`, alongside the existing filters/inlines/etc.
+- Explicitly out of scope for this pass (documented, not overlooked):
+  Grid/List (Table/Tile) view sorting (a separate follow-up, analogous
+  to the existing `grid-list-filters` todo) and special `bad_sort`
+  error UI (falls through to the existing generic JSON-fetch error
+  banner).
+
+Verified via a CDP-driven headless-Chromium script against a temporary
+test model (a `endpoints` group with a `labels` map attribute and a
+`messages` resource type, two sample `endpoints` entities with different
+`labels.stage` values):
+- Sort section renders only on collection pages (absent at the registry
+  root and on a single-entity page); present at both the Group-collection
+  (`/endpoints`) and Resource-collection (`/endpoints/e1/messages`)
+  levels, with the correct attribute set at each (shadow names like
+  `messages`/`messagescount`/`messagesurl` correctly excluded at the
+  Group level; `meta`/`versions` shadow attrs correctly excluded at the
+  Resource level, matching the Filter Builder's existing behavior).
+- Picking a map attribute (`labels`) revealed the key-name input;
+  typing `stage` + choosing "desc" + clicking Apply produced
+  `_state.sort === 'labels.stage=desc'`, a correctly-encoded API URL
+  (`?sort=labels.stage%3Ddesc`), and a bookmarkable page URL with the
+  same `sort` param.
+- A real GET against `/endpoints?sort=labels.stage=desc` (and the
+  percent-encoded equivalent — both parse identically server-side)
+  returned entities in the expected descending order.
+- Reloading the page with `&sort=labels.stage%3Ddesc` in the URL
+  correctly restored the picker's attribute/key/order selections from
+  `_state.sort`.
+- Clicking the "✕" clear control + Apply correctly emptied `_state.sort`
+  and removed the `sort` param from the URL.
+- Test data (sample model + entities) was fully removed/restored to the
+  original empty state afterward.
+
 ## Known non-gaps (design decisions made, not oversights)
 
 
