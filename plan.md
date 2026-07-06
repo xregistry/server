@@ -227,6 +227,32 @@ goals.
   alongside the static model walk. There's already a `TODO(ifvalues)`
   comment marking this in the code.
 
+- [ ] **Generic xRegistry JSON pretty-printer (JS + Go)**. The spec
+  (`core/spec.md`, "Design: JSON Serialization" section) shows a
+  pseudo-JSON layout for a Registry's full JSON body with a specific
+  attribute ordering and blank-line placement. Our server already
+  produces output matching that shape when *we're* the one streaming
+  it (`registry/jsonWriter.go`, driven by `OrderedSpecProps`'s
+  `$space`/`$extensions` marker entries — see `registry/shared_entity.go`
+  ~line 114). This todo is a different, standalone tool: given
+  *arbitrary* xRegistry JSON (e.g. any single entity or a whole
+  Registry doc, possibly from a non-xrserver/less-strict server), use
+  the entity's `xid` to identify its type/depth, then recursively
+  re-order and re-format that JSON — as deep as it goes — to match the
+  spec's pseudo-JSON attribute ordering/blank-line/extension-placement
+  conventions, purely by rearranging an already-parsed JSON value (not
+  by re-deriving it from our DB model). Needed in two forms:
+  - A JS version for the SPA UI's JSON view, so JSON from any
+    xRegistry-compliant server displays "prettied up" consistently,
+    not just ours.
+  - A Go version (reusing the same ordering rules/logic conceptually,
+    likely built on `OrderedSpecProps`) for use in the `xr` CLI.
+  - Needs a design pass before implementation: how to reuse
+    `OrderedSpecProps`'s `$space`/`$extensions` ordering metadata as a
+    shared source of truth for both the existing streaming writer and
+    this new "reformat already-parsed JSON" tool, without duplicating
+    the ordering rules in two places.
+
 ## Completed (for history / context)
 
 - Removed dead legacy CSS: `#left`/`#right` id selectors in
