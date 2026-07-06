@@ -813,8 +813,19 @@ type SpecAttrInfo struct {
 	UILabel     string
 }
 
-// GetOrderedSpecAttrTypes returns name+types for every entry in OrderedSpecProps,
-// in declaration order. Used by cmds/genspecattrs to generate registry/ui/specattrs.js.
+// GetOrderedSpecAttrTypes returns name+types for every entry in
+// OrderedSpecProps, in declaration order. Used by cmds/genspecattrs to
+// generate registry/ui/specattrs.js.
+//
+// Note: nested attributes of spec-defined complex (object) attrs — e.g.
+// "deprecated"'s effective/removal/alternative/documentation — are NOT
+// enumerated here. Their types are already fully described in the runtime
+// /model response (which the UI caches per-server), so the UI resolves
+// monospace formatting for nested fields by walking that cached model at
+// render time (see getExplicitAttrTypeAtPath() in registry/ui/app.js)
+// rather than via codegen — this keeps nested-field handling generic for
+// any current or future spec-defined (or model-defined extension) complex
+// attribute, without hardcoding attribute names here.
 func GetOrderedSpecAttrTypes() []SpecAttrInfo {
 	result := make([]SpecAttrInfo, 0, len(OrderedSpecProps))
 	for _, attr := range OrderedSpecProps {

@@ -26,11 +26,11 @@
 var _state = {
   view:        'home',  // 'home' | 'tile' | 'table' | 'json'
   homeGroup:   'registry',  // 'registry' | 'types' — overridden from localStorage in init()
-  homeLayout:  'grid',      // 'grid' | 'list'      — overridden from localStorage in init()
+  homeLayouts: {registry: 'grid', types: 'grid'}, // per-group layout, overridden from localStorage
   dataView:    'grid',  // 'grid' | 'table' | 'json'
   serverURL:   '',      // full URL to registry root, e.g. 'http://localhost:8080'
                         // '' = same origin as the SPA
-  section:     'data',  // 'data' | 'model' | 'capabilities'
+  section:     'data',  // 'data' | 'model' | 'modelsource' | 'capabilities' | 'capabilitiesoffered'
   path:        [],      // path segments relative to registry root (data section only)
   editMode:    false,
   mutable:     false,
@@ -41,6 +41,7 @@ var _state = {
   docView:     false,
   binary:      false,
   collections: false,
+  useExport:   false,   // use /export endpoint instead of registry root (depth 0 only)
 };
 
 // ---- Server/registry management (localStorage) ---------------------------
@@ -49,6 +50,8 @@ var LS_SERVERS     = 'xreg-servers';
 var LS_OPTIONS     = 'xreg-options';
 var _labelCache    = {};  // normalizedURL → probed registry name
 var _modelCache    = {};  // normalizedURL → model JSON
+var _capCache      = {};  // normalizedURL → capabilities JSON
+var _offeredCache  = {};  // normalizedURL → capabilitiesoffered JSON
 var _headerCompact = false;
 
 // ---- Options (persisted) --------------------------------------------------
@@ -73,7 +76,18 @@ function optHomeGroup()   {
   }
   return _opts.homeGroup || 'registry';
 }
-function optHomeLayout()  { return _opts.homeLayout || 'grid'; }
+function optHomeLayouts() {
+  // Migrate legacy single homeLayout → per-group object
+  if (_opts.homeLayout !== undefined && !_opts.homeLayouts) {
+    _opts.homeLayouts = {registry: _opts.homeLayout, types: 'grid'};
+    delete _opts.homeLayout;
+    saveOpts();
+  }
+  return _opts.homeLayouts || {registry: 'grid', types: 'grid'};
+}
+function currentHomeLayout() {
+  return (_state.homeLayouts || {})[_state.homeGroup] || 'grid';
+}
 
 function loadServers() {
   try {
@@ -110,11 +124,54 @@ window.addEventListener('popstate', function() { loadStateFromURL(); renderHeade
 window.addEventListener('resize', function() { renderHeader(); });
 
 function init() {
-  _state.homeGroup  = optHomeGroup();
-  _state.homeLayout = optHomeLayout();
+  _state.homeGroup   = optHomeGroup();
+  _state.homeLayouts = optHomeLayouts();
   loadStateFromURL();
+
+  // Wire up unified view-controls buttons (data-dview="grid|table|json" + edit-btn)
+  var vc = el('view-controls');
+  if (vc) {
+    vc.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-dview]');
+      if (btn && !btn.classList.contains('view-btn-disabled')) setDataView(btn.dataset.dview);
+    });
+  }
+
+  // Left-panel drag-resize
+  var resizer = el('left-panel-resizer');
+  var lpanel  = el('left-panel');
+  if (resizer && lpanel) {
+    if (_opts.leftPanelWidth) lpanel.style.width = _opts.leftPanelWidth + 'px';
+    resizer.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      var startX = e.clientX, startW = lpanel.offsetWidth;
+      resizer.classList.add('dragging');
+      function onMove(e) {
+        var w = Math.max(140, Math.min(700, startW + e.clientX - startX));
+        lpanel.style.width = w + 'px';
+      }
+      function onUp() {
+        resizer.classList.remove('dragging');
+        _opts.leftPanelWidth = lpanel.offsetWidth;
+        saveOpts();
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup',   onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+    });
+  }
+
   renderHeader();
   refresh();
+}
+
+// Show or hide the left panel and its resizer handle together.
+function setLeftPanelVisible(show) {
+  var d = show ? '' : 'none';
+  var lp = el('left-panel'),  lr = el('left-panel-resizer');
+  if (lp) lp.style.display = d;
+  if (lr) lr.style.display = d;
 }
 
 // ---- URL state -----------------------------------------------------------
@@ -125,12 +182,16 @@ function loadStateFromURL() {
   _state.serverURL   = p.get('server')  || '';
   _state.section     = p.get('section') || 'data';
   _state.path        = decodePath(p.get('path') || '');
+  // Use explicit dview param if present; otherwise restore saved preference for this
+  // section/depth (data pages restore per-depth, model/modelsource restore per-section)
+  _state.dataView    = p.get('dview') || defaultDataView(_state.section, _state.path.length);
   _state.editMode    = p.get('edit') === '1';
   _state.inlines     = csvList(p.get('inline'));
   _state.filters     = (p.get('filter') || '').split('\n').filter(Boolean);
   _state.docView     = p.get('doc')         === '1';
   _state.binary      = p.get('binary')      === '1';
   _state.collections = p.get('collections') === '1';
+  _state.useExport   = p.get('export')      === '1';
 }
 
 function buildURL(st) {
@@ -140,20 +201,107 @@ function buildURL(st) {
   if (st.section && st.section !== 'data') p.set('section', st.section);
   if (st.editMode)                         p.set('edit', '1');
   if (st.path   && st.path.length)         p.set('path',    encodePath(st.path));
-  if (st.inlines && st.inlines.length)     p.set('inline',  st.inlines.join(','));
-  if (st.filters && st.filters.length)     p.set('filter',  st.filters.join('\n'));
-  if (st.docView)                          p.set('doc',         '1');
-  if (st.binary)                           p.set('binary',      '1');
-  if (st.collections)                      p.set('collections', '1');
+  var defaultView = defaultDataView(st.section, (st.path || []).length);
+  if (st.dataView && st.dataView !== defaultView) p.set('dview', st.dataView);
+
+  // JSON-view-only params: only add when actually in JSON view. Model/modelsource's
+  // "list" (editor) dataView is not a JSON view, so it's excluded here.
+  // New path-specific query params should be added here; they will naturally
+  // be absent from the URL in all non-JSON-view contexts.
+  var isJsonOnlySection = st.section === 'capabilities' || st.section === 'capabilitiesoffered';
+  var inJsonView = st.dataView === 'json' || st.view === 'json' || isJsonOnlySection;
+  if (inJsonView) {
+    if (st.inlines && st.inlines.length)   p.set('inline',      st.inlines.join(','));
+    if (st.filters && st.filters.length)   p.set('filter',      st.filters.join('\n'));
+    if (st.docView)                        p.set('doc',         '1');
+    if (st.binary)                         p.set('binary',      '1');
+    if (st.collections)                    p.set('collections', '1');
+    if (st.useExport && st.path && st.path.length === 0) p.set('export', '1');
+  }
+
   var qs = p.toString();
   return window.location.pathname + (qs ? '?' + qs : '');
 }
 
 function pushState(patch) {
+  // Guard: leaving modelsource edit mode (or navigating away from it entirely)
+  // with unsaved changes — offer Save / Discard / Cancel before proceeding.
+  if (_state.section === 'modelsource' && _state.editMode && _modelDirty) {
+    var leavingEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingEdit) {
+      showLeaveEditDialog(
+        function() { saveModel(function() { _modelDirty = false; pushStateReal(patch); }); },
+        function() { _modelDirty = false; _modelData = deepClone(_modelSrc); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
+  // Guard: leaving capabilities edit mode with unsaved changes — same pattern.
+  if (_state.section === 'capabilities' && _state.editMode && _capDirty) {
+    var leavingCapEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingCapEdit) {
+      showLeaveEditDialog(
+        function() { saveCapabilities(function() { _capDirty = false; pushStateReal(patch); }); },
+        function() { _capDirty = false; _capData = deepClone(_capSrc); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
+  pushStateReal(patch);
+}
+
+function pushStateReal(patch) {
+  // Restore depth/section-specific view preference whenever we enter (or re-enter) a
+  // data/model/modelsource page: on server change, path change, section change, or
+  // transitioning from home/config to data.
+  var changingServer  = patch.serverURL !== undefined && patch.serverURL !== _state.serverURL;
+  var changingPath    = patch.path !== undefined &&
+                       JSON.stringify(patch.path) !== JSON.stringify(_state.path);
+  var changingSection = patch.section !== undefined && patch.section !== _state.section;
+  var enteringData    = patch.view !== undefined &&
+                       patch.view !== 'home' && patch.view !== 'config' &&
+                       (_state.view === 'home' || _state.view === 'config');
+  if (changingServer || changingPath || changingSection || enteringData) {
+    var newDepth   = (patch.path !== undefined ? patch.path : _state.path || []).length;
+    var newSection = patch.section !== undefined ? patch.section : _state.section;
+    var savedView  = defaultDataView(newSection, newDepth);
+    // JSON view is "sticky" across navigation — moving up/down within a section's
+    // pages, or switching between Registry Data / Model / Model Source / Capabilities
+    // / Capabilities Offered (e.g. via the Registry Endpoints panel or the
+    // "← Registry Data" link) — all keep JSON view, just like clicking a URL inside
+    // the JSON content itself always stays in JSON. Only breaks when changing
+    // servers or freshly entering the data section from Home/Config, where the
+    // section/depth default should apply instead.
+    if (!changingServer && !enteringData && (changingPath || changingSection)
+        && _state.dataView === 'json' && patch.dataView === undefined) {
+      savedView = 'json';
+    }
+    // Prepend defaults so explicit values in patch still win
+    patch = Object.assign({
+      inlines: [], filters: [], docView: false, binary: false, collections: false,
+      useExport: false, section: 'data', dataView: savedView
+    }, patch);
+  }
   Object.assign(_state, patch);
   history.pushState(null, '', buildURL(_state));
   renderHeader();
   refresh();
+}
+
+// Default dataView for a given section/path-depth, honoring saved preferences.
+//   data                — per-depth preference (_opts.depthViews), default 'grid'
+//   model / modelsource — per-section preference (_opts.sectionViews), default 'table' (list)
+//   capabilities / capabilitiesoffered — always 'json' (no other view exists yet)
+function defaultDataView(section, pathLen) {
+  if (section === 'model' || section === 'modelsource' || section === 'capabilities') {
+    return (_opts.sectionViews || {})[section] || 'table';
+  }
+  if (section === 'capabilitiesoffered') {
+    return 'json';
+  }
+  return (_opts.depthViews || {})[pathLen] || 'grid';
 }
 
 function encodePath(parts) { return parts.map(encodeURIComponent).join('/'); }
@@ -191,11 +339,15 @@ function serverBase() {
 }
 
 function buildAPIURL() {
-  if (_state.section === 'model')        return serverBase() + '/model';
-  if (_state.section === 'capabilities') return serverBase() + '/capabilities';
+  var base = serverBase();
+  if (_state.section === 'model')                return base + '/model';
+  if (_state.section === 'modelsource')          return base + '/modelsource';
+  if (_state.section === 'capabilities')         return base + '/capabilities';
+  if (_state.section === 'capabilitiesoffered')  return base + '/capabilitiesoffered';
+  if (_state.useExport)                          return base + '/export';
 
   var path = _state.path;
-  var url = serverBase() + (path.length ? '/' + path.join('/') : '');
+  var url = base + (path.length ? '/' + path.join('/') : '');
 
   var q = [];
   _state.inlines.forEach(function(i) { q.push('inline=' + encodeURIComponent(i)); });
@@ -215,39 +367,60 @@ function renderHeader() {
   var isData   = !isHome && !isConfig;
 
   el('reg-select').style.display     = 'none';
-  el('section-select').style.display = 'none';
   el('breadcrumbs').style.display    = '';
   el('view-toggle') && (el('view-toggle').style.display = 'none');
   setHeaderCompact(false);
-  el('edit-btn').style.display       = isData ? '' : 'none';
 
-  var hvt = el('home-group-toggle');
-  var hlt = el('home-layout-btn');
-  if (hvt) hvt.style.display = isHome ? '' : 'none';
-  if (hlt) hlt.style.display = isHome ? '' : 'none';
-  var dvt = el('data-view-toggle');
-  if (dvt) dvt.style.display = isData ? '' : 'none';
-  if (isData) {
-    qsa('[data-dview]').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.dview === _state.dataView);
-    });
-  }
+  // On home, show buttons reflecting current group's layout without corrupting _state.dataView
+  var effectiveView = isHome ? currentHomeLayout() : _state.dataView;
 
-  if (isHome) {
-    // inject folder icon SVG into the group toggle button (can't put it in HTML easily)
-    var fi = el('hg-folder-icon');
-    if (fi && !fi.innerHTML) fi.innerHTML = FOLDER_ICON;
-    qsa('[data-hgroup]').forEach(function(b) {
-      b.classList.toggle('active', b.dataset.hgroup === _state.homeGroup);
-    });
-    if (hlt) {
-      var hltBtn = hlt.querySelector('.view-btn');
-      if (hltBtn) hltBtn.classList.toggle('active', _state.homeLayout === 'list');
-    }
-  }
-
+  // Gear: always visible on all pages
   var gb = el('gear-btn');
-  if (gb) gb.style.display = isHome ? '' : 'none';
+  if (gb) gb.style.display = '';
+
+  // Section-specific view rules:
+  //   data                        — grid/table/json all available, edit when mutable
+  //   model / modelsource         — no grid (list-style editor only), list+json available;
+  //                                 edit only ever available on modelsource (never model)
+  //   capabilities                — no grid (list-style editor only), list+json available;
+  //                                 edit available when the doc itself is mutable
+  //   capabilitiesoffered         — JSON only, no editing (schema document)
+  var section          = _state.section;
+  var isModelSection    = isData && (section === 'model' || section === 'modelsource');
+  var isCapSection      = isData && (section === 'capabilities');
+  var isListOnlySection = isModelSection || isCapSection;
+  var isJsonOnlySection = isData && (section === 'capabilitiesoffered');
+
+  var enableGrid, enableList, enableJson, enableEdit;
+  if (isConfig) {
+    enableGrid = enableList = enableJson = enableEdit = false;
+  } else if (isHome) {
+    enableGrid = enableList = true;  enableJson = false; enableEdit = false;
+  } else if (isJsonOnlySection) {
+    enableGrid = enableList = false; enableJson = true;  enableEdit = false;
+  } else if (isListOnlySection) {
+    enableGrid = false; enableList = true; enableJson = true;
+    enableEdit = isCapSection ? _state.mutable : (section === 'modelsource') && _state.mutable;
+  } else {
+    enableGrid = enableList = enableJson = true;
+    enableEdit = _state.mutable;
+  }
+
+  qsa('[data-dview]').forEach(function(b) {
+    var v = b.dataset.dview;
+    var active = isJsonOnlySection ? (v === 'json') : (v === effectiveView);
+    b.classList.toggle('active', active);
+    var disabled = isConfig
+      || (v === 'grid'  && !enableGrid)
+      || (v === 'table' && !enableList)
+      || (v === 'json'  && !enableJson);
+    b.classList.toggle('view-btn-disabled', disabled);
+  });
+  var editBtn = el('edit-btn');
+  if (editBtn) {
+    editBtn.classList.toggle('active', _state.editMode);
+    editBtn.classList.toggle('view-btn-disabled', isConfig || !enableEdit);
+  }
 
   // For data pages, skip breadcrumb render if label not cached yet —
   // the probe in refresh() will call renderBreadcrumbs() once the name arrives.
@@ -266,32 +439,100 @@ function setHomeGroup(v) {
   _state.homeGroup = v;
   _opts.homeGroup  = v;
   saveOpts();
-  qsa('[data-hgroup]').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.hgroup === v);
-  });
-  renderBreadcrumbs();
+  renderHeader();    // updates active layout button for the new group
   renderHome();
 }
 
 function toggleHomeLayout() {
-  var v = _state.homeLayout === 'list' ? 'grid' : 'list';
-  _state.homeLayout = v;
-  _opts.homeLayout  = v;
-  saveOpts();
-  var hlt = el('home-layout-btn');
-  if (hlt) {
-    var hltBtn = hlt.querySelector('.view-btn');
-    if (hltBtn) hltBtn.classList.toggle('active', v === 'list');
-  }
-  renderHome();
+  setDataView(currentHomeLayout() === 'table' ? 'grid' : 'table');
 }
 
 function setDataView(v) {
+  // Guard: leaving the modelsource list/editor view while mid-edit with unsaved
+  // changes (e.g. switching to JSON view) — offer Save / Discard / Cancel first.
+  if (_state.section === 'modelsource' && _state.editMode && _modelDirty
+      && v !== _state.dataView) {
+    showLeaveEditDialog(
+      function() { saveModel(function() { _modelDirty = false; setDataView(v); }); },
+      function() { _modelDirty = false; _modelData = deepClone(_modelSrc); setDataView(v); }
+    );
+    return;
+  }
+  // Guard: leaving the capabilities list/editor view while mid-edit with unsaved
+  // changes — same pattern.
+  if (_state.section === 'capabilities' && _state.editMode && _capDirty
+      && v !== _state.dataView) {
+    showLeaveEditDialog(
+      function() { saveCapabilities(function() { _capDirty = false; setDataView(v); }); },
+      function() { _capDirty = false; _capData = deepClone(_capSrc); setDataView(v); }
+    );
+    return;
+  }
+
   _state.dataView = v;
   qsa('[data-dview]').forEach(function(b) {
     b.classList.toggle('active', b.dataset.dview === v);
   });
+
+  // On home page, persist per-group layout preference (independent of data pages)
+  if (_state.view === 'home') {
+    _state.homeLayouts[_state.homeGroup] = v;
+    if (!_opts.homeLayouts) _opts.homeLayouts = {registry: 'grid', types: 'grid'};
+    _opts.homeLayouts[_state.homeGroup] = v;
+    saveOpts();
+    renderHome();
+    return;
+  }
+
+  // Model/Model Source: persist per-section preference (list vs json); no per-depth
+  // concept applies here, and "grid" is never a valid choice for these sections.
+  if (_state.section === 'model' || _state.section === 'modelsource') {
+    if (!_opts.sectionViews) _opts.sectionViews = {};
+    _opts.sectionViews[_state.section] = v;
+    saveOpts();
+    history.replaceState(null, '', buildURL(_state));
+    if (_lastData) {
+      setLeftPanelVisible(v === 'json');
+      v === 'json' ? renderJSONView(_lastData) : renderModelEditor(_lastData);
+    }
+    return;
+  }
+
+  // Capabilities: same per-section persisted preference as model/modelsource.
+  if (_state.section === 'capabilities') {
+    if (!_opts.sectionViews) _opts.sectionViews = {};
+    _opts.sectionViews[_state.section] = v;
+    saveOpts();
+    history.replaceState(null, '', buildURL(_state));
+    if (_lastData) {
+      setLeftPanelVisible(v === 'json');
+      if (v === 'json') {
+        renderJSONView(_lastData);
+      } else {
+        var svBaseC2 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+        ensureOfferedCached(svBaseC2, function(offered) {
+          renderCapabilitiesEditor(_lastData, offered);
+        });
+      }
+    }
+    return;
+  }
+
+  // Data page: persist grid/table preference per path depth.
+  // JSON is not saved here — it's sticky within a session (see pushState) but
+  // returns to the saved grid/table view when entering a registry fresh.
+  if (!_opts.depthViews) _opts.depthViews = {};
+  if (v === 'grid' || v === 'table') {
+    _opts.depthViews[_state.path.length] = v;
+    saveOpts();
+  }
+
+  // Keep URL in sync so refresh restores the same view
+  history.replaceState(null, '', buildURL(_state));
+
   if (_lastData) {
+    setLeftPanelVisible(v === 'json');
+    if (v === 'json') { renderJSONView(_lastData); return; }
     var coll = isCollection(_state.path);
     if (coll) {
       v === 'grid' ? renderTileView(_lastData) : renderTableView(_lastData);
@@ -366,20 +607,28 @@ var _bcSegs = []; // current segments, shared with popup openers
 
 // Returns [{label, onclick|null, isCurrent}] for the current state
 function buildBreadcrumbSegments() {
-  if (_state.view === 'home')   return [{label: _state.homeGroup === 'types' ? 'Group Types' : 'Registries', onclick:null, isCurrent:true}];
+  if (_state.view === 'home')   return null; // handled specially in renderBreadcrumbs
   if (_state.view === 'config') return [{label:'Config',     onclick:null, isCurrent:true}];
 
   var segs = [];
   var regLabel = serverLabel(_state.serverURL || window.location.origin);
-  var regClick = 'pushState({path:[],section:\'data\',editMode:false});return false';
-  segs.push({label: regLabel, onclick: regClick, isCurrent: _state.path.length === 0});
+  var regClick = 'pushState({path:[],section:\'data\',useExport:false,editMode:false});return false';
+  var isSection = _state.section !== 'data';
+  segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, isCurrent: !isSection && _state.path.length === 0});
+
+  // If in a section view, add the section name as the last breadcrumb
+  if (isSection) {
+    var sectionLabels = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+    segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, isCurrent: true});
+    return segs;
+  }
 
   _state.path.forEach(function(seg, i) {
     var newPath = _state.path.slice(0, i + 1);
     var isLast  = (i === _state.path.length - 1);
     var click   = isLast ? null
       : 'pushState({path:' + esc(JSON.stringify(newPath))
-        + ',section:' + esc(JSON.stringify(_state.section)) + ',editMode:false});return false';
+        + ',section:\'data\',editMode:false});return false';
     segs.push({label: seg, onclick: click, isCurrent: isLast});
   });
   return segs;
@@ -402,6 +651,18 @@ function renderBreadcrumbs() {
 
   closeHeaderPopup();
   setHeaderCompact(false);
+
+  // Home page: render a 2-button Registries / Group Types pill in the breadcrumb
+  if (_state.view === 'home') {
+    var hg = _state.homeGroup;
+    nav.innerHTML = _bcSep
+      + '<span class="bc-home-pill">'
+      +   '<span class="bc-home-opt' + (hg === 'registry' ? ' active' : '') + '" onclick="setHomeGroup(\'registry\')">Registries</span>'
+      +   '<span class="bc-home-opt' + (hg === 'types'    ? ' active' : '') + '" onclick="setHomeGroup(\'types\')">Group Types</span>'
+      + '</span>';
+    nav.style.overflow = '';
+    return;
+  }
 
   _bcSegs = buildBreadcrumbSegments();
   nav.innerHTML = breadcrumbsFromSegments(_bcSegs);
@@ -512,42 +773,38 @@ function buildCompactMenuItems() {
   var isData = !isHome && _state.view !== 'config';
   if (isHome) {
     var hg = _state.homeGroup;
-    var hl = _state.homeLayout;
     items.push({label: 'By Registry',    onclick: "setHomeGroup('registry')", active: hg === 'registry'});
     items.push({label: 'By Group Type',  onclick: "setHomeGroup('types')",    active: hg === 'types'});
-    items.push({label: 'List view',      onclick: 'toggleHomeLayout()',       active: hl === 'list'});
     items.push({sep: true});
-    items.push({label: 'Config', onclick: 'goToConfig()'});
   }
+  var dv = isHome ? currentHomeLayout() : (_state.dataView || 'grid');
+  items.push({label: 'Grid view',  onclick: "setDataView('grid')",  active: dv === 'grid'});
+  items.push({label: 'List view',  onclick: "setDataView('table')", active: dv === 'table'});
   if (isData) {
-    var dv = _state.dataView || 'grid';
-    items.push({label: 'Grid view',  onclick: "setDataView('grid')",  active: dv === 'grid'});
-    items.push({label: 'Table view', onclick: "setDataView('table')", active: dv === 'table'});
     items.push({label: 'JSON view',  onclick: "setDataView('json')",  active: dv === 'json'});
     if (_state.mutable) items.push({label: 'Edit', onclick: 'toggleEdit()'});
+  }
+  if (!isData) {
+    items.push({sep: true});
+    items.push({label: 'Config', onclick: 'goToConfig()'});
   }
   return items;
 }
 
 function setHeaderCompact(compact) {
   _headerCompact = compact;
-  var homeGroupToggle = el('home-group-toggle');
-  var homeLayoutBtn   = el('home-layout-btn');
-  var dataToggle = el('data-view-toggle');
-  var editBtn    = el('edit-btn');
-  var gearBtn    = el('gear-btn');
-  var compactBtn = el('compact-menu-btn');
+  var viewControls = el('view-controls');
+  var gearBtn      = el('gear-btn');
+  var compactBtn   = el('compact-menu-btn');
   if (!compactBtn) return;
   if (compact) {
-    if (homeGroupToggle) homeGroupToggle.style.display = 'none';
-    if (homeLayoutBtn)   homeLayoutBtn.style.display   = 'none';
-    if (dataToggle) dataToggle.style.display = 'none';
-    if (editBtn)    editBtn.style.display    = 'none';
-    if (gearBtn)    gearBtn.style.display    = 'none';
+    if (viewControls) viewControls.style.display = 'none';
+    if (gearBtn)      gearBtn.style.display      = 'none';
     compactBtn.style.display = '';
   } else {
+    if (viewControls) viewControls.style.display = '';
+    if (gearBtn)      gearBtn.style.display      = '';
     compactBtn.style.display = 'none';
-    // renderHeader() restores correct visibility for other buttons
   }
 }
 
@@ -567,19 +824,19 @@ function crumb(label, clickExpr) {
 var _lastData = null;
 var _metaData = null;          // cached meta response for resource page meta box
 var _metaResourceIdField = ''; // resource's own ID field name, set when resource page renders
+var _metaEntityType = '';      // resource's singular type name, used by List view's meta table header
 
 function refresh() {
   var main = el('main-view');
-  var leftPanel = el('left-panel');
 
   if (_state.view === 'home') {
-    leftPanel.style.display = 'none';
+    setLeftPanelVisible(false);
     renderHome();
     return;
   }
 
   if (_state.view === 'config') {
-    leftPanel.style.display = 'none';
+    setLeftPanelVisible(false);
     renderConfig();
     return;
   }
@@ -592,8 +849,80 @@ function refresh() {
     });
   }
 
-  leftPanel.style.display = (_state.view === 'json') ? '' : 'none';
+  var isModelSection        = (_state.section === 'model' || _state.section === 'modelsource');
+  var isCapabilitiesSection = (_state.section === 'capabilities');
+  var isJsonOnlySection     = (_state.section === 'capabilitiesoffered');
+
+  setLeftPanelVisible(_state.view === 'json' || _state.dataView === 'json' || isJsonOnlySection);
   main.innerHTML = spinner();
+
+  // Capabilities Offered — always JSON (schema document, not user-edited)
+  if (isJsonOnlySection) {
+    var sectionURL = buildAPIURL();
+    fetchJSON(sectionURL)
+      .then(function(data) {
+        _lastData = data;
+        _state.mutable = false;
+        renderHeader();
+        renderJSONView(data);
+      })
+      .catch(function(err) {
+        main.innerHTML = '<div class="error-banner">Error loading:\n'
+          + esc(sectionURL) + '\n\n' + esc(String(err)) + '</div>';
+      });
+    return;
+  }
+
+  // Capabilities — list (editor) or JSON view, per _state.dataView. Editable
+  // when the doc itself reports available.capabilities.mutable === true.
+  if (isCapabilitiesSection) {
+    var svBaseC = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    ensureCapCached(svBaseC, function(cap) {
+      if (!cap) {
+        main.innerHTML = '<div class="error-banner">Error loading:\n'
+          + esc(svBaseC + '/capabilities') + '</div>';
+        return;
+      }
+      var avail = cap.available;
+      _state.mutable = !!(avail && avail.capabilities && avail.capabilities.mutable);
+      _lastData = cap;
+      renderHeader();
+      if (_state.dataView === 'json') {
+        renderJSONView(cap);
+      } else {
+        ensureOfferedCached(svBaseC, function(offered) {
+          renderCapabilitiesEditor(cap, offered);
+        });
+      }
+    });
+    return;
+  }
+
+  // Model / Model Source — list (editor) or JSON view, per _state.dataView.
+  // Editing is only ever enabled while on modelsource (see renderHeader()).
+  if (isModelSection) {
+    var modelURL = buildAPIURL();
+    var svBaseM  = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    ensureCapCached(svBaseM, function(cap) {
+      var avail = cap && cap.available;
+      _state.mutable = !!(avail && avail[_state.section] && avail[_state.section].mutable);
+      fetchJSON(modelURL)
+        .then(function(data) {
+          _lastData = data;
+          renderHeader();
+          if (_state.dataView === 'json') {
+            renderJSONView(data);
+          } else {
+            renderModelEditor(data);
+          }
+        })
+        .catch(function(err) {
+          main.innerHTML = '<div class="error-banner">Error loading:\n'
+            + esc(modelURL) + '\n\n' + esc(String(err)) + '</div>';
+        });
+    });
+    return;
+  }
 
   var apiURL = buildAPIURL();
   var coll   = isCollection(_state.path);
@@ -605,13 +934,15 @@ function refresh() {
     .then(function(data) {
       _lastData = data;
       _state.mutable = detectMutable(data);
-      var eb = el('edit-btn');
-      if (eb) eb.style.display = (_state.mutable && !_headerCompact) ? '' : 'none';
+      // Re-render header to update edit button enabled/active state
+      renderHeader();
 
       switch (_state.view) {
         case 'json': renderJSONView(data); break;
         default:
-          if (coll) {
+          if (_state.dataView === 'json') {
+            renderJSONView(data);
+          } else if (coll) {
             _state.dataView === 'grid' ? renderTileView(data) : renderTableView(data);
           } else {
             _state.dataView === 'grid' ? renderEntityGrid(data) : renderSingleEntity(data);
@@ -639,11 +970,11 @@ function renderHome() {
   var allServers = [origin].concat(servers.filter(function(u) { return u !== origin; }));
 
   var g = _state.homeGroup;
-  var l = _state.homeLayout;
+  var l = currentHomeLayout(); // per-group persisted layout, independent of data pages
   if (g === 'types') {
-    l === 'list' ? renderHomeFlatList(main, allServers) : renderHomeFlatGrid(main, allServers);
+    l === 'table' ? renderHomeFlatList(main, allServers) : renderHomeFlatGrid(main, allServers);
   } else {
-    l === 'list' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
+    l === 'table' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
   }
 }
 
@@ -664,13 +995,12 @@ function renderHomeTable(main, servers) {
   });
   var html = '<div class="home-page">'
     + '<table class="home-table"><thead><tr>'
-    +   '<th>Registry</th><th>Group Types</th><th>Location</th>'
+    +   '<th>Registry</th><th>Description</th><th>Group Types</th><th>Location</th>'
     + '</tr></thead><tbody>';
   sorted.forEach(function(url) {
     html += '<tr data-server-url="' + esc(url) + '">'
       + '<td class="ht-name" style="position:relative">'
       +   '<span class="ht-name-text ht-name-link" onclick="doBrowse(\'' + esc(url) + '\')">' + esc(serverLabel(url)) + '</span>'
-      +   '<div class="ht-desc" style="display:none"></div>'
       +   '<div class="server-card-err-popup" style="display:none">'
       +     '<div class="server-card-err-popup-title">Connection Error</div>'
       +     '<div class="server-card-err-popup-msg"></div>'
@@ -678,6 +1008,7 @@ function renderHomeTable(main, servers) {
       +       'onclick="this.closest(\'.server-card-err-popup\').style.display=\'none\'">Close</button>'
       +   '</div>'
       + '</td>'
+      + '<td class="ht-desc-col" style="color:#666;font-size:13px"></td>'
       + '<td class="ht-groups"><div class="ht-groups-inner"><span class="ht-loading">…</span></div></td>'
       + '<td class="ht-url">' + esc(url) + '</td>'
       + '</tr>';
@@ -714,8 +1045,8 @@ function renderHomeTable(main, servers) {
         if (groupsEl) groupsEl.textContent = '';
       } else {
         if (nameEl && info.label) nameEl.textContent = info.label;
-        var descEl = row.querySelector('.ht-desc');
-        if (descEl && info.description) { descEl.textContent = info.description; descEl.style.display = ''; }
+        var descEl = row.querySelector('.ht-desc-col');
+        if (descEl && info.description) descEl.textContent = info.description;
         if (groupsEl) {
           groupsEl.innerHTML = info.colls.length
             ? info.colls.map(function(c) {
@@ -777,8 +1108,8 @@ function browseGroupCollection(serverUrl, collName) {
 function renderHomeFlatList(main, servers) {
   main.innerHTML = '<div class="home-page">'
     + '<table class="home-table"><thead><tr>'
-    +   '<th>Group Type</th><th>Items</th><th>Resource Types</th><th>Registry</th>'
-    + '</tr></thead><tbody id="flat-list-body"><tr><td colspan="4" style="color:#aaa;font-size:13px">Loading…</td></tr></tbody></table></div>';
+    +   '<th>Group Type</th><th>Description</th><th>Items</th><th>Resource Types</th><th>Registry</th>'
+    + '</tr></thead><tbody id="flat-list-body"><tr><td colspan="5" style="color:#aaa;font-size:13px">Loading…</td></tr></tbody></table></div>';
 
   var pending = servers.length;
   var allRows = [];
@@ -791,14 +1122,14 @@ function renderHomeFlatList(main, servers) {
     var tbody = el('flat-list-body');
     if (!tbody) return;
     if (allRows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="color:#aaa;font-size:13px;font-style:italic">No group types found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;font-size:13px;font-style:italic">No group types found</td></tr>';
       return;
     }
     tbody.innerHTML = allRows.map(function(r) {
       var onclick = 'browseGroupCollection(\'' + esc(r.serverUrl) + '\',\'' + esc(r.plural) + '\')';
-      var descHtml = r.description ? '<div class="ht-desc">' + esc(r.description) + '</div>' : '';
       return '<tr>'
-        + '<td class="ht-name ht-name-link" style="font-weight:bold" onclick="' + onclick + '">' + esc(r.plural) + descHtml + '</td>'
+        + '<td class="ht-name ht-name-link" style="font-weight:bold" onclick="' + onclick + '">' + esc(r.plural) + '</td>'
+        + '<td class="ht-desc-col" style="color:#666;font-size:13px">' + esc(r.description) + '</td>'
         + '<td class="ht-groups">' + r.count + '</td>'
         + '<td class="ht-groups"><div class="ht-groups-inner">'
         +   (r.resources.length
@@ -906,27 +1237,42 @@ function serverCard(url) {
 
 function probeRegistry(url, cb) {
   var normUrl = normalizeURL(url);
-  var rootP  = fetchJSON(normUrl + '/');
-  var modelP = fetch(normUrl + '/model').then(function(r) { return r.json(); }).catch(function() { return null; });
-  Promise.all([rootP, modelP])
-    .then(function(results) {
-      var data  = results[0];
-      var model = results[1];
-      if (!data.specversion || !data.registryid) {
-        cb({label: '', colls: [], icon: '', error: 'Not a valid xRegistry (missing specversion or registryid)'});
-        return;
-      }
-      var label = data.registryid || '';
-      if (label) _labelCache[normUrl] = label;
-      var colls = findCollectionRefs(model, [], data);
-      colls.forEach(function(c) {
-        var grpDef = model && model.groups && model.groups[c.plural];
-        c.resources    = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
-        c.description  = (grpDef && grpDef.description) || '';
-      });
-      cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', error: null});
-    })
-    .catch(function(err) { cb({label: '', colls: [], icon: '', error: (err && err.message) ? err.message : String(err)}); });
+  // Fetch capabilities first; use it to decide what else to fetch.
+  // Per spec: if /capabilities is 404, default available = {entities:{mutable:true}}
+  var capP = fetch(normUrl + '/capabilities')
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .catch(function() { return null; });
+
+  capP.then(function(cap) {
+    var available = (cap && cap.available) || {entities: {mutable: true}};
+    // Populate capabilities cache so JSON view left panel gets it for free
+    _capCache[normUrl] = cap || {available: available, flags: []};
+
+    // Only fetch model if capabilities says it's available
+    var modelP = available.model
+      ? fetch(normUrl + '/model').then(function(r) { return r.json(); }).catch(function() { return null; })
+      : Promise.resolve(null);
+
+    Promise.all([fetchJSON(normUrl + '/'), modelP])
+      .then(function(results) {
+        var data  = results[0];
+        var model = results[1];
+        if (!data.specversion || !data.registryid) {
+          cb({label: '', colls: [], icon: '', available: available, error: 'Not a valid xRegistry (missing specversion or registryid)'});
+          return;
+        }
+        var label = data.registryid || '';
+        if (label) _labelCache[normUrl] = label;
+        var colls = findCollectionRefs(model, [], data);
+        colls.forEach(function(c) {
+          var grpDef = model && model.groups && model.groups[c.plural];
+          c.resources   = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
+          c.description = (grpDef && grpDef.description) || '';
+        });
+        cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null});
+      })
+      .catch(function(err) { cb({label: '', colls: [], icon: '', available: available, error: (err && err.message) ? err.message : String(err)}); });
+  });
 }
 
 function doRemoveServer(url) {
@@ -953,15 +1299,18 @@ function renderConfig() {
 
   var html = '<div class="config-page"><div class="config-section">'
     + '<h3 class="config-section-title">Registry Servers</h3>'
-    + '<table class="config-table"><thead><tr><th>Location</th><th></th></tr></thead><tbody>';
+    + '<table class="config-table"><thead><tr><th>Name</th><th>Location</th><th></th></tr></thead><tbody>';
 
   // Local server — not editable or deletable
-  html += '<tr><td>' + esc(origin)
-    + ' <span class="config-local-badge">this server</span></td><td></td></tr>';
+  html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '">'
+    + '<td class="cfg-name">' + esc(_labelCache[normalizeURL(origin)] || '') + '</td>'
+    + '<td><span class="cfg-url-display">' + esc(origin)
+    + ' <span class="config-local-badge">this server</span></span></td><td></td></tr>';
 
   // User-added servers
   servers.filter(function(u) { return u !== origin; }).forEach(function(url) {
     html += '<tr data-cfg-url="' + esc(url) + '">'
+      + '<td class="cfg-name">' + esc(_labelCache[normalizeURL(url)] || '') + '</td>'
       + '<td>'
       +   '<span class="cfg-url-display">' + esc(url) + '</span>'
       +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
@@ -998,6 +1347,47 @@ function renderConfig() {
 
     + '</div>';
   main.innerHTML = html;
+
+  // Probe all servers; mark any that error with the same ! badge + popup as the home page
+  var allUrls = [origin].concat(servers.filter(function(u) { return u !== origin; }));
+  allUrls.forEach(function(url) {
+    var norm = normalizeURL(url);
+    probeRegistry(url, function(info) {
+      var tr = main.querySelector('tr[data-cfg-url="' + norm + '"]');
+      if (tr && info.label) {
+        var nameCell = tr.querySelector('.cfg-name');
+        if (nameCell) nameCell.textContent = info.label;
+      }
+      if (!info.error) return;
+      var disp = tr && tr.querySelector('.cfg-url-display');
+      if (!disp || disp.querySelector('.server-card-err-badge')) return;
+
+      // Badge
+      var badge = document.createElement('span');
+      badge.className = 'server-card-err-badge';
+      badge.textContent = '!';
+      badge.title = 'Click for error details';
+      disp.appendChild(badge);
+
+      // Popup (same structure as home page cards)
+      var popup = document.createElement('div');
+      popup.className = 'server-card-err-popup';
+      popup.style.display = 'none';
+      popup.innerHTML = '<div class="server-card-err-popup-title">Connection Error</div>'
+        + '<div class="server-card-err-popup-msg">' + esc(info.error) + '</div>'
+        + '<button class="cfg-btn" style="align-self:flex-end"'
+        +   ' onclick="this.closest(\'.server-card-err-popup\').style.display=\'none\'">Close</button>';
+      disp.style.position = 'relative';
+      disp.appendChild(popup);
+
+      badge.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var showing = popup.style.display !== 'none';
+        qsa('.server-card-err-popup').forEach(function(p) { p.style.display = 'none'; });
+        if (!showing) popup.style.display = '';
+      });
+    });
+  });
 }
 
 function cfgEdit(btn) {
@@ -1114,6 +1504,7 @@ function renderTileView(data) {
 
 var _sortCol = null;
 var _sortAsc = true;
+var _tableViewItems = []; // current renderTableView() items, indexed for per-row doc buttons
 
 function renderTableView(data) {
   var main = el('main-view');
@@ -1124,46 +1515,80 @@ function renderTableView(data) {
     return;
   }
 
+  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var modelKey = normalizeURL(svBase);
+  if (!_modelCache.hasOwnProperty(modelKey)) {
+    ensureModelCached(svBase, function() {
+      if (_lastData === data) renderTableView(data);
+    });
+  }
+  var model  = _modelCache[modelKey] || null;
+  var depth  = _state.path.length; // 1=groups, 3=resources, 5=versions
+
+  // Determine which optional columns to show based on data presence
+  var hasName = items.some(function(it) { return it.name != null && it.name !== ''; });
+  var hasDesc = items.some(function(it) { return it.description != null && it.description !== ''; });
+  // Show children column for group (depth 1) and resource (depth 3) collections
+  var showChildren = (depth === 1 || depth === 3);
+  // Show a document column for the versions collection (depth 5) when the
+  // resource type has a document — mirrors the Grid view's document tile.
+  var showDoc = (depth === 5) && resourceHasDocument(model, _state.path);
+  var docSingular = showDoc ? getSingularName(model, _state.path.slice(0, 4)) : null;
+
+  // Sort support — '__id' is a virtual column keyed by itemNavKey
   if (_sortCol) {
     items = items.slice().sort(function(a, b) {
-      var av = String(a[_sortCol] == null ? '' : a[_sortCol]);
-      var bv = String(b[_sortCol] == null ? '' : b[_sortCol]);
+      var av = _sortCol === '__id' ? itemNavKey(a) : String(a[_sortCol] == null ? '' : a[_sortCol]);
+      var bv = _sortCol === '__id' ? itemNavKey(b) : String(b[_sortCol] == null ? '' : b[_sortCol]);
       return _sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
     });
   }
+  _tableViewItems = items;
 
-  // Build collKeySet from model so deriveColumns can exclude collection structural keys
-  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-  var model  = _modelCache[normalizeURL(svBase)] || null;
-  // items are one depth deeper than current path (each item is at path + [id])
-  var itemPath = _state.path.concat(['__item__']);
-  var colls = items.length > 0 ? findCollectionRefs(model, itemPath, items[0]) : [];
-  var collKeySet = {};
-  colls.forEach(function(c) {
-    collKeySet[c.plural] = true;
-    collKeySet[c.plural + 'url'] = true;
-    collKeySet[c.plural + 'count'] = true;
-  });
-
-  var cols = deriveColumns(items, collKeySet);
-  var html = '<div id="table-container"><table class="xr-table"><thead><tr>';
-  cols.forEach(function(col) {
+  function thSort(col, label) {
     var cls = col === _sortCol ? (_sortAsc ? ' sorted-asc' : ' sorted-desc') : '';
-    html += '<th class="' + cls + '" onclick="sortBy(\'' + esc(col) + '\')">'
-          + esc(col) + '</th>';
-  });
+    return '<th class="' + cls + '" onclick="sortBy(\'' + esc(col) + '\')">' + esc(label) + '</th>';
+  }
+
+  var idColLabel = capitalize(getSingularName(model, _state.path.concat(['__x__'])));
+  var html = '<div id="table-container"><table class="xr-table"><thead><tr>';
+  html += thSort('__id', idColLabel);
+  if (hasName) html += thSort('name', 'Name');
+  if (hasDesc) html += thSort('description', 'Description');
+  if (showChildren) html += '<th>' + (depth === 1 ? 'Resources' : 'Versions') + '</th>';
+  if (showDoc) html += '<th>Document</th>';
   html += '</tr></thead><tbody>';
-  items.forEach(function(item) {
-    var navKey = itemNavKey(item);
-    html += '<tr onclick="navigateTo(\'' + esc(navKey) + '\')">';
-    cols.forEach(function(col) {
-      var val = item[col];
-      var display = (val == null) ? '' : String(val);
-      var cls = col === 'xid' ? ' class="cell-id"' : '';
-      html += '<td' + cls + ' title="' + esc(display) + '">' + esc(display) + '</td>';
-    });
+
+  items.forEach(function(item, idx) {
+    var id      = itemNavKey(item);
+    var itemPath = _state.path.concat([id]);
+    var colls   = showChildren ? findCollectionRefs(model, itemPath, item) : [];
+
+    var childrenHtml = '';
+    if (showChildren) {
+      if (colls.length) {
+        childrenHtml = colls.map(function(c) {
+          return '<span class="coll-tile-res-pill">' + esc(c.plural) + ' (' + c.count + ')</span>';
+        }).join(' ');
+      } else {
+        childrenHtml = '<span class="coll-tile-res-none">—</span>';
+      }
+    }
+
+    html += '<tr onclick="navigateTo(\'' + esc(id) + '\')">';
+    html += '<td class="cell-id">' + esc(id) + '</td>';
+    if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
+    if (hasDesc) html += '<td class="cell-desc">' + esc(item.description != null ? String(item.description) : '') + '</td>';
+    if (showChildren) html += '<td class="cell-children">' + childrenHtml + '</td>';
+    if (showDoc) {
+      var docClickExpr = 'event.stopPropagation();openDocument(' + JSON.stringify(docSingular) + ', _tableViewItems[' + idx + '])';
+      html += '<td class="cell-children">'
+            + '<button class="cfg-btn" style="font-size:11px;padding:2px 8px" onclick="' + esc(docClickExpr) + '">View</button>'
+            + '</td>';
+    }
     html += '</tr>';
   });
+
   html += '</tbody></table></div>';
   main.innerHTML = html;
 }
@@ -1188,7 +1613,13 @@ function renderSingleEntity(data) {
   }
 
   var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var modelKey = normalizeURL(svBase);
+  if (!_modelCache.hasOwnProperty(modelKey)) {
+    ensureModelCached(svBase, function() {
+      if (_lastData === data) renderSingleEntity(data);
+    });
+  }
+  var model  = _modelCache[modelKey] || null;
   var colls  = findCollectionRefs(model, _state.path, data);
   var collKeys = {};
   colls.forEach(function(c) { collKeys[c.plural + 'url'] = true; collKeys[c.plural + 'count'] = true; });
@@ -1211,8 +1642,17 @@ function renderSingleEntity(data) {
 
   // Collections section — clickable
   if (colls.length) {
-    html += '<table class="xr-table" style="margin-bottom:16px">'
-      + '<thead><tr><th>Collection</th><th>Count</th></tr></thead><tbody>';
+    var depthT = _state.path.length;
+    // Match the Grid view's section-header wording (GROUP TYPES / RESOURCES),
+    // and likewise suppress the header at depth 4 (a resource's version
+    // collection is the only collection type there, so a label is redundant —
+    // see the matching comment in renderEntityGrid).
+    var collsHeaderT = depthT === 0 ? 'Group Types' : depthT === 2 ? 'Resources' : 'Collection';
+    html += '<table class="xr-table" style="margin-bottom:16px">';
+    if (depthT !== 4) {
+      html += '<thead><tr><th>' + esc(collsHeaderT) + '</th><th>Count</th></tr></thead>';
+    }
+    html += '<tbody>';
     colls.forEach(function(c) {
       html += '<tr onclick="navigateTo(\'' + esc(c.plural) + '\')" style="cursor:pointer">'
         + '<td class="cell-id">' + esc(c.plural) + '</td>'
@@ -1222,9 +1662,65 @@ function renderSingleEntity(data) {
     html += '</tbody></table>';
   }
 
+  // Server endpoints (depth 0 only) — same sections shown in grid view
+  if (_state.path.length === 0) {
+    var svBaseT = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var capDataT = _capCache[normalizeURL(svBaseT)];
+    var availT   = capDataT && capDataT.available;
+    var sectionTilesT = ['model','modelsource','capabilities','capabilitiesoffered'];
+    var availSectionsT = sectionTilesT.filter(function(s) { return availT && availT[s]; });
+    if (availSectionsT.length) {
+      var sectionNamesT = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+      html += '<table class="xr-table" style="margin-bottom:16px">'
+        + '<thead><tr><th>Registry Endpoints</th><th>Mutable</th></tr></thead><tbody>';
+      availSectionsT.forEach(function(s) {
+        var mut = availT[s] && availT[s].mutable ? '✓' : '';
+        var click = 'pushState({section:\'' + s + '\',editMode:false,useExport:false});return false';
+        html += '<tr onclick="' + esc(click) + '" style="cursor:pointer">'
+          + '<td class="cell-id">' + esc(sectionNamesT[s]) + '</td>'
+          + '<td>' + mut + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  // Resource meta box (depth 4 only) — mirrors Grid view's collapsible
+  // "<Singular> Details" box (twisty + Copy JSON), lazy-fetched via metaurl.
+  // Reuses toggleMetaBox()/copyMetaJSON()/renderMetaContent() as-is, since
+  // they're DOM-id-driven and view-agnostic.
+  var depthD = _state.path.length;
+  if (depthD === 4) {
+    var entityTypeT = getSingularName(model, _state.path);
+    _metaData = null;
+    _metaResourceIdField = entityTypeT.toLowerCase() + 'id';
+    _metaEntityType = entityTypeT;
+    html += '<div class="eg-section-header eg-details-header">'
+          + '<span>' + esc(capitalize(entityTypeT)) + ' Details'
+          + ' <button class="eg-twisty" id="eg-meta-twisty" onclick="toggleMetaBox()">▶</button>'
+          + '</span>'
+          + '<button class="eg-copy-json-btn" onclick="copyMetaJSON()">{ } Copy JSON</button>'
+          + '</div>';
+    html += '<div class="eg-meta-details-flat" id="eg-meta-box" style="display:none"></div>';
+  }
+
+  // Document (depth 4 = resource entity, depth 6+ = version entity) — mirrors
+  // the Grid view's document tile so the doc is reachable from List view too.
+  if ((depthD === 4 || depthD >= 6) && resourceHasDocument(model, _state.path)) {
+    var docSingularD = getSingularName(model, _state.path.slice(0, 4));
+    html += '<table class="xr-table" style="margin-bottom:16px">'
+      + '<thead><tr><th>Document</th><th>Content Type</th></tr></thead><tbody>'
+      + '<tr onclick="openDocument(\'' + esc(docSingularD) + '\')" style="cursor:pointer">'
+      +   '<td class="cell-id">' + esc(docSingularD) + ' document</td>'
+      +   '<td>' + esc(data.contenttype || '') + '</td>'
+      + '</tr></tbody></table>';
+  }
+
   // Scalar properties
   if (scalarKeys.length) {
-    html += '<table class="xr-table"><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>';
+    var capTypeT = capitalize(getSingularName(model, _state.path));
+    var propHeaderT = depthD === 4 ? defaultVersionLabel(capTypeT, data) + ' Property' : capTypeT + ' Property';
+    html += '<table class="xr-table"><thead><tr><th>' + esc(propHeaderT) + '</th><th>Value</th></tr></thead><tbody>';
     scalarKeys.forEach(function(k) {
       var val = data[k];
       var display = (val == null) ? '<span style="color:#999">null</span>' : esc(String(val));
@@ -1250,6 +1746,29 @@ function ensureModelCached(baseURL, cb) {
     .catch(function()  { _modelCache[key] = null; if (cb) cb(null); });
 }
 
+function ensureCapCached(baseURL, cb) {
+  var key = normalizeURL(baseURL);
+  if (_capCache.hasOwnProperty(key)) { if (cb) cb(_capCache[key]); return; }
+  _capCache[key] = undefined; // mark in-flight
+  fetch(baseURL.replace(/\/$/, '') + '/capabilities')
+    .then(function(r) { return r.json(); })
+    .then(function(c) { _capCache[key] = c; if (cb) cb(c); })
+    .catch(function()  { _capCache[key] = null; if (cb) cb(null); });
+}
+
+// Fetch and cache /capabilitiesoffered for a registry base URL (non-blocking).
+// Used to know the declared type/enum/attributes of extension capabilities
+// so the Capabilities editor can render/edit them generically.
+function ensureOfferedCached(baseURL, cb) {
+  var key = normalizeURL(baseURL);
+  if (_offeredCache.hasOwnProperty(key)) { if (cb) cb(_offeredCache[key]); return; }
+  _offeredCache[key] = undefined; // mark in-flight
+  fetch(baseURL.replace(/\/$/, '') + '/capabilitiesoffered')
+    .then(function(r) { return r.json(); })
+    .then(function(o) { _offeredCache[key] = o; if (cb) cb(o); })
+    .catch(function()  { _offeredCache[key] = null; if (cb) cb(null); });
+}
+
 // Return singular entity type name using path depth + model lookup
 // path: [] = Registry, [G,gId] = group, [G,gId,R,rId] = resource, [...,"versions",vId] = version
 function getSingularName(model, path) {
@@ -1263,6 +1782,20 @@ function getSingularName(model, path) {
     return resDef ? resDef.singular : path[2].replace(/s$/, '');
   }
   return 'entity';
+}
+
+// Returns true when the resource type at this path (a resource, its
+// versions collection, or a specific version — depth >= 4) has
+// hasdocument === true in the model. Document field names (e.g.
+// "<singular>url"/"<singular>base64") are always keyed off the *resource's*
+// singular name (see getSingularName(model, path.slice(0,4))), regardless
+// of whether you're looking at the resource entity itself or one of its
+// versions.
+function resourceHasDocument(model, path) {
+  if (!model || !model.groups || !path || path.length < 3) return false;
+  var grpDef = model.groups[path[0]];
+  var resDef = grpDef && grpDef.resources && grpDef.resources[path[2]];
+  return !!(resDef && resDef.hasdocument);
 }
 
 // Attributes that are part of xRegistry structure — not shown as extensions
@@ -1378,10 +1911,26 @@ function getAttrType(model, entityPath, attrKeyPath) {
   return attr ? (attr.type || null) : null;
 }
 
-// Like getAttrType but returns null when the attr is only matched by the '*'
-// wildcard catch-all (i.e., not explicitly named in the model). Used for
-// monospace decisions so that extension attributes don't inherit the
-// wildcard's type (often ANY) and get incorrectly formatted as monospace.
+// Resolves the "effective" type for one attribute name within an already-resolved
+// attrs map: prefers an explicit (non-wildcard) declaration; otherwise, if the '*'
+// wildcard itself declares a concrete type (i.e. not "any"/absent), that type still
+// applies — a model author who writes `"*": {type: "url"}` is making a real, deliberate
+// schema statement ("every undeclared attribute here is a URL"), so it should still
+// drive monospace formatting. Only a fully generic/untyped wildcard (type "any" or
+// missing) is treated as "unknown" and returns null.
+function typeFromAttrsMap(attrs, key) {
+  if (!attrs) return null;
+  if (attrs[key]) return attrs[key].type || null;
+  var wc = attrs['*'];
+  if (wc && wc.type && wc.type !== 'any') return wc.type;
+  return null;
+}
+
+// Like getAttrType but, for undeclared (wildcard-only) attributes, only returns a
+// type when the '*' wildcard itself declares something more specific than "any"
+// (see typeFromAttrsMap). Used for monospace decisions so that fully generic
+// extension attributes (wildcard type "any"/absent) aren't incorrectly monospaced,
+// while extensions under a concretely-typed wildcard (e.g. "*": {type: "url"}) are.
 function getExplicitAttrType(model, entityPath, key) {
   if (!model || !key) return null;
   var depth = entityPath ? entityPath.length : 0;
@@ -1396,8 +1945,47 @@ function getExplicitAttrType(model, entityPath, key) {
     var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
     attrs = rm && rm.attributes;
   }
-  if (!attrs || !attrs[key]) return null;
-  return attrs[key].type || null;
+  return typeFromAttrsMap(attrs, key);
+}
+// Like getExplicitAttrType but supports a multi-segment path for nested attrs (e.g.
+// ["deprecated", "effective"]), by walking .attributes at each intermediate level.
+// Intermediate segments may fall back to the '*' wildcard purely for structural
+// traversal (needed to reach the nested attrs map at all). The FINAL segment's type
+// is resolved via typeFromAttrsMap, so a nested field explicitly named in the model
+// gets its own type, and a nested extension field only gets a type when the nested
+// '*' wildcard itself declares something concrete (not "any").
+// This is what makes nested monospace formatting (e.g. for "deprecated"'s children)
+// fully model-driven: it reads the already-cached runtime /model, so it automatically
+// works for any spec-defined or model-defined complex attribute, without hardcoding
+// attribute names anywhere in the UI or in generated code.
+function getExplicitAttrTypeAtPath(model, entityPath, attrKeyPath) {
+  if (!model || !attrKeyPath || attrKeyPath.length === 0) return null;
+  var depth = entityPath ? entityPath.length : 0;
+  var attrs;
+  if (depth === 0) {
+    attrs = model.attributes;
+  } else if (depth === 2) {
+    var gm = model.groups && model.groups[entityPath[0]];
+    attrs = gm && gm.attributes;
+  } else if (depth >= 4) {
+    var gm2 = model.groups && model.groups[entityPath[0]];
+    var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
+    attrs = rm && rm.attributes;
+  }
+  if (!attrs) return null;
+  var attr = null;
+  for (var i = 0; i < attrKeyPath.length; i++) {
+    var key = attrKeyPath[i];
+    var isLast = (i === attrKeyPath.length - 1);
+    if (isLast) {
+      return typeFromAttrsMap(attrs, key);
+    }
+    attr = attrs[key] || attrs['*'] || null;
+    if (!attr) return null;
+    attrs = attr.attributes;
+    if (!attrs) return null;
+  }
+  return null;
 }
 // Handles the two dynamic name patterns from OrderedSpecProps:
 //   "id"          → matches <singular>id  (e.g. "messageid", "registryid")
@@ -1490,8 +2078,8 @@ function docTile(singular, contenttype) {
     + '</div>';
 }
 
-function openDocument(singular) {
-  var data = _lastData;
+function openDocument(singular, itemData) {
+  var data = itemData || _lastData;
   if (!data) return;
   var key = singular.toLowerCase();
 
@@ -1596,11 +2184,23 @@ function egCopyFallback(text, label) {
 }
 
 // Recursively render any JSON value as styled HTML with copyable leaves.
-function renderValueTree(val, depth) {
+// model/entityPath/keyPath (all optional) let this look up the actual attribute
+// type from the runtime-cached model schema so nested scalar fields with a
+// non-string type (e.g. "deprecated.effective" being a timestamp, or
+// "deprecated.alternative" being a url) render in monospace, generically for
+// ANY spec-defined or model-defined complex attribute — no hardcoded attribute
+// names required. keyPath tracks the attribute path from the top of the value
+// being rendered (e.g. ["deprecated", "effective"]); it is intentionally NOT
+// extended into array items (array item types aren't addressable this way),
+// so scalar array items keep their previous unstyled rendering.
+function renderValueTree(val, depth, model, entityPath, keyPath) {
   var c2c = optClickToCopy();
+  var attrType = keyPath ? getExplicitAttrTypeAtPath(model, entityPath, keyPath) : null;
+  var forceMono = attrType !== null && attrType !== 'string';
   function leaf(raw, display) {
-    if (!c2c) return '<span>' + display + '</span>';
-    return '<span class="eg-copyable" data-copy="' + esc(String(raw)) + '" onclick="egCopy(this.dataset.copy,\'\')">' + display + '</span>';
+    var cls = forceMono ? ' class="eg-mono"' : '';
+    if (!c2c) return '<span' + cls + '>' + display + '</span>';
+    return '<span class="eg-copyable' + (forceMono ? ' eg-mono' : '') + '" data-copy="' + esc(String(raw)) + '" onclick="egCopy(this.dataset.copy,\'\')">' + display + '</span>';
   }
   if (val === null)              return leaf('null', '<span class="vt-null">null</span>');
   if (val === undefined)         return '<span class="vt-null">undefined</span>';
@@ -1628,15 +2228,16 @@ function renderValueTree(val, depth) {
   var rows = keys.map(function(k) {
     var child = val[k];
     var isComplex = child !== null && typeof child === 'object';
+    var childKeyPath = keyPath ? keyPath.concat([k]) : null;
     if (isComplex) {
       return '<div class="vt-kv vt-kv-block" ' + indent + '>'
            + '<span class="vt-key">' + esc(k) + ':</span>'
-           + renderValueTree(child, depth + 1)
+           + renderValueTree(child, depth + 1, model, entityPath, childKeyPath)
            + '</div>';
     }
     return '<div class="vt-kv" ' + indent + '>'
          + '<span class="vt-key">' + esc(k) + ':</span> '
-         + renderValueTree(child, depth + 1)
+         + renderValueTree(child, depth + 1, model, entityPath, childKeyPath)
          + '</div>';
   });
   return '<div class="vt-obj">' + rows.join('') + '</div>';
@@ -1670,7 +2271,7 @@ function toggleMetaBox() {
   if (!opening) return;
   if (_metaData) {
     var svURL = normalizeURL(_state.serverURL || window.location.origin);
-    box.innerHTML = renderMetaContent(_metaData, _modelCache[svURL] || null);
+    box.innerHTML = renderMetaBoxContent(_metaData, _modelCache[svURL] || null);
     return;
   }
   box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
@@ -1681,9 +2282,44 @@ function toggleMetaBox() {
     .then(function(d) {
       _metaData = d;
       var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
-      box.innerHTML = renderMetaContent(d, _modelCache[svURL2] || null);
+      box.innerHTML = renderMetaBoxContent(d, _modelCache[svURL2] || null);
     })
     .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
+}
+
+// Dispatch the meta box body to the format matching the current data view:
+// List view gets a plain key/value table (like the entity's own Property
+// table); Grid view keeps the richer label/row rendering (renderMetaContent).
+function renderMetaBoxContent(d, model) {
+  return _state.dataView === 'table' ? renderMetaTable(d) : renderMetaContent(d, model);
+}
+
+// Plain table rendering of the meta/details data, for List view. Mirrors the
+// "<Type> Property" / "Value" table used for the entity's own scalar props,
+// so the meta box looks consistent with the rest of List view instead of
+// Grid view's more human-readable label/row layout.
+function renderMetaTable(d) {
+  var suppressed = { metaurl: 1 };
+  if (_metaResourceIdField) suppressed[_metaResourceIdField] = 1;
+  var keys = Object.keys(d).filter(function(k) { return !suppressed[k]; }).sort();
+  if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No details available</span></div>';
+  var capType = capitalize(_metaEntityType);
+  var html = '<table class="xr-table"><thead><tr><th>' + esc(capType) + ' Property</th><th>Value</th></tr></thead><tbody>';
+  keys.forEach(function(k) {
+    var val = d[k];
+    var display;
+    if (val == null) {
+      display = '<span style="color:#999">null</span>';
+    } else if (typeof val === 'object') {
+      display = esc(JSON.stringify(val));
+    } else {
+      display = esc(String(val));
+    }
+    html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
+          + '</td><td>' + display + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  return html;
 }
 
 function renderMetaContent(d, model) {
@@ -1773,7 +2409,7 @@ function renderMetaContent(d, model) {
       } else {
         html += '<div class="eg-ext-complex">'
               + '<div class="eg-ext-complex-key">' + esc(labelFor(k, metaSpecLevel, _metaSing)) + ':</div>'
-              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0) + '</div>'
+              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0, model, _state.path, [k]) + '</div>'
               + '</div>';
       }
     } else {
@@ -1890,17 +2526,13 @@ function renderEntityGrid(data) {
   html += '<div class="eg-page-title">' + pageTitle + '</div>';
 
   // Check hasdocument from model for resource (depth 4) and version (depth 6+)
-  var hasDocument = false;
-  if ((depth === 4 || depth >= 6) && model && model.groups && model.groups[_state.path[0]]) {
-    var _rm = model.groups[_state.path[0]].resources && model.groups[_state.path[0]].resources[_state.path[2]];
-    if (_rm && _rm.hasdocument) hasDocument = true;
-  }
+  var hasDocument = (depth === 4 || depth >= 6) && resourceHasDocument(model, _state.path);
 
   // ---- Collections ----
   if (colls.length || depth === 4 || depth === 0 || depth === 2 || (depth >= 6 && hasDocument)) {
     // Resources: no section header (only one collection type), but add meta tile
     if (depth !== 4 && depth < 6) {
-      var collsLabel = _state.path.length === 0 ? 'GROUPS' : 'RESOURCES';
+      var collsLabel = _state.path.length === 0 ? 'GROUP TYPES' : 'RESOURCES';
       html += '<div class="eg-section-header">' + collsLabel + '</div>';
     }
     html += '<div class="eg-colls">';
@@ -1916,6 +2548,29 @@ function renderEntityGrid(data) {
       html += '<div class="eg-colls-empty">No resource types defined</div>';
     }
     html += '</div>';
+
+    // At registry root (depth 0), show available server endpoints as extra tiles
+    if (depth === 0) {
+      var svBase0 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+      var capData = _capCache[normalizeURL(svBase0)];
+      var avail   = capData && capData.available;
+      var sectionTiles = ['model','modelsource','capabilities','capabilitiesoffered'];
+      var availSections = sectionTiles.filter(function(s) { return avail && avail[s]; });
+      if (availSections.length) {
+        html += '<div class="eg-section-header">REGISTRY ENDPOINTS</div>';
+        html += '<div class="eg-colls">';
+        var sectionNames = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+        availSections.forEach(function(s) {
+          var mut = avail[s] && avail[s].mutable;
+          var click = 'pushState({section:\'' + s + '\',editMode:false,useExport:false});return false';
+          html += '<div class="eg-coll-tile" onclick="' + esc(click) + '">'
+               +   '<div class="eg-coll-name">' + esc(sectionNames[s]) + '</div>'
+               +   (mut ? '<div class="eg-coll-mutable-badge">mutable</div>' : '')
+               + '</div>';
+        });
+        html += '</div>';
+      }
+    }
   }
 
   // ---- Resource Meta box (depth 4 only): collapsed by default, lazy-fetched on expand ----
@@ -1923,7 +2578,7 @@ function renderEntityGrid(data) {
     _metaData = null;
     _metaResourceIdField = idFieldName;  // suppress resource's own ID in meta content
     html += '<div class="eg-section-header eg-details-header">'
-          + '<span>' + esc(entityType) + ' Details'
+          + '<span>' + esc(capitalize(entityType)) + ' Details'
           + ' <button class="eg-twisty" id="eg-meta-twisty" onclick="toggleMetaBox()">▶</button>'
           + '</span>'
           + '<button class="eg-copy-json-btn" onclick="copyMetaJSON()">{ } Copy JSON</button>'
@@ -1938,9 +2593,7 @@ function renderEntityGrid(data) {
   } else if (depth === 2) {
     detailsLabel = capType + ' Details';
   } else if (depth === 4) {
-    detailsLabel = 'Default ' + capType + ' Version'
-      + (data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '')
-      + ' Details';
+    detailsLabel = defaultVersionLabel(capType, data) + ' Details';
   } else if (depth >= 6) {
     detailsLabel = 'Version Details';
   } else {
@@ -2092,7 +2745,7 @@ function renderEntityGrid(data) {
       } else {
         html += '<div class="eg-ext-complex">'
               + '<div class="eg-ext-complex-key">' + esc(labelFor(k, specLevel, _singular)) + ':</div>'
-              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0) + '</div>'
+              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0, model, _state.path, [k]) + '</div>'
               + '</div>';
       }
     } else {
@@ -2126,43 +2779,219 @@ function renderEntityGrid(data) {
 // ---- JSON view -----------------------------------------------------------
 
 function renderJSONView(data) {
-  renderJSONLeftPanel(data);
+  renderJSONLeftPanel();
+  var jsonHtml = addTwisties(syntaxHighlight(JSON.stringify(data, null, 2)));
   el('main-view').innerHTML =
-    '<div id="json-output">' + syntaxHighlight(JSON.stringify(data, null, 2)) + '</div>';
+    '<div class="json-exp-wrap">' +
+      '<span class="json-exp-btn" id="json-exp-btn" data-open="false"' +
+      ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</span>' +
+    '</div>' +
+    '<div id="json-output">' + jsonHtml + '</div>';
 }
 
-function renderJSONLeftPanel(data) {
+// Process syntaxHighlighted JSON HTML to add twisty expand/collapse spans.
+// Mirrors the old Go RegHTMLify logic: every line gets a fixed-width gutter
+// column (.jt-spc for non-openers, .jt toggle for openers).  The newline at
+// the end of each opener line is placed INSIDE the block span so when collapsed
+// the closing bracket appears on the same line as the opener.
+// All blocks start collapsed.
+function addTwisties(html) {
+  var SPC  = '<span class="jt-spc"> </span>';
+  var lines = html.split('\n');
+  var count = 0;
+  var depth = 0;
+  var out   = [];
+
+  for (var i = 0; i < lines.length; i++) {
+    var line    = lines[i];
+    var text    = line.replace(/<[^>]+>/g, ''); // strip HTML for structural analysis
+    var ns      = 0;
+    while (ns < text.length && text[ns] === ' ') ns++;
+    var trimmed = text.substring(ns);
+    if (!trimmed) { out.push(SPC + line); continue; }
+
+    var first    = trimmed[0];
+    var last     = trimmed[trimmed.length - 1];
+    var isOpener = (last === '{' || last === '[');
+    var isCloser = (first === '}' || first === ']');
+
+    if (isCloser) {
+      if (depth > 0) {
+        // spc + ns spaces are inside the block (hidden when collapsed).
+        // </span> closes the block.
+        // trimmed (e.g. "},") is outside the block — appears on same line
+        // as the opener when collapsed since the opener's \n is inside the block.
+        out.push(SPC + ' '.repeat(ns) + '</span>' + trimmed);
+        depth--;
+      } else {
+        out.push(SPC + line);
+      }
+    } else if (isOpener && ns > 0) {
+      count++;
+      depth++;
+      var n      = count;
+      var indent = ns > 1 ? ' '.repeat(ns - 1) : '';
+      var tw     = '<span class="jt" id="jt' + n + '" onclick="jsonToggle(' + n + ')">&#9656;</span>';
+      var dots   = '<span class="jd" id="jd' + n + '" onclick="jsonToggle(' + n + ')">&#8230;</span>';
+      // jt-spc gutter + (ns-1) indent spaces + toggle + content + dots.
+      // <jb> is appended at END of line so the \n from join is INSIDE the block.
+      out.push(SPC + indent + tw + line.substring(ns) + dots + '<span class="jb" id="jb' + n + '" style="display:none">');
+    } else {
+      out.push(SPC + line);
+    }
+  }
+  return out.join('\n');
+}
+
+// Toggle one expandable block (n = numeric id).
+function jsonToggle(n) {
+  var tw   = document.getElementById('jt' + n);
+  var blk  = document.getElementById('jb' + n);
+  var dots = document.getElementById('jd' + n);
+  if (!blk) return;
+  var open = blk.style.display === 'none';
+  blk.style.display        = open ? '' : 'none';
+  if (dots) dots.style.display = open ? 'none' : '';
+  if (tw)   tw.innerHTML       = open ? '&#9662;' : '&#9656;';
+}
+
+// Toggle all blocks expand/collapse.
+function jsonToggleAll() {
+  var btn    = document.getElementById('json-exp-btn');
+  var expand = btn ? btn.dataset.open !== 'true' : true;
+  for (var i = 1; ; i++) {
+    var blk  = document.getElementById('jb' + i);
+    if (!blk) break;
+    var tw   = document.getElementById('jt' + i);
+    var dots = document.getElementById('jd' + i);
+    blk.style.display        = expand ? '' : 'none';
+    if (dots) dots.style.display = expand ? 'none' : '';
+    if (tw)   tw.innerHTML       = expand ? '&#9662;' : '&#9656;';
+  }
+  if (btn) {
+    btn.dataset.open = expand ? 'true' : 'false';
+    btn.innerHTML    = (expand ? '&#9662;' : '&#9656;') + ' all';
+    btn.title        = expand ? 'Collapse all' : 'Expand all';
+  }
+}
+
+function renderJSONLeftPanel() {
   var inner = el('left-panel-inner');
   if (!inner) return;
   var html = '';
 
-  if (_state.section === 'data') {
-    html += '<div class="lp-section"><div class="lp-title">Filters '
-      + '<span style="font-weight:normal;font-size:11px;color:#888">(one per line)</span></div>'
-      + '<textarea class="lp-filter-area" id="lp-filters">'
-      + esc(_state.filters.join('\n')) + '</textarea></div><hr class="lp-divider">';
-  }
+  var svBase2  = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var normUrl2 = normalizeURL(svBase2);
+  var model2   = _modelCache[normUrl2] || null;
+  var cap2     = _capCache.hasOwnProperty(normUrl2) ? _capCache[normUrl2] : undefined;
 
-  html += '<div class="lp-section"><div class="lp-title">Options</div>'
-    + lpCheck('lp-doc', 'doc view',    _state.docView)
-    + lpCheck('lp-bin', 'binary',      _state.binary)
-    + lpCheck('lp-col', 'collections', _state.collections)
-    + '</div><hr class="lp-divider">';
-
-  var svBase2 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-  var model2  = _modelCache[normalizeURL(svBase2)] || null;
-  var inlineOpts = inlineOptions(model2, _state.path, data);
-  if (inlineOpts.length) {
-    html += '<div class="lp-section"><div class="lp-title">Inlines</div>';
-    inlineOpts.forEach(function(opt, i) {
-      html += '<div class="lp-item' + (i%2===0 ? ' lp-even':'') + '">'
-        + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt) + '"'
-        + (_state.inlines.includes(opt) ? ' checked' : '') + '> ' + esc(opt) + '</div>';
+  // Trigger model fetch if not yet cached
+  if (!_modelCache.hasOwnProperty(normUrl2)) {
+    ensureModelCached(svBase2, function() {
+      if (_state.dataView === 'json' || _state.view === 'json') renderJSONLeftPanel();
     });
-    html += '</div><hr class="lp-divider">';
   }
 
-  html += '<button class="lp-apply" onclick="applyJSONOptions()">Apply</button>';
+  // Trigger capability fetch if not yet cached; re-render when ready
+  if (!_capCache.hasOwnProperty(normUrl2)) {
+    ensureCapCached(svBase2, function() {
+      if (_state.dataView === 'json' || _state.view === 'json') renderJSONLeftPanel();
+    });
+    // Don't render anything until we know what the server supports
+    inner.innerHTML = '';
+    return;
+  }
+
+  var flags = (cap2 && cap2.flags) || [];
+  var hasF  = function(f) { return flags.indexOf(f) !== -1; };
+  var avail2 = cap2 && cap2.available;
+
+  // Registry Endpoints navigation — at root depth, show links to model/capabilities/etc.
+  // Show in both section views and normal data view so you can switch sections easily.
+  if (_state.path.length === 0) {
+    var lpSections = ['model','modelsource','capabilities','capabilitiesoffered'];
+    var lpAvailSecs = lpSections.filter(function(s) { return avail2 && avail2[s]; });
+    var hasExport = avail2 && avail2['export'];
+    if (lpAvailSecs.length || hasExport) {
+      var lpSecNames = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+      html += '<div class="lp-section"><div class="lp-title">Registry Endpoints</div>';
+      lpAvailSecs.forEach(function(s) {
+        var active = _state.section === s;
+        html += '<div class="lp-nav-item' + (active ? ' lp-nav-active' : '') + '" '
+          + 'onclick="pushState({section:\'' + s + '\',editMode:false,useExport:false})">'
+          + esc(lpSecNames[s]) + '</div>';
+      });
+      // Export as a nav item — toggles useExport on the registry root data view
+      if (hasExport && _state.section === 'data') {
+        var exportActive = _state.useExport;
+        html += '<div class="lp-nav-item' + (exportActive ? ' lp-nav-active' : '') + '" '
+          + 'onclick="pushState({useExport:' + (!exportActive) + ',section:\'data\'})">'
+          + 'Export' + (exportActive ? ' ✓' : '') + '</div>';
+      }
+      // "Data" link to return from a section view
+      if (_state.section !== 'data') {
+        html += '<div class="lp-nav-item" onclick="pushState({section:\'data\',path:[],editMode:false,useExport:false})">← Registry Data</div>';
+      }
+      html += '</div><hr class="lp-divider">';
+    }
+  }
+
+  var hasOpts = false; // true when there's at least one filter/option/inline to apply
+
+  if (_state.section === 'data') {
+    // Filters — only if server supports 'filter'
+    if (hasF('filter')) {
+      hasOpts = true;
+      html += '<div class="lp-section"><div class="lp-title">Filters '
+        + '<span style="font-weight:normal;font-size:11px;color:#888">(one per line)</span></div>'
+        + '<textarea class="lp-filter-area" id="lp-filters">'
+        + esc(_state.filters.join('\n')) + '</textarea></div><hr class="lp-divider">';
+    }
+
+    // Options — only show individual options whose flag is enabled
+    var optHtml = '';
+    if (hasF('doc'))         optHtml += lpCheck('lp-doc', 'doc view',    _state.docView);
+    if (hasF('binary'))      optHtml += lpCheck('lp-bin', 'binary',      _state.binary);
+    if (hasF('collections')) optHtml += lpCheck('lp-col', 'collections', _state.collections);
+    if (optHtml) {
+      hasOpts = true;
+      html += '<div class="lp-section"><div class="lp-title">Options</div>'
+        + optHtml + '</div><hr class="lp-divider">';
+    }
+
+    // Inlines — only if server supports 'inline'
+    if (hasF('inline')) {
+      var inlineOpts = buildInlineOptions(model2, _state.path);
+      var hasReal = inlineOpts.some(function(o) { return !o.sep; });
+      if (hasReal) {
+        hasOpts = true;
+        html += '<div class="lp-section"><div class="lp-title">Inlines</div>';
+        var rowIdx = 0;
+        inlineOpts.forEach(function(opt) {
+          if (opt.sep) { html += '<div class="lp-sep-line"></div>'; return; }
+          var checked   = _state.inlines.includes(opt.value)          ? ' checked' : '';
+          var dschecked = opt.dotStar && _state.inlines.includes(opt.value + '.*') ? ' checked' : '';
+          var rowCls = 'lp-item' + (rowIdx % 2 === 0 ? ' lp-even' : '');
+          var dotStarHtml = opt.dotStar
+            ? '<span class="lp-dotstar">'
+                + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value + '.*') + '"' + dschecked + '>'
+                + '<span class="lp-dotstar-label">.*</span>'
+                + '</span>'
+            : '<span class="lp-dotstar"></span>';
+          html += '<div class="' + rowCls + '">'
+            + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value) + '"' + checked + '>'
+            + '<span class="lp-inline-label">' + esc(opt.label) + '</span>'
+            + dotStarHtml
+            + '</div>';
+          rowIdx++;
+        });
+        html += '</div><hr class="lp-divider">';
+      }
+    }
+  }
+
+  if (!html)    html = '<div class="lp-no-opts">No options</div>';
+  if (hasOpts)  html += '<button class="lp-apply" onclick="applyJSONOptions()">Apply</button>';
   inner.innerHTML = html;
 }
 
@@ -2186,38 +3015,128 @@ function applyJSONOptions() {
   });
 }
 
-// Derive inline options from the model and current response.
-// Model-defined collection plurals are offered as inline options.
-// Excludes metadata scalars and collection structural keys.
-function inlineOptions(model, path, data) {
-  if (!data || typeof data !== 'object') return [];
-  var skip = new Set(['epoch','createdat','modifiedat','labels']);
-  var colls = findCollectionRefs(model, path, data);
-  var collKeySet = {};
-  colls.forEach(function(c) {
-    collKeySet[c.plural] = true;
-    collKeySet[c.plural + 'url'] = true;
-    collKeySet[c.plural + 'count'] = true;
-  });
-  var opts = [];
-  Object.keys(data).forEach(function(k) {
-    if (!skip.has(k) && !collKeySet[k] && typeof data[k] === 'object' && data[k] !== null) {
-      opts.push(k);
+// Build model-driven inline options for JSON left panel.
+// Returns array of {value, label, dotStar?} objects plus {sep:true} separators.
+// Structure mirrors the old ui.go inline logic (capabilities/model at root,
+// * always, then model-driven hierarchy with .* for containers).
+function buildInlineOptions(model, path) {
+  var opts  = [];
+  var depth = path.length;
+  var last  = path[path.length - 1];
+
+  if (last === 'meta') return opts;  // no inlines on meta page
+
+  // Registry root: offer server-level options
+  if (depth === 0) {
+    opts.push({value: 'capabilities', label: 'capabilities'});
+    opts.push({value: 'model',        label: 'model'});
+    opts.push({value: 'modelsource',  label: 'modelsource'});
+  }
+
+  // * (all) — always available, in normal list flow
+  opts.push({value: '*', label: '* (all)'});
+
+  if (!model) return opts;
+
+  function getRM(gPlural, rPlural) {
+    var gm = model.groups && model.groups[gPlural];
+    return gm && gm.resources && gm.resources[rPlural];
+  }
+
+  // Add resource-level inlines (meta, versions, optional doc) with a path prefix
+  function addResInlines(gPlural, rPlural, prefix) {
+    var rm = getRM(gPlural, rPlural);
+    if (!rm) return;
+    var rSing = rm.singular || rPlural.replace(/s$/, '');
+    if (rm.hasdocument) opts.push({value: prefix + rSing,      label: prefix + rSing});
+    opts.push(           {value: prefix + 'meta',              label: prefix + 'meta'});
+    opts.push(           {value: prefix + 'versions',          label: prefix + 'versions',         dotStar: true});
+    opts.push(           {value: prefix + 'versions.' + rSing, label: prefix + 'versions.' + rSing});
+  }
+
+  if (depth === 0) {
+    // Registry root: all groups and their resources
+    Object.keys(model.groups || {}).sort().forEach(function(gPlural) {
+      var gm = model.groups[gPlural];
+      opts.push({value: gPlural, label: gPlural, dotStar: true});
+      Object.keys(gm.resources || {}).sort().forEach(function(rPlural) {
+        opts.push({value: gPlural + '.' + rPlural, label: gPlural + '.' + rPlural, dotStar: true});
+        addResInlines(gPlural, rPlural, gPlural + '.' + rPlural + '.');
+      });
+    });
+  } else if (depth <= 2) {
+    // Group collection (depth 1) or group entity (depth 2)
+    var gPlural = path[0];
+    var gm = model.groups && model.groups[gPlural];
+    if (gm) {
+      Object.keys(gm.resources || {}).sort().forEach(function(rPlural) {
+        opts.push({value: rPlural, label: rPlural, dotStar: true});
+        addResInlines(gPlural, rPlural, rPlural + '.');
+      });
     }
-  });
-  colls.forEach(function(c) {
-    if (!opts.includes(c.plural)) opts.push(c.plural);
-  });
+  } else if (depth <= 4) {
+    // Resource collection (depth 3) or resource entity (depth 4)
+    addResInlines(path[0], path[2], '');
+  } else if (last === 'versions' || depth === 6) {
+    // Version collection or version entity
+    var rm = getRM(path[0], path[2]);
+    if (rm) opts.push({value: rm.singular, label: rm.singular});
+  }
+
   return opts;
 }
 
+function navigateJsonUrl(encodedUrl) {
+  // encodedUrl is HTML-attribute-encoded; decode it back to a real URL
+  var raw = encodedUrl.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+  var svBase = serverBase();
+  var urlPath = raw.split('?')[0].split('#')[0];   // strip query + fragment
+  urlPath = urlPath.replace(/\/?\$details$/, '');   // strip $details suffix
+  if (urlPath.indexOf(svBase) === 0) {
+    var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
+    var segments = rel ? rel.split('/') : [];
+    pushState({view: 'table', section: 'data', path: segments, editMode: false});
+  } else {
+    window.open(raw, '_blank', 'noopener');
+  }
+  return false;
+}
+
 function syntaxHighlight(str) {
+  var svBase = serverBase();
   return str
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
       function(m) {
         var c = /^"/.test(m) ? (/:$/.test(m) ? 'json-key' : 'json-str')
               : /true|false/.test(m) ? 'json-bool' : /null/.test(m) ? 'json-null' : 'json-num';
+
+        // Linkify URL string values (not keys)
+        if (c === 'json-str') {
+          // Strip outer quotes and unescape HTML entities to get raw content
+          var inner = m.slice(1, -1).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+          if (/^https?:\/\//.test(inner)) {
+            var urlPath = inner.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
+            var href, target = '', onclick;
+            if (urlPath.indexOf(svBase) === 0) {
+              // Same-server: build SPA href for right-click "open in new tab" support
+              var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
+              var segments = rel ? rel.split('/') : [];
+              var fakeSt   = Object.assign({}, _state, {
+                view: 'table', section: 'data', path: segments, editMode: false
+              });
+              href    = buildURL(fakeSt);
+              onclick = 'return navigateJsonUrl(\'' + inner.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
+            } else {
+              href    = inner;
+              target  = ' target="_blank" rel="noopener"';
+              onclick = '';
+            }
+            var attrOnclick = onclick ? ' onclick="' + onclick + '"' : '';
+            return '<span class="' + c + '"><a class="json-url" href="' + esc(href) + '"' + target + attrOnclick + '>' + m + '</a></span>';
+          }
+        }
+
         return '<span class="' + c + '">' + m + '</span>';
       });
 }
@@ -2340,6 +3259,2133 @@ function navigateToParentResource() {
   pushState({path: _state.path.slice(0, 4), editMode: false});
 }
 
+// ---- Model Editor (ported from registry/ui.go's ?html model editor) ------
+//
+// Renders a full browse+edit UI for a registry's model/modelsource data,
+// reusing the same drill-down/forms engine as the legacy server-rendered
+// editor. Entry point is renderModelEditor(data), called from refresh() when
+// _state.section is 'model' or 'modelsource' and _state.dataView !== 'json'.
+//
+// Read-only vs editable is driven by _state.editMode (the shared header
+// pencil button); editing is only ever enabled while on 'modelsource'
+// (see renderHeader()) — saves always PUT to /modelsource.
+
+var _modelPutURL    = '';
+var _modelMutable   = false;
+var _modelReadOnly  = true;  // runtime: true unless _state.editMode && section === modelsource
+var _modelSrc       = null;  // pristine copy of last-loaded model (for undo)
+var _modelData      = null;  // working copy being edited/viewed
+var _modelDirty     = false;
+var _modelLoadedFor = null;  // "serverURL|section" key used to detect a fresh load
+var _navTab         = 'registry';
+var _navPath        = [];
+var _navSelected    = null;
+var _attrNestStack  = []; // [{key,isItem}] — nested attr drilldown beyond _navPath
+var _cstrCounter    = 0;  // unique ID counter for constraint enum containers
+
+// Entry point called from refresh().
+function renderModelEditor(data) {
+  var main = el('main-view');
+  var key = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.section;
+  if (_modelLoadedFor !== key) {
+    _modelSrc  = deepClone(data);
+    _modelData = deepClone(_modelSrc);
+    _modelDirty = false;
+    _navTab = 'registry'; _navPath = []; _navSelected = null; _attrNestStack = [];
+    _modelLoadedFor = key;
+  }
+  _modelMutable  = _state.mutable;
+  _modelPutURL   = buildAPIURL();
+  _modelReadOnly = !(_state.editMode && _state.section === 'modelsource');
+  main.innerHTML = '<div id="modelEditor"></div>';
+  renderEditor();
+}
+
+
+function deepClone(o) { return JSON.parse(JSON.stringify(o)) ; }
+function markDirty() {
+  if (!_modelDirty) {
+    _modelDirty = true ;
+    var sb = document.getElementById('saveBtn') ; if (sb) sb.disabled = false ;
+    var ub = document.getElementById('undoBtn') ; if (ub) ub.disabled = false ;
+  }
+}
+
+window.addEventListener('beforeunload', function(e) {
+  if (_modelDirty || _capDirty) { e.preventDefault() ; e.returnValue = '' ; }
+}) ;
+
+function showLeaveEditDialog(onSave, onDiscard) {
+  var overlay = document.createElement('div') ;
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;' ;
+  var box = document.createElement('div') ;
+  box.style.cssText = 'background:white;border-radius:8px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,0.25);max-width:340px;width:90%;font-family:sans-serif;' ;
+  var msg = document.createElement('p') ; msg.textContent = 'You have unsaved changes.' ;
+  msg.style.cssText = 'margin:0 0 20px;font-size:14px;color:#333;' ;
+  box.appendChild(msg) ;
+  var btns = document.createElement('div') ; btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;' ;
+  function mkBtn(label, fn, css) {
+    var b = document.createElement('button') ; b.textContent = label ;
+    b.style.cssText = 'padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;' + css ;
+    b.onclick = function() { document.body.removeChild(overlay) ; fn() ; } ;
+    btns.appendChild(b) ;
+  }
+  mkBtn('Cancel',  function(){},  'background:#f0f0f0;color:#333;border:1px solid #ccc;') ;
+  mkBtn('Discard', onDiscard,     'background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;') ;
+  mkBtn('Save',    onSave,        'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+  box.appendChild(btns) ; overlay.appendChild(box) ; document.body.appendChild(overlay) ;
+}
+
+
+// ---- Navigation primitives ----
+
+function drillDown(path) {
+  var beforePath = _navPath.slice() ;
+  collectCurrentEditor() ;
+  _attrNestStack = [] ;
+  // Fix up stale path segments in case collectCurrentEditor renamed a group/resource key
+  _navPath = path.map(function(seg, i) {
+    if (i < beforePath.length && beforePath[i] === seg && _navPath[i] && _navPath[i] !== seg)
+      return _navPath[i] ;
+    return seg ;
+  }) ;
+  _navSelected = null ;
+  renderEditor() ;
+}
+
+function selectItem(key) {
+  collectCurrentEditor() ;
+  _navSelected = key ;
+  renderEditor() ;
+}
+
+function changeTab(tab) {
+  collectCurrentEditor() ;
+  _attrNestStack = [] ;
+  _navTab = tab ; _navPath = [] ; _navSelected = null ;
+  renderEditor() ;
+}
+
+// ---- Attr nesting helpers ----
+
+// Returns the base attributes map (or item parent) at the current _navPath level.
+function getBaseAttrsObj() {
+  var m = _modelData || {} ;
+  if (_navTab === 'registry') {
+    if (!m.attributes) m.attributes = {} ;
+    return m.attributes ;
+  }
+  var gk = _navPath[0] ; if (!gk) return {} ;
+  if (!m.groups) m.groups = {} ;
+  var grp = m.groups[gk] ; if (!grp) return {} ;
+  if (_navPath.length === 2) {
+    var sec = _navPath[1] ;
+    if (sec === 'attributes') { if (!grp.attributes) grp.attributes = {} ; return grp.attributes ; }
+  }
+  if (_navPath.length === 4) {
+    var rk = _navPath[2], attrSec = _navPath[3] ;
+    var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
+    if (!grp.resources) grp.resources = {} ;
+    var res = grp.resources[rk] ; if (!res) return {} ;
+    if (!res[dataKey]) res[dataKey] = {} ;
+    return res[dataKey] ;
+  }
+  return {} ;
+}
+
+// Traverses _attrNestStack from the base attrs object.
+// Returns {attrsObj, parentAttr, isItem, ifvMap} where:
+//   isItem:false, ifvMap:null → attrsObj is the attrs map to show/edit
+//   isItem:true              → parentAttr is the item object (map/array)
+//   ifvMap:non-null          → currently viewing ifvalues key list
+// If createMissing=true, creates intermediate structures as needed.
+function resolveAttrNesting(createMissing) {
+  var cur = getBaseAttrsObj() ;
+  var curParent = null ; // last resolved attrObj from isItem:true, for __item__:isItem:true chaining
+  var ifvMap = null ;
+  for (var i = 0; i < _attrNestStack.length; i++) {
+    var entry = _attrNestStack[i] ;
+    if (entry.key === '__item__' && !entry.isItem) { continue ; } // sentinel: inside item.attributes
+    if (entry.key === '__item__' && entry.isItem) {
+      // Descend into curParent.item.item (map/array item chain)
+      if (!curParent) return {attrsObj:{}, parentAttr:null, isItem:true, ifvMap:null} ;
+      var prevItem = curParent.item ;
+      if (!prevItem) {
+        if (createMissing) { curParent.item = {} ; prevItem = curParent.item ; }
+        else return {attrsObj:{}, parentAttr:null, isItem:true, ifvMap:null} ;
+      }
+      curParent = prevItem ; // curParent.item is now the next item to render
+      if (i === _attrNestStack.length - 1) return {attrsObj:{}, parentAttr:curParent, isItem:true, ifvMap:null} ;
+      continue ;
+    }
+    if (entry.isIfValues) {
+      var attrObj = cur[entry.key] ;
+      if (!attrObj) {
+        if (createMissing) { cur[entry.key] = {} ; attrObj = cur[entry.key] ; }
+        else return {attrsObj:{}, parentAttr:null, isItem:false, ifvMap:null} ;
+      }
+      if (!attrObj.ifvalues) {
+        if (createMissing) attrObj.ifvalues = {} ; else attrObj.ifvalues = {} ;
+      }
+      ifvMap = attrObj.ifvalues ;
+      if (i === _attrNestStack.length - 1) return {attrsObj:{}, parentAttr:null, isItem:false, ifvMap:ifvMap} ;
+    } else if (entry.isSiblings) {
+      if (!ifvMap) return {attrsObj:{}, parentAttr:null, isItem:false, ifvMap:null} ;
+      var ifval = ifvMap[entry.key] ;
+      if (!ifval) {
+        if (createMissing) { ifvMap[entry.key] = {} ; ifval = ifvMap[entry.key] ; }
+        else return {attrsObj:{}, parentAttr:null, isItem:false, ifvMap:null} ;
+      }
+      if (!ifval.siblingattributes) {
+        if (createMissing) ifval.siblingattributes = {} ;
+        else return {attrsObj:{}, parentAttr:null, isItem:false, ifvMap:null} ;
+      }
+      cur = ifval.siblingattributes ; ifvMap = null ;
+    } else if (entry.isItem) {
+      var attrObj = cur[entry.key] ;
+      if (!attrObj) {
+        if (createMissing) { cur[entry.key] = {} ; attrObj = cur[entry.key] ; }
+        else return {attrsObj:{}, parentAttr:{}, isItem:false, ifvMap:null} ;
+      }
+      if (!attrObj.item) {
+        if (createMissing) attrObj.item = {} ;
+        else return {attrsObj:{}, parentAttr:{}, isItem:true, ifvMap:null} ;
+      }
+      curParent = attrObj ; // save for potential __item__:isItem:true chaining
+      if (i === _attrNestStack.length - 1) return {attrsObj:{}, parentAttr:attrObj, isItem:true, ifvMap:null} ;
+      // Look ahead: if next is __item__:isItem:false (object sub-attrs sentinel), advance cur
+      var nextEntry = _attrNestStack[i+1] ;
+      if (nextEntry && nextEntry.key === '__item__' && !nextEntry.isItem) {
+        var itm = attrObj.item ;
+        if (!itm.attributes) { if (createMissing) itm.attributes = {} ; else return {attrsObj:{},parentAttr:{},isItem:false,ifvMap:null} ; }
+        cur = itm.attributes ;
+      }
+      // If next is __item__:isItem:true, curParent is set and will be handled above
+    } else {
+      var attrObj = cur[entry.key] ;
+      if (!attrObj) {
+        if (createMissing) { cur[entry.key] = {} ; attrObj = cur[entry.key] ; }
+        else return {attrsObj:{}, parentAttr:{}, isItem:false, ifvMap:null} ;
+      }
+      if (!attrObj.attributes) {
+        if (createMissing) attrObj.attributes = {} ;
+        else return {attrsObj:{}, parentAttr:{}, isItem:false, ifvMap:null} ;
+      }
+      cur = attrObj.attributes ;
+    }
+  }
+  return {attrsObj:cur, parentAttr:null, isItem:false, ifvMap:ifvMap} ;
+}
+
+// Drills into a nested attribute level.
+function drillIntoAttr(attrKey, isItem) {
+  collectCurrentEditor() ;
+  // _navSelected may have been updated by collectCurrentEditor (rename) — use it
+  var resolvedKey = _navSelected || attrKey ;
+  var attrType = null ;
+  if (isItem) {
+    var ctx0 = resolveAttrNesting(false) ;
+    attrType = ctx0.attrsObj && ctx0.attrsObj[resolvedKey] ? (ctx0.attrsObj[resolvedKey].type || 'map') : 'map' ;
+  }
+  _attrNestStack.push({key:resolvedKey, isItem:isItem, attrType:attrType}) ;
+  _navSelected = isItem ? '__item__' : null ;
+  renderEditor() ;
+}
+
+// Pops _attrNestStack back to depth d (0 = fully exit nesting).
+function popAttrNestTo(d) {
+  collectCurrentEditor() ;
+  _attrNestStack = _attrNestStack.slice(0, d) ;
+  _navSelected = null ;
+  renderEditor() ;
+}
+
+// ---- If Values helpers ----
+
+function addNewIfValue() {
+  collectCurrentEditor() ;
+  var ctx = resolveAttrNesting(true) ;
+  var ifv = ctx.ifvMap ; if (!ifv) return ;
+  var k = uniqueKey(ifv, 'value') ;
+  ifv[k] = {siblingattributes:{}} ;
+  markDirty() ; _navSelected = k ; renderEditor() ;
+}
+
+function deleteIfValue(k) {
+  var ctx = resolveAttrNesting(false) ;
+  if (ctx.ifvMap) delete ctx.ifvMap[k] ;
+  markDirty() ; if (_navSelected === k) _navSelected = null ; renderEditor() ;
+}
+
+function drillIntoIfValueSiblings() {
+  collectCurrentEditor() ;
+  var resolvedKey = _navSelected ;
+  _attrNestStack.push({key:resolvedKey, isSiblings:true}) ;
+  _navSelected = null ;
+  renderEditor() ;
+}
+
+function renderIfValueForm(div, valueKey, ifvMap) {
+  var titleEl = document.createElement('div') ; titleEl.className = 'editorFormTitle' ;
+  titleEl.textContent = 'If Value: ' + valueKey ; div.appendChild(titleEl) ;
+  var origInp = document.createElement('input') ; origInp.type = 'hidden' ;
+  origInp.id = 'ef_ifvalue_orig' ; origInp.value = valueKey ; div.appendChild(origInp) ;
+  var keyRow = ef('ef_ifvalue_key', 'Value', valueKey, true) ;
+  var keyInp = keyRow.querySelector('input') ;
+  keyInp.oninput = function() {
+    var v = keyInp.value.trim() || '\u2026' ;
+    titleEl.textContent = 'If Value: ' + v ;
+    var navEl = document.querySelector('.navItemSelected') ;
+    if (navEl) { var sp = navEl.firstChild ; if (sp) sp.textContent = v ; }
+  } ;
+  div.appendChild(keyRow) ;
+  var sibCount = Object.keys(((ifvMap[valueKey]||{}).siblingattributes)||{}).length ;
+  var drilledBtnRow = document.createElement('div') ; drilledBtnRow.className = 'editorField' ;
+  drilledBtnRow.style.marginTop = '8px' ;
+  var spacer = document.createElement('label') ; spacer.style.visibility = 'hidden' ;
+  drilledBtnRow.appendChild(spacer) ;
+  var drilledBtn = document.createElement('button') ; drilledBtn.className = 'editorBtn navDrillBtn' ;
+  drilledBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
+  drilledBtn.textContent = '\u25b6 Edit Sibling Attributes' + (sibCount ? ' ('+sibCount+')' : '') ;
+  drilledBtn.onclick = drillIntoIfValueSiblings ;
+  drilledBtnRow.appendChild(drilledBtn) ; div.appendChild(drilledBtnRow) ;
+}
+
+function saveIfValueFrom(ifvMap, origKey) {
+  if (!ifvMap) return ;
+  var keyEl = document.getElementById('ef_ifvalue_key') ; if (!keyEl) return ;
+  var newKey = keyEl.value.trim() || origKey ;
+  var existing = ifvMap[origKey] || {siblingattributes:{}} ;
+  if (newKey !== origKey) delete ifvMap[origKey] ;
+  ifvMap[newKey] = existing ;
+  if (_navSelected === origKey) _navSelected = newKey ;
+}
+
+// ---- Main render ----
+
+function renderEditor() {
+  var div = document.getElementById('modelEditor') ;
+  // Rescue #expandAll from the old breadcrumb before wiping innerHTML
+  var exAll = document.getElementById('expandAll') ;
+  var myOut = document.getElementById('myOutput') ;
+  if (exAll && div.contains(exAll) && myOut) {
+    exAll.style.position = '' ; exAll.style.marginLeft = '' ;
+    myOut.insertBefore(exAll, myOut.firstChild) ;
+  }
+  div.innerHTML = '' ;
+
+  // Action bar
+  var bar = document.createElement('div') ;
+  bar.className = 'editorActionBar' ;
+  if (!_modelReadOnly) {
+    var sb = document.createElement('button') ;
+    sb.className = 'editorBtn' ; sb.id = 'saveBtn' ;
+    sb.textContent = 'Save' ; sb.onclick = function() { saveModel(function() { toggleEdit() ; }) ; } ; sb.disabled = !_modelDirty ;
+    bar.appendChild(sb) ;
+    var ub = document.createElement('button') ;
+    ub.className = 'editorBtn' ; ub.id = 'undoBtn' ;
+    ub.textContent = 'Undo' ; ub.onclick = undoModel ; ub.disabled = !_modelDirty ;
+    bar.appendChild(ub) ;
+  } else {
+    // No buttons — collapse the bar completely
+    bar.style.cssText = 'padding:0;border:none;margin:0;height:0;' ;
+  }
+  div.appendChild(bar) ;
+
+  if (!_modelReadOnly) {
+    var errDiv = document.createElement('div') ;
+    errDiv.id = 'editorError' ; errDiv.style.display = 'none' ;
+    div.appendChild(errDiv) ;
+  }
+
+  // Auto-select 'fields' when entering registry root or group/resource level with nothing selected
+  if (_navSelected === null) {
+    if (_navTab === 'registry' && _navPath.length === 0) _navSelected = 'fields' ;
+    else if (_navTab === 'groups' && (_navPath.length === 1 || _navPath.length === 3)) _navSelected = 'fields' ;
+  }
+
+  // Breadcrumb (replaces tab bar)
+  var bc = buildBreadcrumb() ;
+  // Mobile nav toggle button — insert before breadcrumb content
+  var toggleBtn = document.createElement('button') ;
+  toggleBtn.className = 'navToggleBtn' ; toggleBtn.type = 'button' ;
+  toggleBtn.textContent = '\u2630' ; toggleBtn.title = 'Show navigation' ;
+  bc.insertBefore(toggleBtn, bc.firstChild) ;
+  // Move the view-toggle buttons into the breadcrumb (right-aligned)
+  var exAll = document.getElementById('expandAll') ;
+  if (exAll) { exAll.style.position = 'static' ; exAll.style.marginLeft = 'auto' ; bc.appendChild(exAll) ; }
+  div.appendChild(bc) ;
+
+  // Body: left nav + right panel
+  var body = document.createElement('div') ; body.className = 'editorBody' ;
+  var lnav = document.createElement('div') ; lnav.className = 'editorLeftNav' ;
+  buildLeftNav(lnav) ;
+  var rpanel = document.createElement('div') ; rpanel.className = 'editorRightPanel' ;
+  buildRightPanel(rpanel) ;
+  // Backdrop for nav overlay (mobile only)
+  var backdrop = document.createElement('div') ;
+  backdrop.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99;' ;
+  function openNav() {
+    var bc = document.querySelector('.editorBreadcrumb') ;
+    var topPx = bc ? (bc.offsetTop + bc.offsetHeight) : 0 ;
+    lnav.style.top = topPx + 'px' ;
+    lnav.style.maxHeight = 'calc(100dvh - ' + topPx + 'px - env(safe-area-inset-bottom, 0px))' ;
+    backdrop.style.top = lnav.style.top ;
+    lnav.classList.add('navOpen') ; backdrop.style.display = 'block' ; toggleBtn.textContent = '\u2715' ;
+  }
+  window._editorOpenNav = openNav ;
+  function closeNav() {
+    lnav.classList.remove('navOpen') ; backdrop.style.display = 'none' ; toggleBtn.textContent = '\u2630' ;
+  }
+  toggleBtn.onclick = function() { lnav.classList.contains('navOpen') ? closeNav() : openNav() ; } ;
+  backdrop.onclick = closeNav ;
+  body.appendChild(backdrop) ; body.appendChild(lnav) ; body.appendChild(rpanel) ;
+  div.appendChild(body) ;
+
+  if (_modelReadOnly) applyReadOnly(div) ;
+  if (!_modelReadOnly) {
+    div.addEventListener('input', markDirty) ;
+    div.addEventListener('change', markDirty) ;
+  }
+}
+
+// ---- Breadcrumb ----
+
+function buildBreadcrumb() {
+  var labelMap = {
+    'fields':'Details', 'attributes':'Attributes', 'resources':'Resources',
+    'versionattributes':'Version Attrs', 'resourceattributes':'Resource Attrs',
+    'metaattributes':'Meta Attrs'
+  } ;
+  var segs = [] ;
+  segs.push({label: 'Registry', tab: 'registry', path: []}) ;
+  if (_navTab === 'groups') {
+    segs.push({label: 'Group Types', tab: 'groups', path: []}) ;
+    _navPath.forEach(function(seg, i) {
+      var label = labelMap[seg] || seg ;
+      var id = (!labelMap[seg] && i === 0) ? 'bcGroupKey' : (!labelMap[seg] && i === 2) ? 'bcResourceKey' : null ;
+      segs.push({label: label, tab: 'groups', path: _navPath.slice(0, i+1), id: id}) ;
+    }) ;
+  } else if (_navPath.length > 0) {
+    _navPath.forEach(function(seg, i) {
+      segs.push({label: labelMap[seg] || seg, tab: 'registry', path: _navPath.slice(0, i+1)}) ;
+    }) ;
+  }
+  var bc = document.createElement('div') ; bc.className = 'editorBreadcrumb' ;
+  var allSegs = segs.slice() ; // structural segments
+
+  // Append _attrNestStack segments — each entry generates 2 segments with full nav info
+  _attrNestStack.forEach(function(entry, i) {
+    if (entry.isIfValues) {
+      allSegs.push({label: entry.key, nestDepth: i, backKey: entry.key}) ;
+      allSegs.push({label: 'If-Values', nestDepth: i+1, backKey: null}) ;
+    } else if (entry.isSiblings) {
+      allSegs.push({label: entry.key, nestDepth: i, backKey: entry.key}) ;
+      allSegs.push({label: 'Siblings', nestDepth: i+1, backKey: null}) ;
+    } else if (entry.isItem && entry.key === '__item__') {
+      // Item-chain sentinel: just one segment for the inner item level
+      var typeLabel2 = (entry.attrType || 'map') + ' details' ;
+      allSegs.push({label: typeLabel2, nestDepth: i+1, backKey: '__item__'}) ;
+    } else if (entry.isItem) {
+      allSegs.push({label: entry.key, nestDepth: i, backKey: entry.key}) ;
+      var typeLabel = (entry.attrType || 'map') + ' details' ;
+      allSegs.push({label: typeLabel, nestDepth: i+1, backKey: '__item__'}) ;
+    } else if (entry.key === '__item__') {
+      allSegs.push({label: 'Item', nestDepth: i, backKey: '__item__'}) ;
+      allSegs.push({label: 'Attributes', nestDepth: i+1, backKey: null}) ;
+    } else {
+      allSegs.push({label: entry.key, nestDepth: i, backKey: entry.key}) ;
+      allSegs.push({label: 'Attributes', nestDepth: i+1, backKey: null}) ;
+    }
+  }) ;
+
+  allSegs.forEach(function(s, i) {
+    if (i > 0) { var sep = document.createElement('span') ; sep.className = 'bcSep' ; sep.textContent = '\u203a' ; bc.appendChild(sep) ; }
+    if (i === allSegs.length - 1) {
+      var cur = document.createElement('span') ; cur.className = 'bcCurrent' ; cur.textContent = s.label ;
+      if (s.id) cur.id = s.id ;
+      bc.appendChild(cur) ;
+    } else {
+      var lnk = document.createElement('span') ; lnk.className = 'bcLink' ; lnk.textContent = s.label ;
+      if (s.id) lnk.id = s.id ;
+      if (s.nestDepth !== undefined) {
+        // Nest-stack segment — pop to nestDepth and optionally re-select
+        var nd = s.nestDepth, bk = s.backKey ;
+        lnk.onclick = function() {
+          collectCurrentEditor() ;
+          _attrNestStack = _attrNestStack.slice(0, nd) ;
+          _navSelected = bk || null ;
+          renderEditor() ;
+        } ;
+      } else {
+        var st = s.tab, sp = s.path ;
+        lnk.onclick = function() { collectCurrentEditor() ; _attrNestStack = [] ; _navTab = st ; _navPath = sp ; _navSelected = null ; renderEditor() ; } ;
+      }
+      bc.appendChild(lnk) ;
+    }
+  }) ;
+  return bc ;
+}
+
+// ---- Left Nav ----
+
+function buildLeftNav(div) {
+  var model = _modelData || {} ;
+
+  function navItem(label, isContainer, isSelected, clickFn, deleteFn) {
+    var el = document.createElement('div') ;
+    el.className = 'navItem' + (isSelected ? ' navItemSelected' : '') ;
+    var lbl = document.createElement('span') ; lbl.style.flex = '1' ;
+    if (typeof label === 'string') { lbl.textContent = label ; } else { lbl.appendChild(label) ; }
+    el.appendChild(lbl) ;
+    if (deleteFn && !_modelReadOnly) {
+      var del = document.createElement('span') ; del.className = 'navItemDel' ;
+      del.textContent = '\u2715' ; del.title = 'Remove' ;
+      del.onclick = function(e) { e.stopPropagation() ; confirmDel('"' + (typeof label === 'string' ? label : el.textContent.trim()) + '"', deleteFn) ; } ;
+      el.appendChild(del) ;
+    }
+    if (isContainer) {
+      var arr = document.createElement('span') ; arr.className = 'navItemArrow' ; arr.textContent = '\u203a' ;
+      el.appendChild(arr) ;
+    }
+    el.onclick = clickFn ; return el ;
+  }
+
+  function navAdd(label, fn) {
+    var el = document.createElement('div') ; el.className = 'navItemAdd' ;
+    el.textContent = label ; el.onclick = fn ; return el ;
+  }
+
+  function attrLabel(k) {
+    if (k !== '*') return k ;
+    var el = document.createElement('span') ;
+    var star = document.createElement('span') ; star.textContent = '*' ;
+    star.style.cssText = 'font-size:16px;font-weight:bold;vertical-align:middle;line-height:1;' ;
+    var desc = document.createElement('span') ; desc.textContent = ' (wildcard extension)' ;
+    desc.style.cssText = 'color:#888;font-style:italic;font-size:11px;' ;
+    el.appendChild(star) ; el.appendChild(desc) ; return el ;
+  }
+
+  function attrSort(keys) {
+    return keys.sort(function(a, b) {
+      if (a === '*') return 1 ; if (b === '*') return -1 ; return a.localeCompare(b) ;
+    }) ;
+  }
+
+  function withCount(label, n) { return label + ' (' + n + ')' ; }
+
+  if (_attrNestStack.length > 0) {
+    var top = _attrNestStack[_attrNestStack.length - 1] ;
+    if (top.isItem) {
+      div.appendChild(navItem('Item', false, _navSelected === '__item__', function() { selectItem('__item__') ; })) ;
+    } else if (top.isIfValues) {
+      var ctx = resolveAttrNesting(false) ;
+      var ifv = ctx.ifvMap || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Value', addNewIfValue)) ;
+      Object.keys(ifv).sort().forEach(function(k) {
+        div.appendChild(navItem(k, false, _navSelected === k,
+          (function(key){ return function(){ selectItem(key) ; } ; })(k),
+          (function(key){ return function(){ deleteIfValue(key) ; } ; })(k))) ;
+      }) ;
+    } else {
+      // Regular nested attrs or siblings context
+      var ctx = resolveAttrNesting(false) ;
+      var nestedAttrs = ctx.attrsObj || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
+      attrSort(Object.keys(nestedAttrs)).forEach(function(k) {
+        div.appendChild(navItem(attrLabel(k), false, _navSelected === k,
+          (function(key){ return function(){ selectItem(key) ; } ; })(k),
+          (function(key){ return function(){ deleteAttr(key) ; } ; })(k))) ;
+      }) ;
+    }
+    return ;
+  }
+
+  if (_navTab === 'registry') {
+    if (_navPath.length === 0) {
+      div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
+      div.appendChild(navItem(withCount('Attributes', Object.keys(model.attributes||{}).length), true, false, function() { drillDown(['attributes']) ; })) ;
+      div.appendChild(navItem(withCount('Group Types', Object.keys(model.groups||{}).length), true, false, function() { changeTab('groups') ; })) ;
+    } else {
+      var attrs = model.attributes || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
+      attrSort(Object.keys(attrs)).forEach(function(k) {
+        div.appendChild(navItem(attrLabel(k), false, _navSelected === k,
+          (function(key){ return function(){ selectItem(key) ; } ; })(k),
+          (function(key){ return function(){ deleteAttr(key) ; } ; })(k))) ;
+      }) ;
+    }
+  } else {
+    if (_navPath.length === 0) {
+      var groups = model.groups || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Group', addNewGroup)) ;
+      Object.keys(groups).sort().forEach(function(k) {
+        var rCount = Object.keys((groups[k]||{}).resources || {}).length ;
+        div.appendChild(navItem(withCount(k, rCount), true, false,
+          (function(key){ return function(){ drillDown([key]) ; } ; })(k),
+          (function(key){ return function(){ deleteGroup(key) ; } ; })(k))) ;
+      }) ;
+    } else if (_navPath.length === 1) {
+      var gk = _navPath[0] ;
+      var grpData = model.groups[gk] || {} ;
+      div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
+      div.appendChild(navItem(withCount('Attributes', Object.keys(grpData.attributes||{}).length), true, false, function() { drillDown([gk, 'attributes']) ; })) ;
+      div.appendChild(navItem(withCount('Resources', Object.keys(grpData.resources||{}).length), true, false, function() { drillDown([gk, 'resources']) ; })) ;
+    } else if (_navPath.length === 2 && _navPath[1] === 'attributes') {
+      var gk = _navPath[0] ;
+      var attrs = (model.groups[gk] || {}).attributes || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
+      attrSort(Object.keys(attrs)).forEach(function(k) {
+        div.appendChild(navItem(attrLabel(k), false, _navSelected === k,
+          (function(key){ return function(){ selectItem(key) ; } ; })(k),
+          (function(key){ return function(){ deleteAttr(key) ; } ; })(k))) ;
+      }) ;
+    } else if (_navPath.length === 2 && _navPath[1] === 'resources') {
+      var gk = _navPath[0] ;
+      var resources = (model.groups[gk] || {}).resources || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Resource', function(){ addNewResource(gk) ; })) ;
+      Object.keys(resources).sort().forEach(function(k) {
+        div.appendChild(navItem(k, true, false,
+          (function(key){ return function(){ drillDown([gk, 'resources', key]) ; } ; })(k),
+          (function(key){ return function(){ deleteResource(gk, key) ; } ; })(k))) ;
+      }) ;
+    } else if (_navPath.length === 3) {
+      var gk = _navPath[0], rk = _navPath[2] ;
+      var resData = ((model.groups[gk]||{}).resources||{})[rk] || {} ;
+      div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
+      div.appendChild(navItem(withCount('Version Attrs', Object.keys(resData.attributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'versionattributes']) ; })) ;
+      div.appendChild(navItem(withCount('Resource Attrs', Object.keys(resData.resourceattributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'resourceattributes']) ; })) ;
+      div.appendChild(navItem(withCount('Meta Attrs', Object.keys(resData.metaattributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'metaattributes']) ; })) ;
+    } else if (_navPath.length === 4) {
+      var gk = _navPath[0], rk = _navPath[2], attrSec = _navPath[3] ;
+      var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
+      var res = ((model.groups[gk] || {}).resources || {})[rk] || {} ;
+      var attrs = res[dataKey] || {} ;
+      if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
+      attrSort(Object.keys(attrs)).forEach(function(k) {
+        div.appendChild(navItem(attrLabel(k), false, _navSelected === k,
+          (function(key){ return function(){ selectItem(key) ; } ; })(k),
+          (function(key){ return function(){ deleteAttr(key) ; } ; })(k))) ;
+      }) ;
+    }
+  }
+}
+
+// ---- Right Panel ----
+
+function buildRightPanel(div) {
+  if (!_navSelected) {
+    var hint = document.createElement('div') ; hint.className = 'editorHint' ;
+    hint.textContent = '\u2190 Select an item from the left' ; div.appendChild(hint) ;
+    // On mobile the nav is hidden in a dropdown — auto-open it so user isn't stranded
+    var toggleBtn = document.querySelector('.navToggleBtn') ;
+    if (toggleBtn && getComputedStyle(toggleBtn).display !== 'none') {
+      setTimeout(function() { var o = window._editorOpenNav ; if (o) o() ; }, 50) ;
+    }
+    return ;
+  }
+
+  // Nested attribute context
+  if (_attrNestStack.length > 0) {
+    var top = _attrNestStack[_attrNestStack.length - 1] ;
+    if (top.isItem && _navSelected === '__item__') {
+      var ctx = resolveAttrNesting(false) ;
+      renderItemForm(div, ctx.parentAttr ? (ctx.parentAttr.item || {}) : {}) ;
+      return ;
+    }
+    if (top.isIfValues && _navSelected) {
+      var ctx = resolveAttrNesting(false) ;
+      renderIfValueForm(div, _navSelected, ctx.ifvMap || {}) ;
+      return ;
+    }
+    if (!top.isItem && !top.isIfValues) {
+      // Regular nested attrs or siblings
+      var ctx2 = resolveAttrNesting(false) ;
+      var nestedAttr = (ctx2.attrsObj || {})[_navSelected] || {} ;
+      renderAttrForm(div, nestedAttr) ;
+      return ;
+    }
+  }
+
+  var model = _modelData || {} ;
+  if (_navTab === 'registry') {
+    if (_navSelected === 'fields') { renderRegistryFields(div) ; }
+    else { renderAttrForm(div, (model.attributes || {})[_navSelected] || {}) ; }
+  } else {
+    var gk = _navPath.length > 0 ? _navPath[0] : null ;
+    if (_navPath.length === 1 && _navSelected === 'fields') {
+      renderGroupFields(div, gk) ;
+    } else if (_navPath.length === 2 && _navPath[1] === 'attributes') {
+      renderAttrForm(div, ((model.groups[gk] || {}).attributes || {})[_navSelected] || {}) ;
+    } else if (_navPath.length === 3 && _navSelected === 'fields') {
+      renderResourceFields(div, gk, _navPath[2]) ;
+    } else if (_navPath.length === 4) {
+      var attrSec = _navPath[3] ;
+      var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
+      var res = (((model.groups[gk] || {}).resources || {})[_navPath[2]] || {}) ;
+      renderAttrForm(div, (res[dataKey] || {})[_navSelected] || {}) ;
+    }
+  }
+}
+
+// ---- Collect current editor into _modelData ----
+
+function collectCurrentEditor() {
+  if (!_navSelected) return ;
+
+  // Nested attribute context — handle first
+  if (_attrNestStack.length > 0) {
+    var top = _attrNestStack[_attrNestStack.length - 1] ;
+    if (top.isItem && _navSelected === '__item__') {
+      var ctx = resolveAttrNesting(true) ;
+      if (ctx.parentAttr) saveItemForm(ctx.parentAttr) ;
+      return ;
+    }
+    if (top.isIfValues && _navSelected) {
+      var ctx = resolveAttrNesting(true) ;
+      saveIfValueFrom(ctx.ifvMap, _navSelected) ;
+      return ;
+    }
+    if (!top.isItem && !top.isIfValues) {
+      var ctx2 = resolveAttrNesting(true) ;
+      if (ctx2.attrsObj) saveAttrFrom(ctx2.attrsObj, _navSelected) ;
+      return ;
+    }
+    return ;
+  }
+
+  var model = _modelData || {} ;
+  if (_navTab === 'registry') {
+    if (_navSelected === 'fields') {
+      var d = fv('ef_description') ; if (d) model.description = d ; else delete model.description ;
+      var dc = fv('ef_documentation') ; if (dc) model.documentation = dc ; else delete model.documentation ;
+      var lbls = collectLabels('ef_labels') ;
+      if (Object.keys(lbls).length) model.labels = lbls ; else delete model.labels ;
+    } else {
+      if (!model.attributes) model.attributes = {} ;
+      saveAttrFrom(model.attributes, _navSelected) ;
+    }
+  } else {
+    var gk = _navPath.length > 0 ? _navPath[0] : null ; if (!gk) return ;
+    if (!model.groups) model.groups = {} ;
+    if (!model.groups[gk]) model.groups[gk] = {} ;
+    var grp = model.groups[gk] ;
+    if (_navPath.length === 1 && _navSelected === 'fields') {
+      saveGroupFields(gk) ;
+    } else if (_navPath.length === 2 && _navPath[1] === 'attributes') {
+      if (!grp.attributes) grp.attributes = {} ;
+      saveAttrFrom(grp.attributes, _navSelected) ;
+    } else if (_navPath.length === 3 && _navSelected === 'fields') {
+      var rk = _navPath[2] ;
+      if (!grp.resources) grp.resources = {} ;
+      if (!grp.resources[rk]) grp.resources[rk] = {} ;
+      saveResourceFields(gk, rk) ;
+    } else if (_navPath.length === 4) {
+      var rk = _navPath[2], attrSec = _navPath[3] ;
+      var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
+      if (!grp.resources) grp.resources = {} ;
+      if (!grp.resources[rk]) grp.resources[rk] = {} ;
+      var res = grp.resources[rk] ;
+      if (!res[dataKey]) res[dataKey] = {} ;
+      saveAttrFrom(res[dataKey], _navSelected) ;
+    }
+  }
+}
+
+function saveAttrFrom(attrsObj, origKey) {
+  var nameEl = document.getElementById('ef_name') ; if (!nameEl) return ;
+  var newName = nameEl.value.trim() || origKey ;
+  // Read existing entry first so we can preserve nested structures (attributes/item)
+  // that are edited via drill-down and not touched by this form
+  var existing = attrsObj[origKey] || {} ;
+  var attr = { name: newName } ;
+  var t = fv('ef_type') ; if (t) attr.type = t ;
+  var d = fv('ef_description') ; if (d) attr.description = d ;
+  var def = fv('ef_default') ; if (def !== '') attr.default = def ;
+  var tgt = fv('ef_target') ;
+  var targetEl = document.getElementById('ef_target') ;
+  if (tgt && targetEl && !targetEl.disabled) attr.target = tgt ;
+  var ncs = fv('ef_namecharset') ;
+  var ncsEl = document.getElementById('ef_namecharset') ;
+  if (ncs && ncsEl && !ncsEl.disabled) attr.namecharset = ncs ;
+  var enm = collectEnum('ef_enum') ;
+  if (enm.length) attr.enum = enm ;
+  ['required','readonly','immutable','matchcase','matchversions','strict'].forEach(function(f) {
+    var v = fvBool('ef_'+f) ;
+    if (v === true) attr[f] = true ;
+    else if (v === false) attr[f] = false ;
+    else delete attr[f] ;
+  }) ;
+  // Preserve nested structures edited via drill-down (not part of this form)
+  if (existing.attributes) attr.attributes = existing.attributes ;
+  if (existing.item) attr.item = existing.item ;
+  if (existing.ifvalues) attr.ifvalues = existing.ifvalues ;
+  if (newName !== origKey && attrsObj[origKey] !== undefined) delete attrsObj[origKey] ;
+  attrsObj[newName] = attr ;
+  if (_navSelected === origKey) _navSelected = newName ;
+}
+
+function saveGroupFields(gk) {
+  var model = _modelData || {} ;
+  if (!model.groups) model.groups = {} ;
+  var grp = model.groups[gk] || {} ;
+  var plural = fv('ef_plural') ;
+  setOrDel(grp, 'plural', plural) ; setOrDel(grp, 'singular', fv('ef_singular')) ;
+  setOrDel(grp, 'description', fv('ef_description')) ; setOrDel(grp, 'documentation', fv('ef_documentation')) ;
+  setOrDel(grp, 'icon', fv('ef_icon')) ; setOrDel(grp, 'modelversion', fv('ef_modelversion')) ;
+  setOrDel(grp, 'modelcompatiblewith', fv('ef_modelcompatiblewith')) ;
+  var lbls = collectLabels('ef_labels') ;
+  if (Object.keys(lbls).length) grp.labels = lbls ; else delete grp.labels ;
+  var cstrs = collectConstraints('ef_constraints') ;
+  if (Object.keys(cstrs).length) grp.constraints = cstrs ; else delete grp.constraints ;
+  var newKey = plural || gk ;
+  if (newKey !== gk) { delete model.groups[gk] ; model.groups[newKey] = grp ; _navPath[0] = newKey ; }
+  else model.groups[gk] = grp ;
+}
+
+function saveResourceFields(gk, rk) {
+  var model = _modelData || {} ;
+  var grp = (model.groups || {})[gk] || {} ;
+  var res = (grp.resources || {})[rk] || {} ;
+  var plural = fv('ef_plural') ;
+  setOrDel(res, 'plural', plural) ; setOrDel(res, 'singular', fv('ef_singular')) ;
+  setOrDel(res, 'description', fv('ef_description')) ; setOrDel(res, 'documentation', fv('ef_documentation')) ;
+  setOrDel(res, 'icon', fv('ef_icon')) ; setOrDel(res, 'modelversion', fv('ef_modelversion')) ;
+  setOrDel(res, 'modelcompatiblewith', fv('ef_modelcompatiblewith')) ;
+  var maxv = fv('ef_maxversions') ;
+  if (maxv !== '') res.maxversions = parseInt(maxv, 10) || 0 ; else delete res.maxversions ;
+  setOrDel(res, 'versionmode', fv('ef_versionmode')) ;
+  ['setversionid','hasdocument','singleversionroot','validateformat','validatecompatibility','strictvalidation'].forEach(function(f) {
+    var v = fvBool('ef_'+f) ;
+    if (v === true) res[f] = true ;
+    else if (v === false) res[f] = false ;
+    else delete res[f] ;
+  }) ;
+  var lbls = collectLabels('ef_labels') ;
+  if (Object.keys(lbls).length) res.labels = lbls ; else delete res.labels ;
+  var newKey = plural || rk ;
+  if (newKey !== rk) { delete grp.resources[rk] ; grp.resources[newKey] = res ; _navPath[2] = newKey ; }
+  else grp.resources[rk] = res ;
+}
+
+function setOrDel(obj, key, val) { if (val) obj[key] = val ; else delete obj[key] ; }
+
+// ---- Form renderers ----
+
+function addFormTitle(div, title) {
+  var h = document.createElement('div') ; h.className = 'editorFormTitle' ;
+  h.textContent = title ; div.appendChild(h) ;
+}
+
+function renderRegistryFields(div) {
+  var m = _modelData || {} ;
+  addFormTitle(div, 'Registry Details') ;
+  div.appendChild(ef('ef_description', 'Description', m.description||'')) ;
+  div.appendChild(ef('ef_documentation', 'Documentation', m.documentation||'')) ;
+  div.appendChild(makeLabelsEditor('ef_labels', m.labels||{})) ;
+}
+
+function renderGroupFields(div, gk) {
+  var grp = ((_modelData||{}).groups||{})[gk] || {} ;
+  var titleEl = document.createElement('div') ; titleEl.className = 'editorFormTitle' ;
+  titleEl.textContent = 'Group Type: ' + (grp.plural || gk) ; div.appendChild(titleEl) ;
+  var pluralRow = ef('ef_plural', 'Plural', grp.plural||gk, true) ; div.appendChild(pluralRow) ;
+  var pluralInp = pluralRow.querySelector('input') ;
+  pluralInp.oninput = function() {
+    var v = pluralInp.value.trim() || gk ;
+    titleEl.textContent = 'Group Type: ' + v ;
+    var bc = document.getElementById('bcGroupKey') ; if (bc) bc.textContent = v ;
+  } ;
+  div.appendChild(ef('ef_singular', 'Singular', grp.singular||'', true)) ;
+  div.appendChild(ef('ef_description', 'Description', grp.description||'')) ;
+  div.appendChild(ef('ef_documentation', 'Documentation', grp.documentation||'')) ;
+  div.appendChild(ef('ef_icon', 'Icon URL', grp.icon||'')) ;
+  div.appendChild(ef('ef_modelversion', 'Model Version', grp.modelversion||'')) ;
+  div.appendChild(ef('ef_modelcompatiblewith', 'ModelCompatibleWith', grp.modelcompatiblewith||'')) ;
+  div.appendChild(makeLabelsEditor('ef_labels', grp.labels||{})) ;
+  div.appendChild(makeConstraintsEditor('ef_constraints', grp.constraints||{}, gk)) ;
+}
+
+function renderResourceFields(div, gk, rk) {
+  var res = (((_modelData||{}).groups||{})[gk]||{}).resources||{} ;
+  var r = res[rk] || {} ;
+  var titleEl = document.createElement('div') ; titleEl.className = 'editorFormTitle' ;
+  titleEl.textContent = 'Resource: ' + (r.plural || rk) ; div.appendChild(titleEl) ;
+  var pluralRow = ef('ef_plural', 'Plural', r.plural||rk, true) ; div.appendChild(pluralRow) ;
+  var pluralInp = pluralRow.querySelector('input') ;
+  pluralInp.oninput = function() {
+    var v = pluralInp.value.trim() || rk ;
+    titleEl.textContent = 'Resource: ' + v ;
+    var bc = document.getElementById('bcResourceKey') ; if (bc) bc.textContent = v ;
+  } ;
+  div.appendChild(ef('ef_singular', 'Singular', r.singular||'', true)) ;
+  div.appendChild(ef('ef_description', 'Description', r.description||'')) ;
+  div.appendChild(ef('ef_documentation', 'Documentation', r.documentation||'')) ;
+  div.appendChild(ef('ef_icon', 'Icon URL', r.icon||'')) ;
+  div.appendChild(ef('ef_modelversion', 'Model Version', r.modelversion||'')) ;
+  div.appendChild(ef('ef_modelcompatiblewith', 'ModelCompatibleWith', r.modelcompatiblewith||'')) ;
+  div.appendChild(efNum('ef_maxversions', 'Max Versions', r.maxversions)) ;
+  div.appendChild(ef('ef_versionmode', 'Version Mode', r.versionmode||'')) ;
+  var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
+  div.appendChild(optSec) ;
+  var optList = [
+    ['hasdocument',          'Has Document',          r.hasdocument],
+    ['setversionid',         'Set Version ID',         r.setversionid],
+    ['singleversionroot',    'Single Version Root',    r.singleversionroot],
+    ['strictvalidation',     'Strict Validation',      r.strictvalidation],
+    ['validatecompatibility','Validate Compatibility', r.validatecompatibility],
+    ['validateformat',       'Validate Format',        r.validateformat]
+  ] ;
+  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
+  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
+  div.appendChild(boolGrid) ;
+  div.appendChild(makeLabelsEditor('ef_labels', r.labels||{})) ;
+}
+
+function renderAttrForm(div, attr) {
+  // Determine if this is the versionattributes context (matchversions only shown here)
+  var isVersionAttrs = (_navPath.length === 4 && _navPath[3] === 'versionattributes') ;
+
+  // Title with live update as name is typed
+  var titleEl = document.createElement('div') ; titleEl.className = 'editorFormTitle' ;
+  titleEl.textContent = 'Attribute: ' + (attr.name || _navSelected || '') ;
+  div.appendChild(titleEl) ;
+
+  var origInp = document.createElement('input') ; origInp.type = 'hidden' ;
+  origInp.id = 'ef_origname' ; origInp.value = attr.name || _navSelected || '' ;
+  div.appendChild(origInp) ;
+
+  var nameRow = ef('ef_name', 'Name', attr.name || _navSelected || '', true) ;
+  var nameInp = nameRow.querySelector('input') ;
+  nameInp.maxLength = 63 ;
+  nameInp.title = 'Lowercase letters, digits, underscore only; max 63 chars; cannot start with a digit. Use * for wildcard extension.' ;
+  nameInp.oninput = function() {
+    var raw = nameInp.value ;
+    if (raw.indexOf('*') !== -1) {
+      // Any input with * collapses to just '*'
+      nameInp.value = '*' ;
+    } else {
+      var cleaned = raw.toLowerCase().replace(/[^a-z0-9_]/g, '') ;
+      if (cleaned !== raw) {
+        var pos = nameInp.selectionStart - (raw.length - cleaned.length) ;
+        nameInp.value = cleaned ; nameInp.selectionStart = nameInp.selectionEnd = Math.max(0, pos) ;
+      }
+    }
+    var v = nameInp.value.trim() || '\u2026' ;
+    titleEl.textContent = 'Attribute: ' + v ;
+    var navEl = document.querySelector('.navItemSelected') ;
+    if (navEl) { var sp = navEl.firstChild ; if (sp) sp.textContent = v ; }
+  } ;
+  div.appendChild(nameRow) ;
+
+  // Type dropdown
+  var typeRow = document.createElement('div') ; typeRow.className = 'editorField' ;
+  var typeLbl = document.createElement('label') ; typeLbl.textContent = 'Type:' ;
+  var typeReq = document.createElement('span') ; typeReq.textContent = ' *' ; typeReq.style.cssText = 'color:#c00;font-weight:bold;' ;
+  typeLbl.appendChild(typeReq) ;
+  var typeSel = document.createElement('select') ; typeSel.id = 'ef_type' ; typeSel.className = 'editorInput' ;
+  ['boolean','decimal','integer','string','timestamp',
+   'uinteger','uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype',
+   'any','array','map','object'
+  ].forEach(function(opt) {
+    var o = document.createElement('option') ; o.value = opt ; o.textContent = opt ;
+    if ((attr.type||'string') === opt) o.selected = true ;
+    typeSel.appendChild(o) ;
+  }) ;
+  typeRow.appendChild(typeLbl) ;
+  var typeWrap = document.createElement('div') ; typeWrap.className = 'editorSelectWrap' ;
+  typeWrap.appendChild(typeSel) ; typeRow.appendChild(typeWrap) ; div.appendChild(typeRow) ;
+
+  // Nested-type drill-down button — right below Type, aligned with the dropdown
+  var nestBtnRow = document.createElement('div') ; nestBtnRow.className = 'editorField' ;
+  nestBtnRow.style.marginBottom = '6px' ;
+  var nestLblSpacer = document.createElement('label') ; nestLblSpacer.style.visibility = 'hidden' ;
+  nestBtnRow.appendChild(nestLblSpacer) ;
+  var nestBtn = document.createElement('button') ;
+  nestBtn.className = 'editorBtn navDrillBtn' ;
+  nestBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
+  var currentAttrKey = _navSelected ;
+  function updateNestBtn() {
+    var t = typeSel.value ;
+    if (t === 'object') {
+      var cnt = Object.keys(attr.attributes || {}).length ;
+      nestBtn.textContent = '\u25b6 Edit Nested Attributes' + (cnt ? ' ('+cnt+')' : '') ;
+      nestBtn.style.display = '' ;
+      nestBtn.onclick = function() { drillIntoAttr(currentAttrKey, false) ; } ;
+    } else if (t === 'map' || t === 'array') {
+      nestBtn.textContent = '\u25b6 Edit ' + t + ' details' ;
+      nestBtn.style.display = '' ;
+      nestBtn.onclick = function() { drillIntoAttr(currentAttrKey, true) ; } ;
+    } else {
+      nestBtn.style.display = 'none' ;
+    }
+  }
+  nestBtnRow.appendChild(nestBtn) ; div.appendChild(nestBtnRow) ;
+  updateNestBtn() ;
+  typeSel.addEventListener('change', updateNestBtn) ;
+
+  div.appendChild(ef('ef_description', 'Description', attr.description||'')) ;
+  div.appendChild(ef('ef_default', 'Default', attr.default !== undefined ? String(attr.default) : '')) ;
+
+  // Target — text field, only relevant for url/xid
+  var targetRow = ef('ef_target', 'Target', attr.target||'') ; div.appendChild(targetRow) ;
+  var targetInp = targetRow.querySelector('input') ;
+  targetInp.placeholder = 'e.g. /groups/resources' ;
+
+  // Name Charset — dropdown, only relevant for type=object
+  var ncsRow = document.createElement('div') ; ncsRow.className = 'editorField' ;
+  var ncsLbl = document.createElement('label') ; ncsLbl.textContent = 'Name Charset:' ;
+  var ncsSel = document.createElement('select') ; ncsSel.id = 'ef_namecharset' ; ncsSel.className = 'editorInput' ;
+  var ncsWrap = document.createElement('div') ; ncsWrap.className = 'editorSelectWrap' ;
+  [['','(default / strict)'],['strict','strict'],['extended','extended']].forEach(function(p) {
+    var o = document.createElement('option') ; o.value = p[0] ; o.textContent = p[1] ;
+    if ((attr.namecharset||'') === p[0]) o.selected = true ;
+    ncsSel.appendChild(o) ;
+  }) ;
+  ncsWrap.appendChild(ncsSel) ; ncsRow.appendChild(ncsLbl) ; ncsRow.appendChild(ncsWrap) ; div.appendChild(ncsRow) ;
+
+  // Enable/disable target and namecharset based on current type
+  function syncTypeFields() {
+    var t = typeSel.value ;
+    var targetTypes = {url:1,urlabsolute:1,urlrelative:1,uri:1,uriabsolute:1,urirelative:1,uritemplate:1,xid:1,xidtype:1} ;
+    targetInp.disabled = !targetTypes[t] ;
+    targetInp.style.opacity = targetInp.disabled ? '0.4' : '1' ;
+    ncsSel.disabled = (t !== 'object') ;
+    ncsSel.style.opacity = ncsSel.disabled ? '0.4' : '1' ;
+  }
+  syncTypeFields() ;
+  typeSel.addEventListener('change', syncTypeFields) ;
+
+  div.appendChild(makeEnumEditor('ef_enum', Array.isArray(attr.enum) ? attr.enum : [])) ;
+  var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
+  div.appendChild(optSec) ;
+  var optList = [
+    ['immutable',  'Immutable',  attr.immutable],
+    ['matchcase',  'Match Case', attr.matchcase],
+    ['readonly',   'Read Only',  attr.readonly],
+    ['required',   'Required',   attr.required],
+    ['strict',     'Strict',     attr.strict]
+  ] ;
+  if (isVersionAttrs) optList.push(['matchversions','Match Versions', attr.matchversions]) ;
+  // Sort alphabetically by label
+  optList.sort(function(a,b){ return a[1].localeCompare(b[1]) ; }) ;
+  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
+  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
+  div.appendChild(boolGrid) ;
+
+  // If-Values drill-down button — left-aligned under section header
+  var ifvSec = document.createElement('div') ; ifvSec.className = 'editorSectionLabel' ; ifvSec.textContent = 'If-Values' ;
+  div.appendChild(ifvSec) ;
+  var ifvCount = Object.keys(attr.ifvalues || {}).length ;
+  if (_modelReadOnly && !ifvCount) {
+    var ifvNone = document.createElement('span') ; ifvNone.textContent = '\u2014 none \u2014' ;
+    ifvNone.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
+    div.appendChild(ifvNone) ;
+  } else {
+    var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn navDrillBtn' ;
+    ifvBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-bottom:6px;' ;
+    ifvBtn.textContent = '\u25b6 If-Values' + (ifvCount ? ' ('+ifvCount+')' : '') ;
+    ifvBtn.onclick = function() {
+      collectCurrentEditor() ;
+      var resolvedKey = _navSelected || currentAttrKey ;
+      _attrNestStack.push({key:resolvedKey, isIfValues:true}) ;
+      _navSelected = null ; renderEditor() ;
+    } ;
+    div.appendChild(ifvBtn) ;
+  }
+}
+
+function renderItemForm(div, item) {
+  item = item || {} ;
+  // Determine parent type from stack (map/array) for title
+  var parentType = 'map' ;
+  for (var si = _attrNestStack.length-1; si >= 0; si--) {
+    if (_attrNestStack[si].isItem) { parentType = _attrNestStack[si].attrType || 'map' ; break ; }
+  }
+  var titleEl = document.createElement('div') ; titleEl.className = 'editorFormTitle' ;
+  titleEl.textContent = parentType.charAt(0).toUpperCase() + parentType.slice(1) + ' Details' ;
+  div.appendChild(titleEl) ;
+
+  // Type dropdown
+  var typeRow = document.createElement('div') ; typeRow.className = 'editorField' ;
+  var typeLbl = document.createElement('label') ; typeLbl.textContent = 'Type:' ;
+  var typeSel = document.createElement('select') ; typeSel.id = 'ef_item_type' ; typeSel.className = 'editorInput' ;
+  ['boolean','decimal','integer','string','timestamp',
+   'uinteger','uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype',
+   'any','array','map','object'
+  ].forEach(function(opt) {
+    var o = document.createElement('option') ; o.value = opt ; o.textContent = opt ;
+    if ((item.type||'string') === opt) o.selected = true ;
+    typeSel.appendChild(o) ;
+  }) ;
+  typeRow.appendChild(typeLbl) ;
+  var typeWrap = document.createElement('div') ; typeWrap.className = 'editorSelectWrap' ;
+  typeWrap.appendChild(typeSel) ; typeRow.appendChild(typeWrap) ; div.appendChild(typeRow) ;
+
+  // Nested-type drill-down button — right below Type, aligned with the dropdown
+  var nestBtnRow = document.createElement('div') ; nestBtnRow.className = 'editorField' ;
+  nestBtnRow.style.marginBottom = '6px' ;
+  var nestLblSpacer2 = document.createElement('label') ; nestLblSpacer2.style.visibility = 'hidden' ;
+  nestBtnRow.appendChild(nestLblSpacer2) ;
+  var nestBtn = document.createElement('button') ; nestBtn.className = 'editorBtn navDrillBtn' ;
+  nestBtn.style.cssText = 'font-size:11px;padding:3px 8px;' ;
+  function updateItemNestBtn() {
+    var t = typeSel.value ;
+    if (t === 'object') {
+      var cnt = Object.keys(item.attributes || {}).length ;
+      nestBtn.textContent = '\u25b6 Edit Nested Attributes' + (cnt ? ' ('+cnt+')' : '') ;
+      nestBtn.style.display = '' ;
+      nestBtn.onclick = function() {
+        var top = _attrNestStack[_attrNestStack.length - 1] ;
+        var parentKey = top ? top.key : null ; if (!parentKey) return ;
+        var ctx = resolveAttrNesting(true) ;
+        if (ctx.parentAttr) saveItemForm(ctx.parentAttr) ;
+        _attrNestStack.push({key:'__item__', isItem:false}) ;
+        _navSelected = null ; renderEditor() ;
+      } ;
+    } else if (t === 'map' || t === 'array') {
+      nestBtn.textContent = '\u25b6 Edit ' + t + ' details' ;
+      nestBtn.style.display = '' ;
+      nestBtn.onclick = function() {
+        var top = _attrNestStack[_attrNestStack.length - 1] ;
+        var parentKey = top ? top.key : null ; if (!parentKey) return ;
+        var ctx = resolveAttrNesting(true) ;
+        if (ctx.parentAttr) saveItemForm(ctx.parentAttr) ;
+        _attrNestStack.push({key:'__item__', isItem:true, attrType:t}) ;
+        _navSelected = '__item__' ; renderEditor() ;
+      } ;
+    } else {
+      nestBtn.style.display = 'none' ;
+    }
+  }
+  nestBtnRow.appendChild(nestBtn) ; div.appendChild(nestBtnRow) ;
+
+  var targetRow = ef('ef_item_target', 'Target', item.target||'') ; div.appendChild(targetRow) ;
+  var targetInp = targetRow.querySelector('input') ;
+  targetInp.placeholder = 'e.g. /groups/resources' ;
+
+  var ncsRow = document.createElement('div') ; ncsRow.className = 'editorField' ;
+  var ncsLbl = document.createElement('label') ; ncsLbl.textContent = 'Name Charset:' ;
+  var ncsSel = document.createElement('select') ; ncsSel.id = 'ef_item_namecharset' ; ncsSel.className = 'editorInput' ;
+  var ncsWrap = document.createElement('div') ; ncsWrap.className = 'editorSelectWrap' ;
+  [['','(default / strict)'],['strict','strict'],['extended','extended']].forEach(function(p) {
+    var o = document.createElement('option') ; o.value = p[0] ; o.textContent = p[1] ;
+    if ((item.namecharset||'') === p[0]) o.selected = true ;
+    ncsSel.appendChild(o) ;
+  }) ;
+  ncsWrap.appendChild(ncsSel) ; ncsRow.appendChild(ncsLbl) ; ncsRow.appendChild(ncsWrap) ; div.appendChild(ncsRow) ;
+
+  // These fields are only meaningful for complex (object/map/array) item types
+  var complexSec = document.createElement('div') ;
+  complexSec.appendChild(ef('ef_item_description', 'Description', item.description||'')) ;
+  complexSec.appendChild(ef('ef_item_default', 'Default', item.default !== undefined ? String(item.default) : '')) ;
+  complexSec.appendChild(makeEnumEditor('ef_item_enum', Array.isArray(item.enum) ? item.enum : [])) ;
+  var optSec = document.createElement('div') ; optSec.className = 'editorSectionLabel' ; optSec.textContent = 'Options' ;
+  complexSec.appendChild(optSec) ;
+  var optList = [
+    ['item_readonly', 'Read Only', item.readonly],
+    ['item_strict',   'Strict',    item.strict]
+  ] ;
+  var boolGrid = document.createElement('div') ; boolGrid.className = 'boolGrid' ;
+  optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
+  complexSec.appendChild(boolGrid) ;
+  div.appendChild(complexSec) ;
+
+  function syncItemTypeFields() {
+    var t = typeSel.value ;
+    var targetTypes = {url:1,urlabsolute:1,urlrelative:1,uri:1,uriabsolute:1,urirelative:1,uritemplate:1,xid:1,xidtype:1} ;
+    targetInp.disabled = !targetTypes[t] ;
+    targetInp.style.opacity = targetInp.disabled ? '0.4' : '1' ;
+    ncsSel.disabled = (t !== 'object') ;
+    ncsSel.style.opacity = ncsSel.disabled ? '0.4' : '1' ;
+    updateItemNestBtn() ;
+    // description/default/enum/options are only relevant for complex types
+    complexSec.style.display = {object:1,map:1,array:1}[t] ? '' : 'none' ;
+  }
+  updateItemNestBtn() ;
+  syncItemTypeFields() ;
+  typeSel.addEventListener('change', syncItemTypeFields) ;
+}
+
+function saveItemForm(parentAttr) {
+  if (!parentAttr) return ;
+  if (!parentAttr.item) parentAttr.item = {} ;
+  var itm = parentAttr.item ;
+  var t = fv('ef_item_type') ; if (t) itm.type = t ; else delete itm.type ;
+  var d = fv('ef_item_description') ; if (d) itm.description = d ; else delete itm.description ;
+  var def = fv('ef_item_default') ; if (def !== '') itm.default = def ; else delete itm.default ;
+  var targetEl = document.getElementById('ef_item_target') ;
+  if (targetEl && !targetEl.disabled) { var tgt = targetEl.value.trim() ; if (tgt) itm.target = tgt ; else delete itm.target ; }
+  var ncsEl = document.getElementById('ef_item_namecharset') ;
+  if (ncsEl && !ncsEl.disabled) { var ncs = ncsEl.value ; if (ncs) itm.namecharset = ncs ; else delete itm.namecharset ; }
+  var enm = collectEnum('ef_item_enum') ;
+  if (enm.length) itm.enum = enm ; else delete itm.enum ;
+  var rov = fvBool('ef_item_readonly') ; if (rov === true) itm.readonly = true ; else if (rov === false) itm.readonly = false ; else delete itm.readonly ;
+  var stv = fvBool('ef_item_strict') ; if (stv === true) itm.strict = true ; else if (stv === false) itm.strict = false ; else delete itm.strict ;
+}
+
+function uniqueKey(obj, base) {
+  if (!obj || !obj[base]) return base ;
+  var i = 2 ; while (obj[base+i]) i++ ; return base+i ;
+}
+
+function addNewGroup() {
+  collectCurrentEditor() ;
+  var m = _modelData || {} ; if (!m.groups) m.groups = {} ;
+  var key = uniqueKey(m.groups, 'new') ;
+  m.groups[key] = {plural:'',singular:''} ;
+  markDirty() ; _navTab = 'groups' ; _navPath = [key] ; _navSelected = 'fields' ; renderEditor() ;
+}
+
+function addNewResource(gk) {
+  collectCurrentEditor() ;
+  var m = _modelData || {} ; var grp = (m.groups||{})[gk] ; if (!grp) return ;
+  if (!grp.resources) grp.resources = {} ;
+  var key = uniqueKey(grp.resources, 'new') ;
+  grp.resources[key] = {plural:'',singular:''} ;
+  markDirty() ; _navPath = [gk,'resources',key] ; _navSelected = 'fields' ; renderEditor() ;
+}
+
+function addNewAttr() {
+  collectCurrentEditor() ;
+  // Nested context: use resolved attrs container
+  if (_attrNestStack.length > 0) {
+    var top = _attrNestStack[_attrNestStack.length - 1] ;
+    if (!top.isItem && !top.isIfValues) {
+      var ctx = resolveAttrNesting(true) ;
+      var nestedAttrs = ctx.attrsObj ;
+      if (!nestedAttrs) return ;
+      var key = uniqueKey(nestedAttrs, 'new') ;
+      nestedAttrs[key] = {name:key, type:'string'} ;
+      markDirty() ; _navSelected = key ; renderEditor() ;
+    }
+    return ;
+  }
+  var m = _modelData || {} ; var attrsObj ;
+  if (_navTab === 'registry') {
+    if (!m.attributes) m.attributes = {} ; attrsObj = m.attributes ;
+  } else {
+    var gk = _navPath[0] ; var grp = (m.groups||{})[gk] ; if (!grp) return ;
+    if (_navPath.length === 2 && _navPath[1] === 'attributes') {
+      if (!grp.attributes) grp.attributes = {} ; attrsObj = grp.attributes ;
+    } else if (_navPath.length === 4) {
+      var rk = _navPath[2], attrSec = _navPath[3] ;
+      var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
+      var res = (grp.resources||{})[rk] ; if (!res) return ;
+      if (!res[dataKey]) res[dataKey] = {} ; attrsObj = res[dataKey] ;
+    }
+  }
+  if (!attrsObj) return ;
+  var key = uniqueKey(attrsObj, 'new') ;
+  attrsObj[key] = {name:key, type:'string'} ;
+  markDirty() ; _navSelected = key ; renderEditor() ;
+}
+
+function confirmDel(label, fn) {
+  if (confirm('Delete ' + label + '?')) fn() ;
+}
+
+function deleteGroup(gk) {
+  var m = _modelData || {} ; if (m.groups) delete m.groups[gk] ;
+  markDirty() ; _navPath = [] ; _navSelected = null ; renderEditor() ;
+}
+
+function deleteResource(gk, rk) {
+  var m = _modelData || {} ; var grp = (m.groups||{})[gk] ;
+  if (grp && grp.resources) delete grp.resources[rk] ;
+  markDirty() ; _navPath = [gk,'resources'] ; _navSelected = null ; renderEditor() ;
+}
+
+function deleteAttr(key) {
+  // Nested context: delete from resolved attrs container
+  if (_attrNestStack.length > 0) {
+    var top = _attrNestStack[_attrNestStack.length - 1] ;
+    if (!top.isItem && !top.isIfValues) {
+      var ctx = resolveAttrNesting(false) ;
+      if (ctx.attrsObj) delete ctx.attrsObj[key] ;
+      markDirty() ; if (_navSelected === key) _navSelected = null ; renderEditor() ;
+    }
+    return ;
+  }
+  var m = _modelData || {} ; var attrsObj ;
+  if (_navTab === 'registry') { attrsObj = m.attributes ; }
+  else {
+    var gk = _navPath[0] ; var grp = (m.groups||{})[gk] ;
+    if (grp) {
+      if (_navPath.length === 2 && _navPath[1] === 'attributes') attrsObj = grp.attributes ;
+      else if (_navPath.length === 4) {
+        var dataKey = _navPath[3] === 'versionattributes' ? 'attributes' : _navPath[3] ;
+        var res = (grp.resources||{})[_navPath[2]] ; if (res) attrsObj = res[dataKey] ;
+      }
+    }
+  }
+  if (attrsObj) delete attrsObj[key] ;
+  markDirty() ; if (_navSelected === key) _navSelected = null ; renderEditor() ;
+}
+
+// ---- UI helpers ----
+
+function ef(id, label, value, required) {
+  var row = document.createElement('div') ; row.className = 'editorField' ;
+  var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
+  if (required) {
+    var req = document.createElement('span') ; req.textContent = ' *' ;
+    req.style.cssText = 'color:#c00;font-weight:bold;' ;
+    lbl.appendChild(req) ;
+  }
+  var inp = document.createElement('input') ;
+  inp.type = 'text' ; inp.id = id ; inp.value = value ; inp.className = 'editorInput' ;
+  row.appendChild(lbl) ; row.appendChild(inp) ; return row ;
+}
+
+function efNum(id, label, value) {
+  var row = document.createElement('div') ; row.className = 'editorField' ;
+  var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
+  var inp = document.createElement('input') ;
+  inp.type = 'number' ; inp.id = id ; inp.min = '0' ; inp.className = 'editorInput' ;
+  inp.value = (value !== undefined && value !== null) ? value : '' ;
+  row.appendChild(lbl) ; row.appendChild(inp) ; return row ;
+}
+
+function ecb(id, label, checked) {
+  var row = document.createElement('div') ; row.className = 'editorCheckRow' ;
+  var cb = document.createElement('input') ; cb.type = 'checkbox' ; cb.id = id ; cb.checked = checked ;
+  var lbl = document.createElement('label') ; lbl.textContent = label ; lbl.htmlFor = id ;
+  row.appendChild(cb) ; row.appendChild(lbl) ; return row ;
+}
+
+function efBool(id, label, value) {
+  var cell = document.createElement('div') ; cell.className = 'boolCell' ;
+  var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
+  var seg = document.createElement('div') ;
+  var cur = (value === true) ? 'true' : (value === false) ? 'false' : '' ;
+  seg.className = 'boolSeg' + (_modelReadOnly ? ' boolSegReadOnly' : '') ;
+  seg.id = id ; seg.dataset.val = cur ;
+  var btns = [['true','true'],['false','false'],['\u2014','']] ;
+  btns.forEach(function(b) {
+    var btn = document.createElement('button') ; btn.type = 'button' ;
+    btn.textContent = b[0] ; btn.className = 'boolSegBtn' + (cur === b[1] ? ' boolSegActive' : '') ;
+    if (b[1] === '') btn.title = 'Unspecified' ;
+    btn.onclick = function() {
+      seg.dataset.val = b[1] ;
+      seg.querySelectorAll('.boolSegBtn').forEach(function(x){ x.classList.remove('boolSegActive') ; }) ;
+      btn.classList.add('boolSegActive') ;
+      markDirty() ;
+    } ;
+    seg.appendChild(btn) ;
+  }) ;
+  cell.appendChild(lbl) ; cell.appendChild(seg) ; return cell ;
+}
+
+function fvBool(id) {
+  var el = document.getElementById(id) ;
+  if (!el) return null ;
+  if (el.dataset.val === 'true') return true ;
+  if (el.dataset.val === 'false') return false ;
+  return null ;
+}
+
+function makeLabelsEditor(containerId, labels) {
+  var sec = document.createElement('div') ;
+  var hdr = document.createElement('div') ; hdr.className = 'editorSectionLabel' ;
+  hdr.textContent = 'Labels' ; sec.appendChild(hdr) ;
+  if (_modelReadOnly && Object.keys(labels).length === 0) {
+    var none = document.createElement('span') ; none.textContent = '\u2014 none \u2014' ;
+    none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
+    sec.appendChild(none) ; return sec ;
+  }
+  var wrap = document.createElement('div') ; wrap.className = 'labelsWrap' ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Label' ;
+    addBtn.style.flexShrink = '0' ; addBtn.style.alignSelf = 'flex-start' ;
+    addBtn.onclick = function() { rowsDiv.appendChild(makeLabelRow('','')) ; } ;
+    wrap.appendChild(addBtn) ;
+  }
+  var rowsDiv = document.createElement('div') ; rowsDiv.className = 'labelsRows' ;
+  rowsDiv.id = containerId ;
+  Object.keys(labels).forEach(function(k) { rowsDiv.appendChild(makeLabelRow(k, labels[k])) ; }) ;
+  wrap.appendChild(rowsDiv) ;
+  sec.appendChild(wrap) ;
+  return sec ;
+}
+
+function makeLabelRow(k, v) {
+  var row = document.createElement('div') ; row.className = 'labelRow' ;
+  var ki = document.createElement('input') ; ki.type = 'text' ; ki.placeholder = 'key' ;
+  ki.value = k ; ki.className = 'editorInput labelKey' ;
+  var vi = document.createElement('input') ; vi.type = 'text' ; vi.placeholder = 'value' ;
+  vi.value = v ; vi.className = 'editorInput labelVal' ;
+  var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
+  rb.onclick = function() { confirmDel('this label', function() { row.remove() ; }) ; } ;
+  row.appendChild(ki) ; row.appendChild(vi) ; row.appendChild(rb) ; return row ;
+}
+
+function collectLabels(containerId) {
+  var container = document.getElementById(containerId) ; var labels = {} ;
+  if (!container) return labels ;
+  container.querySelectorAll('.labelRow').forEach(function(row) {
+    var inputs = row.querySelectorAll('input') ;
+    var k = inputs[0] ? inputs[0].value.trim() : '' ;
+    var v = inputs[1] ? inputs[1].value.trim() : '' ;
+    if (k) labels[k] = v ;
+  }) ;
+  return labels ;
+}
+
+function makeEnumEditor(containerId, values) {
+  var sec = document.createElement('div') ;
+  var hdr = document.createElement('div') ; hdr.className = 'editorSectionLabel' ;
+  hdr.textContent = 'Enum' ; sec.appendChild(hdr) ;
+  if (_modelReadOnly && values.length === 0) {
+    var none = document.createElement('span') ; none.textContent = '\u2014 none \u2014' ;
+    none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
+    sec.appendChild(none) ; return sec ;
+  }
+  var wrap = document.createElement('div') ; wrap.className = 'labelsWrap' ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add enum value' ;
+    addBtn.style.flexShrink = '0' ; addBtn.style.alignSelf = 'flex-start' ;
+    addBtn.onclick = function() { rowsDiv.appendChild(makeEnumRow('')) ; } ;
+    wrap.appendChild(addBtn) ;
+  }
+  var rowsDiv = document.createElement('div') ; rowsDiv.id = containerId ;
+  rowsDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:4px;' ;
+  values.forEach(function(v) { rowsDiv.appendChild(makeEnumRow(String(v))) ; }) ;
+  wrap.appendChild(rowsDiv) ;
+  sec.appendChild(wrap) ;
+  return sec ;
+}
+
+function makeEnumRow(val) {
+  var row = document.createElement('div') ; row.className = 'labelRow' ;
+  var inp = document.createElement('input') ; inp.type = 'text' ; inp.placeholder = 'value' ;
+  inp.value = val ; inp.className = 'editorInput' ; inp.style.flex = '1' ;
+  var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
+  rb.onclick = function() { confirmDel('this enum value', function() { row.remove() ; }) ; } ;
+  row.appendChild(inp) ; row.appendChild(rb) ; return row ;
+}
+
+function collectEnum(containerId) {
+  var container = document.getElementById(containerId) ; var vals = [] ;
+  if (!container) return vals ;
+  container.querySelectorAll('.labelRow').forEach(function(row) {
+    var inp = row.querySelector('input') ;
+    var v = inp ? inp.value.trim() : '' ;
+    if (v !== '') vals.push(v) ;
+  }) ;
+  return vals ;
+}
+
+function getScalarAttrNames(attrsObj) {
+  var scalars = ['boolean','decimal','integer','string','timestamp','uinteger',
+    'uri','uriabsolute','urirelative','uritemplate','url','urlabsolute','urlrelative','xid','xidtype'] ;
+  var names = [] ;
+  Object.keys(attrsObj||{}).forEach(function(k) {
+    if (k === '*') return ;
+    var a = attrsObj[k] ; if (!a) return ;
+    if (scalars.indexOf(a.type||'string') !== -1) names.push(k) ;
+  }) ;
+  return names.sort() ;
+}
+
+function populateCstrAttrSel(attrSel, gk, resPlural, selectedVal) {
+  while (attrSel.firstChild) attrSel.removeChild(attrSel.firstChild) ;
+  var blank = document.createElement('option') ; blank.value = '' ; blank.textContent = '-- attribute --' ;
+  attrSel.appendChild(blank) ;
+  if (!resPlural) return ;
+  var res = (((_modelData||{}).groups||{})[gk]||{}).resources||{} ;
+  var rObj = res[resPlural] ;
+  if (!rObj) return ;
+  getScalarAttrNames(rObj.attributes).forEach(function(n) {
+    var o = document.createElement('option') ; o.value = n ; o.textContent = n ;
+    if (n === selectedVal) o.selected = true ;
+    attrSel.appendChild(o) ;
+  }) ;
+}
+
+function makeConstraintsEditor(containerId, constraints, gk) {
+  var sec = document.createElement('div') ;
+  var hdr = document.createElement('div') ; hdr.className = 'editorSectionLabel' ;
+  hdr.textContent = 'Constraints' ; sec.appendChild(hdr) ;
+  if (_modelReadOnly && Object.keys(constraints||{}).length === 0) {
+    var none = document.createElement('span') ; none.textContent = '\u2014 none \u2014' ;
+    none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
+    sec.appendChild(none) ; return sec ;
+  }
+  var blocksDiv = document.createElement('div') ; blocksDiv.id = containerId ;
+  blocksDiv.style.cssText = 'display:flex;flex-direction:column;' ;
+  Object.keys(constraints||{}).forEach(function(k) {
+    blocksDiv.appendChild(makeConstraintRow(k, constraints[k]||{}, gk)) ;
+  }) ;
+  sec.appendChild(blocksDiv) ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Constraint' ;
+    addBtn.style.cssText = 'margin-top:4px;align-self:flex-start;' ;
+    addBtn.onclick = function() { blocksDiv.appendChild(makeConstraintRow('', {}, gk)) ; } ;
+    sec.appendChild(addBtn) ;
+  }
+  return sec ;
+}
+
+function makeConstraintRow(key, constraint, gk) {
+  var idx = _cstrCounter++ ;
+  var block = document.createElement('div') ; block.className = 'constraintBlock' ;
+  block.dataset.cstrIdx = String(idx) ;
+  block.dataset.origKey = key ; // preserve original key as fallback if selects can't resolve
+
+  // Header row with title and Remove button
+  var blockHdr = document.createElement('div') ; blockHdr.className = 'constraintBlockHdr' ;
+  var titleSpan = document.createElement('span') ; titleSpan.className = 'constraintBlockTitle' ;
+  titleSpan.textContent = key || 'New Constraint' ; blockHdr.appendChild(titleSpan) ;
+  if (!_modelReadOnly) {
+    var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
+    rb.onclick = function() { confirmDel('"' + (titleSpan.textContent || 'this constraint') + '"', function() { block.remove() ; }) ; } ;
+    blockHdr.appendChild(rb) ;
+  }
+  block.appendChild(blockHdr) ;
+
+  // Parse key into resPlural + attrName
+  var dotIdx = key.indexOf('.') ;
+  var initRes = dotIdx !== -1 ? key.substring(0, dotIdx) : key ;
+  var initAttr = dotIdx !== -1 ? key.substring(dotIdx+1) : '' ;
+
+  if (_modelReadOnly) {
+    // Read-only: show fields as text
+    function roRow(lbl, val) {
+      var row = document.createElement('div') ; row.className = 'editorField' ;
+      var l = document.createElement('label') ; l.textContent = lbl ;
+      var s = document.createElement('span') ; s.style.cssText = 'font-size:13px;color:#333;' ;
+      s.textContent = val || '\u2014' ; row.appendChild(l) ; row.appendChild(s) ; return row ;
+    }
+    var pathStr = key || '\u2014' ;
+    block.appendChild(roRow('Path:', pathStr)) ;
+    var defStr = constraint.default !== undefined ? JSON.stringify(constraint.default) : '' ;
+    if (defStr) block.appendChild(roRow('Default:', defStr)) ;
+    if (constraint.equals) block.appendChild(roRow('Equals:', constraint.equals)) ;
+    var enumArr = Array.isArray(constraint.enum) ? constraint.enum : [] ;
+    if (enumArr.length) block.appendChild(roRow('Enum:', enumArr.join(', '))) ;
+    return block ;
+  }
+
+  // Edit mode: path row with two selects
+  var pathRow = document.createElement('div') ; pathRow.className = 'cstrPathRow' ;
+  var pathLbl = document.createElement('label') ;
+  pathLbl.appendChild(document.createTextNode('Path:')) ;
+  var pathReq = document.createElement('span') ; pathReq.textContent = ' *' ; pathReq.style.cssText = 'color:#c00;font-weight:bold;' ;
+  pathLbl.appendChild(pathReq) ;
+  pathRow.appendChild(pathLbl) ;
+
+  var resSel = document.createElement('select') ; resSel.className = 'cstrResSel editorSelectWrap editorInput' ;
+  var resBlank = document.createElement('option') ; resBlank.value = '' ; resBlank.textContent = '-- resource --' ;
+  resSel.appendChild(resBlank) ;
+  var res = (((_modelData||{}).groups||{})[gk]||{}).resources||{} ;
+  Object.keys(res).sort().forEach(function(rk) {
+    var o = document.createElement('option') ; o.value = rk ; o.textContent = rk ;
+    if (rk === initRes) o.selected = true ;
+    resSel.appendChild(o) ;
+  }) ;
+
+  var dot = document.createElement('span') ; dot.className = 'cstrPathDot' ; dot.textContent = '.' ;
+
+  var attrSel = document.createElement('select') ; attrSel.className = 'cstrAttrSel editorSelectWrap editorInput' ;
+  populateCstrAttrSel(attrSel, gk, initRes, initAttr) ;
+
+  resSel.onchange = function() {
+    var newRes = resSel.value ;
+    titleSpan.textContent = newRes ? (newRes + '.' + (attrSel.value||'?')) : 'New Constraint' ;
+    populateCstrAttrSel(attrSel, gk, newRes, '') ;
+  } ;
+  attrSel.onchange = function() {
+    var r = resSel.value ; var a = attrSel.value ;
+    titleSpan.textContent = (r && a) ? (r + '.' + a) : (r ? r + '.?' : 'New Constraint') ;
+  } ;
+
+  pathRow.appendChild(resSel) ; pathRow.appendChild(dot) ; pathRow.appendChild(attrSel) ;
+  block.appendChild(pathRow) ;
+
+  // Default field
+  var defRow = document.createElement('div') ; defRow.className = 'editorField' ;
+  var defLbl = document.createElement('label') ; defLbl.textContent = 'Default:' ;
+  var defInp = document.createElement('input') ; defInp.type = 'text' ; defInp.className = 'cstrDef editorInput' ;
+  defInp.placeholder = 'default value' ;
+  defInp.value = constraint.default !== undefined ? JSON.stringify(constraint.default) : '' ;
+  defRow.appendChild(defLbl) ; defRow.appendChild(defInp) ;
+  block.appendChild(defRow) ;
+
+  // Equals field — dropdown of group scalar attrs
+  var eqRow = document.createElement('div') ; eqRow.className = 'editorField' ;
+  var eqLbl = document.createElement('label') ; eqLbl.textContent = 'Equals:' ;
+  var eqSel = document.createElement('select') ; eqSel.className = 'cstrEqSel editorSelectWrap editorInput' ;
+  var eqBlank = document.createElement('option') ; eqBlank.value = '' ; eqBlank.textContent = '-- none --' ;
+  eqSel.appendChild(eqBlank) ;
+  var grpAttrs = getScalarAttrNames((((_modelData||{}).groups||{})[gk]||{}).attributes||{}) ;
+  grpAttrs.forEach(function(n) {
+    var o = document.createElement('option') ; o.value = n ; o.textContent = n ;
+    if (n === (constraint.equals||'')) o.selected = true ;
+    eqSel.appendChild(o) ;
+  }) ;
+  eqRow.appendChild(eqLbl) ; eqRow.appendChild(eqSel) ;
+  block.appendChild(eqRow) ;
+
+  // Enum editor
+  var enumSec = document.createElement('div') ; enumSec.className = 'cstrEnumSection' ;
+  var enumHdr = document.createElement('div') ; enumHdr.className = 'editorSectionLabel' ;
+  enumHdr.textContent = 'Enum' ; enumSec.appendChild(enumHdr) ;
+  var enumWrap = document.createElement('div') ; enumWrap.className = 'labelsWrap' ;
+  var enumAddBtn = document.createElement('button') ; enumAddBtn.className = 'editorBtn' ;
+  enumAddBtn.textContent = '+ Add' ; enumAddBtn.title = 'Add enum value' ;
+  enumAddBtn.style.flexShrink = '0' ; enumAddBtn.style.alignSelf = 'flex-start' ;
+  var enumRowsDiv = document.createElement('div') ; enumRowsDiv.id = 'cstr_enum_' + idx ;
+  enumRowsDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:4px;' ;
+  enumAddBtn.onclick = function() { enumRowsDiv.appendChild(makeEnumRow('')) ; } ;
+  var enumArr2 = Array.isArray(constraint.enum) ? constraint.enum : [] ;
+  enumArr2.forEach(function(v) { enumRowsDiv.appendChild(makeEnumRow(String(v))) ; }) ;
+  enumWrap.appendChild(enumAddBtn) ; enumWrap.appendChild(enumRowsDiv) ;
+  enumSec.appendChild(enumWrap) ; block.appendChild(enumSec) ;
+
+  return block ;
+}
+
+function collectConstraints(containerId) {
+  var container = document.getElementById(containerId) ; var constraints = {} ;
+  if (!container) return constraints ;
+  container.querySelectorAll('.constraintBlock').forEach(function(block) {
+    var resSel = block.querySelector('.cstrResSel') ;
+    var attrSel = block.querySelector('.cstrAttrSel') ;
+    var resVal = resSel ? resSel.value.trim() : '' ;
+    var attrVal = attrSel ? attrSel.value.trim() : '' ;
+    var key = (resVal && attrVal) ? (resVal + '.' + attrVal) : (block.dataset.origKey || '') ;
+    if (!key) return ; // truly new/empty constraint with no path — skip
+    var c = {} ;
+    var defInp = block.querySelector('.cstrDef') ;
+    var defVal = defInp ? defInp.value.trim() : '' ;
+    if (defVal !== '') { try { c.default = JSON.parse(defVal) ; } catch(e) { c.default = defVal ; } }
+    var eqSel = block.querySelector('.cstrEqSel') ;
+    var eq = eqSel ? eqSel.value.trim() : '' ;
+    if (eq) c.equals = eq ;
+    var enumDiv = document.getElementById('cstr_enum_' + block.dataset.cstrIdx) ;
+    if (enumDiv) {
+      var vals = [] ;
+      enumDiv.querySelectorAll('.labelRow input').forEach(function(inp) {
+        var v = inp.value.trim() ; if (v) vals.push(v) ;
+      }) ;
+      if (vals.length) c.enum = vals ;
+    }
+    constraints[key] = c ;
+  }) ;
+  return constraints ;
+}
+
+function fv(id) {
+  var el = document.getElementById(id) ; if (!el) return '' ;
+  return el.value !== undefined ? el.value.trim() : '' ;
+}
+
+// ---- Save / Undo / ReadOnly ----
+
+function undoModel() {
+  _modelDirty = false ;
+  _modelData = deepClone(_modelSrc) ;
+  _navPath = [] ; _navSelected = null ; renderEditor() ;
+}
+
+function applyReadOnly(container) {
+  container.querySelectorAll('input, select, textarea').forEach(function(el) { el.disabled = true ; }) ;
+  container.querySelectorAll('.editorBtn:not(.navDrillBtn), .rmBtn, .navItemAdd, .navItemDel').forEach(function(el) { el.style.display = 'none' ; }) ;
+}
+
+function saveModel(onSuccess) {
+  collectCurrentEditor() ;
+  var model = _modelData || {} ;
+  var errDiv = document.getElementById('editorError') ;
+  if (errDiv) { errDiv.style.display = 'none' ; errDiv.textContent = '' ; }
+
+  // Show blocking overlay while PUT is in flight
+  var overlay = document.createElement('div') ; overlay.className = 'savingOverlay' ;
+  var box = document.createElement('div') ; box.className = 'savingBox' ;
+  var spinner = document.createElement('div') ; spinner.className = 'savingSpinner' ;
+  var msg = document.createElement('div') ; msg.textContent = 'Saving\u2026 validating registry' ;
+  box.appendChild(spinner) ; box.appendChild(msg) ; overlay.appendChild(box) ;
+  document.body.appendChild(overlay) ;
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay) ; }
+
+  fetch(_modelPutURL, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(model, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay() ;
+      if (resp.ok) {
+        _modelDirty = false ;
+        _modelSrc = deepClone(_modelData) ;
+        // Saving modelsource regenerates the derived /model view, but the PUT
+        // response here is the modelsource doc, not /model — so _modelCache
+        // (used for entity-type resolution, tile descriptions, JSON left
+        // panel, etc. while browsing data) is now stale. Refresh it with a
+        // fresh GET /model before continuing.
+        var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '') ;
+        var mKey = normalizeURL(svBaseSave) ;
+        fetch(svBaseSave + '/model')
+          .then(function(r) { return r.json() ; })
+          .then(function(m) { _modelCache[mKey] = m ; })
+          .catch(function()  { delete _modelCache[mKey] ; })
+          .then(function() {
+            if (onSuccess) { onSuccess() ; } else { window.location.reload() ; }
+          }) ;
+      } else { if (errDiv) { errDiv.style.display = 'block' ; errDiv.textContent = 'Error (' + resp.status + '):\n' + text ; } }
+    }) ;
+  }).catch(function(err) {
+    removeOverlay() ;
+    if (errDiv) { errDiv.style.display = 'block' ; errDiv.textContent = 'Network error: ' + err.message ; }
+  }) ;
+}
+
+// ---- Capabilities Editor ---------------------------------------------------
+//
+// Renders a human-readable browse+edit form for a registry's /capabilities
+// document. Entry point is renderCapabilitiesEditor(data, offered), called
+// from refresh()/setDataView() when _state.section === 'capabilities' and
+// _state.dataView !== 'json'. `offered` is the /capabilitiesoffered document
+// (may be null if it failed to load — extension capabilities then fall back
+// to a raw read-only JSON blob so nothing is silently dropped).
+//
+// Read-only vs editable is driven by _state.editMode (shared header pencil
+// button); editing is enabled when available.capabilities.mutable is true
+// (see refresh()). Saves always PUT to /capabilities.
+
+var _capPutURL    = '';
+var _capReadOnly  = true;   // runtime: true unless _state.editMode
+var _capSrc       = null;   // pristine copy of last-loaded capabilities (for undo)
+var _capData      = null;   // working copy being edited/viewed
+var _capDirty     = false;
+var _capLoadedFor = null;   // "serverURL|section" key used to detect a fresh load
+var _capOffered   = null;   // /capabilitiesoffered doc for the currently-loaded server
+
+// Known top-level Capabilities keys (per common/capabilities.go). Anything
+// else found in the doc is treated as an extension capability.
+var _capKnownKeys = ['available', 'compatibilities', 'flags', 'formats',
+  'ignores', 'mutable', 'pagination', 'shortself', 'specversions', 'versionmodes'];
+
+function renderCapabilitiesEditor(data, offered) {
+  var main = el('main-view');
+  var key = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.section;
+  if (_capLoadedFor !== key) {
+    _capSrc  = deepClone(data);
+    _capData = deepClone(_capSrc);
+    _capDirty = false;
+    _capLoadedFor = key;
+  }
+  _capOffered  = offered || null;
+  _capPutURL   = buildAPIURL();
+  _capReadOnly = !_state.editMode;
+  main.innerHTML = '<div id="capEditor"></div>';
+  renderCapEditor();
+}
+
+function markCapDirty() {
+  if (!_capDirty) {
+    _capDirty = true;
+    var sb = document.getElementById('capSaveBtn'); if (sb) sb.disabled = false;
+    var ub = document.getElementById('capUndoBtn'); if (ub) ub.disabled = false;
+  }
+}
+
+function undoCapabilities() {
+  _capDirty = false;
+  _capData = deepClone(_capSrc);
+  renderCapEditor();
+}
+
+function saveCapabilities(onSuccess) {
+  var errDiv = document.getElementById('capEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026 validating capabilities';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(_capPutURL, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(_capData, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        // The PUT response body is the server's canonical, re-validated
+        // capabilities doc (see HTTPPUTCapabilities -> HTTPGETCapabilities).
+        // Use it (falling back to what we sent if parsing fails) as the new
+        // pristine copy, and refresh _capCache for this server so anything
+        // relying on it (Registry Endpoints list, Model/Model Source
+        // edit-enabled checks, etc.) immediately reflects the new
+        // mutability/settings instead of stale cached data.
+        var updated = null;
+        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
+        _capDirty = false;
+        _capSrc  = updated ? deepClone(updated) : deepClone(_capData);
+        _capData = deepClone(_capSrc);
+        var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+        _capCache[normalizeURL(svBaseSave)] = deepClone(_capSrc);
+        if (onSuccess) { onSuccess(); } else { window.location.reload(); }
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// Look up the OfferedCapability node for a top-level key (used to know type/
+// enum/attributes for rendering). Returns null if not offered / unknown.
+function capOfferedNode(key) {
+  return (_capOffered && _capOffered[key]) || null;
+}
+
+// True if this offered node's value is locked to a single enum value (e.g.
+// {type:'boolean', enum:[false]}) — such fields are always shown read-only,
+// even while the page is in edit mode.
+function capNodeLocked(node) {
+  return !!(node && Array.isArray(node.enum) && node.enum.length === 1);
+}
+
+function capSectionEl(title) {
+  var sec = document.createElement('div'); sec.className = 'capSection';
+  var hdr = document.createElement('div'); hdr.className = 'capSectionTitle';
+  hdr.textContent = title; sec.appendChild(hdr);
+  var body = document.createElement('div'); body.className = 'capSectionBody';
+  sec.appendChild(body);
+  return {sec: sec, body: body};
+}
+
+// Two-state (true/false) toggle, styled like the Model editor's boolSeg
+// control. `locked` forces read-only regardless of _capReadOnly.
+function capBoolToggle(value, locked, onChange) {
+  var seg = document.createElement('div');
+  var readOnly = _capReadOnly || locked;
+  seg.className = 'boolSeg' + (readOnly ? ' boolSegReadOnly' : '');
+  var cur = value === true ? 'true' : 'false';
+  seg.dataset.val = cur;
+  [['true', 'true'], ['false', 'false']].forEach(function(b) {
+    var btn = document.createElement('button'); btn.type = 'button';
+    btn.textContent = b[0];
+    btn.className = 'boolSegBtn' + (cur === b[1] ? ' boolSegActive' : '');
+    btn.onclick = function() {
+      if (readOnly) return;
+      seg.dataset.val = b[1];
+      seg.querySelectorAll('.boolSegBtn').forEach(function(x) { x.classList.remove('boolSegActive'); });
+      btn.classList.add('boolSegActive');
+      markCapDirty();
+      if (onChange) onChange(b[1] === 'true');
+    };
+    seg.appendChild(btn);
+  });
+  return seg;
+}
+
+// Editable chip list for a string array. `enumOptions` (optional) constrains
+// what can be added via a <select>; otherwise a free-text input is used.
+// onChange(newArray) fires whenever the list changes.
+function capChipList(values, enumOptions, onChange) {
+  var wrap = document.createElement('div'); wrap.className = 'capChipWrap';
+  var chipsDiv = document.createElement('div'); chipsDiv.className = 'capChips';
+
+  function currentValues() {
+    return Array.prototype.slice.call(chipsDiv.querySelectorAll('.capChip')).map(function(c) {
+      return c.dataset.val;
+    });
+  }
+  function fireChange() { markCapDirty(); if (onChange) onChange(currentValues()); }
+
+  function addChip(v) {
+    var chip = document.createElement('span'); chip.className = 'capChip'; chip.dataset.val = v;
+    var txt = document.createElement('span'); txt.textContent = v; chip.appendChild(txt);
+    if (!_capReadOnly) {
+      var rm = document.createElement('span'); rm.className = 'capChipRemove'; rm.textContent = '\u00d7';
+      rm.title = 'Remove';
+      rm.onclick = function() {
+        chip.remove(); fireChange();
+        var opt = wrap.querySelector('option[value="' + CSS.escape(v) + '"]');
+        if (opt) opt.disabled = false;
+      };
+      chip.appendChild(rm);
+    }
+    chipsDiv.appendChild(chip);
+  }
+  (values || []).forEach(addChip);
+  wrap.appendChild(chipsDiv);
+
+  if (!_capReadOnly) {
+    var addRow = document.createElement('div'); addRow.className = 'capChipAddRow';
+    if (enumOptions && enumOptions.length) {
+      var sel = document.createElement('select'); sel.className = 'editorInput';
+      var placeholder = document.createElement('option');
+      placeholder.value = ''; placeholder.textContent = '-- add --';
+      sel.appendChild(placeholder);
+      var already = currentValues();
+      enumOptions.forEach(function(o) {
+        var opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+        if (already.indexOf(o) !== -1) opt.disabled = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = function() {
+        var v = sel.value;
+        if (v && currentValues().indexOf(v) === -1) {
+          addChip(v); fireChange();
+          var opt = sel.querySelector('option[value="' + CSS.escape(v) + '"]');
+          if (opt) opt.disabled = true;
+        }
+        sel.value = '';
+      };
+      addRow.appendChild(sel);
+    } else {
+      var inp = document.createElement('input'); inp.type = 'text'; inp.className = 'editorInput';
+      inp.placeholder = 'add value, then Enter';
+      inp.onkeydown = function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          var v = inp.value.trim();
+          if (v && currentValues().indexOf(v) === -1) { addChip(v); fireChange(); }
+          inp.value = '';
+        }
+      };
+      addRow.appendChild(inp);
+    }
+    wrap.appendChild(addRow);
+  } else if (!(values || []).length) {
+    var none = document.createElement('span'); none.className = 'capNone'; none.textContent = '\u2014 none \u2014';
+    wrap.appendChild(none);
+  }
+  return wrap;
+}
+
+function capLabelRow(label, valueEl) {
+  var row = document.createElement('div'); row.className = 'capFieldRow';
+  var lbl = document.createElement('label'); lbl.textContent = label + ':';
+  row.appendChild(lbl); row.appendChild(valueEl);
+  return row;
+}
+
+// Generic recursive renderer for extension capabilities, driven by the
+// matching OfferedCapability node's declared type. Falls back to a raw
+// read-only JSON blob when the type is unknown/unavailable so nothing is
+// ever silently dropped.
+function renderCapValueGeneric(value, node, onChange) {
+  var type = node && node.type;
+  if (type === 'boolean') {
+    return capBoolToggle(!!value, capNodeLocked(node), onChange);
+  }
+  if (type === 'array') {
+    return capChipList((value || []).map(String), node && node.enum, onChange);
+  }
+  if (type === 'object') {
+    var box = document.createElement('div'); box.className = 'capObjectBox';
+    var attrs = (node && node.attributes) || {};
+    var obj = value && typeof value === 'object' ? value : {};
+    Object.keys(attrs).forEach(function(k) {
+      var childNode = attrs[k];
+      var childEl = renderCapValueGeneric(obj[k], childNode, function(nv) { obj[k] = nv; });
+      box.appendChild(capLabelRow(k, childEl));
+    });
+    if (onChange) onChange(obj);
+    return box;
+  }
+  if (type === 'map') {
+    var mbox = document.createElement('div'); mbox.className = 'capMapBox';
+    var itemNode = node && node.item;
+    var mval = value && typeof value === 'object' ? value : {};
+    function renderRows() {
+      mbox.innerHTML = '';
+      Object.keys(mval).forEach(function(k) {
+        var rowDiv = document.createElement('div'); rowDiv.className = 'capMapRow';
+        var kLbl = document.createElement('span'); kLbl.className = 'capMapKey'; kLbl.textContent = k;
+        rowDiv.appendChild(kLbl);
+        var childEl = renderCapValueGeneric(mval[k], itemNode, function(nv) { mval[k] = nv; });
+        rowDiv.appendChild(childEl);
+        if (!_capReadOnly) {
+          var rm = document.createElement('button'); rm.className = 'rmBtn'; rm.textContent = 'Remove';
+          rm.onclick = function() { delete mval[k]; markCapDirty(); if (onChange) onChange(mval); renderRows(); };
+          rowDiv.appendChild(rm);
+        }
+        mbox.appendChild(rowDiv);
+      });
+      if (!_capReadOnly) {
+        var addRow = document.createElement('div'); addRow.className = 'capMapAddRow';
+        var kInp = document.createElement('input'); kInp.type = 'text'; kInp.className = 'editorInput';
+        kInp.placeholder = 'new key';
+        var addBtn = document.createElement('button'); addBtn.className = 'editorBtn'; addBtn.textContent = '+ Add';
+        addBtn.onclick = function() {
+          var k = kInp.value.trim();
+          if (!k || mval.hasOwnProperty(k)) return;
+          mval[k] = (itemNode && itemNode.type === 'array') ? [] : (itemNode && itemNode.type === 'boolean') ? false : (itemNode && itemNode.type === 'object') ? {} : '';
+          markCapDirty(); if (onChange) onChange(mval); renderRows();
+        };
+        addRow.appendChild(kInp); addRow.appendChild(addBtn);
+        mbox.appendChild(addRow);
+      }
+    }
+    renderRows();
+    return mbox;
+  }
+  if (type === 'string' || type === 'integer' || type === 'decimal') {
+    if (node && Array.isArray(node.enum) && node.enum.length) {
+      var sel2 = document.createElement('select'); sel2.className = 'editorInput';
+      node.enum.forEach(function(o) {
+        var opt = document.createElement('option'); opt.value = o; opt.textContent = String(o);
+        if (String(value) === String(o)) opt.selected = true;
+        sel2.appendChild(opt);
+      });
+      sel2.disabled = _capReadOnly || capNodeLocked(node);
+      sel2.onchange = function() { markCapDirty(); if (onChange) onChange(sel2.value); };
+      return sel2;
+    }
+    var inp2 = document.createElement('input'); inp2.type = 'text'; inp2.className = 'editorInput';
+    inp2.value = value !== undefined && value !== null ? String(value) : '';
+    inp2.disabled = _capReadOnly || capNodeLocked(node);
+    inp2.onchange = function() { markCapDirty(); if (onChange) onChange(inp2.value); };
+    return inp2;
+  }
+  // Unknown/unrecognized type, or no offered info available — raw read-only
+  // fallback so the value is at least visible and never silently dropped.
+  var pre = document.createElement('pre'); pre.className = 'capRawFallback';
+  pre.textContent = JSON.stringify(value, null, 2);
+  return pre;
+}
+
+function renderCapEditor() {
+  var host = document.getElementById('capEditor');
+  if (!host) return;
+  host.innerHTML = '';
+  var data = _capData || {};
+
+  // Action bar (Save/Undo) — only meaningful while editing.
+  if (_state.editMode) {
+    var bar = document.createElement('div'); bar.className = 'editorActionBar';
+    var saveBtn = document.createElement('button'); saveBtn.className = 'editorBtn'; saveBtn.id = 'capSaveBtn';
+    saveBtn.textContent = 'Save'; saveBtn.disabled = !_capDirty;
+    saveBtn.onclick = function() { saveCapabilities(function() { toggleEdit(); }); };
+    var undoBtn = document.createElement('button'); undoBtn.className = 'editorBtn'; undoBtn.id = 'capUndoBtn';
+    undoBtn.textContent = 'Undo'; undoBtn.disabled = !_capDirty;
+    undoBtn.onclick = function() { undoCapabilities(); };
+    bar.appendChild(saveBtn); bar.appendChild(undoBtn);
+    host.appendChild(bar);
+
+    var errDiv = document.createElement('div'); errDiv.id = 'capEditorError'; errDiv.className = 'error-banner';
+    errDiv.style.display = 'none';
+    host.appendChild(errDiv);
+  }
+
+  var body = document.createElement('div'); body.className = 'capBody';
+  host.appendChild(body);
+
+  // ---- Available Entities ----
+  var availSec = capSectionEl('Available Entities');
+  var availTable = document.createElement('table'); availTable.className = 'capTable';
+  data.available = data.available || {};
+  Object.keys(data.available).sort().forEach(function(entName) {
+    var entObj = data.available[entName];
+    var entOffered = capOfferedNode('available');
+    var entNode = entOffered && entOffered.attributes && entOffered.attributes[entName];
+    var mutNode = entNode && entNode.attributes && entNode.attributes.mutable;
+    var tr = document.createElement('tr');
+    var tdName = document.createElement('td'); tdName.textContent = entName;
+    var tdMut = document.createElement('td');
+    tdMut.appendChild(capBoolToggle(!!entObj.mutable, capNodeLocked(mutNode), function(nv) { entObj.mutable = nv; }));
+    tr.appendChild(tdName); tr.appendChild(tdMut);
+    availTable.appendChild(tr);
+  });
+  var availThead = document.createElement('tr');
+  ['Entity', 'Mutable'].forEach(function(h) { var th = document.createElement('th'); th.textContent = h; availThead.appendChild(th); });
+  availTable.insertBefore(availThead, availTable.firstChild);
+  availSec.body.appendChild(availTable);
+  body.appendChild(availSec.sec);
+
+  // ---- Compatibility ----
+  var compatSec = capSectionEl('Compatibility');
+  data.compatibilities = data.compatibilities || {};
+  var compatOffered = capOfferedNode('compatibilities');
+  var compatTable = document.createElement('table'); compatTable.className = 'capTable';
+  var compatThead = document.createElement('tr');
+  ['Format', 'Compatibility Modes'].forEach(function(h) { var th = document.createElement('th'); th.textContent = h; compatThead.appendChild(th); });
+  compatTable.appendChild(compatThead);
+  Object.keys(data.compatibilities).sort().forEach(function(fmt) {
+    var fmtNode = compatOffered && compatOffered.attributes && compatOffered.attributes[fmt];
+    var tr = document.createElement('tr');
+    var tdFmt = document.createElement('td'); tdFmt.textContent = fmt;
+    var tdModes = document.createElement('td');
+    tdModes.appendChild(capChipList(data.compatibilities[fmt], fmtNode && fmtNode.enum, function(nv) { data.compatibilities[fmt] = nv; }));
+    tr.appendChild(tdFmt); tr.appendChild(tdModes);
+    compatTable.appendChild(tr);
+  });
+  compatSec.body.appendChild(compatTable);
+  // Allow adding a compatibility row for any currently-enabled format not yet listed
+  // (compatibilities keys must be a subset of `formats`, per spec/server validation).
+  if (!_capReadOnly) {
+    var availFormats = (data.formats || []).filter(function(f) { return !data.compatibilities.hasOwnProperty(f); });
+    if (availFormats.length) {
+      var addCompatRow = document.createElement('div'); addCompatRow.className = 'capChipAddRow';
+      var fmtSel = document.createElement('select'); fmtSel.className = 'editorInput';
+      var ph = document.createElement('option'); ph.value = ''; ph.textContent = '-- add format --';
+      fmtSel.appendChild(ph);
+      availFormats.forEach(function(f) { var opt = document.createElement('option'); opt.value = f; opt.textContent = f; fmtSel.appendChild(opt); });
+      fmtSel.onchange = function() {
+        var f = fmtSel.value;
+        if (f) { data.compatibilities[f] = []; markCapDirty(); renderCapEditor(); }
+      };
+      addCompatRow.appendChild(fmtSel);
+      compatSec.body.appendChild(addCompatRow);
+    }
+  }
+  body.appendChild(compatSec.sec);
+
+  // ---- Flags / Formats / Ignores / Spec Versions / Version Modes ----
+  var listsSec = capSectionEl('Capabilities');
+  [
+    ['flags', 'Flags'], ['formats', 'Formats'], ['ignores', 'Ignores'],
+    ['specversions', 'Spec Versions'], ['versionmodes', 'Version Modes']
+  ].forEach(function(pair) {
+    var k = pair[0], label = pair[1];
+    var node = capOfferedNode(k);
+    var chipEl = capChipList(data[k] || [], node && node.enum, function(nv) { data[k] = nv; });
+    listsSec.body.appendChild(capLabelRow(label, chipEl));
+  });
+  body.appendChild(listsSec.sec);
+
+  // ---- Settings ----
+  var settingsSec = capSectionEl('Settings');
+  ['pagination', 'shortself'].forEach(function(k) {
+    var node = capOfferedNode(k);
+    var toggle = capBoolToggle(!!data[k], capNodeLocked(node), function(nv) { data[k] = nv; });
+    settingsSec.body.appendChild(capLabelRow(k === 'pagination' ? 'Pagination' : 'Short Self', toggle));
+  });
+  body.appendChild(settingsSec.sec);
+
+  // ---- Extensions ----
+  var extraKeys = Object.keys(data).filter(function(k) { return _capKnownKeys.indexOf(k) === -1; });
+  if (extraKeys.length || !_capReadOnly) {
+    var extSec = capSectionEl('Extensions');
+    if (!extraKeys.length) {
+      var none2 = document.createElement('span'); none2.className = 'capNone'; none2.textContent = '\u2014 none \u2014';
+      extSec.body.appendChild(none2);
+    }
+    extraKeys.sort().forEach(function(k) {
+      var node = capOfferedNode(k);
+      var valueEl = renderCapValueGeneric(data[k], node, function(nv) { data[k] = nv; });
+      extSec.body.appendChild(capLabelRow(k, valueEl));
+    });
+    body.appendChild(extSec.sec);
+  }
+}
+
 // ---- Utilities -----------------------------------------------------------
 
 function fetchJSON(url) {
@@ -2372,6 +5418,19 @@ function spinner() {
 
 function el(id)    { return document.getElementById(id); }
 function qsa(sel)  { return Array.from(document.querySelectorAll(sel)); }
+
+function capitalize(s) {
+  s = String(s || '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Shared "Default <Type> Version (n)" label fragment used by both the Grid
+// view's Details header and the List view's Property header at depth 4, so
+// the two stay in sync. capType is the capitalized resource singular name.
+function defaultVersionLabel(capType, data) {
+  return 'Default ' + capType + ' Version'
+    + (data && data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '');
+}
 
 function esc(s) {
   if (s == null) return '';
