@@ -459,27 +459,59 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 .json-exp-btn:hover { background: #ddd; }
 
-/* Gutter column on every JSON line — non-selectable placeholder matching .jt width */
+/* Outer gutter column present on every JSON line (first column, before any
+   indentation) — purely cosmetic left margin. */
 .jt-spc {
   display: inline-block;
   width: 1ch;
-  font-size: 15px;
+  font-size: 13px;
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
 }
-/* Twisty toggle — same font-size as .jt-spc so 1ch is consistent between them */
+/* Twisty toggle. Replaces the LAST native indent space on opener lines
+   (see addTwisties()) — its box MUST stay at the container's own
+   font-size (13px, matching #json-output) so its 1ch width equals
+   exactly one real indent-space character; otherwise opener lines end
+   up indented differently than their non-opener siblings at the same
+   JSON nesting depth. The larger, more-legible glyph and its breathing
+   room are rendered by the nested `.jt-glyph` span instead (see below),
+   which can visually overflow `.jt`'s box (`overflow: visible`) without
+   affecting the box's own contribution to the line's layout width. */
 .jt {
   cursor: pointer;
   display: inline-block;
   width: 1ch;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 16px;
   user-select: none;
   -webkit-user-select: none;
-  color: #555;
   vertical-align: middle;
   overflow: visible;
+}
+/* The actual visible triangle glyph — bigger font, shifted slightly left
+   (via `left`, not margin) so its glyph ink doesn't crowd/overlap the
+   JSON text that starts immediately after `.jt`'s fixed-width box (a
+   margin-right here would have no effect, since nothing follows this
+   glyph *inside* `.jt`'s own box). Purely a visual overlay; see `.jt`
+   comment above for why this must NOT affect `.jt`'s own box width. */
+.jt-glyph {
+  display: inline-block;
+  font-size: 16px;
+  color: #555;
+  position: relative;
+  top: -1px;
+  left: -4px;
+}
+/* Zero-width but still-selectable span holding one real space character.
+   The visible `.jt` glyph above is user-select:none (excluded from any
+   copy/paste), so this compensates by contributing the "missing" real
+   indent-space character to copied/pasted text — keeping the indentation
+   of copy-pasted JSON identical to plain JSON.stringify output (mirrors
+   the old ui.go RegHTMLify ".hide" trick). */
+.jt-copysp {
+  display: inline-block;
+  width: 0;
 }
 /* Collapsed "..." placeholder shown when block is hidden */
 .jd {
@@ -510,17 +542,47 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .json-null { color: #999; }
 .json-link { color: #07c; cursor: pointer; text-decoration: underline; }
 
+/* JSON coloring tri-state option (see Config page / optJsonColorMode()).
+   'full' is the default above — no overrides needed. 'minimal' makes
+   every token black except linkified URL values; 'none' makes
+   everything black, including links (the underline still shows so
+   links remain visually identifiable/clickable). */
+body[data-json-color="minimal"] .json-key,
+body[data-json-color="minimal"] .json-str,
+body[data-json-color="minimal"] .json-num,
+body[data-json-color="minimal"] .json-bool,
+body[data-json-color="minimal"] .json-null { color: #000; }
+
+body[data-json-color="none"] .json-key,
+body[data-json-color="none"] .json-str,
+body[data-json-color="none"] .json-num,
+body[data-json-color="none"] .json-bool,
+body[data-json-color="none"] .json-null,
+body[data-json-color="none"] .json-url,
+body[data-json-color="none"] .json-url:hover { color: #000; }
+
 /* ---- Left panel options (JSON view) ---- */
 
 .lp-section { margin-bottom: 10px; }
 .lp-title { font-weight: bold; font-size: 12px; color: #333; margin-bottom: 4px; }
+/* Collapsible section title (currently only used by Filters) */
+.lp-title-collapsible { cursor: pointer; user-select: none; }
+.lp-title-collapsible:hover { color: #000; }
+.lp-title-twisty {
+  display: inline-block;
+  width: 1ch;
+  margin-right: 3px;
+  color: #555;
+}
+.lp-title-twisty-right { margin-right: 0; margin-left: 8px; }
+.lp-title-count { font-weight: normal; color: #667; }
 .lp-item { display: grid; grid-template-columns: auto 1fr 38px; align-items: center; gap: 4px; padding: 2px 4px; font-size: 12px; font-family: monospace; }
 .lp-item input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
 .lp-inline-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lp-dotstar { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
 .lp-dotstar input[type=checkbox] { cursor: pointer; }
 .lp-dotstar-label { font-size: 11px; color: #888; }
-.lp-sep-line { border-top: 1px dashed #ddd; margin: 3px 0; }
+.lp-sep-line { border-top: 1px dashed #999; margin: 3px 0; }
 .lp-even { background: #dfe8df; }
 .lp-no-opts { color: #aaa; font-style: italic; font-size: 12px; padding: 10px 6px; text-align: center; }
 .lp-apply {
@@ -536,12 +598,137 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   font-size: 12px;
 }
 .lp-apply:hover { background: #c4c4c4; color: #222; border-color: #aaa; }
+.lp-divider-apply {
+  display: flex; align-items: center; gap: 8px; margin: 6px 0;
+}
+.lp-divider-line { flex: 1; border-top: 1px solid #ddd; }
+.lp-apply-top {
+  width: auto; margin-top: 0; padding: 2px 10px; font-size: 11px;
+  border-radius: 10px;
+}
 .lp-divider { border: none; border-top: 1px solid #ddd; margin: 6px 0; }
 .lp-filter-area { font-family: monospace; font-size: 11px; width: 100%; min-height: 60px; resize: vertical; border: 1px solid #ccc; border-radius: 4px; padding: 3px; }
 .lp-nav-item { font-size: 12px; padding: 3px 6px; cursor: pointer; border-radius: 4px; color: #335; transition: background 0.1s; }
 .lp-nav-item:hover { background: #e8eef8; }
 .lp-nav-active { background: #dde6f5; font-weight: bold; color: #224; }
 .lp-nav-active:hover { background: #ccd9f0; }
+/* One combined "Model (Source)" / "Capabilities (Offered)" row — main +
+   optional parenthetical sub nav item share a single line instead of
+   stacking on separate rows. */
+.lp-nav-row { display: block; }
+.lp-nav-item.lp-nav-inline { display: inline-block; padding: 3px 4px; }
+.lp-nav-sub { font-size: 12px; color: #669; }
+
+/* Filter builder (JSON left panel) */
+.fb-adv-toggle {
+  display: block; font-size: 11px; color: #888; margin-bottom: 6px;
+  cursor: pointer;
+}
+.fb-adv-toggle input {
+  cursor: pointer; vertical-align: middle; margin-right: 3px;
+}
+.fb-empty {
+  color: #aaa; font-style: italic; font-size: 11px; padding: 4px 2px;
+}
+.fb-groups { margin-bottom: 6px; }
+.fb-group-row {
+  position: relative;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  padding: 3px 4px; border: 1px solid #ddd; border-radius: 4px;
+  background: #f7f7f7; margin: 8px 0 2px;
+}
+/* "F1"/"F2"/... badge, overlayed over the group row's top-left corner */
+.fb-group-label {
+  position: absolute; top: -8px; left: -6px;
+  font-family: monospace; font-size: 10px; font-weight: bold;
+  color: #fff; background: #6b8fc7; border-radius: 8px;
+  padding: 1px 5px; line-height: 1.4; cursor: default;
+}
+.fb-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: monospace; font-size: 11px; background: #e6eef9;
+  color: #234; border: 1px solid #cddaf0; border-radius: 10px;
+  padding: 1px 6px;
+}
+.fb-chip-x, .fb-group-x { cursor: pointer; color: #888; font-weight: bold; }
+.fb-chip-x:hover, .fb-group-x:hover { color: #c33; }
+.fb-chip-text { cursor: pointer; }
+.fb-chip-text:hover { text-decoration: underline; }
+.fb-chip-editing {
+  background: #fff6cc; border-color: #e0b400; box-shadow: 0 0 0 1px #e0b400;
+}
+.fb-group-x { margin-left: auto; padding-left: 4px; }
+.fb-and { font-size: 10px; color: #888; font-weight: bold; }
+.fb-or {
+  font-size: 10px; color: #888; font-weight: bold; text-align: center;
+  margin: 3px 0;
+}
+.fb-editing-hint { font-size: 11px; color: #8a6d00; margin: 2px 0 6px; }
+.fb-wizard-label {
+  display: flex; align-items: center; gap: 6px; margin: 4px 0 6px;
+}
+.fb-wizard-label-text { font-size: 11px; color: #888; white-space: nowrap; }
+.fb-wizard-label .lp-divider-line { border-top: 1px dashed #ddd; }
+.fb-breadcrumb {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+  margin-bottom: 6px;
+}
+.fb-crumb {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: monospace; font-size: 12px; background: #eef3fb;
+  color: #234; border: 1px solid #d6e0f0; border-radius: 10px;
+  padding: 1px 4px 1px 8px;
+}
+.fb-crumb-text { cursor: pointer; }
+.fb-crumb-text:hover { text-decoration: underline; }
+.fb-crumb-text-static { cursor: default; }
+.fb-crumb-text-static:hover { text-decoration: none; }
+.fb-crumb-x {
+  cursor: pointer; color: #888; font-weight: bold; padding: 0 4px;
+}
+.fb-crumb-x:hover { color: #c33; }
+.fb-crumb-sep { font-size: 12px; color: #999; padding: 0 1px; }
+.fb-wizard { padding-top: 6px; }
+.fb-seg-row {
+  display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
+}
+.fb-seg-label { font-size: 11px; color: #666; flex-shrink: 0; width: 78px; }
+.fb-seg-select, .fb-op-select {
+  flex: 1; font-size: 11px; padding: 2px 3px; border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.fb-seg-custom, .fb-val-input {
+  flex: 1; font-size: 11px; font-family: monospace; padding: 2px 4px;
+  border: 1px solid #ccc; border-radius: 4px;
+}
+.fb-op-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.fb-error { color: #c33; font-size: 11px; margin-bottom: 4px; }
+.fb-add-row { display: flex; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; }
+/* Split "+ Add (AND)" button: the button + an overlay <select> showing
+   only "F1"/"F2"/... on its right edge, so the AND-target picker reads
+   as one two-zone control rather than a separate dropdown. */
+.fb-and-split {
+  position: relative; flex: 1; min-width: 132px; display: flex;
+}
+.fb-and-split-btn { flex: 1; text-align: left; padding-right: 40px; }
+.fb-and-split-target {
+  position: absolute; top: 1px; right: 1px; bottom: 1px; z-index: 2;
+  width: 37px; font-size: 10px; padding: 0 1px; border: none;
+  border-left: 1px solid #407d16; border-radius: 0 3px 3px 0;
+  background: #dcefce; color: #2c5710; cursor: pointer;
+}
+.fb-add-btn {
+  flex: 1; min-width: 96px; font-size: 11px; padding: 3px 4px;
+  border-radius: 4px;
+  border: 1px solid #407d16; background: #eef7e6; color: #2c5710;
+  cursor: pointer;
+}
+.fb-add-btn:hover:not(:disabled) { background: #407d16; color: #fff; }
+.fb-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.fb-cancel-btn {
+  border-color: #999; background: #f2f2f2; color: #555;
+}
+.fb-cancel-btn:hover { background: #999; color: #fff; }
 
 /* ---- Error / empty states ---- */
 
@@ -843,15 +1030,59 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   font-weight: normal;
 }
 .cfg-option-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  display: grid;
+  /* Fixed-width label column so every row's control(s) start at the
+     same horizontal position; description spans both columns below. */
+  grid-template-columns: 150px 1fr;
+  column-gap: 12px;
+  row-gap: 6px;
+  padding: 12px 0;
   cursor: pointer;
-  padding: 4px 0;
 }
-.cfg-option-row input[type="checkbox"] { margin: 0; cursor: pointer; flex-shrink: 0; }
-.cfg-option-label { font-size: 13px; font-weight: 600; color: #333; }
-.cfg-option-desc  { font-size: 12px; color: #888; }
+.cfg-option-row + .cfg-option-row { border-top: 1px solid #eee; }
+.cfg-option-label {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+.cfg-option-row input[type="checkbox"] {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  align-self: center;
+  margin: 0;
+  cursor: pointer;
+}
+.cfg-option-desc {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Multi-choice option group (e.g. JSON coloring tri-state) — the outer
+   row isn't itself a checkbox/label, so it's not clickable/cursor:pointer
+   like the single-checkbox rows above. Shares the same grid as the
+   checkbox rows so labels/controls/descriptions all line up. */
+.cfg-option-group { cursor: default; }
+.cfg-radio-set {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  gap: 20px;
+}
+.cfg-radio-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.cfg-radio-row input[type="radio"] { margin: 0; cursor: pointer; }
+.cfg-radio-label { font-size: 12.5px; color: #333; }
 
 /* ---- Inline server error popup ---- */
 
@@ -1464,8 +1695,10 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
     cursor: pointer ;
     background: #f5f5f5 ;
     color: #000 ;
-    line-height: 28px ;
     text-align: center ;
+    display: flex ;
+    align-items: center ;
+    justify-content: center ;
   }
   .boolSegBtn:not(:last-child) { border-right: 1px solid #ccc ; }
   .boolSegBtn.boolSegActive { background: #4a7c24 ; color: #fff ; }
@@ -1540,8 +1773,6 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   @keyframes spin { to { transform:rotate(360deg); } }
   @media (max-width: 768px) {
     body { flex-direction: column ; height: 100dvh ; }
-    #left { border-right: none ; border-bottom: 2px solid lightgray ; min-width: unset ; width: 100% ; }
-    #right { flex: 1 ; min-height: 0 ; overflow: hidden ; }
     .navToggleBtn { display: inline-flex ; align-items: center ; }
     .editorLeftNav {
       display: none ;
@@ -1561,7 +1792,6 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
     .editorInput { font-size: 16px ; }
     .editorBtn { min-height: 36px ; }
     .boolSeg { height: 18px ; }
-    .boolSegBtn { line-height: 18px ; }
   }
 
 /* ============================================================

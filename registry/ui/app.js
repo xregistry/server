@@ -53,6 +53,12 @@ var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
 var _offeredCache  = {};  // normalizedURL → capabilitiesoffered JSON
 var _headerCompact = false;
+var _fbDraft        = null;  // filter-builder working draft, see fbXxx() funcs
+var _fbDraftKey     = null;  // server|section|path this draft belongs to
+// Filters section collapse state — always starts collapsed on a fresh
+// page load (not persisted to localStorage); stays as toggled while
+// navigating during the current session.
+var _filtersCollapsed = true;
 
 // ---- Options (persisted) --------------------------------------------------
 var _opts = (function() {
@@ -64,6 +70,17 @@ function saveOpts() {
 }
 
 function optClickToCopy() { return !!_opts.clickToCopy; }
+function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
+
+// Reflects the current JSON color-mode option onto <body> so the CSS
+// rules in style.css (scoped via body[data-json-color=...]) can
+// override the default per-token colors used by syntaxHighlight().
+// 'full' (default) — today's behavior, all tokens colored.
+// 'minimal' — everything black except linkified URL values.
+// 'none' — everything black, including linkified URL values.
+function applyJsonColorMode() {
+  document.body.setAttribute('data-json-color', optJsonColorMode());
+}
 function optHomeGroup()   {
   // migrate legacy homeView key
   if (_opts.homeView !== undefined) {
@@ -123,9 +140,27 @@ window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('popstate', function() { loadStateFromURL(); renderHeader(); refresh(); });
 window.addEventListener('resize', function() { renderHeader(); });
 
+// Scope Ctrl/Cmd+A to just the JSON output when focus is inside it, instead
+// of selecting the entire page (mirrors the old ui.go `dokeydown()` trick).
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'a' && e.key !== 'A') return;
+  if (!e.ctrlKey && !e.metaKey) return;
+  var tag = e.target && e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  var out = el('json-output');
+  if (!out || !out.contains(e.target)) return;
+  e.preventDefault();
+  var range = document.createRange();
+  range.selectNodeContents(out);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+});
+
 function init() {
   _state.homeGroup   = optHomeGroup();
   _state.homeLayouts = optHomeLayouts();
+  applyJsonColorMode();
   loadStateFromURL();
 
   // Wire up unified view-controls buttons (data-dview="grid|table|json" + edit-btn)
@@ -1292,6 +1327,17 @@ function serverCardClick(card, url) {
 
 // ---- Config page ----------------------------------------------------------
 
+// Builds one radio-button <label> for the "JSON coloring" tri-state
+// option group on the Config page.
+function cfgJsonColorRadio(mode, label, desc) {
+  return '<label class="cfg-radio-row" title="' + esc(desc) + '">'
+    + '<input type="radio" name="opt-json-color" value="' + mode + '"'
+    + (optJsonColorMode() === mode ? ' checked' : '')
+    + ' onchange="cfgSetJsonColor(\'' + mode + '\')">'
+    + '<span class="cfg-radio-label">' + esc(label) + '</span>'
+    + '</label>';
+}
+
 function renderConfig() {
   var main   = el('main-view');
   var origin = window.location.origin;
@@ -1337,12 +1383,26 @@ function renderConfig() {
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
     + '<label class="cfg-option-row">'
+    +   '<span class="cfg-option-label">Click to copy</span>'
     +   '<input type="checkbox" id="opt-click-to-copy"'
     +   (optClickToCopy() ? ' checked' : '')
     +   ' onchange="cfgSetOpt(\'clickToCopy\',this.checked)">'
-    +   '<span class="cfg-option-label">Click to copy</span>'
-    +   '<span class="cfg-option-desc">Click any value in the details view to copy it to the clipboard</span>'
+    +   '<span class="cfg-option-desc">Click any value in the details'
+    +   ' view to copy it to the clipboard</span>'
     + '</label>'
+    + '<div class="cfg-option-row cfg-option-group">'
+    +   '<span class="cfg-option-label">JSON coloring</span>'
+    +   '<div class="cfg-radio-set">'
+    +     cfgJsonColorRadio('full', 'Full color',
+          'Keys, strings, numbers, booleans and links are all colored'
+          + ' (today\u2019s default)')
+    +     cfgJsonColorRadio('minimal', 'Minimal color',
+          'Everything is black except links')
+    +     cfgJsonColorRadio('none', 'No color',
+          'Everything is black, including links')
+    +   '</div>'
+    +   '<span class="cfg-option-desc">Choose how much syntax coloring'
+    +   ' the JSON view uses</span>'
     + '</div>'
 
     + '</div>';
@@ -1430,6 +1490,12 @@ function cfgDelete(btn) {
 function cfgSetOpt(key, val) {
   _opts[key] = val;
   saveOpts();
+}
+
+function cfgSetJsonColor(mode) {
+  _opts.jsonColorMode = mode;
+  saveOpts();
+  applyJsonColorMode();
 }
 
 function cfgAddNew() {
@@ -2786,7 +2852,7 @@ function renderJSONView(data) {
       '<span class="json-exp-btn" id="json-exp-btn" data-open="false"' +
       ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</span>' +
     '</div>' +
-    '<div id="json-output">' + jsonHtml + '</div>';
+    '<div id="json-output" tabindex="0">' + jsonHtml + '</div>';
 }
 
 // Process syntaxHighlighted JSON HTML to add twisty expand/collapse spans.
@@ -2831,7 +2897,22 @@ function addTwisties(html) {
       depth++;
       var n      = count;
       var indent = ns > 1 ? ' '.repeat(ns - 1) : '';
-      var tw     = '<span class="jt" id="jt' + n + '" onclick="jsonToggle(' + n + ')">&#9656;</span>';
+      // .jt's own box stays exactly 1ch at the CONTAINER's font-size (13px)
+      // so it precisely replaces the one native indent space it sits in
+      // place of — alignment with non-opener siblings depends on this.
+      // The glyph itself is wrapped in .jt-glyph (larger font, small right
+      // margin for breathing room) which can overflow .jt's box (see
+      // `overflow: visible` in CSS) purely visually, without affecting the
+      // outer box's contribution to the line's layout width.
+      // .jt is user-select:none (mirrors the old ui.go .exp class) so the
+      // glyph itself is never included in a copy/paste. .jt-copysp is a
+      // zero-width but still-selectable span holding a real space
+      // character, so copied/pasted text still has the exact same
+      // indentation as plain JSON.stringify output (mirrors the old
+      // ui.go RegHTMLify ".hide" trick).
+      var tw = '<span class="jt" id="jt' + n + '" onclick="jsonToggle(' +
+        n + ')"><span class="jt-glyph">&#9656;</span></span>' +
+        '<span class="jt-copysp"> </span>';
       var dots   = '<span class="jd" id="jd' + n + '" onclick="jsonToggle(' + n + ')">&#8230;</span>';
       // jt-spc gutter + (ns-1) indent spaces + toggle + content + dots.
       // <jb> is appended at END of line so the \n from join is INSIDE the block.
@@ -2845,14 +2926,15 @@ function addTwisties(html) {
 
 // Toggle one expandable block (n = numeric id).
 function jsonToggle(n) {
-  var tw   = document.getElementById('jt' + n);
-  var blk  = document.getElementById('jb' + n);
-  var dots = document.getElementById('jd' + n);
+  var tw    = document.getElementById('jt' + n);
+  var glyph = tw ? tw.querySelector('.jt-glyph') : null;
+  var blk   = document.getElementById('jb' + n);
+  var dots  = document.getElementById('jd' + n);
   if (!blk) return;
   var open = blk.style.display === 'none';
   blk.style.display        = open ? '' : 'none';
-  if (dots) dots.style.display = open ? 'none' : '';
-  if (tw)   tw.innerHTML       = open ? '&#9662;' : '&#9656;';
+  if (dots)  dots.style.display = open ? 'none' : '';
+  if (glyph) glyph.innerHTML    = open ? '&#9662;' : '&#9656;';
 }
 
 // Toggle all blocks expand/collapse.
@@ -2862,11 +2944,12 @@ function jsonToggleAll() {
   for (var i = 1; ; i++) {
     var blk  = document.getElementById('jb' + i);
     if (!blk) break;
-    var tw   = document.getElementById('jt' + i);
-    var dots = document.getElementById('jd' + i);
+    var tw    = document.getElementById('jt' + i);
+    var glyph = tw ? tw.querySelector('.jt-glyph') : null;
+    var dots  = document.getElementById('jd' + i);
     blk.style.display        = expand ? '' : 'none';
-    if (dots) dots.style.display = expand ? 'none' : '';
-    if (tw)   tw.innerHTML       = expand ? '&#9662;' : '&#9656;';
+    if (dots)  dots.style.display = expand ? 'none' : '';
+    if (glyph) glyph.innerHTML    = expand ? '&#9662;' : '&#9656;';
   }
   if (btn) {
     btn.dataset.open = expand ? 'true' : 'false';
@@ -2908,19 +2991,26 @@ function renderJSONLeftPanel() {
 
   // Registry Endpoints navigation — at root depth, show links to model/capabilities/etc.
   // Show in both section views and normal data view so you can switch sections easily.
+  // Filters (below) get their own leading divider-with-Apply-button combo
+  // instead of a plain divider, so skip the plain one here to avoid a
+  // doubled-up line.
+  var filterHasApplyDivider = _state.section === 'data' && hasF('filter');
   if (_state.path.length === 0) {
-    var lpSections = ['model','modelsource','capabilities','capabilitiesoffered'];
-    var lpAvailSecs = lpSections.filter(function(s) { return avail2 && avail2[s]; });
-    var hasExport = avail2 && avail2['export'];
-    if (lpAvailSecs.length || hasExport) {
-      var lpSecNames = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+    var hasModel   = avail2 && avail2.model;
+    var hasMSource  = avail2 && avail2.modelsource;
+    var hasCap     = avail2 && avail2.capabilities;
+    var hasCapOff  = avail2 && avail2.capabilitiesoffered;
+    var hasExport  = avail2 && avail2['export'];
+    if (hasModel || hasMSource || hasCap || hasCapOff || hasExport) {
       html += '<div class="lp-section"><div class="lp-title">Registry Endpoints</div>';
-      lpAvailSecs.forEach(function(s) {
-        var active = _state.section === s;
-        html += '<div class="lp-nav-item' + (active ? ' lp-nav-active' : '') + '" '
-          + 'onclick="pushState({section:\'' + s + '\',editMode:false,useExport:false})">'
-          + esc(lpSecNames[s]) + '</div>';
-      });
+      // "Model (Source)" and "Capabilities (Offered)" share one line each
+      // (matches the old ui.go layout) instead of 4 stacked rows, to save
+      // vertical space — the sub-link only appears when that endpoint is
+      // actually available.
+      html += lpNavPairRow('Model', 'model', hasModel,
+        'Source', 'modelsource', hasMSource);
+      html += lpNavPairRow('Capabilities', 'capabilities', hasCap,
+        'Offered', 'capabilitiesoffered', hasCapOff);
       // Export as a nav item — toggles useExport on the registry root data view
       if (hasExport && _state.section === 'data') {
         var exportActive = _state.useExport;
@@ -2932,20 +3022,34 @@ function renderJSONLeftPanel() {
       if (_state.section !== 'data') {
         html += '<div class="lp-nav-item" onclick="pushState({section:\'data\',path:[],editMode:false,useExport:false})">← Registry Data</div>';
       }
-      html += '</div><hr class="lp-divider">';
+      html += '</div>';
+      if (!filterHasApplyDivider) html += '<hr class="lp-divider">';
     }
   }
 
   var hasOpts = false; // true when there's at least one filter/option/inline to apply
 
   if (_state.section === 'data') {
-    // Filters — only if server supports 'filter'
+    // Filters — only if server supports 'filter'. A divider-line-with-
+    // Apply-button combo is shown right above the Filters heading (in
+    // addition to the full-width Apply button at the very bottom of the
+    // panel) so it's reachable without scrolling past a long filter list.
+    // The section body itself is collapsible (twisty + a "(N)" count of
+    // currently-defined filter expressions, visible even while
+    // collapsed) to save vertical space — collapse state is not tied to
+    // the Apply-button divider above, which always shows regardless.
     if (hasF('filter')) {
       hasOpts = true;
-      html += '<div class="lp-section"><div class="lp-title">Filters '
-        + '<span style="font-weight:normal;font-size:11px;color:#888">(one per line)</span></div>'
-        + '<textarea class="lp-filter-area" id="lp-filters">'
-        + esc(_state.filters.join('\n')) + '</textarea></div><hr class="lp-divider">';
+      ensureFbDraft();
+      html += '<div class="lp-divider-apply">'
+        + '<span class="lp-divider-line"></span>'
+        + '<button class="lp-apply lp-apply-top" onclick="applyJSONOptions()">'
+        + 'Apply</button>'
+        + '<span class="lp-divider-line"></span></div>'
+        + '<div class="lp-section" id="lp-filter-section">'
+        + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups))
+        + (_filtersCollapsed ? '' : buildFilterSectionInner(model2))
+        + '</div><hr class="lp-divider">';
     }
 
     // Options — only show individual options whose flag is enabled
@@ -2991,7 +3095,20 @@ function renderJSONLeftPanel() {
   }
 
   if (!html)    html = '<div class="lp-no-opts">No options</div>';
-  if (hasOpts)  html += '<button class="lp-apply" onclick="applyJSONOptions()">Apply</button>';
+  if (hasOpts) {
+    // Reuse the divider-apply combo (line + centered Apply + line) instead
+    // of a separate full-width button; strip the trailing plain divider
+    // left by the last section so we don't get doubled-up lines.
+    var trailingHr = '<hr class="lp-divider">';
+    if (html.slice(-trailingHr.length) === trailingHr) {
+      html = html.slice(0, -trailingHr.length);
+    }
+    html += '<div class="lp-divider-apply">'
+      + '<span class="lp-divider-line"></span>'
+      + '<button class="lp-apply lp-apply-top" onclick="applyJSONOptions()">'
+      + 'Apply</button>'
+      + '<span class="lp-divider-line"></span></div>';
+  }
   inner.innerHTML = html;
 }
 
@@ -3000,14 +3117,1239 @@ function lpCheck(id, label, checked) {
     + (checked ? ' checked':'') + '> ' + label + '</div>';
 }
 
+// Renders one "Registry Endpoints" row combining a main nav item with an
+// optional parenthetical sub nav item on the same line, e.g.
+// "Model (Source)" / "Capabilities (Offered)" — matches the old ui.go
+// layout instead of stacking each endpoint on its own line. Returns ''
+// if neither the main nor the sub endpoint is available.
+function lpNavPairRow(mainLabel, mainSection, hasMain,
+                       subLabel, subSection, hasSub) {
+  if (!hasMain && !hasSub) return '';
+  var row = '<div class="lp-nav-row">';
+  if (hasMain) {
+    var mainActive = _state.section === mainSection;
+    var mainCls = 'lp-nav-item lp-nav-inline' +
+      (mainActive ? ' lp-nav-active' : '');
+    row += '<span class="' + mainCls + '" onclick="pushState('
+      + '{section:\'' + mainSection + '\',editMode:false,'
+      + 'useExport:false})">' + esc(mainLabel) + '</span>';
+  } else {
+    row += esc(mainLabel);
+  }
+  if (hasSub) {
+    var subActive = _state.section === subSection;
+    var subCls = 'lp-nav-item lp-nav-inline' +
+      (subActive ? ' lp-nav-active' : '');
+    row += ' <span class="lp-nav-sub">(<span class="' + subCls
+      + '" onclick="pushState({section:\'' + subSection + '\','
+      + 'editMode:false,useExport:false})">' + esc(subLabel)
+      + '</span>)</span>';
+  }
+  row += '</div>';
+  return row;
+}
+
+// ---- Filter builder (JSON left panel) -------------------------------------
+//
+// Builds xRegistry `?filter=` expressions by walking the runtime /model
+// (same spirit as buildInlineOptions()) instead of requiring users to hand
+// type dot-notation filter syntax. See the spec's "Filter Flag" and
+// "Dot-Notation in Filters" sections for the exact grammar being modeled
+// here (registry/spec/core/spec.md).
+//
+// _fbDraft.groups: array of strings, one per `filter=` OR group; each
+//   string may itself contain comma-separated AND'd expressions — this is
+//   exactly the wire format already used by _state.filters, so nothing
+//   about pushState()/buildAPIURL() needed to change.
+// _fbDraft.wiz: the in-progress "add a filter" wizard state:
+//   {gPlural, rPlural, level, segs:[{text,kind,join}], op, value}
+
+function fbKey() {
+  return serverBase() + '|' + _state.section + '|' + _state.path.join('/');
+}
+
+function emptyWizard() {
+  return {
+    gPlural: null, rPlural: null, level: null,
+    segs: [], op: '', value: '', valueTouched: false
+  };
+}
+
+// Splits a comma-list into trimmed, non-empty parts (used both for the
+// `filter=` OR-group wire format and the raw-textarea line format).
+function trimSplit(str, sep) {
+  return str.split(sep).map(function(s) { return s.trim(); }).filter(Boolean);
+}
+
+function ensureFbDraft() {
+  var key = fbKey();
+  if (!_fbDraft || _fbDraftKey !== key) {
+    _fbDraft = {
+      groups: _state.filters.slice(), advanced: false, wiz: emptyWizard(),
+      editing: null,   // {gi, ei} of the chip currently loaded for editing
+      addTarget: null  // explicit OR-group index to AND into, or null for
+                        // "the last group" (see fbAddTargetIndex())
+    };
+    _fbDraftKey = key;
+  }
+}
+
+function fbRerender() {
+  var host = el('lp-filter-section');
+  if (!host) return;
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var count  = fbFilterCount(_fbDraft ? _fbDraft.groups : []);
+  host.innerHTML = fbFiltersTitleHTML(count)
+    + (_filtersCollapsed ? '' : buildFilterSectionInner(model));
+}
+
+// Renders the collapsible "Filters" section title: label + "(N)" count
+// of currently-defined filter expressions (shown even while collapsed,
+// so you can tell at a glance whether any are set) + twisty (▶/▼) on
+// the right.
+function fbFiltersTitleHTML(count) {
+  var twisty = _filtersCollapsed ? '▶' : '▼';
+  var countHTML = count
+    ? ' <span class="lp-title-count">(' + count + ')</span>' : '';
+  return '<div class="lp-title lp-title-collapsible" '
+    + 'onclick="fbToggleCollapsed()">'
+    + '<span>Filters' + countHTML + '</span>'
+    + '<span class="lp-title-twisty lp-title-twisty-right">' + twisty
+    + '</span></div>';
+}
+
+// Total number of leaf filter expressions across all OR-groups (each
+// group is a comma-joined AND-list) — shown as "(N)" next to the
+// Filters title even while the section is collapsed.
+function fbFilterCount(groups) {
+  if (!groups || !groups.length) return 0;
+  var n = 0;
+  groups.forEach(function(g) { n += trimSplit(g, ',').length; });
+  return n;
+}
+
+// Toggles the Filters section's collapsed/expanded state. Always starts
+// collapsed on a fresh page load (see _filtersCollapsed init); this just
+// flips it for the current session/navigation.
+function fbToggleCollapsed() {
+  _filtersCollapsed = !_filtersCollapsed;
+  renderJSONLeftPanel();
+}
+
+// Returns the filters array to send: either the builder's groups, or the
+// raw textarea lines when Advanced (raw text) mode is active.
+function fbCollectFilters() {
+  if (!_fbDraft) return _state.filters;
+  if (_fbDraft.advanced) {
+    var ta = el('lp-filters-raw');
+    return ta ? trimSplit(ta.value, '\n') : _fbDraft.groups.slice();
+  }
+  return _fbDraft.groups.slice();
+}
+
+function buildFilterSectionInner(model) {
+  var d    = _fbDraft;
+  var html = '<label class="fb-adv-toggle"><input type="checkbox"'
+    + (d.advanced ? ' checked' : '')
+    + ' onchange="fbToggleAdvanced(this.checked)"> Advanced (raw text)</label>';
+
+  if (d.advanced) {
+    html += '<textarea class="lp-filter-area" id="lp-filters-raw">'
+      + esc(d.groups.join('\n')) + '</textarea>';
+    return html;
+  }
+
+  html += '<div class="fb-groups">' + fbGroupsHTML(d.groups) + '</div>';
+  if (d.editing) {
+    html += '<div class="fb-editing-hint">Editing the highlighted filter'
+      + ' below</div>';
+  }
+  html += '<div class="fb-wizard-label">'
+    + '<span class="lp-divider-line"></span>'
+    + '<span class="fb-wizard-label-text">Filter Builder</span>'
+    + '<span class="lp-divider-line"></span></div>';
+  html += '<div class="fb-wizard">' + buildWizardHTML(model) + '</div>';
+  return html;
+}
+
+function fbToggleAdvanced(checked) {
+  if (checked) {
+    _fbDraft.advanced = true;
+  } else {
+    var ta = el('lp-filters-raw');
+    if (ta) _fbDraft.groups = trimSplit(ta.value, '\n');
+    _fbDraft.advanced = false;
+  }
+  _fbDraft.editing = null;
+  fbRerender();
+}
+
+function fbGroupsHTML(groups) {
+  if (!groups.length) return '<div class="fb-empty">No filters yet</div>';
+  var editing = _fbDraft.editing;
+  return groups.map(function(g, gi) {
+    var exprs = trimSplit(g, ',');
+    var chips = exprs.map(function(e, ei) {
+      var isEditing = !!editing && editing.gi === gi && editing.ei === ei;
+      var cls = 'fb-chip' + (isEditing ? ' fb-chip-editing' : '');
+      return '<span class="' + cls + '">'
+        + '<span class="fb-chip-text" title="Click to edit"'
+        + ' onclick="fbEditExpr(' + gi + ',' + ei + ')">' + esc(e) + '</span>'
+        + '<span class="fb-chip-x" title="Remove"'
+        + ' onclick="fbRemoveExpr(' + gi + ',' + ei + ')">'
+        + '&times;</span></span>';
+    }).join('<span class="fb-and">AND</span>');
+    var badge = groups.length > 1
+      ? '<span class="fb-group-label" title="' + esc(fbGroupPreview(gi))
+        + '">' + esc(fbGroupShortLabel(gi)) + '</span>'
+      : '';
+    return '<div class="fb-group-row">' + badge + chips
+      + '<span class="fb-group-x" title="Remove this OR group"'
+      + ' onclick="fbRemoveGroup(' + gi + ')">&times;</span></div>';
+  }).join('<div class="fb-or">OR</div>');
+}
+
+// Keeps _fbDraft.editing's {gi, ei} pointer consistent after a chip/group
+// removal shifts indices around it — clearing it if the edited expr (or
+// its whole group) was the one removed.
+function fbAdjustEditingAfterRemove(gi, ei, groupRemoved) {
+  var editing = _fbDraft.editing;
+  if (!editing) return;
+  if (groupRemoved) {
+    if (editing.gi === gi) { _fbDraft.editing = null; return; }
+    if (editing.gi > gi)   editing.gi--;
+    return;
+  }
+  if (editing.gi !== gi) return;
+  if (editing.ei === ei)  { _fbDraft.editing = null; return; }
+  if (editing.ei > ei)    editing.ei--;
+}
+
+function fbRemoveExpr(gi, ei) {
+  var exprs = trimSplit(_fbDraft.groups[gi], ',');
+  exprs.splice(ei, 1);
+  var groupRemoved = (exprs.length === 0);
+  if (groupRemoved) _fbDraft.groups.splice(gi, 1);
+  else              _fbDraft.groups[gi] = exprs.join(',');
+  fbAdjustEditingAfterRemove(gi, ei, groupRemoved);
+  _fbDraft.addTarget = null;
+  fbRerender();
+}
+
+function fbRemoveGroup(gi) {
+  _fbDraft.groups.splice(gi, 1);
+  fbAdjustEditingAfterRemove(gi, -1, true);
+  _fbDraft.addTarget = null;
+  fbRerender();
+}
+
+// Loads an existing filter expression back into the wizard for editing,
+// without removing it from its OR group — it stays in place (and is
+// visually highlighted, see fbGroupsHTML) until "Update" or "Cancel" is
+// clicked. If the expression can't be cleanly parsed against the current
+// model (e.g. it was hand-typed via Advanced mode, or uses syntax the
+// wizard doesn't model like a literal '*' key), it's left alone — only
+// editable via Advanced mode.
+function fbEditExpr(gi, ei) {
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var exprs  = trimSplit(_fbDraft.groups[gi], ',');
+  var expr   = exprs[ei];
+  if (expr === undefined) return;
+
+  var wiz = fbParseExpr(model, expr);
+  if (!wiz) return;
+
+  _fbDraft.editing = {gi: gi, ei: ei};
+  _fbDraft.wiz      = wiz;
+  fbRerender();
+}
+
+// Replaces the expression currently being edited, in its original spot
+// (same OR group, same AND position) — does not reorder anything.
+function fbUpdateExpr() {
+  var editing = _fbDraft.editing;
+  if (!editing) return;
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var wiz    = _fbDraft.wiz;
+  var ctx    = fbRootContext(model, wiz);
+  var path   = fbAssemblePath(ctx, wiz.segs);
+  if (!path || fbValidate(wiz)) return;
+
+  var exprs = trimSplit(_fbDraft.groups[editing.gi], ',');
+  exprs[editing.ei] = path + fbOpToExprSuffix(wiz);
+  _fbDraft.groups[editing.gi] = exprs.join(',');
+
+  _fbDraft.editing = null;
+  _fbDraft.wiz      = emptyWizard();
+  fbRerender();
+}
+
+// Discards the in-progress edit, leaving the original expression as-is.
+function fbCancelEdit() {
+  _fbDraft.editing = null;
+  _fbDraft.wiz      = emptyWizard();
+  fbRerender();
+}
+
+// ---- Wizard: merged attribute+collection pickers, attribute path ---------
+
+// Collection-shadow attribute names: every child collection also shows
+// up as `{plural}` (the map itself), `{plural}count`, and `{plural}url`
+// attributes on its parent — these are redundant with the "step into"
+// choice for that same collection, so they're excluded from the
+// attribute portion of a merged picker to avoid confusing duplicates.
+function fbCollectionShadowNames(keys) {
+  var set = {};
+  keys.forEach(function(k) {
+    set[k] = true; set[k + 'count'] = true; set[k + 'url'] = true;
+  });
+  return set;
+}
+
+// Merges a resource's version-level attributes with its resource-entity
+// attributes (a Resource's JSON representation implicitly inlines its
+// default version's attributes), excluding the meta/versions shadow
+// attrs (those are offered as "step into" choices instead).
+function fbMergeResourceAttrs(rm) {
+  var shadow = fbCollectionShadowNames(['meta', 'versions']);
+  var merged = {};
+  Object.keys(rm.attributes || {}).forEach(function(k) {
+    if (!shadow[k]) merged[k] = rm.attributes[k];
+  });
+  // Resource-specific attrs (self, xid, messageid, etc.) take priority
+  // over any same-named version attr.
+  Object.keys(rm.resourceattributes || {}).forEach(function(k) {
+    if (!shadow[k]) merged[k] = rm.resourceattributes[k];
+  });
+  return merged;
+}
+
+// Builds the "Attributes" option group for a merged picker: real
+// attribute names (minus '*' and any shadow names) plus a trailing
+// "(other / custom attribute)" escape hatch. Values are prefixed
+// "attr:" so the dispatcher can tell them apart from "step into" picks.
+function fbMergedAttrOptions(attrsMap, shadowNames) {
+  var opts = [];
+  Object.keys(attrsMap || {}).sort().forEach(function(k) {
+    if (k === '*') return;
+    if (shadowNames && shadowNames[k]) return;
+    opts.push({value: 'attr:' + k, label: k + '  (' + attrsMap[k].type + ')'});
+  });
+  opts.push({value: 'attr:__custom__', label: '(other / custom attribute)'});
+  return opts;
+}
+
+// Renders one merged <select> offering both "filter on an attribute at
+// this level" and "step into a child collection" choices, grouped under
+// native <optgroup> labels (no custom popover needed). `childOpts` is
+// the array of {value, label} step-into choices (already prefixed by
+// the caller, e.g. "grp:"/"res:"/"step:"). `singular` is this level's
+// singular entity name (e.g. "Registry"/"dir"/"file"), used to label
+// the attributes optgroup so it's clear which entity's attributes are
+// being offered.
+function fbMergedSelectRow(attrOpts, childOpts, onchangeAttr, singular) {
+  var html = '<select class="fb-seg-select" onchange="'
+    + onchangeAttr + '"><option value="">-- choose --</option>';
+  if (childOpts.length) {
+    html += '<optgroup label="Step into">'
+      + fbOptionsHTML(childOpts, '') + '</optgroup>';
+  }
+  if (attrOpts.length) {
+    html += '<optgroup label="' + esc(singular) + ' Attributes">'
+      + fbOptionsHTML(attrOpts, '') + '</optgroup>';
+  }
+  html += '</select>';
+  return '<div class="fb-seg-row">' + html + '</div>';
+}
+
+// Applies picking an attribute directly at a merged picker (root, group,
+// or resource level) — begins the attribute-path walk at segs[0].
+// "__custom__" seeds an empty custom segment so the existing
+// fbGenericSegRow() custom-text-input flow (used for deeper segments)
+// kicks in unchanged.
+function fbApplyAttrChoice(name) {
+  if (name === '__custom__') {
+    _fbDraft.wiz.segs = [{text: '', kind: 'custom', join: 'attr'}];
+  } else {
+    _fbDraft.wiz.segs = [{text: name, kind: 'attr', join: 'attr'}];
+  }
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+function fbSetRootChoice(v) {
+  if (!v) return;
+  if (v.slice(0, 4) === 'grp:')  { fbSetRoot(v.slice(4)); return; }
+  if (v.slice(0, 5) === 'attr:') { fbApplyAttrChoice(v.slice(5)); }
+}
+
+function fbSetGroupChoice(v) {
+  if (!v) return;
+  if (v.slice(0, 4) === 'res:')  { fbSetResource(v.slice(4)); return; }
+  if (v.slice(0, 5) === 'attr:') { fbApplyAttrChoice(v.slice(5)); }
+}
+
+function fbSetResourceChoice(v) {
+  if (!v) return;
+  if (v === 'step:meta')     { fbSetLevel('meta'); return; }
+  if (v === 'step:versions') { fbSetLevel('versions'); return; }
+  if (v.slice(0, 5) === 'attr:') { fbApplyAttrChoice(v.slice(5)); }
+}
+
+// Determines which parts of the Group type / Resource type / Level chain
+// are already implied by the current navigation path (_state.path), so
+// the wizard only offers picks for what's still ambiguous relative to
+// the JSON currently being viewed — e.g. browsing inside a group type
+// collection (depth 1/2) should not re-offer sibling group types, and
+// browsing inside a resource collection (depth 3+) should not re-offer
+// group/resource type at all.
+//
+// Path depth convention (see isCollection()/needsDetails() above):
+//   0: registry root            1: group type coll.   2: group entity
+//   3: resource type coll.      4: resource entity
+//   5: "meta" entity or "versions" coll.   6: version entity
+function fbPathAnchor(model) {
+  var path  = _state.path;
+  var depth = path.length;
+  if (depth === 0) {
+    return {
+      showGroup: true, showResource: true, showLevel: true,
+      gPlural: null, rPlural: null, level: null
+    };
+  }
+  var gPlural = path[0];
+  if (depth <= 2) {
+    return {
+      showGroup: false, showResource: true, showLevel: true,
+      gPlural: gPlural, rPlural: null, level: null
+    };
+  }
+  var rPlural = path[2];
+  if (depth <= 4) {
+    return {
+      showGroup: false, showResource: false, showLevel: true,
+      gPlural: gPlural, rPlural: rPlural, level: null
+    };
+  }
+  // depth >= 5: already inside the "meta" or "versions" sub-scope.
+  var level = (path[4] === 'meta') ? 'meta' : 'versions';
+  return {
+    showGroup: false, showResource: false, showLevel: false,
+    gPlural: gPlural, rPlural: rPlural, level: level
+  };
+}
+
+// {prefix, attrsMap} for the wizard's chosen root, before any attribute
+// path segments are applied. Merges the path anchor (the parts of
+// Group/Resource/Level already implied by where you're currently
+// browsing — see fbPathAnchor()) with any remaining picks made in the
+// wizard itself. Resource-level attrs live in 3 separate maps depending
+// wizard itself. Resource-level attrs live in 3 separate maps depending
+// on which "level" is picked (resourceattributes / metaattributes /
+// attributes==version-attrs) — see model shape in registry.
+function fbRootContext(model, wiz) {
+  var anchor  = fbPathAnchor(model);
+  var gPlural = anchor.gPlural || wiz.gPlural;
+  var prefix  = '';
+
+  if (!gPlural) {
+    return {prefix: '', attrsMap: (model && model.attributes) || {}};
+  }
+  var gm = model && model.groups && model.groups[gPlural];
+  // Only emit a path segment for parts the *wizard* chose — anything
+  // already implied by the current browsing path is left off, since the
+  // filter is relative to whatever JSON is currently being viewed.
+  if (!anchor.gPlural) prefix += gPlural + '.';
+  if (!gm) return {prefix: prefix, attrsMap: {}};
+
+  var rPlural = anchor.rPlural || wiz.rPlural;
+  if (!rPlural) return {prefix: prefix, attrsMap: gm.attributes || {}};
+
+  var rm = gm.resources && gm.resources[rPlural];
+  if (!anchor.rPlural) prefix += rPlural + '.';
+  if (!rm) return {prefix: prefix, attrsMap: {}};
+
+  var level = anchor.level || wiz.level || 'resource';
+  var attrsMap;
+  if (level === 'meta') {
+    if (!anchor.level) prefix += 'meta.';
+    attrsMap = rm.metaattributes || {};
+  } else if (level === 'versions') {
+    if (!anchor.level) prefix += 'versions.';
+    attrsMap = rm.attributes || {};
+  } else {
+    // "resource" level: a Resource's JSON implicitly inlines its default
+    // version's attributes, so merge both maps (see
+    // fbMergeResourceAttrs()) rather than resourceattributes alone.
+    attrsMap = fbMergeResourceAttrs(rm);
+  }
+  return {prefix: prefix, attrsMap: attrsMap};
+}
+
+// object/map/array/leaf — drives whether we need another seg picker.
+function fbAttrKind(attr) {
+  if (!attr) return 'leaf';
+  if (attr.type === 'object' && attr.attributes) return 'object';
+  if (attr.type === 'map')   return 'map';
+  if (attr.type === 'array') return 'array';
+  return 'leaf';
+}
+
+function fbAttrOptions(attrsMap) {
+  var opts = [];
+  Object.keys(attrsMap).sort().forEach(function(k) {
+    if (k === '*') return;
+    opts.push({value: k, label: k + '  (' + attrsMap[k].type + ')'});
+  });
+  opts.push({value: '__custom__', label: '(other / custom attribute)'});
+  return opts;
+}
+
+function fbMapOptions() {
+  return [
+    {value: '*',          label: '.* (any value)'},
+    {value: '__custom__', label: '(specific key)'}
+  ];
+}
+
+function fbArrayOptions() {
+  return [
+    {value: '[*]',  label: '[*] (any item)'},
+    {value: '[-1]', label: '[-1] (last item)'}
+  ];
+}
+
+function fbOptionsHTML(options, chosen) {
+  return options.map(function(o) {
+    var sel = (chosen === o.value) ? ' selected' : '';
+    return '<option value="' + esc(o.value) + '"' + sel + '>'
+      + esc(o.label) + '</option>';
+  }).join('');
+}
+
+function fbSelectRow(label, options, chosen, onchangeAttr) {
+  return '<div class="fb-seg-row"><span class="fb-seg-label">'
+    + esc(label) + ':</span>'
+    + '<select class="fb-seg-select" onchange="' + onchangeAttr + '">'
+    + '<option value="">-- choose --</option>'
+    + fbOptionsHTML(options, chosen)
+    + '</select></div>';
+}
+
+// Renders one attribute/map-key/array-index picker row for wiz.segs[i].
+function fbGenericSegRow(i, options, seg, joinKind) {
+  var chosenVal = !seg ? '' : (seg.kind === 'custom' ? '__custom__' : seg.text);
+  var onchg = 'fbSetSeg(' + i + ', this.value, \'' + joinKind + '\')';
+  var html  = '<select class="fb-seg-select" onchange="' + onchg + '">'
+    + '<option value="">-- choose --</option>'
+    + fbOptionsHTML(options, chosenVal)
+    + '</select>';
+  if (chosenVal === '__custom__') {
+    var custOnchg =
+      'fbSetSegCustom(' + i + ', this.value, \'' + joinKind + '\')';
+    html += '<input type="text" class="fb-seg-custom" placeholder="name"'
+      + ' value="' + esc(seg && seg.kind === 'custom' ? seg.text : '') + '"'
+      + ' onchange="' + custOnchg + '">';
+  }
+  return '<div class="fb-seg-row">' + html + '</div>';
+}
+
+function fbSetRoot(v) {
+  _fbDraft.wiz = emptyWizard();
+  _fbDraft.wiz.gPlural = v || null;
+  fbRerender();
+}
+
+function fbSetResource(v) {
+  _fbDraft.wiz.rPlural = v || null;
+  _fbDraft.wiz.level   = null;
+  _fbDraft.wiz.segs    = [];
+  _fbDraft.wiz.op      = '';
+  _fbDraft.wiz.value   = '';
+  fbRerender();
+}
+
+function fbSetLevel(v) {
+  _fbDraft.wiz.level = v || null;
+  _fbDraft.wiz.segs  = [];
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+function fbSetSeg(i, value, joinKind) {
+  var segs = _fbDraft.wiz.segs.slice(0, i);
+  if (value === '__custom__') {
+    segs.push({text: '', kind: 'custom', join: joinKind});
+  } else if (value !== '') {
+    segs.push({text: value, kind: 'attr', join: joinKind});
+  }
+  _fbDraft.wiz.segs  = segs;
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+function fbSetSegCustom(i, text, joinKind) {
+  var segs = _fbDraft.wiz.segs.slice(0, i + 1);
+  segs[i] = {text: text, kind: 'custom', join: joinKind};
+  _fbDraft.wiz.segs  = segs;
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+function fbSetOp(v) {
+  _fbDraft.wiz.op = v;
+  _fbDraft.wiz.valueTouched = false;  // don't show a stale error immediately
+  fbRerender();
+  var input = document.querySelector('.fb-val-input');
+  if (input) input.focus();
+}
+
+// Live-typing handler: update the value + patch just the error/Add-button
+// state in place, without a full fbRerender() (which would rebuild the
+// input and steal focus mid-keystroke). Typing always hides the error
+// immediately; it only reappears once the field is blurred while invalid.
+function fbOnValueInput(inputEl) {
+  _fbDraft.wiz.value = inputEl.value;
+  _fbDraft.wiz.valueTouched = false;
+  fbPatchOpValueState();
+}
+
+function fbOnValueBlur() {
+  _fbDraft.wiz.valueTouched = true;
+  fbPatchOpValueState();
+}
+
+function fbPatchOpValueState() {
+  var err     = fbValidate(_fbDraft.wiz);
+  var showErr = _fbDraft.wiz.valueTouched && !!err;
+  var errEl   = el('fb-error');
+  if (errEl) {
+    errEl.style.display = showErr ? '' : 'none';
+    errEl.textContent   = showErr ? err : '';
+  }
+  qsa('.fb-add-btn').forEach(function(b) { b.disabled = !!err; });
+}
+
+function fbAssemblePath(ctx, segs) {
+  var out = ctx.prefix;
+  segs.forEach(function(s, i) {
+    if (!s.text) return;
+    if (s.join === 'arr') out += s.text;
+    else                  out += (i === 0 ? '' : '.') + s.text;
+  });
+  return out;
+}
+
+function fbOpToExprSuffix(wiz) {
+  var op = wiz.op || 'present';
+  switch (op) {
+    case 'present': return '';
+    case 'absent':  return '=null';
+    case 'eq':      return '=' + wiz.value;
+    case 'ne':      return '!=' + wiz.value;
+    case 'lt':      return '<' + wiz.value;
+    case 'le':      return '<=' + wiz.value;
+    case 'gt':      return '>' + wiz.value;
+    case 'ge':      return '>=' + wiz.value;
+  }
+  return '';
+}
+
+function fbValidate(wiz) {
+  var op = wiz.op || 'present';
+  if (op === 'present' || op === 'absent') return null;
+  var v = wiz.value || '';
+  if (v === '') return 'A value is required for this operator.';
+  var isCompareOp = (op === 'lt' || op === 'le' || op === 'gt' || op === 'ge');
+  if (isCompareOp && v.indexOf('*') !== -1) {
+    return 'Wildcards are not allowed with <, <=, >, >= operators.';
+  }
+  return null;
+}
+
+// Update/Cancel buttons shown while editing an existing filter
+// expression (_fbDraft.editing). `dis` is the ' disabled' attribute
+// string (or '') to apply to Update — disabled when the wizard isn't
+// currently in a valid, complete state.
+function fbEditingBarButtons(dis) {
+  return '<button class="fb-add-btn"' + dis + ' onclick="fbUpdateExpr()">'
+    + 'Update</button>'
+    + '<button class="fb-add-btn fb-cancel-btn" onclick="fbCancelEdit()">'
+    + 'Cancel</button>';
+}
+
+// Persistent Update/Cancel row shown whenever an expression is being
+// edited, even if the wizard has been navigated away from a complete
+// leaf/op/value state (e.g. the user deleted a breadcrumb to redefine
+// the attribute path mid-edit). Without this, Update/Cancel would only
+// ever appear via fbOpValueRow()'s add-row — which isn't rendered at
+// all once the wizard falls out of its "complete" state — making it
+// look like editing was silently abandoned. Update is disabled until
+// the wizard reaches a valid, complete state again (mirroring
+// fbUpdateExpr()'s own "!path || fbValidate(wiz)" guard, so the button
+// is never enabled for a click that would otherwise be a no-op); Cancel
+// always works so the user can back out.
+function fbEditingBar() {
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var wiz    = _fbDraft.wiz;
+  var ctx    = fbRootContext(model, wiz);
+  var path   = fbAssemblePath(ctx, wiz.segs);
+  var err    = !path ? 'Choose an attribute to filter on.' : fbValidate(wiz);
+  var dis    = err ? ' disabled' : '';
+  return '<div class="fb-add-row">' + fbEditingBarButtons(dis) + '</div>';
+}
+
+// `presenceOnly` restricts the operator choices to "is present"/"is
+// absent" — used when stopping the wizard at a complex (object/map/
+// array) attribute rather than drilling down to one of its scalar
+// children, since comparison operators don't make sense against a
+// complex value.
+function fbOpValueRow(presenceOnly) {
+  var wiz = _fbDraft.wiz;
+  var op  = wiz.op || 'present';
+  var ops = [
+    {value: 'present', label: 'is present'},
+    {value: 'absent',  label: 'is absent'}
+  ];
+  if (!presenceOnly) {
+    ops = ops.concat([
+      {value: 'eq', label: '= (equals)'},
+      {value: 'ne', label: '!= (not equals)'},
+      {value: 'lt', label: '< (less than)'},
+      {value: 'le', label: '<= (less or equal)'},
+      {value: 'gt', label: '> (greater than)'},
+      {value: 'ge', label: '>= (greater or equal)'}
+    ]);
+  }
+  var html = '<div class="fb-op-row">'
+    + '<select class="fb-op-select" onchange="fbSetOp(this.value)">'
+    + fbOptionsHTML(ops, op)
+    + '</select>';
+  if (op !== 'present' && op !== 'absent') {
+    html += '<input type="text" class="fb-val-input" placeholder="value"'
+      + ' value="' + esc(wiz.value || '') + '"'
+      + ' oninput="fbOnValueInput(this)" onblur="fbOnValueBlur()">';
+  }
+  html += '</div>';
+
+  // Error div is always emitted (display toggled) so fbPatchOpValueState()
+  // can update it in place while typing, without a full fbRerender().
+  var err     = fbValidate(wiz);
+  var showErr = wiz.valueTouched && !!err;
+  html += '<div class="fb-error" id="fb-error"'
+    + (showErr ? '' : ' style="display:none"') + '>'
+    + esc(showErr ? err : '') + '</div>';
+
+  var dis = err ? ' disabled' : '';
+  html += '<div class="fb-add-row">';
+  if (_fbDraft.editing) {
+    html += fbEditingBarButtons(dis);
+  } else if (_fbDraft.groups.length === 0) {
+    // Nothing to AND/OR with yet — a single unambiguous action.
+    html += '<button class="fb-add-btn"' + dis + ' onclick="fbAdd(\'or\')">'
+      + '+ Add filter</button>';
+  } else if (_fbDraft.groups.length > 1) {
+    // With more than one existing OR-group, "AND" is ambiguous — the
+    // AND button becomes a two-zone "split button": the button itself
+    // (left-aligned text) plus a compact overlay <select> on its right
+    // edge showing only "F1"/"F2"/... so the target-picker visually
+    // reads as part of the AND button only, not the OR button.
+    var targetIdx = fbAddTargetIndex();
+    html += '<span class="fb-and-split">'
+      + '<button class="fb-add-btn fb-and-split-btn"' + dis
+      + ' onclick="fbAdd(\'and\')">+ Add (AND) to</button>'
+      + '<select class="fb-and-split-target"'
+      + ' onchange="fbSetAddTarget(this.value)">'
+      + _fbDraft.groups.map(function(g, gi) {
+          var sel = (gi === targetIdx) ? ' selected' : '';
+          return '<option value="' + gi + '"' + sel
+            + ' title="' + esc(fbGroupPreview(gi)) + '">'
+            + esc(fbGroupShortLabel(gi)) + '</option>';
+        }).join('') + '</select></span>'
+      + '<button class="fb-add-btn"' + dis + ' onclick="fbAdd(\'or\')">'
+      + '+ Add (OR)</button>';
+  } else {
+    html += '<button class="fb-add-btn"' + dis + ' onclick="fbAdd(\'and\')">'
+      + '+ Add (AND)</button>'
+      + '<button class="fb-add-btn"' + dis + ' onclick="fbAdd(\'or\')">'
+      + '+ Add (OR)</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// Which OR-group index "+ Add (AND)" should append to. Explicit picks
+// (via the "into: ..." dropdown, shown once there's more than one group)
+// are stored in _fbDraft.addTarget; null falls back to the last group,
+// i.e. the common case of building up the most recently added group.
+function fbAddTargetIndex() {
+  var n = _fbDraft.groups.length;
+  if (!n) return -1;
+  var t = _fbDraft.addTarget;
+  if (t === null || t === undefined || t < 0 || t >= n) return n - 1;
+  return t;
+}
+
+function fbSetAddTarget(v) {
+  _fbDraft.addTarget = (v === '' ? null : parseInt(v, 10));
+  fbRerender();
+}
+
+// Compact "F1"/"F2"/... label used for the group corner-badge and the
+// AND split-button's overlay dropdown; full context is exposed via the
+// title="" tooltip (see fbGroupPreview) on both.
+function fbGroupShortLabel(gi) {
+  return 'F' + (gi + 1);
+}
+
+// Full preview for a group, e.g. "Filter 2: name=foo AND ep…" —
+// truncated so long filters don't blow out a tooltip. Used as the
+// title="" attribute on the group badge and split-button options.
+function fbGroupPreview(gi) {
+  var text = _fbDraft.groups[gi].replace(/,/g, ' AND ');
+  if (text.length > 28) text = text.slice(0, 27) + '\u2026';
+  return 'Filter ' + (gi + 1) + ': ' + text;
+}
+
+function fbAdd(mode) {
+  var svBase = serverBase();
+  var model  = _modelCache[normalizeURL(svBase)] || null;
+  var wiz    = _fbDraft.wiz;
+  var ctx    = fbRootContext(model, wiz);
+  var path   = fbAssemblePath(ctx, wiz.segs);
+  if (!path || fbValidate(wiz)) return;
+  var expr = path + fbOpToExprSuffix(wiz);
+
+  if (mode === 'and' && _fbDraft.groups.length > 0) {
+    var target = fbAddTargetIndex();
+    _fbDraft.groups[target] = _fbDraft.groups[target] + ',' + expr;
+  } else {
+    _fbDraft.groups.push(expr);
+    _fbDraft.addTarget = null;
+  }
+  // Fully reset the wizard (including group/resource/level) after each
+  // add, so the breadcrumb clears and the next filter starts fresh from
+  // the top-level picker rather than assuming the same entity scope.
+  _fbDraft.wiz = emptyWizard();
+  fbRerender();
+}
+
+// Given the current traversal kind ('object'/'map'/'array') and the item
+// type it just consumed, returns the next {kind, attrsMap, item} to walk
+// into. Shared by the object/map/array branches of buildWizardHTML() below.
+function fbNextFrontier(nextAttr) {
+  var k = fbAttrKind(nextAttr);
+  if (k === 'object') {
+    return {kind: 'object', attrsMap: nextAttr.attributes, item: null};
+  }
+  if (k === 'map') {
+    return {kind: 'map', attrsMap: null, item: nextAttr.item};
+  }
+  if (k === 'array') {
+    return {kind: 'array', attrsMap: null, item: nextAttr.item};
+  }
+  return {kind: 'leaf', attrsMap: null, item: null};
+}
+
+// Splits a filter expression's operator+value suffix off its path,
+// reversing fbOpToExprSuffix(). Longest operators are tried first so
+// e.g. "<=" isn't mistaken for "<".
+function fbSplitExprOp(expr) {
+  var m = expr.match(/(!=|<>|<=|>=|=|<|>)/);
+  if (!m) return {path: expr, op: 'present', value: ''};
+  var path = expr.slice(0, m.index);
+  var val  = expr.slice(m.index + m[1].length);
+  if (m[1] === '=' && val === 'null') {
+    return {path: path, op: 'absent', value: ''};
+  }
+  if ((m[1] === '!=' || m[1] === '<>') && val === 'null') {
+    // Spec: "!=null"/"<>null" means the same as "present" — best effort.
+    return {path: path, op: 'present', value: ''};
+  }
+  var opMap = {
+    '=': 'eq', '!=': 'ne', '<>': 'ne',
+    '<': 'lt', '<=': 'le', '>': 'gt', '>=': 'ge'
+  };
+  return {path: path, op: opMap[m[1]], value: val};
+}
+
+// Tokenizes a dot/bracket path string into ordered {text, join} segments,
+// mirroring the join conventions used by fbAssemblePath(): 'attr' segments
+// were joined with a leading dot (except the very first); 'arr' segments
+// are bracket literals ("[*]"/"[-1]") with no separator.
+function fbTokenizePath(str) {
+  var toks = [];
+  var re   = /(\[[^\]]*\])|([^.\[]+)/g;
+  var m;
+  while ((m = re.exec(str))) {
+    if (m[1]) toks.push({text: m[1], join: 'arr'});
+    else      toks.push({text: m[2], join: 'attr'});
+  }
+  return toks;
+}
+
+// Reverses fbAssemblePath()/fbOpToExprSuffix() to reconstruct a wizard
+// state from an existing filter expression string, so clicking a chip
+// can load it back in for editing. Returns null if the expression
+// doesn't cleanly match the current model/path anchor (e.g. a
+// hand-typed Advanced-mode expression) — callers should leave those
+// alone rather than show a bogus/incomplete wizard.
+function fbParseExpr(model, expr) {
+  var split  = fbSplitExprOp(expr);
+  var anchor = fbPathAnchor(model);
+  var tokens = fbTokenizePath(split.path);
+  var idx    = 0;
+
+  var wiz = emptyWizard();
+  wiz.gPlural = anchor.gPlural;
+  wiz.rPlural = anchor.rPlural;
+  wiz.level   = anchor.level;
+
+  if (anchor.showGroup && tokens[idx] && model && model.groups
+      && model.groups[tokens[idx].text]) {
+    wiz.gPlural = tokens[idx].text;
+    idx++;
+  }
+  var gm = wiz.gPlural && model && model.groups && model.groups[wiz.gPlural];
+
+  if (wiz.gPlural && anchor.showResource) {
+    if (tokens[idx] && gm && gm.resources && gm.resources[tokens[idx].text]) {
+      wiz.rPlural = tokens[idx].text;
+      idx++;
+    }
+    // No resource-plural token found — this expr targets the group's
+    // own attributes directly (wiz.rPlural stays null/unset).
+  }
+
+  if (wiz.gPlural && wiz.rPlural && anchor.showLevel) {
+    if (tokens[idx] && tokens[idx].text === 'meta') {
+      wiz.level = 'meta';
+      idx++;
+    } else if (tokens[idx] && tokens[idx].text === 'versions') {
+      wiz.level = 'versions';
+      idx++;
+    }
+    // Otherwise this expr targets the resource entity's own (merged)
+    // attributes directly — wiz.level stays null (implicit "resource").
+  }
+
+  var ctx      = fbRootContext(model, wiz);
+  var runKind  = 'object';
+  var runAttrs = ctx.attrsMap;
+  var runItem  = null;
+  var segs     = [];
+
+  for (; idx < tokens.length; idx++) {
+    var tok = tokens[idx];
+    var next;
+    if (runKind === 'object') {
+      if (runAttrs && runAttrs.hasOwnProperty(tok.text)) {
+        segs.push({text: tok.text, kind: 'attr', join: tok.join});
+        next = fbNextFrontier(runAttrs[tok.text]);
+      } else {
+        segs.push({text: tok.text, kind: 'custom', join: tok.join});
+        next = {kind: 'leaf', attrsMap: null, item: null};
+      }
+    } else if (runKind === 'map') {
+      if (tok.text === '*') {
+        segs.push({text: '*', kind: 'attr', join: tok.join});
+        next = fbNextFrontier(runItem);
+      } else {
+        segs.push({text: tok.text, kind: 'custom', join: tok.join});
+        next = {kind: 'leaf', attrsMap: null, item: null};
+      }
+    } else if (runKind === 'array') {
+      segs.push({text: tok.text, kind: 'attr', join: tok.join});
+      next = fbNextFrontier(runItem);
+    } else {
+      return null;  // trailing tokens past a leaf — not one we built
+    }
+    runKind = next.kind; runAttrs = next.attrsMap; runItem = next.item;
+  }
+  if (!segs.length) return null;
+
+  wiz.segs         = segs;
+  wiz.op           = split.op;
+  wiz.value        = split.value;
+  wiz.valueTouched = false;
+  return wiz;
+}
+
+// Walks the model (mirroring fbRootContext's traversal) to render one
+// picker row per already-chosen path segment, plus one more row for the
+// next choice — recursing through object/map/array attribute types until
+// a leaf (scalar/any/custom) is reached, at which point the operator+value
+// row is shown.
+//
+// Rendering strategy (breadcrumb hybrid, see plan.md "Breadcrumb-style
+// wizard rendering"): already-decided levels collapse into small
+// plain-text crumbs (clickable to reopen via fbJumpTo()); exactly one
+// native <select>/row is shown at a time for the next undecided choice.
+// This keeps the picker itself a plain OS-native <select> (good mobile
+// UX, no custom popover) while still giving a compact "path so far"
+// view instead of stacking every already-answered dropdown.
+// Builds one crumb descriptor; rendered later by fbBreadcrumbHTML() once
+// the full list is known, so the LAST crumb (the one right before the
+// active picker) can be styled differently from earlier ones. `navTo`
+// is invoked by clicking the crumb's text (keeps this level's own
+// choice, clears only what comes after it — "step back in to re-decide
+// what's next"); `delTo` is invoked by the crumb's own "x" (deletes
+// this level's choice AND everything after it).
+function fbCrumb(label, navTo, delTo) {
+  return {label: label, navTo: navTo, delTo: delTo};
+}
+
+function fbCrumbSep() {
+  return '<span class="fb-crumb-sep">\u203a</span>';
+}
+
+// Each crumb renders as one pill (like a filter-expression chip): text
+// on the left, a small red "x" on the right. The LAST crumb (closest to
+// the active picker) has non-clickable text, since there's no "next"
+// step to reopen for it — it's already driving the picker that's
+// showing; only its "x" (delete this level + everything after) applies.
+// Earlier crumbs have clickable text ("step back in": keep this level's
+// own choice, clear only its descendants) as well as their own "x"
+// (delete this level's choice and everything after it).
+function fbBreadcrumbHTML(crumbs) {
+  if (!crumbs.length) return '';
+  var parts = crumbs.map(function(c, i) {
+    var isLast = (i === crumbs.length - 1);
+    var text = isLast
+      ? '<span class="fb-crumb-text fb-crumb-text-static">'
+        + esc(c.label) + '</span>'
+      : '<span class="fb-crumb-text" onclick="' + c.navTo + '">'
+        + esc(c.label) + '</span>';
+    var x = '<span class="fb-crumb-x" onclick="' + c.delTo
+      + '" title="Remove">\u00d7</span>';
+    return '<span class="fb-crumb">' + text + x + '</span>';
+  });
+  return '<div class="fb-breadcrumb">' + parts.join(fbCrumbSep())
+    + '</div>';
+}
+
+// Clears the attribute-path segments (and any pending op/value) while
+// keeping the current Group/Resource/Level scope — used when the user
+// clicks the LEVEL crumb's text ("keep this scope, let me re-pick the
+// attribute path under it").
+function fbClearSegsKeepLevel() {
+  _fbDraft.wiz.segs  = [];
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+// Keeps segs[0..idx] (i.e. the segment at `idx` itself), clearing any
+// deeper segments and the pending op/value — used when the user clicks
+// a SEG crumb's text ("keep this attribute step, let me re-pick what's
+// under it").
+function fbTruncateSegsKeepIdx(idx) {
+  _fbDraft.wiz.segs  = _fbDraft.wiz.segs.slice(0, idx + 1);
+  _fbDraft.wiz.op    = '';
+  _fbDraft.wiz.value = '';
+  fbRerender();
+}
+
+// Clicking a crumb's text ("step back in"): keeps that level's own
+// choice, clears only what comes after it. Group/Resource reuse the
+// next level's setter (called with '') since "clear everything after
+// Group" is exactly what fbSetResource('') already does (and likewise
+// for Resource/fbSetLevel('')) — those setters never touch the level
+// above them.
+function fbJumpToStay(which, idx) {
+  if (which === 'group')    { fbSetResource('');          return; }
+  if (which === 'resource') { fbSetLevel('');              return; }
+  if (which === 'level')    { fbClearSegsKeepLevel();      return; }
+  if (which === 'seg')      { fbTruncateSegsKeepIdx(idx);  return; }
+}
+
+// Clicking a crumb's "x" ("delete this level"): clears this level's own
+// choice AND everything after it (since descendants depend on it).
+// `which` is one of 'group'/'resource'/'level'/'seg'; `idx` is only used
+// for 'seg' (the segment index to delete from).
+function fbJumpTo(which, idx) {
+  if (which === 'group')    { fbSetRoot('');     return; }
+  if (which === 'resource') { fbSetResource(''); return; }
+  if (which === 'level')    { fbSetLevel('');    return; }
+  if (which === 'seg') {
+    _fbDraft.wiz.segs  = _fbDraft.wiz.segs.slice(0, idx);
+    _fbDraft.wiz.op    = '';
+    _fbDraft.wiz.value = '';
+    fbRerender();
+  }
+}
+
+// Breadcrumb row helper — used at every point buildWizardHTML() can emit
+// HTML (including its early returns for the root/group/resource attr-
+// picker rows). The persistent editing banner (Update/Cancel) is
+// appended separately, after the attribute/collection picker row, so
+// it stays at the bottom of the Filter Builder widget block rather
+// than sitting oddly between the breadcrumbs and the picker.
+function fbCrumbsWithBanner(crumbs) {
+  return fbBreadcrumbHTML(crumbs);
+}
+
+// Editing banner (Update/Cancel), rendered only when mid-edit. Kept as
+// a separate helper (rather than folded into fbCrumbsWithBanner) so
+// callers can place it after the attribute/collection picker row.
+function fbTrailingEditingBar() {
+  return _fbDraft.editing ? fbEditingBar() : '';
+}
+
+function buildWizardHTML(model) {
+  var wiz    = _fbDraft.wiz;
+  var anchor = fbPathAnchor(model);
+  var crumbs = [];
+
+  // ---- Registry root: attrs of the root, or step into a Group type ----
+  if (anchor.showGroup) {
+    if (!wiz.gPlural && wiz.segs.length === 0) {
+      var rootAttrs  = (model && model.attributes) || {};
+      var rootShadow = fbCollectionShadowNames(
+        Object.keys((model && model.groups) || {}));
+      var rootAttrOpts = fbMergedAttrOptions(rootAttrs, rootShadow);
+      var rootChildOpts = Object.keys((model && model.groups) || {})
+        .sort().map(function(g) { return {value: 'grp:' + g, label: g}; });
+      return fbCrumbsWithBanner(crumbs) + fbMergedSelectRow(
+        rootAttrOpts, rootChildOpts, 'fbSetRootChoice(this.value)', 'Registry')
+        + fbTrailingEditingBar();
+    }
+    if (wiz.gPlural) crumbs.push(fbCrumb(wiz.gPlural,
+      "fbJumpToStay('group')", "fbJumpTo('group')"));
+  }
+
+  var gPlural = anchor.gPlural || wiz.gPlural;
+
+  // ---- Group entity: attrs of the group, or step into a Resource type -
+  if (gPlural && anchor.showResource) {
+    var gm = model && model.groups && model.groups[gPlural];
+    if (!wiz.rPlural && wiz.segs.length === 0) {
+      var groupAttrs  = (gm && gm.attributes) || {};
+      var groupShadow = fbCollectionShadowNames(
+        Object.keys((gm && gm.resources) || {}));
+      var groupAttrOpts = fbMergedAttrOptions(groupAttrs, groupShadow);
+      var groupChildOpts = Object.keys((gm && gm.resources) || {})
+        .sort().map(function(r) { return {value: 'res:' + r, label: r}; });
+      var groupSingular = (gm && gm.singular) || gPlural.replace(/s$/, '');
+      return fbCrumbsWithBanner(crumbs) + fbMergedSelectRow(
+        groupAttrOpts, groupChildOpts, 'fbSetGroupChoice(this.value)',
+        groupSingular) + fbTrailingEditingBar();
+    }
+    if (wiz.rPlural) {
+      crumbs.push(fbCrumb(wiz.rPlural,
+        "fbJumpToStay('resource')", "fbJumpTo('resource')"));
+    }
+  }
+
+  var rPlural = anchor.rPlural || wiz.rPlural;
+
+  // ---- Resource entity: attrs (incl. inlined version attrs), or step
+  // into Meta / Versions ----
+  if (gPlural && rPlural && anchor.showLevel) {
+    var gm2 = model && model.groups && model.groups[gPlural];
+    var rm  = gm2 && gm2.resources && gm2.resources[rPlural];
+    if (!wiz.level && wiz.segs.length === 0) {
+      var resAttrs = rm ? fbMergeResourceAttrs(rm) : {};
+      var resAttrOpts  = fbMergedAttrOptions(resAttrs, null);
+      var resChildOpts = [
+        {value: 'step:meta',     label: 'meta'},
+        {value: 'step:versions', label: 'versions'}
+      ];
+      var resSingular = (rm && rm.singular) || rPlural.replace(/s$/, '');
+      return fbCrumbsWithBanner(crumbs) + fbMergedSelectRow(
+        resAttrOpts, resChildOpts, 'fbSetResourceChoice(this.value)',
+        resSingular) + fbTrailingEditingBar();
+    }
+    if (wiz.level) crumbs.push(fbCrumb(wiz.level,
+      "fbJumpToStay('level')", "fbJumpTo('level')"));
+  }
+
+  var ctx      = fbRootContext(model, wiz);
+  var segs     = wiz.segs;
+  var runKind  = 'object';
+  var runAttrs = ctx.attrsMap;
+  var runItem  = null;
+  var active   = '';
+  // True once we've broken out of the loop at a frontier reached AFTER
+  // picking at least one segment (i > 0) whose type is object/map/array
+  // (not a scalar leaf) — lets the user stop drilling and filter on
+  // presence/absence of that complex attribute itself (e.g.
+  // `schemagroups.schema.deprecated` — "deprecated" is an object, but
+  // "is present"/"is absent" is still a perfectly valid filter on it).
+  var canStopHere = false;
+
+  for (var i = 0; i <= segs.length; i++) {
+    var seg = segs[i];
+    if (runKind === 'object') {
+      if (!runAttrs) break;
+      if (!seg || !seg.text) {
+        active = fbGenericSegRow(i, fbAttrOptions(runAttrs), seg, 'attr');
+        canStopHere = (i > 0);
+        break;
+      }
+      crumbs.push(fbCrumb(seg.text,
+        "fbJumpToStay('seg', " + i + ")", "fbJumpTo('seg', " + i + ")"));
+      var next = fbNextFrontier(runAttrs[seg.text] || null);
+      runKind = next.kind; runAttrs = next.attrsMap; runItem = next.item;
+    } else if (runKind === 'map') {
+      if (!seg || !seg.text) {
+        active = fbGenericSegRow(i, fbMapOptions(), seg, 'attr');
+        canStopHere = (i > 0);
+        break;
+      }
+      crumbs.push(fbCrumb(seg.text,
+        "fbJumpToStay('seg', " + i + ")", "fbJumpTo('seg', " + i + ")"));
+      var next2 = fbNextFrontier(runItem);
+      runKind = next2.kind; runAttrs = next2.attrsMap; runItem = next2.item;
+    } else if (runKind === 'array') {
+      if (!seg || !seg.text) {
+        active = fbGenericSegRow(i, fbArrayOptions(), seg, 'arr');
+        canStopHere = (i > 0);
+        break;
+      }
+      crumbs.push(fbCrumb(seg.text,
+        "fbJumpToStay('seg', " + i + ")", "fbJumpTo('seg', " + i + ")"));
+      var next3 = fbNextFrontier(runItem);
+      runKind = next3.kind; runAttrs = next3.attrsMap; runItem = next3.item;
+    } else {
+      break;
+    }
+  }
+
+  var html = fbBreadcrumbHTML(crumbs) + active;
+
+  var lastSeg = segs[segs.length - 1];
+  if (runKind === 'leaf' && segs.length > 0 && lastSeg && lastSeg.text) {
+    html += fbOpValueRow(false);
+  } else if (canStopHere) {
+    html += fbOpValueRow(true);
+  } else if (_fbDraft.editing) {
+    // Mid-edit but navigated away from a complete leaf/op/value state
+    // (e.g. deleted a breadcrumb to redefine the attribute path) —
+    // fbOpValueRow() won't render at all here, so keep Update/Cancel
+    // visible via the same persistent banner used in the early-return
+    // cases above; Update stays disabled until a valid leaf is chosen.
+    html += fbEditingBar();
+  }
+
+  return html;
+}
+
 function applyJSONOptions() {
-  var fa  = el('lp-filters'), doc = el('lp-doc'),
-      bin = el('lp-bin'),    col = el('lp-col');
+  var doc = el('lp-doc'), bin = el('lp-bin'), col = el('lp-col');
   var cbs = qsa('.lp-inline-cb');
   var inlines = [];
   cbs.forEach(function(cb) { if (cb.checked) inlines.push(cb.value); });
   pushState({
-    filters:     fa  ? fa.value.split('\n').filter(Boolean) : [],
+    filters:     fbCollectFilters(),
     docView:     doc ? doc.checked : false,
     binary:      bin ? bin.checked : false,
     collections: col ? col.checked : false,
@@ -3031,6 +4373,9 @@ function buildInlineOptions(model, path) {
     opts.push({value: 'capabilities', label: 'capabilities'});
     opts.push({value: 'model',        label: 'model'});
     opts.push({value: 'modelsource',  label: 'modelsource'});
+    // Separator between the config-level (server) options above and the
+    // user/data-level options below, matching the old UI's layout.
+    opts.push({sep: true});
   }
 
   // * (all) — always available, in normal list flow
@@ -3086,6 +4431,29 @@ function buildInlineOptions(model, path) {
   return opts;
 }
 
+// Extracts the `filter=` OR-groups from a raw URL string's query
+// string, in the app's own internal representation (array of one
+// string per OR-group). The server emits one repeated `filter=` query
+// param per OR-group (see FiltersRelativeToAbstract in info.go) — a
+// DIFFERENT wire convention than the app's own permalink format (single
+// `filter=` param, OR-groups newline-joined — see buildURL/
+// loadStateFromURL). Used when linkifying a same-server JSON URL value
+// (e.g. a nested collection's `xxxurl`): the server has already
+// computed the correctly-subsetted filter expression for that specific
+// URL, so it must be reused verbatim rather than re-derived from the
+// UI's own currently-active filter state (which reflects the CURRENT
+// level, not the target one). Returns [] if the URL has no filter
+// param at all — i.e. the target URL is unfiltered.
+function filtersFromUrl(rawUrl) {
+  var qIdx = rawUrl.indexOf('?');
+  if (qIdx < 0) return [];
+  var groups = [];
+  new URLSearchParams(rawUrl.slice(qIdx + 1)).forEach(function(v, k) {
+    if (k === 'filter') groups.push(v);
+  });
+  return groups;
+}
+
 function navigateJsonUrl(encodedUrl) {
   // encodedUrl is HTML-attribute-encoded; decode it back to a real URL
   var raw = encodedUrl.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
@@ -3095,7 +4463,10 @@ function navigateJsonUrl(encodedUrl) {
   if (urlPath.indexOf(svBase) === 0) {
     var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
     var segments = rel ? rel.split('/') : [];
-    pushState({view: 'table', section: 'data', path: segments, editMode: false});
+    pushState({
+      view: 'table', section: 'data', path: segments, editMode: false,
+      filters: filtersFromUrl(raw)
+    });
   } else {
     window.open(raw, '_blank', 'noopener');
   }
@@ -3119,11 +4490,17 @@ function syntaxHighlight(str) {
             var urlPath = inner.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
             var href, target = '', onclick;
             if (urlPath.indexOf(svBase) === 0) {
-              // Same-server: build SPA href for right-click "open in new tab" support
+              // Same-server: build SPA href for right-click "open in new
+              // tab" support. Use the filter (if any) actually embedded
+              // in THIS url value — not the UI's current filter state —
+              // so the hover-preview href and the actual navigation
+              // target both match what the server returned, instead of
+              // re-blending in a stale/unrelated filter.
               var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
               var segments = rel ? rel.split('/') : [];
               var fakeSt   = Object.assign({}, _state, {
-                view: 'table', section: 'data', path: segments, editMode: false
+                view: 'table', section: 'data', path: segments, editMode: false,
+                filters: filtersFromUrl(inner)
               });
               href    = buildURL(fakeSt);
               onclick = 'return navigateJsonUrl(\'' + inner.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
