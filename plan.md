@@ -1006,6 +1006,296 @@ Verified via CDP: added a test server + toggled an option, then
 confirmed "Clear All Except Registry Locations" kept the server but
 reset the option, and "Clear All" wiped both localStorage keys entirely.
 
+## Link-driven navigation (stop constructing URLs) — done
+
+Per xRegistry's core design principle — clients should never need to
+construct or parse URLs for simple hierarchy traversal — replaced the
+UI's client-side URL construction (`buildAPIURL()` assembling
+`serverBase() + path.join('/')` from `_state.path`) with a link-driven
+model that follows real server-provided hypermedia fields (`self`,
+`<plural>url`, `versionsurl`, `metaurl`, `defaultversionurl`) at every
+navigation step.
+
+Key changes (`registry/ui/app.js`):
+- `_state.apiURL` — the real resolved URL for the current data page;
+  persisted in the address bar (`apiurl=` query param) alongside the
+  existing `path=` (kept only for breadcrumb labels/model lookups, never
+  used to construct fetch URLs anymore). `refresh()`/`buildAPIURL()` use
+  `_state.apiURL` directly when present, falling back to plain
+  construction (`buildBaseURL()`) only when unknown (old bookmarks, or
+  the 4 intentionally-unlinked sections below).
+- `_state.crumbURLs` — session-only cache of the real URL used at each
+  visited path depth, populated by every forward link-follow. Breadcrumb
+  clicks to a previously-visited ancestor reuse the cached URL for free;
+  `pushStateReal()`'s default-apiURL-from-crumbURLs logic makes this
+  "just work" for any path-shortening `pushState` call (breadcrumbs, the
+  meta-page-redirect, etc.) without each call site needing special code.
+- Navigation functions (`navigateTo`, `navigateToNestedColl`,
+  `navigateToVersion(ById)`, `navigateToParentResource`) now take/derive
+  a real URL instead of reconstructing one from `path` + a new segment.
+  `versionURLById()` prefers, in order: exact `defaultversionurl` match,
+  `versionsurl + '/' + id`, cached crumbURLs, and only then falls back to
+  construction.
+- `itemNavKey()` now prefers `item.__mapKey` (the collection's own map
+  key — literally the entity's `<singular>id`, since collections are
+  keyed by it per spec) over splitting `xid`, eliminating unnecessary
+  string parsing.
+- All click-target call sites (tile/list views, collections table,
+  home-page flat listings) updated to pass the real link URL already
+  present in the fetched JSON rather than reconstructing one.
+
+Intentional exceptions (still use fixed-suffix construction off the
+server base, unchanged): `/model`, `/modelsource`, `/capabilities`,
+`/capabilitiesoffered`, `/export` — these are deliberately not linked
+from the registry root (avoids cluttering the main data doc; treated
+like a well-known-suffix convention). Confirmed with user.
+
+Cold-deep-link edge case (confirmed with user): on a fresh page load
+(bookmark/refresh), there's no prior session history, so `crumbURLs` is
+empty. Clicking an ancestor breadcrumb that was never visited this
+session falls back to trimming the *current* resolved URL (equivalent
+to `buildBaseURL()` for the truncated path) — still a form of
+construction, accepted as a rare-case trade-off. Known limitation: any
+filter context applied higher up the original (pre-reload) traversal
+chain is lost for a trimmed ancestor URL in this specific case.
+
+Two spec characteristics worth noting (neither is actually a problem for
+the UI — confirmed both are universal properties of the hierarchy, not
+version/resource-specific gaps, and our design already handles them
+generically):
+- No entity anywhere links back to its parent (not just versions →
+  resource). Handled uniformly at every depth by `crumbURLs` (reuse the
+  real URL if this ancestor was visited this session) plus the accepted
+  trim fallback when it wasn't — the same single mechanism regardless of
+  which level you're going "up" from.
+- No collection (versions, resource types, group types, ...) is inlined
+  by default (`?inline=` is an opt-in optimization only). Not an issue
+  because the UI never assumed an inlined map anywhere — `findCollectionRefs()`
+  only reads `<plural>url`/`<plural>count` to show a tile, and items are
+  always fetched lazily via a real GET on click, for every collection
+  relationship uniformly. Jumping to one *specific* known sibling version
+  by id still needs no full-path construction: just `versionsurl + '/' +
+  id`, appending a guaranteed id onto a real collection link.
+
+Verified via a CDP-driven headless-Chromium script against a live
+sample registry (`reg-Endpoints`, nested endpoint/message/version
+hierarchy): clicked through registry root → group type → group
+instance → resource type → resource instance → versions → specific
+version, confirming every fetched URL exactly matched a real link field
+from the previous response (`endpointsurl`, entity `self`,
+`messagesurl`, `versionsurl`, version `self`). Confirmed the address
+bar persists `apiurl=`, a fresh reload of a deep bookmarked URL performs
+a single GET using that persisted value (no path re-walking), and a
+breadcrumb click on a cold-loaded (uncached) ancestor still resolves
+correctly via the accepted trim fallback. Also confirmed the "→ Visit"
+parent-resource button correctly reuses the session's cached resource
+URL.
+
+## Follow-ups after link-driven navigation landed — done
+
+Three small bugs/gaps found while exercising the new link-driven
+navigation, all fixed and CDP-verified against `reg-Endpoints`:
+
+- **Stale `server=` on the home page.** Going registry → home (via the
+  "xR" breadcrumb logo, or the header dropdown's Home option) left a
+  leftover `server=` query param in the address bar, even though the
+  home view isn't tied to any one registry. Root cause:
+  `pushState({view:'home', ...})` call sites never cleared
+  `_state.serverURL`, and `buildURL()` unconditionally emitted `server=`
+  whenever it was truthy. Fixed by clearing `serverURL: ''` at both
+  call sites (`index.html`'s `#logo-link` onclick, `onRegistryChange()`'s
+  `__home__` branch) plus a defensive guard in `buildURL()` that never
+  emits `server=` while `st.view === 'home'`.
+- **Breadcrumb hover showed the wrong/identical URL.** Every breadcrumb
+  `<a>` had a hardcoded `href="#"`, with real navigation done entirely
+  via `onclick="...;return false"`. Since `#` resolves relative to the
+  *current* page, hovering any ancestor breadcrumb showed "current deep
+  page URL + #" for every segment — identical and wrong. Fixed by adding
+  `pageHref(path, apiURL, extra)` (a small wrapper around `buildURL()`)
+  and giving each breadcrumb segment its own real, accurate `href`
+  (`buildBreadcrumbSegments()`/`renderSegment()`). Bonus: this also made
+  ctrl/middle-click "open ancestor in new tab" work correctly for free.
+- **Make all navigation click-targets real `<a href>` elements**, so
+  users can natively ctrl/middle-click or right-click "open in new tab"
+  anywhere they can already click to navigate — while keeping the
+  existing fast SPA `pushState()` on a plain click. Explicitly OUT of
+  scope (per user): non-navigation displayed values like the "self"
+  field. Converted, all using `pageHref()`/`buildURL()` to compute a
+  real href alongside the existing `onclick`:
+  - Grid-view tiles: the tile itself stays a plain `<div class="tile">`
+    (so nested pills, which need their own destination, can't be inside
+    an outer `<a>`); a full-cover invisible first-child
+    `<a class="tile-linkarea" style="position:absolute;inset:0">` catches
+    whole-tile clicks (the "stretched-link" pattern, same technique
+    Bootstrap uses). Nested resource-pills got `position:relative;
+    z-index:2` so they sit above the overlay and keep navigating to
+    their own target.
+  - Table-view rows: `<tr>` can't legally be an `<a>`, so the row keeps
+    its existing `onclick` (whole-row click convenience, no new-tab
+    support there), while the id-cell's text and any nested pills are
+    now real `<a>` tags (with `event.stopPropagation()` to avoid double
+    navigation firing from both the cell's link and the row's onclick).
+  - Collection tiles (`collectionTile()`/`groupTileHTML()`), the
+    "Registry Endpoints" section tiles, `renderSingleEntity()`'s
+    collections table, the home page's flat grid/list tiles/rows, and
+    the home page's server cards (grid view) — all converted the same
+    way: real `<a>`, computed href, existing `onclick` kept (with
+    `return false`) for the fast-path SPA navigation.
+  - The "→ Visit" buttons (default version id, version id, ancestor
+    version id ×2, parent-resource) were `<button onclick=...>`;
+    converted to `<a href=... onclick=...;return false>` — the
+    `.eg-link-btn` CSS class already had no button-specific styling
+    reliance, so the tag swap is visually a no-op.
+  - Accepted trade-off (confirmed reasonable, not fixed): native
+    middle-click/ctrl-click bypasses any JS-side "is this actually
+    clickable" gate, since the browser never runs the onclick handler
+    for those gestures. Concretely, the home page's error-state server
+    cards (a `!` badge means "couldn't connect") can now still be
+    opened in a new tab via middle-click even though a normal left-click
+    is blocked by `serverCardClick()`'s early-return. This matches how
+    real links normally behave and was judged an acceptable trade-off
+    for correct new-tab support everywhere else.
+
+## Query-parameter reference (why `view`/`dview`/`apiurl` etc. look the
+## way they do)
+
+Came up when reviewing hover URLs/address-bar contents; recorded here
+since it's non-obvious from the param names alone. See `buildURL()`
+(~line 254) for the authoritative logic.
+
+- **`view`** is the *page-level mode*, not a data display choice: only
+  `table` (in-registry browsing — the vast majority of pages) or
+  `config` ever appear in the URL; `home` is the default and is never
+  written to the URL. This name is a historical leftover from before
+  the grid/list/JSON toggle was split out into its own `dview` param —
+  today it really means "which top-level page are we on", not "which
+  view of the data".
+- **`dview`** ("data view") is the actual per-page display toggle —
+  `grid` / `table` (List) / `json` (or the model editor's `list`/`json`
+  for `section=model|modelsource`). It's omitted whenever it equals the
+  computed default for that section/depth (`defaultDataView()`), so
+  most URLs don't show it at all — you mostly see it when a user has
+  picked a *non-default* view for that depth/section, or when a
+  persisted per-depth/per-section preference differs from the
+  hardcoded default.
+- **`apiurl`** is the actual server-provided URL (`self` /
+  `<plural>url` / `versionsurl` / etc.) used to fetch the current
+  page's data — *not* reconstructed from `server=` + `path=` at fetch
+  time (see `buildAPIURL()`, ~line 451: `_state.apiURL || buildBaseURL()`,
+  i.e. the real link is used when we have it, falling back to
+  path-based construction only when we don't). It's only ever emitted
+  when `section=data` (the four fixed-suffix sections — model,
+  modelsource, capabilities, capabilitiesoffered — always use a
+  hardcoded, trivial URL, so there's nothing worth persisting) and only
+  when `path` is non-empty (the registry root's URL is always trivially
+  `server` itself, so it'd be pure redundancy there).
+
+  **Concrete, already-verified case where it diverges from `server=`+
+  `path=` reconstruction today** (not just a future hypothetical):
+  encoding of IDs containing `:` or `@` — both are legal xRegistry id
+  characters per the spec's id regex (`shared_model.go`'s `RegexpID`:
+  `[a-zA-Z0-9_.\-~:@]`, both unreserved in a URL path segment per RFC
+  3986, so the Go server never percent-encodes them when building
+  `self`/`Location`/etc. — confirmed by creating a real version with id
+  `test:colon`: the server returned
+  `.../versions/test:colon`, raw colon, unescaped). Our client-side
+  path-reconstruction (`buildBaseURL()`, via `encodeURIComponent` per
+  segment) would instead produce `.../versions/test%3Acolon` for that
+  same id — a different literal string for the "same" URL. Using the
+  real `apiurl` avoids ever needing to reconcile that mismatch. More
+  generally (not yet concretely exercised, but the reason the design
+  doesn't special-case around the above): the server is never obligated
+  to return simple path-concatenated URLs at all — e.g. once a query is
+  scoped by an inherited filter (see below), a collection's real
+  `<plural>url` could legitimately point somewhere `server`+`path`
+  alone could never reconstruct. Persisting the real link (rather than
+  only `server`+`path`) is what lets a bookmarked/reloaded deep link
+  skip re-deriving it and skip re-walking the hierarchy.
+- **`filter`** (only ever added while in JSON view — see the
+  `inJsonView` guard in `buildURL()`) is a *separate*, independent query
+  param today — it is never appended onto the end of `path=` or
+  `apiurl=` in the address bar. Server-side, at actual fetch time,
+  `buildAPIURL()` appends `_state.filters`/`_state.inlines`/etc. as
+  fresh query params onto whichever URL it's using (`apiURL` or the
+  path-based fallback) — but that's assembled at fetch time, not stored
+  back into the persisted `apiurl=` value shown in the browser bar.
+  Once filtering is extended to grid/list views generally (tracked as
+  a pending backlog item — see `grid-list-filters` follow-up), the plan
+  discussed earlier in this doc is for the *server's own* returned
+  collection links to already carry the inherited filter baked directly
+  into the URL string; at that point such a filter would show up
+  naturally as part of `apiurl=`'s value itself (not as today's
+  separate top-level `filter=` param), and `path=`/`apiurl=` would
+  finally diverge more often since `path=` only ever describes segment
+  names, never query state.
+
+## Follow-up: ctrl-click "open in new tab" bug + stale logo-link href — done
+
+Two regressions reported after the link-driven-navigation/real-anchor work
+landed:
+
+1. **Logo-link (`#logo-link`, the "xR" icon) had a stale/wrong href.**
+   Unlike the breadcrumb root segment (fixed previously), this separate
+   element still had a hardcoded `href="#"`, which resolves relative to
+   the *current* page — so hovering it while on, say, the Model page
+   showed a URL with `&section=model` still attached, and opening it in a
+   new tab landed back on the current page instead of Home. Fix:
+   `renderHeader()` now sets `#logo-link`'s `href` on every render via
+   `buildURL({view:'home', path:[], serverURL:''})`, so it always reflects
+   the true (query-param-free) home URL.
+
+2. **Ctrl/cmd/shift-click never opened a new tab, anywhere.** Every
+   converted nav `<a>`'s `onclick` unconditionally ended in `return
+   false` (to suppress default navigation in favor of SPA `pushState`).
+   Browsers honor that suppression even when a modifier key is held, so
+   despite `href` being correct, the browser's native "open in new tab"
+   behavior was silently blocked everywhere. (A true middle-click doesn't
+   normally fire `onclick` in most browsers, so it was largely
+   unaffected; the break was specifically ctrl/cmd/shift + left-click.)
+
+   Fix: added two small shared helpers in `app.js`:
+   - `navShouldDefault(e)` — `true` if `e.ctrlKey || e.metaKey ||
+     e.shiftKey || e.button === 1`.
+   - `guardedOnclick(expr)` — wraps a raw onclick expression as
+     `if(navShouldDefault(event))return true; <expr>; return false`.
+
+   Applied across every real nav anchor: breadcrumb segments, the
+   Registry Endpoints tiles (Grid) and table (List), grid-view tile
+   pills/link-area, table-view row id-cells and pills, List-view
+   collection-table id-cells, `collectionTile()`, the home page's
+   flat grid/list tiles/rows, `renderHomeTable()`'s name link,
+   `serverCard()` (`serverCardClick` now takes the event first and
+   checks `navShouldDefault` *before* the connection-error gate, so a
+   modifier-click still opens a broken registry's URL in a new tab —
+   intentional, matches how real `<a>` elements behave), and all 5
+   "→ Visit" buttons. Left out of scope: the header's compact-mode "..."
+   popup menu items (`href="#"`, secondary/corner-case UI, not part of
+   the reported regression).
+
+   While auditing, two previously-missed conversions (same root category
+   — a clickable spot with no real `href` at all, predating this turn's
+   regression) were also found and fixed: `renderSingleEntity()`'s
+   List-view "Registry Endpoints" table (the Grid-view equivalent had
+   been converted already, this one was missed) and `renderHomeTable()`'s
+   name cell (a plain `<span onclick>`; the sibling `renderHomeFlatList()`
+   table had been converted already, this one was missed). Converting
+   the latter to a real `<a>` surfaced a small CSS bug: `.ht-name-link`'s
+   rule assumed it always wrapped a nested `<a>` (`.ht-name-link a {
+   color: inherit; text-decoration: none; }`), so when the anchor itself
+   carried the `.ht-name-link` class directly it fell back to default
+   browser blue/underline styling. Fixed by adding `text-decoration:
+   none` directly to the `.ht-name-link` base rule so it applies whether
+   `.ht-name-link` is the anchor itself or a wrapper around one.
+
+   Verified via CDP (headless Chromium): for the logo-link, a breadcrumb
+   segment, a Grid tile, a List row's id-cell, and a "→ Visit" button —
+   simulated ctrl-clicks left `_state` unchanged and did not prevent the
+   event's default action (so the browser is free to follow `href` into
+   a new tab), while plain clicks on the same elements still correctly
+   triggered the fast SPA `pushState()` navigation. Confirmed the
+   `renderHomeTable()` styling fix visually (link renders in the same
+   blue, non-underlined style as before, underlining only on hover).
+
 ## Known non-gaps (design decisions made, not oversights)
 
 

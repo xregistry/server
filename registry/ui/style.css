@@ -358,6 +358,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 
 .tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: white;
@@ -373,7 +374,13 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 .tile:hover { background-color: #f0f4ff; border-color: #99b; box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .tile:active { transform: scale(0.98); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.tile-top { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+/* Invisible full-tile <a> so ctrl/middle-click and "open in new tab" work
+   natively on the whole tile, while nested clickable pills (which need to
+   navigate somewhere else) sit above it via position+z-index — the classic
+   "stretched link" pattern. Any nested elements with their own onclick must
+   set position:relative + a higher z-index (see .coll-tile-res-pill-clickable). */
+.tile-linkarea { position: absolute; inset: 0; z-index: 1; }
+.tile-top { position: relative; display: flex; align-items: flex-start; gap: 10px; width: 100%; }
 .tile-icon { color: #5580cc; flex-shrink: 0; margin-top: 2px; }
 .tile-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tile-id { font-weight: bold; font-size: 13px; color: #2060a0; margin-bottom: 2px; word-break: break-all; }
@@ -384,6 +391,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
    aligned, small and muted so they don't compete visually with the tile's
    id/name/description or the resource-pill footer above them. */
 .tile-times {
+  position: relative;
   margin-top: 6px;
   padding-top: 6px;
   border-top: 1px solid #eee;
@@ -391,6 +399,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   color: #999;
   text-align: right;
 }
+
 
 /* ---- Table view ---- */
 
@@ -433,6 +442,8 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .xr-table tr:last-child td { border-bottom: none; }
 .xr-table tr:hover td { background: #f7f9fc; cursor: pointer; }
 .xr-table .cell-id { color: #2060a0; font-weight: bold; white-space: nowrap; }
+.xr-table .cell-id a { color: inherit; text-decoration: none; }
+.xr-table .cell-id a:hover { text-decoration: underline; }
 /* List view's Property table: complex (object/array) values render a nested
    renderValueTree() (.vt-obj/.vt-arr), so undo the default td's
    nowrap/ellipsis/max-width truncation — that's only appropriate for plain
@@ -443,7 +454,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 /* Table view's Versions column (resource collections) — just the version
    count as clickable text (no pill), navigating into that resource's
    versions collection. */
-.cell-version-count { color: #2060a0; cursor: pointer; }
+.cell-version-count { color: #2060a0; cursor: pointer; text-decoration: none; }
 .cell-version-count:hover { text-decoration: underline; }
 /* Generic centered-column helper (e.g. Table view's single-count "Versions"
    column, centered under its header rather than left-aligned like most
@@ -846,6 +857,8 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0,0,0,0.08);
   transition: background-color 0.1s, box-shadow 0.1s, border-color 0.1s;
+  color: inherit;
+  text-decoration: none;
 }
 .server-card:hover { background-color: #f0f4ff; box-shadow: 0 4px 10px rgba(0,0,0,0.12); border-color: #99b; }
 .server-card:active { transform: scale(0.98); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -1157,8 +1170,9 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .home-table tbody tr:last-child td { border-bottom: none; }
 .home-table tbody tr:hover { background: #f8f8f8; }
 .ht-name { font-weight: bold; white-space: nowrap; position: relative; }
-.ht-name-link { cursor: pointer; color: #2255cc; }
-.ht-name-link:hover { text-decoration: underline; }
+.ht-name-link { cursor: pointer; color: #2255cc; text-decoration: none; }
+.ht-name-link a { color: inherit; text-decoration: none; }
+.ht-name-link:hover, .ht-name-link a:hover { text-decoration: underline; }
 .ht-desc { font-size: 11px; color: #888; font-weight: normal; white-space: normal; margin-top: 2px; }
 .ht-url  { font-size: 13px; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
 .ht-groups  { vertical-align: middle; }
@@ -1197,6 +1211,8 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   cursor: pointer;
   width: 200px;
   box-sizing: border-box;
+  color: inherit;
+  text-decoration: none;
   box-shadow: 0 2px 5px rgba(0,0,0,0.08);
   transition: background-color 0.1s, box-shadow 0.1s, border-color 0.1s;
 }
@@ -1213,13 +1229,13 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .coll-tile-count { font-size: 11px; color: #888; }
 .coll-tile-res-hdr { font-size: 10px; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
 .coll-tile-res { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
-.coll-tile-res-pill { font-size: 10px; color: #444; background: #f0f0f0; border-radius: 4px; padding: 1px 5px; }
+.coll-tile-res-pill { font-size: 10px; color: #444; background: #f0f0f0; border-radius: 4px; padding: 1px 5px; text-decoration: none; display: inline-block; }
 /* Nested-collection pills that navigate straight into that collection (e.g.
    "files (2)" on a group tile/row) — cursor + hover to signal clickability.
    Kept as a separate class from the base .coll-tile-res-pill since that
    class is also used for the non-clickable Resource Types list on the
    Registry root's Group Type tiles (model schema names, not navigable). */
-.coll-tile-res-pill-clickable { cursor: pointer; }
+.coll-tile-res-pill-clickable { position: relative; z-index: 2; cursor: pointer; }
 .coll-tile-res-pill-clickable:hover { background: #dce4f5; color: #2060a0; }
 .coll-tile-res-none { font-size: 11px; color: #888; font-style: italic; }
 .coll-tile-divider { border: none; border-top: 1px solid #ddd; margin: 8px 0 4px; }
@@ -1239,6 +1255,8 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   box-sizing: border-box;
   box-shadow: 0 2px 5px rgba(0,0,0,0.07);
   transition: background-color 0.1s, box-shadow 0.1s, border-color 0.1s;
+  color: inherit;
+  text-decoration: none;
 }
 .eg-coll-tile:hover { background-color: #f0f4ff; box-shadow: 0 4px 10px rgba(0,0,0,0.12); border-color: #99b; }
 .eg-coll-tile:active { transform: scale(0.98); }

@@ -43,6 +43,16 @@ var _state = {
   binary:      false,
   collections: false,
   useExport:   false,   // use /export endpoint instead of registry root (depth 0 only)
+
+  // Link-driven navigation (data section only) — see "Link-driven navigation"
+  // notes near buildAPIURL()/pushStateReal(). apiURL is the real, server-provided
+  // absolute URL (self / <plural>url / versionsurl / metaurl / etc.) used to fetch
+  // the CURRENT page's data — never constructed from `path` when a real link was
+  // available. crumbURLs caches the real URL used at each visited depth this
+  // session (parallel array to `path`), so breadcrumb clicks back to an
+  // already-visited ancestor reuse it instead of reconstructing.
+  apiURL:      '',
+  crumbURLs:   [],
 };
 
 // ---- Server/registry management (localStorage) ---------------------------
@@ -231,15 +241,31 @@ function loadStateFromURL() {
   _state.binary      = p.get('binary')      === '1';
   _state.collections = p.get('collections') === '1';
   _state.useExport   = p.get('export')      === '1';
+  // apiurl= is the real, server-provided absolute URL that produced the current
+  // page (see "Link-driven navigation" notes) — reused verbatim on refresh/
+  // bookmark instead of reconstructing. crumbURLs (per-depth cache of real
+  // ancestor URLs) can't survive a reload — nothing in a fetched response hands
+  // us its own ancestors' URLs — so it always starts empty; breadcrumb clicks to
+  // an un-cached ancestor fall back to plain construction (accepted trade-off).
+  _state.apiURL      = p.get('apiurl') || '';
+  _state.crumbURLs   = [];
 }
 
 function buildURL(st) {
   var p = new URLSearchParams();
   if (st.view && st.view !== 'home')       p.set('view',    st.view);
-  if (st.serverURL)                        p.set('server',  st.serverURL);
+  // 'server' is meaningless on the home page (it lists all registries, not
+  // one) — guard against a stale leftover _state.serverURL leaking into the
+  // address bar even if some call site forgets to clear it explicitly.
+  if (st.serverURL && st.view !== 'home')  p.set('server',  st.serverURL);
   if (st.section && st.section !== 'data') p.set('section', st.section);
   if (st.editMode)                         p.set('edit', '1');
   if (st.path   && st.path.length)         p.set('path',    encodePath(st.path));
+  // Real server-provided URL for the current page (data section, non-root only —
+  // the registry root's own URL is always trivially serverBase() itself).
+  if (st.section === 'data' && st.apiURL && st.path && st.path.length) {
+    p.set('apiurl', st.apiURL);
+  }
   var defaultView = defaultDataView(st.section, (st.path || []).length);
   if (st.dataView && st.dataView !== defaultView) p.set('dview', st.dataView);
 
@@ -318,11 +344,32 @@ function pushStateReal(patch) {
         && _state.dataView === 'json' && patch.dataView === undefined) {
       savedView = 'json';
     }
+
+    // Link-driven navigation bookkeeping: crumbURLs caches the real URL used at
+    // each visited depth this session. Server/section changes (or freshly
+    // entering data) invalidate the whole cache; a plain path change just trims
+    // any now-stale deeper entries (shallower ancestors already visited stay
+    // valid). If the caller didn't hand us a real link (patch.apiURL), default
+    // to whatever this depth's cached ancestor URL is (covers e.g. redirecting
+    // up to an already-visited entity) — falling back to '' (→ buildBaseURL()
+    // construction) only when truly nothing is known for this depth.
+    if (changingServer || changingSection || enteringData) {
+      _state.crumbURLs = [];
+    } else if (changingPath) {
+      _state.crumbURLs = (_state.crumbURLs || []).slice(0, newDepth);
+    }
+    var defaultApiURL = (newSection === 'data' && _state.crumbURLs && newDepth > 0)
+      ? (_state.crumbURLs[newDepth - 1] || '') : '';
+
     // Prepend defaults so explicit values in patch still win
     patch = Object.assign({
       inlines: [], filters: [], sort: '', docView: false, binary: false, collections: false,
-      useExport: false, section: 'data', dataView: savedView
+      useExport: false, section: 'data', dataView: savedView, apiURL: defaultApiURL
     }, patch);
+
+    if (patch.apiURL && newSection === 'data' && newDepth > 0) {
+      _state.crumbURLs[newDepth - 1] = patch.apiURL;
+    }
   }
   Object.assign(_state, patch);
   history.pushState(null, '', buildURL(_state));
@@ -372,10 +419,33 @@ function needsDetails(path) {
   return false;
 }
 
-// ---- API URL builder -----------------------------------------------------
+// ---- API URL builder -------------------------------------------------------
+//
+// Link-driven navigation: the base URL for the current data-section page is
+// the real, server-provided URL that was followed to get here (_state.apiURL,
+// set by navigateTo()/navigateToNestedColl()/version navigators/breadcrumb
+// clicks — see pushStateReal()), NOT reconstructed from `path` + serverBase().
+// buildBaseURL() is only the fallback used when no real link is known yet for
+// this depth (first-ever load of a server/registry with no prior navigation,
+// or a legacy bookmark without an apiurl= param). Client-added query params
+// (inline/filter/sort/etc., JSON view only) are always fine to append — that's
+// the client expressing its own intent, not re-deriving something the server
+// already computed.
+//
+// /model, /modelsource, /capabilities, /capabilitiesoffered, /export are
+// intentionally NOT linked from the registry root doc (avoids cluttering the
+// main data response for typical consumers; the fixed suffix is a well-known
+// convention, akin to `.well-known`) — those stay constructed on purpose.
 
 function serverBase() {
   return (_state.serverURL || window.location.origin).replace(/\/$/, '');
+}
+
+// Fallback-only construction: serverBase() + path segments, no query. Used
+// when no real link (_state.apiURL) is known for the current depth.
+function buildBaseURL() {
+  var path = _state.path;
+  return serverBase() + (path.length ? '/' + path.join('/') : '');
 }
 
 function buildAPIURL() {
@@ -386,8 +456,7 @@ function buildAPIURL() {
   if (_state.section === 'capabilitiesoffered')  return base + '/capabilitiesoffered';
   if (_state.useExport)                          return base + '/export';
 
-  var path = _state.path;
-  var url = base + (path.length ? '/' + path.join('/') : '');
+  var url = _state.apiURL || buildBaseURL();
 
   var q = [];
   _state.inlines.forEach(function(i) { q.push('inline=' + encodeURIComponent(i)); });
@@ -406,6 +475,13 @@ function renderHeader() {
   var isHome   = (_state.view === 'home');
   var isConfig = (_state.view === 'config');
   var isData   = !isHome && !isConfig;
+
+  // The "xR" logo always targets the home page (no server/section/path), so
+  // its href never depends on the current page beyond the pathname itself.
+  // Set it here (rather than as static HTML) so it stays a real, accurate
+  // link — same "always show the true destination" rule as breadcrumbs/tiles.
+  var logo = el('logo-link');
+  if (logo) logo.setAttribute('href', buildURL({view: 'home', path: [], serverURL: ''}));
 
   el('reg-select').style.display     = 'none';
   el('breadcrumbs').style.display    = '';
@@ -622,7 +698,7 @@ function serverLabel(url) {
 
 function onRegistryChange(uid) {
   if (uid === '__home__' || uid === '__add__') {
-    pushState({view: 'home'});
+    pushState({view: 'home', serverURL: ''});
     return;
   }
   var sv = (uid === window.location.origin) ? '' : uid;
@@ -646,21 +722,22 @@ function toggleEdit() {
 var _bcSep  = '<span class="bc-space"></span><span class="bc-sep">/</span><span class="bc-space"></span>';
 var _bcSegs = []; // current segments, shared with popup openers
 
-// Returns [{label, onclick|null, isCurrent}] for the current state
+// Returns [{label, onclick|null, href|null, isCurrent}] for the current state
 function buildBreadcrumbSegments() {
   if (_state.view === 'home')   return null; // handled specially in renderBreadcrumbs
   if (_state.view === 'config') return [{label:'Config',     onclick:null, isCurrent:true}];
 
   var segs = [];
   var regLabel = serverLabel(_state.serverURL || window.location.origin);
-  var regClick = 'pushState({path:[],section:\'data\',useExport:false,editMode:false});return false';
+  var regClick = guardedOnclick('pushState({path:[],section:\'data\',useExport:false,editMode:false})');
+  var regHref  = pageHref([], '', {useExport: false});
   var isSection = _state.section !== 'data';
-  segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, isCurrent: !isSection && _state.path.length === 0});
+  segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, href: regHref, isCurrent: !isSection && _state.path.length === 0});
 
   // If in a section view, add the section name as the last breadcrumb
   if (isSection) {
     var sectionLabels = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
-    segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, isCurrent: true});
+    segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, href: null, isCurrent: true});
     return segs;
   }
 
@@ -668,18 +745,54 @@ function buildBreadcrumbSegments() {
     var newPath = _state.path.slice(0, i + 1);
     var isLast  = (i === _state.path.length - 1);
     var click   = isLast ? null
-      : 'pushState({path:' + esc(JSON.stringify(newPath))
-        + ',section:\'data\',editMode:false});return false';
-    segs.push({label: seg, onclick: click, isCurrent: isLast});
+      : guardedOnclick('pushState({path:' + esc(JSON.stringify(newPath))
+        + ',section:\'data\',editMode:false})');
+    // Real bookmarkable URL for this breadcrumb level — a cached real link
+    // (_state.crumbURLs[i]) if this ancestor was visited this session,
+    // otherwise the same trim fallback pushStateReal() would use.
+    var href = isLast ? null : pageHref(newPath, _state.crumbURLs[i] || '');
+    segs.push({label: seg, onclick: click, href: href, isCurrent: isLast});
   });
   return segs;
+}
+
+// Every nav <a>'s onclick handler must call this FIRST and bail out (return
+// true, i.e. let the browser perform its native default action) whenever the
+// click carries a "open in new tab/window" gesture — ctrl/cmd/shift-click or
+// a middle-click. Without this check, unconditionally returning false (to
+// suppress the default action for our fast pushState() SPA navigation) would
+// also suppress the new-tab gesture, since browsers honor onclick's return
+// value even when a modifier key is held. Real middle-clicks normally never
+// invoke a "click" onclick handler at all (browsers fire it as a separate
+// "auxclick" instead) but the e.button === 1 check is kept as a defensive
+// no-op for browsers/environments where that isn't true.
+function navShouldDefault(e) {
+  return !!(e && (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1));
+}
+
+// Wraps a pushState/navigate expression with the navShouldDefault() guard so
+// every nav <a>'s onclick attribute gets the same "let the browser handle
+// ctrl/cmd/shift/middle-click natively" behavior with one call, instead of
+// each call site needing to remember the "if(...)return true;" boilerplate.
+function guardedOnclick(expr) {
+  return 'if(navShouldDefault(event))return true;' + expr + ';return false';
+}
+
+// The real, bookmarkable URL for a page at `path` with the (possibly cached,
+// possibly empty/fallback) `apiURL` — used for <a href> hover-preview and
+// native ctrl/middle-click/"open in new tab" targets across breadcrumbs,
+// tiles, rows, and nav pills. Actual (fast, no-reload) navigation always goes
+// through the accompanying onclick's pushState() call, not this href.
+function pageHref(path, apiURL, extra) {
+  var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data', editMode: false}, extra || {});
+  return buildURL(st);
 }
 
 function renderSegment(seg) {
   if (seg.isCurrent || !seg.onclick) {
     return '<span class="bc-current">' + esc(seg.label) + '</span>';
   }
-  return '<a class="bc-link" href="#" onclick="' + seg.onclick + '">' + esc(seg.label) + '</a>';
+  return '<a class="bc-link" href="' + esc(seg.href || '#') + '" onclick="' + seg.onclick + '">' + esc(seg.label) + '</a>';
 }
 
 function breadcrumbsFromSegments(segs) {
@@ -1039,9 +1152,11 @@ function renderHomeTable(main, servers) {
     +   '<th>Registry</th><th>Description</th><th>Group Types</th><th>Location</th>'
     + '</tr></thead><tbody>';
   sorted.forEach(function(url) {
+    var sv = (url === window.location.origin) ? '' : url;
+    var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
     html += '<tr data-server-url="' + esc(url) + '">'
       + '<td class="ht-name" style="position:relative">'
-      +   '<span class="ht-name-text ht-name-link" onclick="doBrowse(\'' + esc(url) + '\')">' + esc(serverLabel(url)) + '</span>'
+      +   '<a class="ht-name-text ht-name-link" href="' + esc(href) + '" onclick="' + esc(guardedOnclick('doBrowse(' + JSON.stringify(url) + ')')) + '">' + esc(serverLabel(url)) + '</a>'
       +   '<div class="server-card-err-popup" style="display:none">'
       +     '<div class="server-card-err-popup-title">Connection Error</div>'
       +     '<div class="server-card-err-popup-msg"></div>'
@@ -1119,8 +1234,10 @@ function renderHomeFlatGrid(main, servers) {
       return;
     }
     grid.innerHTML = allTiles.map(function(t) {
-      var onclick = 'browseGroupCollection(\'' + esc(t.serverUrl) + '\',\'' + esc(t.plural) + '\')';
-      return groupTileHTML(t, onclick, '', t.regLabel);
+      var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(t.serverUrl) + ',' + JSON.stringify(t.plural) + ',' + JSON.stringify(t.url) + ')');
+      var sv = (t.serverUrl === window.location.origin) ? '' : t.serverUrl;
+      var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [t.plural], apiURL: t.url || '', editMode: false}));
+      return groupTileHTML(t, esc(onclick), '', t.regLabel, href);
     }).join('');
   }
 
@@ -1132,7 +1249,7 @@ function renderHomeFlatGrid(main, servers) {
         var label = info.label || serverLabel(url);
         info.colls.forEach(function(c) {
           allTiles.push({plural: c.plural, count: c.count, serverUrl: url, regLabel: label,
-                         description: c.description || '', resources: c.resources || []});
+                         description: c.description || '', resources: c.resources || [], url: c.url});
         });
       }
       pending--;
@@ -1141,9 +1258,9 @@ function renderHomeFlatGrid(main, servers) {
   });
 }
 
-function browseGroupCollection(serverUrl, collName) {
+function browseGroupCollection(serverUrl, collName, url) {
   var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
-  pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], editMode: false});
+  pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], apiURL: url || '', editMode: false});
 }
 
 function renderHomeFlatList(main, servers) {
@@ -1167,9 +1284,11 @@ function renderHomeFlatList(main, servers) {
       return;
     }
     tbody.innerHTML = allRows.map(function(r) {
-      var onclick = 'browseGroupCollection(\'' + esc(r.serverUrl) + '\',\'' + esc(r.plural) + '\')';
+      var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(r.serverUrl) + ',' + JSON.stringify(r.plural) + ',' + JSON.stringify(r.url) + ')');
+      var sv = (r.serverUrl === window.location.origin) ? '' : r.serverUrl;
+      var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [r.plural], apiURL: r.url || '', editMode: false}));
       return '<tr>'
-        + '<td class="ht-name ht-name-link" style="font-weight:bold" onclick="' + onclick + '">' + esc(r.plural) + '</td>'
+        + '<td class="ht-name ht-name-link" style="font-weight:bold"><a href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a></td>'
         + '<td class="ht-desc-col" style="color:#666;font-size:13px">' + esc(r.description) + '</td>'
         + '<td class="ht-groups">' + r.count + '</td>'
         + '<td class="ht-groups"><div class="ht-groups-inner">'
@@ -1190,7 +1309,7 @@ function renderHomeFlatList(main, servers) {
         var label = info.label || serverLabel(url);
         info.colls.forEach(function(c) {
           allRows.push({plural: c.plural, count: c.count, resources: c.resources || [],
-                        description: c.description || '', serverUrl: url, regLabel: label});
+                        description: c.description || '', serverUrl: url, regLabel: label, url: c.url});
         });
       }
       pending--;
@@ -1260,7 +1379,9 @@ function probeAllCards(main) {
 }
 
 function serverCard(url) {
-  return '<div class="server-card" onclick="serverCardClick(this,\'' + esc(url) + '\')" data-server-url="' + esc(url) + '">'
+  var sv = (url === window.location.origin) ? '' : url;
+  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
+  return '<a class="server-card" href="' + esc(href) + '" onclick="return serverCardClick(event,this,' + esc(JSON.stringify(url)) + ')" data-server-url="' + esc(url) + '">'
     + '<div class="server-card-title">'
     +   '<img src="favicon.svg" class="server-card-icon" alt="" width="16" height="16">'
     +   '<span class="server-card-name">' + esc(serverLabel(url)) + '</span>'
@@ -1273,7 +1394,7 @@ function serverCard(url) {
     +   '<div class="server-card-err-text" style="display:none"></div>'
     + '</div>'
     + '<div class="server-card-url">' + esc(url) + '</div>'
-    + '</div>';
+    + '</a>';
 }
 
 function probeRegistry(url, cb) {
@@ -1326,9 +1447,18 @@ function doBrowse(url) {
   pushState({view: 'table', serverURL: sv, section: 'data', path: [], editMode: false});
 }
 
-function serverCardClick(card, url) {
-  if (card.querySelector('.server-card-err-badge')) return;
+// Returns true (let the browser perform its native <a> action) for any
+// ctrl/cmd/shift/middle-click gesture, even on an error-state card — by
+// design, modifier-click always honors the real href and skips app-level
+// gates like the error check below, matching how plain links behave.
+// Otherwise: false when the card is in an error state (suppresses default
+// navigation for a normal left-click), true after routing a normal click
+// through the fast SPA doBrowse() navigation.
+function serverCardClick(e, card, url) {
+  if (navShouldDefault(e)) return true;
+  if (card.querySelector('.server-card-err-badge')) return false;
   doBrowse(url);
+  return false;
 }
 
 // ---- Config page ----------------------------------------------------------
@@ -1578,8 +1708,9 @@ function renderTileView(data) {
     if (_state.path.length === 1) {
       var collItems = colls.length
         ? colls.map(function(c) {
-            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
-            return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ' (' + c.count + ')</span>';
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+            var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
+            return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + esc(c.plural) + ' (' + c.count + ')</a>';
           }).join('')
         : '<span class="coll-tile-res-none">none</span>';
       footerHtml = '<hr class="coll-tile-divider">'
@@ -1590,8 +1721,9 @@ function renderTileView(data) {
         ? '<span class="coll-tile-res-pill">Version: ' + esc(String(item.versionid)) + '</span>'
         : '';
       var verItems = colls.map(function(c) {
-        var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
-        return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ': ' + c.count + '</span>';
+        var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+        var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
+        return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + esc(c.plural) + ': ' + c.count + '</a>';
       }).join('');
       footerHtml = '<hr class="coll-tile-divider">'
             + '<div class="coll-tile-res">' + versionIdPill + verItems + '</div>';
@@ -1608,7 +1740,14 @@ function renderTileView(data) {
         + '</div>';
     }
 
-    html += '<div class="tile" onclick="navigateTo(\'' + esc(id) + '\')">';
+    // Whole-tile navigation: an invisible full-cover <a> (see .tile-linkarea)
+    // gives native ctrl/middle-click/"open in new tab" support on the tile,
+    // while the nested resource pills above sit on top of it via z-index so
+    // they keep navigating to their own destination instead.
+    var tileClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(item.self || '') + ')';
+    var tileHref = pageHref(itemPath, item.self || '');
+    html += '<div class="tile">';
+    html += '<a class="tile-linkarea" href="' + esc(tileHref) + '" onclick="' + esc(guardedOnclick(tileClickExpr)) + '" aria-label="' + esc(id) + '"></a>';
     html += '<div class="tile-top">';
     if (tileIcon) html += '<div class="tile-icon">' + tileIcon + '</div>';
     html += '<div class="tile-body">';
@@ -1699,13 +1838,15 @@ function renderTableView(data) {
           // Single "versions" collection per resource — just the count, still
           // clickable to navigate straight into it (see navigateToNestedColl()).
           childrenHtml = colls.map(function(c) {
-            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
-            return '<span class="cell-version-count" onclick="' + esc(clickExpr) + '">' + c.count + '</span>';
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+            var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
+            return '<a class="cell-version-count" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + c.count + '</a>';
           }).join(' ');
         } else {
           childrenHtml = colls.map(function(c) {
-            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
-            return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ' (' + c.count + ')</span>';
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+            var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
+            return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + esc(c.plural) + ' (' + c.count + ')</a>';
           }).join(' ');
         }
       } else {
@@ -1713,8 +1854,13 @@ function renderTableView(data) {
       }
     }
 
-    html += '<tr onclick="navigateTo(\'' + esc(id) + '\')">';
-    html += '<td class="cell-id">' + esc(id) + '</td>';
+    // Row stays a plain onclick (rows can't be real <a> elements), but the id
+    // cell's own text is wrapped in a real <a> so ctrl/middle-click/"open in
+    // new tab" work natively on it, consistent with the tile view.
+    var rowClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(item.self || '') + ')';
+    var rowHref = pageHref(itemPath, item.self || '');
+    html += '<tr onclick="' + esc(rowClickExpr) + '">';
+    html += '<td class="cell-id"><a href="' + esc(rowHref) + '" onclick="' + esc('event.stopPropagation();' + guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
     if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
     if (hasDesc) html += '<td class="cell-desc">' + esc(item.description != null ? String(item.description) : '') + '</td>';
     if (showVersionId) html += '<td>' + esc(item.versionid != null ? String(item.versionid) : '') + '</td>';
@@ -1797,8 +1943,10 @@ function renderSingleEntity(data) {
     }
     html += '<tbody>';
     colls.forEach(function(c) {
-      html += '<tr onclick="navigateTo(\'' + esc(c.plural) + '\')" style="cursor:pointer">'
-        + '<td class="cell-id">' + esc(c.plural) + '</td>'
+      var collClickExpr = 'navigateTo(' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
+      var collHref = pageHref(_state.path.concat([c.plural]), c.url);
+      html += '<tr onclick="' + esc(collClickExpr) + '" style="cursor:pointer">'
+        + '<td class="cell-id"><a href="' + esc(collHref) + '" onclick="' + esc('event.stopPropagation();' + guardedOnclick(collClickExpr)) + '">' + esc(c.plural) + '</a></td>'
         + '<td>' + c.count + '</td>'
         + '</tr>';
     });
@@ -1818,9 +1966,12 @@ function renderSingleEntity(data) {
         + '<thead><tr><th>Registry Endpoints</th><th>Mutable</th></tr></thead><tbody>';
       availSectionsT.forEach(function(s) {
         var mut = availT[s] && availT[s].mutable ? '✓' : '';
-        var click = 'pushState({section:\'' + s + '\',editMode:false,useExport:false});return false';
-        html += '<tr onclick="' + esc(click) + '" style="cursor:pointer">'
-          + '<td class="cell-id">' + esc(sectionNamesT[s]) + '</td>'
+        var pushExpr = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
+        var sHref = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
+        html += '<tr onclick="' + esc(pushExpr) + '" style="cursor:pointer">'
+          + '<td class="cell-id"><a href="' + esc(sHref) + '" onclick="'
+          + esc('event.stopPropagation();' + guardedOnclick(pushExpr))
+          + '">' + esc(sectionNamesT[s]) + '</a></td>'
           + '<td>' + mut + '</td>'
           + '</tr>';
       });
@@ -2197,12 +2348,13 @@ var INFO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" 
 function collectionTile(coll) {
   var onclick = coll.count === 0
     ? 'showToast(\'Nothing to show\')'
-    : 'navigateTo(\'' + esc(coll.plural) + '\')';
+    : esc(guardedOnclick('navigateTo(' + JSON.stringify(coll.plural) + ',' + JSON.stringify(coll.url) + ')'));
+  var href = coll.count === 0 ? '#' : pageHref(_state.path.concat([coll.plural]), coll.url);
   var emptyCls = coll.count === 0 ? ' coll-tile-empty' : '';
-  return groupTileHTML(coll, onclick, emptyCls, '');
+  return groupTileHTML(coll, onclick, emptyCls, '', href);
 }
 
-function groupTileHTML(coll, onclick, extraCls, regLabel) {
+function groupTileHTML(coll, onclick, extraCls, regLabel, href) {
   var descHtml = coll.description
     ? '<div class="coll-tile-desc">' + esc(coll.description) + '</div>'
     : '';
@@ -2219,7 +2371,7 @@ function groupTileHTML(coll, onclick, extraCls, regLabel) {
   var regHtml = regLabel
     ? '<div class="coll-tile-reg">' + esc(regLabel) + '</div>'
     : '';
-  return '<div class="coll-tile' + (extraCls || '') + '" onclick="' + onclick + '">'
+  return '<a class="coll-tile' + (extraCls || '') + '" href="' + esc(href || '#') + '" onclick="' + onclick + '">'
     + '<div class="coll-tile-top">'
     +   '<div class="coll-tile-icon">' + FOLDER_ICON + '</div>'
     +   '<div class="coll-tile-summary">'
@@ -2230,7 +2382,7 @@ function groupTileHTML(coll, onclick, extraCls, regLabel) {
     + descHtml
     + resHtml
     + regHtml
-    + '</div>';
+    + '</a>';
 }
 
 function docTile(singular, contenttype) {
@@ -2537,8 +2689,9 @@ function renderMetaContent(d, model) {
   if (d.defaultversionid !== undefined) {
     var dvid = String(d.defaultversionid);
     var dvRow = copyableMonospace(dvid);
-    dvRow += ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(dvid) + '" '
-           + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
+    dvRow += ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(dvid) + '" '
+           + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', dvid]), versionURLById(dvid))) + '" '
+           + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
     if (d.defaultversionurl) {
       dvRow += ' <a href="' + esc(d.defaultversionurl) + '" target="_blank" '
              + 'class="eg-link-btn" title="' + esc(d.defaultversionurl) + '">URL ↗</a>';
@@ -2748,11 +2901,12 @@ function renderEntityGrid(data) {
         var sectionNames = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
         availSections.forEach(function(s) {
           var mut = avail[s] && avail[s].mutable;
-          var click = 'pushState({section:\'' + s + '\',editMode:false,useExport:false});return false';
-          html += '<div class="eg-coll-tile" onclick="' + esc(click) + '">'
+          var click = guardedOnclick('pushState({section:\'' + s + '\',editMode:false,useExport:false})');
+          var sHref = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
+          html += '<a class="eg-coll-tile" href="' + esc(sHref) + '" onclick="' + esc(click) + '">'
                +   '<div class="eg-coll-name">' + esc(sectionNames[s]) + '</div>'
                +   (mut ? '<div class="eg-coll-mutable-badge">mutable</div>' : '')
-               + '</div>';
+               + '</a>';
         });
         html += '</div>';
       }
@@ -2816,8 +2970,11 @@ function renderEntityGrid(data) {
     versionParentIdField = versionParentSingular.toLowerCase() + 'id';
     if (data[versionParentIdField] !== undefined) {
       var _docId = String(data[versionParentIdField]);
+      var _parentPath = _state.path.slice(0, 4);
+      var _parentUrl = (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + _parentPath.join('/'));
       var _docRow = copyableMonospace(_docId)
-        + ' <button class="eg-link-btn eg-link-btn-nav" onclick="navigateToParentResource()">→ Visit</button>';
+        + ' <a class="eg-link-btn eg-link-btn-nav" href="' + esc(pageHref(_parentPath, _parentUrl)) + '" '
+        + 'onclick="if(navShouldDefault(event))return true;navigateToParentResource();return false">→ Visit</a>';
       html += '<div class="eg-row"><span class="eg-label">' + esc(versionParentSingular + ' ID') + ':</span>'
             + '<span class="eg-value">' + _docRow + '</span></div>';
     }
@@ -2883,8 +3040,9 @@ function renderEntityGrid(data) {
     if (data.versionid !== undefined) {
       var _vid = String(data.versionid);
       var _vidRow = copyableMonospace(_vid)
-        + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vid) + '" '
-        + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
+        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vid) + '" '
+        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _vid]), versionURLById(_vid))) + '" '
+        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
       html += '<div class="eg-row"><span class="eg-label">Version ID:</span>'
             + '<span class="eg-value">' + _vidRow + '</span></div>';
     }
@@ -2892,8 +3050,9 @@ function renderEntityGrid(data) {
     if (data.ancestor !== undefined && data.ancestor !== null) {
       var _anc = String(data.ancestor);
       var _ancRow = copyableMonospace(_anc)
-        + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_anc) + '" '
-        + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
+        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_anc) + '" '
+        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _anc]), versionURLById(_anc))) + '" '
+        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
       html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
             + '<span class="eg-value">' + _ancRow + '</span></div>';
     }
@@ -2906,8 +3065,9 @@ function renderEntityGrid(data) {
     if (data.ancestor !== undefined && data.ancestor !== null) {
       var _vancId = String(data.ancestor);
       var _vancRow = copyableMonospace(_vancId)
-        + ' <button class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vancId) + '" '
-        + 'onclick="navigateToVersionById(this.dataset.vid)">→ Visit</button>';
+        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vancId) + '" '
+        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _vancId]), versionURLById(_vancId))) + '" '
+        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
       html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
             + '<span class="eg-value">' + _vancRow + '</span></div>';
     }
@@ -4901,14 +5061,18 @@ function collectionItems(data) {
   return items;
 }
 
-// The navigation key for an item — last segment of xid, or the map key.
-// xid is a relative URL like "/endpoints/ep1"; last segment = "ep1".
+// The navigation key for an item — the map key it's stored under in the
+// collection response, which per spec IS the entity's own <singular>id (no
+// parsing needed at all — see collectionItems()'s __mapKey). Falls back to
+// splitting xid's last segment only defensively, for the rare case an item
+// wasn't obtained via collectionItems() and so has no __mapKey attached.
 function itemNavKey(item) {
+  if (item.__mapKey) return item.__mapKey;
   if (item.xid) {
     var segs = item.xid.replace(/^\//, '').split('/');
-    return segs[segs.length - 1] || item.__mapKey || '';
+    return segs[segs.length - 1] || '';
   }
-  return item.__mapKey || '';
+  return '';
 }
 
 // Find navigable sub-collections using the model definition.
@@ -4976,37 +5140,76 @@ function deriveColumns(items, collKeySet) {
 }
 
 // ---- Navigate ------------------------------------------------------------
+//
+// Link-driven: every call site below passes the REAL server-provided URL for
+// the destination (self / <plural>url / versionsurl / etc.) — see the
+// "Link-driven navigation" notes near buildAPIURL(). `url` is optional only
+// for backward callers; when omitted, buildAPIURL()'s buildBaseURL()
+// fallback silently reconstructs from `path` (accepted only where no real
+// link exists at all — see versionURLById()/navigateToParentResource()).
 
-function navigateTo(id) {
+function navigateTo(id, url) {
   // If navigating INTO a collection from the registry root or single entity,
   // the id IS the collection name (e.g., "endpoints") and we just append it.
-  pushState({path: _state.path.concat([id]), editMode: false});
+  pushState({path: _state.path.concat([id]), apiURL: url || '', editMode: false});
 }
 
 // Navigate directly into a nested collection shown as a resource-pill on a
 // collection view's tile/row (e.g. clicking "files (2)" on group "d1" while
 // viewing the "dirs" collection takes you straight to dirs/d1/files, instead
 // of first landing on the d1 entity page). itemId is the clicked row/tile's
-// own id; plural is the nested collection's name.
-function navigateToNestedColl(itemId, plural) {
-  pushState({path: _state.path.concat([itemId, plural]), editMode: false});
+// own id; plural is the nested collection's name; url is its real <plural>url.
+function navigateToNestedColl(itemId, plural, url) {
+  pushState({path: _state.path.concat([itemId, plural]), apiURL: url || '', editMode: false});
+}
+
+// Resolve the real URL for a sibling version ("→ Visit" buttons next to
+// defaultversionid/versionid/ancestor), preferring an actual link over any
+// construction, in this order:
+//   1. An exact link the server already gave us for THIS id (defaultversionurl,
+//      when it happens to match) — zero construction.
+//   2. The resource's own real versionsurl + the known versionid — appending
+//      a spec-guaranteed <singular>id to its own collection's link (a much
+//      narrower exception than reconstructing the whole path).
+//   3. A same-session cached versions-collection URL (crumbURLs), if we
+//      reached here by drilling through the versions list already.
+//   4. Last resort: plain path construction — needed because version
+//      entities don't carry a versionsurl/parent link of their own (a
+//      discovered spec gap — see plan.md, "Link-driven navigation").
+function versionURLById(vid) {
+  var d = _lastData;
+  if (d && d.defaultversionid !== undefined && String(d.defaultversionid) === String(vid) && d.defaultversionurl) {
+    return d.defaultversionurl;
+  }
+  if (d && d.versionsurl) {
+    return d.versionsurl.replace(/\/$/, '') + '/' + encodeURIComponent(vid);
+  }
+  var vColl = _state.crumbURLs && _state.crumbURLs[4]; // depth 5 = ".../versions" collection
+  if (vColl) return vColl.replace(/\/$/, '') + '/' + encodeURIComponent(vid);
+  var basePath = _state.path.slice(0, 4);
+  return serverBase() + '/' + basePath.concat(['versions', vid]).join('/');
 }
 
 // Navigate to a specific version from the meta page (path: [..., resource, rId, "meta"])
 function navigateToVersion(vId) {
   var basePath = _state.path.slice(0, -1); // strip "meta"
-  pushState({path: basePath.concat(['versions', vId]), editMode: false});
+  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId), editMode: false});
 }
 
 // Navigate to a version by ID from the current resource or version context
 function navigateToVersionById(vId) {
   var basePath = _state.path.slice(0, 4); // [G, gId, R, rId]
-  pushState({path: basePath.concat(['versions', vId]), editMode: false});
+  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId), editMode: false});
 }
 
-// Navigate to the parent resource from a version page
+// Navigate to the parent resource from a version page. Version entities carry
+// no link back to their parent resource (a discovered spec gap), so this
+// relies on the same-session ancestor cache (crumbURLs) when available, and
+// falls back to plain construction otherwise.
 function navigateToParentResource() {
-  pushState({path: _state.path.slice(0, 4), editMode: false});
+  var basePath = _state.path.slice(0, 4);
+  var url = (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + basePath.join('/'));
+  pushState({path: basePath, apiURL: url, editMode: false});
 }
 
 // ---- Model Editor (ported from registry/ui.go's ?html model editor) ------
