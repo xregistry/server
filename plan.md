@@ -765,6 +765,247 @@ test model (a `endpoints` group with a `labels` map attribute and a
 - Test data (sample model + entities) was fully removed/restored to the
   original empty state afterward.
 
+## Entity Details box: spec-attribute grid alignment — done
+
+`renderEntityGrid()`'s "<Type> Details" box and the Resource/Version "Meta"
+box (`renderMetaContent()`) render spec-defined attributes as label/value
+rows. These were originally independent flex rows (`.eg-row`), each sized
+to its own content, so any row with a different `gap` override (e.g.
+`.eg-technical`'s tighter button spacing, `.eg-labels`' tighter list
+spacing) silently shifted that row's value out of alignment with the rest
+— reported as "Epoch's value is slightly to the left of the other values"
+(and Labels had the same issue).
+
+Fixed by converting `.eg-spec-rows` (the wrapper around all spec-attribute
+rows, added in the previous session) into a real two-column CSS Grid
+(`grid-template-columns: max-content 1fr`) instead of independent flex
+rows with a shared `min-width` hack:
+- Each direct child (`.eg-row` / `.eg-ext-complex`) gets `display:
+  contents`, so its own children (label + value) become the actual grid
+  items placed into column 1 / column 2 — this guarantees alignment
+  regardless of any row's internal gap/spacing needs.
+- This requires every row to contribute *exactly* two top-level children.
+  Rows built via the `row(label, value)` helper already did. The one
+  exception was the Epoch/Self/ShortSelf/XID "technical" row, which had
+  up to 5 top-level children (label + epoch value + 3 button elements) —
+  refactored to always emit exactly two: a (possibly empty, when epoch is
+  absent) label span and a single `.eg-tech-value` wrapper span containing
+  the epoch value + all pill buttons, with its own internal `gap: 6px
+  12px` for compact button spacing without affecting grid-column
+  placement.
+- Complex/nested spec attributes (objects like `deprecated`, which has
+  `effective`/`removal`/`documentation` sub-fields) previously stacked the
+  key above an indented, left-bordered body. Per explicit request, these
+  now instead sit in the same two-column grid as every other row (key in
+  column 1, nested tree in column 2), and the outermost connecting
+  vertical line (`.eg-ext-complex-body`'s `border-left`) is dropped since
+  the body is no longer visually "attached" below the key — deeper
+  nesting levels inside the tree (`.vt-kv-block > .vt-obj/.vt-arr`) keep
+  their own border unaffected.
+- Unknown extension attributes (below the `.eg-ext-sep` `<hr>`) are
+  deliberately excluded from the grid and keep their original stacked
+  flex-row / bordered-body layout — scoped via `.eg-spec-rows` ancestor
+  selectors so no JS branching was needed for the different treatment.
+
+Verified via CDP/screenshots: Epoch, Labels, and all other spec rows now
+align in the same column; a `deprecated` meta attribute renders with its
+label in column 1 and its nested key/value tree in column 2 with no
+outer border line; an unknown extension attribute below the separator
+still renders in its original (unaligned, bordered) style. Test data
+cleaned up afterward.
+
+## Entity Details box: independent extension grid + recursive nested value-tree grids — done
+
+Follow-up to the section above. Two remaining asks:
+1. Give unknown extension attributes (below the `.eg-ext-sep` `<hr>`) the
+   same column-aligned grid treatment as spec attributes, but as a
+   *separate* grid instance so its column-1 width (driven by extension
+   attribute name lengths) is independent of the spec section's.
+2. For complex (object/map) attribute values shown in column 2 — both
+   spec-level (e.g. `deprecated`) and extension-level — recursively apply
+   the same two-column grid treatment at every nesting level, so a
+   multi-level nested object (e.g. `extraconfig.backoff.{initialms,
+   maxms, jitter}`) has each level's keys aligned within their own scope,
+   with nesting shown purely via column indentation (no connecting
+   border lines needed).
+
+Implementation:
+- Generalized the grid mechanics from a `.eg-spec-rows`-only rule into a
+  shared `.eg-attr-grid` class (`display: grid; grid-template-columns:
+  max-content 1fr; ...` + `> .eg-row, > .eg-ext-complex { display:
+  contents; }`). The spec wrapper is now `.eg-spec-rows.eg-attr-grid`;
+  extension attributes (previously rendered unwrapped) are now wrapped in
+  a new `.eg-ext-rows.eg-attr-grid` container in both `renderEntityGrid()`
+  and `renderMetaContent()`. Since each is its own grid formatting
+  context, `max-content` column widths are computed independently per
+  section.
+- `.eg-ext-complex-key`/`.eg-ext-complex-body` (used for any complex
+  attribute, spec or extension) now unconditionally use `grid-column: 1`
+  / `grid-column: 2` with no border-left — no more default
+  stacked/bordered fallback, since every call site is now inside some
+  `.eg-attr-grid`.
+- `renderValueTree()` (`app.js`) rewritten so each object/map level
+  renders as its own self-contained grid: `.vt-obj { display: grid;
+  grid-template-columns: max-content 1fr; ... }`, with each `.vt-kv`/
+  `.vt-kv-block` row set to `display: contents` and exactly two children
+  — a `.vt-key` label span and a new `.vt-kv-value` wrapper span holding
+  the (possibly recursive) value. A nested object's `.vt-obj` grid lives
+  inside its parent's `.vt-kv-value` cell, so it's a fresh, independently
+  sized grid — this is what makes multi-level nesting "just work" without
+  any manual depth/indent bookkeeping. The old manual `depth`-based
+  `margin-left` indent and the `.vt-kv-block > .vt-obj/.vt-arr
+  border-left` connecting line were both dropped for objects (arrays are
+  unchanged — still flex-based with their own indent, since the request
+  was specifically about "complex objects... obj/map attribute").
+
+Verified via CDP/screenshots with a temporary `endpoints` model: an
+extension attribute `extraconfig` containing a nested `backoff` object
+(itself containing `initialms`/`maxms`/`jitter`) renders with `backoff:`
+and its sibling `retrylimit:` aligned in one column, and `initialms`/
+`maxms`/`jitter` aligned in their own nested column one level in — with
+no connecting border lines at any level. The extension section's column-1
+width (short names like `customfield`/`extraconfig`) is visibly narrower
+than and independent of the spec section's column-1 width (longer names
+like `documentation`/`endpointid`). The spec-level `deprecated` meta
+attribute (with `effective`/`removal`/`documentation`) still renders
+correctly. Test data cleaned up afterward.
+
+## Value-tree array indent bug + List view missing complex attrs — done
+
+Two related fixes found while reviewing the HardCoded (`registry/ui/xreg/`) test
+registry's `extobj.attrObj` (which has sibling `nestedStr`/`nestedArr`/`nestedObj`
+attrs):
+
+1. **Array values misaligned vs. sibling object/string values.** After the
+   `.vt-obj` grid conversion, objects no longer use a manual depth-based
+   indent (`margin-left: depth*14px`) — alignment is purely via the grid
+   column. But `.vt-arr-item` still had the old manual indent left over,
+   so an array-valued sibling (e.g. `nestedArr`) rendered its `[0]/[1]/[2]`
+   items shifted further right than a same-level object-valued sibling
+   (e.g. `nestedObj`)'s nested grid, even though both keys' *labels*
+   aligned correctly in column 1. Fixed by dropping the indent style from
+   `.vt-arr-item` entirely — verified via CDP `getBoundingClientRect()`
+   that `nestedArr`'s value, `nestedObj`'s value, and `nestedStr`'s value
+   all now start at the same x position (all children of the same
+   `attrObj` value-tree grid).
+2. **List view (`renderSingleEntity()`) silently dropped every
+   object/array-valued attribute** (labels, extension maps/arrays/objects,
+   even the spec `deprecated`-style values) — the scalar-property filter
+   excluded anything with `typeof === 'object'` and never rendered a
+   fallback for it. Fixed by including those keys in the same Property
+   table and rendering their value cell with `renderValueTree()` (the
+   same nested-grid renderer Grid view's extension rows use), giving a
+   `.cell-tree` class to that `<td>` to undo the table's default
+   nowrap/ellipsis/max-width truncation (only appropriate for plain
+   scalar text). Verified via CDP screenshot on the HardCoded registry's
+   List view: `extarray`, `extarrayobj`, `extmap`, `extobj`, and `labels`
+   (previously entirely missing from the page) now render correctly with
+   the same nested-tree layout as Grid view.
+3. **List view's scalar values didn't follow the normal-vs-monospace
+   convention** used everywhere else (Grid view's `renderAttrRow()`,
+   `renderValueTree()`'s own leaves) — every scalar was plain escaped
+   text regardless of type. Fixed by applying the same decision in
+   `renderSingleEntity()`'s Property table: monospace (via
+   `copyableMonospace()`) if the attr is a spec attr in `MONO_ATTRS` for
+   the current entity level, or if it's an explicitly model-defined
+   (non-wildcard) attr with a non-string type; otherwise normal prose
+   text (via `copyable()`), matching Grid view exactly (including
+   click-to-copy). Verified via CDP screenshot: `specversion`, `epoch`,
+   `createdat`, `modifiedat`, `documentation`, `icon` render monospace;
+   `name`/`description` remain normal text — same as Grid view.
+
+## Collection views: Created/Modified timestamps — done
+
+Added Created/Modified display to both collection views (Grid tile view
+`renderTileView()` and Table/List view `renderTableView()`), formatted via
+a new shared `formatTimestamp()` helper as `MM/DD/YYYY hh:mm:ss AM/PM TZ`
+(e.g. `07/06/2026 07:22:30 PM EDT`) in the browser's local timezone, built
+from `Intl.DateTimeFormat(...).formatToParts()` for cross-browser TZ
+abbreviation support.
+- Tile view: a `.tile-times` block at the bottom of each tile, right
+  aligned, small/muted text, with a thin top border separating it from
+  the tile body / resource-pill footer above.
+- Table view: two new sortable columns ("Created"/"Modified", `.
+  cell-timestamp`), added after the existing Document column, using the
+  existing generic string-sort (ISO timestamps sort correctly lexically,
+  no special-casing needed in `sortBy()`).
+
+Verified via CDP screenshot on the HardCoded registry's `dirs` collection
+in both views.
+
+## Collection views: clickable nested-collection pills — done
+
+On collection views (Grid tile view + Table/List view), the resource-pill
+footer/column showing a tile/row's own nested collections (e.g. "files
+(2)" shown on group "d1" while viewing the "dirs" collection) is now
+clickable and navigates straight into that nested collection
+(`dirs/d1/files`) instead of requiring a click on the tile/row first (to
+land on `dirs/d1`) and then a second click on the resources list there.
+
+Implementation: new `navigateToNestedColl(itemId, plural)` (in `app.js`,
+next to `navigateTo()`) pushes `_state.path.concat([itemId, plural])`.
+Each pill's `onclick` calls `event.stopPropagation()` first so the
+tile/row's own `navigateTo(id)` handler doesn't also fire. A new
+`.coll-tile-res-pill-clickable` CSS class (cursor: pointer + hover
+highlight) is applied only to these navigable pills — kept separate from
+the base `.coll-tile-res-pill` class, which is also used for the
+non-clickable "Resource Types" list shown on the Registry root's Group
+Type tiles (model schema names, not actual navigable entities).
+
+Verified via CDP: clicking the "files" pill on `d1`'s tile (Grid view)
+and row (List view) while viewing `dirs` both navigate directly to
+`dirs/d1/files`.
+
+## Resource collection views: show default version id — done
+
+On the Resources collection view (a group's list of resources, e.g.
+`dirs/d1/files`), both Grid and Table/List view now surface each
+resource's default version id (`item.versionid`, already present on the
+flattened resource entity):
+- Grid tile view: a new "Version: `<versionid>`" pill shown before the
+  existing "versions: N" count pill in the tile's footer.
+- Table/List view: a new "Version" column inserted before the existing
+  "Versions" column, populated with `item.versionid`. The "Versions"
+  column's own display was simplified from a `plural (count)` pill
+  (redundant with the new column header) to just the bare count — still
+  clickable (`.cell-version-count`, styled as link-like text rather than
+  a pill) to navigate into that resource's versions collection via
+  `navigateToNestedColl()`. Both the "Versions" header and its count cells
+  are centered (`.col-center`) rather than left-aligned like most columns,
+  since a single bare number reads better centered under its header.
+
+Note: the Group collection view's "Resources" column/footer (potentially
+multiple resource *types* per group, e.g. "files (2)") is unaffected and
+still shows the `plural (count)` pill form, since there a plain count
+alone wouldn't identify which resource type it refers to — only the
+single-resource-type "Versions" column was simplified.
+
+Verified via CDP screenshot on `dirs/d1/files` in both views.
+
+## Config page: Reset (clear browser-side state) — done
+
+Added a "Reset" section to the Config page (`renderConfig()`), below
+"Registry Servers" and "Options", so a user can easily recover if
+something looks wrong client-side, without affecting any registry
+server. Two choices, both behind a `window.confirm()` guard since
+they're destructive and irreversible:
+- **Clear All** (`cfgResetAll()`, styled as a danger button): removes
+  both `xreg-servers` (`LS_SERVERS`) and `xreg-options` (`LS_OPTIONS`)
+  from `localStorage`, then does a full `window.location.reload()`.
+- **Clear All Except Registry Locations** (`cfgResetExceptServers()`):
+  removes only `xreg-options`, keeping saved server URLs, then reloads.
+
+All of this app's browser-side state lives in exactly those two
+localStorage keys plus a handful of in-memory JS caches
+(`_labelCache`/`_modelCache`/`_capCache`/`_offeredCache`/etc.) that are
+lazily rebuilt on next use — a full page reload after clearing
+localStorage is sufficient to reset everything, so there was no need to
+individually track/clear each in-memory cache.
+
+Verified via CDP: added a test server + toggled an option, then
+confirmed "Clear All Except Registry Locations" kept the server but
+reset the option, and "Clear All" wiped both localStorage keys entirely.
+
 ## Known non-gaps (design decisions made, not oversights)
 
 

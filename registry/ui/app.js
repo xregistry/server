@@ -1411,6 +1411,19 @@ function renderConfig() {
     +   ' the JSON view uses</span>'
     + '</div>'
 
+    + '</div>'
+
+    // ---- Reset section ----
+    + '<div class="config-section">'
+    + '<h3 class="config-section-title">Reset</h3>'
+    + '<p class="config-section-desc">If something looks wrong, you can'
+    +   ' clear the browser-side data this app keeps (saved registry'
+    +   ' locations and/or your option preferences above) and start fresh.'
+    +   ' This does not change anything on any registry server.</p>'
+    + '<div class="cfg-reset-row">'
+    +   '<button class="cfg-btn cfg-btn-danger" onclick="cfgResetAll()">Clear All</button>'
+    +   '<button class="cfg-btn" onclick="cfgResetExceptServers()">Clear All Except Registry Locations</button>'
+    + '</div>'
     + '</div>';
   main.innerHTML = html;
 
@@ -1513,6 +1526,28 @@ function cfgAddNew() {
   if (newInp) newInp.focus();
 }
 
+// ---- Reset (clear browser-side state) -------------------------------------
+//
+// All browser-side state this app keeps lives in exactly two localStorage
+// keys (LS_SERVERS, LS_OPTIONS) plus a handful of in-memory caches
+// (_labelCache/_modelCache/_capCache/_offeredCache etc.) that are rebuilt
+// automatically on next use — a full page reload after clearing
+// localStorage is therefore sufficient to reset everything, with no need
+// to individually track/clear each in-memory cache here.
+
+function cfgResetAll() {
+  if (!window.confirm('Clear ALL saved registry locations and options, and reload? This cannot be undone.')) return;
+  localStorage.removeItem(LS_SERVERS);
+  localStorage.removeItem(LS_OPTIONS);
+  window.location.reload();
+}
+
+function cfgResetExceptServers() {
+  if (!window.confirm('Clear all options (but keep your saved registry locations), and reload?')) return;
+  localStorage.removeItem(LS_OPTIONS);
+  window.location.reload();
+}
+
 // ---- Tile view -----------------------------------------------------------
 
 function renderTileView(data) {
@@ -1543,18 +1578,34 @@ function renderTileView(data) {
     if (_state.path.length === 1) {
       var collItems = colls.length
         ? colls.map(function(c) {
-            return '<span class="coll-tile-res-pill">' + esc(c.plural) + ' (' + c.count + ')</span>';
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
+            return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ' (' + c.count + ')</span>';
           }).join('')
         : '<span class="coll-tile-res-none">none</span>';
       footerHtml = '<hr class="coll-tile-divider">'
             + '<div class="coll-tile-res-hdr">Resources:</div>'
             + '<div class="coll-tile-res">' + collItems + '</div>';
     } else if (_state.path.length === 3 && colls.length) {
+      var versionIdPill = (item.versionid !== undefined && item.versionid !== null)
+        ? '<span class="coll-tile-res-pill">Version: ' + esc(String(item.versionid)) + '</span>'
+        : '';
       var verItems = colls.map(function(c) {
-        return '<span class="coll-tile-res-pill">' + esc(c.plural) + ': ' + c.count + '</span>';
+        var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
+        return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ': ' + c.count + '</span>';
       }).join('');
       footerHtml = '<hr class="coll-tile-divider">'
-            + '<div class="coll-tile-res">' + verItems + '</div>';
+            + '<div class="coll-tile-res">' + versionIdPill + verItems + '</div>';
+    }
+
+    // Created/Modified timestamps — right-aligned at the bottom of the tile.
+    var createdStr  = formatTimestamp(item.createdat);
+    var modifiedStr = formatTimestamp(item.modifiedat);
+    var timesHtml = '';
+    if (createdStr || modifiedStr) {
+      timesHtml = '<div class="tile-times">'
+        + (createdStr  ? '<div>Created: '  + esc(createdStr)  + '</div>' : '')
+        + (modifiedStr ? '<div>Modified: ' + esc(modifiedStr) + '</div>' : '')
+        + '</div>';
     }
 
     html += '<div class="tile" onclick="navigateTo(\'' + esc(id) + '\')">';
@@ -1566,6 +1617,7 @@ function renderTileView(data) {
     if (desc)      html += '<div class="tile-desc">' + esc(desc) + '</div>';
     html += '</div></div>'; // close tile-body + tile-top
     html += footerHtml;
+    html += timesHtml;
     html += '</div>'; // close tile
   });
   html += '</div>';
@@ -1623,12 +1675,16 @@ function renderTableView(data) {
   }
 
   var idColLabel = capitalize(getSingularName(model, _state.path.concat(['__x__'])));
+  var showVersionId = (depth === 3); // resource collection: show its default version id
   var html = '<div id="table-container"><table class="xr-table"><thead><tr>';
   html += thSort('__id', idColLabel);
   if (hasName) html += thSort('name', 'Name');
   if (hasDesc) html += thSort('description', 'Description');
-  if (showChildren) html += '<th>' + (depth === 1 ? 'Resources' : 'Versions') + '</th>';
+  if (showVersionId) html += '<th>Version</th>';
+  if (showChildren) html += '<th' + (depth === 3 ? ' class="col-center"' : '') + '>' + (depth === 1 ? 'Resources' : 'Versions') + '</th>';
   if (showDoc) html += '<th>Document</th>';
+  html += thSort('createdat', 'Created');
+  html += thSort('modifiedat', 'Modified');
   html += '</tr></thead><tbody>';
 
   items.forEach(function(item, idx) {
@@ -1639,9 +1695,19 @@ function renderTableView(data) {
     var childrenHtml = '';
     if (showChildren) {
       if (colls.length) {
-        childrenHtml = colls.map(function(c) {
-          return '<span class="coll-tile-res-pill">' + esc(c.plural) + ' (' + c.count + ')</span>';
-        }).join(' ');
+        if (depth === 3) {
+          // Single "versions" collection per resource — just the count, still
+          // clickable to navigate straight into it (see navigateToNestedColl()).
+          childrenHtml = colls.map(function(c) {
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
+            return '<span class="cell-version-count" onclick="' + esc(clickExpr) + '">' + c.count + '</span>';
+          }).join(' ');
+        } else {
+          childrenHtml = colls.map(function(c) {
+            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ')';
+            return '<span class="coll-tile-res-pill coll-tile-res-pill-clickable" onclick="' + esc(clickExpr) + '">' + esc(c.plural) + ' (' + c.count + ')</span>';
+          }).join(' ');
+        }
       } else {
         childrenHtml = '<span class="coll-tile-res-none">—</span>';
       }
@@ -1651,13 +1717,16 @@ function renderTableView(data) {
     html += '<td class="cell-id">' + esc(id) + '</td>';
     if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
     if (hasDesc) html += '<td class="cell-desc">' + esc(item.description != null ? String(item.description) : '') + '</td>';
-    if (showChildren) html += '<td class="cell-children">' + childrenHtml + '</td>';
+    if (showVersionId) html += '<td>' + esc(item.versionid != null ? String(item.versionid) : '') + '</td>';
+    if (showChildren) html += '<td class="cell-children' + (depth === 3 ? ' col-center' : '') + '">' + childrenHtml + '</td>';
     if (showDoc) {
       var docClickExpr = 'event.stopPropagation();openDocument(' + JSON.stringify(docSingular) + ', _tableViewItems[' + idx + '])';
       html += '<td class="cell-children">'
             + '<button class="cfg-btn" style="font-size:11px;padding:2px 8px" onclick="' + esc(docClickExpr) + '">View</button>'
             + '</td>';
     }
+    html += '<td class="cell-timestamp">' + esc(formatTimestamp(item.createdat)) + '</td>';
+    html += '<td class="cell-timestamp">' + esc(formatTimestamp(item.modifiedat)) + '</td>';
     html += '</tr>';
   });
 
@@ -1696,13 +1765,15 @@ function renderSingleEntity(data) {
   var collKeys = {};
   colls.forEach(function(c) { collKeys[c.plural + 'url'] = true; collKeys[c.plural + 'count'] = true; });
 
-  // Priority ordering for scalar props — hand-tuned for UX, not spec declaration order.
+  // Priority ordering for props — hand-tuned for UX, not spec declaration order.
   // specAttrOrder() gives spec-canonical order but it doesn't match what's most useful
-  // to show first in the UI.
+  // to show first in the UI. Includes both scalar and complex (object/array) attrs —
+  // complex values render as a nested key/value tree in the same 2nd column, same
+  // approach as Grid view's unknown-extension rows (see renderValueTree()).
   var priority = ['registryid','xid','name','description','specversion',
     'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
-  var scalarKeys = Object.keys(data).filter(function(k) {
-    return !collKeys[k] && typeof data[k] !== 'object';
+  var attrKeys = Object.keys(data).filter(function(k) {
+    return !collKeys[k];
   }).sort(function(a, b) {
     var ai = priority.indexOf(a), bi = priority.indexOf(b);
     if (ai >= 0 && bi >= 0) return ai - bi;
@@ -1788,16 +1859,40 @@ function renderSingleEntity(data) {
       + '</tr></tbody></table>';
   }
 
-  // Scalar properties
-  if (scalarKeys.length) {
-    var capTypeT = capitalize(getSingularName(model, _state.path));
+  // Properties (scalar + complex). Complex (object/array) values render as a
+  // nested key/value tree in the value column — same generic renderValueTree()
+  // used by Grid view's unknown-extension rows — rather than being dropped.
+  // Scalar values follow the same normal-vs-monospace decision as Grid view's
+  // renderAttrRow(): spec attrs listed in MONO_ATTRS, or any explicitly
+  // model-defined (non-wildcard) attr with a non-string type, render
+  // monospace; everything else (including extension attrs only matching the
+  // '*' wildcard) renders as normal prose text.
+  if (attrKeys.length) {
+    var entityTypeP  = getSingularName(model, _state.path);
+    var capTypeT = capitalize(entityTypeP);
     var propHeaderT = depthD === 4 ? defaultVersionLabel(capTypeT, data) + ' Property' : capTypeT + ' Property';
+    var specLevelP = specAttrLevel(_state.path);
+    var singularP  = entityTypeP.toLowerCase();
     html += '<table class="xr-table"><thead><tr><th>' + esc(propHeaderT) + '</th><th>Value</th></tr></thead><tbody>';
-    scalarKeys.forEach(function(k) {
+    attrKeys.forEach(function(k) {
       var val = data[k];
-      var display = (val == null) ? '<span style="color:#999">null</span>' : esc(String(val));
+      var display, valueCellClass = '';
+      if (val !== null && typeof val === 'object') {
+        var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
+        display = isEmpty
+          ? '<span class="vt-empty">empty</span>'
+          : renderValueTree(val, 0, model, _state.path, [k]);
+        valueCellClass = ' class="cell-tree"';
+      } else if (val == null) {
+        display = '<span style="color:#999">null</span>';
+      } else {
+        var attrTypeP = getExplicitAttrType(model, _state.path, k);
+        var isMonoP = isMonoSpecAttr(k, specLevelP, singularP)
+          || (attrTypeP !== null && attrTypeP !== 'string');
+        display = isMonoP ? copyableMonospace(String(val)) : copyable(String(val));
+      }
       html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
-            + '</td><td>' + display + '</td></tr>';
+            + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
     });
     html += '</tbody></table>';
   }
@@ -2280,36 +2375,35 @@ function renderValueTree(val, depth, model, entityPath, keyPath) {
   if (typeof val === 'number')   return leaf(val, String(val));
   if (typeof val === 'string')   return leaf(val, esc(val));
 
-  var indent = 'style="margin-left:' + (depth * 14) + 'px"';
-
   if (Array.isArray(val)) {
     if (val.length === 0) return '<span class="vt-empty">empty</span>';
     var items = val.map(function(item, idx) {
       var isComplex = item !== null && typeof item === 'object';
       var sep    = (isComplex && idx > 0) ? '<div class="vt-arr-sep"></div>' : '';
       var badge  = '<span class="vt-arr-idx">[' + idx + ']</span>';
-      return sep + '<div class="vt-arr-item" ' + indent + '>'
+      return sep + '<div class="vt-arr-item">'
            + badge + renderValueTree(item, depth) + '</div>';
     });
     return '<div class="vt-arr">' + items.join('') + '</div>';
   }
 
-  // object / map
+  // object / map — rendered as its own compact two-column grid (key |
+  // value) scoped to just this object's keys, so its column width is
+  // independent of any sibling/parent grid. Any nested complex value
+  // (isComplex) recurses into another such grid inside its own value
+  // cell, which is why nesting no longer needs a manual depth-based
+  // indent or a connecting border-left — the column offset itself shows
+  // the nesting.
   var keys = Object.keys(val).sort();
   if (keys.length === 0) return '<span class="vt-empty">empty</span>';
   var rows = keys.map(function(k) {
     var child = val[k];
     var isComplex = child !== null && typeof child === 'object';
     var childKeyPath = keyPath ? keyPath.concat([k]) : null;
-    if (isComplex) {
-      return '<div class="vt-kv vt-kv-block" ' + indent + '>'
-           + '<span class="vt-key">' + esc(k) + ':</span>'
-           + renderValueTree(child, depth + 1, model, entityPath, childKeyPath)
-           + '</div>';
-    }
-    return '<div class="vt-kv" ' + indent + '>'
-         + '<span class="vt-key">' + esc(k) + ':</span> '
-         + renderValueTree(child, depth + 1, model, entityPath, childKeyPath)
+    var childHtml = renderValueTree(child, depth + 1, model, entityPath, childKeyPath);
+    return '<div class="vt-kv' + (isComplex ? ' vt-kv-block' : '') + '">'
+         + '<span class="vt-key">' + esc(k) + ':</span>'
+         + '<span class="vt-kv-value">' + childHtml + '</span>'
          + '</div>';
   });
   return '<div class="vt-obj">' + rows.join('') + '</div>';
@@ -2406,19 +2500,34 @@ function renderMetaContent(d, model) {
   metaRendered.defaultversionid  = 1;
   metaRendered.defaultversionurl = 1;
 
+  // Spec-defined attribute rows are laid out as their own two-column CSS
+  // Grid (see .eg-attr-grid in style.css). Unknown extension attrs (below
+  // the <hr class="eg-ext-sep">, added further down) get a separate grid
+  // of their own further down, so the two sections' label columns can
+  // size independently of each other.
+  html += '<div class="eg-spec-rows eg-attr-grid">';
+
   // 1. Temporal
   if (d.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>'  + copyableMonospace(d.createdat)  + '</div>';
   if (d.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyableMonospace(d.modifiedat) + '</div>';
   metaRendered.createdat  = 1;
   metaRendered.modifiedat = 1;
 
-  // 2. Tech row: epoch + self/shortself/xid as copy buttons
-  var techRow = '';
-  if (d.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyableMonospace(String(d.epoch)) + '</span>';
-  if (d.self)      techRow += copyBtn('Self', d.self);
-  if (d.shortself) techRow += copyBtn('ShortSelf', d.shortself);
-  if (d.xid)       techRow += copyBtn('XID', d.xid);
-  if (techRow) html += '<div class="eg-row eg-technical">' + techRow + '</div>';
+  // 2. Tech row: epoch + self/shortself/xid as copy buttons. Always exactly
+  // two top-level children (label + one value-wrapper span) so this row
+  // works correctly as a 2-cell participant in the .eg-spec-rows CSS Grid
+  // — extra top-level children would otherwise shift every following
+  // row's grid-column placement.
+  var techVal = '';
+  if (d.epoch !== undefined) techVal += '<span class="eg-epoch">' + copyableMonospace(String(d.epoch)) + '</span>';
+  if (d.self)      techVal += copyBtn('Self', d.self);
+  if (d.shortself) techVal += copyBtn('ShortSelf', d.shortself);
+  if (d.xid)       techVal += copyBtn('XID', d.xid);
+  if (techVal) {
+    html += '<div class="eg-row eg-technical">'
+          + '<span class="eg-label">' + (d.epoch !== undefined ? 'Epoch:' : '') + '</span>'
+          + '<span class="eg-value eg-tech-value">' + techVal + '</span></div>';
+  }
   metaRendered.epoch     = 1;
   metaRendered.self      = 1;
   metaRendered.shortself = 1;
@@ -2493,9 +2602,14 @@ function renderMetaContent(d, model) {
     }
   }
   specKeys.forEach(metaAttrRow);
+  html += '</div>'; // close .eg-spec-rows
   if (extKeys.length) {
     html += '<hr class="eg-ext-sep">';
+    // Own grid, independent of .eg-spec-rows' column width — extension
+    // attr names can be arbitrarily long/short and unrelated to spec ones.
+    html += '<div class="eg-ext-rows eg-attr-grid">';
     extKeys.forEach(metaAttrRow);
+    html += '</div>'; // close .eg-ext-rows
   }
   return html;
 }
@@ -2683,6 +2797,13 @@ function renderEntityGrid(data) {
       : '<div class="eg-description">' + esc(data.description) + '</div>';
   }
 
+  // Spec-defined attribute rows are laid out as their own two-column CSS
+  // Grid (see .eg-attr-grid in style.css). Unknown extension attrs (below
+  // the <hr class="eg-ext-sep">, added further down) get a separate grid
+  // of their own further down, so the two sections' label columns can
+  // size independently of each other.
+  html += '<div class="eg-spec-rows eg-attr-grid">';
+
   // For version pages: compute parent resource info; doc ID appears after description
   var versionParentSingular = '';
   var versionParentIdField = '';
@@ -2720,13 +2841,21 @@ function renderEntityGrid(data) {
   if (data.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>' + copyableMonospace(data.createdat) + '</div>';
   if (data.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyableMonospace(data.modifiedat) + '</div>';
 
-  // Row 5: epoch + self/shortself/xid as pill buttons
-  var techRow = '';
-  if (data.epoch !== undefined) techRow += '<span class="eg-label">Epoch:</span><span class="eg-value eg-epoch">' + copyableMonospace(String(data.epoch)) + '</span>';
-  if (data.self)      techRow += copyBtn('Self', data.self);
-  if (data.shortself) techRow += copyBtn('ShortSelf', data.shortself);
-  if (data.xid)       techRow += copyBtn('XID', data.xid);
-  if (techRow) html += '<div class="eg-row eg-technical">' + techRow + '</div>';
+  // Row 5: epoch + self/shortself/xid as pill buttons. Always exactly two
+  // top-level children (label + one value-wrapper span) so this row works
+  // correctly as a 2-cell participant in the .eg-spec-rows CSS Grid —
+  // extra top-level children would otherwise shift every following row's
+  // grid-column placement.
+  var techVal = '';
+  if (data.epoch !== undefined) techVal += '<span class="eg-epoch">' + copyableMonospace(String(data.epoch)) + '</span>';
+  if (data.self)      techVal += copyBtn('Self', data.self);
+  if (data.shortself) techVal += copyBtn('ShortSelf', data.shortself);
+  if (data.xid)       techVal += copyBtn('XID', data.xid);
+  if (techVal) {
+    html += '<div class="eg-row eg-technical">'
+          + '<span class="eg-label">' + (data.epoch !== undefined ? 'Epoch:' : '') + '</span>'
+          + '<span class="eg-value eg-tech-value">' + techVal + '</span></div>';
+  }
 
   // Row 6: labels
   if (data.labels && typeof data.labels === 'object') {
@@ -2838,10 +2967,15 @@ function renderEntityGrid(data) {
   var extKeys  = remainingKeys.filter(function(k) { return !isSpecAttr(k, specLevel, _singular, _resSing); });
 
   specKeys.forEach(renderAttrRow);
+  html += '</div>'; // close .eg-spec-rows
 
   if (extKeys.length) {
     html += '<hr class="eg-ext-sep">';
+    // Own grid, independent of .eg-spec-rows' column width — extension
+    // attr names can be arbitrarily long/short and unrelated to spec ones.
+    html += '<div class="eg-ext-rows eg-attr-grid">';
     extKeys.forEach(renderAttrRow);
+    html += '</div>'; // close .eg-ext-rows
   }
 
   html += '</div></div>';
@@ -4847,6 +4981,15 @@ function navigateTo(id) {
   // If navigating INTO a collection from the registry root or single entity,
   // the id IS the collection name (e.g., "endpoints") and we just append it.
   pushState({path: _state.path.concat([id]), editMode: false});
+}
+
+// Navigate directly into a nested collection shown as a resource-pill on a
+// collection view's tile/row (e.g. clicking "files (2)" on group "d1" while
+// viewing the "dirs" collection takes you straight to dirs/d1/files, instead
+// of first landing on the d1 entity page). itemId is the clicked row/tile's
+// own id; plural is the nested collection's name.
+function navigateToNestedColl(itemId, plural) {
+  pushState({path: _state.path.concat([itemId, plural]), editMode: false});
 }
 
 // Navigate to a specific version from the meta page (path: [..., resource, rId, "meta"])
@@ -7029,6 +7172,28 @@ function qsa(sel)  { return Array.from(document.querySelectorAll(sel)); }
 function capitalize(s) {
   s = String(s || '');
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Formats an ISO-8601 timestamp (e.g. createdat/modifiedat) into the
+// browser's local time as "MM/DD/YYYY hh:mm:ss AM/PM TZ" (e.g.
+// "07/06/2026 07:22:30 PM EDT"), used by collection Grid/List views'
+// Created/Modified display. Returns '' for missing/unparseable input.
+function formatTimestamp(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var parts = {};
+  try {
+    new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: true, timeZoneName: 'short'
+    }).formatToParts(d).forEach(function(p) { parts[p.type] = p.value; });
+  } catch (e) { return d.toString(); }
+  if (!parts.month) return d.toString();
+  return parts.month + '/' + parts.day + '/' + parts.year + ' '
+       + parts.hour + ':' + parts.minute + ':' + parts.second + ' '
+       + (parts.dayPeriod || '') + (parts.timeZoneName ? ' ' + parts.timeZoneName : '');
 }
 
 // Shared "Default <Type> Version (n)" label fragment used by both the Grid

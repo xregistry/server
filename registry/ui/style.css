@@ -380,6 +380,17 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .tile-name { font-size: 13px; color: #555; margin-bottom: 2px; }
 .tile-desc { font-size: 12px; color: #888; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tile-count { margin-top: 4px; font-size: 11px; color: #888; word-break: break-word; }
+/* Created/Modified timestamps at the bottom of a collection tile — right
+   aligned, small and muted so they don't compete visually with the tile's
+   id/name/description or the resource-pill footer above them. */
+.tile-times {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #999;
+  text-align: right;
+}
 
 /* ---- Table view ---- */
 
@@ -422,6 +433,22 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .xr-table tr:last-child td { border-bottom: none; }
 .xr-table tr:hover td { background: #f7f9fc; cursor: pointer; }
 .xr-table .cell-id { color: #2060a0; font-weight: bold; white-space: nowrap; }
+/* List view's Property table: complex (object/array) values render a nested
+   renderValueTree() (.vt-obj/.vt-arr), so undo the default td's
+   nowrap/ellipsis/max-width truncation — that's only appropriate for plain
+   scalar text, not a multi-row nested grid. */
+.xr-table .cell-tree { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
+/* Collection Table view's Created/Modified columns */
+.xr-table .cell-timestamp { color: #999; font-size: 12px; white-space: nowrap; }
+/* Table view's Versions column (resource collections) — just the version
+   count as clickable text (no pill), navigating into that resource's
+   versions collection. */
+.cell-version-count { color: #2060a0; cursor: pointer; }
+.cell-version-count:hover { text-decoration: underline; }
+/* Generic centered-column helper (e.g. Table view's single-count "Versions"
+   column, centered under its header rather than left-aligned like most
+   columns). */
+.xr-table th.col-center, .xr-table td.col-center { text-align: center; }
 .xr-table .cell-desc { color: #555; max-width: 320px; }
 .xr-table .cell-children { white-space: nowrap; }
 
@@ -1021,6 +1048,10 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .cfg-btn:hover { background: #e8e8e8; }
 .cfg-del { color: #a00; border-color: #d88; }
 .cfg-del:hover { background: #fee; }
+.config-section-desc { font-size: 13px; color: #666; margin: 0 0 14px; line-height: 1.5; }
+.cfg-reset-row { display: flex; gap: 10px; }
+.cfg-btn-danger { color: #a00; border-color: #d88; }
+.cfg-btn-danger:hover { background: #fee; }
 .cfg-add-row {
   display: flex;
   gap: 8px;
@@ -1183,6 +1214,13 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .coll-tile-res-hdr { font-size: 10px; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
 .coll-tile-res { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .coll-tile-res-pill { font-size: 10px; color: #444; background: #f0f0f0; border-radius: 4px; padding: 1px 5px; }
+/* Nested-collection pills that navigate straight into that collection (e.g.
+   "files (2)" on a group tile/row) — cursor + hover to signal clickability.
+   Kept as a separate class from the base .coll-tile-res-pill since that
+   class is also used for the non-clickable Resource Types list on the
+   Registry root's Group Type tiles (model schema names, not navigable). */
+.coll-tile-res-pill-clickable { cursor: pointer; }
+.coll-tile-res-pill-clickable:hover { background: #dce4f5; color: #2060a0; }
 .coll-tile-res-none { font-size: 11px; color: #888; font-style: italic; }
 .coll-tile-divider { border: none; border-top: 1px solid #ddd; margin: 8px 0 4px; }
 .coll-tile-desc { font-size: 11px; color: #888; margin-top: 5px; white-space: normal; line-height: 1.4; }
@@ -1302,7 +1340,7 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   line-height: 1.5;
 }
 .eg-temporal { color: #555; }
-.eg-technical { flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.eg-tech-value { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .eg-link-btn {
   display: inline-flex;
   align-items: center;
@@ -1341,7 +1379,28 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
-.eg-labels { align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+/* Spec-defined attribute rows (Created/Modified/Epoch/Labels/etc, plus any
+   remaining model-driven spec attrs) and unknown extension attrs (below
+   the .eg-ext-sep <hr>) each get their own two-column CSS Grid instance
+   (.eg-spec-rows / .eg-ext-rows, both using this shared .eg-attr-grid
+   layout) so every row's value lines up in the same left-aligned column
+   within that section — but the two sections' column widths are fully
+   independent of each other (spec attr names have no relation to
+   extension attr names). Each direct child (.eg-row / .eg-ext-complex)
+   becomes `display: contents` so its own two children (label + value)
+   are placed directly into the grid as column 1 / column 2 — this is
+   why every row must contribute exactly two top-level children (see
+   eg-technical's single value-wrapper span in app.js for how rows with
+   multiple bits of content handle this). */
+.eg-attr-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 6px;
+  align-items: baseline;
+}
+.eg-attr-grid > .eg-row,
+.eg-attr-grid > .eg-ext-complex { display: contents; }
 .eg-label-list { display: inline-flex; flex-wrap: wrap; gap: 4px 6px; }
 .eg-label-pair { display: inline-flex; }
 .eg-label-key {
@@ -1373,32 +1432,53 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .eg-link:hover { color: #003d80; }
 .eg-ext-sep { border: none; border-top: 1px solid #eee; margin: 12px 0; }
 
-/* Complex attribute block (objects/arrays) */
+/* Complex attribute block (objects/arrays) — key in column 1, its value
+   tree in column 2 of the enclosing .eg-attr-grid (spec or extension).
+   No connecting border-left here since the value is no longer stacked
+   "attached" below the key — the grid column itself shows the
+   association; nested levels inside the tree get their own compact grid
+   too (see .vt-obj below). */
 .eg-ext-complex { margin-bottom: 8px; }
 .eg-ext-complex-key {
+  grid-column: 1;
   font-size: 13px;
   font-weight: bold;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 4px;
+  white-space: nowrap;
 }
-.eg-ext-complex-body {
-  border-left: 2px solid #e0e4ee;
-  padding-left: 10px;
-  margin-left: 2px;
-}
+.eg-ext-complex-body { grid-column: 2; }
 
-/* Value tree */
+/* Value tree — each object/map level renders as its own small two-column
+   grid (key | value), scoped to just that object's own keys, so a nested
+   complex attribute's column width never affects its parent's or a
+   sibling's. .vt-kv/.vt-kv-block become `display: contents` so their two
+   children (key span + value-wrapper span) become the actual grid items;
+   any further-nested object recurses into another such grid inside its
+   own value cell (see renderValueTree() in app.js), so nesting is shown
+   purely by the resulting column indentation — no manual depth-based
+   margin or connecting border-left is needed any more. */
 .vt-null  { color: #aaa; font-style: italic; font-family: monospace; }
 .vt-empty { color: #aaa; font-style: italic; }
+.vt-obj {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: baseline;
+}
+.vt-kv,
+.vt-kv-block { display: contents; }
 .vt-key {
+  grid-column: 1;
   font-size: 11px;
   font-weight: bold;
   color: #557;
-  margin-right: 2px;
+  white-space: nowrap;
 }
-.vt-kv {
+.vt-kv-value {
+  grid-column: 2;
   font-size: 12px;
   line-height: 1.7;
   white-space: pre-wrap;
@@ -1412,12 +1492,6 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .vt-arr-item > .vt-obj,
 .vt-arr-item > .vt-arr { flex: 1; }
-.vt-kv-block > .vt-obj,
-.vt-kv-block > .vt-arr {
-  border-left: 2px solid #e0e4ee;
-  padding-left: 8px;
-  margin-left: 2px;
-}
 .vt-arr-sep {
   border-top: 1px solid #e0e4ee;
   margin: 5px 0 4px;
