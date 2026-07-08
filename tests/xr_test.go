@@ -126,6 +126,7 @@ ATTRIBUTES:       TYPE         REQ   RO   MUT   DEFAULT
 ├ name            string       -     -    y
 ├ registryid      string       y     y    -
 ├ self            url          y     y    -
+├ shortself       url          -     y    -
 ├ specversion     string       y     y    y
 └ xid             xid          y     y    -
 
@@ -156,6 +157,7 @@ GROUP: dirs / dir
   ├ modifiedat        timestamp    y     -    y
   ├ name              string       -     -    y
   ├ self              url          y     y    -
+  ├ shortself         url          -     y    -
   └ xid               xid          y     y    -
 
   RESOURCE: files / file
@@ -191,6 +193,7 @@ GROUP: dirs / dir
     ├ modifiedat                     timestamp    y     -    y
     ├ name                           string       -     -    y
     ├ self                           url          y     y    -
+    ├ shortself                      url          -     y    -
     ├ versionid                      string       y     -    -
     └ xid                            xid          y     y    -
 
@@ -200,6 +203,7 @@ GROUP: dirs / dir
     │ └ *                  any          -     -    y
     ├ metaurl              url          y     y    -
     ├ self                 url          y     y    -
+    ├ shortself            url          -     y    -
     ├ versions             map/object   -     -    y
     │ └ *                  any          -     -    y
     ├ versionscount        uinteger     y     y    y
@@ -224,6 +228,7 @@ GROUP: dirs / dir
     ├ modifiedat             timestamp    y     -    y
     ├ readonly               boolean      y     y    y     false
     ├ self                   url          y     y    -
+    ├ shortself              url          -     y    -
     ├ xid                    xid          y     y    -
     └ xref                   url          -     -    y
 `, "", true)
@@ -923,6 +928,12 @@ func TestXRGroupType(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -958,6 +969,7 @@ func TestXRGroupType(t *testing.T) {
   ├ modifiedat        timestamp    y     -    y
   ├ name              string       -     -    y
   ├ self              url          y     y    -
+  ├ shortself         url          -     y    -
   └ xid               xid          y     y    -
 `, "Created Group type: dirs4:dir4\n", true)
 
@@ -985,6 +997,7 @@ func TestXRGroupType(t *testing.T) {
   ├ modifiedat        timestamp    y     -    y
   ├ name              string       -     -    y
   ├ self              url          y     y    -
+  ├ shortself         url          -     y    -
   └ xid               xid          y     y    -
 `, "", true)
 
@@ -1100,6 +1113,12 @@ func TestXRGroupType(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -1221,6 +1240,12 @@ func TestXRGroupType(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -1336,6 +1361,12 @@ func TestXRGroupType(t *testing.T) {
         "readonly": true,
         "immutable": true,
         "required": true
+      },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
       },
       "xid": {
         "name": "xid",
@@ -1532,6 +1563,12 @@ files2 / file2   true      0
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "versionid": {
         "name": "versionid",
         "type": "string",
@@ -1578,6 +1615,12 @@ files2 / file2   true      0
         "readonly": true,
         "immutable": true,
         "required": true
+      },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
       },
       "versions": {
         "name": "versions",
@@ -1714,6 +1757,12 @@ files2 / file2   true      0
         "readonly": true,
         "immutable": true,
         "required": true
+      },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
       },
       "xid": {
         "name": "xid",

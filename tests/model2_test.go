@@ -53,6 +53,12 @@ func TestModelLabels(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -178,6 +184,12 @@ func TestModelLabels(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -339,6 +351,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -458,6 +476,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -523,6 +547,12 @@ func TestModelLabels(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -663,6 +693,12 @@ func TestModelLabels(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -785,6 +821,12 @@ func TestModelLabels(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -943,6 +985,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1062,6 +1110,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1127,6 +1181,12 @@ func TestModelLabels(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -1303,6 +1363,12 @@ func TestModelLabels(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -1428,6 +1494,12 @@ func TestModelLabels(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -1589,6 +1661,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1708,6 +1786,12 @@ func TestModelLabels(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1773,6 +1857,12 @@ func TestModelLabels(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -2114,6 +2204,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
     "readonly": 8,
     "registryid": 10,
     "self": 4,
+    "shortself": 9,
     "specversion": 11,
     "versionid": 9,
     "xid": 3,
@@ -2142,6 +2233,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "readonly": true,
         "immutable": true,
         "required": true
+      },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
       },
       "xid": {
         "name": "xid",
@@ -2317,6 +2414,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "name": "self",
             "type": "integer"
           },
+          "shortself": {
+            "name": "shortself",
+            "type": "integer"
+          },
           "specversion": {
             "name": "specversion",
             "type": "integer"
@@ -2411,6 +2512,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -2644,6 +2751,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "self",
                 "type": "integer"
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "integer"
+              },
               "specversion": {
                 "name": "specversion",
                 "type": "integer"
@@ -2722,6 +2833,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -2958,6 +3075,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "name": "self",
                     "type": "integer"
                   },
+                  "shortself": {
+                    "name": "shortself",
+                    "type": "integer"
+                  },
                   "specversion": {
                     "name": "specversion",
                     "type": "integer"
@@ -2991,6 +3112,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -3057,6 +3184,12 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -3286,6 +3419,10 @@ func TestModelUseSpecAttrs(t *testing.T) {
                     "name": "self",
                     "type": "integer"
                   },
+                  "shortself": {
+                    "name": "shortself",
+                    "type": "integer"
+                  },
                   "specversion": {
                     "name": "specversion",
                     "type": "integer"
@@ -3372,6 +3509,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "readonly": 8,
         "registryid": 10,
         "self": 4,
+        "shortself": 9,
         "specversion": 11,
         "versionid": 9,
         "xid": 3,
@@ -3427,6 +3565,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "readonly": 8,
             "registryid": 10,
             "self": 4,
+            "shortself": 9,
             "specversion": 11,
             "versionid": 9,
             "xid": 3,
@@ -3479,6 +3618,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "readonly": 8,
               "registryid": 10,
               "self": 4,
+              "shortself": 9,
               "specversion": 11,
               "versionid": 9,
               "xid": 3,
@@ -3538,6 +3678,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "readonly": 8,
                 "registryid": 10,
                 "self": 4,
+                "shortself": 9,
                 "specversion": 11,
                 "versionid": 9,
                 "xid": 3,
@@ -3637,6 +3778,12 @@ func TestModelCompatibleWith(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -3762,6 +3909,12 @@ func TestModelCompatibleWith(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -3973,6 +4126,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4092,6 +4251,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4157,6 +4322,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -4293,6 +4464,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4412,6 +4589,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4477,6 +4660,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -4612,6 +4801,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4731,6 +4926,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4796,6 +4997,12 @@ func TestModelCompatibleWith(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -4935,6 +5142,11 @@ func TestModelIncludes(t *testing.T) {
       "readonly": true,
       "required": true
     },
+    "shortself": {
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "type": "xid",
       "readonly": true,
@@ -5027,6 +5239,11 @@ func TestModelIncludes(t *testing.T) {
           "immutable": true,
           "required": true
         },
+        "shortself": {
+          "type": "url",
+          "readonly": true,
+          "immutable": true
+        },
         "xid": {
           "type": "xid",
           "readonly": true,
@@ -5108,6 +5325,11 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "readonly": true,
               "required": true
+            },
+            "shortself": {
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "type": "xid",
@@ -5193,6 +5415,11 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "readonly": true,
               "required": true
+            },
+            "shortself": {
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "type": "xid",
@@ -5292,6 +5519,12 @@ func TestModelIncludes(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -5415,6 +5648,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -5573,6 +5812,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -5692,6 +5937,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -5757,6 +6008,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -5905,6 +6162,12 @@ func TestModelIncludes(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -6055,6 +6318,12 @@ func TestModelIncludes(t *testing.T) {
           "immutable": true,
           "required": true
         },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
+        },
         "xid": {
           "name": "xid",
           "type": "xid",
@@ -6212,6 +6481,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -6331,6 +6606,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -6396,6 +6677,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -6516,6 +6803,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -6674,6 +6967,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -6793,6 +7092,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -6858,6 +7163,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -7094,6 +7405,12 @@ func TestModelIncludes(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -7242,6 +7559,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -7400,6 +7723,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -7519,6 +7848,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -7584,6 +7919,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -7704,6 +8045,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -7862,6 +8209,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -7981,6 +8334,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8046,6 +8405,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -8188,6 +8553,12 @@ func TestModelIncludes(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -8336,6 +8707,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -8494,6 +8871,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8613,6 +8996,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8678,6 +9067,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -8798,6 +9193,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -8956,6 +9357,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -9075,6 +9482,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -9140,6 +9553,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -9282,6 +9701,12 @@ func TestModelIncludes(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -9430,6 +9855,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -9588,6 +10019,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -9707,6 +10144,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -9772,6 +10215,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -9892,6 +10341,12 @@ func TestModelIncludes(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -10050,6 +10505,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -10169,6 +10630,12 @@ func TestModelIncludes(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -10234,6 +10701,12 @@ func TestModelIncludes(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -10482,6 +10955,12 @@ func TestModelMissingFields(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -10608,6 +11087,12 @@ func TestModelMissingFields(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -10770,6 +11255,12 @@ func TestModelMissingFields(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -10893,6 +11384,12 @@ func TestModelMissingFields(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -10958,6 +11455,12 @@ func TestModelMissingFields(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",

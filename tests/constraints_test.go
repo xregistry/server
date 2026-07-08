@@ -581,6 +581,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -703,6 +709,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -871,6 +883,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -984,6 +1002,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1049,6 +1073,12 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",

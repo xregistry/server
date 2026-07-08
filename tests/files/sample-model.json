@@ -19,6 +19,11 @@
       "readonly": true,
       "required": true
     },
+    "shortself": {
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "type": "xid",
       "readonly": true,
@@ -114,6 +119,11 @@
           "immutable": true,
           "required": true
         },
+        "shortself": {
+          "type": "url",
+          "readonly": true,
+          "immutable": true
+        },
         "xid": {
           "type": "xid",
           "readonly": true,
@@ -196,6 +206,11 @@
               "immutable": true,
               "readonly": true,
               "required": true
+            },
+            "shortself": {
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "type": "xid",
@@ -282,6 +297,11 @@
               "immutable": true,
               "readonly": true,
               "required": true
+            },
+            "shortself": {
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "type": "xid",

@@ -34,6 +34,12 @@ func TestNoModel(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -146,6 +152,12 @@ func TestNoModel(t *testing.T) {
         "readonly": true,
         "immutable": true,
         "required": true
+      },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
       },
       "xid": {
         "name": "xid",
@@ -268,6 +280,12 @@ func TestGroupModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -390,6 +408,12 @@ func TestGroupModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -516,6 +540,12 @@ func TestGroupModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -638,6 +668,12 @@ func TestGroupModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -764,6 +800,12 @@ func TestGroupModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -886,6 +928,12 @@ func TestGroupModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -1069,6 +1117,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -1217,6 +1271,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -1375,6 +1435,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1494,6 +1560,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1559,6 +1631,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -1679,6 +1757,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -1837,6 +1921,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1956,6 +2046,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -2021,6 +2117,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -2152,6 +2254,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -2300,6 +2408,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -2458,6 +2572,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -2577,6 +2697,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -2642,6 +2768,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -2762,6 +2894,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -2888,6 +3026,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -3036,6 +3180,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -3194,6 +3344,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -3313,6 +3469,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -3378,6 +3540,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -3498,6 +3666,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -3625,6 +3799,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -3747,6 +3927,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -3905,6 +4091,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4024,6 +4216,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4089,6 +4287,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -4219,6 +4423,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -4341,6 +4551,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -4499,6 +4715,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4618,6 +4840,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -4683,6 +4911,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -4841,6 +5075,12 @@ func TestResourceModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -4967,6 +5207,12 @@ func TestResourceModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -5125,6 +5371,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -5228,6 +5480,12 @@ func TestResourceModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -5293,6 +5551,12 @@ func TestResourceModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -5454,6 +5718,12 @@ func TestResourceModelCreate(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -5580,6 +5850,12 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -5738,6 +6014,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -5841,6 +6123,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -5906,6 +6194,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -6102,6 +6396,12 @@ func TestResourceModelCreate(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -6224,6 +6524,12 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -6382,6 +6688,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -6485,6 +6797,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -6550,6 +6868,12 @@ func TestResourceModelCreate(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -6716,6 +7040,12 @@ func TestResourceModelCreate(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -6838,6 +7168,12 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -6998,6 +7334,12 @@ func TestResourceModelCreate(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -7120,6 +7462,12 @@ func TestResourceModelCreate(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -7275,6 +7623,12 @@ func TestMultModelCreate(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -7423,6 +7777,12 @@ func TestMultModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -7607,6 +7967,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -7726,6 +8092,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -7791,6 +8163,12 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -7925,6 +8303,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8044,6 +8428,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8109,6 +8499,12 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -8233,6 +8629,12 @@ func TestMultModelCreate(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -8417,6 +8819,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8536,6 +8944,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8601,6 +9015,12 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -8735,6 +9155,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8854,6 +9280,12 @@ func TestMultModelCreate(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -8919,6 +9351,12 @@ func TestMultModelCreate(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -9105,6 +9543,12 @@ func TestMultModel2Create(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -9253,6 +9697,12 @@ func TestMultModel2Create(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -9411,6 +9861,12 @@ func TestMultModel2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -9530,6 +9986,12 @@ func TestMultModel2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -9595,6 +10057,12 @@ func TestMultModel2Create(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",
@@ -9719,6 +10187,12 @@ func TestMultModel2Create(t *testing.T) {
             "readonly": true,
             "immutable": true,
             "required": true
+          },
+          "shortself": {
+            "name": "shortself",
+            "type": "url",
+            "readonly": true,
+            "immutable": true
           },
           "xid": {
             "name": "xid",
@@ -9877,6 +10351,12 @@ func TestMultModel2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -9996,6 +10476,12 @@ func TestMultModel2Create(t *testing.T) {
                 "immutable": true,
                 "required": true
               },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
+              },
               "xid": {
                 "name": "xid",
                 "type": "xid",
@@ -10061,6 +10547,12 @@ func TestMultModel2Create(t *testing.T) {
                 "readonly": true,
                 "immutable": true,
                 "required": true
+              },
+              "shortself": {
+                "name": "shortself",
+                "type": "url",
+                "readonly": true,
+                "immutable": true
               },
               "xid": {
                 "name": "xid",

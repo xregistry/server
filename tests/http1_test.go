@@ -85,6 +85,12 @@ func TestHTTPModel(t *testing.T) {
         "immutable": true,
         "required": true
       },
+      "shortself": {
+        "name": "shortself",
+        "type": "url",
+        "readonly": true,
+        "immutable": true
+      },
       "xid": {
         "name": "xid",
         "type": "xid",
@@ -200,6 +206,12 @@ func TestHTTPModel(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -351,6 +363,12 @@ func TestHTTPModel(t *testing.T) {
       "readonly": true,
       "immutable": true,
       "required": true
+    },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
     },
     "xid": {
       "name": "xid",
@@ -505,6 +523,12 @@ func TestHTTPModel(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -627,6 +651,12 @@ func TestHTTPModel(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -785,6 +815,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -904,6 +940,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -969,6 +1011,12 @@ func TestHTTPModel(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -1162,6 +1210,12 @@ func TestHTTPModel(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -1284,6 +1338,12 @@ func TestHTTPModel(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -1442,6 +1502,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1545,6 +1611,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -1610,6 +1682,12 @@ func TestHTTPModel(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",
@@ -1804,6 +1882,12 @@ func TestHTTPModel(t *testing.T) {
       "immutable": true,
       "required": true
     },
+    "shortself": {
+      "name": "shortself",
+      "type": "url",
+      "readonly": true,
+      "immutable": true
+    },
     "xid": {
       "name": "xid",
       "type": "xid",
@@ -1931,6 +2015,12 @@ func TestHTTPModel(t *testing.T) {
           "readonly": true,
           "immutable": true,
           "required": true
+        },
+        "shortself": {
+          "name": "shortself",
+          "type": "url",
+          "readonly": true,
+          "immutable": true
         },
         "xid": {
           "name": "xid",
@@ -2089,6 +2179,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -2208,6 +2304,12 @@ func TestHTTPModel(t *testing.T) {
               "immutable": true,
               "required": true
             },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
             "xid": {
               "name": "xid",
               "type": "xid",
@@ -2273,6 +2375,12 @@ func TestHTTPModel(t *testing.T) {
               "readonly": true,
               "immutable": true,
               "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
             },
             "xid": {
               "name": "xid",

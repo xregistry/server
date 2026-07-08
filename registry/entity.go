@@ -1130,38 +1130,38 @@ var PropsFuncs = []*Attribute{
 			},
 		},
 	},
-	/*
-				{
-					Name:           "shortself",
-					internals: &AttrInternals{
-						getFn: func(e *Entity) any {
-							path := e.Path
-							base := ""
-		                    info := e.GetRequestInfo()
-							if info != nil {
-								base = info.BaseURL
-							}
+	{
+		Name:      "shortself",
+		internals: &AttrInternals{
+			/*
+				getFn: func(e *Entity) any {
+					path := e.Path
+					base := ""
+					info := e.GetRequestInfo()
+					if info != nil {
+						base = info.BaseURL
+					}
 
-							if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
-								meta := info != nil && (info.ShowDetails ||
-								info.DoDocView() ||
-								info.ResourceUID == "" || len(info.Parts) == 5)
+					if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
+						meta := info != nil && (info.ShowDetails ||
+							info.DoDocView() ||
+							info.ResourceUID == "" || len(info.Parts) == 5)
 
-								if e.GetResourceModel().GetHasDocument() == false {
-									meta = false
-								}
+						if e.GetResourceModel().GetHasDocument() == false {
+							meta = false
+						}
 
-								if meta {
-									path += "$details"
-								}
-							}
+						if meta {
+							path += "$details"
+						}
+					}
 
-							shortself := MD5(path)
-							return base + "/r?u=" + shortself
-						},
-					},
+					shortself := MD5(path)
+					return base + "/r?u=" + shortself
 				},
-	*/
+			*/
+		},
+	},
 	{
 		Name:      "xid",
 		internals: &AttrInternals{},

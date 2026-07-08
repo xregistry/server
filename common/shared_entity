@@ -166,20 +166,18 @@ var OrderedSpecProps = []*Attribute{
 			xrefrequired: true,
 		},
 	},
-	/*
-		{
-			Name:           "shortself",
-			Type:           URL,
-			ReadOnly:       true,
-			Immutable: true,
+	{
+		Name:      "shortself",
+		Type:      URL,
+		ReadOnly:  true,
+		Immutable: true,
 
-			internals: &AttrInternals{
-				types:     "",
-				dontStore: true,
-				xrefrequired: true,
-			},
+		internals: &AttrInternals{
+			types:        "",
+			dontStore:    true,
+			xrefrequired: true,
 		},
-	*/
+	},
 	{
 		Name:      "xid",
 		Type:      XID,
@@ -358,8 +356,8 @@ var OrderedSpecProps = []*Attribute{
 		Required: false,
 
 		internals: &AttrInternals{
-			types:        StrTypes(ENTITY_META),
-			uiMonospace:  true,
+			types:       StrTypes(ENTITY_META),
+			uiMonospace: true,
 		},
 	},
 	{
