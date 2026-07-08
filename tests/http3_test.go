@@ -2141,6 +2141,57 @@ func TestHTTPSort(t *testing.T) {
 }
 `)
 
+	// Sort + filter had issues at one point
+	XHTTP(t, reg, "GET", "/dirs?sort=xid&filter=epoch", ``, 200, `{
+  "d1": {
+    "dirid": "d1",
+    "self": "http://localhost:8181/dirs/d1",
+    "xid": "/dirs/d1",
+    "epoch": 1,
+    "name": "d1",
+    "createdat": "2026-07-08T19:29:40.277009584Z",
+    "modifiedat": "2026-07-08T19:29:40.277009584Z",
+    "myany": "a string",
+    "myfloat": 3.1,
+    "myobj": {
+      "foo": "bar"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d1/files",
+    "filescount": 2
+  },
+  "d2": {
+    "dirid": "d2",
+    "self": "http://localhost:8181/dirs/d2",
+    "xid": "/dirs/d2",
+    "epoch": 1,
+    "name": "d2",
+    "createdat": "2026-07-08T19:29:40.277009584Z",
+    "modifiedat": "2026-07-08T19:29:40.277009584Z",
+    "myany": 123,
+    "myfloat": 1.3,
+    "myobj": {
+      "foo": "zzz"
+    },
+
+    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filescount": 0
+  },
+  "d3": {
+    "dirid": "d3",
+    "self": "http://localhost:8181/dirs/d3",
+    "xid": "/dirs/d3",
+    "epoch": 1,
+    "name": "D1",
+    "createdat": "2026-07-08T19:29:40.277009584Z",
+    "modifiedat": "2026-07-08T19:29:40.277009584Z",
+
+    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filescount": 0
+  }
+}
+`)
+
 }
 
 func TestHTTPSortArray(t *testing.T) {

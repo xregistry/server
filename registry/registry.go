@@ -992,7 +992,7 @@ SELECT
 		query += `
 AND
 (
-eSID IN ( -- eSID from query
+ft.eSID IN ( -- eSID from query
   -- Find all entities that match the filters, and then grab all parents
   -- This "RECURSIVE" stuff finds all parents
   WITH RECURSIVE cte(eSID,Type,ParentSID,Path) AS (
