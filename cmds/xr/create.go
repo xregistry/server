@@ -181,7 +181,7 @@ func createFunc(cmd *cobra.Command, args []string) {
 			// perspective unless they're going to del/set something.
 			// That's why we don't do this outside of this if-changed block
 			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
-				Error(NewXRError("parsing_data",
+				Error(NewXRError("parsing_data", "",
 					"error_detail="+err.Error()))
 			}
 		}
