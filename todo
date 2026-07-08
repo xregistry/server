@@ -119,4 +119,4 @@ TODOs:
 ** support arrays
 - test for arrays (and indexes) & maps in filter querys. Do arrays need indexes?
 - time our tests and see which ones are the slowest, fix them
-- support wildcards in filters for map keys and array indexes
+** support wildcards in filters for map keys and array indexes

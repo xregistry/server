@@ -12,14 +12,27 @@ goals.
 ## Outstanding
 
 - [ ] **Add filter support to Grid (Tile) and List (Table) views for
-  registry Data.** Today `_state.filters` is only wired into the JSON
-  view's left panel (`buildAPIURL()` + the `lp-*` filter textarea).
-  `newui.md`'s "Misc thoughts" section explicitly calls for filters to
-  also work in Tile and Table views, not just JSON. Needs: a filter UI
-  affordance in Grid/List headers (not gated to JSON-only), wired through
-  the same `_state.filters` / query-string plumbing so Grid/List re-fetch
-  with `?filter=...` applied. (Currently deferred — see "Filter builder
-  UI" item below, which is being designed for JSON view first.)
+  registry Data.** Design finalized (2026-07-07 planning session, not yet
+  implemented) — see "Filter support in Grid/List views (design)" below
+  for the full write-up.
+
+- [ ] **Fix `navigateJsonUrl`/`syntaxHighlight`'s link reconstruction gap.**
+  Discovered during the above design discussion (2026-07-07), explicitly
+  deferred — not required for Grid/List filter support and has no
+  observable real-world impact today, but is a genuine robustness gap:
+  when a user clicks a URL string value shown inside JSON view's raw
+  text, `navigateJsonUrl()` only extracts `path` + `filter` from the
+  clicked link and reconstructs everything else via `buildBaseURL()` —
+  silently dropping any OTHER query params the link might carry (e.g. a
+  hypothetical required `?xreg=true`, or any other future non-filter
+  query convention). Confirmed via direct question/answer during design:
+  this would genuinely break in that hypothetical scenario. Fix: once
+  `stripFilterParams()` exists (see Grid/List filter design below),
+  retrofit `navigateJsonUrl`/`syntaxHighlight` to preserve the clicked
+  link verbatim as `apiURL` (stripping only `filter=`, same as
+  everywhere else) instead of reconstructing from path alone — making
+  all 3 views share one single, fully link-preserving mechanism instead
+  of JSON's in-content clicks being the one remaining exception.
 
 - [x] **Filter builder UI for JSON view** — implemented and live-tested
   via CDP (chip-based OR-groups, model-driven cascading wizard,
@@ -1295,6 +1308,778 @@ landed:
    triggered the fast SPA `pushState()` navigation. Confirmed the
    `renderHomeTable()` styling fix visually (link renders in the same
    blue, non-underlined style as before, underlining only on hover).
+
+## Filter support in Grid/List views (design)
+
+Goal: bring the same OR-group filter builder already built for JSON view
+to Grid and List views too, so all 3 views are feature-equivalent for
+filtering (Sort/Inline/Options stay JSON-only for now — not yet decided
+whether those make sense for Grid/List). A filter set anywhere should
+survive switching between Grid/List/JSON and moving up/down the
+hierarchy, without the client ever reconstructing a filter expression
+itself — matching the existing "follow links, don't build URLs"
+architecture.
+
+**UI placement** (confirmed with user):
+- Reuse the exact same filter-builder component JSON view already has
+  (`buildFilterSectionInner()`/`fbFiltersTitleHTML()`/`ensureFbDraft()`
+  etc.) — just the Filters section, not Sort/Inline/Options.
+- Add a new "Filters (N)" toggle button in the header, next to the
+  Grid/List/JSON view-switch buttons, visible only when
+  `_state.section === 'data'` and the server capability reports
+  `hasF('filter')`. Default OFF/hidden (Grid/List stay full-width by
+  default); clicking toggles a panel open. `N` is the current filter
+  count, shown even while collapsed (mirrors the existing `(N)` count on
+  the JSON left-panel's own Filters section header).
+
+**Key realization from design discussion — no URL reconstruction
+needed at all for navigation itself:**
+Real links followed while navigating (`navigateTo()`,
+`navigateToNestedColl()`, breadcrumb clicks, tile/row clicks, etc.)
+already carry a correctly-scoped `filter=` param when they originate
+from an already-filtered response — the *server* computes and bakes
+this in (confirmed via `curl`: fetching a registry root with
+`?filter=endpoints.name=end1` returns `"endpointsurl":
+".../endpoints?filter=name=end1"` — already narrowed to the child
+collection's own attribute-naming scope). So none of the existing
+navigation functions need to change — they already store the real
+followed link verbatim as `_state.apiURL`, and that's sufficient.
+
+The only place a filter expression is ever actually *constructed*
+client-side is the deliberate "Apply" action (same as JSON view already
+does), which becomes the single point where a new, user-edited filter
+gets baked into a fresh `apiURL`. From then on, everything downstream
+(further real links returned by the server) carries the filter forward
+automatically — no client-side propagation logic needed anywhere else.
+
+**Required code changes:**
+
+1. `buildAPIURL()`: currently *always* appends `_state.filters` onto
+   whatever `apiURL` is. Change so `_state.filters` is only appended in
+   the fallback branch (`_state.apiURL` empty → `buildBaseURL()` used —
+   i.e. first-ever load / a bookmarked URL with `filter=` but no
+   `apiurl=`). When a real `_state.apiURL` is known, trust it completely
+   as-is — it already contains whatever filter is relevant at this
+   position (baked in by the server, or by our own "Apply" step below).
+   This is what prevents the double-`filter=` param bug that motivated
+   this whole design discussion.
+
+2. New `stripFilterParams(url)` helper: strips only `filter=...` tokens
+   from a URL's query string (plain token-level split, NOT
+   `URLSearchParams` re-serialization, to avoid mangling any other
+   params' original encoding — e.g. unescaped colons in ids).
+
+3. New `applyFilters()` helper (shared by JSON view's existing Apply
+   button and the new Grid/List Apply button): computes
+   `{filters: fbCollectFilters(), apiURL: stripFilterParams(_state.apiURL
+   || buildBaseURL()) + freshly-appended filter params}` and returns it
+   as a patch. `applyJSONOptions()` is refactored to merge this patch in
+   alongside its existing sort/inline/docView/binary/collections patch
+   (those stay exactly as they work today — always freshly appended,
+   JSON-only, no baking-into-apiURL needed since they're not exposed
+   outside JSON view). The new Grid/List "Apply" button in the Filters
+   panel just calls `pushState(applyFilters())` directly.
+
+4. `pushStateReal()`: add a small resync step — whenever `_state.apiURL`
+   ends up truthy after applying a patch, refresh `_state.filters =
+   filtersFromUrl(_state.apiURL)` so the two always agree, in one
+   central place, regardless of which code path changed `apiURL`
+   (ordinary navigation, breadcrumb click, or Apply). This is what feeds
+   the Filter Builder's displayed/editable draft (`ensureFbDraft()`
+   already seeds from `_state.filters`) — the draft is always an
+   accurate reflection of "what's actually active right now," never
+   independently tracked/stale.
+
+5. `crumbURLs` cache: when Apply changes `_state.apiURL` for the
+   *current* depth (no path change), also patch
+   `_state.crumbURLs[_state.path.length - 1]` to the new value, so a
+   later breadcrumb-click back to this depth doesn't regress to the
+   pre-Apply link.
+
+6. Left panel: extend `setLeftPanelVisible()`/`renderJSONLeftPanel()`
+   with a mode flag so Grid/List can show a slimmed-down version
+   containing only the Filters section (skip the Registry Endpoints nav
+   block, Sort, Inline, Options), toggled by the new header button
+   rather than being tied to `_state.view === 'json'`.
+
+**Verified via `curl` during design discussion:**
+- `GET /reg-Endpoints?filter=endpoints.name=end1` →
+  `"endpointsurl": ".../endpoints?filter=name=end1"` — confirms the
+  server narrows/rescopes filter expressions per-level in returned
+  links, which is the load-bearing fact behind not needing any
+  client-side filter propagation during navigation.
+- A plain collection GET (e.g. `/endpoints?filter=...`) returns a bare
+  `{id: {...}, ...}` map with no top-level `self` of its own (only
+  individual entities inside it have `self`) — confirms there's no
+  "collection-level self" to resync `apiURL` from after a fetch; the
+  `apiURL` used for the request itself remains the right source of
+  truth.
+- Confirmed a hypothetical gap in JSON view's own in-content link-click
+  handling (`navigateJsonUrl`/`syntaxHighlight`): it only extracts
+  `path` + `filter` from a clicked link and reconstructs the rest via
+  `buildBaseURL()`, silently dropping any other non-filter query params
+  a link might carry (e.g. a hypothetical required `?xreg=true`). Noted
+  as a known, pre-existing, out-of-scope gap for this feature — not
+  fixed as part of this work, but worth revisiting since the new
+  `stripFilterParams()`-based approach (preserve everything, touch only
+  `filter=`) is strictly more robust and could retrofit that code path
+  later if desired.
+
+### Implementation — done
+All items above implemented in `registry/ui/app.js` / `index.html`:
+- `buildAPIURL()` only appends `_state.filters` in the no-real-`apiURL`
+  fallback branch; fixed a latent `?`/`&` separator bug in the same pass.
+- `stripFilterParams(url)` / `applyFilters()` — shared helpers; `applyFilters()`
+  is the single deliberate spot a new filter expression is baked into
+  `apiURL` (used by both JSON view's Apply and the new Grid/List Apply).
+- `pushStateReal()` centrally resyncs `_state.filters` from `apiURL` after
+  every patch (whenever `apiURL` is present), and keeps `crumbURLs` in sync
+  for Apply-without-path-change. This is what makes filters survive Grid ↔
+  List ↔ JSON view switches and hierarchy navigation with no per-callsite
+  plumbing.
+- `applyJSONOptions()` refactored to merge in `applyFilters()`'s patch
+  instead of computing filters/apiURL inline.
+- New `applyGridFilters()` — `pushState(applyFilters())` — the Grid/List
+  Apply button's handler (kept separate from `applyJSONOptions()` so it
+  never touches JSON-only state like sort/inline/doc-view that don't exist
+  in the slimmed panel).
+- `renderJSONLeftPanel(filtersOnly)` — new `filtersOnly` mode renders only
+  the Filters section (no Registry Endpoints nav, no Sort/Options/Inlines);
+  its Apply button calls `applyGridFilters()` instead of `applyJSONOptions()`.
+- New `isGridFiltersOnlyMode()` helper — single source of truth for "is the
+  left panel currently in Grid/List's slimmed mode", used by `refresh()`,
+  `setDataView()`, `toggleFiltersPanel()`, and `fbToggleCollapsed()` (the one
+  internal filter-builder handler that does a full panel re-render rather
+  than just refreshing `#lp-filter-section` in place via `fbRerender()`).
+- New "Filters" header toggle button (`#filters-toggle-btn` in `index.html`,
+  wired in `renderHeader()`) — shown only for the plain `data` section
+  (outside JSON view) when the server's capabilities report `filter` in
+  `flags`; shows an active/inactive state plus a live `(N)` count of
+  currently-applied filter expressions. `renderHeader()` lazily fetches
+  capabilities via `ensureCapCached()` if not yet cached, re-rendering the
+  header once available (capabilities aren't otherwise pre-fetched for the
+  plain data section).
+- `toggleFiltersPanel()` flips `_filtersPanelOpen`, re-renders the header,
+  and shows/hides + (re)renders the left panel accordingly.
+- `refresh()` and `setDataView()` both call `renderJSONLeftPanel(true)` and
+  `setLeftPanelVisible(...)` when Grid/List's Filters panel is toggled open,
+  independent of the JSON-view-driven left panel logic.
+
+**Verified via headless-Chromium (CDP) smoke test:** navigated to a
+collection in List view, confirmed the Filters button is hidden until
+capabilities load then appears with correct enabled state; toggled it open —
+panel shows only the Filters section (Apply → `applyGridFilters()`, no Sort/
+Options/Inlines/Registry-Endpoints); expanding/collapsing the Filters twisty
+(`fbToggleCollapsed()`) correctly stays in filters-only mode (this was a real
+bug caught during verification — fixed via `isGridFiltersOnlyMode()`);
+entered a raw filter expression via Advanced mode and clicked Apply — `_state.
+apiURL` and `_state.filters` updated correctly and the address bar reflected
+the new `apiurl=`; switched List → JSON → List again — filter state persisted
+unchanged across all switches with no duplicate `filter=` params. (Deep
+hierarchy-navigation-with-active-filter re-verification was not repeated in
+this pass since it depends on the link-driven-navigation work verified
+earlier in this same design's development.)
+
+### Follow-up fixes (found via real-world testing against xregistry.soaphub.org)
+
+1. **Filters button state going stale across view switches.** `setDataView()`
+   only toggled `[data-dview]` buttons' active class directly — it never
+   called `renderHeader()` — so the new Filters button (not a `[data-dview]`
+   button) kept showing whatever visibility/active-state it had from the
+   last full header render. Symptom: button visible while in JSON view (it
+   should only ever show outside JSON view), and clicking it there called
+   `setLeftPanelVisible(false)`, hiding JSON view's own always-on left panel;
+   switching back to Grid/List afterwards left the button stuck hidden too.
+   Fixed by having `setDataView()` call `renderHeader()` on every switch, and
+   added a defensive guard in `toggleFiltersPanel()` so a stale click while
+   in JSON view is a no-op rather than corrupting JSON view's panel state.
+
+2. **Filter silently lost one hop after drilling into an entity from a
+   filtered collection (the big one) — plus its own hover/ctrl-click bug.**
+   Repro: at the registry root, apply a dotted filter naming a deeply-nested
+   attribute (e.g. `schemagroups.schemas.versions.schemaid=...`) — the
+   `schemagroups` tile correctly narrows to 1 and its `apiurl` carries the
+   rescoped `?filter=schemas.versions.schemaid=...`. Clicking into that one
+   schemagroup entity, its `schemas` tile still correctly shows "1" — **but**
+   clicking into `schemas` shows all 16, filter gone. Root cause: an
+   entity's own `self` link (the only link a row/tile can navigate through
+   to reach it) is the bare canonical URL and **never** carries filter
+   context on its own — verified via `curl`: `GET /schemagroups/Contoso.ERP`
+   (via bare `self`) returns `schemasurl` with no filter and
+   `schemascount: 16`.
+   - **First attempt (reverted):** had `navigateTo()` stash the
+     already-known entity JSON from the parent collection response as an
+     `_entitySeed`, and skip the re-fetch entirely on landing, reusing the
+     seed's already-correctly-scoped `<plural>url` links. This worked, but
+     introduced real problems: the entity's hover/ctrl-click/bookmark URL
+     (still just the bare `self`) never showed the filter even though the
+     rendered page was in fact filtered; refresh/reload of that URL lost
+     the filter and the correctly-scoped view entirely; and the whole
+     mechanism (seed stashing, path+URL matching, single-use consumption,
+     attribute-by-attribute merging for `$details` fetches) was a lot of
+     extra state and edge cases just to avoid one GET.
+   - **Actual fix:** confirmed via `curl` that the server also honors
+     `filter=` appended directly onto a single entity's own `self` URL —
+     `GET /schemagroups/Contoso.ERP?filter=schemas.versions.schemaid=X`
+     correctly returns `schemasurl` rescoped to `?filter=versions.schemaid
+     =X` and `schemascount: 1`, exactly like it does for collection URLs.
+     So instead of avoiding the re-fetch, tile/row links now simply append
+     the CURRENT collection's active filter onto the entity's own `self`
+     link before ever using it — see `entityHrefWithFilter()` (in
+     `pageHref`'s neighborhood) — so the real `href` used for hover preview,
+     ctrl/middle-click "open in new tab", bookmarking, AND the plain click
+     itself are all the exact same URL, and `refresh()` always does one
+     ordinary GET with no special-casing.
+   - This fully replaced and removed the `_entitySeed` mechanism:
+     `navigateTo()` is back to its original 2-argument form (no `item`
+     seed), `refresh()` always fetches, and `_tileViewItems` (added only to
+     support the seed) was removed. `filtersFromUrl(_state.apiURL)` alone
+     is now sufficient everywhere (see `syncFiltersFromApiURL()`) since the
+     apiURL itself always carries the filter when one is active, at every
+     depth — no reconstruction-from-nested-links logic needed either.
+   - Verified via CDP against xregistry.soaphub.org, full repro chain: root
+     (bookmarked URL, filter embedded in `apiurl`) → filter builder shows it
+     on load → click `schemagroups` tile → hovering `Contoso.ERP`'s tile
+     shows `?filter=schemas.versions.schemaid=...` appended to its own
+     `self` link → click it → fresh GET confirmed (`_lastData.schemasurl`/
+     `schemascount: 1` came back correctly rescoped from the server, not
+     reused) → **hard-reloading that exact page's URL** reproduces the
+     identical filtered result from scratch → click into `schemas` →
+     still just the 1 matching item, filter fully intact end-to-end.
+
+3. **Version entities incorrectly showed a `?filter=` on hover too.** Since
+   `entityHrefWithFilter()` (fix #2) unconditionally appended the active
+   filter to every entity's `self` link while browsing a filtered
+   collection, it also did this for version tiles/rows inside a `versions`
+   collection — but a version is always a spec-guaranteed leaf (no nested
+   `<plural>url` collections of its own), so there's nothing left to
+   rescope; showing `?filter=...` there was misleading busywork with no
+   actual effect. Fixed by having `entityHrefWithFilter()` take the
+   destination `itemPath` and skip appending when it's a version entity
+   (`path.length === 6 && path[4] === 'versions'`). Verified via CDP: a
+   version tile's real `href` (and the URL it navigates to) is now the
+   plain unfiltered `self` link, with no filter param.
+
+4. **Filters button visually mismatched other header icon buttons (esp.
+   the gear/config button), in both height and with-vs-without the "(N)"
+   count.** It was using the `.view-btn` class (grouped toggle-button
+   styling: flat, no border, small font) instead of `.icon-btn` (standalone
+   rounded icon button: bordered, `#e8e8e8` background) used by `#gear-btn`
+   and friends. Fixed by switching its class to `.icon-btn` in `index.html`,
+   re-sizing `.filter-funnel-icon` in `style.css`, and pinning an explicit
+   `height: 28px` on `#filters-toggle-btn` so it measures identically to
+   `#gear-btn` (28px) whether or not a filter count is showing (previously
+   26px with a filter active, since the icon+count's natural content height
+   fell short of the fixed-height gear icon's). Verified via CDP
+   `getBoundingClientRect()` comparison in both states (with/without an
+   active filter) — both now exactly 28px tall, matching `#gear-btn`.
+
+5. **Applying an "Advanced (raw text)" filter looked like it got cleared,
+   and stayed in raw-text mode instead of switching to the graphical
+   builder.** Root cause: `applyGridFilters()`/`applyJSONOptions()` read
+   the raw textarea's value into the outgoing filter patch via
+   `fbCollectFilters()`, but never wrote it back into `_fbDraft` itself.
+   Since `fbKey()` (used by `ensureFbDraft()` to decide whether to reset the
+   draft) only depends on server/section/path — not on filters — the draft
+   survived the navigation completely untouched, so the panel re-rendered
+   showing its *pre-Apply* state: Advanced mode still checked, textarea
+   re-populated from the stale (often empty) `_fbDraft.groups`, looking
+   exactly like Apply had wiped it. Fixed by having both Apply handlers
+   write the newly-applied filters back into `_fbDraft.groups` and reset
+   `_fbDraft.advanced = false` (switching back to the graphical builder,
+   which the user preferred) right before `pushState()`. Verified via CDP:
+   pasting a raw filter expression, toggling Advanced, and clicking Apply
+   now correctly lands on the graphical builder showing that exact filter
+   as a chip — not an empty/stuck raw textarea.
+
+6. **Whole-tile click blocked text selection/copy, on every tile type
+   (entity Grid tiles, home-page Registry cards, Group Types tiles, doc
+   tiles).** The entire tile was an `<a>`/clickable `<div>` with an
+   invisible full-cover click target, so users couldn't select/copy any
+   text inside a tile (description, id, etc.) without triggering
+   navigation. Fixed across all four tile renderers so only the title/id
+   is a real clickable, underlined link (`.tile-id-link` for entity
+   tiles, `.server-card-name` for Registry cards, `.coll-tile-name` for
+   Group Types/doc tiles), while the rest of the tile is a plain
+   non-interactive container (no `cursor:pointer`, no hover/active
+   transforms, no `user-select:none`). Hover/ctrl-click/middle-click
+   ("open in new tab") behavior is preserved since the link keeps the
+   same real `href`/`onclick` the old full-cover click target had.
+   Verified via CDP that `.server-card`/`.coll-tile`/`.tile` are now
+   plain elements with `cursor:auto`, and that only the name/id renders
+   as an `<a>`.
+7. **Footer alignment consistency.** Bottom-aligned the Created/Modified
+   timestamps on entity tiles (`.tile-times`) and the registry-name label
+   on Group Types tiles (`.coll-tile-reg`), using the same `margin-top:
+   auto` technique already used for `.server-card-url` on Registry cards
+   (parent is `display:flex; flex-direction:column` sitting as a direct
+   child of a CSS Grid container with default `align-items:stretch`, so
+   same-row tiles are equal height and the footer is pushed flush to the
+   bottom regardless of variable content above it). Also ensured the
+   horizontal divider immediately above `.tile-times` has at least as
+   much space above it as below it (6px), by adding `margin-bottom: 6px`
+   to `.tile-body` (covers tiles with no resource-pill footer) and
+   `.coll-tile-res` (covers tiles that do have one) — previously that gap
+   could collapse to 0 whenever `margin-top: auto` had no leftover space
+   to distribute.
+8. **Table/List view rows were also fully clickable, same problem as
+   tiles.** Removed the `<tr onclick="...">` and the `tr:hover` background/
+   pointer-cursor styling; only the id cell's text is now a real
+   underlined `<a>` (same href/onclick as before). Other already-clickable
+   cells (e.g. the Resources/Versions pills) are untouched since they were
+   already scoped to their own link, not the whole row. Verified via CDP:
+   row has no `onclick` attribute and `cursor: auto`, while the id link
+   still navigates correctly.
+9. **Resource tile/row's "Version: X" label was static text, and didn't
+   make clear it was the *default* version.** Renamed to "Default
+   Version: X" and made it a real clickable link (`.coll-tile-res-pill-
+   clickable` in Grid view, `.cell-version-count` in Table view) that
+   navigates straight to that version in the versions collection —
+   matching the existing pattern for the versions-count pill/cell next to
+   it. Added `defaultVersionURL(item, itemPath, colls)` (resolves the
+   version's real URL: prefers `item.defaultversionurl` when it matches,
+   else the item's own `versionsurl` + versionid, else plain path
+   construction — same priority as the existing `versionURLById()`) and
+   `navigateToDefaultVersion(itemId, versionId, url)`. Verified via CDP:
+   the pill's href resolves to `.../versions/1`, and clicking it lands on
+   that exact version.
+10. **Removed the general "click to copy" feature entirely** (it got in
+    the way of highlighting/selecting text). This was an opt-in Config
+    page checkbox (`optClickToCopy()`/`_opts.clickToCopy`) that wrapped
+    almost every value shown on an entity's details page — description,
+    page title id, icon, labels, epoch/timestamps, documentation URL, and
+    any `renderValueTree()` leaf — in a clickable `.eg-copyable` span.
+    Removed the option/checkbox, `optClickToCopy()`, and all of its
+    branches; `copyable()`/`copyableMonospace()`/`renderValueTree()`'s
+    `leaf()` now unconditionally render plain (non-interactive) spans.
+    Removed the now-dead `.eg-copyable`/`.eg-doc-copy` CSS rules too. Left
+    untouched: the explicit **Self / ShortSelf / XID** pill buttons
+    (`copyBtn()`, `.eg-copy-btn`) and the **"{ } Copy JSON"** button
+    (`copyEntityJSON()`/`copyMetaJSON()`, `.eg-copy-json-btn`) — these are
+    dedicated, clearly-a-button UI, not generic click-anywhere-to-copy
+    text, so they stay. Verified via CDP: `.eg-copyable` count is 0 on an
+    entity details page, while Self/XID/Copy JSON buttons still render
+    and work.
+11. **Registry root's "Group Types" table (List view) was missing the
+    "Resource Types" and "Description" columns the matching Grid-view
+    tiles show**, and (along with the "Registry Endpoints" table and the
+    document row on the resource/version details page) still had the
+    whole-row-clickable problem that the other table/list views had
+    already been fixed for. Fixed all three in `renderSingleEntity()`:
+    attached `c.resources`/`c.description` from the model onto the
+    Group Types collection refs (same as `renderEntityGrid()`'s tiles),
+    added `<th>Resource Types</th>`/`<th>Description</th>` columns shown
+    only when applicable (resource types only at depth 0; description
+    only when at least one row has one — same "only show if present"
+    pattern as other optional columns), and removed the `<tr onclick>`/
+    `cursor:pointer` from all three tables so only each row's name/link
+    cell is clickable. Verified via CDP: all `tbody tr` elements have no
+    `onclick` and `cursor:auto`; clicking the id link still navigates
+    correctly.
+12. **Description column was single-line-truncated (ellipsis) in every
+    table/list view; now allows wrapping across up to 2 lines** before
+    ellipsis-truncating. Applies uniformly to `.cell-desc` wherever it's
+    used (`renderTableView()`'s entity collections, and
+    `renderSingleEntity()`'s Group Types table). Needed a small wrinkle:
+    `-webkit-line-clamp`/`display:-webkit-box` doesn't reliably clip
+    inside a `<td>` itself (computed `display` silently became
+    `flow-root` instead, so overflow leaked a partial 3rd line) — fixed
+    by wrapping the description text in a nested `<div
+    class="cell-desc-text">` inside the `<td class="cell-desc">`, with
+    the line-clamp styling on that inner div instead. Verified via CDP
+    (inner div's rendered height matches exactly 2 lines) and visually
+    via screenshot (clean 2-line wrap + ellipsis, uniform row heights).
+13. **Group Instance page's "Resources" table (List/Table view, depth 2)
+    now also gets a Description column** (mirroring Grid view's
+    resource-type tiles, which already show a description from
+    `model.groups[g].resources[r].description`), reusing the same
+    generic `showCollDesc`/`.cell-desc`/`.cell-desc-text` machinery
+    already in place for the Group Types table. Verified via CDP by
+    injecting a long test description into the model cache and
+    re-rendering — confirmed the column appears and wraps/truncates at
+    2 lines exactly like the other Description columns.
+
+
+14. **Table view header row background darkened** from `#f0f0f0` to
+    `#e2e2e2` (hover `#e4e4e4` → `#d4d4d4`, border `#ddd` → `#ccc`) since
+    it was too close to the page's `#f5f5f5` background, making the
+    header hard to distinguish. Verified via screenshot.
+
+
+15. **Resource Collection table view**: "Default Version" header now
+    wraps across 2 lines ("Default" / "Version" via `<br>` + new
+    `.cell-version-hdr` class with `width:1%; white-space:normal`)
+    instead of forcing a wide single-line column. Also centered the
+    "Created" and "Modified" date column headers (`thSort()` now takes
+    an optional extra-class param) to match the already-centered
+    Versions/Resources count columns. Verified via CDP/screenshot.
+
+
+16. **Registry page (Table/List view, depth 0) — added a row of small
+    pills above the Group Types table**, one per available Registry
+    Endpoint section (Model, Model Source, Capabilities, Capabilities
+    Offered), as an alternative/experimental presentation alongside the
+    existing "Registry Endpoints" table (kept as-is per user request).
+    Mutable endpoints get a trailing pencil icon (`&#9998;`, matching
+    the header's edit-pencil symbol). New `.reg-endpoint-pills`/
+    `.reg-endpoint-pill`/`.reg-endpoint-pill-edit` CSS. Verified via CDP
+    screenshot and confirmed pill click navigates to the right section.
+
+
+17. **All table/list views now show a page title mirroring Grid view's
+    "TYPE: name" header**: single-entity pages (Registry root, Group
+    instance, Resource instance, Version instance — `renderSingleEntity()`)
+    show the same title format Grid view uses (e.g. "REGISTRY: CloudEvents",
+    "SCHEMA VERSION: 1"), with the registry root stripping a redundant
+    trailing " Registry" word from the name (e.g. "CloudEvents Registry" →
+    "CloudEvents"). Collection pages (Groups/Resources/Versions listings —
+    `renderTableView()`), which have no title in Grid's tile layout, get a
+    simple plural-name title (e.g. "SCHEMAGROUPS") for visual consistency.
+    The title's bottom divider line (`border-bottom` on `.eg-page-title`)
+    is suppressed specifically inside `#table-container` so it doesn't
+    duplicate the visual weight already provided by the table headers below
+    it — Grid view's title divider is untouched.
+18. Renamed the Registry Config pills' label from "Registry Config:" to
+    "Config:" and darkened it from gray (#666) to black (#222) for
+    better readability; moved onto the same line as the pills.
+19. **Removed the "Registry Endpoints" table** (Table/List view, registry
+    root) entirely — initially just hidden behind `if (false && ...)`,
+    later deleted outright once confirmed the "Config:" pills above the
+    Group Types table fully replace it.
+    All verified via CDP screenshots across registry root, Group
+    collection, Group instance, and Version instance pages.
+
+
+20. **Versions collection page title (depth 5, Table/List view)** now
+    prefixes the owning Resource ID before "VERSIONS" (e.g. "Contoso.ERP.
+    CancellationData VERSIONS"), matching the info previously only
+    visible via the "..." breadcrumb. New `.eg-page-title-id-prefix` CSS
+    class (plain, non-flex, unlike `.eg-page-title-id` which is used
+    after the type label elsewhere). Other collection pages (Group Types,
+    Resources, etc.) are unaffected. Verified via CDP screenshot.
+
+
+21. **Version instance page title (depth 6, Table/List view)** now
+    prefixes the owning Resource ID before "VERSION" instead of the
+    resource's singular type name (e.g. "Contoso.ERP.CancellationData
+    VERSION: 1" rather than "SCHEMA VERSION: 1"), reusing the same
+    `.eg-page-title-id-prefix` class as the Versions collection page
+    title. Resource instance page title (depth 4) is unaffected. Verified
+    via CDP screenshot.
+
+
+22. **Resources collection page title (depth 3, Table/List view)** now
+    prefixes the owning Group's singular type + id before the plural
+    label (e.g. "schemagroup Contoso.ERP SCHEMAS"), same pattern as the
+    Versions collection page's Resource ID prefix. Verified via CDP
+    screenshot; other collection page titles (Group Types, Versions)
+    unaffected.
+
+
+## Resource/Version page (Table/List view): tabbed Document/Details
+## component — done
+
+Replaced the old always-stacked layout (collapsible "`<Singular>`
+Details" meta box + Document table + Properties table) on Resource
+(depth 4) and Version (depth 6+) single-entity pages, Table/List view
+only, with a small pill tab bar (`.eg-doc-tabs`/`.eg-doc-tab`) plus one
+content panel (`.eg-doc-tab-panel`) shown at a time. First available tab
+is always the default on every render (no persistence across
+navigation). Grid view (`renderEntityGrid()`) is untouched.
+
+- **Resource page tabs** (in order, when available): "`<Singular>`
+  Document" (only if `hasdocument`), "Default `<Singular>` Version (id)
+  Details" (existing Properties table content, unchanged), "`<Singular>`
+  Details" (existing meta-box content, unchanged, twisty removed since
+  tabs already gate visibility — Copy JSON button now lives inside the
+  panel instead of the old collapsible header).
+- **Version page tabs**: "`<Singular>` Document" (only if `hasdocument`),
+  "Version Details" (existing Properties table content, unchanged) — no
+  separate meta tab, since Version entities have no meta/properties
+  split.
+- **Document tab inline preview** (`loadDocumentPreview()`): reuses
+  `openDocument()`'s existing source-resolution priority (`<key>url` →
+  `<key>base64` → inline JSON value → `self` with `$details` stripped)
+  but fetches/decodes and renders inline instead of always opening a new
+  tab. Binary-vs-text detection is **byte-sniffing only** (NUL byte, or
+  >5% non-whitespace control chars in a leading 8KB sample) — the
+  declared `contenttype` is intentionally ignored, per explicit user
+  choice. Text renders in a read-only `<textarea>`; binary shows "Binary
+  file — preview not available."; both (and fetch errors) show a small
+  "Open in new tab" link/button alongside/instead.
+- **Details tab** (`loadMetaDetails()`): same lazy metaurl-fetch +
+  render logic as the old `toggleMetaBox()`, minus the collapse/twisty
+  toggling (tab visibility already handles that) — `renderMetaBoxContent()`
+  /`renderMetaTable()`/`copyMetaJSON()` reused as-is.
+- **Textarea auto-sizing** (`sizeDocTextarea()`): the Document tab's
+  textarea grows to fill the remaining visible viewport space below it
+  (`window.innerHeight` minus its top offset minus the "Open in new tab"
+  link's height/margin), so it uses as much room as possible without
+  pushing that link below the fold. Re-run on tab activation, after the
+  preview content loads, and on window resize.
+- New CSS: `.eg-doc-tabs`, `.eg-doc-tab`/`.eg-doc-tab.active`,
+  `.eg-doc-tab-panel`, `.eg-doc-panel-header`, `.eg-doc-textarea`,
+  `.eg-doc-preview-actions`, `.eg-doc-binary-msg`, `.eg-doc-error-msg`.
+- Verified via CDP against xregistry.soaphub.org: 3-tab Resource page
+  (Document defaults, textarea renders schema JSON, other 2 tabs
+  unchanged content), 2-tab Version page, Document tab correctly absent
+  when `hasdocument:false`, Details tab lazy-fetch + Copy JSON, simulated
+  fetch-failure fallback (inline error + "Open in new tab"), simulated
+  binary-content fallback ("Binary file..." + "Open in new tab"), and
+  textarea auto-sizing (grows to fill viewport, "Open in new tab" stays
+  visible, recalculates on `resize`). Grid view confirmed unaffected.
+
+## Resource page: version-selector dropdown (experimental, precursor to
+## retiring the Versions collection page) — done, pending user feedback
+
+Added a standalone "Version:" control to the Resource page (depth 4) that
+lets the user pick which version's data feeds the existing Document/Details
+tabs, independent of which tab is currently active. Two iterations:
+
+1. First attempt embedded the version picker *as* one of the pill tabs (a
+   `<select>` styled to look like a button). User feedback: this conflated
+   two independent choices (which version vs. which panel to view) into one
+   control — split them apart.
+2. Current design: the "Version:" dropdown (`#eg-doc-version-select`, wrapped
+   in `<span class="eg-version-selector">`) is a **separate, non-tab
+   control** rendered inline in the *same row* as the tab buttons — final
+   order is `[Version: <dropdown>] [Document] [Version Details] [<Singular>
+   Details]` (dropdown always first; the tab buttons follow in their normal
+   order, still starting with "Document" as the default-active tab; no
+   border on the dropdown — sits flush with the neighboring tab buttons).
+   The Document tab's label was also simplified from "`<Singular>`
+   Document" to plain "Document" (the entity type is already shown in the
+   page's own title/breadcrumb). Selecting a version never switches tabs —
+   it only changes which version's data the "Version Details" tab and the
+   Document tab's preview show. Lists "Default
+   (`<versionid>`)" (always first, selected by default — includes the
+   resource's actual default versionid, via new `defaultOptionLabel(data)`
+   helper, so it's clear which version "Default" resolves to without
+   selecting it) plus one option per version id, fetched from
+   the resource's `versionsurl` collection. This is a design experiment
+   requested by the user as a precursor to a possible future decision to
+   retire the separate Versions collection page — not yet approved for that;
+   for now it only changes the Resource page.
+
+- **Data source**: `GET <versionsurl>` (no `$details`) returns a map of
+  versionid → full version object (all scalar properties: epoch,
+  description, createdat, modifiedat, versionid, isdefault, ancestor,
+  contenttype, format, self, etc.) but **no document content fields** — the
+  document itself is still fetched via that version's own `self` field
+  (with the `$details` suffix stripped), exactly matching the existing
+  `openDocument()`/`loadDocumentPreview()` fallback logic. No new
+  document-URL-construction code was needed.
+- **`buildEntityPropsTableHtml(entityData, headerLabel, model, path,
+  collKeys)`**: shared helper factored out of the original inline
+  Properties-table-building code; used both for the initial Resource-page
+  render and to rebuild the "Version Details" panel after a version is
+  picked.
+- **Global state for cross-closure handlers** (`_docActiveVersionData`,
+  `_resModel`, `_resPath`, `_resCapType`, `_resDefaultData`, `_resCollKeys`,
+  `_resVersionsUrl`, `_resVersionsList`, `_resSelectedVersionId`): needed
+  because `loadVersionsForSelect()`/`onVersionSelectChange()` run from
+  later, independent `<select>` change events, not from within the
+  `renderSingleEntity()` closure that built the dropdown — same pattern
+  already used for `_metaData`/`_docSingular`/`_docPreviewLoaded`. Reset at
+  the top of the relevant code path so state doesn't leak across
+  navigations to non-Resource pages.
+- **`loadVersionsForSelect()`**: fetches `_resVersionsUrl`, converts the
+  response via the existing `collectionItems()` helper, and populates the
+  select's options (Default + one per version id via `itemNavKey()`),
+  preserving the current selection; fails silently (non-critical, no error
+  UI) if the fetch fails.
+- **`onVersionSelectChange(vid)`**: looks up the selected version's data
+  (from `_resDefaultData` for "default", else from the cached
+  `_resVersionsList`), rebuilds the "Version Details" tab panel (key
+  `defver`, plain button, label always "Version Details" — no longer
+  embeds the version id/"Default" in the tab label since that's now shown
+  by the dropdown) via `buildEntityPropsTableHtml()` (passing `collKeys:
+  null` for a specific version — sub-collection suppression only applies
+  to the resource's own top-level JSON; the table's own header row still
+  dynamically reflects the picked version, e.g. "Schema Version (1)
+  Property"), and refreshes the Document tab's content via
+  `loadDocumentPreview()` by first setting `_docActiveVersionData` +
+  `_docPreviewLoaded = true` — done unconditionally (not just when the
+  Document tab is currently visible) so switching to it later shows the
+  right version's content without an extra click.
+- `loadDocumentPreview()` changed to read `_docActiveVersionData ||
+  _lastData` instead of always `_lastData`, so it picks up the selected
+  version transparently.
+- New CSS: `.eg-version-selector` (inline-flex, no border — sits flush in
+  the same `.eg-doc-tabs` row as the tab buttons) and its `label`/`select`
+  styling (select styled to echo the tab-button palette without literally
+  being a tab).
+- Version page (depth 6+) is untouched — still uses the plain button tab
+  bar (2 tabs, no version selector), since a Version entity has no
+  "default vs specific version" distinction to select between.
+- **"Details" → "Metadata" rename**: the "`<Singular>` Details" tab (List
+  view, `meta` tab key) and its Grid-view equivalent (the collapsible
+  "`<Singular>` Details" section, both driven by the same `metaurl`-fetched
+  content via `loadMetaDetails()`/`renderMetaBoxContent()`) were renamed to
+  "`<Singular>` Metadata" (e.g. "Schema Metadata") — this data genuinely is
+  the entity's xRegistry metadata (readonly/compatibility/deprecated flags,
+  etc.), so the more specific term reads better than the generic "Details".
+  The unrelated Grid-view raw-properties-table headers (`detailsLabel` at
+  depth 0/2/4/6, e.g. "Default Schema Version (2) Details") were
+  intentionally left as "Details" — they show the entity's own flattened
+  properties, not the separate `metaurl` metadata concept, so renaming them
+  to "Metadata" would be misleading. The "Version Details" tab (List view
+  `defver`/`version` tab keys, properties-table content) was also left
+  unchanged for the same reason.
+- **"Versions List" navigation link**: a discussion of whether the new
+  Resource-page tab bar could fully replace the raw Versions collection
+  page (and Version entity page) surfaced two gaps: (1) the "Version:"
+  dropdown doesn't scale well to resources with many versions — no
+  search/sort/filter, just a flat list — whereas the Versions collection
+  page (List/Grid view) already has full filter support (see
+  `plan.md`'s filter-support sections); (2) there was no direct link from
+  the new tab bar to that collection page anymore (only the pre-existing
+  "versions" link/box above the tab bar). Decision: keep both pages for
+  now (don't retire them) and add a real navigation link, styled as a pill
+  to match the tab buttons but visually distinguished — `.eg-doc-tab-link`
+  (an `<a>`, not a `<button>`, no `active` state, with a trailing "→" via
+  `::after` content) — placed last in the tab-bar row, after "`<Singular>`
+  Metadata", labeled "Versions (`<count>`) List" (includes the versions
+  collection's own count, from the same `colls` data already used
+  elsewhere, e.g. "Versions (2) List"). Clicking/activating it navigates
+  (`navigateTo('versions', <collection url>)`, same helper used by the
+  ordinary collections-table links elsewhere) to the raw Versions
+  collection page exactly as if the user had clicked the "versions"
+  link/box. The direct link to the entity's own `/meta` endpoint was
+  explicitly discussed and intentionally skipped for now (lower priority,
+  no UI need identified yet).
+- **Removed the "versions" link/box from the Resource page** (List/Table
+  view): the plain collections-table (id/count rows, used at other depths
+  for e.g. "schemas"/"resources") is now suppressed entirely at depth 4 —
+  its only row there was ever the single "versions" collection, and that's
+  now fully covered by the "Versions (n) List" link described above. Grid
+  view's "versions" card/tile is unrelated and untouched (different
+  layout, not requested).
+- **Version page (depth 6+): tab bar suppressed when there's no Document
+  tab.** When a resource type has no document (`hasdocument:false`),
+  the Version entity page only ever had one possible tab ("Version
+  Details") — no Document tab, and (unlike the Resource page) no
+  version-selector/Versions-List controls at that depth either — so the
+  pill tab bar had nothing to actually switch between. In that case the
+  "Version Details" content (the plain Properties table) is now rendered
+  directly, with no tab button/chrome at all, matching how the Registry
+  root (depth 0) and Group instance (depth 2) pages already show a plain
+  Properties table with no tabs. When the resource type *does* have a
+  document, the Version page's 2-tab bar (Document / Version Details) is
+  unchanged.
+
+Verified via CDP against a real multi-version resource
+(`Fabrikam.Watchkam.MotionDetectedEventData`, 2 versions): dropdown
+populated with "Default", "1", "2"; selecting "1" correctly fetched
+version 1's document and updated both the Document tab and the "Schema
+Version (1) Property" table (`isdefault: false`); switching back to
+"Default" correctly reverted both panels to the resource's own flattened
+data (`isdefault: true`, matching the highest/default version). Also
+verified: a single-version resource's dropdown shows exactly `["default",
+"1"]` with no errors; a resource with `hasdocument:false` still shows the
+dropdown as the active/default tab (no Document tab present); the Version
+entity page's tab bar is unaffected (still 2 plain buttons, no dropdown).
+
+## Removed all "{ } Copy JSON" buttons (List and Grid views) — done
+
+Removed the "{ } Copy JSON" button in all 3 places it appeared:
+List view's "`<Singular>` Metadata" tab panel (Resource page, depth 4),
+Grid view's collapsible "`<Type>` Metadata" box header (depth 4), and
+Grid view's "Details" section header (present at every depth: Registry
+Details, `<Type>` Details, Default Version Details, Version Details).
+Also removed the now-dead `copyMetaJSON()`/`copyEntityJSON()` functions,
+the `.eg-copy-json-btn` CSS rule, and the now-unused
+`.eg-doc-panel-header` CSS rule (it existed solely to right-align the
+Copy JSON button above the Metadata tab's content). `_lastData`/
+`_metaData` (the JSON payloads the buttons used to copy) are still used
+elsewhere and were left untouched. Verified via CDP screenshots: List
+view's Document/Version Details/Metadata tabs and Grid view's Metadata
+box/Details section all render cleanly with no leftover button or
+button-shaped gap. Context: part of a broader push (per user feedback)
+to make the List view fully capable, as a precursor to possibly
+deprecating most of the Grid view — not yet decided.
+
+## List view: standalone "meta" page (depth 5) redirects to Resource page — done
+
+List view (`renderSingleEntity()`) had no redirect for the standalone `meta`
+entity page (depth 5, `[G,gId,R,rId,"meta"]") — unlike Grid view
+(`renderEntityGrid()`), which already redirected up to the Resource page
+(depth 4). This meant: viewing a resource's `/meta` JSON in JSON view, then
+clicking the Grid icon correctly landed on the Resource page, but clicking
+the List icon dropped you onto the old standalone meta page (no longer
+reachable any other way, and inconsistent with Grid view / the removed
+"versions" box work). Fixed by adding the same depth-5-redirects-to-depth-4
+check to the top of `renderSingleEntity()`, and, for a nicer landing
+experience, auto-selecting the "`<Singular>` Metadata" tab (List view) /
+auto-expanding the Metadata box (Grid view) via a one-shot
+`_pendingMetaTabOnLoad` flag consumed right after the Resource page finishes
+rendering — so the user sees the same Metadata content they were just
+viewing, instead of the generic default tab.
+
+**Bug found and fixed along the way**: the redirect's `pushState()` call
+didn't pass `dataView` explicitly, so `pushStateReal()`'s "restore
+depth/section default" logic recomputed it from `_opts.depthViews[4]`
+(defaulting to `grid`) — silently overriding the view (`table`/`grid`) the
+user had just clicked to trigger the redirect in the first place. Fixed by
+passing `dataView: _state.dataView` explicitly in both redirects (List and
+Grid), since an explicit `patch.dataView` always wins over the recomputed
+default.
+
+Verified via CDP: navigated directly to a resource's `/meta` endpoint in
+JSON view (`view=json`, path ending in `/meta`); clicking the List icon
+now correctly lands on the Resource page in List view, dataView reads
+`table` (previously incorrectly ended up `grid`), and the Metadata tab
+auto-activates. Also confirmed Grid view's matching redirect still works
+after adding the same explicit-`dataView` fix.
+
+## Home page tables: header row darkened + bold to match List view — done
+
+`.home-table` (Registries tab / Group Types tab on the Home page) and
+`.config-table` (Settings/Config page's "Registry Servers" list) both still
+had the old light, non-bold header style (`color:#666; font-weight:normal;
+border-bottom:#ddd`, no background) predating the `.xr-table` header
+darkening (`#f0f0f0` → `#e2e2e2`, see item 14 above). Updated both to match
+`.xr-table`'s header exactly (`background:#e2e2e2; font-weight:bold;
+color:#333; border-bottom:2px solid #ccc; padding:8px 12px`). Also aligned
+`.home-table`'s remaining box model with `.xr-table` for full consistency:
+switched `border-collapse` from `separate` (with a plain `1px solid #ddd`
+border) to `collapse` + `overflow:hidden` + the same `box-shadow` and
+`border-radius:6px` (was 8px); `td` padding 8px→7px and border-bottom color
+`#eee`→`#f0f0f0` to match exactly; `vertical-align` middle→top. Verified via
+CDP screenshots: Registries list, Group Types list, and the Config page's
+Registry Servers table all render with the same darkened/bold header, and
+the table's rounded corners still clip cleanly under the new
+`border-collapse:collapse` mode (no square-corner artifacts).
+
+## Home page: Grid/List button required 2 clicks to visually update — fixed
+
+Bug: on the Home page only (Registries tab / Group Types tab), clicking the
+Grid or List icon changed the rendered content correctly but left the
+*previously* active icon highlighted — requiring a second click to catch
+the header up, and producing confusingly "swapped" behavior (e.g. click
+List while Grid is active → view changes to List but Grid icon stays lit;
+then click Grid → header icon jumps to List while content changes back to
+Grid).
+
+Root cause, in `setDataView(v)`: it manually toggled each button's `active`
+class to match `v` (correct), then immediately called `renderHeader()` —
+which recomputes each button's active state from `effectiveView`
+(`currentHomeLayout()` on the Home page, reading `_state.homeLayouts[
+_state.homeGroup]`). But the per-group `_state.homeLayouts[...] = v`
+assignment happened in a block *after* that `renderHeader()` call, so
+`renderHeader()` was still reading the stale (pre-click) layout value and
+immediately re-clobbering the manual toggle back to the old button.
+Data pages never hit this: they only ever read `_state.dataView` (already
+set at the top of the function), with no separate persisted-preference
+lookup in between, so no equivalent ordering issue exists there.
+
+Fix: reordered `setDataView(v)` so the Home-page `_state.homeLayouts[...]
+= v` (+ `_opts`/`saveOpts()`) persistence happens *before* the manual
+button-toggle and `renderHeader()` call, so `effectiveView` is already
+correct by the time the header re-renders. Verified via CDP: single click
+on List (from Grid) now shows only `table` as `active` and renders List
+content; single click back to Grid shows only `grid` as `active`.
+Confirmed on both the Registries and Group Types tabs.
 
 ## Known non-gaps (design decisions made, not oversights)
 

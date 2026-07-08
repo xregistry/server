@@ -70,6 +70,11 @@ var _fbDraftKey     = null;  // server|section|path this draft belongs to
 // page load (not persisted to localStorage); stays as toggled while
 // navigating during the current session.
 var _filtersCollapsed = true;
+// Grid/List "Filters" panel visibility toggle — separate from the JSON
+// view's own left panel (always shown there). Default hidden so Grid/List
+// stay full-width unless the user opens it. See plan.md "Filter support
+// in Grid/List views".
+var _filtersPanelOpen = false;
 var _sortDraft        = null;  // sort-picker working draft, see sortXxx() funcs
 var _sortDraftKey      = null;  // server|section|path this draft belongs to
 
@@ -82,7 +87,6 @@ function saveOpts() {
   try { localStorage.setItem(LS_OPTIONS, JSON.stringify(_opts)); } catch(e) {}
 }
 
-function optClickToCopy() { return !!_opts.clickToCopy; }
 function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
 
 // Reflects the current JSON color-mode option onto <body> so the CSS
@@ -151,7 +155,7 @@ function removeServer(url) {
 
 window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('popstate', function() { loadStateFromURL(); renderHeader(); refresh(); });
-window.addEventListener('resize', function() { renderHeader(); });
+window.addEventListener('resize', function() { renderHeader(); sizeDocTextarea(); });
 
 // Scope Ctrl/Cmd+A to just the JSON output when focus is inside it, instead
 // of selecting the entire page (mirrors the old ui.go `dokeydown()` trick).
@@ -249,6 +253,7 @@ function loadStateFromURL() {
   // an un-cached ancestor fall back to plain construction (accepted trade-off).
   _state.apiURL      = p.get('apiurl') || '';
   _state.crumbURLs   = [];
+  syncFiltersFromApiURL();
 }
 
 function buildURL(st) {
@@ -372,6 +377,18 @@ function pushStateReal(patch) {
     }
   }
   Object.assign(_state, patch);
+
+  syncFiltersFromApiURL();
+
+  // applyFilters()/similar callers may set a new apiURL for the CURRENT
+  // depth without a path change (so the block above never ran) — keep
+  // crumbURLs in sync here too, so a later breadcrumb click back to this
+  // depth doesn't regress to the pre-Apply link.
+  if (patch.apiURL !== undefined && _state.section === 'data' && _state.path.length > 0) {
+    _state.crumbURLs = _state.crumbURLs || [];
+    _state.crumbURLs[_state.path.length - 1] = patch.apiURL;
+  }
+
   history.pushState(null, '', buildURL(_state));
   renderHeader();
   refresh();
@@ -456,17 +473,64 @@ function buildAPIURL() {
   if (_state.section === 'capabilitiesoffered')  return base + '/capabilitiesoffered';
   if (_state.useExport)                          return base + '/export';
 
+  // Link-driven navigation: when a real apiURL is already known, trust it
+  // completely as-is — it already carries whatever filter belongs at this
+  // position (either baked in by the server when following a link from an
+  // already-filtered response, or baked in by our own applyFilters() when
+  // the user explicitly applied a new filter — see plan.md "Filter support
+  // in Grid/List views"). _state.filters is only re-appended here as a
+  // fallback, when no real link is known yet (first-ever load, or a
+  // bookmarked URL with filter= but no apiurl=). Re-appending _state.filters
+  // unconditionally on top of a real apiURL that may already have its own
+  // filter= baked in would silently double up the query param.
+  var hasRealLink = !!_state.apiURL;
   var url = _state.apiURL || buildBaseURL();
 
   var q = [];
   _state.inlines.forEach(function(i) { q.push('inline=' + encodeURIComponent(i)); });
-  _state.filters.forEach(function(f) { q.push('filter=' + encodeURIComponent(f)); });
+  if (!hasRealLink) {
+    _state.filters.forEach(function(f) { q.push('filter=' + encodeURIComponent(f)); });
+  }
   if (_state.sort)        q.push('sort=' + encodeURIComponent(_state.sort));
   if (_state.docView)     q.push('doc');
   if (_state.binary)      q.push('binary');
   if (_state.collections) q.push('collections');
 
-  return q.length ? url + '?' + q.join('&') : url;
+  if (!q.length) return url;
+  return url + (url.indexOf('?') >= 0 ? '&' : '?') + q.join('&');
+}
+
+// Strips only filter=... tokens from a URL's query string, via a plain
+// token-level split (NOT URLSearchParams re-serialization, which would
+// re-encode every other param and could mangle intentionally-unescaped
+// characters, e.g. colons in ids — see plan.md's apiurl/colon-id example).
+// Everything else in the URL (path, other query params) is preserved
+// verbatim. Used by applyFilters() to rebuild a URL with a fresh filter
+// while keeping any/all other query state intact.
+function stripFilterParams(url) {
+  var qIdx = url.indexOf('?');
+  if (qIdx < 0) return url;
+  var base = url.slice(0, qIdx);
+  var qs   = url.slice(qIdx + 1);
+  var kept = qs.split('&').filter(function(pair) {
+    return pair.split('=')[0] !== 'filter';
+  });
+  return kept.length ? base + '?' + kept.join('&') : base;
+}
+
+// Computes a fresh {filters, apiURL} patch reflecting the filter builder's
+// current draft — the one deliberate spot where a filter expression is
+// actually constructed client-side (see plan.md "Filter support in
+// Grid/List views"). Shared by JSON view's Apply button and the new
+// Grid/List Apply button. Everything downstream (further real links
+// returned by the server) carries this filter forward automatically —
+// no other code needs to reconstruct or re-propagate it.
+function applyFilters() {
+  var newFilters = fbCollectFilters();
+  var base = stripFilterParams(_state.apiURL || buildBaseURL());
+  var filterQS = newFilters.map(function(f) { return 'filter=' + encodeURIComponent(f); }).join('&');
+  var newApiURL = filterQS ? base + (base.indexOf('?') >= 0 ? '&' : '?') + filterQS : base;
+  return {filters: newFilters, apiURL: newApiURL};
 }
 
 // ---- Header --------------------------------------------------------------
@@ -539,6 +603,27 @@ function renderHeader() {
     editBtn.classList.toggle('view-btn-disabled', isConfig || !enableEdit);
   }
 
+  // Filters toggle button — only for the plain 'data' section (grid/list/json
+  // all already have their own filter UI otherwise; model/capabilities/etc
+  // don't support filter=). Only relevant outside JSON view, since JSON view
+  // always shows the full left panel (which already includes Filters).
+  var filtersBtn = el('filters-toggle-btn');
+  if (filtersBtn) {
+    var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
+    if (isData && section === 'data' && !_capCache.hasOwnProperty(svURL2)) {
+      ensureCapCached(_state.serverURL || window.location.origin, function() { renderHeader(); });
+    }
+    var capData2 = _capCache[svURL2];
+    var flags2 = (capData2 && capData2.flags) || [];
+    var showFiltersBtn = isData && section === 'data' && effectiveView !== 'json'
+      && flags2.indexOf('filter') !== -1;
+    filtersBtn.style.display = showFiltersBtn ? '' : 'none';
+    filtersBtn.classList.toggle('active', _filtersPanelOpen);
+    var fCount = (_state.filters || []).length;
+    var countEl = el('filters-toggle-count');
+    if (countEl) countEl.textContent = fCount ? (' (' + fCount + ')') : '';
+  }
+
   // For data pages, skip breadcrumb render if label not cached yet —
   // the probe in refresh() will call renderBreadcrumbs() once the name arrives.
   if (isData) {
@@ -558,6 +643,18 @@ function setHomeGroup(v) {
   saveOpts();
   renderHeader();    // updates active layout button for the new group
   renderHome();
+}
+
+function toggleFiltersPanel() {
+  // Defensive no-op: the button is only ever shown outside JSON view (see
+  // renderHeader()'s showFiltersBtn condition), but guard here too so a
+  // stale click can't blow away JSON view's own always-on left panel.
+  if (_state.dataView === 'json' || _state.view === 'json') return;
+  _filtersPanelOpen = !_filtersPanelOpen;
+  renderHeader();
+  var showGridFilters = isGridFiltersOnlyMode();
+  setLeftPanelVisible(showGridFilters);
+  if (showGridFilters) renderJSONLeftPanel(true);
 }
 
 function toggleHomeLayout() {
@@ -587,16 +684,31 @@ function setDataView(v) {
   }
 
   _state.dataView = v;
-  qsa('[data-dview]').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.dview === v);
-  });
 
-  // On home page, persist per-group layout preference (independent of data pages)
+  // On home page, persist per-group layout preference (independent of data
+  // pages) BEFORE renderHeader() below — renderHeader() recomputes each
+  // button's active state from currentHomeLayout() (which reads
+  // _state.homeLayouts), so this must happen first or it'll immediately
+  // overwrite the manual toggle just below with the stale (pre-click) value,
+  // leaving the header showing the previous button as active until the next
+  // click.
   if (_state.view === 'home') {
     _state.homeLayouts[_state.homeGroup] = v;
     if (!_opts.homeLayouts) _opts.homeLayouts = {registry: 'grid', types: 'grid'};
     _opts.homeLayouts[_state.homeGroup] = v;
     saveOpts();
+  }
+
+  qsa('[data-dview]').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.dview === v);
+  });
+  // Refresh header (Filters button visibility/active-state/count in
+  // particular — it depends on effectiveView, which just changed) — the
+  // data-dview active-state toggle above doesn't cover it since it isn't
+  // a [data-dview] button.
+  renderHeader();
+
+  if (_state.view === 'home') {
     renderHome();
     return;
   }
@@ -648,8 +760,9 @@ function setDataView(v) {
   history.replaceState(null, '', buildURL(_state));
 
   if (_lastData) {
-    setLeftPanelVisible(v === 'json');
+    setLeftPanelVisible(v === 'json' || _filtersPanelOpen);
     if (v === 'json') { renderJSONView(_lastData); return; }
+    if (_filtersPanelOpen) renderJSONLeftPanel(true);
     var coll = isCollection(_state.path);
     if (coll) {
       v === 'grid' ? renderTileView(_lastData) : renderTableView(_lastData);
@@ -786,6 +899,42 @@ function guardedOnclick(expr) {
 function pageHref(path, apiURL, extra) {
   var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data', editMode: false}, extra || {});
   return buildURL(st);
+}
+
+// An entity's own `self` link never carries filter context by default —
+// it's the bare canonical URL. But when the CURRENT collection view is
+// itself filtered, the server has already confirmed (via `filter=` on any
+// URL, not just collections) that appending the same currently-active
+// filter onto an item's `self` link correctly rescopes that item's own
+// nested-collection links too (e.g. entity `self`+`?filter=schemas.
+// versions.schemaid=X` rescopes that entity's own `schemasurl`, same as it
+// would on the collection URL that listed it). So: pass entity navigation
+// through here (instead of raw `item.self`) so the real, hoverable/
+// ctrl-clickable link — and the plain GET that follows a click — carries
+// the filter forward, without any client-side seed/caching trickery.
+// An entity's own `self` link never carries filter context by default —
+// it's the bare canonical URL. But when the CURRENT collection view is
+// itself filtered, the server has already confirmed (via `filter=` on any
+// URL, not just collections) that appending the same currently-active
+// filter onto an item's `self` link correctly rescopes that item's own
+// nested-collection links too (e.g. entity `self`+`?filter=schemas.
+// versions.schemaid=X` rescopes that entity's own `schemasurl`, same as it
+// would on the collection URL that listed it). So: pass entity navigation
+// through here (instead of raw `item.self`) so the real, hoverable/
+// ctrl-clickable link — and the plain GET that follows a click — carries
+// the filter forward, without any client-side seed/caching trickery.
+//
+// Version entities are the one exception: a version is always a leaf —
+// spec-guaranteed to have no nested `<plural>url` collections of its own
+// — so there's nothing left to rescope by carrying the filter forward.
+// Appending it there would be misleading (implying more scoping is still
+// happening when it isn't) with no actual effect, so skip it for those.
+function entityHrefWithFilter(self, itemPath) {
+  var isVersionEntity = itemPath && itemPath.length === 6 && itemPath[4] === 'versions';
+  if (!self || isVersionEntity || !isCollection(_state.path)
+      || !_state.filters || !_state.filters.length) return self || '';
+  var qs = _state.filters.map(function(f) { return 'filter=' + encodeURIComponent(f); }).join('&');
+  return self + (self.indexOf('?') >= 0 ? '&' : '?') + qs;
 }
 
 function renderSegment(seg) {
@@ -979,6 +1128,29 @@ var _lastData = null;
 var _metaData = null;          // cached meta response for resource page meta box
 var _metaResourceIdField = ''; // resource's own ID field name, set when resource page renders
 var _metaEntityType = '';      // resource's singular type name, used by List view's meta table header
+var _docSingular = '';         // resource's singular type name, used by List view's Document tab
+var _docPreviewLoaded = false; // whether the Document tab's inline preview has been fetched yet
+var _docActiveVersionData = null; // entity JSON currently backing the Document tab (Default or a picked version)
+// Set right before redirecting a standalone "meta" page (depth 5) up to its
+// parent Resource page (depth 4) — see renderSingleEntity()/renderEntityGrid()
+// "Meta page redirect" and setDataView()'s json-view-of-meta special case.
+// Consumed once, immediately after the Resource page finishes rendering, to
+// auto-select/expand the Metadata tab (List view) or box (Grid view) so the
+// user lands on the same content they were viewing instead of the generic
+// default (Document/Version Details tab, or a collapsed Metadata box).
+var _pendingMetaTabOnLoad = false;
+// Resource page (depth 4) version-selector dropdown state — stashed globally
+
+// since onVersionSelectChange() runs from a later, independent DOM event,
+// outside the renderSingleEntity() closure that built the dropdown.
+var _resModel = null;          // model snapshot, for building props tables dynamically
+var _resPath = null;           // _state.path snapshot (depth 4) at render time
+var _resCapType = '';          // capitalized singular type, e.g. "Schema"
+var _resDefaultData = null;    // the resource's own JSON — the "Default" option's data
+var _resCollKeys = null;       // collKeys snapshot, to suppress <plural>url/<plural>count fields
+var _resVersionsUrl = '';      // this resource's versions collection URL
+var _resVersionsList = null;   // fetched versions collection items, cached
+var _resSelectedVersionId = 'default'; // currently selected dropdown value
 
 function refresh() {
   var main = el('main-view');
@@ -1006,8 +1178,12 @@ function refresh() {
   var isModelSection        = (_state.section === 'model' || _state.section === 'modelsource');
   var isCapabilitiesSection = (_state.section === 'capabilities');
   var isJsonOnlySection     = (_state.section === 'capabilitiesoffered');
+  // Grid/List's own "Filters" toggle (separate from JSON view, which always
+  // shows the full left panel) — see plan.md "Filter support in Grid/List
+  // views".
+  var showGridFilters = isGridFiltersOnlyMode();
 
-  setLeftPanelVisible(_state.view === 'json' || _state.dataView === 'json' || isJsonOnlySection);
+  setLeftPanelVisible(_state.view === 'json' || _state.dataView === 'json' || isJsonOnlySection || showGridFilters);
   main.innerHTML = spinner();
 
   // Capabilities Offered — always JSON (schema document, not user-edited)
@@ -1084,30 +1260,39 @@ function refresh() {
   // For resource/version entities we try $details first so that document-backed
   // resources return their JSON metadata rather than their document body.
   // If the server returns 400 (resource has no document), fall back to plain GET.
-  fetchWithDetailsFallback(apiURL, needsDetails(_state.path))
-    .then(function(data) {
-      _lastData = data;
-      _state.mutable = detectMutable(data);
-      // Re-render header to update edit button enabled/active state
-      renderHeader();
+  var needsDet = needsDetails(_state.path);
 
-      switch (_state.view) {
-        case 'json': renderJSONView(data); break;
-        default:
-          if (_state.dataView === 'json') {
-            renderJSONView(data);
-          } else if (coll) {
-            _state.dataView === 'grid' ? renderTileView(data) : renderTableView(data);
-          } else {
-            _state.dataView === 'grid' ? renderEntityGrid(data) : renderSingleEntity(data);
-          }
-      }
+  fetchWithDetailsFallback(apiURL, needsDet)
+    .then(function(data) {
+      renderEntityFromData(data, coll);
     })
     .catch(function(err) {
       main.innerHTML = '<div class="error-banner">Error loading:\n'
         + esc(apiURL) + '\n\n' + esc(String(err)) + '</div>';
     });
 }
+
+// Shared tail of the fetch-based branch in refresh().
+function renderEntityFromData(data, coll) {
+  _lastData = data;
+  _state.mutable = detectMutable(data);
+  renderHeader();
+  switch (_state.view) {
+    case 'json': renderJSONView(data); break;
+    default:
+      if (_state.dataView === 'json') {
+        renderJSONView(data);
+      } else if (coll) {
+        _state.dataView === 'grid' ? renderTileView(data) : renderTableView(data);
+      } else {
+        _state.dataView === 'grid' ? renderEntityGrid(data) : renderSingleEntity(data);
+      }
+  }
+  // Grid/List's own Filters-only left panel (independent of JSON view's
+  // always-on panel) — render its content when toggled open.
+  if (isGridFiltersOnlyMode()) renderJSONLeftPanel(true);
+}
+
 
 function detectMutable(data) {
   // Real implementation: check capabilities.available.entities.mutable or Allow header.
@@ -1381,10 +1566,10 @@ function probeAllCards(main) {
 function serverCard(url) {
   var sv = (url === window.location.origin) ? '' : url;
   var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
-  return '<a class="server-card" href="' + esc(href) + '" onclick="return serverCardClick(event,this,' + esc(JSON.stringify(url)) + ')" data-server-url="' + esc(url) + '">'
+  return '<div class="server-card" data-server-url="' + esc(url) + '">'
     + '<div class="server-card-title">'
     +   '<img src="favicon.svg" class="server-card-icon" alt="" width="16" height="16">'
-    +   '<span class="server-card-name">' + esc(serverLabel(url)) + '</span>'
+    +   '<a class="server-card-name" href="' + esc(href) + '" onclick="return serverCardClick(event,this.closest(\'.server-card\'),' + esc(JSON.stringify(url)) + ')">' + esc(serverLabel(url)) + '</a>'
     + '</div>'
     + '<div class="server-card-desc" style="display:none"></div>'
     + '<hr class="server-card-divider">'
@@ -1394,7 +1579,7 @@ function serverCard(url) {
     +   '<div class="server-card-err-text" style="display:none"></div>'
     + '</div>'
     + '<div class="server-card-url">' + esc(url) + '</div>'
-    + '</a>';
+    + '</div>';
 }
 
 function probeRegistry(url, cb) {
@@ -1518,14 +1703,6 @@ function renderConfig() {
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
-    + '<label class="cfg-option-row">'
-    +   '<span class="cfg-option-label">Click to copy</span>'
-    +   '<input type="checkbox" id="opt-click-to-copy"'
-    +   (optClickToCopy() ? ' checked' : '')
-    +   ' onchange="cfgSetOpt(\'clickToCopy\',this.checked)">'
-    +   '<span class="cfg-option-desc">Click any value in the details'
-    +   ' view to copy it to the clipboard</span>'
-    + '</label>'
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -1695,7 +1872,7 @@ function renderTileView(data) {
   if (_state.path.length === 1)                        tileIcon = FOLDER_ICON;
   else if (_state.path.length === 3 || _state.path.length === 5) tileIcon = DOC_ICON;
 
-  items.forEach(function(item) {
+  items.forEach(function(item, idx) {
     var id   = itemNavKey(item);
     var desc = item.description || '';
     var svBase   = (_state.serverURL || window.location.origin).replace(/\/$/, '');
@@ -1718,7 +1895,13 @@ function renderTileView(data) {
             + '<div class="coll-tile-res">' + collItems + '</div>';
     } else if (_state.path.length === 3 && colls.length) {
       var versionIdPill = (item.versionid !== undefined && item.versionid !== null)
-        ? '<span class="coll-tile-res-pill">Version: ' + esc(String(item.versionid)) + '</span>'
+        ? (function() {
+            var vUrl = defaultVersionURL(item, itemPath, colls);
+            var vPath = itemPath.concat(['versions', String(item.versionid)]);
+            var vClickExpr = 'event.stopPropagation();navigateToDefaultVersion(' + JSON.stringify(id) + ',' + JSON.stringify(item.versionid) + ',' + JSON.stringify(vUrl) + ')';
+            var vHref = pageHref(vPath, vUrl);
+            return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(vHref) + '" onclick="' + esc(guardedOnclick(vClickExpr)) + '">Default Version: ' + esc(String(item.versionid)) + '</a>';
+          })()
         : '';
       var verItems = colls.map(function(c) {
         var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
@@ -1740,18 +1923,18 @@ function renderTileView(data) {
         + '</div>';
     }
 
-    // Whole-tile navigation: an invisible full-cover <a> (see .tile-linkarea)
-    // gives native ctrl/middle-click/"open in new tab" support on the tile,
-    // while the nested resource pills above sit on top of it via z-index so
-    // they keep navigating to their own destination instead.
-    var tileClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(item.self || '') + ')';
-    var tileHref = pageHref(itemPath, item.self || '');
+    // The tile itself is just a plain (non-clickable) container now, so its
+    // text (id, name, description) can be freely selected/copied — only the
+    // id is an actual link (see .tile-id-link), same real href/onclick as
+    // before so hover/ctrl-click/middle-click/"open in new tab" still work.
+    var tileSelf = entityHrefWithFilter(item.self || '', itemPath);
+    var tileClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(tileSelf) + ')';
+    var tileHref = pageHref(itemPath, tileSelf);
     html += '<div class="tile">';
-    html += '<a class="tile-linkarea" href="' + esc(tileHref) + '" onclick="' + esc(guardedOnclick(tileClickExpr)) + '" aria-label="' + esc(id) + '"></a>';
     html += '<div class="tile-top">';
     if (tileIcon) html += '<div class="tile-icon">' + tileIcon + '</div>';
     html += '<div class="tile-body">';
-    html += '<div class="tile-id">' + esc(id) + '</div>';
+    html += '<div class="tile-id"><a class="tile-id-link" href="' + esc(tileHref) + '" onclick="' + esc(guardedOnclick(tileClickExpr)) + '">' + esc(id) + '</a></div>';
     if (item.name) html += '<div class="tile-name">' + esc(item.name) + '</div>';
     if (desc)      html += '<div class="tile-desc">' + esc(desc) + '</div>';
     html += '</div></div>'; // close tile-body + tile-top
@@ -1808,22 +1991,44 @@ function renderTableView(data) {
   }
   _tableViewItems = items;
 
-  function thSort(col, label) {
+  function thSort(col, label, extraCls) {
     var cls = col === _sortCol ? (_sortAsc ? ' sorted-asc' : ' sorted-desc') : '';
+    if (extraCls) cls += ' ' + extraCls;
     return '<th class="' + cls + '" onclick="sortBy(\'' + esc(col) + '\')">' + esc(label) + '</th>';
   }
 
   var idColLabel = capitalize(getSingularName(model, _state.path.concat(['__x__'])));
   var showVersionId = (depth === 3); // resource collection: show its default version id
-  var html = '<div id="table-container"><table class="xr-table"><thead><tr>';
+  var html = '<div id="table-container">';
+
+  // Page title — collection pages have no single-entity name to show (Grid
+  // view's tile layout doesn't show one either), but for visual consistency
+  // with the single-entity table views' new page title, show the plural
+  // collection name (e.g. "SCHEMAGROUPS") using the same title styling. The
+  // Resources collection (depth 3) gets its owning Group's singular type +
+  // id prefixed (e.g. "schemagroup Contoso.ERP schemas"), and the Versions
+  // collection (depth 5) gets its owning Resource ID prefixed (e.g.
+  // "Contoso.ERP.CancellationData VERSIONS") — both previously only visible
+  // via the breadcrumb.
+  var pluralLabel = _state.path[_state.path.length - 1];
+  var titleIdPrefix = '';
+  if (depth === 3) {
+    var groupSingularH = getSingularName(model, _state.path.slice(0, 2));
+    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(groupSingularH) + ' ' + esc(_state.path[1]) + '</span> ';
+  } else if (depth === 5) {
+    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> ';
+  }
+  html += '<div class="eg-page-title">' + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
+
+  html += '<table class="xr-table"><thead><tr>';
   html += thSort('__id', idColLabel);
   if (hasName) html += thSort('name', 'Name');
   if (hasDesc) html += thSort('description', 'Description');
-  if (showVersionId) html += '<th>Version</th>';
+  if (showVersionId) html += '<th class="col-center cell-version-hdr">Default<br>Version</th>';
   if (showChildren) html += '<th' + (depth === 3 ? ' class="col-center"' : '') + '>' + (depth === 1 ? 'Resources' : 'Versions') + '</th>';
   if (showDoc) html += '<th>Document</th>';
-  html += thSort('createdat', 'Created');
-  html += thSort('modifiedat', 'Modified');
+  html += thSort('createdat', 'Created', 'col-center');
+  html += thSort('modifiedat', 'Modified', 'col-center');
   html += '</tr></thead><tbody>';
 
   items.forEach(function(item, idx) {
@@ -1854,16 +2059,27 @@ function renderTableView(data) {
       }
     }
 
-    // Row stays a plain onclick (rows can't be real <a> elements), but the id
-    // cell's own text is wrapped in a real <a> so ctrl/middle-click/"open in
-    // new tab" work natively on it, consistent with the tile view.
-    var rowClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(item.self || '') + ')';
-    var rowHref = pageHref(itemPath, item.self || '');
-    html += '<tr onclick="' + esc(rowClickExpr) + '">';
-    html += '<td class="cell-id"><a href="' + esc(rowHref) + '" onclick="' + esc('event.stopPropagation();' + guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
+    // The row itself is no longer clickable (so its text can be selected/
+    // copied) — only the id cell's text is a real <a>, consistent with the
+    // Grid view's tile-id-link.
+    var rowSelf = entityHrefWithFilter(item.self || '', itemPath);
+    var rowClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(rowSelf) + ')';
+    var rowHref = pageHref(itemPath, rowSelf);
+    html += '<tr>';
+    html += '<td class="cell-id"><a href="' + esc(rowHref) + '" onclick="' + esc(guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
     if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
-    if (hasDesc) html += '<td class="cell-desc">' + esc(item.description != null ? String(item.description) : '') + '</td>';
-    if (showVersionId) html += '<td>' + esc(item.versionid != null ? String(item.versionid) : '') + '</td>';
+    if (hasDesc) html += '<td class="cell-desc"><div class="cell-desc-text">' + esc(item.description != null ? String(item.description) : '') + '</div></td>';
+    if (showVersionId) {
+      if (item.versionid != null) {
+        var vUrl2 = defaultVersionURL(item, itemPath, colls);
+        var vPath2 = itemPath.concat(['versions', String(item.versionid)]);
+        var vClickExpr2 = 'event.stopPropagation();navigateToDefaultVersion(' + JSON.stringify(id) + ',' + JSON.stringify(item.versionid) + ',' + JSON.stringify(vUrl2) + ')';
+        var vHref2 = pageHref(vPath2, vUrl2);
+        html += '<td><a class="cell-version-count" href="' + esc(vHref2) + '" onclick="' + esc(guardedOnclick(vClickExpr2)) + '">' + esc(String(item.versionid)) + '</a></td>';
+      } else {
+        html += '<td></td>';
+      }
+    }
     if (showChildren) html += '<td class="cell-children' + (depth === 3 ? ' col-center' : '') + '">' + childrenHtml + '</td>';
     if (showDoc) {
       var docClickExpr = 'event.stopPropagation();openDocument(' + JSON.stringify(docSingular) + ', _tableViewItems[' + idx + '])';
@@ -1899,6 +2115,17 @@ function renderSingleEntity(data) {
     return;
   }
 
+  // Meta page (depth 5) is replaced by the inline Metadata tab on the
+  // Resource page — redirect up (mirrors renderEntityGrid()'s same redirect
+  // for Grid view). Pass dataView explicitly — otherwise pushStateReal()
+  // would recompute it from the per-depth default/JSON-sticky rules,
+  // clobbering the view (table) the user just clicked to get here.
+  if (_state.path.length === 5 && _state.path[4] === 'meta') {
+    _pendingMetaTabOnLoad = true;
+    pushState({path: _state.path.slice(0, 4), dataView: _state.dataView, editMode: false});
+    return;
+  }
+
   var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var modelKey = normalizeURL(svBase);
   if (!_modelCache.hasOwnProperty(modelKey)) {
@@ -1910,6 +2137,28 @@ function renderSingleEntity(data) {
   var colls  = findCollectionRefs(model, _state.path, data);
   var collKeys = {};
   colls.forEach(function(c) { collKeys[c.plural + 'url'] = true; collKeys[c.plural + 'count'] = true; });
+
+  // Attach model info to the Group Types collections row (depth 0), same as
+  // renderEntityGrid's Grid-view tiles, so the table view can show matching
+  // "Resource Types" and "Description" columns.
+  if (model && model.groups && _state.path.length === 0) {
+    colls.forEach(function(c) {
+      var grpDef = model.groups[c.plural];
+      c.resources   = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
+      c.description = (grpDef && grpDef.description) || '';
+    });
+  }
+
+  // Attach model description to the Resources collections row (depth 2, a
+  // Group instance page), same as Grid view's resource-type tiles, so the
+  // table view's "Resources" table can show a matching Description column.
+  if (model && model.groups && _state.path.length === 2) {
+    var grpDefR = model.groups[_state.path[0]];
+    colls.forEach(function(c) {
+      var resDefR = grpDefR && grpDefR.resources && grpDefR.resources[c.plural];
+      c.description = (resDefR && resDefR.description) || '';
+    });
+  }
 
   // Priority ordering for props — hand-tuned for UX, not spec declaration order.
   // specAttrOrder() gives spec-canonical order but it doesn't match what's most useful
@@ -1929,102 +2178,226 @@ function renderSingleEntity(data) {
 
   var html = '<div id="table-container">';
 
-  // Collections section — clickable
-  if (colls.length) {
-    var depthT = _state.path.length;
-    // Match the Grid view's section-header wording (GROUP TYPES / RESOURCES),
-    // and likewise suppress the header at depth 4 (a resource's version
-    // collection is the only collection type there, so a label is redundant —
-    // see the matching comment in renderEntityGrid).
-    var collsHeaderT = depthT === 0 ? 'Group Types' : depthT === 2 ? 'Resources' : 'Collection';
-    html += '<table class="xr-table" style="margin-bottom:16px">';
-    if (depthT !== 4) {
-      html += '<thead><tr><th>' + esc(collsHeaderT) + '</th><th>Count</th></tr></thead>';
+  // Page title — mirrors Grid view's "TYPE: name" header, so List/Table
+  // view gets the same top-of-page identification at every depth, not just
+  // the registry root. Uses the same ID-vs-name logic as Grid view's title
+  // (getSingularName() for the type label, data.name/idVal for the display
+  // text). At depth 0 the name often already ends with the word "Registry"
+  // (e.g. "CloudEvents Registry"), which would be redundant right after the
+  // "REGISTRY:" label, so that trailing word is stripped in that case.
+  {
+    var depthH = _state.path.length;
+    var entityTypeH = getSingularName(model, _state.path) || 'Registry';
+    var idFieldNameH = entityTypeH.toLowerCase() + 'id';
+    var idValH = data[idFieldNameH] !== undefined ? data[idFieldNameH]
+      : depthH > 0 ? _state.path[depthH - 1] : data.registryid;
+    var titleDisplayH = data.name || (idValH != null ? String(idValH) : '');
+    if (depthH === 0) titleDisplayH = titleDisplayH.replace(/\s+Registry$/i, '');
+    var resSingularH = (depthH === 4 || depthH >= 6) && model
+      ? getSingularName(model, _state.path.slice(0, 4)) : null;
+    // Version pages (depth >= 6) show the owning Resource ID before "VERSION"
+    // instead of the resource's singular type name (e.g. "Contoso.ERP.
+    // CancellationData VERSION: 1" rather than "SCHEMA VERSION: 1") —
+    // matches the Resource ID prefix already used on the Versions
+    // collection page title.
+    var titleIdPrefixH = (depthH >= 6)
+      ? '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> '
+      : '';
+    var titleTypeH = (depthH >= 6 && resSingularH) ? 'VERSION' : entityTypeH;
+    html += '<div class="eg-page-title">' + titleIdPrefixH
+      + '<span class="eg-page-title-type">' + esc(titleTypeH) + ':</span>'
+      + (titleDisplayH ? ' <span class="eg-page-title-id">' + esc(titleDisplayH) + '</span>' : '')
+      + '</div>';
+  }
+
+  // Registry endpoint pills (depth 0 only) — an alternative, more compact
+  // presentation of the same info as the "Registry Endpoints" table below
+  // (kept as-is, but hidden, for now — not yet decided whether to remove it).
+  // mutable endpoints get a trailing pencil icon.
+  if (_state.path.length === 0) {
+    var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var capDataP = _capCache[normalizeURL(svBaseP)];
+    var availP   = capDataP && capDataP.available;
+    var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered'];
+    var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[s]; });
+    if (availSectionsP.length) {
+      var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+      html += '<div class="reg-endpoint-pills">';
+      html += '<span class="reg-endpoint-pills-title">Config:</span>';
+      availSectionsP.forEach(function(s) {
+        var mutP = availP[s] && availP[s].mutable;
+        var pushExprP = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
+        var sHrefP = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
+        html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
+          + esc(sectionNamesP[s])
+          + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">&#9998;</span>' : '')
+          + '</a>';
+      });
+      html += '</div>';
     }
+  }
+
+  // Collections section — id cell is a real link; row itself is plain text
+  // (not clickable) so its content can be selected/copied.
+  // Suppressed entirely at depth 4 (Resource page): the only collection
+  // there is "versions", and that's now covered by the "Versions List"
+  // navigation link in the Document/Details tab bar below — see plan.md
+  // "Versions List navigation link".
+  if (colls.length && _state.path.length !== 4) {
+    var depthT = _state.path.length;
+    // Match the Grid view's section-header wording (GROUP TYPES / RESOURCES).
+    var collsHeaderT = depthT === 0 ? 'Group Types' : depthT === 2 ? 'Resources' : 'Collection';
+    var showResTypes = depthT === 0; // matches Grid view's group-type tiles
+    var showCollDesc = colls.some(function(c) { return c.description; });
+    html += '<table class="xr-table" style="margin-bottom:16px">';
+    html += '<thead><tr><th>' + esc(collsHeaderT) + '</th><th>Count</th>'
+          + (showResTypes ? '<th>Resource Types</th>' : '')
+          + (showCollDesc ? '<th>Description</th>' : '')
+          + '</tr></thead>';
     html += '<tbody>';
     colls.forEach(function(c) {
       var collClickExpr = 'navigateTo(' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
       var collHref = pageHref(_state.path.concat([c.plural]), c.url);
-      html += '<tr onclick="' + esc(collClickExpr) + '" style="cursor:pointer">'
-        + '<td class="cell-id"><a href="' + esc(collHref) + '" onclick="' + esc('event.stopPropagation();' + guardedOnclick(collClickExpr)) + '">' + esc(c.plural) + '</a></td>'
+      var resTypesHtml = showResTypes
+        ? (c.resources && c.resources.length ? esc(c.resources.join(', ')) : '')
+        : '';
+      html += '<tr>'
+        + '<td class="cell-id"><a href="' + esc(collHref) + '" onclick="' + esc(guardedOnclick(collClickExpr)) + '">' + esc(c.plural) + '</a></td>'
         + '<td>' + c.count + '</td>'
+        + (showResTypes ? '<td>' + resTypesHtml + '</td>' : '')
+        + (showCollDesc ? '<td class="cell-desc"><div class="cell-desc-text">' + esc(c.description || '') + '</div></td>' : '')
         + '</tr>';
     });
     html += '</tbody></table>';
   }
 
-  // Server endpoints (depth 0 only) — same sections shown in grid view
-  if (_state.path.length === 0) {
-    var svBaseT = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-    var capDataT = _capCache[normalizeURL(svBaseT)];
-    var availT   = capDataT && capDataT.available;
-    var sectionTilesT = ['model','modelsource','capabilities','capabilitiesoffered'];
-    var availSectionsT = sectionTilesT.filter(function(s) { return availT && availT[s]; });
-    if (availSectionsT.length) {
-      var sectionNamesT = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
-      html += '<table class="xr-table" style="margin-bottom:16px">'
-        + '<thead><tr><th>Registry Endpoints</th><th>Mutable</th></tr></thead><tbody>';
-      availSectionsT.forEach(function(s) {
-        var mut = availT[s] && availT[s].mutable ? '✓' : '';
-        var pushExpr = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
-        var sHref = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
-        html += '<tr onclick="' + esc(pushExpr) + '" style="cursor:pointer">'
-          + '<td class="cell-id"><a href="' + esc(sHref) + '" onclick="'
-          + esc('event.stopPropagation();' + guardedOnclick(pushExpr))
-          + '">' + esc(sectionNamesT[s]) + '</a></td>'
-          + '<td>' + mut + '</td>'
-          + '</tr>';
-      });
-      html += '</tbody></table>';
-    }
-  }
-
-  // Resource meta box (depth 4 only) — mirrors Grid view's collapsible
-  // "<Singular> Details" box (twisty + Copy JSON), lazy-fetched via metaurl.
-  // Reuses toggleMetaBox()/copyMetaJSON()/renderMetaContent() as-is, since
-  // they're DOM-id-driven and view-agnostic.
+  // Document / Details tab bar (depth 4 = Resource entity, depth 6+ =
+  // Version entity) — replaces the old always-stacked meta-box +
+  // Document-table + Properties-table layout with a small pill tab bar;
+  // only one panel is visible at a time, and the first available tab is
+  // always the default selection on every render (no persistence across
+  // navigation). See plan.md "tabbed Document/Details component".
   var depthD = _state.path.length;
-  if (depthD === 4) {
+  var pendingDocTabActivate = null;
+  _resVersionsUrl = ''; // reset each render; only set (truthy) for Resource pages (depth 4)
+  if (depthD === 4 || depthD >= 6) {
     var entityTypeT = getSingularName(model, _state.path);
-    _metaData = null;
-    _metaResourceIdField = entityTypeT.toLowerCase() + 'id';
-    _metaEntityType = entityTypeT;
-    html += '<div class="eg-section-header eg-details-header">'
-          + '<span>' + esc(capitalize(entityTypeT)) + ' Details'
-          + ' <button class="eg-twisty" id="eg-meta-twisty" onclick="toggleMetaBox()">▶</button>'
-          + '</span>'
-          + '<button class="eg-copy-json-btn" onclick="copyMetaJSON()">{ } Copy JSON</button>'
-          + '</div>';
-    html += '<div class="eg-meta-details-flat" id="eg-meta-box" style="display:none"></div>';
-  }
+    var capTypeT = capitalize(entityTypeT);
+    var hasDocD = resourceHasDocument(model, _state.path);
+    var docSingularD = (depthD === 4) ? entityTypeT : getSingularName(model, _state.path.slice(0, 4));
 
-  // Document (depth 4 = resource entity, depth 6+ = version entity) — mirrors
-  // the Grid view's document tile so the doc is reachable from List view too.
-  if ((depthD === 4 || depthD >= 6) && resourceHasDocument(model, _state.path)) {
-    var docSingularD = getSingularName(model, _state.path.slice(0, 4));
-    html += '<table class="xr-table" style="margin-bottom:16px">'
-      + '<thead><tr><th>Document</th><th>Content Type</th></tr></thead><tbody>'
-      + '<tr onclick="openDocument(\'' + esc(docSingularD) + '\')" style="cursor:pointer">'
-      +   '<td class="cell-id">' + esc(docSingularD) + ' document</td>'
-      +   '<td>' + esc(data.contenttype || '') + '</td>'
-      + '</tr></tbody></table>';
-  }
-
-  // Properties (scalar + complex). Complex (object/array) values render as a
-  // nested key/value tree in the value column — same generic renderValueTree()
-  // used by Grid view's unknown-extension rows — rather than being dropped.
-  // Scalar values follow the same normal-vs-monospace decision as Grid view's
-  // renderAttrRow(): spec attrs listed in MONO_ATTRS, or any explicitly
-  // model-defined (non-wildcard) attr with a non-string type, render
-  // monospace; everything else (including extension attrs only matching the
-  // '*' wildcard) renders as normal prose text.
-  if (attrKeys.length) {
-    var entityTypeP  = getSingularName(model, _state.path);
-    var capTypeT = capitalize(entityTypeP);
+    // Properties table content — built via the shared buildEntityPropsTableHtml()
+    // helper (also used later to redraw this panel when the version-selector
+    // dropdown, below, picks a different version).
     var propHeaderT = depthD === 4 ? defaultVersionLabel(capTypeT, data) + ' Property' : capTypeT + ' Property';
-    var specLevelP = specAttrLevel(_state.path);
-    var singularP  = entityTypeP.toLowerCase();
-    html += '<table class="xr-table"><thead><tr><th>' + esc(propHeaderT) + '</th><th>Value</th></tr></thead><tbody>';
+    var propsTableHtml = buildEntityPropsTableHtml(data, propHeaderT, model, _state.path, collKeys);
+
+    var tabDefs = [];
+    if (hasDocD) {
+      tabDefs.push({ key: 'doc', label: 'Document',
+        content: '<div id="eg-doc-preview-box"><div class="eg-loading">Loading document\u2026</div></div>' });
+    }
+    var versionsUrlD = '';
+    var versionsListLinkHtml = '';
+    if (depthD === 4) {
+      // Version property/details panel — a plain tab, same as before this
+      // feature existed. Which version's data it shows is now controlled by
+      // a *separate* standalone "Version:" dropdown rendered above the tab
+      // bar (see plan.md "version-selector dropdown"), not by the tab bar
+      // itself. Defaults to "Default" — the resource's own
+      // flattened-default-version data, already rendered above.
+      var versionsCollD = colls.filter(function(c) { return c.plural === 'versions'; })[0];
+      versionsUrlD = versionsCollD ? versionsCollD.url : '';
+      tabDefs.push({ key: 'defver', label: 'Version Details', content: propsTableHtml });
+      _metaData = null;
+      _metaResourceIdField = entityTypeT.toLowerCase() + 'id';
+      _metaEntityType = entityTypeT;
+      tabDefs.push({ key: 'meta', label: capTypeT + ' Metadata',
+        content: '<div id="eg-meta-box"><div class="eg-loading">Loading\u2026</div></div>' });
+      // "Versions List" — a real navigation link (not a tab switch) to the
+      // raw Versions collection page, styled to match the pill tabs. Lets
+      // users get to the full List/Grid/filterable view of all versions
+      // (useful when there are many versions — a flat dropdown doesn't
+      // scale, but the collection page's existing filter support does).
+      // See plan.md "version-selector dropdown" for the design rationale.
+      if (versionsCollD) {
+        var versionsListHref = pageHref(_state.path.concat(['versions']), versionsCollD.url);
+        var versionsListClick = guardedOnclick('navigateTo(\'versions\',' + JSON.stringify(versionsCollD.url) + ')');
+        versionsListLinkHtml = '<a class="eg-doc-tab eg-doc-tab-link" href="' + esc(versionsListHref)
+          + '" onclick="' + esc(versionsListClick) + '">Versions (' + esc(String(versionsCollD.count)) + ') List</a>';
+      }
+    } else { // depthD >= 6, Version entity — no separate meta split
+      tabDefs.push({ key: 'version', label: 'Version Details', content: propsTableHtml });
+    }
+
+    _docSingular = docSingularD;
+    _docPreviewLoaded = false;
+    // Version-selector state (depth 4 only) — stashed globally since
+    // onVersionSelectChange() runs from a later, independent DOM event, not
+    // from within this render closure. See plan.md.
+    _resModel = model;
+    _resPath = _state.path.slice();
+    _resCapType = capTypeT;
+    _resDefaultData = data;
+    _resCollKeys = collKeys;
+    _resVersionsUrl = versionsUrlD;
+    _resVersionsList = null;
+    _resSelectedVersionId = 'default';
+    _docActiveVersionData = data;
+
+    // Standalone "Version:" dropdown (depth 4 only, when the resource has a
+    // versions collection) — a separate control from the tab buttons, laid
+    // out inline in the same row (see plan.md "version-selector dropdown").
+    // Picking a version and picking which tab/panel to view are independent
+    // choices; this control never switches tabs itself. Options are
+    // populated asynchronously once the versions collection is fetched
+    // (loadVersionsForSelect()); until then only "Default" is selectable.
+    var versionSelectorHtml = versionsUrlD
+      ? '<span class="eg-version-selector"><label for="eg-doc-version-select">Version:</label>'
+        + '<select id="eg-doc-version-select" onchange="onVersionSelectChange(this.value)">'
+        + '<option value="default" selected>' + esc(defaultOptionLabel(data)) + '</option>'
+        + '</select></span>'
+      : '';
+
+    if (tabDefs.length || versionSelectorHtml) {
+      // Version page (depth 6+) special case: when there's no Document tab,
+      // "Version Details" is the *only* possible tab — nothing to switch
+      // between, and no other controls (no version-selector, no Versions
+      // List link at that depth) — so skip the tab bar chrome entirely and
+      // just render its content directly, like the plain Properties table
+      // shown for other single-entity pages (depth 0/2).
+      if (depthD >= 6 && tabDefs.length === 1 && !versionSelectorHtml) {
+        html += tabDefs[0].content;
+      } else {
+      // Build the row's inner pieces in order: version selector first (if
+      // present), then the tab buttons in their normal order (Document,
+      // Version Details, Schema/Message/etc. Details), then the "Versions
+      // List" navigation link last.
+      var rowParts = [];
+      if (versionSelectorHtml) rowParts.push(versionSelectorHtml);
+      tabDefs.forEach(function(t, i) {
+        rowParts.push('<button class="eg-doc-tab' + (i === 0 ? ' active' : '') + '" data-tab="' + esc(t.key)
+          + '" onclick="switchDocTab(\'' + esc(t.key) + '\')">' + esc(t.label) + '</button>');
+      });
+      if (versionsListLinkHtml) rowParts.push(versionsListLinkHtml);
+      html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
+      tabDefs.forEach(function(t, i) {
+        html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
+          + '"' + (i === 0 ? '' : ' style="display:none"') + '>' + t.content + '</div>';
+      });
+      pendingDocTabActivate = tabDefs[0].key;
+      }
+    }
+  } else if (attrKeys.length) {
+    // Registry root (depth 0) / Group instance (depth 2) — no tab bar here
+    // (only Resource/Version entities get the Document/Details tabs), just
+    // the plain Properties table, same as before this feature existed.
+    var entityTypeP  = getSingularName(model, _state.path);
+    var capTypeP = capitalize(entityTypeP);
+    var propHeaderP = capTypeP + ' Property';
+    var specLevelP2 = specAttrLevel(_state.path);
+    var singularP2  = entityTypeP.toLowerCase();
+    html += '<table class="xr-table"><thead><tr><th>' + esc(propHeaderP) + '</th><th>Value</th></tr></thead><tbody>';
     attrKeys.forEach(function(k) {
       var val = data[k];
       var display, valueCellClass = '';
@@ -2037,10 +2410,10 @@ function renderSingleEntity(data) {
       } else if (val == null) {
         display = '<span style="color:#999">null</span>';
       } else {
-        var attrTypeP = getExplicitAttrType(model, _state.path, k);
-        var isMonoP = isMonoSpecAttr(k, specLevelP, singularP)
-          || (attrTypeP !== null && attrTypeP !== 'string');
-        display = isMonoP ? copyableMonospace(String(val)) : copyable(String(val));
+        var attrTypeP2 = getExplicitAttrType(model, _state.path, k);
+        var isMonoP2 = isMonoSpecAttr(k, specLevelP2, singularP2)
+          || (attrTypeP2 !== null && attrTypeP2 !== 'string');
+        display = isMonoP2 ? copyableMonospace(String(val)) : copyable(String(val));
       }
       html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
             + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
@@ -2050,6 +2423,21 @@ function renderSingleEntity(data) {
 
   html += '</div>';
   main.innerHTML = html;
+
+  // Kick off the lazy fetch for whichever tab ended up default-selected
+  // (Document or Details — the Default/Version Details panels already have
+  // their content inline and need no fetch).
+  if (pendingDocTabActivate === 'doc') { _docPreviewLoaded = true; loadDocumentPreview(); }
+  else if (pendingDocTabActivate === 'meta') { loadMetaDetails(); }
+  // Populate the version-selector dropdown's options (Resource page only).
+  if (_resVersionsUrl) loadVersionsForSelect();
+  // Redirected here from a standalone "meta" page (depth 5) — land directly
+  // on the Metadata tab instead of the generic default (Document/Version
+  // Details), so the user sees the same content they were viewing.
+  if (_pendingMetaTabOnLoad) {
+    _pendingMetaTabOnLoad = false;
+    if (document.querySelector('.eg-doc-tab[data-tab="meta"]')) switchDocTab('meta');
+  }
 }
 
 // ---- Grid view for single entity (Registry / Group / Resource / Version) -
@@ -2371,26 +2759,26 @@ function groupTileHTML(coll, onclick, extraCls, regLabel, href) {
   var regHtml = regLabel
     ? '<div class="coll-tile-reg">' + esc(regLabel) + '</div>'
     : '';
-  return '<a class="coll-tile' + (extraCls || '') + '" href="' + esc(href || '#') + '" onclick="' + onclick + '">'
+  return '<div class="coll-tile' + (extraCls || '') + '">'
     + '<div class="coll-tile-top">'
     +   '<div class="coll-tile-icon">' + FOLDER_ICON + '</div>'
     +   '<div class="coll-tile-summary">'
-    +     '<div class="coll-tile-name">' + esc(coll.plural) + '</div>'
+    +     '<a class="coll-tile-name" href="' + esc(href || '#') + '" onclick="' + onclick + '">' + esc(coll.plural) + '</a>'
     +     '<div class="coll-tile-count">' + coll.count + ' item' + (coll.count !== 1 ? 's' : '') + '</div>'
     +   '</div>'
     + '</div>'
     + descHtml
     + resHtml
     + regHtml
-    + '</a>';
+    + '</div>';
 }
 
 function docTile(singular, contenttype) {
-  return '<div class="coll-tile coll-tile-meta" onclick="openDocument(\'' + esc(singular) + '\')">'
+  return '<div class="coll-tile coll-tile-meta">'
     + '<div class="coll-tile-top">'
     +   '<div class="coll-tile-icon">' + DOC_ICON + '</div>'
     +   '<div class="coll-tile-summary">'
-    +     '<div class="coll-tile-name">' + esc(singular) + ' document</div>'
+    +     '<a class="coll-tile-name" href="#" onclick="openDocument(\'' + esc(singular) + '\'); return false;">' + esc(singular) + ' document</a>'
     +     '<div class="coll-tile-count">' + esc(contenttype || '') + '</div>'
     +   '</div>'
     + '</div>'
@@ -2513,13 +2901,11 @@ function egCopyFallback(text, label) {
 // extended into array items (array item types aren't addressable this way),
 // so scalar array items keep their previous unstyled rendering.
 function renderValueTree(val, depth, model, entityPath, keyPath) {
-  var c2c = optClickToCopy();
   var attrType = keyPath ? getExplicitAttrTypeAtPath(model, entityPath, keyPath) : null;
   var forceMono = attrType !== null && attrType !== 'string';
   function leaf(raw, display) {
     var cls = forceMono ? ' class="eg-mono"' : '';
-    if (!c2c) return '<span' + cls + '>' + display + '</span>';
-    return '<span class="eg-copyable' + (forceMono ? ' eg-mono' : '') + '" data-copy="' + esc(String(raw)) + '" onclick="egCopy(this.dataset.copy,\'\')">' + display + '</span>';
+    return '<span' + cls + '>' + display + '</span>';
   }
   if (val === null)              return leaf('null', '<span class="vt-null">null</span>');
   if (val === undefined)         return '<span class="vt-null">undefined</span>';
@@ -2562,21 +2948,60 @@ function renderValueTree(val, depth, model, entityPath, keyPath) {
 }
 
 function copyable(text) {
-  if (!optClickToCopy()) return '<span class="eg-value">' + esc(text) + '</span>';
-  return '<span class="eg-copyable" data-copy="' + esc(text) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(text) + '</span>';
+  return '<span class="eg-value">' + esc(text) + '</span>';
 }
 
 function copyableMonospace(text) {
-  if (!optClickToCopy()) return '<span class="eg-value eg-mono">' + esc(text) + '</span>';
-  return '<span class="eg-copyable eg-mono" data-copy="' + esc(text) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(text) + '</span>';
+  return '<span class="eg-value eg-mono">' + esc(text) + '</span>';
 }
 
-function copyEntityJSON() {
-  egCopy(JSON.stringify(_lastData, null, 2), 'JSON');
-}
-
-function copyMetaJSON() {
-  if (_metaData) egCopy(JSON.stringify(_metaData, null, 2), 'JSON');
+// Builds a "<Header>" / "Value" properties table for any entity-like JSON
+// object (a Resource's own flattened-default-version data, or a specific
+// Version item fetched separately) — shared by the initial Resource-page
+// render and by the version-selector dropdown's onVersionSelectChange(),
+// which redraws this same panel with a different version's data.
+// collKeys (optional) suppresses <plural>url/<plural>count sub-collection
+// fields already shown elsewhere (e.g. "versionsurl"/"versionscount" on a
+// Resource) — versions themselves have no sub-collections, so callers
+// rendering a specific version can omit it.
+function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKeys) {
+  var suppressed = collKeys || {};
+  var priority = ['registryid','xid','name','description','specversion',
+    'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
+  var keys = Object.keys(entityData).filter(function(k) {
+    return k !== '__mapKey' && !suppressed[k];
+  }).sort(function(a, b) {
+    var ai = priority.indexOf(a), bi = priority.indexOf(b);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1; if (bi >= 0) return 1;
+    return a.localeCompare(b);
+  });
+  if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No properties</span></div>';
+  var specLevel = specAttrLevel(path);
+  var singular  = (getSingularName(model, path) || '').toLowerCase();
+  var html = '<table class="xr-table"><thead><tr><th>' + esc(headerLabel) + '</th><th>Value</th></tr></thead><tbody>';
+  keys.forEach(function(k) {
+    var val = entityData[k];
+    var display, valueCellClass = '';
+    if (val !== null && typeof val === 'object') {
+      var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
+      display = isEmpty
+        ? '<span class="vt-empty">empty</span>'
+        : renderValueTree(val, 0, model, path, [k]);
+      valueCellClass = ' class="cell-tree"';
+    } else if (val == null) {
+      display = '<span style="color:#999">null</span>';
+    } else {
+      var attrType = getExplicitAttrType(model, path, k);
+      var isMono = isMonoSpecAttr(k, specLevel, singular)
+        || (attrType !== null && attrType !== 'string');
+      display = isMono ? copyableMonospace(String(val)) : copyable(String(val));
+    }
+    html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
+          + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  return html;
 }
 
 function toggleMetaBox() {
@@ -2603,6 +3028,199 @@ function toggleMetaBox() {
       box.innerHTML = renderMetaBoxContent(d, _modelCache[svURL2] || null);
     })
     .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
+}
+
+// Same fetch/render logic toggleMetaBox() uses, minus the collapse/twisty
+// toggling — used by the Document/Details tab bar's "<Singular> Details"
+// panel, which (unlike Grid view's box) is always visible once selected.
+function loadMetaDetails() {
+  var box = document.getElementById('eg-meta-box');
+  if (!box) return;
+  if (_metaData) {
+    var svURL = normalizeURL(_state.serverURL || window.location.origin);
+    box.innerHTML = renderMetaBoxContent(_metaData, _modelCache[svURL] || null);
+    return;
+  }
+  box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
+  var metaUrl = _lastData && _lastData.metaurl;
+  if (!metaUrl) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#aaa">No meta URL available</span></div>'; return; }
+  fetch(metaUrl)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      _metaData = d;
+      var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
+      box.innerHTML = renderMetaBoxContent(d, _modelCache[svURL2] || null);
+    })
+    .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
+}
+
+// Grows the Document tab's textarea to fill the remaining visible viewport
+// space below it, so it uses as much room as possible without pushing the
+// "Open in new tab" link (which sits right after it) below the fold. Re-run
+// whenever the textarea's content/visibility changes or the window resizes.
+function sizeDocTextarea() {
+  var ta = document.querySelector('.eg-doc-textarea');
+  if (!ta || ta.offsetParent === null) return; // not rendered / panel hidden
+  var actions = ta.nextElementSibling;
+  var reserve = (actions && actions.classList.contains('eg-doc-preview-actions')) ? actions.offsetHeight + 12 : 0;
+  var available = window.innerHeight - ta.getBoundingClientRect().top - reserve - 16; // bottom breathing room
+  ta.style.height = Math.max(200, Math.floor(available)) + 'px';
+}
+
+// Fetches the Resource page's versions collection (once) to populate the
+// version-selector dropdown's options: "Default" first (already selected),
+// then every version id, in the same order collectionItems() sorts them
+// elsewhere (by map key). A fetch failure just leaves "Default" as the
+// only option — non-critical, so no error UI is shown for this one.
+function loadVersionsForSelect() {
+  var sel = document.getElementById('eg-doc-version-select');
+  if (!sel || !_resVersionsUrl) return;
+  fetch(_resVersionsUrl)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      _resVersionsList = collectionItems(d);
+      var current = sel.value || 'default';
+      var html = '<option value="default"' + (current === 'default' ? ' selected' : '') + '>'
+        + esc(defaultOptionLabel(_resDefaultData)) + '</option>';
+      _resVersionsList.forEach(function(v) {
+        var vid = itemNavKey(v);
+        html += '<option value="' + esc(vid) + '"' + (current === vid ? ' selected' : '') + '>' + esc(vid) + '</option>';
+      });
+      sel.innerHTML = html;
+    })
+    .catch(function() { /* leave "Default" only — non-critical */ });
+}
+
+// Handles the standalone "Version:" dropdown's change event (Resource page
+// only): redraws the "Version Details" tab panel with the picked version's
+// own data, and refreshes the Document tab to match (whether or not it's
+// the currently-visible tab), reusing the same buildEntityPropsTableHtml()/
+// loadDocumentPreview() logic as the initial render. This dropdown is a
+// separate control from the tab bar (see plan.md "version-selector
+// dropdown") — it only changes *which version's data* feeds the tabs, it
+// does not itself switch tabs.
+function onVersionSelectChange(vid) {
+  _resSelectedVersionId = vid;
+  var panel = document.getElementById('eg-doc-panel-defver');
+  var verData, headerLabel, collKeysForVer;
+  if (vid === 'default') {
+    verData = _resDefaultData;
+    headerLabel = defaultVersionLabel(_resCapType, verData) + ' Property';
+    collKeysForVer = _resCollKeys;
+  } else {
+    verData = (_resVersionsList || []).filter(function(v) { return itemNavKey(v) === vid; })[0];
+    headerLabel = _resCapType + ' Version (' + vid + ') Property';
+    collKeysForVer = null; // versions have no sub-collections to suppress
+  }
+  if (!verData) return;
+  if (panel) panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer);
+
+  // Keep the Document tab showing the selected version's document too —
+  // refresh it eagerly even if it's not the currently-visible tab.
+  if (document.getElementById('eg-doc-preview-box')) {
+    _docActiveVersionData = verData;
+    _docPreviewLoaded = true;
+    loadDocumentPreview();
+  }
+}
+
+// Toggle the active Document/Details tab: swaps the .active button class
+// and shows only the matching panel, lazy-loading the Document preview or
+// the Details meta content the first time each is shown (cached after that).
+function switchDocTab(tabKey) {
+  var tabs = document.querySelectorAll('.eg-doc-tab');
+  tabs.forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tabKey); });
+  var panels = document.querySelectorAll('.eg-doc-tab-panel');
+  panels.forEach(function(p) { p.style.display = (p.getAttribute('data-tab') === tabKey) ? '' : 'none'; });
+  if (tabKey === 'doc' && !_docPreviewLoaded) { _docPreviewLoaded = true; loadDocumentPreview(); }
+  if (tabKey === 'meta' && !_metaData) { loadMetaDetails(); }
+  // The panel was just made visible (or already was) — resize the textarea
+  // now that layout/geometry is accurate (hidden panels report 0 height).
+  if (tabKey === 'doc') sizeDocTextarea();
+}
+
+// Sniffs raw bytes (NOT the declared contenttype) to decide binary vs. text:
+// a NUL byte anywhere, or a high ratio of non-printable/non-whitespace
+// control characters in a leading sample, is treated as binary content.
+function isBinaryContent(buf) {
+  var bytes = new Uint8Array(buf);
+  var len = Math.min(bytes.length, 8000);
+  if (len === 0) return false;
+  var suspicious = 0;
+  for (var i = 0; i < len; i++) {
+    var b = bytes[i];
+    if (b === 0) return true;
+    if (b < 32 && b !== 9 && b !== 10 && b !== 13) suspicious++;
+  }
+  return (suspicious / len) > 0.05;
+}
+
+function decodeUTF8Bytes(buf) {
+  try { return new TextDecoder('utf-8', { fatal: false }).decode(buf); }
+  catch (e) {
+    var bytes = new Uint8Array(buf), s = '';
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return s;
+  }
+}
+
+// Inline preview for the Document tab. Reuses openDocument()'s source-
+// resolution priority (<key>url -> <key>base64 -> inline JSON value ->
+// self with $details stripped) but fetches/decodes and renders inline
+// (read-only textarea for text, "Binary file" message for binary) instead
+// of always opening a new tab. A small "Open in new tab" link/button is
+// always shown alongside the result (and as the sole fallback on error).
+function loadDocumentPreview() {
+  var box = document.getElementById('eg-doc-preview-box');
+  if (!box) return;
+  var singular = _docSingular;
+  var data = _docActiveVersionData || _lastData;
+  if (!singular || !data) { box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>'; return; }
+  var key = singular.toLowerCase();
+
+  function openTabBtn(url) {
+    return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="eg-link-btn">Open in new tab</a></div>' : '';
+  }
+  function showText(text, url) {
+    box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + openTabBtn(url);
+    sizeDocTextarea();
+  }
+  function showBinary(url) {
+    box.innerHTML = '<div class="eg-doc-binary-msg">Binary file \u2014 preview not available.</div>' + openTabBtn(url);
+  }
+  function showError(msg, url) {
+    box.innerHTML = '<div class="eg-doc-error-msg">' + esc(msg) + '</div>' + openTabBtn(url);
+  }
+  function fetchAndRender(url) {
+    fetch(url)
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      .then(function(buf) { isBinaryContent(buf) ? showBinary(url) : showText(decodeUTF8Bytes(buf), url); })
+      .catch(function(e) { showError('Could not load document: ' + ((e && e.message) || String(e)), url); });
+  }
+
+  if (data[key + 'url']) { fetchAndRender(data[key + 'url']); return; }
+
+  if (data[key + 'base64']) {
+    try {
+      var binary = atob(data[key + 'base64']);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      var blobUrl = URL.createObjectURL(new Blob([bytes], { type: data.contenttype || 'application/octet-stream' }));
+      if (isBinaryContent(bytes.buffer)) showBinary(blobUrl); else showText(decodeUTF8Bytes(bytes.buffer), blobUrl);
+    } catch (e) { showError('Error decoding document: ' + ((e && e.message) || String(e))); }
+    return;
+  }
+
+  if (data[key] !== undefined && data[key] !== null) {
+    var json = JSON.stringify(data[key], null, 2);
+    var blobUrl2 = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    showText(json, blobUrl2);
+    return;
+  }
+
+  if (data.self) { fetchAndRender(data.self.replace(/\$details$/, '')); return; }
+
+  box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>';
 }
 
 // Dispatch the meta box body to the format matching the current data view:
@@ -2705,12 +3323,8 @@ function renderMetaContent(d, model) {
     var labelKeys = Object.keys(d.labels).sort();
     if (labelKeys.length) {
       var labelParts = labelKeys.map(function(k) {
-        var kSpan = optClickToCopy()
-          ? '<span class="eg-label-key eg-copyable" data-copy="' + esc(k) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(k) + '</span>'
-          : '<span class="eg-label-key">' + esc(k) + '</span>';
-        var vSpan = optClickToCopy()
-          ? '<span class="eg-label-val eg-copyable" data-copy="' + esc(String(d.labels[k])) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(String(d.labels[k])) + '</span>'
-          : '<span class="eg-label-val">' + esc(String(d.labels[k])) + '</span>';
+        var kSpan = '<span class="eg-label-key">' + esc(k) + '</span>';
+        var vSpan = '<span class="eg-label-val">' + esc(String(d.labels[k])) + '</span>';
         return '<span class="eg-label-pair">' + kSpan + vSpan + '</span>';
       });
       html += '<div class="eg-row eg-labels"><span class="eg-label">Labels:</span>'
@@ -2779,9 +3393,13 @@ function renderEntityGrid(data) {
   var main = el('main-view');
   var depth = _state.path.length;
 
-  // Meta page (depth 5) is replaced by the inline meta box on the resource page — redirect up
+  // Meta page (depth 5) is replaced by the inline meta box on the resource
+  // page — redirect up. Pass dataView explicitly — otherwise pushStateReal()
+  // would recompute it from the per-depth default/JSON-sticky rules,
+  // clobbering the view (grid) the user just clicked to get here.
   if (depth === 5 && _state.path[4] === 'meta') {
-    pushState({path: _state.path.slice(0, 4), editMode: false});
+    _pendingMetaTabOnLoad = true;
+    pushState({path: _state.path.slice(0, 4), dataView: _state.dataView, editMode: false});
     return;
   }
 
@@ -2841,20 +3459,13 @@ function renderEntityGrid(data) {
     : entityType;
   var pageTitle = '<span class="eg-page-title-type">' + esc(titleType) + ':</span>';
   if (titleDisplay) {
-    var titleId = optClickToCopy()
-      ? '<span class="eg-page-title-id eg-copyable" data-copy="' + esc(titleDisplay) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(titleDisplay) + '</span>'
-      : '<span class="eg-page-title-id">' + esc(titleDisplay) + '</span>';
+    var titleId = '<span class="eg-page-title-id">' + esc(titleDisplay) + '</span>';
     pageTitle += ' ' + titleId;
   }
   if (data.icon) {
     var iconImg = '<img src="' + esc(data.icon) + '" class="eg-page-title-icon" alt="" '
                 + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\'">';
-    if (optClickToCopy()) {
-      pageTitle += '<span class="eg-copyable" data-copy="' + esc(data.icon) + '" onclick="egCopy(this.dataset.copy,\'Icon URL\')" title="Click to copy icon URL">'
-                + iconImg + '</span>';
-    } else {
-      pageTitle += iconImg;
-    }
+    pageTitle += iconImg;
     pageTitle += '<span class="eg-icon-err eg-page-title-icon-err" style="display:none" title="Failed to load: ' + esc(data.icon) + '">'
                + '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
                + '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>'
@@ -2918,10 +3529,9 @@ function renderEntityGrid(data) {
     _metaData = null;
     _metaResourceIdField = idFieldName;  // suppress resource's own ID in meta content
     html += '<div class="eg-section-header eg-details-header">'
-          + '<span>' + esc(capitalize(entityType)) + ' Details'
+          + '<span>' + esc(capitalize(entityType)) + ' Metadata'
           + ' <button class="eg-twisty" id="eg-meta-twisty" onclick="toggleMetaBox()">▶</button>'
           + '</span>'
-          + '<button class="eg-copy-json-btn" onclick="copyMetaJSON()">{ } Copy JSON</button>'
           + '</div>';
     html += '<div class="eg-details eg-meta-details" id="eg-meta-box" style="display:none"></div>';
   }
@@ -2940,15 +3550,12 @@ function renderEntityGrid(data) {
     detailsLabel = 'Details'; // meta (depth 5) — leave as is
   }
   html += '<div class="eg-section-header eg-details-header">' + detailsLabel
-        + '<button class="eg-copy-json-btn" onclick="copyEntityJSON()">{ } Copy JSON</button>'
         + '</div>';
   html += '<div class="eg-details">';
 
   // Description first — human-readable text before attribute rows
   if (data.description) {
-    html += optClickToCopy()
-      ? '<div class="eg-description eg-copyable" data-copy="' + esc(data.description) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(data.description) + '</div>'
-      : '<div class="eg-description">' + esc(data.description) + '</div>';
+    html += '<div class="eg-description">' + esc(data.description) + '</div>';
   }
 
   // Spec-defined attribute rows are laid out as their own two-column CSS
@@ -2990,8 +3597,7 @@ function renderEntityGrid(data) {
   if (data.documentation) {
     html += row('Documentation',
       '<a href="' + esc(data.documentation) + '" target="_blank" class="eg-link">'
-      + esc(data.documentation) + '</a>'
-      + (optClickToCopy() ? '<span class="eg-copyable eg-doc-copy" data-copy="' + esc(data.documentation) + '" onclick="egCopy(this.dataset.copy,\'URL\')" title="Copy URL">⧉</span>' : ''));
+      + esc(data.documentation) + '</a>');
   }
 
   // Row 4: temporal — created on its own line, modified on the next
@@ -3019,12 +3625,8 @@ function renderEntityGrid(data) {
     var labelKeys = Object.keys(data.labels).sort();
     if (labelKeys.length) {
       var labelParts = labelKeys.map(function(k) {
-        var kSpan = optClickToCopy()
-          ? '<span class="eg-label-key eg-copyable" data-copy="' + esc(k) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(k) + '</span>'
-          : '<span class="eg-label-key">' + esc(k) + '</span>';
-        var vSpan = optClickToCopy()
-          ? '<span class="eg-label-val eg-copyable" data-copy="' + esc(String(data.labels[k])) + '" onclick="egCopy(this.dataset.copy,\'\')">' + esc(String(data.labels[k])) + '</span>'
-          : '<span class="eg-label-val">' + esc(String(data.labels[k])) + '</span>';
+        var kSpan = '<span class="eg-label-key">' + esc(k) + '</span>';
+        var vSpan = '<span class="eg-label-val">' + esc(String(data.labels[k])) + '</span>';
         return '<span class="eg-label-pair">' + kSpan + vSpan + '</span>';
       });
       html += '<div class="eg-row eg-labels"><span class="eg-label">Labels:</span>'
@@ -3140,6 +3742,15 @@ function renderEntityGrid(data) {
 
   html += '</div></div>';
   main.innerHTML = html;
+
+  // Redirected here from a standalone "meta" page (depth 5) — auto-expand
+  // the Metadata box instead of leaving it collapsed, so the user sees the
+  // same content they were viewing (mirrors renderSingleEntity()'s matching
+  // auto-select-Metadata-tab behavior for List view).
+  if (_pendingMetaTabOnLoad) {
+    _pendingMetaTabOnLoad = false;
+    if (document.getElementById('eg-meta-box')) toggleMetaBox();
+  }
 }
 
 // ---- JSON view -----------------------------------------------------------
@@ -3258,7 +3869,7 @@ function jsonToggleAll() {
   }
 }
 
-function renderJSONLeftPanel() {
+function renderJSONLeftPanel(filtersOnly) {
   var inner = el('left-panel-inner');
   if (!inner) return;
   var html = '';
@@ -3271,14 +3882,14 @@ function renderJSONLeftPanel() {
   // Trigger model fetch if not yet cached
   if (!_modelCache.hasOwnProperty(normUrl2)) {
     ensureModelCached(svBase2, function() {
-      if (_state.dataView === 'json' || _state.view === 'json') renderJSONLeftPanel();
+      if (_state.dataView === 'json' || _state.view === 'json' || _filtersPanelOpen) renderJSONLeftPanel(filtersOnly);
     });
   }
 
   // Trigger capability fetch if not yet cached; re-render when ready
   if (!_capCache.hasOwnProperty(normUrl2)) {
     ensureCapCached(svBase2, function() {
-      if (_state.dataView === 'json' || _state.view === 'json') renderJSONLeftPanel();
+      if (_state.dataView === 'json' || _state.view === 'json' || _filtersPanelOpen) renderJSONLeftPanel(filtersOnly);
     });
     // Don't render anything until we know what the server supports
     inner.innerHTML = '';
@@ -3293,9 +3904,10 @@ function renderJSONLeftPanel() {
   // Show in both section views and normal data view so you can switch sections easily.
   // Filters (below) get their own leading divider-with-Apply-button combo
   // instead of a plain divider, so skip the plain one here to avoid a
-  // doubled-up line.
+  // doubled-up line. Skipped entirely in filtersOnly mode (Grid/List's
+  // slimmed-down panel — see plan.md "Filter support in Grid/List views").
   var filterHasApplyDivider = _state.section === 'data' && hasF('filter');
-  if (_state.path.length === 0) {
+  if (!filtersOnly && _state.path.length === 0) {
     var hasModel   = avail2 && avail2.model;
     var hasMSource  = avail2 && avail2.modelsource;
     var hasCap     = avail2 && avail2.capabilities;
@@ -3335,6 +3947,12 @@ function renderJSONLeftPanel() {
   }
 
   var hasOpts = false; // true when there's at least one filter/option/inline to apply
+  // In filtersOnly mode (Grid/List's slimmed-down panel), the Apply button
+  // must only touch filters — applyJSONOptions() also collects sort/inline/
+  // doc/binary/collections from DOM elements that don't exist in this mode,
+  // which would silently reset any JSON-view-only state. applyGridFilters()
+  // calls the shared applyFilters() helper directly, nothing else.
+  var applyFn = filtersOnly ? 'applyGridFilters' : 'applyJSONOptions';
 
   if (_state.section === 'data') {
     // Filters — only if server supports 'filter'. A divider-line-with-
@@ -3350,15 +3968,20 @@ function renderJSONLeftPanel() {
       ensureFbDraft();
       html += '<div class="lp-divider-apply">'
         + '<span class="lp-divider-line"></span>'
-        + '<button class="lp-apply lp-apply-top" onclick="applyJSONOptions()">'
+        + '<button class="lp-apply lp-apply-top" onclick="' + applyFn + '()">'
         + 'Apply</button>'
         + '<span class="lp-divider-line"></span></div>'
         + '<div class="lp-section" id="lp-filter-section">'
-        + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups))
-        + (_filtersCollapsed ? '' : buildFilterSectionInner(model2))
-        + '</div><hr class="lp-divider">';
+        + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups), filtersOnly)
+        + ((_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model2))
+        + '</div>'
+        + (filtersOnly ? '' : '<hr class="lp-divider">');
     }
 
+    // Sort/Options/Inlines stay JSON-view-only for now — skipped entirely
+    // in filtersOnly mode (Grid/List). See plan.md "Filter support in
+    // Grid/List views" — not yet decided whether these make sense there.
+    if (!filtersOnly) {
     // Sort — only if server supports 'sort' and the current path points at
     // a collection (Groups/Resources/Versions); sorting a single entity
     // isn't meaningful, per the spec's sort_noncollection error. Kept to
@@ -3414,10 +4037,15 @@ function renderJSONLeftPanel() {
         html += '</div><hr class="lp-divider">';
       }
     }
+    } // !filtersOnly
   }
 
   if (!html)    html = '<div class="lp-no-opts">No options</div>';
-  if (hasOpts) {
+  // In filtersOnly mode (Grid/List), the Filters section is the only
+  // content, so its own leading divider-with-Apply combo (right above the
+  // "Filters" heading) is already sufficient — skip this trailing one to
+  // avoid showing two identical Apply buttons for a single section.
+  if (hasOpts && !filtersOnly) {
     // Reuse the divider-apply combo (line + centered Apply + line) instead
     // of a separate full-width button; strip the trailing plain divider
     // left by the last section so we don't get doubled-up lines.
@@ -3427,11 +4055,34 @@ function renderJSONLeftPanel() {
     }
     html += '<div class="lp-divider-apply">'
       + '<span class="lp-divider-line"></span>'
-      + '<button class="lp-apply lp-apply-top" onclick="applyJSONOptions()">'
+      + '<button class="lp-apply lp-apply-top" onclick="' + applyFn + '()">'
       + 'Apply</button>'
       + '<span class="lp-divider-line"></span></div>';
   }
   inner.innerHTML = html;
+}
+
+// Shared by JSON view's Apply button (applyJSONOptions) and Grid/List's
+// Filters-only panel Apply button — the one deliberate spot a filter
+// expression is actually constructed client-side. See applyFilters()/
+// plan.md "Filter support in Grid/List views".
+function applyGridFilters() {
+  var patch = applyFilters();
+  // Sync the draft to match what was actually just applied — otherwise
+  // (since fbKey() only depends on server/section/path, not filters) the
+  // draft survives untouched across this navigation and the panel
+  // re-renders showing its *pre-Apply* state: if Advanced mode was active,
+  // the raw textarea reappears with its old (possibly empty) content
+  // instead of the just-applied filter, looking like Apply "cleared" it.
+  // Switching back to the graphical builder here (rather than leaving
+  // Advanced mode on) also matches the graphical builder actually
+  // reflecting reality: it should show chips for whatever's now applied.
+  if (_fbDraft) {
+    _fbDraft.groups   = patch.filters.slice();
+    _fbDraft.advanced = false;
+    _fbDraft.editing  = null;
+  }
+  pushState(patch);
 }
 
 function lpCheck(id, label, checked) {
@@ -3522,18 +4173,25 @@ function fbRerender() {
   var svBase = serverBase();
   var model  = _modelCache[normalizeURL(svBase)] || null;
   var count  = fbFilterCount(_fbDraft ? _fbDraft.groups : []);
-  host.innerHTML = fbFiltersTitleHTML(count)
-    + (_filtersCollapsed ? '' : buildFilterSectionInner(model));
+  var filtersOnly = isGridFiltersOnlyMode();
+  host.innerHTML = fbFiltersTitleHTML(count, filtersOnly)
+    + ((_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model));
 }
 
 // Renders the collapsible "Filters" section title: label + "(N)" count
 // of currently-defined filter expressions (shown even while collapsed,
 // so you can tell at a glance whether any are set) + twisty (▶/▼) on
 // the right.
-function fbFiltersTitleHTML(count) {
-  var twisty = _filtersCollapsed ? '▶' : '▼';
+function fbFiltersTitleHTML(count, noTwisty) {
   var countHTML = count
     ? ' <span class="lp-title-count">(' + count + ')</span>' : '';
+  if (noTwisty) {
+    // Grid/List's filtersOnly panel: Filters is the only section, so a
+    // collapse twisty just adds a pointless extra click — always expanded,
+    // plain non-interactive title.
+    return '<div class="lp-title"><span>Filters' + countHTML + '</span></div>';
+  }
+  var twisty = _filtersCollapsed ? '▶' : '▼';
   return '<div class="lp-title lp-title-collapsible" '
     + 'onclick="fbToggleCollapsed()">'
     + '<span>Filters' + countHTML + '</span>'
@@ -3556,7 +4214,18 @@ function fbFilterCount(groups) {
 // flips it for the current session/navigation.
 function fbToggleCollapsed() {
   _filtersCollapsed = !_filtersCollapsed;
-  renderJSONLeftPanel();
+  renderJSONLeftPanel(isGridFiltersOnlyMode());
+}
+
+// Whether the left panel is currently showing Grid/List's slimmed-down
+// Filters-only view (as opposed to JSON view's full panel). Centralized
+// here so every internal filter-builder handler that needs to re-render
+// the whole panel (not just the #lp-filter-section host, like fbRerender())
+// preserves the correct mode instead of always falling back to the full
+// JSON panel.
+function isGridFiltersOnlyMode() {
+  return _state.section === 'data' && _state.dataView !== 'json'
+    && _state.view !== 'json' && _filtersPanelOpen;
 }
 
 // Returns the filters array to send: either the builder's groups, or the
@@ -4871,14 +5540,26 @@ function applyJSONOptions() {
   var cbs = qsa('.lp-inline-cb');
   var inlines = [];
   cbs.forEach(function(cb) { if (cb.checked) inlines.push(cb.value); });
-  pushState({
-    filters:     fbCollectFilters(),
+  // Filters are handled by the shared applyFilters() helper (bakes the new
+  // filter into a fresh apiURL) — see plan.md "Filter support in Grid/List
+  // views". Sort/inline/docView/binary/collections stay JSON-view-only,
+  // always freshly appended by buildAPIURL(), unchanged from before.
+  var filterPatch = applyFilters();
+  // Same draft-resync as applyGridFilters() — see its comment: without
+  // this, Advanced (raw text) mode's textarea re-renders with its stale
+  // pre-Apply content instead of what was actually just applied.
+  if (_fbDraft) {
+    _fbDraft.groups   = filterPatch.filters.slice();
+    _fbDraft.advanced = false;
+    _fbDraft.editing  = null;
+  }
+  pushState(Object.assign({
     sort:        _sortDraft ? sortCollectValue() : _state.sort,
     docView:     doc ? doc.checked : false,
     binary:      bin ? bin.checked : false,
     collections: col ? col.checked : false,
     inlines:     inlines
-  });
+  }, filterPatch));
 }
 
 // Build model-driven inline options for JSON left panel.
@@ -4968,6 +5649,23 @@ function buildInlineOptions(model, path) {
 // UI's own currently-active filter state (which reflects the CURRENT
 // level, not the target one). Returns [] if the URL has no filter
 // param at all — i.e. the target URL is unfiltered.
+// Keep _state.filters in sync with whatever the current real apiURL
+// actually carries, in this one central place — called from both
+// pushStateReal() (ordinary navigation, breadcrumb click, applyFilters())
+// and loadStateFromURL() (fresh load / bookmark / popstate), so a bookmarked
+// deep link with a filter baked into `apiurl=` shows the same filter builder
+// state as arriving there by clicking through the UI. Only when a real link
+// is known: with no real link (apiURL falsy — navigateJsonUrl's own
+// path+filter extraction with no apiURL of its own) leave filters exactly as
+// already set. See plan.md "Filter support in Grid/List views" for the full
+// rationale. (Entity `self` links get the currently-active filter appended
+// by entityHrefWithFilter() before we ever navigate to them, so this plain
+// apiURL-derived sync is enough everywhere — no seed/reconstruction needed.)
+function syncFiltersFromApiURL() {
+  if (_state.section !== 'data' || !_state.apiURL) return;
+  _state.filters = filtersFromUrl(_state.apiURL);
+}
+
 function filtersFromUrl(rawUrl) {
   var qIdx = rawUrl.indexOf('?');
   if (qIdx < 0) return [];
@@ -5147,6 +5845,16 @@ function deriveColumns(items, collKeySet) {
 // for backward callers; when omitted, buildAPIURL()'s buildBaseURL()
 // fallback silently reconstructs from `path` (accepted only where no real
 // link exists at all — see versionURLById()/navigateToParentResource()).
+//
+// Note: an entity's own `self` link never carries filter context on its
+// own — the server only rescopes a `filter=` param onto nested-collection
+// links it's actually asked to compute (confirmed: `GET self?filter=...`
+// DOES work and rescopes correctly, same as any collection URL). So when
+// navigating INTO an entity from a filtered collection, callers append the
+// collection's currently-active filter onto its `self` link themselves
+// (see `entityHrefWithFilter()`) rather than us trying to avoid the
+// refetch — this keeps hover/ctrl-click/normal-click all showing and using
+// the exact same real URL, and refresh() always does a plain GET.
 
 function navigateTo(id, url) {
   // If navigating INTO a collection from the registry root or single entity,
@@ -5161,6 +5869,32 @@ function navigateTo(id, url) {
 // own id; plural is the nested collection's name; url is its real <plural>url.
 function navigateToNestedColl(itemId, plural, url) {
   pushState({path: _state.path.concat([itemId, plural]), apiURL: url || '', editMode: false});
+}
+
+// Navigate straight to a resource's default version (the "Default Version: X"
+// pill shown on a resource tile/row in the resources collection view).
+// itemId is the resource's own id; versionId is its default version's id;
+// url is that version's real self link (see defaultVersionURL()).
+function navigateToDefaultVersion(itemId, versionId, url) {
+  pushState({path: _state.path.concat([itemId, 'versions', String(versionId)]), apiURL: url || '', editMode: false});
+}
+
+// Resolve the real URL for a resource item's default version, shown as the
+// "Default Version: X" pill on a resource tile/row in the resources
+// collection view. item is one entry from collectionItems(data); colls is
+// that item's own findCollectionRefs() result (used to get its versionsurl).
+// Prefers an actual link over any construction, same priority as
+// versionURLById(): item.defaultversionurl (if present and matching), then
+// item's own versionsurl + versionid, then plain path construction.
+function defaultVersionURL(item, itemPath, colls) {
+  if (item.defaultversionurl && (item.defaultversionid === undefined || String(item.defaultversionid) === String(item.versionid))) {
+    return item.defaultversionurl;
+  }
+  var versionsColl = (colls || []).filter(function(c) { return c.plural === 'versions'; })[0];
+  if (versionsColl && versionsColl.url) {
+    return versionsColl.url.replace(/\/$/, '') + '/' + encodeURIComponent(item.versionid);
+  }
+  return serverBase() + '/' + itemPath.concat(['versions', String(item.versionid)]).join('/');
 }
 
 // Resolve the real URL for a sibling version ("→ Visit" buttons next to
@@ -7405,6 +8139,14 @@ function formatTimestamp(iso) {
 function defaultVersionLabel(capType, data) {
   return 'Default ' + capType + ' Version'
     + (data && data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '');
+}
+
+// "Default" option label for the Resource page's standalone "Version:"
+// dropdown — includes the default version's own versionid, e.g.
+// "Default (1)", so it's clear which version "Default" currently resolves
+// to without needing to select it first.
+function defaultOptionLabel(data) {
+  return 'Default' + (data && data.versionid !== undefined ? ' (' + String(data.versionid) + ')' : '');
 }
 
 function esc(s) {
