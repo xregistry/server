@@ -679,6 +679,19 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .lp-title-twisty-right { margin-right: 0; margin-left: 8px; }
 .lp-title-count { font-weight: normal; color: #667; }
+.lp-title-clear {
+  font-weight: normal;
+  font-size: 11px;
+  color: #06c;
+  margin-left: 6px;
+  cursor: pointer;
+}
+.lp-title-clear:hover { text-decoration: underline; }
+/* Indents the Filter Builder's body (JSON view only) 6px to visually align
+   with the checkbox rows in Options/Inlines below it — without this the
+   Filters section reads as flush-left while everything else is indented,
+   making it hard to tell where Filters ends and Options begins. */
+.lp-filter-indent { padding-left: 6px; }
 .lp-item { display: grid; grid-template-columns: auto 1fr 38px; align-items: center; gap: 4px; padding: 2px 4px; font-size: 12px; font-family: monospace; }
 .lp-item input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
 .lp-inline-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -738,7 +751,7 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   position: relative;
   display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
   padding: 3px 4px; border: 1px solid #ddd; border-radius: 4px;
-  background: #f7f7f7; margin: 8px 0 2px;
+  background: #f7f7f7; margin: 8px 0;
 }
 /* "F1"/"F2"/... badge, overlayed over the group row's top-left corner */
 .fb-group-label {
@@ -764,11 +777,11 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .fb-and { font-size: 10px; color: #888; font-weight: bold; }
 .fb-or {
   font-size: 10px; color: #888; font-weight: bold; text-align: center;
-  margin: 3px 0;
+  margin: 0;
 }
 .fb-editing-hint { font-size: 11px; color: #8a6d00; margin: 2px 0 6px; }
 .fb-wizard-label {
-  display: flex; align-items: center; gap: 6px; margin: 4px 0 6px;
+  display: flex; align-items: center; gap: 6px; margin: 8px 0;
 }
 .fb-wizard-label-text { font-size: 11px; color: #888; white-space: nowrap; }
 .fb-wizard-label .lp-divider-line { border-top: 1px dashed #ddd; }
@@ -791,7 +804,7 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .fb-crumb-x:hover { color: #c33; }
 .fb-crumb-sep { font-size: 12px; color: #999; padding: 0 1px; }
-.fb-wizard { padding-top: 6px; }
+.fb-wizard { padding-top: 0; }
 .fb-seg-row {
   display: flex; align-items: center; gap: 4px; margin-bottom: 4px;
 }

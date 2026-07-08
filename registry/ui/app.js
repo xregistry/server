@@ -300,9 +300,14 @@ function buildURL(st) {
   // be absent from the URL in all non-JSON-view contexts.
   var isJsonOnlySection = st.section === 'capabilities' || st.section === 'capabilitiesoffered';
   var inJsonView = st.dataView === 'json' || st.view === 'json' || isJsonOnlySection;
+  // Filters are supported by Grid/List views too (unlike inline/sort/doc/
+  // binary/collections, which remain JSON-view-only for now — see plan.md
+  // "Filter support in Grid/List views") — so persist them regardless of
+  // view, otherwise a filter applied in Grid/List silently vanishes on
+  // refresh (loadStateFromURL() has nothing to read it back from).
+  if (st.filters && st.filters.length) p.set('filter', st.filters.join('\n'));
   if (inJsonView) {
     if (st.inlines && st.inlines.length)   p.set('inline',      st.inlines.join(','));
-    if (st.filters && st.filters.length)   p.set('filter',      st.filters.join('\n'));
     if (st.sort)                           p.set('sort',        st.sort);
     if (st.docView)                        p.set('doc',         '1');
     if (st.binary)                         p.set('binary',      '1');
@@ -635,14 +640,29 @@ function renderHeader() {
   var filtersBtn = el('filters-toggle-btn');
   if (filtersBtn) {
     var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
-    if (isData && section === 'data' && !_capCache.hasOwnProperty(svURL2)) {
+    var capLoaded2 = _capCache.hasOwnProperty(svURL2);
+    if (isData && section === 'data' && !capLoaded2) {
       ensureCapCached(_state.serverURL || window.location.origin, function() { renderHeader(); });
     }
     var capData2 = _capCache[svURL2];
     var flags2 = (capData2 && capData2.flags) || [];
+    var filterSupported2 = flags2.indexOf('filter') !== -1;
     var showFiltersBtn = isData && section === 'data' && effectiveView !== 'json'
-      && flags2.indexOf('filter') !== -1;
+      && filterSupported2;
     filtersBtn.style.display = showFiltersBtn ? '' : 'none';
+    // If we've confirmed (capabilities loaded) that this registry/section
+    // genuinely doesn't support filter=, but the Grid/List filters-only
+    // panel was left open from elsewhere (e.g. switching from a registry
+    // that does support it), force it closed — otherwise it's stuck open
+    // with "No options" and no button left to close it (the button itself
+    // is hidden in this case). Only fires on confirmed non-support, not
+    // merely because we're currently in JSON view or another section, so
+    // the open/closed state still persists normally across those.
+    if (isData && section === 'data' && capLoaded2 && !filterSupported2
+        && _filtersPanelOpen) {
+      _filtersPanelOpen = false;
+      setLeftPanelVisible(_state.dataView === 'json' || _state.view === 'json');
+    }
     filtersBtn.classList.toggle('active', _filtersPanelOpen);
     var fCount = (_state.filters || []).length;
     var countEl = el('filters-toggle-count');
@@ -4502,7 +4522,7 @@ function renderJSONLeftPanel(filtersOnly) {
     var hasCapOff  = avail2 && avail2.capabilitiesoffered;
     var hasExport  = avail2 && avail2['export'];
     if (hasModel || hasMSource || hasCap || hasCapOff || hasExport) {
-      html += '<div class="lp-section"><div class="lp-title">Registry Endpoints</div>';
+      html += '<div class="lp-section"><div class="lp-title">Viewing:</div>';
       // "Registry Data (Export)" is listed first so it's always one click
       // away to get back from a Model/Capabilities section view, and so
       // the active Export state is highlighted the same way Model/Source
@@ -4513,7 +4533,7 @@ function renderJSONLeftPanel(filtersOnly) {
         + '<span class="lp-nav-item lp-nav-inline'
         + (dataActive ? ' lp-nav-active' : '') + '" onclick="pushState('
         + '{section:\'data\',path:[],editMode:false,useExport:false})">'
-        + 'Registry Data</span>';
+        + 'Data</span>';
       if (hasExport) {
         html += ' <span class="lp-nav-sub">(<span class="lp-nav-item '
           + 'lp-nav-inline' + (exportActive ? ' lp-nav-active' : '')
@@ -4561,7 +4581,10 @@ function renderJSONLeftPanel(filtersOnly) {
         + '<span class="lp-divider-line"></span></div>'
         + '<div class="lp-section" id="lp-filter-section">'
         + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups), filtersOnly)
-        + ((_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model2))
+        + ((_filtersCollapsed && !filtersOnly) ? '' : (filtersOnly
+            ? buildFilterSectionInner(model2)
+            : '<div class="lp-filter-indent">' + buildFilterSectionInner(model2)
+              + '</div>'))
         + '</div>'
         + (filtersOnly ? '' : '<hr class="lp-divider">');
     }
@@ -4762,8 +4785,14 @@ function fbRerender() {
   var model  = _modelCache[normalizeURL(svBase)] || null;
   var count  = fbFilterCount(_fbDraft ? _fbDraft.groups : []);
   var filtersOnly = isGridFiltersOnlyMode();
-  host.innerHTML = fbFiltersTitleHTML(count, filtersOnly)
-    + ((_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model));
+  var inner = (_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model);
+  // Keep in sync with the initial render (renderJSONLeftPanel()) — the
+  // body gets a 6px indent in JSON view's full panel so it visually
+  // aligns with the Options/Inlines checkbox rows below it. Without this
+  // wrapper, any fbRerender() (e.g. picking a wizard dropdown, toggling
+  // Advanced mode) would strip that indent back out.
+  if (inner && !filtersOnly) inner = '<div class="lp-filter-indent">' + inner + '</div>';
+  host.innerHTML = fbFiltersTitleHTML(count, filtersOnly) + inner;
 }
 
 // Renders the collapsible "Filters" section title: label + "(N)" count
@@ -4773,18 +4802,39 @@ function fbRerender() {
 function fbFiltersTitleHTML(count, noTwisty) {
   var countHTML = count
     ? ' <span class="lp-title-count">(' + count + ')</span>' : '';
+  // "Clear" erases the draft only — it doesn't requery until Apply is
+  // clicked, matching every other filter-builder edit (remove chip, remove
+  // group, etc.). Only shown when there's actually something to clear.
+  // Shown in both JSON view's full panel and Grid/List's filtersOnly panel.
+  var clearHTML = count
+    ? ' <span class="lp-title-clear" title="Clear all filters (Apply to'
+      + ' requery)" onclick="event.stopPropagation(); fbClearAllFilters()">'
+      + 'Clear</span>'
+    : '';
   if (noTwisty) {
     // Grid/List's filtersOnly panel: Filters is the only section, so a
     // collapse twisty just adds a pointless extra click — always expanded,
     // plain non-interactive title.
-    return '<div class="lp-title"><span>Filters' + countHTML + '</span></div>';
+    return '<div class="lp-title"><span>Filters' + countHTML + clearHTML
+      + '</span></div>';
   }
   var twisty = _filtersCollapsed ? '▶' : '▼';
   return '<div class="lp-title lp-title-collapsible" '
     + 'onclick="fbToggleCollapsed()">'
-    + '<span>Filters' + countHTML + '</span>'
+    + '<span>Filters' + countHTML + clearHTML + '</span>'
     + '<span class="lp-title-twisty lp-title-twisty-right">' + twisty
     + '</span></div>';
+}
+
+// Erases the entire filter draft (all OR-groups, and the Advanced-mode raw
+// textarea) without requerying — the change only takes effect once Apply is
+// clicked, same as every other filter-builder edit.
+function fbClearAllFilters() {
+  if (!_fbDraft) return;
+  _fbDraft.groups  = [];
+  _fbDraft.editing = null;
+  _fbDraft.addTarget = null;
+  fbRerender();
 }
 
 // Number of filter expressions (OR-groups) currently defined — matches the
