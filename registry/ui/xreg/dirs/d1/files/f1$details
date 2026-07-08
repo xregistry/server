@@ -11,5 +11,9 @@
   "versionscount": 3,
   "versionsurl": "$HOST/ui/xreg/dirs/d1/files/f1/versions",
   "xid": "/dirs/d1/files/f1",
-  "description": "Hello, I'm d1.f1!"
+  "description": "Hello, I'm d1.f1!",
+  "contenttype": "application/json",
+  "format": "jsonSchema",
+  "formatvalidated": true,
+  "compatibilityvalidated": true
 }

@@ -196,8 +196,7 @@ var OrderedSpecProps = []*Attribute{
 		Type: URL,
 
 		internals: &AttrInternals{
-			types:   StrTypes(ENTITY_META),
-			uiLabel: "XRef",
+			types: StrTypes(ENTITY_META),
 		},
 	},
 	{
@@ -215,7 +214,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			uiLabel: "Name",
 		},
 	},
 	{
@@ -236,7 +236,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: STRING,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			uiLabel: "Description",
 		},
 	},
 	{
@@ -244,7 +245,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: URL,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			uiLabel: "Documentation",
 		},
 	},
 	{
@@ -252,7 +254,8 @@ var OrderedSpecProps = []*Attribute{
 		Type: URL,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_VERSION),
+			uiLabel: "Icon",
 		},
 	},
 	{
@@ -263,7 +266,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			uiLabel: "Labels",
 		},
 	},
 	{
@@ -272,7 +276,8 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			uiLabel: "Created",
 		},
 	},
 	{
@@ -281,7 +286,8 @@ var OrderedSpecProps = []*Attribute{
 		Required: true,
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			types:   StrTypes(ENTITY_REGISTRY, ENTITY_GROUP, ENTITY_META, ENTITY_VERSION),
+			uiLabel: "Modified",
 		},
 	},
 	{
@@ -358,6 +364,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:       StrTypes(ENTITY_META),
 			uiMonospace: true,
+			uiLabel:     "Compatibility",
 		},
 	},
 	{
@@ -382,7 +389,8 @@ var OrderedSpecProps = []*Attribute{
 		},
 
 		internals: &AttrInternals{
-			types: StrTypes(ENTITY_GROUP, ENTITY_META),
+			types:   StrTypes(ENTITY_GROUP, ENTITY_META),
+			uiLabel: "Deprecated",
 		},
 	},
 	{
@@ -420,6 +428,7 @@ var OrderedSpecProps = []*Attribute{
 			types:        StrTypes(ENTITY_VERSION),
 			cantOverride: []string{"MatchCase"},
 			uiMonospace:  true,
+			uiLabel:      "Ancestor Version ID",
 		},
 	},
 	{
@@ -440,6 +449,7 @@ var OrderedSpecProps = []*Attribute{
 		internals: &AttrInternals{
 			types:       StrTypes(ENTITY_VERSION),
 			uiMonospace: true,
+			uiLabel:     "Format",
 		},
 	},
 	{

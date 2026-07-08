@@ -8,5 +8,6 @@
   "modifiedat": "2026-07-02T23:09:27.969221352Z",
   "readonly": false,
   "self": "$HOST/ui/xreg/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta"
+  "xid": "/dirs/d1/files/f1/meta",
+  "compatibility": "backward"
 }

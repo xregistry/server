@@ -2081,6 +2081,72 @@ on List (from Grid) now shows only `table` as `active` and renders List
 content; single click back to Grid shows only `grid` as `active`.
 Confirmed on both the Registries and Group Types tabs.
 
+## List view Property tables: banding, badges, timestamps, category grouping
+
+List view's plain key/value "Property" tables (the entity's own scalar
+attributes) were functionally fine but visually plain/spreadsheet-like.
+There are 3 render sites building this same table style in `app.js`:
+`buildEntityPropsTableHtml()` (main Resource/Version Property panel),
+the depth-0/2 (Registry root/Group instance) inline table inside
+`renderSingleEntity()`, and `renderMetaTable()` (Metadata tab/box).
+The depth-0/2 site turned out to be an exact duplicate of
+`buildEntityPropsTableHtml()`'s per-row logic — refactored it to just
+call the shared helper instead, so this feature only needed 2 real
+implementations (`buildEntityPropsTableHtml()` + `renderMetaTable()`).
+
+Four visual improvements added, all scoped via a new `xr-table-props`
+modifier class (alongside `xr-table`) so regular collection List tables
+are unaffected:
+
+1. **Zebra banding** — subtle `#fafbfc` alternating rows, applied via an
+   explicit per-row CSS class (`xr-row-band`) rather than `nth-child`,
+   specifically so the alternation **restarts at each category-group
+   boundary** (see #4) — every group's first row always renders
+   unbanded, so grouping reads as intentional rather than the pattern
+   drifting based on how many rows preceded it. Category header rows are
+   never banded. Falls back to continuous whole-table banding when a
+   table has no grouping.
+2. **Boolean badges** (`renderBoolBadge()`) — compact pill: "✓ true"
+   (soft green) / "✕ false" (neutral gray, not red — false isn't a "bad"
+   state for most spec booleans, e.g. `isdefault:false`).
+3. **Timestamp styling** (`formatTimestampValue()` +
+   `relativeTimeFromNow()`) — type-driven via
+   `getExplicitAttrType(...) === 'timestamp'` (a real xRegistry model
+   type), so it covers `createdat`/`modifiedat` *and* any extension
+   attribute a model declares `type: timestamp`. Renders muted-gray
+   (reusing the existing `.cell-timestamp` treatment from collection
+   List columns) plus a `title` tooltip with a simple relative-time
+   string ("3 days ago"), computed client-side. `renderMetaTable()` is
+   the one exception — Meta-level extension attrs aren't resolvable
+   against the model today (`getAttr()` only supports Registry/Group/
+   Resource attribute maps, not Meta), so its timestamp detection is
+   limited to the two known meta spec keys (`createdat`/`modifiedat`)
+   via a small `META_TIMESTAMP_KEYS` set rather than being fully
+   type-driven.
+4. **Category grouping** (`groupPropsByCategory()`, `PROP_CATEGORY_DEFS`)
+   — spec-defined attrs (confirmed via the existing `isSpecAttr()`,
+   including its dynamic `<singular>id`/`$RESOURCE*` pattern matching)
+   are bucketed into fixed, ordered categories: **Identity** (id/
+   versionid/xid/self/name — including the dynamic `<singular>id` field,
+   e.g. `fileid`, handled as a special case since it won't literally
+   match the bucket's `id` key), **Description**, **Versioning & State**,
+   **Content**, **Timestamps**. Non-spec/custom attrs always land in a
+   final **Extensions** bucket, never subdivided. Rendered as a slim,
+   unbanded divider row (small-caps, muted gray, thin top border) — not
+   a heavy box. Only non-empty categories are shown; if everything
+   collapses into a single bucket (or there's no model/specLevel to
+   categorize against), `groupPropsByCategory()` returns `null` and the
+   caller falls back to today's flat, ungrouped list.
+
+Verified via CDP screenshots against a test `dirs`/`files` model with a
+boolean extension attr, a `type: timestamp` extension attr, and a
+multi-version resource: Resource page's "Version Details" tab, "File
+Metadata" tab, Registry root, and Group instance page all show correct
+category headers (including `fileid` properly landing in Identity, not
+Content), banded rows restarting per group, green/gray boolean pills, and
+muted timestamps with populated relative-time tooltips (spot-checked via
+`element.getAttribute('title')`).
+
 ## Known non-gaps (design decisions made, not oversights)
 
 

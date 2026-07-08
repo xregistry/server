@@ -466,6 +466,43 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .xr-table .cell-tree { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
 /* Collection Table view's Created/Modified columns */
 .xr-table .cell-timestamp { color: #999; font-size: 12px; white-space: nowrap; }
+/* List view's Property tables (formatTimestampValue()) — same color/size as
+   any other property value; only the relative-time tooltip is special. */
+.xr-table .cell-timestamp-prop { white-space: nowrap; }
+
+/* List view's Property tables (buildEntityPropsTableHtml()/renderMetaTable())
+   — subtle zebra banding, applied via an explicit per-row class (not
+   nth-child) so the alternation can restart at each category-group
+   boundary rather than following raw row position across the whole
+   table. See plan.md "Property table categories". */
+.xr-table-props .xr-row-band td { background: #fafbfc; }
+/* Category divider row — a slim, unbanded label row splitting spec-defined
+   attributes into groups (Identity/Description/Versioning & State/Content/
+   Timestamps), with non-spec/custom attrs always in a final "Extensions"
+   group. Never shown when a table's keys collapse into a single group. */
+.xr-table-props .xr-props-cat td {
+  background: #f4f5f6;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-top: 1px solid #e2e2e2;
+}
+.xr-table-props .xr-props-cat:first-child td { border-top: none; }
+/* Boolean Property-table values — compact pill, neutral palette (false
+   isn't a "bad" state for most spec booleans, so no red). */
+.eg-bool-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.eg-bool-true { background: #e6f4ea; color: #1e7e34; }
+.eg-bool-false { background: #eee; color: #666; }
 /* Table view's Versions column (resource collections) — just the version
    count as clickable text (no pill), navigating into that resource's
    versions collection. */
@@ -1977,3 +2014,51 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .eg-doc-preview-actions { margin-top: 8px; }
 .eg-doc-binary-msg { color: #666; font-style: italic; padding: 10px 0; }
 .eg-doc-error-msg { color: #c00; font-family: monospace; font-size: 12px; padding: 10px 0; }
+/* Document tab's info-pill row (contenttype/format/compatibility) — sits
+   between the tab button row and the document preview; see
+   buildDocInfoPillsHtml(). Empty (no pills) when none of the underlying
+   attributes are set, so no reserved blank space when unused.
+   Content-Type (no validation result) reuses the Labels map's two-tone
+   key/value pill (.eg-label-key/.eg-label-val); Format/Compatibility use
+   the dedicated 3-section pill below instead, per plan.md "pill design
+   consistency". */
+.eg-doc-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.eg-doc-pill-item { display: inline-flex; align-items: center; gap: 4px; }
+/* Content-Type reuses the shared .eg-label-key/.eg-label-val idiom (see
+   below), but that idiom's default sizing (from the Labels map, where it's
+   used more densely) is a bit smaller than the 3-section pill's — bump it
+   here so all three Document-tab pills read as the same height/row. */
+.eg-doc-pills .eg-label-key,
+.eg-doc-pills .eg-label-val { font-size: 12px; padding: 3px 8px; }
+
+/* 3-section pill — label | value | pass/fail badge — used for Format and
+   Compatibility (docPill3Html()). A single bordered container with
+   contiguous flush segments makes the value->badge association
+   unmistakable, unlike two separately-boxed pills placed side by side. */
+.eg-doc-pill3 {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid #ccd; border-radius: 4px; overflow: hidden;
+  font-size: 12px;
+}
+.eg-doc-pill3-label {
+  display: flex; align-items: center;
+  background: #eef1f8; color: #445; font-weight: bold;
+  padding: 3px 8px; white-space: nowrap;
+}
+.eg-doc-pill3-value {
+  display: flex; align-items: center;
+  background: #fff; color: #333;
+  padding: 3px 8px; border-left: 1px solid #ccd; white-space: nowrap;
+}
+.eg-doc-pill3-badge {
+  display: flex; align-items: center;
+  font-weight: bold; padding: 3px 8px; border-left: 1px solid #ccd;
+}
+.eg-doc-pill3-ok { background: #e6f4ea; color: #1e7e34; }
+/* validated === false doesn't mean something is wrong — it just means the
+   server hasn't checked (or the check didn't pass strictly enough to say
+   "ok") — so this is neutral gray, matching .eg-bool-false's palette,
+   not a red "failure" color. Still clickable (when a reason is given) to
+   see why, hence the pointer cursor + hover shade. */
+.eg-doc-pill3-fail { background: #eee; color: #666; cursor: pointer; }
+.eg-doc-pill3-fail:hover { background: #e2e2e2; }

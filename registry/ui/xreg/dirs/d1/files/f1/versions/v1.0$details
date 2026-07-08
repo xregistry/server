@@ -8,5 +8,11 @@
   "self": "$HOST/ui/xreg/dirs/d1/files/f1/versions/v1.0",
   "versionid": "v1.0",
   "xid": "/dirs/d1/files/f1/versions/v1.0",
-  "description": "v1 description"
+  "description": "v1 description",
+  "contenttype": "application/json",
+  "format": "jsonSchema",
+  "formatvalidated": false,
+  "formatvalidatedreason": "just isn't right",
+  "compatibilityvalidated": false,
+  "compatibilityvalidatedreason": "new stuff not allowed"
 }

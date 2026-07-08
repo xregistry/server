@@ -53,6 +53,13 @@ var _state = {
   // already-visited ancestor reuse it instead of reconstructing.
   apiURL:      '',
   crumbURLs:   [],
+
+  // Resource/Version page Document/Details tab bar + version-selector
+  // dropdown — remembered across a manual browser Refresh (but not across
+  // navigating to a genuinely different resource, see pushStateReal()).
+  // '' = default (first tab / "Default" version).
+  docTab:      '',
+  resVersion:  '',
 };
 
 // ---- Server/registry management (localStorage) ---------------------------
@@ -253,6 +260,8 @@ function loadStateFromURL() {
   // an un-cached ancestor fall back to plain construction (accepted trade-off).
   _state.apiURL      = p.get('apiurl') || '';
   _state.crumbURLs   = [];
+  _state.docTab      = p.get('tab') || '';
+  _state.resVersion  = p.get('ver') || '';
   syncFiltersFromApiURL();
 }
 
@@ -273,6 +282,17 @@ function buildURL(st) {
   }
   var defaultView = defaultDataView(st.section, (st.path || []).length);
   if (st.dataView && st.dataView !== defaultView) p.set('dview', st.dataView);
+
+  // Resource/Version page tab + version-selector persistence — only
+  // meaningful on those pages (depth 4 = Resource, depth 6+ = Version),
+  // in the data section, and only when non-default (keeps URLs clean
+  // everywhere else). See plan.md "Remember selected version + active tab".
+  var pathLenU = (st.path || []).length;
+  if (st.section === 'data' && (pathLenU === 4 || pathLenU >= 6)) {
+    if (st.docTab)                       p.set('tab', st.docTab);
+    if (pathLenU === 4 && st.resVersion) p.set('ver', st.resVersion);
+  }
+
 
   // JSON-view-only params: only add when actually in JSON view. Model/modelsource's
   // "list" (editor) dataView is not a JSON view, so it's excluded here.
@@ -369,7 +389,12 @@ function pushStateReal(patch) {
     // Prepend defaults so explicit values in patch still win
     patch = Object.assign({
       inlines: [], filters: [], sort: '', docView: false, binary: false, collections: false,
-      useExport: false, section: 'data', dataView: savedView, apiURL: defaultApiURL
+      useExport: false, section: 'data', dataView: savedView, apiURL: defaultApiURL,
+      // A real navigation (not a tab-click/version-select, which sync the URL
+      // directly via history.replaceState and never reach pushStateReal) means
+      // a different resource/page — don't carry over the previous page's tab/
+      // version preference. See plan.md "Remember selected version + active tab".
+      docTab: '', resVersion: ''
     }, patch);
 
     if (patch.apiURL && newSection === 'data' && newDepth > 0) {
@@ -1126,11 +1151,22 @@ function crumb(label, clickExpr) {
 
 var _lastData = null;
 var _metaData = null;          // cached meta response for resource page meta box
+var _docPillsMetaCompat = null; // cached meta.compatibility value for the Document tab's
+                                 // Compatibility pill; null = not yet fetched, '' = fetched
+                                 // but not set/unavailable. Reset whenever a new resource
+                                 // page renders (compatibility is resource-wide, so it does
+                                 // NOT need to be re-fetched when the version-selector
+                                 // dropdown picks a different version of the same resource).
 var _metaResourceIdField = ''; // resource's own ID field name, set when resource page renders
 var _metaEntityType = '';      // resource's singular type name, used by List view's meta table header
 var _docSingular = '';         // resource's singular type name, used by List view's Document tab
 var _docPreviewLoaded = false; // whether the Document tab's inline preview has been fetched yet
 var _docActiveVersionData = null; // entity JSON currently backing the Document tab (Default or a picked version)
+// Snapshot of what's needed to redraw the "Version Details"/"<Type> Property"
+// panel once ensureDocPillsCompat()'s async Meta fetch resolves — the panel
+// may already have rendered (without the "(compat)" prefix on Compatibility
+// Validated) before that fetch completes. See refreshVersionDetailsPanel().
+var _docPropsPanelInfo = null;
 // Set right before redirecting a standalone "meta" page (depth 5) up to its
 // parent Resource page (depth 4) — see renderSingleEntity()/renderEntityGrid()
 // "Meta page redirect" and setDataView()'s json-view-of-meta special case.
@@ -2087,8 +2123,8 @@ function renderTableView(data) {
             + '<button class="cfg-btn" style="font-size:11px;padding:2px 8px" onclick="' + esc(docClickExpr) + '">View</button>'
             + '</td>';
     }
-    html += '<td class="cell-timestamp">' + esc(formatTimestamp(item.createdat)) + '</td>';
-    html += '<td class="cell-timestamp">' + esc(formatTimestamp(item.modifiedat)) + '</td>';
+    html += '<td class="cell-timestamp col-center">' + esc(formatTimestamp(item.createdat)) + '</td>';
+    html += '<td class="cell-timestamp col-center">' + esc(formatTimestamp(item.modifiedat)) + '</td>';
     html += '</tr>';
   });
 
@@ -2107,6 +2143,36 @@ function sortBy(col) {
 // For the Registry root and Group/Resource entities.
 // Scalar props shown in a property table; collection references (pairs of
 // <name>url + <name>count) rendered as clickable rows.
+
+// Registry endpoint pills (depth 0 only, both List and Grid views) — a
+// compact presentation of which optional server endpoints (Model, Model
+// Source, Capabilities, Capabilities Offered) this registry exposes, replacing
+// the older separate "Registry Endpoints" table/tile-section. Mutable
+// endpoints get a trailing pencil icon. Returns '' when nothing to show
+// (i.e. no capabilities data cached yet, or no optional endpoints available).
+function buildRegEndpointPillsHtml() {
+  if (_state.path.length !== 0) return '';
+  var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var capDataP = _capCache[normalizeURL(svBaseP)];
+  var availP   = capDataP && capDataP.available;
+  var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered'];
+  var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[s]; });
+  if (!availSectionsP.length) return '';
+  var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+  var html = '<div class="reg-endpoint-pills">';
+  html += '<span class="reg-endpoint-pills-title">Config:</span>';
+  availSectionsP.forEach(function(s) {
+    var mutP = availP[s] && availP[s].mutable;
+    var pushExprP = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
+    var sHrefP = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
+    html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
+      + esc(sectionNamesP[s])
+      + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">&#9998;</span>' : '')
+      + '</a>';
+  });
+  html += '</div>';
+  return html;
+}
 
 function renderSingleEntity(data) {
   var main = el('main-view');
@@ -2210,32 +2276,8 @@ function renderSingleEntity(data) {
       + '</div>';
   }
 
-  // Registry endpoint pills (depth 0 only) — an alternative, more compact
-  // presentation of the same info as the "Registry Endpoints" table below
-  // (kept as-is, but hidden, for now — not yet decided whether to remove it).
-  // mutable endpoints get a trailing pencil icon.
-  if (_state.path.length === 0) {
-    var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-    var capDataP = _capCache[normalizeURL(svBaseP)];
-    var availP   = capDataP && capDataP.available;
-    var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered'];
-    var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[s]; });
-    if (availSectionsP.length) {
-      var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
-      html += '<div class="reg-endpoint-pills">';
-      html += '<span class="reg-endpoint-pills-title">Config:</span>';
-      availSectionsP.forEach(function(s) {
-        var mutP = availP[s] && availP[s].mutable;
-        var pushExprP = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
-        var sHrefP = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
-        html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
-          + esc(sectionNamesP[s])
-          + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">&#9998;</span>' : '')
-          + '</a>';
-      });
-      html += '</div>';
-    }
-  }
+  // Registry endpoint pills (depth 0 only) — see buildRegEndpointPillsHtml().
+  html += buildRegEndpointPillsHtml();
 
   // Collections section — id cell is a real link; row itself is plain text
   // (not clickable) so its content can be selected/copied.
@@ -2289,13 +2331,25 @@ function renderSingleEntity(data) {
     // Properties table content — built via the shared buildEntityPropsTableHtml()
     // helper (also used later to redraw this panel when the version-selector
     // dropdown, below, picks a different version).
-    var propHeaderT = depthD === 4 ? defaultVersionLabel(capTypeT, data) + ' Property' : capTypeT + ' Property';
+    var propHeaderT = depthD === 4 ? versionPropHeaderLabel(true, data && data.versionid) : capTypeT + ' Property';
     var propsTableHtml = buildEntityPropsTableHtml(data, propHeaderT, model, _state.path, collKeys);
 
     var tabDefs = [];
     if (hasDocD) {
+      // Compatibility's actual value (as opposed to whether it *validated*)
+      // lives on the resource's Meta object, not on the flattened
+      // Resource/Version data — fetched separately/asynchronously below via
+      // ensureDocPillsCompat(), same pattern as the Document preview itself.
+      _docPillsMetaCompat = null;
+      // Snapshot for refreshVersionDetailsPanel() to redraw the props panel
+      // (with the "(compat)" prefix on Compatibility Validated) once that
+      // async fetch resolves — see _docPropsPanelInfo above.
+      _docPropsPanelInfo = { panelId: depthD === 4 ? 'eg-doc-panel-defver' : 'eg-doc-panel-version',
+        headerLabel: propHeaderT, model: model, path: _state.path, collKeys: collKeys };
       tabDefs.push({ key: 'doc', label: 'Document',
-        content: '<div id="eg-doc-preview-box"><div class="eg-loading">Loading document\u2026</div></div>' });
+        content: '<div id="eg-doc-pills">' + buildDocInfoPillsHtml(data) + '</div>'
+               + '<div id="eg-doc-preview-box"><div class="eg-loading">Loading document\u2026</div></div>' });
+      ensureDocPillsCompat(data);
     }
     var versionsUrlD = '';
     var versionsListLinkHtml = '';
@@ -2369,6 +2423,14 @@ function renderSingleEntity(data) {
       if (depthD >= 6 && tabDefs.length === 1 && !versionSelectorHtml) {
         html += tabDefs[0].content;
       } else {
+      // Restore the previously-active tab (from a Refresh) if it matches
+      // one of this render's tabs; otherwise default to the first tab, as
+      // before. See plan.md "Remember selected version + active tab".
+      var initActiveIdx = 0;
+      if (_state.docTab) {
+        var restoredIdx = tabDefs.reduce(function(found, t, i) { return t.key === _state.docTab ? i : found; }, -1);
+        if (restoredIdx >= 0) initActiveIdx = restoredIdx;
+      }
       // Build the row's inner pieces in order: version selector first (if
       // present), then the tab buttons in their normal order (Document,
       // Version Details, Schema/Message/etc. Details), then the "Versions
@@ -2376,49 +2438,30 @@ function renderSingleEntity(data) {
       var rowParts = [];
       if (versionSelectorHtml) rowParts.push(versionSelectorHtml);
       tabDefs.forEach(function(t, i) {
-        rowParts.push('<button class="eg-doc-tab' + (i === 0 ? ' active' : '') + '" data-tab="' + esc(t.key)
+        rowParts.push('<button class="eg-doc-tab' + (i === initActiveIdx ? ' active' : '') + '" data-tab="' + esc(t.key)
           + '" onclick="switchDocTab(\'' + esc(t.key) + '\')">' + esc(t.label) + '</button>');
       });
       if (versionsListLinkHtml) rowParts.push(versionsListLinkHtml);
       html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
-          + '"' + (i === 0 ? '' : ' style="display:none"') + '>' + t.content + '</div>';
+          + '"' + (i === initActiveIdx ? '' : ' style="display:none"') + '>' + t.content + '</div>';
       });
-      pendingDocTabActivate = tabDefs[0].key;
+      pendingDocTabActivate = tabDefs[initActiveIdx].key;
       }
     }
   } else if (attrKeys.length) {
     // Registry root (depth 0) / Group instance (depth 2) — no tab bar here
     // (only Resource/Version entities get the Document/Details tabs), just
     // the plain Properties table, same as before this feature existed.
+    // Reuses the shared buildEntityPropsTableHtml() builder (identical
+    // key-filter/sort/priority logic to attrKeys above) so this table gets
+    // the same banding/badges/category-grouping treatment as every other
+    // Property table, instead of duplicating the per-row rendering logic.
     var entityTypeP  = getSingularName(model, _state.path);
     var capTypeP = capitalize(entityTypeP);
     var propHeaderP = capTypeP + ' Property';
-    var specLevelP2 = specAttrLevel(_state.path);
-    var singularP2  = entityTypeP.toLowerCase();
-    html += '<table class="xr-table"><thead><tr><th>' + esc(propHeaderP) + '</th><th>Value</th></tr></thead><tbody>';
-    attrKeys.forEach(function(k) {
-      var val = data[k];
-      var display, valueCellClass = '';
-      if (val !== null && typeof val === 'object') {
-        var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
-        display = isEmpty
-          ? '<span class="vt-empty">empty</span>'
-          : renderValueTree(val, 0, model, _state.path, [k]);
-        valueCellClass = ' class="cell-tree"';
-      } else if (val == null) {
-        display = '<span style="color:#999">null</span>';
-      } else {
-        var attrTypeP2 = getExplicitAttrType(model, _state.path, k);
-        var isMonoP2 = isMonoSpecAttr(k, specLevelP2, singularP2)
-          || (attrTypeP2 !== null && attrTypeP2 !== 'string');
-        display = isMonoP2 ? copyableMonospace(String(val)) : copyable(String(val));
-      }
-      html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
-            + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
-    });
-    html += '</tbody></table>';
+    html += buildEntityPropsTableHtml(data, propHeaderP, model, _state.path, collKeys);
   }
 
   html += '</div>';
@@ -2546,20 +2589,50 @@ function specAttrOrder(path) {
   return (name && SPEC_ATTRS_ORDER[name]) || [];
 }
 
+// monoAttrLevel returns the MONO_ATTRS sub-object for the given path depth,
+// mirroring specAttrLevel()'s per-depth mapping (including the depth-4
+// resource+version merge, since GET /resource returns the flattened default
+// version and can surface MONO_ATTRS entries from either set).
+function monoAttrLevel(path) {
+  if (typeof MONO_ATTRS === 'undefined') return {};
+  var depth = path ? path.length : 0;
+  if (depth === 0) return MONO_ATTRS.registry;
+  if (depth === 2) return MONO_ATTRS.group;
+  if (depth === 4) {
+    var merged = {};
+    var r = MONO_ATTRS.resource, v = MONO_ATTRS.version;
+    for (var k in r) merged[k] = 1;
+    for (var k in v) merged[k] = 1;
+    return merged;
+  }
+  if (depth === 5) return MONO_ATTRS.meta;
+  if (depth >= 6) return MONO_ATTRS.version;
+  return {};
+}
+
 // isMonoSpecAttr returns true if key k should be rendered monospaced because
 // it is both a spec-defined attribute at the current entity level AND is in
 // MONO_ATTRS (string-typed spec attrs that are technical, not human prose).
 // The dynamic "id" entry in MONO_ATTRS matches any <singular>id field.
-function isMonoSpecAttr(k, specLevel, singular) {
+// When path is supplied, the MONO_ATTRS set is resolved via monoAttrLevel(path)
+// (depth-based, correctly handling the depth-4 resource+version merge). When
+// path is omitted, falls back to matching specLevel by reference against
+// SPEC_ATTRS's per-level objects (only valid for non-merged levels — depth 4's
+// specLevel is always a freshly-built merged object, so it can never match by
+// reference; callers at depth 4 MUST pass path).
+function isMonoSpecAttr(k, specLevel, singular, path) {
   if (!isSpecAttr(k, specLevel, singular, null)) return false;
-  // Find the MONO_ATTRS sub-object that corresponds to this specLevel
   var monoSet = null;
   if (typeof MONO_ATTRS !== 'undefined' && typeof SPEC_ATTRS !== 'undefined') {
-    var levelNames = ['registry','group','resource','meta','version'];
-    for (var i = 0; i < levelNames.length; i++) {
-      if (SPEC_ATTRS[levelNames[i]] === specLevel) {
-        monoSet = MONO_ATTRS[levelNames[i]] || {};
-        break;
+    if (path) {
+      monoSet = monoAttrLevel(path);
+    } else {
+      var levelNames = ['registry','group','resource','meta','version'];
+      for (var i = 0; i < levelNames.length; i++) {
+        if (SPEC_ATTRS[levelNames[i]] === specLevel) {
+          monoSet = MONO_ATTRS[levelNames[i]] || {};
+          break;
+        }
       }
     }
   }
@@ -2590,6 +2663,13 @@ function getAttr(model, entityPath, attrKeyPath) {
   } else if (depth === 2) {
     var gm = model.groups && model.groups[entityPath[0]];
     attrs = gm && gm.attributes;
+  } else if (depth === 5) {
+    // Meta entity ([G,gId,R,rId,"meta"]) — the model exposes a dedicated
+    // metaattributes map (distinct from the resource/version-flattened
+    // "attributes" map), so this must be read separately.
+    var gmM = model.groups && model.groups[entityPath[0]];
+    var rmM = gmM && gmM.resources && gmM.resources[entityPath[2]];
+    attrs = rmM && rmM.metaattributes;
   } else if (depth >= 4) {
     var gm2 = model.groups && model.groups[entityPath[0]];
     var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
@@ -2646,6 +2726,13 @@ function getExplicitAttrType(model, entityPath, key) {
   } else if (depth === 2) {
     var gm = model.groups && model.groups[entityPath[0]];
     attrs = gm && gm.attributes;
+  } else if (depth === 5) {
+    // Meta entity ([G,gId,R,rId,"meta"]) — the model exposes a dedicated
+    // metaattributes map (distinct from the resource/version-flattened
+    // "attributes" map), so this must be read separately.
+    var gmM = model.groups && model.groups[entityPath[0]];
+    var rmM = gmM && gmM.resources && gmM.resources[entityPath[2]];
+    attrs = rmM && rmM.metaattributes;
   } else if (depth >= 4) {
     var gm2 = model.groups && model.groups[entityPath[0]];
     var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
@@ -2673,6 +2760,13 @@ function getExplicitAttrTypeAtPath(model, entityPath, attrKeyPath) {
   } else if (depth === 2) {
     var gm = model.groups && model.groups[entityPath[0]];
     attrs = gm && gm.attributes;
+  } else if (depth === 5) {
+    // Meta entity ([G,gId,R,rId,"meta"]) — the model exposes a dedicated
+    // metaattributes map (distinct from the resource/version-flattened
+    // "attributes" map), so this must be read separately.
+    var gmM = model.groups && model.groups[entityPath[0]];
+    var rmM = gmM && gmM.resources && gmM.resources[entityPath[2]];
+    attrs = rmM && rmM.metaattributes;
   } else if (depth >= 4) {
     var gm2 = model.groups && model.groups[entityPath[0]];
     var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
@@ -2705,6 +2799,11 @@ function isSpecAttr(k, specLevel, singular, resourceSingular) {
     if (specLevel['$RESOURCEurl']      && k === resourceSingular + 'url')     return true;
     if (specLevel['$RESOURCEbase64']   && k === resourceSingular + 'base64')  return true;
     if (specLevel['$RESOURCEproxyurl'] && k === resourceSingular + 'proxyurl') return true;
+    // Version entities also carry the owning Resource's own <resourceSingular>id
+    // (e.g. "fileid" on a Version of a "file" Resource) — a spec-defined
+    // identity field (see registry/entity.go GetResourceSingular()+"id"),
+    // distinct from the Version's own <singular>id ("versionid").
+    if (resourceSingular !== singular && k === resourceSingular + 'id') return true;
   }
   return false;
 }
@@ -2955,6 +3054,263 @@ function copyableMonospace(text) {
   return '<span class="eg-value eg-mono">' + esc(text) + '</span>';
 }
 
+// Renders a real, clickable <a> for a URL-shaped Property-table scalar
+// value — same-server URLs (self, metaurl, versionsurl, defaultversionurl,
+// any URI/URL-typed spec or extension attr, ...) navigate within the SPA
+// (mirrors syntaxHighlight()'s JSON-view linkification, including reusing
+// the URL's OWN embedded filter= via filtersFromUrl(), not the app's
+// current filter state); other (external) URLs open in a new tab. Detection
+// is purely content-based (any string starting with http(s)://), the same
+// approach syntaxHighlight() uses for JSON view — this way it applies
+// uniformly to every URI/URL-typed field without needing model-driven type
+// resolution everywhere (which isn't available at the Meta level — see
+// renderMetaTable()).
+function renderUrlLinkValue(rawText, isMono) {
+  var svBase = serverBase();
+  var urlPath = rawText.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
+  var href, target = '', onclick = '';
+  if (urlPath.indexOf(svBase) === 0) {
+    var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
+    var segments = rel ? rel.split('/') : [];
+    var fakeSt   = Object.assign({}, _state, {
+      view: 'table', section: 'data', path: segments, editMode: false,
+      filters: filtersFromUrl(rawText)
+    });
+    href    = buildURL(fakeSt);
+    onclick = ' onclick="return navigateJsonUrl(\'' + rawText.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"';
+  } else {
+    href   = rawText;
+    target = ' target="_blank" rel="noopener"';
+  }
+  var cls = 'eg-value' + (isMono ? ' eg-mono' : '');
+  return '<a class="' + cls + '" href="' + esc(href) + '"' + target + onclick + '>' + esc(rawText) + '</a>';
+}
+
+// Renders a Property-table scalar value: a clickable link (via
+// renderUrlLinkValue()) if it looks like a URL, otherwise plain
+// copyable(Monospace) text.
+function renderScalarValue(val, isMono) {
+  var text = String(val);
+  if (/^https?:\/\//.test(text)) return renderUrlLinkValue(text, isMono);
+  return isMono ? copyableMonospace(text) : copyable(text);
+}
+
+// Renders a compact pill badge for a boolean Property-table value, instead
+// of plain "true"/"false" text. False isn't a "bad" state for most spec
+// booleans (e.g. isdefault:false is perfectly normal), so both use a
+// neutral/positive palette rather than green/red.
+// falseIcon lets callers swap the default "✕ false" for a custom icon-only
+// badge (no "false" text) — used for formatvalidated/compatibilityvalidated,
+// where false doesn't mean "failed", just "not validated"/"unknown"; adding
+// "false" next to the icon reads as a negative result, which is misleading.
+function renderBoolBadge(val, falseIcon) {
+  return '<span class="eg-bool-badge ' + (val ? 'eg-bool-true' : 'eg-bool-false') + '">'
+       + (val ? '\u2713 true' : (falseIcon ? falseIcon : '\u2715 false')) + '</span>';
+}
+
+// Rough human relative-time string ("3 days ago", "in 2 hours", "just now")
+// for a timestamp value's hover tooltip. Deliberately simple/approximate —
+// it's a hint, not a precise duration, and keeps the SPA dependency-free.
+// Returns null if the string doesn't parse as a date.
+function relativeTimeFromNow(iso) {
+  var t = Date.parse(iso);
+  if (isNaN(t)) return null;
+  var diffMs = Date.now() - t;
+  var future = diffMs < 0;
+  var sec = Math.round(Math.abs(diffMs) / 1000);
+  var units = [['year', 365 * 24 * 3600], ['month', 30 * 24 * 3600],
+    ['day', 24 * 3600], ['hour', 3600], ['minute', 60]];
+  for (var i = 0; i < units.length; i++) {
+    var n = Math.floor(sec / units[i][1]);
+    if (n >= 1) {
+      var label = n + ' ' + units[i][0] + (n === 1 ? '' : 's');
+      return future ? ('in ' + label) : (label + ' ago');
+    }
+  }
+  return 'just now';
+}
+
+// Renders a Property-table value known to be a "timestamp"-typed attribute
+// (see SPEC_ATTRS/model attr type "timestamp") — same color/size as any
+// other property value (see .cell-timestamp-prop; the muted-gray/small
+// treatment is reserved for collection List view's Created/Modified
+// columns via .cell-timestamp), plus a relative-time hover tooltip. isMono
+// controls monospace font (spec timestamps are always monospace already
+// via MONO_ATTRS/type checks upstream, but kept as a parameter for
+// consistency with callers).
+function formatTimestampValue(rawText, isMono) {
+  var rel = relativeTimeFromNow(rawText);
+  var titleAttr = rel ? ' title="' + esc(rel) + '"' : '';
+  return '<span class="eg-value cell-timestamp-prop' + (isMono ? ' eg-mono' : '') + '"' + titleAttr + '>'
+       + esc(rawText) + '</span>';
+}
+
+// Fixed, ordered category buckets for grouping spec-defined attributes in
+// List view's Property tables (see plan.md "Property table categories").
+// Only used for keys confirmed spec-defined at the current entity level
+// (via isSpecAttr()) — extension/custom attrs always land in a separate,
+// always-last "Extensions" bucket (see groupPropsByCategory()), never
+// subdivided further.
+var PROP_CATEGORY_DEFS = [
+  { label: 'General',            keys: {name:1, description:1, documentation:1, icon:1, labels:1} },
+  { label: 'Identity',           keys: {id:1, versionid:1, xid:1, self:1, shortself:1},
+    order: ['resourceid', 'id', 'versionid', 'xid', 'self', 'shortself'] },
+  { label: 'Versioning & State',
+    keys: {specversion:1, epoch:1, isdefault:1, deprecated:1, readonly:1, ancestor:1,
+           xref:1, defaultversionid:1, defaultversionurl:1, defaultversionsticky:1, constraints:1} },
+  { label: 'Content',
+    keys: {contenttype:1, format:1, formatvalidated:1, formatvalidatedreason:1,
+           compatibility:1, compatibilityvalidated:1, compatibilityvalidatedreason:1,
+           meta:1, metaurl:1, model:1, modelsource:1, capabilities:1} },
+  { label: 'Timestamps',         keys: {createdat:1, modifiedat:1} }
+];
+
+// Buckets an already-filtered/sorted Property-table `keys` array into the
+// labeled categories above, for List view. Spec-defined attrs (per
+// isSpecAttr(), which also matches dynamic patterns like <singular>id and
+// $RESOURCE*) go into their matching bucket, falling back to "Content" for
+// the rare spec attr not explicitly listed; non-spec/custom attrs always
+// go into a final "Extensions" bucket. Returns null — meaning "render a
+// flat, ungrouped list, like before this feature existed" — when there's
+// no spec-level info to categorize against, or when everything collapses
+// into a single non-empty bucket anyway (a lone category header wouldn't
+// help readability there).
+//
+// Within a bucket, keys are re-sorted per that category's own `order`
+// array (when it has one) rather than keeping the caller's pre-sorted
+// order — e.g. Identity always wants "id, xid, self, shortself"
+// regardless of how buildEntityPropsTableHtml()'s generic priority sort
+// happened to place them. The dynamic <singular>id field (e.g. "fileid")
+// is treated as "id" for ordering purposes even though its literal key
+// differs. Categories without an `order` array keep the incoming order.
+function groupPropsByCategory(keys, specLevel, singular, resourceSingular) {
+  if (!specLevel) return null;
+  var buckets = PROP_CATEGORY_DEFS.map(function(def) { return { label: def.label, keys: [], order: def.order }; });
+  var identityBucket = buckets.filter(function(b) { return b.label === 'Identity'; })[0];
+  var contentBucket = buckets.filter(function(b) { return b.label === 'Content'; })[0];
+  var extBucket = { label: 'Extensions', keys: [] };
+  keys.forEach(function(k) {
+    if (!isSpecAttr(k, specLevel, singular, resourceSingular)) { extBucket.keys.push(k); return; }
+    // Dynamic <singular>id pattern (e.g. "fileid") — isSpecAttr() matches it via
+    // specLevel['id'], but it won't equal the literal "id" key any bucket lists,
+    // so it needs its own check here; it's always an Identity-style field.
+    if (specLevel['id'] && singular && k === singular + 'id') { identityBucket.keys.push(k); return; }
+    // Dynamic <resourceSingular>id pattern on a Version (e.g. "fileid") — same
+    // Identity treatment as the singular>id case above, just referring to the
+    // owning Resource's id instead of the Version's own.
+    if (resourceSingular && resourceSingular !== singular && k === resourceSingular + 'id') {
+      identityBucket.keys.push(k); return;
+    }
+    for (var i = 0; i < PROP_CATEGORY_DEFS.length; i++) {
+      if (PROP_CATEGORY_DEFS[i].keys[k]) { buckets[i].keys.push(k); return; }
+    }
+    contentBucket.keys.push(k); // spec attr not covered by any named bucket (rare — e.g. $RESOURCE* dynamic fields)
+  });
+  buckets.forEach(function(b) {
+    if (!b.order) return;
+    // Map dynamic <singular>id / <resourceSingular>id keys to their virtual
+    // "id"/"resourceid" order-array slots — see the identityBucket special
+    // cases above for why these two are treated identically to the plain
+    // "id" key everywhere else. Keeps ordering identical between the
+    // Resource page's "Version Details" tab and the dedicated Version page
+    // (both show a "resourceid, id, xid, self, …"-style Identity section).
+    function orderKey(k) {
+      if (singular && k === singular + 'id') return 'id';
+      if (resourceSingular && resourceSingular !== singular && k === resourceSingular + 'id') return 'resourceid';
+      return k;
+    }
+    b.keys.sort(function(a, c) {
+      var na = orderKey(a), nc = orderKey(c);
+      var ia = b.order.indexOf(na), ic = b.order.indexOf(nc);
+      if (ia >= 0 && ic >= 0) return ia - ic;
+      if (ia >= 0) return -1; if (ic >= 0) return 1;
+      return a.localeCompare(c);
+    });
+  });
+  var all = buckets.concat([extBucket]).filter(function(b) { return b.keys.length > 0; });
+  return all.length > 1 ? all : null;
+}
+
+// Builds the <tbody> rows for one contiguous run of Property-table keys —
+// shared by both the grouped (per-category) and flat (ungrouped) render
+// paths in buildEntityPropsTableHtml()/renderMetaTable(). Zebra banding is
+// applied via an explicit per-row class (not CSS nth-child) so callers can
+// restart the alternation at each category boundary — every group's first
+// row always renders the same (unbanded) shade, so grouping still reads
+// as intentional. `startBand` lets a flat (single-run) list keep
+// continuous banding when there is no grouping at all.
+function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, startBand, resourceSingular) {
+  var html = '';
+  var depthB = path ? path.length : 0;
+  keys.forEach(function(k, i) {
+    var val = entityData[k];
+    var display, valueCellClass = '';
+    var attrType = getExplicitAttrType(model, path, k);
+    if (val !== null && typeof val === 'object') {
+      var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
+      display = isEmpty
+        ? '<span class="vt-empty">empty</span>'
+        : renderValueTree(val, 0, model, path, [k]);
+      valueCellClass = ' class="cell-tree"';
+    } else if (val == null) {
+      display = '<span style="color:#999">null</span>';
+    } else if (typeof val === 'boolean') {
+      var isValidatedAttr = (k === 'formatvalidated' || k === 'compatibilityvalidated');
+      display = renderBoolBadge(val, isValidatedAttr ? '?' : undefined);
+      // Format/compatibility validation reasons aren't shown as their own
+      // row (see suppressed formatvalidatedreason/compatibilityvalidatedreason
+      // in buildEntityPropsTableHtml) — instead the reason string is appended
+      // right after the "Validated" pill on this same line, since it only
+      // ever matters in context of that pill (a plain standalone row read
+      // oddly separated from the pill it explains).
+      if (isValidatedAttr) {
+        var reasonVal = entityData[k + 'reason'];
+        if (reasonVal) display += ' <span class="eg-value">' + esc(String(reasonVal)) + '</span>';
+      }
+      // Compatibility Validated's rule string (e.g. "backward") lives on the
+      // resource's Meta object, not this flattened Resource/Version data —
+      // prefixed here in parens once known (see _docPillsMetaCompat/
+      // ensureDocPillsCompat(), shared with the Document tab's Compatibility
+      // pill). May not be loaded yet on first render — refreshVersionDetailsPanel()
+      // redraws this panel once the async Meta fetch resolves it.
+      if (k === 'compatibilityvalidated' && _docPillsMetaCompat) {
+        display = '<span class="eg-value eg-mono">(' + esc(_docPillsMetaCompat) + ')</span> ' + display;
+      }
+    } else if (k === 'ancestor' || (k === 'versionid' && depthB === 4)) {
+      // Link to the dedicated Version page for this version — ancestor on
+      // both the Resource page's "Version Details" tab (depthB === 4) and
+      // the Version page itself (depthB >= 6); versionid only on the
+      // Resource page (depthB === 4), since on the Version page itself
+      // versionid already IS the current page (no useful link to itself).
+      var vid = String(val);
+      var vHref = pageHref(path.slice(0, 4).concat(['versions', vid]), versionURLById(vid));
+      var vClick = 'navigateToVersionById(' + JSON.stringify(vid) + ')';
+      display = '<a class="eg-value eg-mono eg-link" href="' + esc(vHref) + '" '
+              + 'onclick="' + esc(guardedOnclick(vClick)) + '">' + esc(vid) + '</a>';
+    } else if (resourceSingular && resourceSingular !== singular && k === resourceSingular + 'id' && depthB >= 6) {
+      // Link back to the parent Resource page — this is the Resource's own
+      // id, echoed on the Version entity (e.g. "fileid" shown while viewing
+      // a Version of a "file" Resource). See navigateToParentResource() (no
+      // href-only variant existed yet since it was only ever wired to a
+      // breadcrumb-style onclick before).
+      var rHref = pageHref(path.slice(0, 4), (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + path.slice(0, 4).join('/')));
+      display = '<a class="eg-value eg-mono eg-link" href="' + esc(rHref) + '" '
+              + 'onclick="' + esc(guardedOnclick('navigateToParentResource()')) + '">' + esc(String(val)) + '</a>';
+    } else {
+      var isMono = isMonoSpecAttr(k, specLevel, singular, path)
+        || (attrType !== null && attrType !== 'string');
+      display = (attrType === 'timestamp')
+        ? formatTimestampValue(String(val), isMono)
+        : renderScalarValue(val, isMono);
+    }
+    var banded = (startBand + i) % 2 === 1;
+    html += '<tr' + (banded ? ' class="xr-row-band"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
+          + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
+  });
+  return html;
+}
+
+
 // Builds a "<Header>" / "Value" properties table for any entity-like JSON
 // object (a Resource's own flattened-default-version data, or a specific
 // Version item fetched separately) — shared by the initial Resource-page
@@ -2963,9 +3319,14 @@ function copyableMonospace(text) {
 // collKeys (optional) suppresses <plural>url/<plural>count sub-collection
 // fields already shown elsewhere (e.g. "versionsurl"/"versionscount" on a
 // Resource) — versions themselves have no sub-collections, so callers
-// rendering a specific version can omit it.
+// rendering a specific version can omit it. "meta"/"metaurl" are always
+// suppressed here too — like the collection fields, they're structural
+// navigation to a separate sub-entity (accessible via the Meta tab), not
+// real content of this entity, and metaurl isn't caught by collKeys since
+// there's no matching "metacount" partner for the *url/*count fallback scan.
 function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKeys) {
-  var suppressed = collKeys || {};
+  var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
+    formatvalidatedreason: true, compatibilityvalidatedreason: true});
   var priority = ['registryid','xid','name','description','specversion',
     'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
   var keys = Object.keys(entityData).filter(function(k) {
@@ -2979,27 +3340,20 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No properties</span></div>';
   var specLevel = specAttrLevel(path);
   var singular  = (getSingularName(model, path) || '').toLowerCase();
-  var html = '<table class="xr-table"><thead><tr><th>' + esc(headerLabel) + '</th><th>Value</th></tr></thead><tbody>';
-  keys.forEach(function(k) {
-    var val = entityData[k];
-    var display, valueCellClass = '';
-    if (val !== null && typeof val === 'object') {
-      var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
-      display = isEmpty
-        ? '<span class="vt-empty">empty</span>'
-        : renderValueTree(val, 0, model, path, [k]);
-      valueCellClass = ' class="cell-tree"';
-    } else if (val == null) {
-      display = '<span style="color:#999">null</span>';
-    } else {
-      var attrType = getExplicitAttrType(model, path, k);
-      var isMono = isMonoSpecAttr(k, specLevel, singular)
-        || (attrType !== null && attrType !== 'string');
-      display = isMono ? copyableMonospace(String(val)) : copyable(String(val));
-    }
-    html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
-          + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
-  });
+  var depth = path ? path.length : 0;
+  var resourceSingular = (depth === 4) ? singular
+    : (depth >= 6 && model) ? (getSingularName(model, path.slice(0, 4)) || '').toLowerCase()
+    : null;
+  var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular);
+  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(headerLabel) + '</th><th>Value</th></tr></thead><tbody>';
+  if (groups) {
+    groups.forEach(function(g) {
+      html += '<tr class="xr-props-cat"><td colspan="2">' + esc(g.label) + '</td></tr>';
+      html += buildPropsRowsHtml(g.keys, entityData, model, path, specLevel, singular, 0, resourceSingular);
+    });
+  } else {
+    html += buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 0, resourceSingular);
+  }
   html += '</tbody></table>';
   return html;
 }
@@ -3079,7 +3433,12 @@ function loadVersionsForSelect() {
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(d) {
       _resVersionsList = collectionItems(d);
-      var current = sel.value || 'default';
+      // Restore the version selected before a Refresh, if it still exists
+      // in the collection (falls back to "default" otherwise). See
+      // plan.md "Remember selected version + active tab".
+      var restoredVid = (_state.resVersion && _resVersionsList.some(function(v) { return itemNavKey(v) === _state.resVersion; }))
+        ? _state.resVersion : null;
+      var current = restoredVid || sel.value || 'default';
       var html = '<option value="default"' + (current === 'default' ? ' selected' : '') + '>'
         + esc(defaultOptionLabel(_resDefaultData)) + '</option>';
       _resVersionsList.forEach(function(v) {
@@ -3087,6 +3446,7 @@ function loadVersionsForSelect() {
         html += '<option value="' + esc(vid) + '"' + (current === vid ? ' selected' : '') + '>' + esc(vid) + '</option>';
       });
       sel.innerHTML = html;
+      if (restoredVid) onVersionSelectChange(restoredVid);
     })
     .catch(function() { /* leave "Default" only — non-critical */ });
 }
@@ -3101,15 +3461,20 @@ function loadVersionsForSelect() {
 // does not itself switch tabs.
 function onVersionSelectChange(vid) {
   _resSelectedVersionId = vid;
+  // Sync the URL in place (no navigation/refetch) so a later manual Refresh
+  // restores this version — same idiom as pushStateReal()'s history.pushState,
+  // just non-navigational. See plan.md "Remember selected version + active tab".
+  _state.resVersion = (vid === 'default') ? '' : vid;
+  history.replaceState(null, '', buildURL(_state));
   var panel = document.getElementById('eg-doc-panel-defver');
   var verData, headerLabel, collKeysForVer;
   if (vid === 'default') {
     verData = _resDefaultData;
-    headerLabel = defaultVersionLabel(_resCapType, verData) + ' Property';
+    headerLabel = versionPropHeaderLabel(true, verData && verData.versionid);
     collKeysForVer = _resCollKeys;
   } else {
     verData = (_resVersionsList || []).filter(function(v) { return itemNavKey(v) === vid; })[0];
-    headerLabel = _resCapType + ' Version (' + vid + ') Property';
+    headerLabel = versionPropHeaderLabel(false, vid);
     collKeysForVer = null; // versions have no sub-collections to suppress
   }
   if (!verData) return;
@@ -3122,6 +3487,8 @@ function onVersionSelectChange(vid) {
     _docPreviewLoaded = true;
     loadDocumentPreview();
   }
+  var pillsBox = document.getElementById('eg-doc-pills');
+  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(verData);
 }
 
 // Toggle the active Document/Details tab: swaps the .active button class
@@ -3132,6 +3499,15 @@ function switchDocTab(tabKey) {
   tabs.forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tabKey); });
   var panels = document.querySelectorAll('.eg-doc-tab-panel');
   panels.forEach(function(p) { p.style.display = (p.getAttribute('data-tab') === tabKey) ? '' : 'none'; });
+  // Sync the URL in place (no navigation/refetch) so a later manual Refresh
+  // restores this tab — same idiom as onVersionSelectChange() above. Treat
+  // the first tab as "default" (empty _state.docTab) so the URL stays clean
+  // when the user is on the natural default tab, mirroring how 'default' is
+  // handled for the version selector. See plan.md "Remember selected version
+  // + active tab".
+  var isFirstTab = tabs.length > 0 && tabs[0].getAttribute('data-tab') === tabKey;
+  _state.docTab = isFirstTab ? '' : tabKey;
+  history.replaceState(null, '', buildURL(_state));
   if (tabKey === 'doc' && !_docPreviewLoaded) { _docPreviewLoaded = true; loadDocumentPreview(); }
   if (tabKey === 'meta' && !_metaData) { loadMetaDetails(); }
   // The panel was just made visible (or already was) — resize the textarea
@@ -3162,6 +3538,202 @@ function decodeUTF8Bytes(buf) {
     for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
     return s;
   }
+}
+
+// Small info-pill row shown in the Document tab, between the tab button
+// row and the document preview — surfaces the doc-specific attributes
+// (contenttype, format, and the format/compatibility validation results)
+// without needing to switch to the Version Details tab. Each pill only
+// appears when its underlying attribute is actually set; returns '' when
+// none apply (no empty row rendered). Content-Type (no validation result
+// to show) reuses the Labels map's two-tone key/value pill idiom
+// (.eg-label-key/.eg-label-val); Format/Compatibility (which each have a
+// pass/fail result) use the dedicated 3-section pill (docPill3Html —
+// label | value | badge) instead, so the value->badge association is
+// visually unambiguous — see plan.md "pill design consistency".
+//
+// Compatibility's actual rule value (e.g. "backward") lives on the Meta
+// object (ENTITY_META), not the flattened Resource/Version data, so it
+// isn't available synchronously here — the caller kicks off
+// ensureDocPillsCompat() separately and this function just reads whatever
+// is currently cached in _docPillsMetaCompat (null until fetched), same
+// pattern as _docActiveVersionData for the version-selector.
+function buildDocInfoPillsHtml(data) {
+  if (!data) return '';
+  var pills = [];
+  if (data.contenttype) {
+    pills.push('<span class="eg-doc-pill-item">' + docKeyValPillHtml('Content-Type', data.contenttype) + '</span>');
+  }
+  if (data.format) {
+    pills.push(docPill3Html('Format', data.format, data.formatvalidated, data.formatvalidatedreason));
+  }
+  if (data.compatibilityvalidated === true || data.compatibilityvalidated === false) {
+    pills.push(docPill3Html('Compatibility', _docPillsMetaCompat, data.compatibilityvalidated, data.compatibilityvalidatedreason));
+  }
+  return pills.length ? '<div class="eg-doc-pills">' + pills.join('') + '</div>' : '';
+}
+
+// Two-tone key/value pill — same markup/classes as the Labels map's pills
+// (buildPropsRowsHtml()'s labelParts.map(...)) so Format/Content-Type read
+// as the same "attribute tag" idiom used elsewhere in the app.
+function docKeyValPillHtml(key, val) {
+  return '<span class="eg-label-pair"><span class="eg-label-key">' + esc(key) + '</span>'
+       + '<span class="eg-label-val eg-mono">' + esc(val) + '</span></span>';
+}
+
+// Fetches the resource's Meta object (if not already cached — shared with
+// the "<Type> Metadata" tab's _metaData, so visiting that tab first avoids
+// a second fetch) purely to read the "compatibility" rule string (e.g.
+// "backward") for the Document tab's Compatibility pill. Only the *value*
+// is meta-level; whether it validated (compatibilityvalidated) is already
+// version-level and available synchronously. A no-op once
+// _docPillsMetaCompat is non-null (already fetched, or already determined
+// there's nothing to fetch — see buildDocInfoPillsHtml()).
+function ensureDocPillsCompat(data) {
+  if (_docPillsMetaCompat !== null) return;
+  if (!data || (data.compatibilityvalidated !== true && data.compatibilityvalidated !== false)) {
+    _docPillsMetaCompat = '';
+    return;
+  }
+  if (_metaData && _metaData.compatibility) {
+    _docPillsMetaCompat = _metaData.compatibility;
+    refreshDocPills(data);
+    refreshVersionDetailsPanel();
+    return;
+  }
+  var metaUrl = resolveResourceMetaUrl(data);
+  if (!metaUrl) { _docPillsMetaCompat = ''; return; }
+  fetch(metaUrl)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      _docPillsMetaCompat = (d && d.compatibility) || '';
+      refreshDocPills(_docActiveVersionData || data);
+      refreshVersionDetailsPanel();
+    })
+    .catch(function() { _docPillsMetaCompat = ''; });
+}
+
+// Re-renders the #eg-doc-pills row in place once the async Meta fetch
+// above (or _metaData, if already loaded) resolves the Compatibility
+// pill's value.
+function refreshDocPills(data) {
+  var pillsBox = document.getElementById('eg-doc-pills');
+  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(data);
+}
+
+// Re-renders the "Version Details"/"<Type> Property" panel in place once
+// ensureDocPillsCompat()'s async Meta fetch resolves _docPillsMetaCompat —
+// so the Compatibility Validated row picks up its "(compat)" value prefix
+// (see buildPropsRowsHtml()) without requiring a manual refresh. No-op if
+// that panel isn't currently in the DOM (e.g. user navigated away already)
+// or nothing was snapshotted for it (see _docPropsPanelInfo).
+function refreshVersionDetailsPanel() {
+  if (!_docPropsPanelInfo) return;
+  var panel = document.getElementById(_docPropsPanelInfo.panelId);
+  if (!panel) return;
+  var data = _docActiveVersionData || _resDefaultData;
+  if (!data) return;
+  panel.innerHTML = buildEntityPropsTableHtml(data, _docPropsPanelInfo.headerLabel,
+    _docPropsPanelInfo.model, _docPropsPanelInfo.path, _docPropsPanelInfo.collKeys);
+}
+
+
+// Resource-level metaurl is only present on the Resource page's own
+// flattened data (depth 4, ENTITY_RESOURCE-level attribute) — not on
+// individual Version pages/entries (depth 6+, or versions-collection
+// items), since it's a per-resource, not per-version, concept. On a
+// Version page/entry we derive it from that version's own "self" URL by
+// stripping the trailing "/versions/<id>" segment and appending "/meta",
+// following the same convention the server itself uses to build metaurl
+// from a resource's self.
+function resolveResourceMetaUrl(data) {
+  if (!data) return '';
+  if (data.metaurl) return data.metaurl;
+  if (data.self) {
+    var m = data.self.replace(/\/versions\/[^\/]+\/?$/, '');
+    if (m !== data.self) return m.replace(/\/$/, '') + '/meta';
+  }
+  return '';
+}
+
+// Renders a "3-section" pill — label | value | validation-status badge —
+// for a doc attribute that has both a value and a validation result
+// (Format, Compatibility). A single bordered container with the
+// label/value/badge as contiguous flush segments (rather than two
+// separately-boxed pills side by side) makes the label->value->badge
+// association unambiguous at a glance, and gives Format/Compatibility a
+// matching, more prominent shape than the plain Content-Type pill (which
+// has no badge to attach). See plan.md "pill design consistency" for the
+// discussion behind this.
+//   - label:     e.g. "Format", "Compatibility" — always shown.
+//   - value:     e.g. "avro/1.9.0" — omitted (no value segment) when
+//                falsy, e.g. Compatibility's value hasn't finished its
+//                async meta fetch yet, or genuinely isn't set.
+//   - validated: true/false/undefined — the matching "<x>validated"
+//                boolean; omitted (no badge segment) when neither true
+//                nor false (attribute not applicable). false does NOT
+//                mean something is wrong — it just means the server
+//                hasn't checked — so it gets the same neutral gray
+//                treatment as an ordinary boolean "false", not a red
+//                "failure" color (see .eg-doc-pill3-fail in style.css).
+//   - reason:    the matching "<x>validatedreason" attribute's value, if
+//                any — shown in a popup when the gray X badge is clicked.
+//                Only made clickable when a reason is actually present;
+//                otherwise there's nothing useful to show.
+function docPill3Html(label, value, validated, reason) {
+  var html = '<span class="eg-doc-pill3">';
+  html += '<span class="eg-doc-pill3-label">' + esc(label) + '</span>';
+  if (value) {
+    html += '<span class="eg-doc-pill3-value eg-mono">' + esc(value) + '</span>';
+  }
+  if (validated === true) {
+    html += '<span class="eg-doc-pill3-badge eg-doc-pill3-ok" title="' + esc(label) + ' validated">\u2713</span>';
+  } else if (validated === false) {
+    if (reason) {
+      var onclickExpr = 'showValidationReasonPopup(' + JSON.stringify(label) + ', ' + JSON.stringify(reason) + ')';
+      html += '<span class="eg-doc-pill3-badge eg-doc-pill3-fail eg-doc-pill3-clickable" title="Click for details" onclick="'
+        + esc(onclickExpr) + '">?</span>';
+    } else {
+      html += '<span class="eg-doc-pill3-badge eg-doc-pill3-fail" title="' + esc(label) + ' not validated">?</span>';
+    }
+  }
+  html += '</span>';
+  return html;
+}
+
+// Small modal popup showing why a format/compatibility validation didn't
+// pass — opened by clicking the X badge in the Document tab's info pills
+// (see buildDocInfoPillsHtml()/docPill3Html()), only shown when a
+// "<x>validatedreason" value is actually available. Reuses the same plain
+// overlay+box pattern as showLeaveEditDialog() (no existing generic modal
+// helper to share).
+function showValidationReasonPopup(label, reason) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  // Clicking the dimmed backdrop (not the box itself) closes the popup,
+  // same as clicking "Close" — e.target check ensures clicks inside the
+  // box (which don't stop propagation) don't also trigger this.
+  overlay.onclick = function(e) { if (e.target === overlay) document.body.removeChild(overlay); };
+  var box = document.createElement('div');
+  box.style.cssText = 'background:white;border-radius:8px;padding:20px 24px;box-shadow:0 4px 24px rgba(0,0,0,0.25);max-width:420px;width:90%;font-family:sans-serif;';
+  var title = document.createElement('div');
+  title.textContent = label + ' Not Validated';
+  title.style.cssText = 'font-weight:bold;font-size:14px;margin-bottom:10px;color:#333;';
+  box.appendChild(title);
+  var msg = document.createElement('p');
+  msg.textContent = reason || 'No reason provided.';
+  msg.style.cssText = 'margin:0 0 18px;font-size:13px;color:#333;white-space:pre-wrap;';
+  box.appendChild(msg);
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;justify-content:flex-end;';
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close';
+  closeBtn.style.cssText = 'padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;background:#f0f0f0;color:#333;border:1px solid #ccc;';
+  closeBtn.onclick = function() { document.body.removeChild(overlay); };
+  btns.appendChild(closeBtn);
+  box.appendChild(btns);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 // Inline preview for the Document tab. Reuses openDocument()'s source-
@@ -3227,33 +3799,66 @@ function loadDocumentPreview() {
 // List view gets a plain key/value table (like the entity's own Property
 // table); Grid view keeps the richer label/row rendering (renderMetaContent).
 function renderMetaBoxContent(d, model) {
-  return _state.dataView === 'table' ? renderMetaTable(d) : renderMetaContent(d, model);
+  return _state.dataView === 'table' ? renderMetaTable(d, model) : renderMetaContent(d, model);
 }
 
 // Plain table rendering of the meta/details data, for List view. Mirrors the
 // "<Type> Property" / "Value" table used for the entity's own scalar props,
 // so the meta box looks consistent with the rest of List view instead of
-// Grid view's more human-readable label/row layout.
-function renderMetaTable(d) {
+// Grid view's more human-readable label/row layout. Now fully model-driven
+// (getAttr()/getExplicitAttrType() support the Meta level via the model's
+// dedicated metaattributes map — see getAttr()) — timestamp detection and
+// monospace formatting work exactly like buildEntityPropsTableHtml(), no
+// hardcoded meta-only special-casing needed.
+function renderMetaTable(d, model) {
   var suppressed = { metaurl: 1 };
   if (_metaResourceIdField) suppressed[_metaResourceIdField] = 1;
   var keys = Object.keys(d).filter(function(k) { return !suppressed[k]; }).sort();
   if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No details available</span></div>';
   var capType = capitalize(_metaEntityType);
-  var html = '<table class="xr-table"><thead><tr><th>' + esc(capType) + ' Property</th><th>Value</th></tr></thead><tbody>';
-  keys.forEach(function(k) {
+  var specLevel = (typeof SPEC_ATTRS !== 'undefined') ? SPEC_ATTRS.meta : null;
+  var singular = (_metaEntityType || '').toLowerCase();
+  var groups = groupPropsByCategory(keys, specLevel, singular, null);
+  var metaPath = (_state.path || []).concat(['meta']);
+
+  function buildRow(k, banded) {
     var val = d[k];
     var display;
+    var attrType = getExplicitAttrType(model, metaPath, k);
     if (val == null) {
       display = '<span style="color:#999">null</span>';
+    } else if (typeof val === 'boolean') {
+      display = renderBoolBadge(val);
     } else if (typeof val === 'object') {
       display = esc(JSON.stringify(val));
+    } else if (k === 'defaultversionid') {
+      // Link to the dedicated Version page for this version, matching Grid
+      // view's "→ Visit" link for the same field (renderMetaContent()).
+      var dvid = String(val);
+      var dvHref = pageHref(_state.path.slice(0, 4).concat(['versions', dvid]), versionURLById(dvid));
+      var dvClick = 'navigateToVersionById(' + JSON.stringify(dvid) + ')';
+      display = '<a class="eg-value eg-mono eg-link" href="' + esc(dvHref) + '" '
+              + 'onclick="' + esc(guardedOnclick(dvClick)) + '">' + esc(dvid) + '</a>';
     } else {
-      display = esc(String(val));
+      var isMono = isMonoSpecAttr(k, specLevel, singular, metaPath)
+        || (attrType !== null && attrType !== 'string');
+      display = (attrType === 'timestamp')
+        ? formatTimestampValue(String(val), isMono)
+        : renderScalarValue(val, isMono);
     }
-    html += '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(k)
-          + '</td><td>' + display + '</td></tr>';
-  });
+    return '<tr' + (banded ? ' class="xr-row-band"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
+         + '</td><td>' + display + '</td></tr>';
+  }
+
+  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Property</th><th>Value</th></tr></thead><tbody>';
+  if (groups) {
+    groups.forEach(function(g) {
+      html += '<tr class="xr-props-cat"><td colspan="2">' + esc(g.label) + '</td></tr>';
+      g.keys.forEach(function(k, i) { html += buildRow(k, i % 2 === 1); });
+    });
+  } else {
+    keys.forEach(function(k, i) { html += buildRow(k, i % 2 === 1); });
+  }
   html += '</tbody></table>';
   return html;
 }
@@ -3362,10 +3967,10 @@ function renderMetaContent(d, model) {
       }
     } else {
       // meta entity: use same logic as renderAttrRow with explicit-type-only monospace check
-      var attrTypeMeta = getExplicitAttrType(model, _state.path, k);
+      var attrTypeMeta = getExplicitAttrType(model, _state.path.concat(['meta']), k);
       var isMono = isMonoSpecAttr(k, metaSpecLevel, _metaSing)
         || (attrTypeMeta !== null && attrTypeMeta !== 'string');
-      html += row(labelFor(k, metaSpecLevel, _metaSing), isMono ? copyableMonospace(String(v)) : copyable(String(v)));
+      html += row(labelFor(k, metaSpecLevel, _metaSing), renderScalarValue(v, isMono));
     }
   }
   specKeys.forEach(metaAttrRow);
@@ -3475,6 +4080,11 @@ function renderEntityGrid(data) {
   }
   html += '<div class="eg-page-title">' + pageTitle + '</div>';
 
+  // Registry endpoint pills (depth 0 only) — see buildRegEndpointPillsHtml()
+  // (shared with List view's renderSingleEntity()); replaces the old
+  // separate "Registry Endpoints" tile section below the Group Types tiles.
+  html += buildRegEndpointPillsHtml();
+
   // Check hasdocument from model for resource (depth 4) and version (depth 6+)
   var hasDocument = (depth === 4 || depth >= 6) && resourceHasDocument(model, _state.path);
 
@@ -3498,31 +4108,8 @@ function renderEntityGrid(data) {
       html += '<div class="eg-colls-empty">No resource types defined</div>';
     }
     html += '</div>';
-
-    // At registry root (depth 0), show available server endpoints as extra tiles
-    if (depth === 0) {
-      var svBase0 = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-      var capData = _capCache[normalizeURL(svBase0)];
-      var avail   = capData && capData.available;
-      var sectionTiles = ['model','modelsource','capabilities','capabilitiesoffered'];
-      var availSections = sectionTiles.filter(function(s) { return avail && avail[s]; });
-      if (availSections.length) {
-        html += '<div class="eg-section-header">REGISTRY ENDPOINTS</div>';
-        html += '<div class="eg-colls">';
-        var sectionNames = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
-        availSections.forEach(function(s) {
-          var mut = avail[s] && avail[s].mutable;
-          var click = guardedOnclick('pushState({section:\'' + s + '\',editMode:false,useExport:false})');
-          var sHref = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
-          html += '<a class="eg-coll-tile" href="' + esc(sHref) + '" onclick="' + esc(click) + '">'
-               +   '<div class="eg-coll-name">' + esc(sectionNames[s]) + '</div>'
-               +   (mut ? '<div class="eg-coll-mutable-badge">mutable</div>' : '')
-               + '</a>';
-        });
-        html += '</div>';
-      }
-    }
   }
+
 
   // ---- Resource Meta box (depth 4 only): collapsed by default, lazy-fetched on expand ----
   if (depth === 4) {
@@ -3593,10 +4180,11 @@ function renderEntityGrid(data) {
           + copyableMonospace(String(idVal)) + '</div>';
   }
 
-  // Documentation
+  // Documentation — a URL-typed spec attribute, so rendered monospace like
+  // any other URL/URI value (generic rule: non-string attrType → monospace).
   if (data.documentation) {
     html += row('Documentation',
-      '<a href="' + esc(data.documentation) + '" target="_blank" class="eg-link">'
+      '<a href="' + esc(data.documentation) + '" target="_blank" class="eg-link eg-mono">'
       + esc(data.documentation) + '</a>');
   }
 
@@ -3718,9 +4306,9 @@ function renderEntityGrid(data) {
       // 2. Explicitly model-named (non-wildcard) attrs with non-string type → monospace.
       //    Extension attrs that only match the '*' wildcard use null type → not monospace.
       var attrType = getExplicitAttrType(model, _state.path, k);
-      var isMono = isMonoSpecAttr(k, specLevel, _singular)
+      var isMono = isMonoSpecAttr(k, specLevel, _singular, _state.path)
         || (attrType !== null && attrType !== 'string');
-      var valHtml = isMono ? copyableMonospace(String(v)) : copyable(String(v));
+      var valHtml = renderScalarValue(v, isMono);
       html += row(labelFor(k, specLevel, _singular), valHtml);
     }
   }
@@ -4199,14 +4787,14 @@ function fbFiltersTitleHTML(count, noTwisty) {
     + '</span></div>';
 }
 
-// Total number of leaf filter expressions across all OR-groups (each
-// group is a comma-joined AND-list) — shown as "(N)" next to the
-// Filters title even while the section is collapsed.
+// Number of filter expressions (OR-groups) currently defined — matches the
+// count shown by the header's Filters toggle button (_state.filters.length,
+// see renderHeader()). Each group may itself be a comma-joined AND-list of
+// sub-expressions, but those sub-expressions together still form a single
+// filter expression, not multiple — counting them separately previously
+// made this "(N)" disagree with the header's "(N)" for compound filters.
 function fbFilterCount(groups) {
-  if (!groups || !groups.length) return 0;
-  var n = 0;
-  groups.forEach(function(g) { n += trimSplit(g, ',').length; });
-  return n;
+  return (groups && groups.length) || 0;
 }
 
 // Toggles the Filters section's collapsed/expanded state. Always starts
@@ -8139,6 +8727,20 @@ function formatTimestamp(iso) {
 function defaultVersionLabel(capType, data) {
   return 'Default ' + capType + ' Version'
     + (data && data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '');
+}
+
+// List view's Resource-page Property table column-1 header — unlike
+// defaultVersionLabel() (used by Grid view's "Details" header), this
+// deliberately omits the resource's singular type name (e.g. "File"): the
+// table's own page title/breadcrumb already establishes the entity type,
+// so repeating it in the table header is redundant. isDefault controls
+// the "Default " prefix (shown for the resource's own flattened default
+// version; omitted when the version-selector dropdown picks a specific
+// non-default version).
+function versionPropHeaderLabel(isDefault, vid) {
+  return (isDefault ? 'Default Version' : 'Version')
+    + (vid !== undefined && vid !== null ? ' (' + esc(String(vid)) + ')' : '')
+    + ' Property';
 }
 
 // "Default" option label for the Resource page's standalone "Version:"
