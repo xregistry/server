@@ -1503,7 +1503,14 @@ func (r *Registry) VerifyData() *XRError {
 				return xErr
 			}
 
-			// Skip xref'd resources, the real owner will do it
+			// Skip xref'd resources, the real owner will do it.
+			// Note that we're assuming we're just skipping data validation.
+			// If we ever addd other checks (like version-level constraints)
+			// then we may need to do the stuff below. However, as of now
+			// any group-level or resource-level constraints should be done
+			// above.
+			// But we do need to check the non-xref'd versions on a model
+			// change to ensure they're still compliant
 			if resource.IsXref() {
 				continue
 			}

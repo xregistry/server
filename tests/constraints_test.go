@@ -3171,5 +3171,6 @@ func TestConstraintsXref(t *testing.T) {
 	XHTTP(t, reg, "GET", "/dirs/d2/files/fx$details", ``, 200,
 		`^(?s)^.*"epoch": 1,\n *"isdefault`) // no "name"
 
-	reg.Model.SetChanged(false)
+	// Make sure our model validation is ok too - we blew up at one point
+	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
 }

@@ -120,3 +120,7 @@ TODOs:
 - test for arrays (and indexes) & maps in filter querys. Do arrays need indexes?
 - time our tests and see which ones are the slowest, fix them
 ** support wildcards in filters for map keys and array indexes
+- only have on Validate() func at each level and pass in whether we should
+  save or not, check children or not (e.g. applying a new model will always
+  check versions, but other updates won't. THey'll validate the constraints
+  at the group/resource level, but there's nothing at the version level to check
