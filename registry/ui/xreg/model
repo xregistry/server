@@ -136,6 +136,7 @@
       "plural": "dirs",
       "singular": "dir",
       "description": "A directory of files",
+      "icon": "https://img.icons8.com/?size=96&id=dINnkNb1FBl4&format=png",
       "attributes": {
         "dirid": {
           "name": "dirid",
@@ -296,6 +297,7 @@
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
+          "icon": "https://uxwing.com/wp-content/themes/uxwing/download/file-and-folder-type/text-file-icon.svg",
           "attributes": {
             "fileid": {
               "name": "fileid",

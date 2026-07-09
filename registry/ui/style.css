@@ -51,34 +51,14 @@ html, body {
 #logo-link { display: inline-flex; align-items: center; text-decoration: none; border-radius: 4px; padding: 2px; }
 #logo-link:hover { background: rgba(0,0,0,0.08); }
 
-/* Header selects */
-#reg-select, #section-select {
-  background: #407d16;
-  border: 1px solid #407d16;
-  border-radius: 13px;
-  color: white;
-  font-weight: bold;
-  padding: 2px 28px 3px 10px;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-  font-size: 13px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='white'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 10px 6px;
-}
-#reg-select:hover, #section-select:hover { background-color: #c4c4c4; color: black;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23222'/%3E%3C/svg%3E"); }
-#reg-select option, #section-select option { background: white; color: #222; font-weight: normal; }
+
 
 /* Breadcrumbs */
 #breadcrumbs {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   font-size: 13px;
   min-width: 0;
-  padding-top: 11px;
 }
 
 #header-spacer { flex: 1; }
@@ -871,7 +851,6 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 
 @media (max-width: 600px) {
   #header { gap: 5px; padding: 4px 6px; }
-  #reg-select, #section-select { font-size: 12px; padding: 2px 24px 2px 8px; }
   .view-btn { padding: 2px 7px; font-size: 12px; }
   #left-panel { width: 160px; min-width: 120px; }
   .tile { min-width: 160px; }
@@ -1042,7 +1021,21 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .home-btn { border-radius: 6px; border: 1px solid #407d16; background: #407d16; color: white; padding: 3px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
 /* ---- Home group/layout controls ---- */
-.group-type-item { font-size: 10px; color: #444; background: #f0f0f0; border-radius: 4px; padding: 1px 5px; }
+.group-type-item {
+  font-size: 12px;
+  color: #444;
+  background: #f0f0f0;
+  border-radius: 4px;
+  padding: 1px 6px;
+  text-decoration: none;
+  display: inline-block;
+}
+/* Only <a> pills (Group Types themselves) are actually clickable links to
+   a collection; resource-type pills reuse this class but are plain,
+   non-navigable <span>s (see plan.md "resource pill hover help"), so the
+   pointer cursor + hover-underline are scoped to the <a> form only. */
+a.group-type-item { cursor: pointer; }
+a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: underline; }
 .home-btn:hover { background: #c4c4c4; color: #222; border-color: #aaa; }
 .home-btn-danger { border-color: #a00; background: #fff; color: #a00; }
 .home-btn-danger:hover { background: #fee; border-color: #a00; color: #a00; }
@@ -1190,42 +1183,171 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 
 /* ---- Inline server error popup ---- */
 
-/* ---- Home table view ---- */
-.home-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  background: white;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
-.home-table th {
-  text-align: left;
-  padding: 8px 12px;
-  background: #e2e2e2;
-  border-bottom: 2px solid #ccc;
-  color: #333;
-  font-weight: bold;
-  white-space: nowrap;
-}
-.home-table td {
-  padding: 7px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  vertical-align: top;
-}
-.home-table tbody tr:last-child td { border-bottom: none; }
-.home-table tbody tr:hover { background: #f8f8f8; }
-.ht-name { font-weight: bold; white-space: nowrap; position: relative; }
 .ht-name-link { cursor: pointer; color: #2255cc; text-decoration: none; }
 .ht-name-link a { color: inherit; text-decoration: none; }
 .ht-name-link:hover, .ht-name-link a:hover { text-decoration: underline; }
-.ht-desc { font-size: 11px; color: #888; font-weight: normal; white-space: normal; margin-top: 2px; }
-.ht-url  { font-size: 13px; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.ht-groups  { vertical-align: middle; }
-.ht-groups-inner { display: flex; flex-wrap: wrap; gap: 4px; }
 .ht-loading { color: #888; font-style: italic; }
 .ht-action { white-space: nowrap; }
+
+/* ---- Home "Registries" List view — card-list redesign ----
+   A stack of rounded row-cards (icon + name/subtitle + group-type pills +
+   url), visually consistent with the Grid tiles, rather than a plain
+   spreadsheet-style <table>. Capped width so it doesn't feel abandoned on
+   a wide viewport. See plan.md "List view visual redesign for Registries
+   home page". */
+.reg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 900px;
+}
+.reg-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  position: relative;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.reg-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-color: #ccc; }
+/* No opacity dimming on the whole row (it would bleed into the absolutely-
+   positioned error popup, making it look faded/washed out) — the red
+   "Connection failed" badge already communicates the state clearly. */
+.reg-row-icon { flex-shrink: 0; }
+.reg-row-main { flex: 1; min-width: 0; }
+.reg-row-title { display: flex; align-items: center; gap: 8px; }
+.reg-row-name { font-weight: bold; font-size: 14px; }
+.reg-row-sub {
+  display: none;
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.reg-row-err-badge {
+  font-size: 11px;
+  font-weight: bold;
+  color: #a00;
+  background: #fde8e8;
+  border: 1px solid #f0b8b8;
+  border-radius: 10px;
+  padding: 1px 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.reg-row-err-badge:hover { background: #fbd6d6; }
+.reg-row-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.reg-row-url {
+  font-size: 11px;
+  color: #888;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  width: 100%;
+}
+.reg-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 280px;
+}
+@media (max-width: 768px) {
+  .reg-row { flex-wrap: wrap; }
+  .reg-row-side { max-width: 100%; align-items: flex-start; }
+  .reg-row-groups, .reg-row-url { justify-content: flex-start; text-align: left; }
+}
+
+/* ---- Home "Group Types" List view — card-list redesign ----
+   Mirrors the Registries List row style, but each row's "owner" is the
+   registry it came from (icon + name), not a URL — since group types
+   here are never merged/deduplicated across registries (two registries
+   could use the same group-type name with entirely different model
+   definitions), every row is its own distinct (registry, group-type)
+   entity, same as a Registries List row is its own distinct registry.
+   See plan.md "Group Types List view card-list redesign". */
+.gt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 900px;
+}
+.gt-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.gt-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-color: #ccc; }
+.gt-row-loading { color: #888; font-style: italic; font-size: 13px; }
+.gt-row-icon { flex-shrink: 0; }
+.gt-row-main { flex: 1; min-width: 0; }
+.gt-row-title { display: flex; align-items: center; gap: 8px; }
+.gt-row-name { font-weight: bold; font-size: 14px; color: #2255cc; cursor: pointer; text-decoration: none; }
+.gt-row-name:hover { text-decoration: underline; }
+.gt-row-count { font-size: 12px; color: #888; white-space: nowrap; }
+.gt-row-sub {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.gt-row-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 280px;
+}
+.gt-row-resources { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.gt-row-registry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #888;
+  text-decoration: none;
+  cursor: pointer;
+}
+.gt-row-registry:hover { color: #2255cc; text-decoration: underline; }
+.gt-row-reg-name { white-space: nowrap; }
+@media (max-width: 768px) {
+  .gt-row { flex-wrap: wrap; }
+  .gt-row-side { max-width: 100%; align-items: flex-start; }
+  .gt-row-resources, .gt-row-registry { justify-content: flex-start; }
+}
 
 /* ============================================================
    Entity grid view — removed (Grid view no longer exists for any
@@ -1336,6 +1458,13 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   gap: 4px;
   line-height: 20px;
 }
+/* Live thumbnail preview shown next to the spec-defined "icon" attribute's
+   URL/link in a Properties table (Registry/Group/Resource/Version) — see
+   plan.md "icon attribute preview thumbnail". Sized to sit comfortably next
+   to a single line of link text; hidden automatically (via inline onerror)
+   if the URL doesn't resolve to a loadable image. */
+.eg-icon-preview-wrap { display: inline-flex; align-items: center; gap: 8px; }
+.eg-icon-preview { width: 20px; height: 20px; object-fit: contain; border-radius: 3px; vertical-align: middle; }
 
 .eg-icon { width: 24px; height: 24px; object-fit: contain; }
 .eg-icon-err { width: 24px; height: 24px; align-items: center; justify-content: center; cursor: help; }

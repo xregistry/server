@@ -642,9 +642,7 @@ function renderHeader() {
   var logo = el('logo-link');
   if (logo) logo.setAttribute('href', buildURL({view: 'home', path: [], serverURL: ''}));
 
-  el('reg-select').style.display     = 'none';
   el('breadcrumbs').style.display    = '';
-  el('view-toggle') && (el('view-toggle').style.display = 'none');
   setHeaderCompact(false);
 
   // On home, show buttons reflecting current group's layout without corrupting _state.dataView
@@ -941,53 +939,10 @@ function setDataView(v) {
 }
 
 // Build the registry dropdown: Home + known registries + Add
-function buildServerDropdown() {
-  var sel = el('reg-select');
-  if (!sel) return;
-  sel.innerHTML = '';
-
-  addOption(sel, '__home__', 'Home',  _state.view === 'home');
-
-  var servers = loadServers();
-  // Always show local server if we're running from xrserver
-  var origin = window.location.origin;
-  if (!servers.includes(origin)) {
-    addOption(sel, origin, serverLabel(origin), _state.serverURL === '');
-  }
-  servers.forEach(function(url) {
-    var isCurrent = _state.serverURL === url ||
-                    (_state.serverURL === '' && url === origin);
-    addOption(sel, url, serverLabel(url), isCurrent && _state.view !== 'home');
-  });
-
-  addOption(sel, '__add__', '+ Add registry…', false);
-}
-
-function addOption(sel, val, text, selected) {
-  var o = document.createElement('option');
-  o.value = val;
-  o.textContent = text;
-  if (selected) o.selected = true;
-  sel.appendChild(o);
-}
-
 function serverLabel(url) {
   var norm = normalizeURL(url || window.location.origin);
   if (_labelCache[norm]) return _labelCache[norm];
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '') || url;
-}
-
-function onRegistryChange(uid) {
-  if (uid === '__home__' || uid === '__add__') {
-    pushState({view: 'home', serverURL: ''});
-    return;
-  }
-  var sv = (uid === window.location.origin) ? '' : uid;
-  pushState({view: 'table', serverURL: sv, section: 'data', path: [], editMode: false});
-}
-
-function onSectionChange(section) {
-  pushState({section: section, path: [], editMode: false});
 }
 
 function setView(view) {
@@ -1202,8 +1157,23 @@ var _copyIconSVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="curren
   + '</svg>';
 
 function copyLinkBtnHTML() {
+  // Second tooltip line previews the exact URL that will be copied, so
+  // users don't have to click first just to see what they're about to get.
+  var urlPreview = buildTabAwareAPIURL();
   return '<button class="icon-btn bc-copy-btn" onclick="copyCurrentAPIURL(event)" '
-       + 'title="Copy API URL for this data">' + _copyIconSVG + '</button>';
+       + 'title="Copy API URL for this data\n' + esc(urlPreview) + '">' + _copyIconSVG + '</button>';
+}
+
+// Refreshes the copy-URL button's tooltip in place, without re-rendering the
+// whole breadcrumb bar — needed because switching the Document/Details tab
+// or the version-selector dropdown changes what buildTabAwareAPIURL() would
+// return, but neither does a full renderBreadcrumbs() (see switchDocTab()/
+// onVersionSelectChange()). Without this the tooltip text goes stale even
+// though the actual copy (which always calls buildTabAwareAPIURL() live at
+// click-time) stays correct.
+function refreshCopyLinkBtnTooltip() {
+  var btn = document.querySelector('.bc-copy-btn');
+  if (btn) btn.title = 'Copy API URL for this data\n' + buildTabAwareAPIURL();
 }
 
 function copyCurrentAPIURL(event) {
@@ -1243,8 +1213,22 @@ function buildTabAwareAPIURL() {
   // docTab does NOT reliably mean "defver/version" — read the truly active
   // tab straight from the DOM (already authoritative, always in sync)
   // rather than re-deriving/guessing that same ordering here.
+  //
+  // The DOM tab bar doesn't exist yet on the very first breadcrumb render
+  // (renderBreadcrumbs() runs before renderSingleEntity() builds the tab
+  // bar), so the fallback below has to guess which tab will end up active
+  // — it must match the same hasDocument-first ordering tabDefs.push()
+  // uses, otherwise a Document-tab resource's tooltip would wrongly show
+  // the $details-suffixed "Version Details" URL instead of the plain
+  // document URL until the user manually switches tabs.
   var activeTabEl = document.querySelector('.eg-doc-tab.active[data-tab]');
-  var tab = activeTabEl ? activeTabEl.getAttribute('data-tab') : (isResource ? 'defver' : 'version');
+  var tab;
+  if (activeTabEl) {
+    tab = activeTabEl.getAttribute('data-tab');
+  } else {
+    var modelFallback = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+    tab = resourceHasDocument(modelFallback, path) ? 'doc' : (isResource ? 'defver' : 'version');
+  }
 
   if (tab === 'doc') {
     // Document tab: the plain (no $details) URL — GETting it returns the
@@ -1673,71 +1657,86 @@ function renderHomeTable(main, servers) {
   var sorted = servers.slice().sort(function(a, b) {
     return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
   });
-  var html = '<div class="home-page">'
-    + '<table class="home-table"><thead><tr>'
-    +   '<th>Registry</th><th>Description</th><th>Group Types</th><th>Location</th>'
-    + '</tr></thead><tbody>';
+  // Card-list design (see plan.md "List view visual redesign for Registries
+  // home page") — a stack of rounded row-cards rather than a plain <table>,
+  // so List reads as a denser sibling of Grid rather than a cold fallback.
+  // Uses its own .reg-* classes (not the generic .home-table/.ht-* ones,
+  // which stay as-is for the Home "types" flat list — see
+  // renderHomeFlatList()).
+  var html = '<div class="home-page"><div class="reg-list">';
   sorted.forEach(function(url) {
     var sv = (url === window.location.origin) ? '' : url;
     var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
-    html += '<tr data-server-url="' + esc(url) + '">'
-      + '<td class="ht-name" style="position:relative">'
-      +   '<a class="ht-name-text ht-name-link" href="' + esc(href) + '" onclick="' + esc(guardedOnclick('doBrowse(' + JSON.stringify(url) + ')')) + '">' + esc(serverLabel(url)) + '</a>'
-      +   '<div class="server-card-err-popup" style="display:none">'
-      +     '<div class="server-card-err-popup-title">Connection Error</div>'
-      +     '<div class="server-card-err-popup-msg"></div>'
-      +     '<button class="home-btn home-btn-secondary" style="font-size:11px;padding:2px 8px" '
-      +       'onclick="this.closest(\'.server-card-err-popup\').style.display=\'none\'">Close</button>'
+    html += '<div class="reg-row" data-server-url="' + esc(url) + '">'
+      + '<img src="favicon.svg" class="reg-row-icon" alt="" width="20" height="20">'
+      + '<div class="reg-row-main">'
+      +   '<div class="reg-row-title">'
+      +     '<a class="reg-row-name ht-name-text ht-name-link" href="' + esc(href) + '" onclick="' + esc(guardedOnclick('doBrowse(' + JSON.stringify(url) + ')')) + '">' + esc(serverLabel(url)) + '</a>'
+      +     '<span class="reg-row-err-badge" style="display:none" title="Click for error details">Connection failed</span>'
       +   '</div>'
-      + '</td>'
-      + '<td class="ht-desc-col" style="color:#666;font-size:13px"></td>'
-      + '<td class="ht-groups"><div class="ht-groups-inner"><span class="ht-loading">…</span></div></td>'
-      + '<td class="ht-url">' + esc(url) + '</td>'
-      + '</tr>';
+      +   '<div class="reg-row-sub"></div>'
+      + '</div>'
+      + '<div class="reg-row-side">'
+      +   '<div class="reg-row-groups"><span class="ht-loading">…</span></div>'
+      +   '<div class="reg-row-url" title="' + esc(url) + '">' + esc(url) + '</div>'
+      + '</div>'
+      + '<div class="server-card-err-popup" style="display:none">'
+      +   '<div class="server-card-err-popup-title">Connection Error</div>'
+      +   '<div class="server-card-err-popup-msg"></div>'
+      +   '<button class="home-btn home-btn-secondary" style="font-size:11px;padding:2px 8px" '
+      +     'onclick="this.closest(\'.server-card-err-popup\').style.display=\'none\'">Close</button>'
+      + '</div>'
+      + '</div>';
   });
-  html += '</tbody></table></div>';
+  html += '</div></div>';
   main.innerHTML = html;
 
   main.querySelectorAll('[data-server-url]').forEach(function(row) {
     probeRegistry(row.dataset.serverUrl, function(info) {
       var nameEl   = row.querySelector('.ht-name-text');
-      var groupsEl = row.querySelector('.ht-groups-inner');
+      var subEl    = row.querySelector('.reg-row-sub');
+      var groupsEl = row.querySelector('.reg-row-groups');
       if (info.error) {
-        // disable the name link and show error badge with popup
+        // disable the name link, mark the row as errored, and wire up the
+        // "Connection failed" badge to toggle the existing error popup.
         if (nameEl) { nameEl.classList.remove('ht-name-link'); nameEl.removeAttribute('onclick'); }
-        var badge = document.createElement('span');
-        badge.className = 'server-card-err-badge';
-        badge.textContent = '!';
-        badge.title = 'Click for error details';
-        badge.style.marginLeft = '6px';
-        badge.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var popup = row.querySelector('.server-card-err-popup');
-          if (!popup) return;
-          var showing = popup.style.display !== 'none';
-          // close all open error popups first
-          qsa('.server-card-err-popup').forEach(function(p) { p.style.display = 'none'; });
-          if (!showing) {
-            popup.style.display = '';
-            popup.querySelector('.server-card-err-popup-msg').textContent = info.error;
-          }
-        });
-        var nameCell = row.querySelector('.ht-name');
-        if (nameCell) nameCell.appendChild(badge);
+        row.classList.add('reg-row-error');
+        var badge = row.querySelector('.reg-row-err-badge');
+        if (badge) {
+          badge.style.display = '';
+          badge.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var popup = row.querySelector('.server-card-err-popup');
+            if (!popup) return;
+            var showing = popup.style.display !== 'none';
+            // close all open error popups first
+            qsa('.server-card-err-popup').forEach(function(p) { p.style.display = 'none'; });
+            if (!showing) {
+              popup.style.display = '';
+              popup.querySelector('.server-card-err-popup-msg').textContent = info.error;
+            }
+          });
+        }
         if (groupsEl) groupsEl.textContent = '';
       } else {
         if (nameEl && info.label) nameEl.textContent = info.label;
-        var descEl = row.querySelector('.ht-desc-col');
-        if (descEl && info.description) descEl.textContent = info.description;
+        if (info.icon) {
+          var iconEl = row.querySelector('.reg-row-icon');
+          if (iconEl) iconEl.src = info.icon;
+        }
+        if (subEl && info.description) {
+          subEl.textContent = info.description;
+          subEl.style.display = '-webkit-box';
+        }
         if (groupsEl) {
           groupsEl.innerHTML = info.colls.length
             ? info.colls.map(function(c) {
-                return '<span class="group-type-item">' + esc(c.plural) + ' (' + c.count + ')</span>';
+                return groupTypePillHTML(row.dataset.serverUrl, c);
               }).join('')
             : '<span class="group-type-none">none</span>';
         }
       }
-      sortServerElements(row.closest('tbody'));
+      sortServerElements(row.closest('.reg-list'));
     });
   });
 }
@@ -1752,11 +1751,34 @@ function browseGroupCollection(serverUrl, collName, url) {
   pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], apiURL: url || '', editMode: false});
 }
 
+// Renders a single "group-type-item" pill as a clickable link to that
+// collection (e.g. clicking "dirs (3)" browses straight to /dirs on that
+// server) — shared by the List-view rows, Grid-view cards, and the Home
+// "Group Types" flat list's own name-link (see plan.md "Group-type pills
+// link to their collections").
+function groupTypePillHTML(serverUrl, c) {
+  var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(serverUrl) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')');
+  var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
+  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [c.plural], apiURL: c.url || '', editMode: false}));
+  // Hover help shows the Group Type's model description, if any, so users
+  // don't have to leave the page to learn what a pill (e.g. "dirs") means.
+  var titleAttr = c.description ? ' title="' + esc(c.description) + '"' : '';
+  return '<a class="group-type-item" href="' + esc(href) + '" onclick="' + esc(onclick) + '"' + titleAttr + '>' + esc(c.plural) + ' (' + c.count + ')</a>';
+}
+
 function renderHomeFlatList(main, servers) {
-  main.innerHTML = '<div class="home-page">'
-    + '<table class="home-table"><thead><tr>'
-    +   '<th>Group Type</th><th>Description</th><th>Items</th><th>Resource Types</th><th>Registry</th>'
-    + '</tr></thead><tbody id="flat-list-body"><tr><td colspan="5" style="color:#aaa;font-size:13px">Loading…</td></tr></tbody></table></div>';
+  // Card-list design mirroring the Registries List redesign (see plan.md
+  // "List view visual redesign for Registries home page"). Each row here
+  // is NOT a merged/deduplicated "group type" — it's one specific
+  // group-type-as-it-exists-in-one-registry (no cross-registry merging
+  // is done, since like-named group types on different registries could
+  // have entirely different model definitions). So each row genuinely
+  // has its own owning-registry identity, same as a Registries List row
+  // has its own server identity — hence the registry's icon/name is
+  // shown as the row's "owner", replacing the old plain URL column.
+  main.innerHTML = '<div class="home-page"><div class="gt-list" id="flat-list-body">'
+    + '<div class="gt-row-loading" style="color:#aaa;font-size:13px">Loading…</div>'
+    + '</div></div>';
 
   var pending = servers.length;
   var allRows = [];
@@ -1766,27 +1788,43 @@ function renderHomeFlatList(main, servers) {
       var n = a.plural.localeCompare(b.plural);
       return n !== 0 ? n : a.regLabel.localeCompare(b.regLabel);
     });
-    var tbody = el('flat-list-body');
-    if (!tbody) return;
+    var container = el('flat-list-body');
+    if (!container) return;
     if (allRows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;font-size:13px;font-style:italic">No group types found</td></tr>';
+      container.innerHTML = '<div class="gt-row-loading" style="font-style:italic">No group types found</div>';
       return;
     }
-    tbody.innerHTML = allRows.map(function(r) {
+    container.innerHTML = allRows.map(function(r) {
       var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(r.serverUrl) + ',' + JSON.stringify(r.plural) + ',' + JSON.stringify(r.url) + ')');
       var sv = (r.serverUrl === window.location.origin) ? '' : r.serverUrl;
       var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [r.plural], apiURL: r.url || '', editMode: false}));
-      return '<tr>'
-        + '<td class="ht-name ht-name-link" style="font-weight:bold"><a href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a></td>'
-        + '<td class="ht-desc-col" style="color:#666;font-size:13px">' + esc(r.description) + '</td>'
-        + '<td class="ht-groups">' + r.count + '</td>'
-        + '<td class="ht-groups"><div class="ht-groups-inner">'
-        +   (r.resources.length
-              ? r.resources.map(function(res) { return '<span class="group-type-item">' + esc(res) + '</span>'; }).join('')
-              : '<span class="group-type-none">none</span>')
-        + '</div></td>'
-        + '<td class="ht-url">' + esc(r.regLabel) + '<div class="ht-desc">' + esc(r.serverUrl) + '</div></td>'
-        + '</tr>';
+      var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
+      var regOnclick = guardedOnclick('doBrowse(' + JSON.stringify(r.serverUrl) + ')');
+      return '<div class="gt-row">'
+        + '<img src="' + esc(r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20">'
+        + '<div class="gt-row-main">'
+        +   '<div class="gt-row-title">'
+        +     '<a class="gt-row-name" href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a>'
+        +     '<span class="gt-row-count">' + r.count + (r.count === 1 ? ' item' : ' items') + '</span>'
+        +   '</div>'
+        +   (r.description
+              ? '<div class="gt-row-sub">' + esc(r.description) + '</div>'
+              : '')
+        + '</div>'
+        + '<div class="gt-row-side">'
+        +   '<div class="gt-row-resources">'
+        +     (r.resources.length
+                  ? r.resources.map(function(res) {
+                      var titleAttr = res.description ? ' title="' + esc(res.description) + '"' : '';
+                      return '<span class="group-type-item"' + titleAttr + '>' + esc(res.plural) + '</span>';
+                    }).join('')
+                  : '<span class="group-type-none">none</span>')
+        +   '</div>'
+        +   '<a class="gt-row-registry" href="' + esc(regHref) + '" onclick="' + esc(regOnclick) + '" title="' + esc(r.serverUrl) + '">'
+        +     '<span class="gt-row-reg-name">' + esc(r.regLabel) + '</span>'
+        +   '</a>'
+        + '</div>'
+        + '</div>';
     }).join('');
   }
 
@@ -1798,7 +1836,8 @@ function renderHomeFlatList(main, servers) {
         var label = info.label || serverLabel(url);
         info.colls.forEach(function(c) {
           allRows.push({plural: c.plural, count: c.count, resources: c.resources || [],
-                        description: c.description || '', serverUrl: url, regLabel: label, url: c.url});
+                        description: c.description || '', serverUrl: url, regLabel: label,
+                        regIcon: info.icon || '', url: c.url});
         });
       }
       pending--;
@@ -1857,7 +1896,7 @@ function probeAllCards(main) {
         if (groupsEl) {
           groupsEl.innerHTML = info.colls.length
             ? info.colls.map(function(c) {
-                return '<span class="group-type-item">' + esc(c.plural) + ' (' + c.count + ')</span>';
+                return groupTypePillHTML(card.dataset.serverUrl, c);
               }).join('')
             : '<span class="group-type-none">none</span>';
         }
@@ -1917,7 +1956,15 @@ function probeRegistry(url, cb) {
         var colls = findCollectionRefs(model, [], data);
         colls.forEach(function(c) {
           var grpDef = model && model.groups && model.groups[c.plural];
-          c.resources   = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
+          // Each resource type carries its own model description too, so
+          // the Home "Group Types" page can show it as hover help on the
+          // resource-type pill (see plan.md "Group Types page: resource
+          // pill hover help").
+          c.resources = grpDef && grpDef.resources
+            ? Object.keys(grpDef.resources).sort().map(function(rp) {
+                return {plural: rp, description: (grpDef.resources[rp] && grpDef.resources[rp].description) || ''};
+              })
+            : [];
           c.description = (grpDef && grpDef.description) || '';
         });
         cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null});
@@ -2688,6 +2735,14 @@ function renderSingleEntity(data) {
 
   html += '</div>';
   main.innerHTML = html;
+
+  // The copy-URL button's tooltip may have been set (in renderBreadcrumbs(),
+  // which runs before this tab bar exists in the DOM / before the model
+  // fetch resolves) using a guessed default tab — refresh it now that the
+  // real tab bar/active tab is in place, so e.g. a hasDocument resource
+  // whose Document tab is the true default doesn't show a stale
+  // $details-suffixed URL until the user manually clicks a tab.
+  if (depthD === 4 || depthD >= 6) refreshCopyLinkBtnTooltip();
 
   // Kick off the lazy fetch for whichever tab ended up default-selected
   // (Document or Details — the Default/Version Details panels already have
@@ -3467,6 +3522,19 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
       var rHref = pageHref(path.slice(0, 4), (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + path.slice(0, 4).join('/')));
       display = '<a class="eg-value eg-mono eg-link" href="' + esc(rHref) + '" '
               + 'onclick="' + esc(guardedOnclick('navigateToParentResource()')) + '">' + esc(String(val)) + '</a>';
+    } else if (k === 'icon' && specLevel && specLevel.icon && typeof val === 'string' && val.trim()) {
+      // Spec-defined "icon" attribute (Registry/Group/Resource/Version) is a
+      // URL to an image — show a small live preview next to the usual
+      // clickable link, so users can see at a glance what it looks like
+      // without leaving the page. An extension attribute that merely
+      // happens to be named "icon" (specLevel.icon falsy at this depth)
+      // still falls through to the generic scalar/link rendering below.
+      // onerror hides the <img> (rather than showing a broken-image icon)
+      // if the URL doesn't actually resolve to a loadable image.
+      display = '<span class="eg-icon-preview-wrap">'
+              + '<img src="' + esc(val) + '" class="eg-icon-preview" alt="" onerror="this.style.display=\'none\'">'
+              + renderScalarValue(val, isMonoSpecAttr(k, specLevel, singular, path))
+              + '</span>';
     } else {
       var isMono = isMonoSpecAttr(k, specLevel, singular, path)
         || (attrType !== null && attrType !== 'string');
@@ -3666,6 +3734,7 @@ function onVersionSelectChange(vid) {
   }
   var pillsBox = document.getElementById('eg-doc-pills');
   if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(verData);
+  refreshCopyLinkBtnTooltip();
 }
 
 // Toggle the active Document/Details tab: swaps the .active button class
@@ -3691,6 +3760,7 @@ function switchDocTab(tabKey) {
   // now that layout/geometry is accurate (hidden panels report 0 height).
   if (tabKey === 'doc') sizeDocTextarea();
   syncVersionSelectorForTab(tabKey);
+  refreshCopyLinkBtnTooltip();
 }
 
 // Metadata (metaurl) is a per-Resource concept, not per-version, so the

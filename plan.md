@@ -348,6 +348,25 @@ goals.
 
 ## Completed (for history / context)
 
+- Redesigned the Home "Registries" **List view** as a card-list rather than
+  a plain `<table>` (see chat 2026-07-09 discussion of List vs. Grid). New
+  `.reg-list`/`.reg-row-*` CSS classes and a rewritten `renderHomeTable()`
+  (`registry/ui/app.js`): each registry is now a rounded, shadowed row-card
+  (favicon icon, bold name + description subtitle, Group Type pills,
+  right-aligned URL), capped at `max-width:900px` so it doesn't look
+  abandoned on wide viewports, with hover elevation. Error state ("failed
+  to fetch") shows an inline red "Connection failed" pill (instead of a
+  bare `!` dot) that still opens the existing error-detail popup on click.
+  Only the Registries List view was touched — the Home "Group Types" flat
+  list (`renderHomeFlatList()`) still uses the original `.home-table`/
+  `.ht-*` classes untouched, and the Grid view (`renderHomeGrid()`/
+  `serverCard()`) is unaffected. Fixed two bugs found while verifying via
+  CDP screenshots: (1) `subEl.style.display = ''` doesn't override a CSS
+  class's `display:none` (no inline style to clear) — changed to
+  `'block'`; (2) `.reg-row-error { opacity: 0.85 }` on the row bled into
+  the absolutely-positioned error popup child, washing it out — removed
+  entirely since the red pill badge already communicates the error state.
+
 - Removed dead legacy CSS: `#left`/`#right` id selectors in
   `registry/ui/style.css`'s `@media (max-width: 768px)` block — leftover
   from the old standalone model editor page, no longer matched anything
@@ -2586,6 +2605,437 @@ selects (the real "default" option), instead of nothing.
   `1` (not reset to Default) — unaffected by this fix.
 - `node --check app.js` passes. Test data cleaned up, chromium/temp
   files removed.
+
+**Status**: Complete.
+
+## Registries List view: group-types above URL, wrapping description,
+## URL tooltip
+
+Follow-up polish to the earlier List-view card-list redesign
+(`.reg-list`/`.reg-row` in `registry/ui/style.css`, `renderHomeTable()`
+in `registry/ui/app.js`).
+
+**Changes**:
+- `renderHomeTable()`: wrapped `.reg-row-groups` (group-type pills) and
+  `.reg-row-url` (server URL) in a new `.reg-row-side` column container
+  so the pills now stack ABOVE the URL instead of being squeezed
+  side-by-side. Added a `title="<full url>"` attribute on the URL
+  element so the full address is always available on hover even if
+  ellipsis-truncated.
+- `style.css`: new `.reg-row-side` (flex column, right-aligned, ~280px
+  max-width — kept compact per the user's preference rather than
+  widening it, so pills wrap across multiple lines when needed instead
+  of taking more horizontal space). `.reg-row-groups`/`.reg-row-url`
+  dropped their own independent `max-width` values (now inherit the
+  parent's width). `.reg-row-sub` (description subtitle) changed from
+  single-line `nowrap` + ellipsis to a 2-line `-webkit-line-clamp`
+  clamp. Updated the `@media (max-width: 768px)` mobile override to
+  target `.reg-row-side` as a whole (stacking pills/URL left-aligned)
+  instead of the old two-sibling selector.
+- `app.js`'s probe callback: `subEl.style.display` changed from
+  `'block'` to `'-webkit-box'` to match the new line-clamp's required
+  `display` value (setting plain `'block'` would have silently
+  defeated the clamp).
+
+**Verified** via headless-Chromium CDP against a live xrserver (root
+registry given a long description, a 4-group-type model, plus a
+deliberately-unreachable second registry for the error-state row):
+- Pills render stacked above the URL, right-aligned, within a compact
+  column; description clamps to exactly 2 lines with a trailing
+  ellipsis.
+- Hovering the URL shows the full address via the new `title` tooltip.
+- Mobile viewport (375px): row stacks correctly, pills/URL become
+  left-aligned as a block.
+- Regression check: Grid view (`renderHomeGrid()`/`serverCard()`) and
+  the Home "Group Types" flat list (`renderHomeFlatList()`) are
+  unaffected.
+- `node --check app.js` passes. Test data (root description, group-type
+  model, fake unreachable registry entry) reverted/cleaned up; chromium
+  test processes and temp profile/log files removed.
+
+**Status**: Complete.
+
+## Group-type pill font size increased for readability
+
+Bumped the shared `.group-type-item` class (`registry/ui/style.css`)
+from `font-size: 10px` to `12px` (matching the `.reg-row-sub`
+description text size), with padding nudged from `1px 5px` to
+`1px 6px` to match. This class is shared across three places, all of
+which benefit from the change: the Registries List-view row pills
+(`.reg-row-groups`), the Registries Grid-view card pills
+(`serverCard()`), and the Home "Group Types" flat-list table's
+Resource Types column.
+
+**Verified** via CDP screenshots of both List and Grid views with a
+3-group-type test model — pills are noticeably easier to read and
+nothing overflows, wraps awkwardly, or crowds the layout. Test data
+reverted, chromium test processes cleaned up.
+
+**Status**: Complete.
+
+## Group-type pills now link to their respective collections
+
+Made the `.group-type-item` pills clickable — they now navigate straight
+to that collection (e.g. clicking "dirs (3)" browses to `/dirs` on that
+server) instead of being plain inert text.
+
+**Changes** (`registry/ui/app.js`):
+- New shared helper `groupTypePillHTML(serverUrl, c)` renders a pill as
+  an `<a class="group-type-item">` with a real `href` (via `buildURL()`,
+  so right-click/open-in-new-tab and hover-preview work) and an
+  `onclick` wired to the existing `browseGroupCollection()` navigation
+  helper (same one already used by the Group Types page's name links) —
+  guarded via `guardedOnclick()` for modifier-key/middle-click support.
+- `renderHomeTable()`'s probe callback (`.reg-row-groups` pills, List
+  view) and `probeAllCards()`'s probe callback (`.server-card-groups`
+  pills, Grid view) both switched from inline `<span>` markup to calling
+  the new shared helper.
+- The Home "Group Types" flat list (`renderHomeFlatList()`) was left
+  alone — its own group-type name is already a link (via the same
+  `browseGroupCollection()`), and its pills column shows *resource
+  types* within a group definition (not live, directly-browsable
+  collections at that scope), so linking those wouldn't be equivalent.
+
+**Changes** (`registry/ui/style.css`):
+- `.group-type-item` (now an `<a>`, not a `<span>`): added
+  `text-decoration: none`, `cursor: pointer`, `display: inline-block` to
+  neutralize default anchor styling, plus a `:hover` state (darker
+  background + underline) so it reads as clickable without changing the
+  pill's resting appearance.
+
+**Verified** via CDP: pill `href`/`onclick` both point at the correct
+collection URL; clicking a pill (List view) navigates to that
+collection's table view (`/dirs`, shows "No items found" for an empty
+test collection as expected); same pill link works identically in Grid
+view; resting appearance of pills unchanged in both views. Test model
+data reverted, chromium processes cleaned up.
+
+**Status**: Complete.
+
+## Fixed vertical misalignment of breadcrumb pill / copy-URL icon
+
+### Bug
+The Registries/Group Types toggle pill (Home page) and the copy-API-URL
+icon button (data pages) both sat noticeably lower than the logo/"/"
+separator and the header's other icon buttons (grid/list/json/edit/
+gear) — their bottoms didn't line up.
+
+### Root cause
+`#breadcrumbs` had a `padding-top: 11px` rule with no accompanying
+`padding-bottom`. Since `#breadcrumbs` is itself a flex container
+(`align-items: center`) sized to its tallest child (the pill or the
+copy-button, both ~22-24px), that top padding became part of the
+container's own box height, and got added *below* the vertically-
+centered children rather than symmetrically around them — so taller
+elements (pill, copy button) ended up flush with the container's
+bottom edge, well below where the shorter logo/icon-button siblings
+(centered within the shared header height) landed.
+
+### Fix
+`registry/ui/style.css`: removed the stray `padding-top: 11px` from
+`#breadcrumbs`, then (per follow-up feedback — the user preferred all
+breadcrumb content bottom-aligned, not centered) changed `#breadcrumbs`
+from `align-items: center` to `align-items: flex-end`. With both
+changes, the pill, copy button, "/" separator, and plain breadcrumb
+text all share the exact same bounding-box bottom edge — within ~1-2px
+of the logo's bottom (previously off by 6.5-7.5px). The remaining 1-2px
+is normal font/icon rendering noise (smaller than the header's own
+gear/edit icon offset from the logo, ~4-5px) — not a leftover
+alignment bug. Any perceived difference between the "/" character and
+lettered text (e.g. "xRegistry") beyond that is due to the slash glyph
+having no descender (unlike letters such as "g"/"y"), so its ink sits
+slightly higher within an identical box — a typographic characteristic
+rather than a CSS issue.
+
+### Verified via CDP
+Measured/screenshotted bounding rects before and after on: the Home
+page's Registries/Group Types pill (bottom offset from logo went from
+~6.5px to ~1px), a data page's copy-URL button (from ~7.5px to ~2px),
+plain breadcrumb text, a nested-path breadcrumb, and a narrow (375px)
+mobile viewport — all align cleanly with no wrapping regressions.
+Confirmed via rect measurements that "/", breadcrumb text, and the
+copy button now share an identical bottom coordinate under
+`align-items: flex-end`. `node --check app.js` passes (CSS-only
+change). Chromium test processes cleaned up.
+
+**Status**: Complete.
+
+## Group-type pill font size + spacing + clickable links + breadcrumb
+## vertical alignment (small polish batch)
+
+- `.group-type-item` pill font-size bumped from 10px to 12px (padding
+  1px 5px -> 1px 6px) to match the description text size, since group
+  types can be important info users shouldn't have to squint at. Shared
+  by List rows, Grid cards, and the Home "Group Types" flat list.
+- `.reg-row-side`'s gap (between the group-type pills and the server
+  URL, Registries List view) increased from 4px to 8px so they read as
+  clearly separate, not on the verge of overlapping.
+- Group-type pills are now clickable links to their respective
+  collections, in both List and Grid views of the Registries home page
+  (new shared helper `groupTypePillHTML(serverUrl, c)` in `app.js`,
+  reused by `renderHomeTable()` and `probeAllCards()`). The Home "Group
+  Types" flat list's own resource-type pills were deliberately left as
+  plain (non-clickable) `<span>`s since they aren't live/browsable
+  collections at that scope.
+- Fixed vertical misalignment of the breadcrumb "Group Types" pill and
+  copy-URL icon: `#breadcrumbs` had a stray `padding-top: 11px` with no
+  matching bottom padding, pushing its tallest children (the pill /
+  copy button) down relative to shorter siblings in other flex
+  containers (e.g. the logo). Removed the padding. Per follow-up user
+  preference, `#breadcrumbs`'s `align-items` was then changed from
+  `center` to `flex-end` so all breadcrumb children (separator, text,
+  pill, copy button) share an identical bounding-box bottom. A residual
+  visual offset between the "/" separator and lettered breadcrumb text
+  is a font-rendering artifact (the "/" glyph has no descender) — not a
+  layout bug; confirmed via CDP rect measurements that all bottoms are
+  mathematically identical.
+
+**Status**: Complete.
+
+## Home "Group Types" page: card-list redesign (List view)
+
+**Context**: this page lists group types across all known registries.
+Per user clarification, rows here are **never merged/deduplicated**
+across registries — each row is one specific group type as it exists
+in one specific registry. Two registries with an identically-named
+group type (e.g. both have a "dirs" group type) still get two separate
+rows, since like-named group types could have entirely different model
+definitions, and since models can change at any time a merge could
+become stale (and un-merging later would confuse users more than never
+merging in the first place). This is also why each row shows exactly
+ONE server URL/registry, never a list of several. This design mirrors
+the Registries List redesign (each row = one distinct registry, no
+merging there either) rather than being a classic report/index table
+with comparable cross-row data.
+
+**Change**: `renderHomeFlatList()` (`app.js`) rewritten from a plain
+`<table class="home-table">` to a `.gt-list`/`.gt-row` card-list,
+matching the Registries List's `.reg-list`/`.reg-row` visual language:
+- `.gt-row-icon` — the owning registry's favicon/icon.
+- `.gt-row-main` — group-type name (clickable link to its collection,
+  same target as clicking it elsewhere) + item count, and an optional
+  description subtitle (2-line clamp, only rendered when non-empty).
+- `.gt-row-side` — resource-type pills (`.group-type-item`, kept as
+  plain non-clickable `<span>`s — not live collections at this scope)
+  stacked above a small owning-registry link (icon + name, navigates to
+  that registry's home via the same `buildURL()`/`doBrowse()` pattern
+  already used by the Registries List's own row-name link).
+
+Removed now-orphaned `.home-table`/`.ht-name` (bare)/`.ht-desc`/
+`.ht-url`/`.ht-groups`/`.ht-groups-inner` CSS rules from `style.css`
+(confirmed via grep no JS still references them). Kept `.ht-name-link`/
+`.ht-name-text`/`.ht-loading`/`.ht-action` since they're still used
+elsewhere (`.ht-name-text`/`.ht-name-link` are shared with the
+Registries List's own row-name class list; `.ht-loading` is still used
+by this same page's async-loading placeholder).
+
+**Verified** via headless-Chromium CDP against a live xrserver (2 test
+registries, one with a "dirs" group type overlapping the other's "dirs"
+group type but a different description/item-count, confirming the
+no-merge design renders as 2 separate rows): group-type name link
+navigates to the correct collection; registry-owner link navigates to
+that registry's home page; resource-type pills render as plain
+non-clickable spans; mobile viewport (375px) stacks sensibly (pills/
+registry link left-aligned below the main content); Registries List
+and Grid views (unrelated pages sharing some CSS classes) are
+unaffected — regression-checked via screenshot. `node --check app.js`
+passes. Test data reset, chromium processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Group-type / resource-type pill hover help (descriptions)
+
+- Registries List/Grid views: each `.group-type-item` pill (e.g.
+  "dirs (3)") now has a `title` attribute showing that Group Type's
+  model description, if any, via the shared `groupTypePillHTML()`
+  helper (`app.js`). No visual change when a Group Type has no
+  description (no empty `title=""` emitted).
+- Home "Group Types" page: each resource-type pill in a row's
+  `.gt-row-resources` now also has a `title` attribute showing that
+  Resource Type's model description. This required widening
+  `probeRegistry()`'s per-collection `c.resources` from a plain sorted
+  array of plural-name strings to an array of `{plural, description}`
+  objects (only consumed by `renderHomeFlatList()`'s pill rendering —
+  the separate `c.resources` usage in `renderSingleEntity()`'s own
+  in-registry Group Types table, which just comma-joins plural names,
+  is a different call site and was left untouched).
+
+**Verified** via headless-Chromium CDP against a live xrserver with a
+model that gave both a group type ("dirs") and its resource type
+("files") explicit descriptions: confirmed `title` attributes render
+correctly on the Registries List pill, the Registries Grid pill, and
+the Group Types page's resource-type pill. `node --check app.js`
+passes. Test data reset, chromium processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Group Types page: small polish (mouse cursor + duplicate icon)
+
+- Resource-type pills (`.gt-row-resources .group-type-item`, plain
+  non-clickable `<span>`s) were incorrectly showing a pointer cursor
+  and a link-style hover (background/underline), because the shared
+  `.group-type-item` class had `cursor: pointer` unconditionally, even
+  though only the Group Type pill itself (an `<a>`) is actually
+  clickable. Fixed by moving `cursor: pointer` and the hover styling to
+  a scoped `a.group-type-item` selector in `style.css`, so the plain
+  `<span>` resource pills no longer look like links.
+- Removed the redundant registry icon (`.gt-row-reg-icon`) from each
+  row's right-side owning-registry link — the row already shows that
+  registry's icon on the left (`.gt-row-icon`), so showing it a second
+  time on the right was unnecessary. The link now shows just the
+  registry name. Removed the now-unused `.gt-row-reg-icon` CSS rule.
+
+**Verified** via headless-Chromium CDP: `getComputedStyle(...).cursor`
+confirmed `auto` on resource pills vs `pointer` on Group Type link
+pills; confirmed `.gt-row-reg-icon` count is 0 after the change and a
+screenshot shows a clean single-icon-per-row layout. `node --check
+app.js` passes. Chromium processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Breadcrumb copy-URL button: two-line hover tooltip
+
+- The copy-to-clipboard button after the breadcrumbs (`.bc-copy-btn`)
+  now shows a 2-line native tooltip: "Copy API URL for this data" on
+  the first line, and a live preview of the exact URL that will be
+  copied on the second line (via a literal `\n` inside the `title`
+  attribute, which browsers render as a tooltip line break). The
+  preview is computed with the same `buildTabAwareAPIURL()` helper the
+  click handler already uses, so what's shown always matches what gets
+  copied (including Resource/Version pages' tab/version-aware URL).
+
+**Verified** via headless-Chromium CDP: `title` attribute on `.bc-copy-
+btn` reads `"Copy API URL for this data\nhttp://localhost:8080..."` on
+both a collection page and the registry root page. `node --check
+app.js` passes. Chromium processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Copy-URL tooltip: fixed staleness on tab switch + wrong $details guess
+
+Two follow-up bugs found in the tooltip preview added above (the actual
+copy behavior — `copyCurrentAPIURL()` — was always correct; only the
+displayed preview text was wrong):
+
+- **Stale on tab/version switch**: switching the Document/Details tab
+  bar (`switchDocTab()`) or the Resource page's version-selector
+  dropdown (`onVersionSelectChange()`) changed what would actually get
+  copied, but neither call re-rendered the breadcrumb bar, so the
+  tooltip text kept showing whatever was true at page-load time. Fixed
+  by adding `refreshCopyLinkBtnTooltip()` (updates just the button's
+  `title` in place) and calling it from both functions.
+- **Wrong guess for Document-tab-first resources**: `renderBreadcrumbs()`
+  (and thus the tooltip's first computation) runs before the entity's
+  tab bar exists in the DOM and before the model fetch resolves, so
+  `buildTabAwareAPIURL()`'s fallback (when no `.eg-doc-tab.active`
+  element exists yet) had to guess which tab would end up default-
+  active. It always guessed "Version Details"/"Version" (`$details`-
+  suffixed URL), which is wrong for any resource type with
+  `hasdocument: true` — those show the Document tab first (see
+  `tabDefs.push()` ordering), so the correct default preview is the
+  plain, un-suffixed document URL. Fixed the fallback to check
+  `resourceHasDocument(model, path)` (using `_modelCache`) and guess
+  `'doc'` when true. Additionally added a `refreshCopyLinkBtnTooltip()`
+  call right after `renderSingleEntity()` writes the real tab bar into
+  the DOM (depth 4/6+ only), so the tooltip is always corrected to
+  match the real default-active tab once it's known, regardless of
+  whether the fallback guess was right.
+
+**Verified** via headless-Chromium CDP with a `hasdocument: true`
+resource with 2 versions: initial tooltip on both the Resource page and
+a Version page now shows the plain document URL (no `$details`) since
+Document is the true default tab; manually cycling through Details/
+Metadata/Document tabs and the version-selector (regression) still
+produces the correct URL for each combination (`$details` for Version
+Details, `/meta` for Metadata, plain for Document, `/versions/N` for a
+selected version). `node --check app.js` passes. Test data reset,
+chromium processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Removed dead registry-switcher dropdown (`#reg-select`/`#section-select`)
+
+**Found by user report**: a green, empty `<select>` dropdown briefly
+flashed to the right of the "xR" logo on every page refresh, replaced
+almost instantly by the real breadcrumbs. Root cause: `index.html` had
+a `<select id="reg-select">` element with no default `display:none` —
+it painted with its full green pill styling (`#reg-select` CSS rule)
+for one frame before `renderHeader()` (in `app.js`) ran and force-hid
+it via `el('reg-select').style.display = 'none'` on every render.
+
+Investigating further confirmed this dropdown (and a sibling
+`#section-select`) were **entirely dead code** — a leftover
+registry/section switcher from an old header design, fully superseded
+by the current breadcrumbs + Home-page navigation:
+- `#reg-select` was unconditionally hidden on every `renderHeader()`
+  call and never shown again anywhere.
+- Its only populate function, `buildServerDropdown()` (and its helper
+  `addOption()`), was never called from anywhere else in `app.js`.
+- Its `onchange` handler, `onRegistryChange()`, was therefore also
+  unreachable dead code.
+- `#section-select` had no HTML element at all anymore (already
+  removed at some earlier point) — only dead CSS rules and a dead
+  `onSectionChange()` handler remained for it.
+- A related one-line dead reference, `el('view-toggle') && (...)` in
+  `renderHeader()` (no `#view-toggle` element exists either), was
+  cleaned up in the same pass since it's the same category of stale
+  header-redesign leftover.
+
+**Removed**: the `<select id="reg-select">` element (`index.html`);
+`buildServerDropdown()`, `addOption()`, `onRegistryChange()`,
+`onSectionChange()`, and the dead `el('reg-select')`/`el('view-toggle')`
+lines in `renderHeader()` (`app.js`); the `#reg-select`/`#section-select`
+CSS rules, including their `:hover`/`option` variants and the mobile
+media-query override (`style.css`). `serverLabel()` (also defined near
+`buildServerDropdown()`) was kept — it's still actively used elsewhere
+(e.g. Registries List row names).
+
+**Verified** via headless-Chromium CDP: `document.getElementById(
+'reg-select')` is now `null`; screenshot of the header on page load
+shows no flash and no layout regression. `node --check app.js` passes;
+grepped `app.js`/`index.html`/`style.css` for all removed identifiers to
+confirm zero remaining references. Chromium processes and temp files
+cleaned up.
+
+**Status**: Complete.
+
+## Spec-defined `icon` attribute: image preview in Property table
+
+**User request**: when the spec-defined `icon` attribute (not any
+extension attribute that happens to share the name "icon") has a value,
+show it as an actual image thumbnail in the Properties table's value
+cell, not just a plain clickable URL link.
+
+**Implementation** (`registry/ui/app.js`, `buildPropsRowsHtml()`): added
+an `else if` branch (before the final generic `else`) that checks `k ===
+'icon' && specLevel && specLevel.icon && typeof val === 'string' &&
+val.trim()` — reusing the existing `specAttrLevel(path)` per-depth map
+(already used by `isSpecAttr()`) to distinguish a true spec attribute
+from a coincidentally-named extension attribute at levels where `icon`
+isn't spec-defined (e.g. Meta/depth 5 — confirmed via `specattrs.js`
+that `SPEC_ATTRS.meta` has no `icon` key). When true, renders a small
+`<img class="eg-icon-preview" onerror="this.style.display='none'">`
+thumbnail inside a `<span class="eg-icon-preview-wrap">`, followed by
+the existing link/text rendering (`renderScalarValue()`) unchanged —
+thumbnail is additive, not a replacement.
+
+`registry/ui/style.css`: added `.eg-icon-preview-wrap` (inline-flex, 8px
+gap) and `.eg-icon-preview` (20x20px, `object-fit:contain`, rounded
+corners, vertical-align middle) near `.eg-value`.
+
+**Verified** via CDP against a live xrserver: valid icon URL shows a
+correctly-sized thumbnail next to the link on the Registry root page;
+broken/unreachable icon URL correctly hides the `<img>` via `onerror`
+(no broken-image glyph, no layout gap) while the link text remains;
+confirmed (via `specattrs.js` inspection) that Meta-level (depth 5) has
+no spec-defined `icon`, so an extension attribute named "icon" there
+would correctly fall through to plain link rendering, per the user's
+explicit requirement. Entity Grid view was confirmed already fully
+removed in an earlier session (see "Grid view removed..." entries
+above), so `buildPropsRowsHtml()` is the only properties-rendering path
+— no other code path needed the same treatment. `node --check app.js`
+passes. Test data (`icon` field) cleared, chromium test process and
+temp files cleaned up.
 
 **Status**: Complete.
 
