@@ -11,14 +11,8 @@ goals.
 
 ## Outstanding
 
-- [ ] **Registry name override on Config page.** Add a UI control on the
-  Config page letting the user set a custom display name for a
-  registry, stored client-side (e.g. localStorage, keyed by registry
-  URL, alongside other per-server client state), so the UI uses that
-  name everywhere instead of the name returned by the server (e.g. in
-  the header, Registries list, breadcrumbs). Should not affect the
-  actual `name`/`registryid` returned by the API — purely a local
-  display override. Requested 2026-07-09; not yet implemented.
+- [x] ~~Registry name override on Config page.~~ **Done** (see Completed
+  section below) — implemented 2026-07-09.
 
 - [x] ~~Add filter support to Grid (Tile) and List (Table) views for
   registry Data.~~ **OBSOLETE / done, no action needed** (updated
@@ -3238,6 +3232,86 @@ M1") with the icon vertically centered against the text. `node --check
 app.js` passes (no JS changes, but re-verified after the CSS edit per
 routine). Test model/instance/registry-icon data reverted, chromium
 processes and temp files cleaned up.
+
+**Status**: Complete.
+
+## Registry name override on Config page
+
+**User request**: "add the ability for a user to set the name of a
+registry on the config page, so the UI will use that name instead of
+the one returned by the server" (originally added to the Outstanding
+list 2026-07-09, implemented same day).
+
+**Implementation** (`registry/ui/app.js`):
+- New localStorage key `LS_NAMES` ('xreg-name-overrides') holding a
+  `{normalizedURL: customName}` map, alongside the existing `LS_SERVERS`/
+  `LS_OPTIONS` keys. Helpers: `loadNameOverrides()`, `saveNameOverrides()`,
+  `getNameOverride(url)`, `setNameOverride(url, name)` (empty name
+  deletes the override, reverting to the server-provided name).
+- `serverLabel(url)` — the single shared function already used by
+  breadcrumbs, the Registries Grid/List views' sort order and initial
+  link text — now checks `getNameOverride()` first, before the probed
+  `_labelCache` name, before the raw URL fallback. Since nearly every
+  "registry name" display already routed through this one function, most
+  of the propagation was free.
+- Two probe-callback spots that later overwrite the name text after a
+  live fetch (`probeAllCards()` for Grid view, `renderHomeTable()`'s row
+  probe) were guarded with `!getNameOverride(...)` so they don't clobber
+  the override once the real server response arrives.
+- Registry root page header (`renderSingleEntity()`'s depth-0
+  `titleDisplayH`): now prefers the override over `data.name`/
+  `data.registryid`. The existing "strip a trailing ' Registry' word"
+  heuristic (e.g. "CloudEvents Registry" → "CloudEvents", avoiding a
+  redundant "REGISTRY: CloudEvents Registry") is now only applied to the
+  server-provided fallback name, never to a user's explicit override —
+  the user already controls exactly what text to type, so an override
+  literally containing the word "Registry" is shown verbatim, not
+  silently trimmed.
+- Config page (`renderConfig()`): the "Name" column is a
+  display-span/hidden-input pair (`cfgNameCellHTML(url)`, mirroring the
+  pre-existing URL display/input pair), toggled together with the URL
+  pair by one shared Edit/Save/Cancel button set per row — **not** a
+  save-on-blur input. This was revised from an initial always-live/
+  save-on-blur design after user feedback that it felt risky ("neat,
+  but scary — someone could change it by accident"). The local "this
+  server" row now also gets its own Edit/Save/Cancel (no Delete),
+  covering Name only since its URL is architecturally fixed
+  (`window.location.origin`). The "Add server" row gained an optional
+  `Name (optional)` input alongside the URL field, so a custom name can
+  be set at add-time (`cfgAddNew()` calls `setNameOverride()` only if a
+  name was entered). `cfgEdit()`/`cfgSave()`/`cfgCancel()` were
+  generalized to toggle/save/cancel whichever of {name, url} pairs
+  exist in a row — local rows only have a name pair, other rows have
+  both, and the Enter/Escape keydown handlers on each input still work
+  the same way they did for URL-only editing before. The probe callback
+  still never overwrites a saved override or an in-progress edit —
+  updated to keep the display span's text in sync with the probed name
+  only when there's no override and the row isn't currently mid-edit
+  (in addition to always updating the input's `placeholder`).
+- `cfgResetAll()` ("Clear All") now also clears `LS_NAMES`.
+  `cfgResetExceptServers()` ("Clear All Except Registry Locations")
+  deliberately leaves `LS_NAMES` alone, same as `LS_SERVERS` — a name
+  override is metadata about a saved registry location, not a general
+  "option", so it's preserved together with the server list it's keyed
+  against.
+- CSS (`registry/ui/style.css`): `.cfg-name-input` now looks like the
+  existing `.cfg-url-input` (bordered text box) since it's only ever
+  visible during an active edit, not "always shown, styled to look
+  passive" as in the original save-on-blur design. `.cfg-name-display`
+  needs no styling of its own (plain text, same as `.cfg-url-display`).
+
+**Verified** via CDP against a live xrserver: local row's Edit → type
+name → Save correctly sets the override (confirmed via
+`getNameOverride()`) and updates the display span in place; Edit → type
+→ Cancel correctly discards the change (display reverts to the prior
+saved value, nothing persisted). Added a new server with a name via the
+Add row's optional Name field — row rendered with that name
+immediately, no separate edit step needed. Edited an existing
+user-added row's Name and URL together in one Edit/Save cycle — both
+new values took effect (row's `data-cfg-url` and displayed name updated
+correctly, `removeServer`/`addServer` + `setNameOverride` all called
+with the new URL as key). Delete still works via the unaffected
+`cfgDelete()` path. `node --check app.js` passes throughout.
 
 **Status**: Complete.
 

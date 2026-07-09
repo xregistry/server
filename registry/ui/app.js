@@ -66,6 +66,7 @@ var _state = {
 
 var LS_SERVERS     = 'xreg-servers';
 var LS_OPTIONS     = 'xreg-options';
+var LS_NAMES       = 'xreg-name-overrides';
 var _labelCache    = {};  // normalizedURL → probed registry name
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
@@ -160,6 +161,34 @@ function addServer(url) {
 
 function removeServer(url) {
   saveServers(loadServers().filter(function(u) { return u !== url; }));
+}
+
+// ---- Registry name overrides (persisted) -----------------------------------
+//
+// Lets a user give a registry a custom display name from the Config page,
+// used everywhere the UI would otherwise show the server-reported name
+// (registryid, or a spec `name` attribute if present) — the Registries
+// list/grid, breadcrumbs, and the Registry root page's own header title.
+// Purely client-side/cosmetic: never sent to the server, never affects the
+// actual registry data. Keyed by normalizeURL() so it survives http(s)/
+// trailing-slash variations the same way LS_SERVERS does.
+function loadNameOverrides() {
+  try { return JSON.parse(localStorage.getItem(LS_NAMES) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveNameOverrides(map) {
+  try { localStorage.setItem(LS_NAMES, JSON.stringify(map)); } catch(e) {}
+}
+function getNameOverride(url) {
+  var map = loadNameOverrides();
+  return map[normalizeURL(url)] || '';
+}
+function setNameOverride(url, name) {
+  var map = loadNameOverrides();
+  var norm = normalizeURL(url);
+  name = (name || '').trim();
+  if (name) map[norm] = name; else delete map[norm];
+  saveNameOverrides(map);
 }
 
 // ---- Init -----------------------------------------------------------------
@@ -941,6 +970,8 @@ function setDataView(v) {
 // Build the registry dropdown: Home + known registries + Add
 function serverLabel(url) {
   var norm = normalizeURL(url || window.location.origin);
+  var override = getNameOverride(norm);
+  if (override) return override;
   if (_labelCache[norm]) return _labelCache[norm];
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '') || url;
 }
@@ -1719,7 +1750,7 @@ function renderHomeTable(main, servers) {
         }
         if (groupsEl) groupsEl.textContent = '';
       } else {
-        if (nameEl && info.label) nameEl.textContent = info.label;
+        if (nameEl && info.label && !getNameOverride(row.dataset.serverUrl)) nameEl.textContent = info.label;
         if (info.icon) {
           var iconEl = row.querySelector('.reg-row-icon');
           if (iconEl) iconEl.src = info.icon;
@@ -1880,7 +1911,7 @@ function probeAllCards(main) {
           if (errText) { errText.textContent = info.error; errText.style.display = ''; }
         }
       } else {
-        if (nameEl && info.label) nameEl.textContent = info.label;
+        if (nameEl && info.label && !getNameOverride(card.dataset.serverUrl)) nameEl.textContent = info.label;
         if (info.icon) {
           var iconEl = card.querySelector('.server-card-icon');
           if (iconEl) iconEl.src = info.icon;
@@ -2023,16 +2054,25 @@ function renderConfig() {
     + '<h3 class="config-section-title">Registry Servers</h3>'
     + '<table class="config-table"><thead><tr><th>Name</th><th>Location</th><th></th></tr></thead><tbody>';
 
-  // Local server — not editable or deletable
-  html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '">'
-    + '<td class="cfg-name">' + esc(_labelCache[normalizeURL(origin)] || '') + '</td>'
+  // Local server — its URL is fixed (can't ever be a different server),
+  // but its display Name can still be overridden and edited like any
+  // other registry, via its own Edit/Save/Cancel (no Delete/URL editing).
+  html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
+    + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
+    + '<td class="cfg-name">' + cfgNameCellHTML(normalizeURL(origin)) + '</td>'
     + '<td><span class="cfg-url-display">' + esc(origin)
-    + ' <span class="config-local-badge">this server</span></span></td><td></td></tr>';
+    + ' <span class="config-local-badge">this server</span></span></td>'
+    + '<td class="cfg-actions">'
+    +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
+    +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
+    +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+    + '</td></tr>';
 
   // User-added servers
   servers.filter(function(u) { return u !== origin; }).forEach(function(url) {
-    html += '<tr data-cfg-url="' + esc(url) + '">'
-      + '<td class="cfg-name">' + esc(_labelCache[normalizeURL(url)] || '') + '</td>'
+    html += '<tr data-cfg-url="' + esc(url) + '" '
+      + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(url))) + '">'
+      + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
       + '<td>'
       +   '<span class="cfg-url-display">' + esc(url) + '</span>'
       +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
@@ -2049,6 +2089,8 @@ function renderConfig() {
 
   html += '</tbody></table>'
     + '<div class="cfg-add-row">'
+    +   '<input type="text" id="cfg-new-name" placeholder="Name (optional)" '
+    +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
     +   '<input type="text" id="cfg-new-url" placeholder="http://example.com" '
     +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
     +   '<button class="cfg-btn" onclick="cfgAddNew()">Add</button>'
@@ -2096,8 +2138,15 @@ function renderConfig() {
     probeRegistry(url, function(info) {
       var tr = main.querySelector('tr[data-cfg-url="' + norm + '"]');
       if (tr && info.label) {
-        var nameCell = tr.querySelector('.cfg-name');
-        if (nameCell) nameCell.textContent = info.label;
+        var nameInput = tr.querySelector('.cfg-name-input');
+        // Only fill in the probed name as a placeholder — never overwrite
+        // an override the user has set, or a name currently being edited.
+        if (nameInput) nameInput.placeholder = info.label;
+        var nameDisplay = tr.querySelector('.cfg-name-display');
+        if (nameDisplay && !getNameOverride(norm)
+            && (!nameInput || nameInput.style.display === 'none')) {
+          nameDisplay.textContent = info.label;
+        }
       }
       if (!info.error) return;
       var disp = tr && tr.querySelector('.cfg-url-display');
@@ -2131,35 +2180,64 @@ function renderConfig() {
   });
 }
 
+// Builds the Name cell's display+input pair for a Config-page server row,
+// mirroring the existing display/input pattern used for the URL column.
+// Shows the current override (if any), else the probed server name — kept
+// in sync with the always-visible display span. The input itself only
+// becomes visible (and editable) once the row's Edit button is clicked; see
+// cfgEdit()/cfgSave()/cfgCancel().
+function cfgNameCellHTML(url) {
+  var norm     = normalizeURL(url);
+  var override = getNameOverride(norm);
+  var probed   = _labelCache[norm] || '';
+  var shown    = override || probed || '\u2014';
+  return '<span class="cfg-name-display">' + esc(shown) + '</span>'
+    + '<input class="cfg-name-input" style="display:none" value="' + esc(override) + '" '
+    +   'placeholder="' + esc(probed) + '" '
+    +   'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
+    +             'else if(event.key===\'Escape\')cfgCancel(this)">';
+}
+
+// Reveals whichever of {Name, URL} editable inputs exist in this row (the
+// local "this server" row only has a Name input; other rows have both) and
+// swaps the Edit button for Save/Cancel.
 function cfgEdit(btn) {
   var tr = btn.closest('tr');
-  tr.querySelector('.cfg-url-display').style.display = 'none';
-  tr.querySelector('.cfg-url-input').style.display   = '';
-  tr.querySelector('.cfg-edit').style.display        = 'none';
-  tr.querySelector('.cfg-save').style.display        = '';
-  tr.querySelector('.cfg-cancel').style.display      = '';
-  var inp = tr.querySelector('.cfg-url-input');
-  inp.focus(); inp.select();
+  tr.querySelectorAll('.cfg-name-display, .cfg-url-display').forEach(function(e) { e.style.display = 'none'; });
+  tr.querySelectorAll('.cfg-name-input, .cfg-url-input').forEach(function(e) { e.style.display = ''; });
+  tr.querySelector('.cfg-edit').style.display   = 'none';
+  tr.querySelector('.cfg-save').style.display   = '';
+  tr.querySelector('.cfg-cancel').style.display = '';
+  var inp = tr.querySelector('.cfg-name-input') || tr.querySelector('.cfg-url-input');
+  if (inp) { inp.focus(); inp.select(); }
 }
 
 function cfgCancel(el) {
-  var tr = el.closest('tr');
-  var inp = tr.querySelector('.cfg-url-input');
-  inp.value = tr.dataset.cfgUrl;
-  tr.querySelector('.cfg-url-display').style.display = '';
-  inp.style.display                                  = 'none';
-  tr.querySelector('.cfg-edit').style.display        = '';
-  tr.querySelector('.cfg-save').style.display        = 'none';
-  tr.querySelector('.cfg-cancel').style.display      = 'none';
+  var tr      = el.closest('tr');
+  var nameInp = tr.querySelector('.cfg-name-input');
+  var urlInp  = tr.querySelector('.cfg-url-input');
+  if (nameInp) nameInp.value = tr.dataset.cfgName || '';
+  if (urlInp)  urlInp.value  = tr.dataset.cfgUrl;
+  tr.querySelectorAll('.cfg-name-display, .cfg-url-display').forEach(function(e) { e.style.display = ''; });
+  tr.querySelectorAll('.cfg-name-input, .cfg-url-input').forEach(function(e) { e.style.display = 'none'; });
+  tr.querySelector('.cfg-edit').style.display   = '';
+  tr.querySelector('.cfg-save').style.display   = 'none';
+  tr.querySelector('.cfg-cancel').style.display = 'none';
 }
 
 function cfgSave(el) {
-  var tr  = el.closest('tr');
-  var old = tr.dataset.cfgUrl;
-  var neu = normalizeURL(tr.querySelector('.cfg-url-input').value);
-  if (!neu) return;
-  removeServer(old);
-  addServer(neu);
+  var tr      = el.closest('tr');
+  var oldUrl  = tr.dataset.cfgUrl;
+  var urlInp  = tr.querySelector('.cfg-url-input');
+  var nameInp = tr.querySelector('.cfg-name-input');
+  var newUrl  = urlInp ? normalizeURL(urlInp.value) : oldUrl;
+  if (urlInp && !newUrl) return;
+
+  if (urlInp && newUrl !== oldUrl) {
+    removeServer(oldUrl);
+    addServer(newUrl);
+  }
+  if (nameInp) setNameOverride(newUrl, nameInp.value.trim());
   renderConfig();
 }
 
@@ -2180,9 +2258,12 @@ function cfgSetJsonColor(mode) {
 }
 
 function cfgAddNew() {
-  var inp = el('cfg-new-url');
+  var inp     = el('cfg-new-url');
+  var nameInp = el('cfg-new-name');
   if (!inp || !inp.value.trim()) return;
-  addServer(inp.value.trim());
+  var url = inp.value.trim();
+  addServer(url);
+  if (nameInp && nameInp.value.trim()) setNameOverride(url, nameInp.value.trim());
   renderConfig();
   var newInp = el('cfg-new-url');
   if (newInp) newInp.focus();
@@ -2190,8 +2271,8 @@ function cfgAddNew() {
 
 // ---- Reset (clear browser-side state) -------------------------------------
 //
-// All browser-side state this app keeps lives in exactly two localStorage
-// keys (LS_SERVERS, LS_OPTIONS) plus a handful of in-memory caches
+// All browser-side state this app keeps lives in exactly three localStorage
+// keys (LS_SERVERS, LS_OPTIONS, LS_NAMES) plus a handful of in-memory caches
 // (_labelCache/_modelCache/_capCache/_offeredCache etc.) that are rebuilt
 // automatically on next use — a full page reload after clearing
 // localStorage is therefore sufficient to reset everything, with no need
@@ -2201,6 +2282,7 @@ function cfgResetAll() {
   if (!window.confirm('Clear ALL saved registry locations and options, and reload? This cannot be undone.')) return;
   localStorage.removeItem(LS_SERVERS);
   localStorage.removeItem(LS_OPTIONS);
+  localStorage.removeItem(LS_NAMES);
   window.location.reload();
 }
 
@@ -2537,7 +2619,19 @@ function renderSingleEntity(data) {
     var idValH = data[idFieldNameH] !== undefined ? data[idFieldNameH]
       : depthH > 0 ? _state.path[depthH - 1] : data.registryid;
     var titleDisplayH = data.name || (idValH != null ? String(idValH) : '');
-    if (depthH === 0) titleDisplayH = titleDisplayH.replace(/\s+Registry$/i, '');
+    if (depthH === 0) {
+      // Registry root header — a user-set name override (Config page)
+      // takes priority over the server-reported name/registryid. See
+      // plan.md "Registry name override on Config page". Only the
+      // server-provided fallback gets the trailing-"Registry"-word
+      // stripped (e.g. "CloudEvents Registry" → "CloudEvents", to avoid
+      // "REGISTRY: CloudEvents Registry") — an explicit user override is
+      // shown verbatim since the user already controls exactly what to
+      // type there.
+      var regNameOverrideH = getNameOverride(_state.serverURL || window.location.origin);
+      titleDisplayH = regNameOverrideH
+        || titleDisplayH.replace(/\s+Registry$/i, '');
+    }
     var resSingularH = (depthH === 4 || depthH >= 6) && model
       ? getSingularName(model, _state.path.slice(0, 4)) : null;
     // Version pages (depth >= 6) show the owning Resource ID before "VERSION"

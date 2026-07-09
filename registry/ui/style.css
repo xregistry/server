@@ -1087,6 +1087,15 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   border: 1px solid #aaa;
   border-radius: 4px;
 }
+.cfg-name-input {
+  width: 100%;
+  font-size: 13px;
+  padding: 3px 6px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}
+.cfg-name-input::placeholder { color: #888; font-style: italic; }
+.cfg-add-row input#cfg-new-name { flex: 0 0 180px; }
 .cfg-actions { white-space: nowrap; display: flex; gap: 6px; justify-content: flex-end; }
 .cfg-btn {
   font-size: 12px;
