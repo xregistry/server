@@ -304,6 +304,48 @@ goals.
   buttons start disabled, become enabled when the sort draft changes,
   and go back to disabled when reverted.
 
+- [x] ~~Support Capabilities/Capabilities-Offered in List view, with edit
+  for Capabilities.~~ **DONE** (2026-07-09). Investigation found Capabilities
+  already had a full List view + editing (`renderCapabilitiesEditor`/
+  `renderCapEditor`, `registry/ui/app.js` ~8244-8674) from earlier
+  session work — only `capabilitiesoffered` needed a List view. Added
+  `renderCapabilitiesOfferedViewer()`/`renderCapSchemaNode()` (app.js
+  ~8677-8735): a new recursive **read-only** renderer for the
+  offered-capabilities schema shape (`{type,attributes}` /
+  `{type,enum,item}`), reusing the existing `capSection`/`capObjectBox`/
+  `capChipList` CSS/DOM helpers so it looks consistent with the
+  Capabilities editor. Wired into `refresh()` and `setDataView()`
+  alongside `capabilities`; `defaultDataView()` and `renderHeader()`'s
+  view-button-enable logic updated so `capabilitiesoffered` now defaults
+  to `table` (List), with Grid disabled, JSON enabled, and Edit always
+  disabled (server-declared schema document, never user-editable).
+  Verified via CDP screenshots: List view renders all top-level sections
+  (`available`, `compatibilities` w/ enum chips, `flags`, `formats`,
+  `ignores`, etc.), JSON toggle works, Edit button stays disabled, and
+  the registry root page's "Capabilities Offered" nav pill correctly
+  links to it — with no regression to the existing Capabilities
+  List/edit functionality.
+
+- [ ] **New SPA lacks the old `?ui` HTML view's server-side proxy for
+  remote registries (real functional gap, found via analysis
+  2026-07-09).** Old UI has a real backend proxy: `GET
+  /proxy?host=<remote>&path=<path>` (`registry/httpStuff.go:122`,
+  `registry/ui.go:82-100,2919-2930`) — the local xrserver process
+  fetches the remote xRegistry server itself and relays it to the
+  browser, avoiding CORS entirely. The new `/ui/` SPA's `addServer()`
+  (`registry/ui/app.js:154`) only does direct client-side `fetch()` to
+  whatever server URL the user adds — confirmed zero references to
+  `/proxy` anywhere in `app.js`. Adding a remote registry that doesn't
+  set permissive CORS headers will silently fail in the new SPA where
+  the old UI would have worked. Needs discussion: should the SPA route
+  arbitrary remote-server fetches through `/proxy` transparently (e.g.
+  detect cross-origin servers, or fetch failures, and retry via
+  `/proxy`)? Everything else compared between the old `?ui` HTML view
+  and the new SPA (registry picker dropdown, "open source/commit" link,
+  a `<form id=url>` URL bar) was found to be either already replicated
+  differently or dead/commented-out code in the old UI — not a real
+  functional gap.
+
 ## Completed (for history / context)
 
 - Removed dead legacy CSS: `#left`/`#right` id selectors in

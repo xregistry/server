@@ -485,14 +485,12 @@ function pushStateReal(patch) {
 
 // Default dataView for a given section/path-depth, honoring saved preferences.
 //   data                — per-depth preference (_opts.depthViews), default 'grid'
-//   model / modelsource — per-section preference (_opts.sectionViews), default 'table' (list)
-//   capabilities / capabilitiesoffered — always 'json' (no other view exists yet)
+//   model / modelsource / capabilities / capabilitiesoffered — per-section
+//                         preference (_opts.sectionViews), default 'table' (list)
 function defaultDataView(section, pathLen, path) {
-  if (section === 'model' || section === 'modelsource' || section === 'capabilities') {
+  if (section === 'model' || section === 'modelsource' || section === 'capabilities'
+      || section === 'capabilitiesoffered') {
     return (_opts.sectionViews || {})[section] || 'table';
-  }
-  if (section === 'capabilitiesoffered') {
-    return 'json';
   }
   // Grid view has been removed entirely for the data section — Registry
   // root, Group/Resource/Version entities, and the Groups/Resources/
@@ -667,15 +665,16 @@ function renderHeader() {
   //                                 edit only ever available on modelsource (never model)
   //   capabilities                — no grid (list-style editor only), list+json available;
   //                                 edit available when the doc itself is mutable
-  //   capabilitiesoffered         — JSON only, no editing (schema document)
+  //   capabilitiesoffered         — no grid (list-style viewer only), list+json available;
+  //                                 always read-only (server-declared schema document)
   //   home 'types' (cross-registry Group Types list) — Grid removed, List
   //                                 only; home 'registry' (list of known
   //                                 registries) is unaffected.
   var section          = _state.section;
   var isModelSection    = isData && (section === 'model' || section === 'modelsource');
   var isCapSection      = isData && (section === 'capabilities');
-  var isListOnlySection = isModelSection || isCapSection;
-  var isJsonOnlySection = isData && (section === 'capabilitiesoffered');
+  var isCapOfferedSection = isData && (section === 'capabilitiesoffered');
+  var isListOnlySection = isModelSection || isCapSection || isCapOfferedSection;
 
   var enableGrid, enableList, enableJson, enableEdit;
   if (isConfig) {
@@ -683,8 +682,6 @@ function renderHeader() {
   } else if (isHome) {
     var isHomeTypes = _state.homeGroup === 'types';
     enableGrid = !isHomeTypes; enableList = true; enableJson = false; enableEdit = false;
-  } else if (isJsonOnlySection) {
-    enableGrid = enableList = false; enableJson = true;  enableEdit = false;
   } else if (isListOnlySection) {
     enableGrid = false; enableList = true; enableJson = true;
     enableEdit = isCapSection ? _state.mutable : (section === 'modelsource') && _state.mutable;
@@ -695,7 +692,7 @@ function renderHeader() {
 
   qsa('[data-dview]').forEach(function(b) {
     var v = b.dataset.dview;
-    var active = isJsonOnlySection ? (v === 'json') : (v === effectiveView);
+    var active = (v === effectiveView);
     b.classList.toggle('active', active);
     var disabled = isConfig
       || (v === 'grid'  && !enableGrid)
@@ -900,6 +897,20 @@ function setDataView(v) {
           renderCapabilitiesEditor(_lastData, offered);
         });
       }
+    }
+    return;
+  }
+
+  // Capabilities Offered: same per-section persisted preference; always
+  // read-only (see refresh()'s isCapOfferedSection branch).
+  if (_state.section === 'capabilitiesoffered') {
+    if (!_opts.sectionViews) _opts.sectionViews = {};
+    _opts.sectionViews[_state.section] = v;
+    saveOpts();
+    history.replaceState(null, '', buildURL(_state));
+    if (_lastData) {
+      setLeftPanelVisible(v === 'json');
+      v === 'json' ? renderJSONView(_lastData) : renderCapabilitiesOfferedViewer(_lastData);
     }
     return;
   }
@@ -1493,28 +1504,34 @@ function refresh() {
 
   var isModelSection        = (_state.section === 'model' || _state.section === 'modelsource');
   var isCapabilitiesSection = (_state.section === 'capabilities');
-  var isJsonOnlySection     = (_state.section === 'capabilitiesoffered');
+  var isCapOfferedSection   = (_state.section === 'capabilitiesoffered');
   // Grid/List's own "Filters" toggle (separate from JSON view, which always
   // shows the full left panel) — see plan.md "Filter support in Grid/List
   // views".
   var showGridFilters = isGridFiltersOnlyMode();
 
-  setLeftPanelVisible(_state.view === 'json' || _state.dataView === 'json' || isJsonOnlySection || showGridFilters);
+  setLeftPanelVisible(_state.view === 'json' || _state.dataView === 'json' || showGridFilters);
   main.innerHTML = spinner();
 
-  // Capabilities Offered — always JSON (schema document, not user-edited)
-  if (isJsonOnlySection) {
-    var sectionURL = buildAPIURL();
-    fetchJSON(sectionURL)
+  // Capabilities Offered — list (read-only schema viewer) or JSON view, per
+  // _state.dataView. Always read-only (server-declared schema document, not
+  // user-edited) — see plan.md "Capabilities/CapabilitiesOffered List view".
+  if (isCapOfferedSection) {
+    var offeredURL = buildAPIURL();
+    fetchJSON(offeredURL)
       .then(function(data) {
         _lastData = data;
         _state.mutable = false;
         renderHeader();
-        renderJSONView(data);
+        if (_state.dataView === 'json') {
+          renderJSONView(data);
+        } else {
+          renderCapabilitiesOfferedViewer(data);
+        }
       })
       .catch(function(err) {
         main.innerHTML = '<div class="error-banner">Error loading:\n'
-          + esc(sectionURL) + '\n\n' + esc(String(err)) + '</div>';
+          + esc(offeredURL) + '\n\n' + esc(String(err)) + '</div>';
       });
     return;
   }
@@ -8655,6 +8672,72 @@ function renderCapEditor() {
     });
     body.appendChild(extSec.sec);
   }
+}
+
+// Renders a read-only, human-readable List view for a registry's
+// /capabilitiesoffered document. Unlike /capabilities, this document is
+// itself a schema description (each entry looks like {type, attributes} /
+// {type, enum, item} / etc. — see common/capabilities.go's
+// OfferedCapability shape) rather than a set of actual values, so it gets
+// its own recursive schema-node renderer (renderCapSchemaNode) instead of
+// reusing renderCapValueGeneric (which pairs a *value* with its offered
+// node). Always read-only — capabilitiesoffered is a server-declared
+// document, never user-edited (see plan.md "Capabilities/CapabilitiesOffered
+// List view").
+function renderCapSchemaNode(node) {
+  if (!node || typeof node !== 'object') {
+    var pre = document.createElement('pre'); pre.className = 'capRawFallback';
+    pre.textContent = JSON.stringify(node, null, 2);
+    return pre;
+  }
+  var type = node.type || '';
+  if (type === 'object' && node.attributes) {
+    var box = document.createElement('div'); box.className = 'capObjectBox';
+    Object.keys(node.attributes).sort().forEach(function(k) {
+      box.appendChild(capLabelRow(k, renderCapSchemaNode(node.attributes[k])));
+    });
+    return box;
+  }
+  // Array / map with a nested item schema (e.g. compatibilities' array-of-
+  // string-enum entries) — show the item type plus allowed values as chips.
+  // Note: the enum of allowed values lives on the array/map node itself
+  // (node.enum), not on node.item — node.item only carries the item's type.
+  if ((type === 'array' || type === 'map') && node.item) {
+    var wrap = document.createElement('div'); wrap.className = 'capSchemaWrap';
+    var typeLbl = document.createElement('span'); typeLbl.className = 'capSchemaType';
+    typeLbl.textContent = type + ' of ' + (node.item.type || '?');
+    wrap.appendChild(typeLbl);
+    var enumVals = Array.isArray(node.enum) ? node.enum : node.item.enum;
+    if (Array.isArray(enumVals) && enumVals.length) {
+      wrap.appendChild(capChipList(enumVals, null, null));
+    }
+    return wrap;
+  }
+  // Leaf: plain type, optionally constrained to an enum of allowed values.
+  var leaf = document.createElement('div'); leaf.className = 'capSchemaWrap';
+  var lbl = document.createElement('span'); lbl.className = 'capSchemaType';
+  lbl.textContent = type || 'any';
+  leaf.appendChild(lbl);
+  if (Array.isArray(node.enum) && node.enum.length) {
+    leaf.appendChild(capChipList(node.enum, null, null));
+  }
+  return leaf;
+}
+
+function renderCapabilitiesOfferedViewer(data) {
+  var main = el('main-view');
+  main.innerHTML = '<div id="capEditor"></div>';
+  var wrap = el('capEditor');
+  var body = document.createElement('div'); body.className = 'capBody';
+  wrap.appendChild(body);
+  var readOnlyPrev = _capReadOnly;
+  _capReadOnly = true; // capChipList() consults this — force read-only rendering
+  Object.keys(data || {}).sort().forEach(function(k) {
+    var sec = capSectionEl(k);
+    sec.body.appendChild(renderCapSchemaNode(data[k]));
+    body.appendChild(sec.sec);
+  });
+  _capReadOnly = readOnlyPrev;
 }
 
 // ---- Utilities -----------------------------------------------------------
