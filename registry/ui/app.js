@@ -127,6 +127,10 @@ function optHomeLayouts() {
   return _opts.homeLayouts || {registry: 'grid', types: 'grid'};
 }
 function currentHomeLayout() {
+  // Home 'types' (cross-registry Group Types) page: Grid view has been
+  // removed — always List, regardless of any previously-saved preference.
+  // See plan.md "Grid view removed".
+  if (_state.homeGroup === 'types') return 'table';
   return (_state.homeLayouts || {})[_state.homeGroup] || 'grid';
 }
 
@@ -243,11 +247,15 @@ function loadStateFromURL() {
   _state.path        = decodePath(p.get('path') || '');
   // Use explicit dview param if present; otherwise restore saved preference for this
   // section/depth (data pages restore per-depth, model/modelsource restore per-section)
-  _state.dataView    = p.get('dview') || defaultDataView(_state.section, _state.path.length);
+  _state.dataView    = p.get('dview') || defaultDataView(_state.section, _state.path.length, _state.path);
   _state.editMode    = p.get('edit') === '1';
   _state.inlines     = csvList(p.get('inline'));
   _state.filters     = (p.get('filter') || '').split('\n').filter(Boolean);
-  _state.sort        = p.get('sort') || '';
+  // Sort is only valid on collection-shaped paths (see pageHref()'s note) —
+  // the server 400s if asked to sort a non-collection endpoint. Guard here
+  // too so a stale/hand-edited/bookmarked URL degrades gracefully (silently
+  // drops the invalid param) instead of producing a server error on load.
+  _state.sort        = isCollection(_state.path) ? (p.get('sort') || '') : '';
   _state.docView     = p.get('doc')         === '1';
   _state.binary      = p.get('binary')      === '1';
   _state.collections = p.get('collections') === '1';
@@ -262,6 +270,14 @@ function loadStateFromURL() {
   _state.crumbURLs   = [];
   _state.docTab      = p.get('tab') || '';
   _state.resVersion  = p.get('ver') || '';
+  // List view's "Filters" toggle panel (isGridFiltersOnlyMode()) — persist
+  // its open/closed state across a refresh, same as the Filters/Sort
+  // values it displays. Restored here as a plain global (not part of
+  // _state) since that's how the rest of the app already tracks it (see
+  // toggleFiltersPanel()); every data-page render already re-checks
+  // isGridFiltersOnlyMode() to decide whether to show the panel, so simply
+  // restoring this flag is enough to bring the panel back on load.
+  _filtersPanelOpen  = p.get('panel') === '1';
   syncFiltersFromApiURL();
 }
 
@@ -280,7 +296,7 @@ function buildURL(st) {
   if (st.section === 'data' && st.apiURL && st.path && st.path.length) {
     p.set('apiurl', st.apiURL);
   }
-  var defaultView = defaultDataView(st.section, (st.path || []).length);
+  var defaultView = defaultDataView(st.section, (st.path || []).length, st.path);
   if (st.dataView && st.dataView !== defaultView) p.set('dview', st.dataView);
 
   // Resource/Version page tab + version-selector persistence — only
@@ -300,15 +316,39 @@ function buildURL(st) {
   // be absent from the URL in all non-JSON-view contexts.
   var isJsonOnlySection = st.section === 'capabilities' || st.section === 'capabilitiesoffered';
   var inJsonView = st.dataView === 'json' || st.view === 'json' || isJsonOnlySection;
-  // Filters are supported by Grid/List views too (unlike inline/sort/doc/
+  // Filters and Sort are supported by List view too now (unlike inline/doc/
   // binary/collections, which remain JSON-view-only for now — see plan.md
-  // "Filter support in Grid/List views") — so persist them regardless of
-  // view, otherwise a filter applied in Grid/List silently vanishes on
-  // refresh (loadStateFromURL() has nothing to read it back from).
-  if (st.filters && st.filters.length) p.set('filter', st.filters.join('\n'));
+  // "Filter support in Grid/List views" and "List view Sort picker") — so
+  // persist them regardless of view, otherwise applying either in List
+  // silently vanishes on refresh (loadStateFromURL() has nothing to read
+  // it back from).
+  //
+  // But skip the top-level `filter=` param when `apiurl=` (just above) is
+  // itself already carrying the exact same filters embedded in its own
+  // query string — that's the case whenever `st.apiURL` came from
+  // applyFilters() (current collection page, post-Apply) or
+  // entityHrefWithFilter() (an entity row's own link, rescoped to match
+  // the collection's active filter): writing both would show `filter=`
+  // twice in the address bar/hover URL for no benefit, since
+  // syncFiltersFromApiURL() already re-derives `_state.filters` straight
+  // from `apiurl=` on load. Only fall back to the explicit top-level param
+  // when `apiurl=` isn't set or doesn't already match (e.g. links to pages
+  // with no cached real URL yet) — it remains the sole source there.
+  var apiURLFilters = (st.section === 'data' && st.apiURL && st.path && st.path.length)
+    ? filtersFromUrl(st.apiURL) : null;
+  var filterAlreadyInApiURL = apiURLFilters && sameStringSet(apiURLFilters, st.filters || []);
+  if (st.filters && st.filters.length && !filterAlreadyInApiURL) {
+    p.set('filter', st.filters.join('\n'));
+  }
+  if (st.sort)                         p.set('sort',   st.sort);
+  // Persist List view's Filters/Sort panel open/closed state too (same
+  // reasoning as filter/sort above — otherwise the panel a user left open
+  // silently closes on refresh, even though navigating the hierarchy
+  // normally keeps it open). Only meaningful outside JSON view, which
+  // always shows its own full left panel regardless of this flag.
+  if (_filtersPanelOpen && !inJsonView) p.set('panel', '1');
   if (inJsonView) {
     if (st.inlines && st.inlines.length)   p.set('inline',      st.inlines.join(','));
-    if (st.sort)                           p.set('sort',        st.sort);
     if (st.docView)                        p.set('doc',         '1');
     if (st.binary)                         p.set('binary',      '1');
     if (st.collections)                    p.set('collections', '1');
@@ -360,9 +400,10 @@ function pushStateReal(patch) {
                        patch.view !== 'home' && patch.view !== 'config' &&
                        (_state.view === 'home' || _state.view === 'config');
   if (changingServer || changingPath || changingSection || enteringData) {
-    var newDepth   = (patch.path !== undefined ? patch.path : _state.path || []).length;
+    var newPath    = patch.path !== undefined ? patch.path : _state.path || [];
+    var newDepth   = newPath.length;
     var newSection = patch.section !== undefined ? patch.section : _state.section;
-    var savedView  = defaultDataView(newSection, newDepth);
+    var savedView  = defaultDataView(newSection, newDepth, newPath);
     // JSON view is "sticky" across navigation — moving up/down within a section's
     // pages, or switching between Registry Data / Model / Model Source / Capabilities
     // / Capabilities Offered (e.g. via the Registry Endpoints panel or the
@@ -374,6 +415,24 @@ function pushStateReal(patch) {
         && _state.dataView === 'json' && patch.dataView === undefined) {
       savedView = 'json';
     }
+
+    // Invalidate the Filters/Sort picker drafts on every fresh navigation
+    // (as opposed to in-page actions like switching List<->JSON view or
+    // opening/closing the panel, which should NOT lose an in-progress,
+    // not-yet-applied edit). Their lazy "rebuild only if the key changed"
+    // checks (ensureFbDraft()/ensureSortDraft()) aren't enough on their
+    // own: those functions only run while their section actually renders,
+    // and Sort only renders on collection pages — so a round trip through
+    // a non-collection page (e.g. Collection A -> registry root -> back to
+    // Collection A) never invalidates the key, leaving a stale draft with
+    // the old attribute still selected even though _state.sort was
+    // correctly reset to '' below. Filters happens to self-heal today only
+    // because Filters also renders at the root, but that's incidental —
+    // reset both explicitly here so it doesn't depend on which sections
+    // happen to render along the way. See plan.md "Stale Sort picker
+    // after breadcrumb round-trip".
+    _sortDraft = null; _sortDraftKey = null;
+    _fbDraft = null;   _fbDraftKey = null;
 
     // Link-driven navigation bookkeeping: crumbURLs caches the real URL used at
     // each visited depth this session. Server/section changes (or freshly
@@ -428,13 +487,21 @@ function pushStateReal(patch) {
 //   data                — per-depth preference (_opts.depthViews), default 'grid'
 //   model / modelsource — per-section preference (_opts.sectionViews), default 'table' (list)
 //   capabilities / capabilitiesoffered — always 'json' (no other view exists yet)
-function defaultDataView(section, pathLen) {
+function defaultDataView(section, pathLen, path) {
   if (section === 'model' || section === 'modelsource' || section === 'capabilities') {
     return (_opts.sectionViews || {})[section] || 'table';
   }
   if (section === 'capabilitiesoffered') {
     return 'json';
   }
+  // Grid view has been removed entirely for the data section — Registry
+  // root, Group/Resource/Version entities, and the Groups/Resources/
+  // Versions collections are all List/JSON only now (List is strictly
+  // more capable everywhere Grid used to appear — sorting, a Document
+  // column on Versions, etc. — see plan.md "Grid view removed"). Always
+  // default to List; a previously-saved per-depth Grid preference (from
+  // before this removal) is intentionally ignored.
+  if (section === 'data') return 'table';
   return (_opts.depthViews || {})[pathLen] || 'grid';
 }
 
@@ -590,12 +657,20 @@ function renderHeader() {
   if (gb) gb.style.display = '';
 
   // Section-specific view rules:
-  //   data                        — grid/table/json all available, edit when mutable
+  //   data                        — Grid view has been removed entirely
+  //                                 for the data section (Registry root,
+  //                                 Group/Resource/Version entities, and
+  //                                 the Groups/Resources/Versions
+  //                                 collections) — List/JSON only now.
+  //                                 See plan.md "Grid view removed".
   //   model / modelsource         — no grid (list-style editor only), list+json available;
   //                                 edit only ever available on modelsource (never model)
   //   capabilities                — no grid (list-style editor only), list+json available;
   //                                 edit available when the doc itself is mutable
   //   capabilitiesoffered         — JSON only, no editing (schema document)
+  //   home 'types' (cross-registry Group Types list) — Grid removed, List
+  //                                 only; home 'registry' (list of known
+  //                                 registries) is unaffected.
   var section          = _state.section;
   var isModelSection    = isData && (section === 'model' || section === 'modelsource');
   var isCapSection      = isData && (section === 'capabilities');
@@ -606,14 +681,15 @@ function renderHeader() {
   if (isConfig) {
     enableGrid = enableList = enableJson = enableEdit = false;
   } else if (isHome) {
-    enableGrid = enableList = true;  enableJson = false; enableEdit = false;
+    var isHomeTypes = _state.homeGroup === 'types';
+    enableGrid = !isHomeTypes; enableList = true; enableJson = false; enableEdit = false;
   } else if (isJsonOnlySection) {
     enableGrid = enableList = false; enableJson = true;  enableEdit = false;
   } else if (isListOnlySection) {
     enableGrid = false; enableList = true; enableJson = true;
     enableEdit = isCapSection ? _state.mutable : (section === 'modelsource') && _state.mutable;
   } else {
-    enableGrid = enableList = enableJson = true;
+    enableGrid = false; enableList = enableJson = true;
     enableEdit = _state.mutable;
   }
 
@@ -626,6 +702,12 @@ function renderHeader() {
       || (v === 'table' && !enableList)
       || (v === 'json'  && !enableJson);
     b.classList.toggle('view-btn-disabled', disabled);
+    // Grid is now only ever available on the Home "registry" page (list of
+    // known registries) — everywhere else it'd just sit there permanently
+    // greyed out, so hide it entirely rather than disable-and-show. List/
+    // JSON stay visible-but-disabled since their availability varies more
+    // meaningfully page-to-page (e.g. JSON disabled on Home "types").
+    if (v === 'grid') b.style.display = enableGrid ? '' : 'none';
   });
   var editBtn = el('edit-btn');
   if (editBtn) {
@@ -633,10 +715,14 @@ function renderHeader() {
     editBtn.classList.toggle('view-btn-disabled', isConfig || !enableEdit);
   }
 
-  // Filters toggle button — only for the plain 'data' section (grid/list/json
-  // all already have their own filter UI otherwise; model/capabilities/etc
-  // don't support filter=). Only relevant outside JSON view, since JSON view
-  // always shows the full left panel (which already includes Filters).
+  // Filters/Sort toggle button — only for the plain 'data' section
+  // (grid/list/json all already have their own filter+sort UI otherwise;
+  // model/capabilities/etc support neither filter= nor sort=). Only
+  // relevant outside JSON view, since JSON view always shows the full left
+  // panel (which already includes both Filters and Sort). Shown whenever
+  // either filter or sort is supported — Sort's picker now lives in this
+  // same panel too (see renderJSONLeftPanel()), so a server that offers
+  // sort but not filter still needs a way to reach it from List view.
   var filtersBtn = el('filters-toggle-btn');
   if (filtersBtn) {
     var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
@@ -647,26 +733,47 @@ function renderHeader() {
     var capData2 = _capCache[svURL2];
     var flags2 = (capData2 && capData2.flags) || [];
     var filterSupported2 = flags2.indexOf('filter') !== -1;
+    var sortSupported2 = flags2.indexOf('sort') !== -1 && isCollection(_state.path);
+    var panelSupported2 = filterSupported2 || sortSupported2;
     var showFiltersBtn = isData && section === 'data' && effectiveView !== 'json'
-      && filterSupported2;
+      && panelSupported2;
     filtersBtn.style.display = showFiltersBtn ? '' : 'none';
     // If we've confirmed (capabilities loaded) that this registry/section
-    // genuinely doesn't support filter=, but the Grid/List filters-only
-    // panel was left open from elsewhere (e.g. switching from a registry
-    // that does support it), force it closed — otherwise it's stuck open
-    // with "No options" and no button left to close it (the button itself
-    // is hidden in this case). Only fires on confirmed non-support, not
-    // merely because we're currently in JSON view or another section, so
-    // the open/closed state still persists normally across those.
-    if (isData && section === 'data' && capLoaded2 && !filterSupported2
+    // genuinely doesn't support filter= or sort=, but the Grid/List
+    // filters-only panel was left open from elsewhere (e.g. switching from
+    // a registry that does support one of them), force it closed —
+    // otherwise it's stuck open with "No options" and no button left to
+    // close it (the button itself is hidden in this case). Only fires on
+    // confirmed non-support, not merely because we're currently in JSON
+    // view or another section, so the open/closed state still persists
+    // normally across those.
+    if (isData && section === 'data' && capLoaded2 && !panelSupported2
         && _filtersPanelOpen) {
       _filtersPanelOpen = false;
+      history.replaceState(null, '', buildURL(_state));
       setLeftPanelVisible(_state.dataView === 'json' || _state.view === 'json');
     }
     filtersBtn.classList.toggle('active', _filtersPanelOpen);
     var fCount = (_state.filters || []).length;
     var countEl = el('filters-toggle-count');
     if (countEl) countEl.textContent = fCount ? (' (' + fCount + ')') : '';
+    // Small ▲/▼ indicator showing the table's current sort direction —
+    // the only visual cue for it while the panel is closed, since (per
+    // plan.md "List view Sort picker") we deliberately don't use a count
+    // (sort isn't a quantity) or a separate pill. Reflects whichever sort
+    // mechanism is currently in effect: the Sort picker's server-side sort
+    // (_state.sort) or a column-header click (_sortCol/_sortAsc) — the two
+    // are mutually exclusive (see sortBy()/applyGridFilters()), so at most
+    // one is ever active. Shows nothing until the user deliberately picks
+    // a sort or clicks a column (the implicit default ID-ascending order
+    // doesn't count as "active").
+    var sortArrowEl = el('filters-toggle-sort-arrow');
+    if (sortArrowEl) {
+      var sortDesc = _state.sort ? (trimSplit(_state.sort, '=')[1] === 'desc')
+        : (_sortCol ? !_sortAsc : null);
+      sortArrowEl.textContent = sortDesc === null ? ''
+        : (sortDesc ? '\u25bc' : '\u25b2');
+    }
   }
 
   // For data pages, skip breadcrumb render if label not cached yet —
@@ -696,6 +803,11 @@ function toggleFiltersPanel() {
   // stale click can't blow away JSON view's own always-on left panel.
   if (_state.dataView === 'json' || _state.view === 'json') return;
   _filtersPanelOpen = !_filtersPanelOpen;
+  // Keep the URL in sync (buildURL() reflects _filtersPanelOpen via
+  // 'panel=1') so a refresh restores the panel's open/closed state —
+  // otherwise navigating the hierarchy preserves it but a reload silently
+  // drops it back to closed.
+  history.replaceState(null, '', buildURL(_state));
   renderHeader();
   var showGridFilters = isGridFiltersOnlyMode();
   setLeftPanelVisible(showGridFilters);
@@ -810,9 +922,9 @@ function setDataView(v) {
     if (_filtersPanelOpen) renderJSONLeftPanel(true);
     var coll = isCollection(_state.path);
     if (coll) {
-      v === 'grid' ? renderTileView(_lastData) : renderTableView(_lastData);
+      renderTableView(_lastData);
     } else {
-      v === 'grid' ? renderEntityGrid(_lastData) : renderSingleEntity(_lastData);
+      renderSingleEntity(_lastData);
     }
   }
 }
@@ -941,22 +1053,35 @@ function guardedOnclick(expr) {
 // native ctrl/middle-click/"open in new tab" targets across breadcrumbs,
 // tiles, rows, and nav pills. Actual (fast, no-reload) navigation always goes
 // through the accompanying onclick's pushState() call, not this href.
+//
+// Sort is only valid on collection-shaped paths — the server explicitly
+// rejects `sort=` on a non-collection endpoint (spec `sort_noncollection`).
+// A real click already resets `_state.sort` correctly via pushStateReal()'s
+// "fresh navigation" defaults, but this synthetic href doesn't go through
+// that reset — so if the CURRENT page has an active sort and `path` points
+// to a non-collection destination (e.g. a collection row's entity link),
+// drop sort here too. Otherwise ctrl/middle-click ("open in new tab") or a
+// copied/bookmarked link would 400.
+//
+// Filter needs similar care, but for a different reason: when `apiURL` is a
+// real server-provided link (e.g. a Group Type tile's `<plural>url`, or an
+// entity row's own `self`), it already carries whatever filter applies to
+// THAT destination — server-side, relativized to its own abstract path (see
+// FiltersRelativeToAbstract()) — which may look nothing like the CURRENT
+// page's `_state.filters` string (e.g. root filter `dirs.files.epoch>0`
+// becomes `files.epoch>0` once you're inside `dirs`). A real click already
+// re-derives `_state.filters` correctly from the new `apiURL` via
+// syncFiltersFromApiURL() in pushStateReal() — mirror that exact logic here
+// too, so this synthetic href shows the same (single, correctly-scoped)
+// filter a real navigation would end up with, instead of carrying the
+// CURRENT page's differently-scoped filter forward and showing both.
 function pageHref(path, apiURL, extra) {
   var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data', editMode: false}, extra || {});
+  if (!isCollection(st.path)) st.sort = '';
+  if (st.section === 'data' && st.apiURL) st.filters = filtersFromUrl(st.apiURL);
   return buildURL(st);
 }
 
-// An entity's own `self` link never carries filter context by default —
-// it's the bare canonical URL. But when the CURRENT collection view is
-// itself filtered, the server has already confirmed (via `filter=` on any
-// URL, not just collections) that appending the same currently-active
-// filter onto an item's `self` link correctly rescopes that item's own
-// nested-collection links too (e.g. entity `self`+`?filter=schemas.
-// versions.schemaid=X` rescopes that entity's own `schemasurl`, same as it
-// would on the collection URL that listed it). So: pass entity navigation
-// through here (instead of raw `item.self`) so the real, hoverable/
-// ctrl-clickable link — and the plain GET that follows a click — carries
-// the filter forward, without any client-side seed/caching trickery.
 // An entity's own `self` link never carries filter context by default —
 // it's the bare canonical URL. But when the CURRENT collection view is
 // itself filtered, the server has already confirmed (via `filter=` on any
@@ -974,12 +1099,66 @@ function pageHref(path, apiURL, extra) {
 // — so there's nothing left to rescope by carrying the filter forward.
 // Appending it there would be misleading (implying more scoping is still
 // happening when it isn't) with no actual effect, so skip it for those.
+//
+// But Versions aren't the ONLY case where a filter clause has nothing left
+// to rescope: `_state.filters`' clauses are already relative to the
+// CURRENT collection's abstract (e.g. viewing `dirs/d1/files` filtered by
+// `epoch>0` — a bare, dot-free clause about the FILE's own attribute, used
+// to decide which files show up in that collection). Once you're AT a
+// specific member of that collection (e.g. file `f1`), a clause only still
+// means something if it references one of THAT member's own nested child
+// collections (e.g. `versions.epoch>0` would still rescope `f1`'s own
+// `versionsurl`) — a bare/terminal clause like `epoch>0` has nothing left
+// to rescope on `f1`'s own page (confirmed via the server: `GET
+// f1$details?filter=epoch>0` returns 200 with `versionsurl` completely
+// unfiltered) and would misleadingly show up as an "active filter" on a
+// page where it does nothing. `filtersRelevantForEntity()` drops any such
+// now-terminal clauses, keeping only those that still address one of the
+// destination's real children (its resource plurals for a Group entity,
+// or `versions` for a Resource entity).
 function entityHrefWithFilter(self, itemPath) {
   var isVersionEntity = itemPath && itemPath.length === 6 && itemPath[4] === 'versions';
   if (!self || isVersionEntity || !isCollection(_state.path)
       || !_state.filters || !_state.filters.length) return self || '';
-  var qs = _state.filters.map(function(f) { return 'filter=' + encodeURIComponent(f); }).join('&');
+  var relevant = filtersRelevantForEntity(_state.filters, itemPath);
+  if (!relevant.length) return self;
+  var qs = relevant.map(function(f) { return 'filter=' + encodeURIComponent(f); }).join('&');
   return self + (self.indexOf('?') >= 0 ? '&' : '?') + qs;
+}
+
+// The nested child-collection plural names an entity at `path` actually
+// has — used by filtersRelevantForEntity() to tell whether a filter clause
+// still references something below that entity (and thus is still worth
+// carrying forward) or is "terminal" (about the entity's own attribute,
+// nothing left to rescope). Groups: their declared resource plurals.
+// Resources: always just `versions`. Registry root / Version entities:
+// no children of the relevant kind.
+function childCollectionsFor(path) {
+  var depth = (path || []).length;
+  if (depth === 2) {
+    var model = _modelCache[normalizeURL(serverBase())];
+    var gm = model && model.groups && model.groups[path[0]];
+    return gm && gm.resources ? Object.keys(gm.resources) : [];
+  }
+  if (depth === 4) return ['versions'];
+  return [];
+}
+
+// Filters `filters` (an array of OR-groups, each an AND-joined filter
+// clause string, e.g. "a=1,b=2") down to only the clauses that still
+// reference one of `path`'s own nested child collections — mirrors the
+// server's FiltersRelativeToAbstract(), which does the same per-clause
+// keep/drop when computing a `<COLLECTION>url`'s embedded filter. See
+// entityHrefWithFilter()'s comment for the full rationale.
+function filtersRelevantForEntity(filters, path) {
+  var children = childCollectionsFor(path);
+  if (!children.length) return [];
+  return (filters || []).map(function(group) {
+    var kept = trimSplit(group, ',').filter(function(clause) {
+      return children.some(function(c) { return clause.indexOf(c + '.') === 0; });
+    });
+    return kept.join(',');
+  }).filter(Boolean);
 }
 
 function renderSegment(seg) {
@@ -991,6 +1170,86 @@ function renderSegment(seg) {
 
 function breadcrumbsFromSegments(segs) {
   return segs.map(function(s) { return _bcSep + renderSegment(s); }).join('');
+}
+
+// Copy-to-clipboard link, appended after the last breadcrumb segment, so
+// there's always a plain, curl-able URL for exactly the data currently
+// being displayed — no UI-only params (view=, panel=, etc.), just the real
+// API request buildAPIURL() would make (respecting any active
+// filter/sort/inline/section). Not shown on the Home or Config pages,
+// since neither has a single "data" URL to copy.
+function showCopyLinkBtn() {
+  return _state.view !== 'home' && _state.view !== 'config';
+}
+
+// Standard "two overlapping documents" copy glyph (same generic design
+// used by Material Icons' content_copy / most icon sets) rendered as an
+// inline SVG rather than the clipboard emoji, for a crisper, more
+// consistent look across platforms/fonts.
+var _copyIconSVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">'
+  + '<path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>'
+  + '</svg>';
+
+function copyLinkBtnHTML() {
+  return '<button class="icon-btn bc-copy-btn" onclick="copyCurrentAPIURL(event)" '
+       + 'title="Copy API URL for this data">' + _copyIconSVG + '</button>';
+}
+
+function copyCurrentAPIURL(event) {
+  if (event) event.stopPropagation();
+  egCopy(buildTabAwareAPIURL(), 'API URL');
+}
+
+// buildAPIURL() returns the URL used to FETCH the current Resource/Version
+// entity page (always the entity's own default-version data, with
+// $details appended as needed for the fetch to work) — it has no notion
+// of which tab (Version Details / Document / Metadata) or which version
+// (via the Resource page's version-selector dropdown) is CURRENTLY being
+// displayed on screen. The copy button's whole point is "give me the URL
+// for what I'm looking at right now", so this wraps buildAPIURL() with
+// that extra tab/version awareness for Resource and Version entity pages
+// only; every other page (collections, Groups, model/modelsource/etc.)
+// falls through to plain buildAPIURL() unchanged.
+function buildTabAwareAPIURL() {
+  var path = _state.path;
+  var depth = (path || []).length;
+  var isResource = _state.section === 'data' && depth === 4;
+  var isVersion  = _state.section === 'data' && depth >= 6 && path[4] === 'versions';
+  if (!isResource && !isVersion) return buildAPIURL();
+
+  // The entity JSON currently backing the visible tabs — reflects the
+  // version-selector dropdown's pick on a Resource page (onVersionSelectChange()
+  // keeps this in sync), or is just the Version's own data on a Version page.
+  var activeData = _docActiveVersionData || _resDefaultData || _lastData;
+  var selfUrl = activeData && activeData.self;
+  if (!selfUrl) return buildAPIURL();
+
+  // _state.docTab is '' whenever the user hasn't switched away from
+  // whichever tab happens to render first (see switchDocTab()) — and tab
+  // ORDER isn't fixed: it's "Document" first when the resource type has
+  // one (resourceHasDocument()), otherwise "Version Details"/"Version" is
+  // first (see tabDefs.push() order in the entity render). So an empty
+  // docTab does NOT reliably mean "defver/version" — read the truly active
+  // tab straight from the DOM (already authoritative, always in sync)
+  // rather than re-deriving/guessing that same ordering here.
+  var activeTabEl = document.querySelector('.eg-doc-tab.active[data-tab]');
+  var tab = activeTabEl ? activeTabEl.getAttribute('data-tab') : (isResource ? 'defver' : 'version');
+
+  if (tab === 'doc') {
+    // Document tab: the plain (no $details) URL — GETting it returns the
+    // document's actual content itself (computed by the server whether the
+    // document is a real hosted <key>url, base64, or an inline JSON value),
+    // exactly matching what the Document tab's preview shows.
+    return selfUrl.replace(/\$details$/, '');
+  }
+  if (tab === 'meta' && isResource) {
+    return resolveResourceMetaUrl(activeData) || selfUrl;
+  }
+  // Default "Version Details" tab (defver/version key): the entity's own
+  // metadata view — same $details-forcing fetchWithDetailsFallback() would
+  // do, just computed directly since we already know this is a Resource/
+  // Version entity.
+  return /\$details$/.test(selfUrl) ? selfUrl : selfUrl.replace(/(\?|$)/, '$details$1');
 }
 
 function renderBreadcrumbs() {
@@ -1013,7 +1272,7 @@ function renderBreadcrumbs() {
   }
 
   _bcSegs = buildBreadcrumbSegments();
-  nav.innerHTML = breadcrumbsFromSegments(_bcSegs);
+  nav.innerHTML = breadcrumbsFromSegments(_bcSegs) + (showCopyLinkBtn() ? copyLinkBtnHTML() : '');
   nav.style.overflow = '';
 
   requestAnimationFrame(function() {
@@ -1046,7 +1305,8 @@ function collapseBreadcrumbs(nav, segs) {
   nav.innerHTML = _bcSep + renderSegment(first)
     + _bcSep + '<button class="bc-ellipsis" onclick="openBcEllipsis(event)" title="Show path">'
     + '&hellip;<span class="bc-ellipsis-arrow">&#9660;</span></button>'
-    + _bcSep + renderSegment(last);
+    + _bcSep + renderSegment(last)
+    + (showCopyLinkBtn() ? copyLinkBtnHTML() : '');
 }
 
 function collapseLevel2(nav, segs) {
@@ -1332,6 +1592,14 @@ function refresh() {
 function renderEntityFromData(data, coll) {
   _lastData = data;
   _state.mutable = detectMutable(data);
+  // Grid view has been removed entirely for the data section — normalize
+  // any stale dview=grid (old bookmark/back-forward history, from before
+  // this removal) to table so the header doesn't show Grid as "active"
+  // (even though its button is disabled) and the URL stays consistent.
+  if (_state.section === 'data' && _state.dataView === 'grid') {
+    _state.dataView = 'table';
+    history.replaceState(null, '', buildURL(_state));
+  }
   renderHeader();
   switch (_state.view) {
     case 'json': renderJSONView(data); break;
@@ -1339,9 +1607,9 @@ function renderEntityFromData(data, coll) {
       if (_state.dataView === 'json') {
         renderJSONView(data);
       } else if (coll) {
-        _state.dataView === 'grid' ? renderTileView(data) : renderTableView(data);
+        renderTableView(data);
       } else {
-        _state.dataView === 'grid' ? renderEntityGrid(data) : renderSingleEntity(data);
+        renderSingleEntity(data);
       }
   }
   // Grid/List's own Filters-only left panel (independent of JSON view's
@@ -1367,7 +1635,7 @@ function renderHome() {
   var g = _state.homeGroup;
   var l = currentHomeLayout(); // per-group persisted layout, independent of data pages
   if (g === 'types') {
-    l === 'table' ? renderHomeFlatList(main, allServers) : renderHomeFlatGrid(main, allServers);
+    renderHomeFlatList(main, allServers); // Grid removed for this page — always List
   } else {
     l === 'table' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
   }
@@ -1457,47 +1725,10 @@ function renderHomeTable(main, servers) {
   });
 }
 
-function renderHomeFlatGrid(main, servers) {
-  main.innerHTML = '<div class="home-page"><div class="home-grid flat-home-grid" id="flat-grid"><span style="color:#aaa;font-size:13px">Loading…</span></div></div>';
-
-  var pending = servers.length;
-  var allTiles = [];
-
-  function finish() {
-    allTiles.sort(function(a, b) {
-      var n = a.plural.localeCompare(b.plural);
-      return n !== 0 ? n : a.regLabel.localeCompare(b.regLabel);
-    });
-    var grid = el('flat-grid');
-    if (!grid) return;
-    if (allTiles.length === 0) {
-      grid.innerHTML = '<span style="color:#aaa;font-size:13px;font-style:italic">No group types found</span>';
-      return;
-    }
-    grid.innerHTML = allTiles.map(function(t) {
-      var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(t.serverUrl) + ',' + JSON.stringify(t.plural) + ',' + JSON.stringify(t.url) + ')');
-      var sv = (t.serverUrl === window.location.origin) ? '' : t.serverUrl;
-      var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [t.plural], apiURL: t.url || '', editMode: false}));
-      return groupTileHTML(t, esc(onclick), '', t.regLabel, href);
-    }).join('');
-  }
-
-  if (pending === 0) { finish(); return; }
-
-  servers.forEach(function(url) {
-    probeRegistry(url, function(info) {
-      if (!info.error) {
-        var label = info.label || serverLabel(url);
-        info.colls.forEach(function(c) {
-          allTiles.push({plural: c.plural, count: c.count, serverUrl: url, regLabel: label,
-                         description: c.description || '', resources: c.resources || [], url: c.url});
-        });
-      }
-      pending--;
-      if (pending === 0) finish();
-    });
-  });
-}
+// renderHomeFlatGrid() (Grid view for the Home 'types' cross-registry Group
+// Types page) has been removed — renderHomeFlatList() already shows the
+// same fields (name/link, description, item count, resource types,
+// registry) in a more scannable table. See plan.md "Grid view removed".
 
 function browseGroupCollection(serverUrl, collName, url) {
   var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
@@ -1911,96 +2142,10 @@ function cfgResetExceptServers() {
   window.location.reload();
 }
 
-// ---- Tile view -----------------------------------------------------------
-
-function renderTileView(data) {
-  var main = el('main-view');
-  var items = collectionItems(data);
-
-  if (items.length === 0) {
-    main.innerHTML = '<div class="state-msg">No items found</div>';
-    return;
-  }
-
-  var html = '<div id="tile-container">';
-  // Pick icon based on collection depth: groups=folder, resources+versions=doc
-  var tileIcon = '';
-  if (_state.path.length === 1)                        tileIcon = FOLDER_ICON;
-  else if (_state.path.length === 3 || _state.path.length === 5) tileIcon = DOC_ICON;
-
-  items.forEach(function(item, idx) {
-    var id   = itemNavKey(item);
-    var desc = item.description || '';
-    var svBase   = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-    var model    = _modelCache[normalizeURL(svBase)] || null;
-    var itemPath = _state.path.concat([id]);
-    var colls = findCollectionRefs(model, itemPath, item);
-
-    // Build the full-width sub-collection footer (outside tile-body so it spans full width)
-    var footerHtml = '';
-    if (_state.path.length === 1) {
-      var collItems = colls.length
-        ? colls.map(function(c) {
-            var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
-            var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
-            return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + esc(c.plural) + ' (' + c.count + ')</a>';
-          }).join('')
-        : '<span class="coll-tile-res-none">none</span>';
-      footerHtml = '<hr class="coll-tile-divider">'
-            + '<div class="coll-tile-res-hdr">Resources:</div>'
-            + '<div class="coll-tile-res">' + collItems + '</div>';
-    } else if (_state.path.length === 3 && colls.length) {
-      var versionIdPill = (item.versionid !== undefined && item.versionid !== null)
-        ? (function() {
-            var vUrl = defaultVersionURL(item, itemPath, colls);
-            var vPath = itemPath.concat(['versions', String(item.versionid)]);
-            var vClickExpr = 'event.stopPropagation();navigateToDefaultVersion(' + JSON.stringify(id) + ',' + JSON.stringify(item.versionid) + ',' + JSON.stringify(vUrl) + ')';
-            var vHref = pageHref(vPath, vUrl);
-            return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(vHref) + '" onclick="' + esc(guardedOnclick(vClickExpr)) + '">Default Version: ' + esc(String(item.versionid)) + '</a>';
-          })()
-        : '';
-      var verItems = colls.map(function(c) {
-        var clickExpr = 'event.stopPropagation();navigateToNestedColl(' + JSON.stringify(id) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')';
-        var pillHref = pageHref(itemPath.concat([c.plural]), c.url);
-        return '<a class="coll-tile-res-pill coll-tile-res-pill-clickable" href="' + esc(pillHref) + '" onclick="' + esc(guardedOnclick(clickExpr)) + '">' + esc(c.plural) + ': ' + c.count + '</a>';
-      }).join('');
-      footerHtml = '<hr class="coll-tile-divider">'
-            + '<div class="coll-tile-res">' + versionIdPill + verItems + '</div>';
-    }
-
-    // Created/Modified timestamps — right-aligned at the bottom of the tile.
-    var createdStr  = formatTimestamp(item.createdat);
-    var modifiedStr = formatTimestamp(item.modifiedat);
-    var timesHtml = '';
-    if (createdStr || modifiedStr) {
-      timesHtml = '<div class="tile-times">'
-        + (createdStr  ? '<div>Created: '  + esc(createdStr)  + '</div>' : '')
-        + (modifiedStr ? '<div>Modified: ' + esc(modifiedStr) + '</div>' : '')
-        + '</div>';
-    }
-
-    // The tile itself is just a plain (non-clickable) container now, so its
-    // text (id, name, description) can be freely selected/copied — only the
-    // id is an actual link (see .tile-id-link), same real href/onclick as
-    // before so hover/ctrl-click/middle-click/"open in new tab" still work.
-    var tileSelf = entityHrefWithFilter(item.self || '', itemPath);
-    var tileClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(tileSelf) + ')';
-    var tileHref = pageHref(itemPath, tileSelf);
-    html += '<div class="tile">';
-    html += '<div class="tile-top">';
-    if (tileIcon) html += '<div class="tile-icon">' + tileIcon + '</div>';
-    html += '<div class="tile-body">';
-    html += '<div class="tile-id"><a class="tile-id-link" href="' + esc(tileHref) + '" onclick="' + esc(guardedOnclick(tileClickExpr)) + '">' + esc(id) + '</a></div>';
-    if (item.name) html += '<div class="tile-name">' + esc(item.name) + '</div>';
-    if (desc)      html += '<div class="tile-desc">' + esc(desc) + '</div>';
-    html += '</div></div>'; // close tile-body + tile-top
-    html += footerHtml;
-    html += timesHtml;
-    html += '</div>'; // close tile
-  });
-  html += '</div>';
-  main.innerHTML = html;
-}
+// Grid (tile) view for the Groups/Resources/Versions collections was
+// removed — List view (renderTableView) has all the same information plus
+// sorting and (for Versions) a Document column, so Grid added no unique
+// value there. See plan.md "Grid view removed for collection pages".
 
 // ---- Table view ----------------------------------------------------------
 
@@ -2010,7 +2155,14 @@ var _tableViewItems = []; // current renderTableView() items, indexed for per-ro
 
 function renderTableView(data) {
   var main = el('main-view');
-  var items = collectionItems(data);
+  // If a server-side sort= is active (applied via the Sort picker, now
+  // available in this panel too — see renderJSONLeftPanel()) and the user
+  // hasn't clicked a column header yet (_sortCol null), honor the server's
+  // returned order instead of the default ID sort. Clicking any header (see
+  // sortBy()) clears _state.sort/the picker so only one sort mechanism is
+  // ever "active" at a time — see plan.md "List view Sort picker".
+  var preserveOrder = !_sortCol && !!_state.sort;
+  var items = collectionItems(data, preserveOrder);
 
   if (items.length === 0) {
     main.innerHTML = '<div class="state-msg">No items found</div>';
@@ -2155,7 +2307,29 @@ function renderTableView(data) {
 function sortBy(col) {
   if (_sortCol !== col) { _sortCol = col; _sortAsc = true; }
   else { _sortAsc = !_sortAsc; }
+  // A column-header click is a deliberate client-side override — clear any
+  // active server-side sort (and its picker draft) so the two mechanisms
+  // are never both "active" at once (see plan.md "List view Sort picker").
+  // No re-fetch needed: the already-fetched data just gets re-sorted in
+  // place by renderTableView() below; only _state.sort/the URL/the picker
+  // UI need to reflect that the server sort is no longer in effect.
+  if (_state.sort) {
+    _state.sort = '';
+    history.replaceState(null, '', buildURL(_state));
+    if (_sortDraft && _sortDraftKey === sortKey()) {
+      _sortDraft = {mode: '', attr: '', mapKey: '', custom: '', desc: false};
+    }
+    var sortHost = el('lp-sort-section');
+    if (sortHost) {
+      var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+      sortHost.innerHTML = buildSortSectionInner(_modelCache[normalizeURL(svBaseS)] || null);
+    }
+  }
   if (_lastData) renderTableView(_lastData);
+  // Update the Filters/Sort toggle button's sort-direction arrow to match
+  // this column-click sort (or the clearing of a prior server sort) —
+  // renderTableView() only redraws the table body, not the header button.
+  renderHeader();
 }
 
 // ---- Single entity view --------------------------------------------------
@@ -2426,10 +2600,21 @@ function renderSingleEntity(data) {
     // choices; this control never switches tabs itself. Options are
     // populated asynchronously once the versions collection is fetched
     // (loadVersionsForSelect()); until then only "Default" is selectable.
+    // Metadata (metaurl) is a per-Resource concept, not per-version, so the
+    // version-selector has no effect while the Metadata tab is active —
+    // start it disabled (and showing "N/A") if that's the tab being
+    // restored on load (kept in sync afterwards by switchDocTab()). See
+    // plan.md "Metadata tab disables version selector". The real "default"
+    // option is always kept underneath the "N/A" placeholder (just not
+    // selected) so switching away from Metadata later has something valid
+    // to fall back to — see syncVersionSelectorForTab().
+    var verSelDisabledD = (_state.docTab === 'meta');
     var versionSelectorHtml = versionsUrlD
       ? '<span class="eg-version-selector"><label for="eg-doc-version-select">Version:</label>'
-        + '<select id="eg-doc-version-select" onchange="onVersionSelectChange(this.value)">'
-        + '<option value="default" selected>' + esc(defaultOptionLabel(data)) + '</option>'
+        + '<select id="eg-doc-version-select"' + (verSelDisabledD ? ' disabled title="Metadata is the same for all versions"' : '')
+        + ' onchange="onVersionSelectChange(this.value)">'
+        + (verSelDisabledD ? '<option value="__na__" selected>N/A</option>' : '')
+        + '<option value="default"' + (verSelDisabledD ? '' : ' selected') + '>' + esc(defaultOptionLabel(data)) + '</option>'
         + '</select></span>'
       : '';
 
@@ -2523,6 +2708,18 @@ function ensureCapCached(baseURL, cb) {
     .then(function(r) { return r.json(); })
     .then(function(c) { _capCache[key] = c; if (cb) cb(c); })
     .catch(function()  { _capCache[key] = null; if (cb) cb(null); });
+}
+
+// Whether the current registry's cached /capabilities declares support for
+// flag f (e.g. 'filter', 'sort', 'inline') — a standalone equivalent of
+// renderJSONLeftPanel()'s local hasF() closure, usable from top-level
+// functions (checkbox onchange handlers, sortRerender(), fbRerender()) that
+// aren't nested inside that render call. See computeApplyDirty().
+function capHasFlag(f) {
+  var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var cap    = _capCache[normalizeURL(svBase)];
+  var flags  = (cap && cap.flags) || [];
+  return flags.indexOf(f) !== -1;
 }
 
 // Fetch and cache /capabilitiesoffered for a registry base URL (non-blocking).
@@ -2828,22 +3025,6 @@ function isSpecAttr(k, specLevel, singular, resourceSingular) {
   return false;
 }
 
-var FOLDER_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" '
-  + 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-  + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-  + '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'
-  + '</svg>';
-
-var DOC_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" '
-  + 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-  + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-  + '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
-  + '<polyline points="14 2 14 8 20 8"/>'
-  + '<line x1="16" y1="13" x2="8" y2="13"/>'
-  + '<line x1="16" y1="17" x2="8" y2="17"/>'
-  + '<polyline points="10 9 9 9 8 9"/>'
-  + '</svg>';
-
 var INFO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" '
   + 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
   + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
@@ -2852,57 +3033,10 @@ var INFO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" 
   + '<line x1="12" y1="12" x2="12" y2="16"/>'
   + '</svg>';
 
-function collectionTile(coll) {
-  var onclick = coll.count === 0
-    ? 'showToast(\'Nothing to show\')'
-    : esc(guardedOnclick('navigateTo(' + JSON.stringify(coll.plural) + ',' + JSON.stringify(coll.url) + ')'));
-  var href = coll.count === 0 ? '#' : pageHref(_state.path.concat([coll.plural]), coll.url);
-  var emptyCls = coll.count === 0 ? ' coll-tile-empty' : '';
-  return groupTileHTML(coll, onclick, emptyCls, '', href);
-}
-
-function groupTileHTML(coll, onclick, extraCls, regLabel, href) {
-  var descHtml = coll.description
-    ? '<div class="coll-tile-desc">' + esc(coll.description) + '</div>'
-    : '';
-  // Only show Resource Types section when the model has provided the list (depth 0 group tiles)
-  var resHtml = '';
-  if (coll.resources !== undefined) {
-    var resItems = coll.resources.length
-      ? coll.resources.map(function(r) { return '<span class="coll-tile-res-pill">' + esc(r) + '</span>'; }).join('')
-      : '<span class="coll-tile-res-none">none</span>';
-    resHtml = '<hr class="coll-tile-divider">'
-      + '<div class="coll-tile-res-hdr">Resource Types:</div>'
-      + '<div class="coll-tile-res">' + resItems + '</div>';
-  }
-  var regHtml = regLabel
-    ? '<div class="coll-tile-reg">' + esc(regLabel) + '</div>'
-    : '';
-  return '<div class="coll-tile' + (extraCls || '') + '">'
-    + '<div class="coll-tile-top">'
-    +   '<div class="coll-tile-icon">' + FOLDER_ICON + '</div>'
-    +   '<div class="coll-tile-summary">'
-    +     '<a class="coll-tile-name" href="' + esc(href || '#') + '" onclick="' + onclick + '">' + esc(coll.plural) + '</a>'
-    +     '<div class="coll-tile-count">' + coll.count + ' item' + (coll.count !== 1 ? 's' : '') + '</div>'
-    +   '</div>'
-    + '</div>'
-    + descHtml
-    + resHtml
-    + regHtml
-    + '</div>';
-}
-
-function docTile(singular, contenttype) {
-  return '<div class="coll-tile coll-tile-meta">'
-    + '<div class="coll-tile-top">'
-    +   '<div class="coll-tile-icon">' + DOC_ICON + '</div>'
-    +   '<div class="coll-tile-summary">'
-    +     '<a class="coll-tile-name" href="#" onclick="openDocument(\'' + esc(singular) + '\'); return false;">' + esc(singular) + ' document</a>'
-    +     '<div class="coll-tile-count">' + esc(contenttype || '') + '</div>'
-    +   '</div>'
-    + '</div>'
-    + '</div>';
-}
+// collectionTile()/groupTileHTML() were the shared tile-rendering helpers
+// for Grid view (Registry root/Group entity pages via renderEntityGrid(),
+// and the Home 'types' cross-registry Group Types page via
+// renderHomeFlatGrid()) — both removed, see plan.md "Grid view removed".
 
 function openDocument(singular, itemData) {
   var data = itemData || _lastData;
@@ -3467,6 +3601,12 @@ function loadVersionsForSelect() {
       });
       sel.innerHTML = html;
       if (restoredVid) onVersionSelectChange(restoredVid);
+      // If the Metadata tab is already active when this async fetch
+      // resolves, re-apply the "N/A" disabled state on top of the
+      // freshly-populated real options (otherwise they'd silently
+      // replace it). See plan.md "Metadata tab disables version selector".
+      var activeTabBtn = document.querySelector('.eg-doc-tab.active[data-tab]');
+      if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'meta') syncVersionSelectorForTab('meta');
     })
     .catch(function() { /* leave "Default" only — non-critical */ });
 }
@@ -3533,6 +3673,44 @@ function switchDocTab(tabKey) {
   // The panel was just made visible (or already was) — resize the textarea
   // now that layout/geometry is accurate (hidden panels report 0 height).
   if (tabKey === 'doc') sizeDocTextarea();
+  syncVersionSelectorForTab(tabKey);
+}
+
+// Metadata (metaurl) is a per-Resource concept, not per-version, so the
+// version-selector dropdown has no effect while the Metadata tab is
+// active. Swap it to a disabled "N/A" state in that case (both visually
+// greyed and unclickable), remembering/restoring the previously-selected
+// version so switching back to another tab picks up right where the user
+// left off. See plan.md "Metadata tab disables version selector".
+function syncVersionSelectorForTab(tabKey) {
+  var sel = document.getElementById('eg-doc-version-select');
+  if (!sel) return;
+  if (tabKey === 'meta') {
+    // Never stash "__na__" itself as the value to restore later — that
+    // would happen if this runs more than once while already on the
+    // Metadata tab (e.g. loadVersionsForSelect()'s async options-refresh
+    // re-invoking this) and would permanently lose the real selection.
+    if (sel.dataset.prevValue === undefined && sel.value !== '__na__') sel.dataset.prevValue = sel.value;
+    var naOpt = sel.querySelector('option[value="__na__"]');
+    if (!naOpt) {
+      naOpt = document.createElement('option');
+      naOpt.value = '__na__';
+      naOpt.textContent = 'N/A';
+      sel.insertBefore(naOpt, sel.firstChild);
+    }
+    sel.value = '__na__';
+    sel.disabled = true;
+    sel.title = 'Metadata is the same for all versions';
+  } else {
+    sel.disabled = false;
+    sel.title = '';
+    var naOpt2 = sel.querySelector('option[value="__na__"]');
+    if (naOpt2) naOpt2.remove();
+    if (sel.dataset.prevValue !== undefined) {
+      sel.value = sel.dataset.prevValue;
+      delete sel.dataset.prevValue;
+    }
+  }
 }
 
 // Sniffs raw bytes (NOT the declared contenttype) to decide binary vs. text:
@@ -4014,352 +4192,12 @@ function row(label, value, cls) {
     + '</div>';
 }
 
-function renderEntityGrid(data) {
-  var main = el('main-view');
-  var depth = _state.path.length;
+// renderEntityGrid() (Grid view for the Registry root and Group entity
+// pages) has been removed entirely — renderSingleEntity() (List view)
+// already has full feature parity (same title, Group Types/Resources
+// table, spec/extension attribute rows) plus more polish, so Grid added
+// no unique value. See plan.md "Grid view removed".
 
-  // Meta page (depth 5) is replaced by the inline meta box on the resource
-  // page — redirect up. Pass dataView explicitly — otherwise pushStateReal()
-  // would recompute it from the per-depth default/JSON-sticky rules,
-  // clobbering the view (grid) the user just clicked to get here.
-  if (depth === 5 && _state.path[4] === 'meta') {
-    _pendingMetaTabOnLoad = true;
-    pushState({path: _state.path.slice(0, 4), dataView: _state.dataView, editMode: false});
-    return;
-  }
-
-  // ---- Resolve entity type from model (path-based, not field-based) ----
-  var svBase   = (_state.serverURL || window.location.origin).replace(/\/$/, '');
-  var modelKey = normalizeURL(svBase);
-
-  // If model not yet cached, fetch it and re-render — first pass uses fallback
-  if (!_modelCache.hasOwnProperty(modelKey)) {
-    ensureModelCached(svBase, function() {
-      if (_lastData === data) renderEntityGrid(data);
-    });
-  }
-  var model      = _modelCache[modelKey] || null;
-  var entityType = getSingularName(model, _state.path);
-
-  var colls = findCollectionRefs(model, _state.path, data);
-  var collKeys = {};
-  colls.forEach(function(c) {
-    collKeys[c.plural] = true;
-    collKeys[c.plural + 'url'] = true;
-    collKeys[c.plural + 'count'] = true;
-  });
-
-  // Attach model info to collection tiles
-  if (model && model.groups) {
-    if (depth === 0) {
-      // Group-type tiles: attach resource type list + description from model
-      colls.forEach(function(c) {
-        var grpDef = model.groups[c.plural];
-        c.resources   = grpDef && grpDef.resources ? Object.keys(grpDef.resources).sort() : [];
-        c.description = (grpDef && grpDef.description) || '';
-      });
-    } else if (depth === 2) {
-      // Resource-type tiles: attach description from model.groups[g].resources[r]
-      var grpDef2 = model.groups[_state.path[0]];
-      colls.forEach(function(c) {
-        var resDef = grpDef2 && grpDef2.resources && grpDef2.resources[c.plural];
-        c.description = (resDef && resDef.description) || '';
-      });
-    }
-  }
-  // ID field name is <singular>id (e.g. "dir" → "dirid"); last path segment as fallback
-  var idFieldName = entityType.toLowerCase() + 'id';
-  var idVal = data[idFieldName] !== undefined ? data[idFieldName]
-            : _state.path.length > 0 ? _state.path[_state.path.length - 1] : data.registryid;
-
-  var html = '<div class="eg-page">';
-
-  // ---- Page title: SINGULAR: name-or-id ----
-  var resSingular = (depth >= 6 && model)
-    ? getSingularName(model, _state.path.slice(0, 4))
-    : null;
-  var titleDisplay = data.name || (idVal != null ? String(idVal) : '');
-  var titleType = (depth >= 6 && resSingular)
-    ? resSingular + ' VERSION'
-    : entityType;
-  var pageTitle = '<span class="eg-page-title-type">' + esc(titleType) + ':</span>';
-  if (titleDisplay) {
-    var titleId = '<span class="eg-page-title-id">' + esc(titleDisplay) + '</span>';
-    pageTitle += ' ' + titleId;
-  }
-  if (data.icon) {
-    var iconImg = '<img src="' + esc(data.icon) + '" class="eg-page-title-icon" alt="" '
-                + 'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\'">';
-    pageTitle += iconImg;
-    pageTitle += '<span class="eg-icon-err eg-page-title-icon-err" style="display:none" title="Failed to load: ' + esc(data.icon) + '">'
-               + '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
-               + '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>'
-               + '<polyline points="21 15 16 10 5 21"/>'
-               + '<line x1="3" y1="3" x2="21" y2="21" stroke="#e88" stroke-width="1.5"/>'
-               + '</svg></span>';
-  }
-  html += '<div class="eg-page-title">' + pageTitle + '</div>';
-
-  // Registry endpoint pills (depth 0 only) — see buildRegEndpointPillsHtml()
-  // (shared with List view's renderSingleEntity()); replaces the old
-  // separate "Registry Endpoints" tile section below the Group Types tiles.
-  html += buildRegEndpointPillsHtml();
-
-  // Check hasdocument from model for resource (depth 4) and version (depth 6+)
-  var hasDocument = (depth === 4 || depth >= 6) && resourceHasDocument(model, _state.path);
-
-  // ---- Collections ----
-  if (colls.length || depth === 4 || depth === 0 || depth === 2 || (depth >= 6 && hasDocument)) {
-    // Resources: no section header (only one collection type), but add meta tile
-    if (depth !== 4 && depth < 6) {
-      var collsLabel = _state.path.length === 0 ? 'GROUP TYPES' : 'RESOURCES';
-      html += '<div class="eg-section-header">' + collsLabel + '</div>';
-    }
-    html += '<div class="eg-colls">';
-    colls.forEach(function(c) { html += collectionTile(c); });
-    if (hasDocument && (depth === 4 || depth >= 6)) {
-      var docSingular = (depth >= 6 && resSingular) ? resSingular : entityType;
-      html += docTile(docSingular, data.contenttype);
-    }
-    if (depth === 0 && colls.length === 0) {
-      html += '<div class="eg-colls-empty">No group types defined</div>';
-    }
-    if (depth === 2 && colls.length === 0) {
-      html += '<div class="eg-colls-empty">No resource types defined</div>';
-    }
-    html += '</div>';
-  }
-
-
-  // ---- Resource Meta box (depth 4 only): collapsed by default, lazy-fetched on expand ----
-  if (depth === 4) {
-    _metaData = null;
-    _metaResourceIdField = idFieldName;  // suppress resource's own ID in meta content
-    html += '<div class="eg-section-header eg-details-header">'
-          + '<span>' + esc(capitalize(entityType)) + ' Metadata'
-          + ' <button class="eg-twisty" id="eg-meta-twisty" onclick="toggleMetaBox()">▶</button>'
-          + '</span>'
-          + '</div>';
-    html += '<div class="eg-details eg-meta-details" id="eg-meta-box" style="display:none"></div>';
-  }
-
-  var capType = entityType.charAt(0).toUpperCase() + entityType.slice(1);
-  var detailsLabel;
-  if (depth === 0) {
-    detailsLabel = 'Registry Details';
-  } else if (depth === 2) {
-    detailsLabel = capType + ' Details';
-  } else if (depth === 4) {
-    detailsLabel = defaultVersionLabel(capType, data) + ' Details';
-  } else if (depth >= 6) {
-    detailsLabel = 'Version Details';
-  } else {
-    detailsLabel = 'Details'; // meta (depth 5) — leave as is
-  }
-  html += '<div class="eg-section-header eg-details-header">' + detailsLabel
-        + '</div>';
-  html += '<div class="eg-details">';
-
-  // Description first — human-readable text before attribute rows
-  if (data.description) {
-    html += '<div class="eg-description">' + esc(data.description) + '</div>';
-  }
-
-  // Spec-defined attribute rows are laid out as their own two-column CSS
-  // Grid (see .eg-attr-grid in style.css). Unknown extension attrs (below
-  // the <hr class="eg-ext-sep">, added further down) get a separate grid
-  // of their own further down, so the two sections' label columns can
-  // size independently of each other.
-  html += '<div class="eg-spec-rows eg-attr-grid">';
-
-  // For version pages: compute parent resource info; doc ID appears after description
-  var versionParentSingular = '';
-  var versionParentIdField = '';
-  if (depth >= 6) {
-    if (model && model.groups && model.groups[_state.path[0]]) {
-      var _resDef = model.groups[_state.path[0]].resources && model.groups[_state.path[0]].resources[_state.path[2]];
-      if (_resDef) versionParentSingular = _resDef.singular;
-    }
-    if (!versionParentSingular) versionParentSingular = _state.path[2].replace(/s$/, '');
-    versionParentIdField = versionParentSingular.toLowerCase() + 'id';
-    if (data[versionParentIdField] !== undefined) {
-      var _docId = String(data[versionParentIdField]);
-      var _parentPath = _state.path.slice(0, 4);
-      var _parentUrl = (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + _parentPath.join('/'));
-      var _docRow = copyableMonospace(_docId)
-        + ' <a class="eg-link-btn eg-link-btn-nav" href="' + esc(pageHref(_parentPath, _parentUrl)) + '" '
-        + 'onclick="if(navShouldDefault(event))return true;navigateToParentResource();return false">→ Visit</a>';
-      html += '<div class="eg-row"><span class="eg-label">' + esc(versionParentSingular + ' ID') + ':</span>'
-            + '<span class="eg-value">' + _docRow + '</span></div>';
-    }
-  }
-
-  // If name was used in the title, show ID: <id> after description
-  if (data.name && idVal != null) {
-    html += '<div class="eg-row"><span class="eg-label">' + esc(idFieldName) + ':</span>'
-          + copyableMonospace(String(idVal)) + '</div>';
-  }
-
-  // Documentation — a URL-typed spec attribute, so rendered monospace like
-  // any other URL/URI value (generic rule: non-string attrType → monospace).
-  if (data.documentation) {
-    html += row('Documentation',
-      '<a href="' + esc(data.documentation) + '" target="_blank" class="eg-link eg-mono">'
-      + esc(data.documentation) + '</a>');
-  }
-
-  // Row 4: temporal — created on its own line, modified on the next
-  if (data.createdat)  html += '<div class="eg-row eg-temporal"><span class="eg-label">Created:</span>' + copyableMonospace(data.createdat) + '</div>';
-  if (data.modifiedat) html += '<div class="eg-row eg-temporal"><span class="eg-label">Modified:</span>' + copyableMonospace(data.modifiedat) + '</div>';
-
-  // Row 5: epoch + self/shortself/xid as pill buttons. Always exactly two
-  // top-level children (label + one value-wrapper span) so this row works
-  // correctly as a 2-cell participant in the .eg-spec-rows CSS Grid —
-  // extra top-level children would otherwise shift every following row's
-  // grid-column placement.
-  var techVal = '';
-  if (data.epoch !== undefined) techVal += '<span class="eg-epoch">' + copyableMonospace(String(data.epoch)) + '</span>';
-  if (data.self)      techVal += copyBtn('Self', data.self);
-  if (data.shortself) techVal += copyBtn('ShortSelf', data.shortself);
-  if (data.xid)       techVal += copyBtn('XID', data.xid);
-  if (techVal) {
-    html += '<div class="eg-row eg-technical">'
-          + '<span class="eg-label">' + (data.epoch !== undefined ? 'Epoch:' : '') + '</span>'
-          + '<span class="eg-value eg-tech-value">' + techVal + '</span></div>';
-  }
-
-  // Row 6: labels
-  if (data.labels && typeof data.labels === 'object') {
-    var labelKeys = Object.keys(data.labels).sort();
-    if (labelKeys.length) {
-      var labelParts = labelKeys.map(function(k) {
-        var kSpan = '<span class="eg-label-key">' + esc(k) + '</span>';
-        var vSpan = '<span class="eg-label-val">' + esc(String(data.labels[k])) + '</span>';
-        return '<span class="eg-label-pair">' + kSpan + vSpan + '</span>';
-      });
-      html += '<div class="eg-row eg-labels"><span class="eg-label">Labels:</span>'
-            + '<span class="eg-label-list">' + labelParts.join('') + '</span></div>';
-    }
-  }
-
-  // Row 7: resource/version/meta-specific spec fields shown above the separator
-  var extraRendered = {};
-
-  if (depth === 4) {
-    // Resource: show default Version ID and Ancestor Version ID; suppress isdefault
-    if (data.versionid !== undefined) {
-      var _vid = String(data.versionid);
-      var _vidRow = copyableMonospace(_vid)
-        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vid) + '" '
-        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _vid]), versionURLById(_vid))) + '" '
-        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
-      html += '<div class="eg-row"><span class="eg-label">Version ID:</span>'
-            + '<span class="eg-value">' + _vidRow + '</span></div>';
-    }
-    extraRendered.versionid = 1;
-    if (data.ancestor !== undefined && data.ancestor !== null) {
-      var _anc = String(data.ancestor);
-      var _ancRow = copyableMonospace(_anc)
-        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_anc) + '" '
-        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _anc]), versionURLById(_anc))) + '" '
-        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
-      html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
-            + '<span class="eg-value">' + _ancRow + '</span></div>';
-    }
-    extraRendered.ancestor  = 1;
-    extraRendered.isdefault = 1;  // hide — always true for the default version
-    extraRendered.metaurl   = 1;  // suppress — accessible via the meta tile
-  } else if (depth >= 6) {
-    // Version: doc ID already rendered at top; show ancestor version id with Visit, and isdefault
-    extraRendered[versionParentIdField] = 1;  // already rendered above
-    if (data.ancestor !== undefined && data.ancestor !== null) {
-      var _vancId = String(data.ancestor);
-      var _vancRow = copyableMonospace(_vancId)
-        + ' <a class="eg-link-btn eg-link-btn-nav" data-vid="' + esc(_vancId) + '" '
-        + 'href="' + esc(pageHref(_state.path.slice(0,4).concat(['versions', _vancId]), versionURLById(_vancId))) + '" '
-        + 'onclick="if(navShouldDefault(event))return true;navigateToVersionById(this.dataset.vid);return false">→ Visit</a>';
-      html += '<div class="eg-row"><span class="eg-label">Ancestor Version ID:</span>'
-            + '<span class="eg-value">' + _vancRow + '</span></div>';
-    }
-    extraRendered.ancestor = 1;
-    if (data.isdefault !== undefined) {
-      html += row('Is Default', copyableMonospace(String(data.isdefault)));
-    }
-    extraRendered.isdefault = 1;
-  }
-
-  // Split remaining keys into spec-defined (above <hr>) vs user extensions (below <hr>).
-  var renderedAttrs = {
-    labels:1, name:1, description:1, documentation:1, icon:1,
-    createdat:1, modifiedat:1, epoch:1,
-    self:1, shortself:1, xid:1, metaurl:1
-  };
-  renderedAttrs[idFieldName] = 1;
-  Object.keys(extraRendered).forEach(function(k) { renderedAttrs[k] = 1; });
-
-  var specLevel = specAttrLevel(_state.path);
-  // singular for "id" expansion; resourceSingular for "$RESOURCE*" expansion
-  var _singular = entityType.toLowerCase();
-  var _resSing  = (depth === 4) ? _singular
-                : (depth >= 6 && resSingular) ? resSingular.toLowerCase()
-                : null;
-  var remainingKeys = Object.keys(data).filter(function(k) {
-    return !renderedAttrs[k] && !collKeys[k];
-  }).sort();
-
-  function renderAttrRow(k) {
-    var v = data[k];
-    if (v !== null && typeof v === 'object') {
-      var isEmpty = Array.isArray(v) ? v.length === 0 : Object.keys(v).length === 0;
-      if (isEmpty) {
-        html += row(labelFor(k, specLevel, _singular), '<span class="vt-empty">empty</span>');
-      } else {
-        html += '<div class="eg-ext-complex">'
-              + '<div class="eg-ext-complex-key">' + esc(labelFor(k, specLevel, _singular)) + ':</div>'
-              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0, model, _state.path, [k]) + '</div>'
-              + '</div>';
-      }
-    } else {
-      // Monospace decision:
-      // 1. String-typed spec attrs listed in MONO_ATTRS (generated from AttrInternals.uiMonospace)
-      //    that are confirmed spec attrs at THIS entity level → always monospace.
-      // 2. Explicitly model-named (non-wildcard) attrs with non-string type → monospace.
-      //    Extension attrs that only match the '*' wildcard use null type → not monospace.
-      var attrType = getExplicitAttrType(model, _state.path, k);
-      var isMono = isMonoSpecAttr(k, specLevel, _singular, _state.path)
-        || (attrType !== null && attrType !== 'string');
-      var valHtml = renderScalarValue(v, isMono);
-      html += row(labelFor(k, specLevel, _singular), valHtml);
-    }
-  }
-
-  var specKeys = remainingKeys.filter(function(k) { return  isSpecAttr(k, specLevel, _singular, _resSing); });
-  var extKeys  = remainingKeys.filter(function(k) { return !isSpecAttr(k, specLevel, _singular, _resSing); });
-
-  specKeys.forEach(renderAttrRow);
-  html += '</div>'; // close .eg-spec-rows
-
-  if (extKeys.length) {
-    html += '<hr class="eg-ext-sep">';
-    // Own grid, independent of .eg-spec-rows' column width — extension
-    // attr names can be arbitrarily long/short and unrelated to spec ones.
-    html += '<div class="eg-ext-rows eg-attr-grid">';
-    extKeys.forEach(renderAttrRow);
-    html += '</div>'; // close .eg-ext-rows
-  }
-
-  html += '</div></div>';
-  main.innerHTML = html;
-
-  // Redirected here from a standalone "meta" page (depth 5) — auto-expand
-  // the Metadata box instead of leaving it collapsed, so the user sees the
-  // same content they were viewing (mirrors renderSingleEntity()'s matching
-  // auto-select-Metadata-tab behavior for List view).
-  if (_pendingMetaTabOnLoad) {
-    _pendingMetaTabOnLoad = false;
-    if (document.getElementById('eg-meta-box')) toggleMetaBox();
-  }
-}
 
 // ---- JSON view -----------------------------------------------------------
 
@@ -4563,6 +4401,12 @@ function renderJSONLeftPanel(filtersOnly) {
   var applyFn = filtersOnly ? 'applyGridFilters' : 'applyJSONOptions';
 
   if (_state.section === 'data') {
+    // Computed up front (rather than where the Sort section itself is
+    // built, further below) since the Filters section right below needs to
+    // know whether Sort will follow it in filtersOnly mode, to decide
+    // whether a divider belongs between them.
+    var sortAvailable = hasF('sort') && isCollection(_state.path);
+
     // Filters — only if server supports 'filter'. A divider-line-with-
     // Apply-button combo is shown right above the Filters heading (in
     // addition to the full-width Apply button at the very bottom of the
@@ -4581,26 +4425,23 @@ function renderJSONLeftPanel(filtersOnly) {
         + '<span class="lp-divider-line"></span></div>'
         + '<div class="lp-section" id="lp-filter-section">'
         + fbFiltersTitleHTML(fbFilterCount(_fbDraft.groups), filtersOnly)
-        + ((_filtersCollapsed && !filtersOnly) ? '' : (filtersOnly
-            ? buildFilterSectionInner(model2)
-            : '<div class="lp-filter-indent">' + buildFilterSectionInner(model2)
-              + '</div>'))
+        + ((_filtersCollapsed && !filtersOnly) ? '' : '<div class="lp-filter-indent">'
+            + buildFilterSectionInner(model2) + '</div>')
         + '</div>'
-        + (filtersOnly ? '' : '<hr class="lp-divider">');
+        + ((filtersOnly && !sortAvailable) ? '' : '<hr class="lp-divider">');
     }
 
-    // Sort/Options/Inlines stay JSON-view-only for now — skipped entirely
-    // in filtersOnly mode (Grid/List). See plan.md "Filter support in
-    // Grid/List views" — not yet decided whether these make sense there.
-    if (!filtersOnly) {
     // Sort — only if server supports 'sort' and the current path points at
     // a collection (Groups/Resources/Versions); sorting a single entity
-    // isn't meaningful, per the spec's sort_noncollection error. Kept to
+    // isn't meaningful, per the spec's sort_noncollection error. Now shown
+    // in both the full JSON panel and Grid/List's filtersOnly panel (List
+    // view honors it — see renderTableView()'s preserveOrder — until a
+    // column header is clicked, which clears it; see sortBy()). Kept to
     // one line ("Sort:" + attribute dropdown) until an attribute is
     // actually chosen, at which point the map-key/order/clear rows appear
     // below — no twisty needed since there's only ever one control (unlike
     // Filters, which can grow to many expressions).
-    if (hasF('sort') && isCollection(_state.path)) {
+    if (sortAvailable) {
       hasOpts = true;
       ensureSortDraft();
       html += '<div class="lp-section" id="lp-sort-section">'
@@ -4608,6 +4449,10 @@ function renderJSONLeftPanel(filtersOnly) {
         + '</div><hr class="lp-divider">';
     }
 
+    // Options/Inlines stay JSON-view-only for now — skipped entirely in
+    // filtersOnly mode (Grid/List). See plan.md "Filter support in
+    // Grid/List views" — not yet decided whether these make sense there.
+    if (!filtersOnly) {
     // Options — only show individual options whose flag is enabled
     var optHtml = '';
     if (hasF('doc'))         optHtml += lpCheck('lp-doc', 'doc view',    _state.docView);
@@ -4634,12 +4479,12 @@ function renderJSONLeftPanel(filtersOnly) {
           var rowCls = 'lp-item' + (rowIdx % 2 === 0 ? ' lp-even' : '');
           var dotStarHtml = opt.dotStar
             ? '<span class="lp-dotstar">'
-                + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value + '.*') + '"' + dschecked + '>'
+                + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value + '.*') + '"' + dschecked + ' onchange="updateApplyButtonState()">'
                 + '<span class="lp-dotstar-label">.*</span>'
                 + '</span>'
             : '<span class="lp-dotstar"></span>';
           html += '<div class="' + rowCls + '">'
-            + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value) + '"' + checked + '>'
+            + '<input type="checkbox" class="lp-inline-cb" value="' + esc(opt.value) + '"' + checked + ' onchange="updateApplyButtonState()">'
             + '<span class="lp-inline-label">' + esc(opt.label) + '</span>'
             + dotStarHtml
             + '</div>';
@@ -4652,11 +4497,14 @@ function renderJSONLeftPanel(filtersOnly) {
   }
 
   if (!html)    html = '<div class="lp-no-opts">No options</div>';
-  // In filtersOnly mode (Grid/List), the Filters section is the only
-  // content, so its own leading divider-with-Apply combo (right above the
-  // "Filters" heading) is already sufficient — skip this trailing one to
-  // avoid showing two identical Apply buttons for a single section.
-  if (hasOpts && !filtersOnly) {
+  // In filtersOnly mode (Grid/List) with only Filters shown, its own
+  // leading divider-with-Apply combo (right above the "Filters" heading)
+  // is already sufficient — skip this trailing one to avoid showing two
+  // identical Apply buttons for a single section. Once Sort is also shown
+  // (sortAvailable), there are now two sections, so a trailing Apply
+  // (reachable without scrolling back up to Filters) makes sense again —
+  // same as the full JSON panel already does unconditionally.
+  if (hasOpts && (!filtersOnly || sortAvailable)) {
     // Reuse the divider-apply combo (line + centered Apply + line) instead
     // of a separate full-width button; strip the trailing plain divider
     // left by the last section so we don't get doubled-up lines.
@@ -4671,12 +4519,15 @@ function renderJSONLeftPanel(filtersOnly) {
       + '<span class="lp-divider-line"></span></div>';
   }
   inner.innerHTML = html;
+  updateApplyButtonState();
 }
 
 // Shared by JSON view's Apply button (applyJSONOptions) and Grid/List's
-// Filters-only panel Apply button — the one deliberate spot a filter
+// filtersOnly panel Apply button — the one deliberate spot a filter
 // expression is actually constructed client-side. See applyFilters()/
-// plan.md "Filter support in Grid/List views".
+// plan.md "Filter support in Grid/List views". Also collects the Sort
+// picker's value (now shown in this panel too — see renderJSONLeftPanel())
+// so List view's Apply button applies both together, same as JSON view's.
 function applyGridFilters() {
   var patch = applyFilters();
   // Sync the draft to match what was actually just applied — otherwise
@@ -4693,12 +4544,25 @@ function applyGridFilters() {
     _fbDraft.advanced = false;
     _fbDraft.editing  = null;
   }
+  // Guard against a stale _sortDraft left over from a different page (e.g.
+  // one that supports sort, if the current page doesn't — ensureSortDraft()
+  // is only called when the Sort section actually renders for this exact
+  // server/section/path) by checking the draft's key matches here too.
+  var newSort = (_sortDraft && _sortDraftKey === sortKey()) ? sortCollectValue() : _state.sort;
+  if (newSort !== _state.sort) {
+    // A fresh server sort is being deliberately applied here — any
+    // client-side column-click override (see sortBy()) should no longer
+    // silently mask it. Left untouched when only filters changed, so
+    // filtering and column-click sorting stay independent of each other.
+    _sortCol = null; _sortAsc = true;
+  }
+  patch.sort = newSort;
   pushState(patch);
 }
 
 function lpCheck(id, label, checked) {
   return '<div class="lp-item"><input type="checkbox" id="' + id + '"'
-    + (checked ? ' checked':'') + '> ' + label + '</div>';
+    + (checked ? ' checked':'') + ' onchange="updateApplyButtonState()"> ' + label + '</div>';
 }
 
 // Renders one "Registry Endpoints" row combining a main nav item with an
@@ -4787,12 +4651,13 @@ function fbRerender() {
   var filtersOnly = isGridFiltersOnlyMode();
   var inner = (_filtersCollapsed && !filtersOnly) ? '' : buildFilterSectionInner(model);
   // Keep in sync with the initial render (renderJSONLeftPanel()) — the
-  // body gets a 6px indent in JSON view's full panel so it visually
-  // aligns with the Options/Inlines checkbox rows below it. Without this
-  // wrapper, any fbRerender() (e.g. picking a wizard dropdown, toggling
-  // Advanced mode) would strip that indent back out.
-  if (inner && !filtersOnly) inner = '<div class="lp-filter-indent">' + inner + '</div>';
+  // body gets a 6px indent so it visually aligns with the Options/Inlines
+  // checkbox rows below it (JSON view) or the Sort section below it (List
+  // view). Without this wrapper, any fbRerender() (e.g. picking a wizard
+  // dropdown, toggling Advanced mode) would strip that indent back out.
+  if (inner) inner = '<div class="lp-filter-indent">' + inner + '</div>';
   host.innerHTML = fbFiltersTitleHTML(count, filtersOnly) + inner;
+  updateApplyButtonState();
 }
 
 // Renders the collapsible "Filters" section title: label + "(N)" count
@@ -4866,6 +4731,63 @@ function isGridFiltersOnlyMode() {
     && _state.view !== 'json' && _filtersPanelOpen;
 }
 
+// Order-independent string-array equality — used by computeApplyDirty() to
+// compare "what's currently in the draft/DOM controls" against "what's
+// actually applied in _state", regardless of any incidental reordering
+// (e.g. checkbox render order vs. _state.inlines's stored order).
+function sameStringSet(a, b) {
+  a = (a || []).slice().sort();
+  b = (b || []).slice().sort();
+  if (a.length !== b.length) return false;
+  for (var i = 0; i < a.length; i++) { if (a[i] !== b[i]) return false; }
+  return true;
+}
+
+// Whether the currently-open Filters/Sort/Options/Inlines panel has any
+// pending change relative to what's actually applied in _state — drives
+// enabling/disabling the Apply button(s) live (see plan.md "Filter Builder
+// Apply button — only enable when there are pending changes"). Scoped to
+// exactly what filtersOnly mode (Grid/List) renders (filters + sort only);
+// the full JSON panel additionally covers doc/binary/collections + inlines,
+// none of which filtersOnly mode's DOM even contains.
+function computeApplyDirty(filtersOnly) {
+  if (_state.section !== 'data') return false;
+  if (capHasFlag('filter') && _fbDraft
+      && !sameStringSet(fbCollectFilters(), _state.filters)) {
+    return true;
+  }
+  if (capHasFlag('sort') && isCollection(_state.path) && _sortDraft
+      && sortCollectValue() !== (_state.sort || '')) {
+    return true;
+  }
+  if (!filtersOnly) {
+    var docEl = el('lp-doc'), binEl = el('lp-bin'), colEl = el('lp-col');
+    if (docEl && !!docEl.checked !== !!_state.docView)     return true;
+    if (binEl && !!binEl.checked !== !!_state.binary)      return true;
+    if (colEl && !!colEl.checked !== !!_state.collections) return true;
+    if (capHasFlag('inline')) {
+      var checkedInlines = qsa('.lp-inline-cb')
+        .filter(function(cb) { return cb.checked; })
+        .map(function(cb) { return cb.value; });
+      if (!sameStringSet(checkedInlines, _state.inlines)) return true;
+    }
+  }
+  return false;
+}
+
+// Enables/disables every currently-rendered Apply button (there can be two:
+// the leading divider-Apply above Filters, and the trailing one at the
+// panel's bottom) based on computeApplyDirty() — called after any control
+// that affects the draft/DOM state changes. Deliberately does NOT re-render
+// the panel itself (that would blow away focus/scroll/cursor position in
+// controls like the advanced filter textarea) — just flips .disabled.
+function updateApplyButtonState() {
+  var buttons = qsa('.lp-apply');
+  if (!buttons.length) return;
+  var dirty = computeApplyDirty(isGridFiltersOnlyMode());
+  buttons.forEach(function(b) { b.disabled = !dirty; });
+}
+
 // Returns the filters array to send: either the builder's groups, or the
 // raw textarea lines when Advanced (raw text) mode is active.
 function fbCollectFilters() {
@@ -4884,7 +4806,8 @@ function buildFilterSectionInner(model) {
     + ' onchange="fbToggleAdvanced(this.checked)"> Advanced (raw text)</label>';
 
   if (d.advanced) {
-    html += '<textarea class="lp-filter-area" id="lp-filters-raw">'
+    html += '<textarea class="lp-filter-area" id="lp-filters-raw" '
+      + 'oninput="updateApplyButtonState()">'
       + esc(d.groups.join('\n')) + '</textarea>';
     return html;
   }
@@ -5320,6 +5243,7 @@ function sortRerender() {
   var svBase = serverBase();
   var model  = _modelCache[normalizeURL(svBase)] || null;
   host.innerHTML = buildSortSectionInner(model);
+  updateApplyButtonState();
 }
 
 // Collection-shadow attribute names to exclude from the Sort picker at
@@ -5429,14 +5353,20 @@ function buildSortSectionInner(model) {
     + fbOptionsHTML(options, chosenVal)
     + '</select></div>';
 
+  // Everything below the initial "Sort:" row (map-key/custom-path input,
+  // Order asc/desc + Clear) gets the same 6px indent used under the
+  // Filters title — visually ties them to this section and keeps them
+  // aligned with the Options checkbox rows below (see .lp-filter-indent).
+  var below = '';
+
   if (_sortDraft.mode === 'map') {
-    html += '<div class="fb-seg-row">'
+    below += '<div class="fb-seg-row">'
       + '<input type="text" class="fb-seg-custom" '
       + 'placeholder="key name (e.g. stage)" '
       + 'value="' + esc(_sortDraft.mapKey) + '" '
       + 'onchange="sortSetMapKey(this.value)"></div>';
   } else if (_sortDraft.mode === 'custom') {
-    html += '<div class="fb-seg-row">'
+    below += '<div class="fb-seg-row">'
       + '<input type="text" class="fb-seg-custom" '
       + 'placeholder="dot-path e.g. labels.stage" '
       + 'value="' + esc(_sortDraft.custom) + '" '
@@ -5444,7 +5374,7 @@ function buildSortSectionInner(model) {
   }
 
   if (sortDraftPath()) {
-    html += '<div class="fb-seg-row sort-order-row">'
+    below += '<div class="fb-seg-row sort-order-row">'
       + '<span class="sort-order-label">Order:</span>'
       + '<div class="boolSeg sort-order-seg">'
       + '<button type="button" class="boolSegBtn'
@@ -5457,6 +5387,8 @@ function buildSortSectionInner(model) {
       + '<span class="sort-clear-btn" onclick="sortClear()">Clear sort</span>'
       + '</div>';
   }
+
+  if (below) html += '<div class="lp-filter-indent">' + below + '</div>';
 
   return html;
 }
@@ -6191,8 +6123,15 @@ function applyJSONOptions() {
     _fbDraft.advanced = false;
     _fbDraft.editing  = null;
   }
+  // Same stale-draft guard as applyGridFilters() — see its comment.
+  var newSortJ = (_sortDraft && _sortDraftKey === sortKey()) ? sortCollectValue() : _state.sort;
+  if (newSortJ !== _state.sort) {
+    // Keep List view's column-click override (see sortBy()) from later
+    // masking a sort that was just deliberately (re)applied here.
+    _sortCol = null; _sortAsc = true;
+  }
   pushState(Object.assign({
-    sort:        _sortDraft ? sortCollectValue() : _state.sort,
+    sort:        newSortJ,
     docView:     doc ? doc.checked : false,
     binary:      bin ? bin.checked : false,
     collections: col ? col.checked : false,
@@ -6383,7 +6322,12 @@ function syntaxHighlight(str) {
 // Extract entity items from a collection response.
 // A collection response is a flat JSON object keyed by <singular>id.
 // Pagination metadata lives in the Link response header (not in the body).
-function collectionItems(data) {
+// preserveOrder skips the default ID-alphabetical sort, keeping items in
+// the order the server/data object returned them — used by List view when
+// an active server-side `sort=` should be visibly honored (see
+// activeServerSortLabel()/renderTableView()). All other callers (e.g. the
+// Resource page's version dropdown) omit it and get the usual ID sort.
+function collectionItems(data, preserveOrder) {
   if (!data || typeof data !== 'object') return [];
   var items = [];
   Object.keys(data).forEach(function(k) {
@@ -6393,7 +6337,9 @@ function collectionItems(data) {
       items.push(Object.assign({__mapKey: k}, v));
     }
   });
-  items.sort(function(a, b) { return itemNavKey(a).localeCompare(itemNavKey(b)); });
+  if (!preserveOrder) {
+    items.sort(function(a, b) { return itemNavKey(a).localeCompare(itemNavKey(b)); });
+  }
   return items;
 }
 
@@ -8731,6 +8677,10 @@ function fetchJSON(url) {
 // returns 400 for any reason, fall back to a plain GET.
 function fetchWithDetailsFallback(url, useDetails) {
   if (!useDetails) return fetchJSON(url);
+  // Don't double-append: a real server-provided/bookmarked apiurl= may
+  // already have $details baked in (e.g. a Resource/Version deep link) —
+  // appending again would produce ".../foo$details$details" and 404.
+  if (/\$details$/.test(url.split('?')[0])) return fetchJSON(url);
   var detailsURL = url.replace(/(\?|$)/, '$details$1');
   return fetchJSON(detailsURL).catch(function() {
     return fetchJSON(url);
@@ -8771,22 +8721,12 @@ function formatTimestamp(iso) {
        + (parts.dayPeriod || '') + (parts.timeZoneName ? ' ' + parts.timeZoneName : '');
 }
 
-// Shared "Default <Type> Version (n)" label fragment used by both the Grid
-// view's Details header and the List view's Property header at depth 4, so
-// the two stay in sync. capType is the capitalized resource singular name.
-function defaultVersionLabel(capType, data) {
-  return 'Default ' + capType + ' Version'
-    + (data && data.versionid !== undefined ? ' (' + esc(String(data.versionid)) + ')' : '');
-}
-
-// List view's Resource-page Property table column-1 header — unlike
-// defaultVersionLabel() (used by Grid view's "Details" header), this
-// deliberately omits the resource's singular type name (e.g. "File"): the
-// table's own page title/breadcrumb already establishes the entity type,
-// so repeating it in the table header is redundant. isDefault controls
-// the "Default " prefix (shown for the resource's own flattened default
-// version; omitted when the version-selector dropdown picks a specific
-// non-default version).
+// List view's Resource-page Property table column-1 header. Deliberately
+// omits the resource's singular type name (e.g. "File"): the table's own
+// page title/breadcrumb already establishes the entity type, so repeating
+// it in the table header is redundant. isDefault controls the "Default "
+// prefix (shown for the resource's own flattened default version; omitted
+// when the version-selector dropdown picks a specific non-default version).
 function versionPropHeaderLabel(isDefault, vid) {
   return (isDefault ? 'Default Version' : 'Version')
     + (vid !== undefined && vid !== null ? ' (' + esc(String(vid)) + ')' : '')

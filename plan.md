@@ -11,10 +11,17 @@ goals.
 
 ## Outstanding
 
-- [ ] **Add filter support to Grid (Tile) and List (Table) views for
-  registry Data.** Design finalized (2026-07-07 planning session, not yet
-  implemented) — see "Filter support in Grid/List views (design)" below
-  for the full write-up.
+- [x] ~~Add filter support to Grid (Tile) and List (Table) views for
+  registry Data.~~ **OBSOLETE / done, no action needed** (updated
+  2026-07-08 during a later session): Grid view was removed entirely for
+  the `data` section in checkpoints 034-035 (`enableGrid = false` for
+  every data-section depth — see `registry/ui/app.js` ~line 689/692), so
+  there's no Grid view left to add filtering to. The List (Table) half
+  was separately completed via the extensive filter-builder/sort/
+  Apply-button work — the table's fetch is driven by `_state.apiURL`
+  (which carries `filter=`), so List view already reflects server-side
+  filtering. The original design write-up is kept below (see "Filter
+  support in Grid/List views (design)") for historical context only.
 
 - [ ] **Fix `navigateJsonUrl`/`syntaxHighlight`'s link reconstruction gap.**
   Discovered during the above design discussion (2026-07-07), explicitly
@@ -265,6 +272,37 @@ goals.
     shared source of truth for both the existing streaming writer and
     this new "reformat already-parsed JSON" tool, without duplicating
     the ordering rules in two places.
+
+- [x] ~~Make Resource Grid view (depth 4) more user-friendly (document in
+  its own tile; clickable version list).~~ **OBSOLETE / done, no action
+  needed** (added and immediately resolved in a later session): Grid
+  view was removed entirely for Resource/Version pages in checkpoint 034
+  (2026-07-08), so there's no Grid view left to improve. The Document
+  tab and version-selector dropdown in the current List-view-based
+  Resource/Version page already cover both underlying goals (document
+  shown directly, versions individually selectable/clickable).
+
+- [ ] **Tooling to keep the `registry/ui/xreg` static test fixture in
+  sync.** Design/update tooling so per-entity `$details` files and
+  parent collection `index.html` listings stay in sync automatically,
+  avoiding staleness bugs like the missing `shortself`/`format`/`compat`
+  attributes seen in a past session. Needs discussion with the user on
+  approach before implementing.
+
+- [x] ~~Extend the Filter Builder Apply-button dirty-check beyond
+  filters.~~ **DONE** (found already implemented when re-checked
+  2026-07-09 — apparently completed in an earlier session without this
+  file being updated). `computeApplyDirty()` (`registry/ui/app.js` ~line
+  4753) covers filters (draft groups/advanced textarea vs
+  `_state.filters`), sort (`sortCollectValue()` vs `_state.sort`),
+  options (doc/binary/collections checkboxes vs `_state.docView`/
+  `binary`/`collections`, only in the full JSON-view panel), and inlines
+  (checked boxes vs `_state.inlines`). All relevant controls
+  (checkboxes, inline boxes, sort control, advanced textarea) already
+  call `updateApplyButtonState()` on `onchange`/`oninput`, which flips
+  `.disabled` on every `.lp-apply` button. Verified via CDP: both Apply
+  buttons start disabled, become enabled when the sort draft changes,
+  and go back to disabled when reverted.
 
 ## Completed (for history / context)
 
@@ -2146,6 +2184,368 @@ category headers (including `fileid` properly landing in Identity, not
 Content), banded rows restarting per group, green/gray boolean pills, and
 muted timestamps with populated relative-time tooltips (spot-checked via
 `element.getAttribute('title')`).
+
+## Fixed: meaningless filter clause carried onto Resource entity link (no rescoping effect)
+
+### Problem
+On a filtered Resource *collection* page (e.g. `dirs/d1/files` with a bare,
+dot-free filter clause like `epoch>0` applied — i.e. one that refers to the
+FILE's own attribute, used to decide which files show up in that
+collection), hovering over (or clicking into) a specific file entity (e.g.
+`f1`) carried that same `epoch>0` clause forward onto `f1`'s own link and
+into `_state.filters`/the address bar after a real click-through. But once
+you're AT `f1`, that clause has zero rescoping effect — confirmed via curl
+that `GET f1$details?filter=epoch>0` returns 200 with `versionsurl`
+completely unfiltered/bare — so showing it as an "active filter" on `f1`'s
+own page was misleading with no actual effect. (`entityHrefWithFilter()`
+already special-cased Version entities the same way, since a Version is
+always a leaf with nothing to rescope — but the same "nothing left to
+rescope" reasoning wasn't applied to Resource entities, whose only
+possible child is `versions`.)
+
+### Root cause
+`entityHrefWithFilter()` carried `_state.filters` forward onto ANY
+non-Version entity's link unconditionally, without checking whether each
+filter clause actually still referenced one of the destination entity's
+own child collections (a Group's resource plurals, or `versions` for a
+Resource). A clause with no such reference is "terminal" — it was only
+ever meaningful for filtering the PARENT collection, and has nothing left
+to rescope on the member entity's own page.
+
+### Fix
+Added two new helpers (`registry/ui/app.js`):
+- `childCollectionsFor(path)` — returns the nested child-collection plural
+  names an entity at `path` actually has: a Group entity's declared
+  resource plurals (from `_modelCache`), or `['versions']` for a Resource
+  entity, or `[]` otherwise (Registry root, Version entities).
+- `filtersRelevantForEntity(filters, path)` — filters an OR-group/AND-clause
+  filter array down to only the clauses that reference one of `path`'s own
+  children (mirrors the server's `FiltersRelativeToAbstract()` keep/drop
+  logic).
+
+`entityHrefWithFilter()` now calls `filtersRelevantForEntity()` instead of
+using `_state.filters` directly, and returns the bare `self` link
+untouched if nothing remains relevant. Also cleaned up a duplicated
+comment block above the function left over from an earlier edit.
+
+### Verified via CDP (live xrserver, `dirs`/`dirs/d1`/`dirs/d1/files/f1` test data)
+- `files` collection filtered by bare `epoch>0`: hovering over / clicking
+  into `f1` no longer carries any filter forward (`_state.filters` empty,
+  no `filter=` in the address bar) — matches the confirmed-no-effect curl
+  check.
+- Same collection filtered by `versions.epoch>0` (references `f1`'s actual
+  `versions` child): correctly still carries forward onto `f1`'s link
+  unmodified (`filter=versions.epoch%3E0`).
+- Root-level Group Type case regression-checked: `dirs.files.epoch>0` at
+  the registry root still correctly relativizes to `files.epoch>0` on the
+  `dirs` collection, and further correctly carries forward onto member
+  entity `d1`'s own link (since `files` is one of `dirs`' real resource
+  plurals) — both hover href and full click-through confirmed consistent.
+- A bare, non-child-referencing clause (`description=d1`) on the `dirs`
+  Group collection is correctly dropped from member entity `d1`'s link
+  (no matching child collection named `description`).
+- `node --check app.js` passes. Test data deleted, model reset to `{}`,
+  chromium test process and temp profile/log files cleaned up.
+
+**Status**: Complete.
+
+
+## Added: Copy-API-URL button at the end of the breadcrumbs
+
+### Request
+Add a copy-to-clipboard icon at the end of the breadcrumbs that copies a
+plain, curl-able URL for exactly the data currently being displayed — no
+UI-only params (view=, panel=, dview=, etc.).
+
+### Implementation (`registry/ui/app.js`, `registry/ui/style.css`)
+- Reused the app's existing clipboard infrastructure (`egCopy()`/
+  `showToast()`, already used elsewhere for other copy buttons) rather than
+  adding a new one.
+- New `copyCurrentAPIURL(event)` — calls `egCopy(buildAPIURL(), 'API URL')`.
+  `buildAPIURL()` already exists and computes exactly the real request URL
+  for whatever's currently displayed (respects the active section — data/
+  model/modelsource/capabilities/capabilitiesoffered/export — plus any
+  active filter/sort/inline params), so no new URL-building logic was
+  needed.
+- New `copyLinkBtnHTML()` / `showCopyLinkBtn()` helpers, and a small
+  `<button class="icon-btn bc-copy-btn">📋</button>` appended right after
+  the last breadcrumb segment in all the places breadcrumb HTML gets
+  written: the normal `renderBreadcrumbs()` path and the `collapseBreadcrumbs()`
+  (level-1, "…"-collapsed) path. Deliberately NOT added to `collapseLevel2()`
+  (the extreme-narrow-screen fallback that collapses everything to a single
+  label + hamburger menu) or to the Home/Config pages (`showCopyLinkBtn()`
+  returns false for those) — none of those have a single meaningful "data
+  URL" to copy.
+- CSS: `.bc-copy-btn` reuses the existing `.icon-btn` look (same as the
+  gear/edit buttons) but smaller (`font-size: 14px` icon, tighter padding)
+  to fit inline with the 13px breadcrumb row.
+
+### Verified via CDP (live xrserver)
+- Button appears at the end of the breadcrumb row on ordinary data pages,
+  nested entity pages, and both `model`/`modelsource` sections (correctly
+  absent on Home and Config pages).
+- Clicking it calls `navigator.clipboard.writeText()` with exactly the
+  right URL and shows the "API URL copied" toast — verified for: the bare
+  registry root, a Group Type collection with both `sort=` and `filter=`
+  applied (full apiURL round-tripped correctly, e.g.
+  `.../dirs?sort=filesid&filter=description=d1`), and the `modelsource`
+  section (`.../modelsource`).
+- Confirmed still correctly positioned immediately after the last
+  breadcrumb segment at a 4-deep nested Resource entity page.
+- (Test-harness note: an unrelated bug in the CDP test script itself —
+  using `/json/new?<url>` with a raw, un-escaped `&`-containing target URL
+  — was discovered and fixed mid-session, since Chrome's endpoint decodes
+  the whole thing and had been silently truncating/mis-parsing test
+  target URLs at embedded `&`s. Switched to opening a blank tab + a
+  `Page.navigate` WebSocket command instead, which preserves the exact URL
+  string. This was purely a test-tooling issue, not an app bug.)
+- Test data (`dirs`/`dirs/d1`/`dirs/d1/files/f1`) deleted, model reset to
+  `{}`, `node --check app.js` passes, chromium processes and temp files
+  cleaned up.
+
+**Status**: Complete.
+
+
+## Added: Copy-API-URL button in breadcrumb bar
+
+### Feature
+A small clipboard-icon button (📋) is now appended right after the last
+breadcrumb segment on every data/model/section page (Registry root, any
+Group/Resource/Version entity or collection, and the model/modelsource/
+capabilities/capabilitiesoffered sections). Clicking it copies the real,
+plain, curl-able API URL for exactly what's currently displayed — the
+same URL `buildAPIURL()` would use to actually fetch the page's data,
+including any active filter/sort/inline params — to the clipboard, with
+a toast confirmation ("API URL copied"). Not shown on the Home or Config
+pages, since neither has a single "data" URL to copy.
+
+### Implementation
+`registry/ui/app.js`:
+- `showCopyLinkBtn()` — true whenever `_state.view` isn't `'home'`/`'config'`.
+- `copyLinkBtnHTML()` — renders the button (`.icon-btn.bc-copy-btn`, using
+  the existing `icon-btn` header-button style).
+- `copyCurrentAPIURL(event)` — calls `buildAPIURL()` and reuses the
+  existing `egCopy()` clipboard-copy-with-toast helper (already used
+  elsewhere, e.g. in doc-info pill copy buttons).
+- Wired into all breadcrumb render paths in `renderBreadcrumbs()`
+  (normal, full-width case) and `collapseBreadcrumbs()` (the
+  `…`-collapsed medium-width case). Intentionally left off the most
+  extreme `collapseLevel2()` narrow-mode fallback (single label + compact
+  hamburger menu) to avoid crowding an already-cramped layout.
+
+`registry/ui/style.css`: added `.bc-copy-btn` (small left margin, smaller
+icon font size, reuses `.icon-btn` base styling).
+
+### Verified via CDP (live xrserver)
+- Registry root (no filter/sort): copies bare `http://<server>` URL.
+- Filtered + sorted collection page (`dirs` with `sort=filesid` and
+  `filter=description=d1` applied via a real `pushState()`, matching how
+  the app itself would reach that state): copies the exact combined URL
+  `http://<server>/dirs?sort=filesid&filter=description=d1` — matching
+  `_state.apiURL`/what a real fetch would use.
+- `modelsource` section (from a data-page `view:'table'` context, matching
+  real navigation): copies `http://<server>/modelsource`.
+- Home page and Config page: button correctly absent in both cases.
+- `node --check app.js` passes.
+
+Note: initial CDP testing hit a false-positive "missing filter" result —
+traced to a test-harness artifact (Chrome's `/json/new?url=` DevTools
+endpoint double-decodes percent-escaped characters embedded in the target
+URL, corrupting a hand-crafted nested `apiurl=` query value before the
+page even loads). Not an app bug — confirmed by re-testing via a real
+in-page `pushState()` call instead of a hand-encoded URL string, which
+produced the correct combined filter+sort URL.
+
+**Status**: Complete.
+
+
+## Updated: Copy-API-URL icon + tab/version-aware URL on Resource/Version pages
+
+### Icon change
+Replaced the clipboard emoji with a proper inline SVG copy icon (the
+standard "two overlapping documents" glyph, same design language as
+Material Icons' `content_copy` and most icon sets — matches the visual
+style the user referenced from thenounproject). `_copyIconSVG` constant
+in `app.js`; `.bc-copy-btn svg { display: block; }` in `style.css`.
+
+### Tab/version-aware URL (Resource & Version entity pages)
+#### Problem discussed
+On a Resource/Version entity page, `buildAPIURL()` (used by the copy
+button) returned the bare entity URL with no `$details` — meaning the
+copied URL, if curled, would return the raw document body (or error)
+instead of the JSON actually shown on screen. Separately, the user asked
+whether the copied URL should reflect which tab (Version Details /
+Document / Metadata) and which version (via the Resource page's
+version-selector dropdown) is currently selected, rather than always
+being the default entity URL.
+
+#### Design (confirmed with user)
+- **Version Details tab** (default detail view — key `defver` on Resource
+  pages, `version` on Version pages): entity/version's own URL + `$details`.
+- **Document tab**: the *plain* URL (no `$details`) — GETting it returns
+  the actual document content regardless of whether it's a real hosted
+  `<key>url`, base64, or an inline JSON value (server computes it either
+  way) — confirmed with user this is correct even when there's no
+  independently-hosted URL to point to.
+- **Metadata tab** (Resource pages only): `resolveResourceMetaUrl()`'s
+  `.../meta` URL.
+- **Version-selector dropdown** (Resource pages only): swaps in that
+  version's own `self` URL as the base before applying the above tab logic.
+
+#### Implementation
+`registry/ui/app.js`: added `buildTabAwareAPIURL()`, called by
+`copyCurrentAPIURL()` instead of `buildAPIURL()` directly.
+- Only kicks in for Resource (`path.length === 4`) or Version
+  (`path.length >= 6 && path[4] === 'versions'`) entities in the `data`
+  section — everything else (collections, Groups, model/modelsource/etc.)
+  falls through to plain `buildAPIURL()` unchanged.
+- Reads the currently-active tab straight from the DOM
+  (`.eg-doc-tab.active[data-tab]`) rather than trying to re-derive/guess
+  tab order from `_state.docTab` — tab order isn't fixed (Document comes
+  FIRST when the resource type has one, otherwise Version Details is
+  first), so an empty `_state.docTab` doesn't reliably mean any one
+  specific tab.
+- Uses `_docActiveVersionData || _resDefaultData || _lastData` as the
+  entity data source — already the exact same "currently displayed"
+  data the version-selector (`onVersionSelectChange()`) and Document tab
+  logic use, so it automatically reflects the current version selection
+  with no extra bookkeeping.
+
+### Verified via CDP (live xrserver, `dirs/d1/files/f1` resource with 2
+versions: `1` and default `v2`)
+- Default landing tab (Document, since this resource type has one):
+  copies the plain content URL (no `$details`).
+- Switched to "Version Details" tab: copies `.../f1$details`.
+- Switched to "Metadata" tab: copies `.../f1/meta`.
+- Version-selector dropdown → version `1`, on "Version Details" tab:
+  copies `.../f1/versions/1$details`.
+- Same version selected, switched to "Document" tab: copies
+  `.../f1/versions/1` (no `$details`).
+- Direct navigation to a Version entity page (`.../versions/1`): tab keys
+  are `['doc','version']`; "Document" tab copies plain URL, "Version
+  Details" tab (`version` key) copies `.../versions/1$details`.
+- Regression check: a plain collection page (`dirs`) still copies via
+  unchanged `buildAPIURL()` (no tab-awareness applied, as expected).
+- `node --check app.js` passes. Test data cleaned up, chromium/temp files
+  removed.
+
+**Status**: Complete.
+
+
+## Updated: Metadata tab disables version selector
+
+### Problem discussed
+On the Resource page, the version-selector dropdown lets the user view
+different versions' data in the Document/Version Details tabs. But
+`metaurl`/the Metadata tab is a per-Resource concept, not per-version
+(`loadMetaDetails()` always reads `_lastData.metaurl`, ignoring which
+version is selected) — so the dropdown has no actual effect while
+viewing Metadata, which could mislead the user into thinking it does.
+
+### Fix
+`registry/ui/app.js`:
+- `switchDocTab()`: disables `#eg-doc-version-select` (with a
+  `title="Metadata is the same for all versions"` tooltip) whenever
+  switching to the `meta` tab; re-enables it when switching away.
+- Initial render: added `verSelDisabledD` (`_state.docTab === 'meta'`)
+  so the selector starts disabled if the page loads directly onto the
+  Metadata tab (e.g. via a restored `tab=meta` URL param), not just when
+  switching tabs interactively afterward.
+
+### Verified via CDP (`dirs/d1/files/f1` test resource, 2 versions)
+- Selector starts enabled on default tab; switching to Metadata tab
+  disables it (with tooltip); switching back to Version Details
+  re-enables it.
+- Loading the page directly with `tab=meta` in the URL: selector starts
+  disabled and Metadata tab is active immediately, no interactive
+  switch required.
+- `node --check app.js` passes. Test data cleaned up, chromium/temp
+  files removed.
+
+**Status**: Complete.
+
+
+## Updated: Version selector shows "N/A" (not just disabled-looking) on Metadata tab
+
+Follow-up to "Metadata tab disables version selector" — user asked for it
+to visually look disabled (not just unclickable) and, even better, show
+"N/A" instead of a version value.
+
+### Implementation
+`registry/ui/app.js`:
+- New shared helper `syncVersionSelectorForTab(tabKey)` (replaces the
+  inline disable-only logic previously in `switchDocTab()`): on the
+  `meta` tab, stashes the current selection in `sel.dataset.prevValue`,
+  injects a temporary `<option value="__na__">N/A</option>`, selects it,
+  and disables the control; on any other tab, removes that option and
+  restores the previously-selected version.
+- `switchDocTab()` now just calls `syncVersionSelectorForTab(tabKey)`.
+- `loadVersionsForSelect()`'s async version-list fetch re-applies the N/A
+  state afterward if the Metadata tab happens to already be active when
+  it resolves (otherwise the freshly-populated real `<option>`s would
+  silently replace the N/A placeholder).
+- Initial render (landing directly on `tab=meta` via a restored URL)
+  builds the `<select>` with the `N/A` option and `disabled` up front.
+
+`registry/ui/style.css`: added `.eg-version-selector select:disabled`
+(grey text/background, `cursor: not-allowed`) so the control looks
+visually disabled, not just non-interactive.
+
+### Verified via CDP (`dirs/d1/files/f1`, 2 versions)
+- Picking version `1`, then switching to Metadata tab: selector shows
+  "N/A", is disabled, computed style shows grey colors + not-allowed
+  cursor.
+- Switching back to "Version Details": selector correctly restores to
+  version `1` (not reset to "Default").
+- Landing directly on a `tab=meta` URL: selector starts as "N/A"/disabled
+  immediately, no interactive switch needed.
+- `node --check app.js` passes. Test data cleaned up, chromium/temp
+  files removed.
+
+**Status**: Complete.
+
+
+## Updated: Fixed blank version selector after leaving Metadata tab on page load
+
+### Bug
+Loading/refreshing the page directly onto the Metadata tab (`tab=meta`
+in the URL), then switching to the Document or Version Details tab,
+left the version selector showing blank instead of "Default (1)".
+Interactively selecting a version first (or navigating without a
+refresh) masked the bug, since it went through a different code path.
+
+### Root cause
+1. The initial "start disabled on Metadata tab" render only injected the
+   `N/A` option (real `default` option omitted) — already partially
+   fixed earlier this session by always including the real `default`
+   option underneath `N/A`.
+2. Remaining bug: `loadVersionsForSelect()`'s async version-list fetch
+   calls `syncVersionSelectorForTab('meta')` again to re-apply the N/A
+   placeholder once real options are populated. But at the moment that
+   runs, `sel.value` could still read `'__na__'` (the still-selected
+   placeholder) — and since `dataset.prevValue` was undefined, the code
+   stashed `'__na__'` itself as the "value to restore later", permanently
+   losing the real previous selection.
+
+### Fix
+`registry/ui/app.js`, `syncVersionSelectorForTab()`: added a guard so
+`'__na__'` itself is never captured as `dataset.prevValue` — only stash
+`sel.value` when switching state, only if it isn't already `__na__`
+`(sel.value !== '__na__')`. Without a real one to restore, switching away
+now correctly falls back to whichever option the browser naturally
+selects (the real "default" option), instead of nothing.
+
+### Verified via CDP
+- Direct page load on `tab=meta`, then switch to Document tab: now shows
+  "Default (1)" (previously blank). Switching on to Version Details tab
+  also shows "Default (1)" correctly.
+- Regression check: interactively selecting version `1`, then Metadata
+  tab, then back to Document tab: still correctly restores to version
+  `1` (not reset to Default) — unaffected by this fix.
+- `node --check app.js` passes. Test data cleaned up, chromium/temp
+  files removed.
+
+**Status**: Complete.
 
 ## Known non-gaps (design decisions made, not oversights)
 
