@@ -1801,7 +1801,7 @@ function renderHomeFlatList(main, servers) {
       var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
       var regOnclick = guardedOnclick('doBrowse(' + JSON.stringify(r.serverUrl) + ')');
       return '<div class="gt-row">'
-        + '<img src="' + esc(r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20">'
+        + '<img src="' + esc(r.icon || r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'favicon.svg\'">'
         + '<div class="gt-row-main">'
         +   '<div class="gt-row-title">'
         +     '<a class="gt-row-name" href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a>'
@@ -1816,7 +1816,7 @@ function renderHomeFlatList(main, servers) {
         +     (r.resources.length
                   ? r.resources.map(function(res) {
                       var titleAttr = res.description ? ' title="' + esc(res.description) + '"' : '';
-                      return '<span class="group-type-item"' + titleAttr + '>' + esc(res.plural) + '</span>';
+                      return '<span class="group-type-item"' + titleAttr + '>' + iconThumbHtml(res.icon, 'row-icon-thumb') + esc(res.plural) + '</span>';
                     }).join('')
                   : '<span class="group-type-none">none</span>')
         +   '</div>'
@@ -1837,7 +1837,7 @@ function renderHomeFlatList(main, servers) {
         info.colls.forEach(function(c) {
           allRows.push({plural: c.plural, count: c.count, resources: c.resources || [],
                         description: c.description || '', serverUrl: url, regLabel: label,
-                        regIcon: info.icon || '', url: c.url});
+                        regIcon: info.icon || '', icon: c.icon || '', url: c.url});
         });
       }
       pending--;
@@ -1959,13 +1959,17 @@ function probeRegistry(url, cb) {
           // Each resource type carries its own model description too, so
           // the Home "Group Types" page can show it as hover help on the
           // resource-type pill (see plan.md "Group Types page: resource
-          // pill hover help").
+          // pill hover help"). Also carries its model "icon" (if any) — see
+          // plan.md "Icon propagation from model + entity data" — shown as
+          // a thumbnail next to the Group Type name/resource-type pill.
           c.resources = grpDef && grpDef.resources
             ? Object.keys(grpDef.resources).sort().map(function(rp) {
-                return {plural: rp, description: (grpDef.resources[rp] && grpDef.resources[rp].description) || ''};
+                return {plural: rp, description: (grpDef.resources[rp] && grpDef.resources[rp].description) || '',
+                        icon: (grpDef.resources[rp] && grpDef.resources[rp].icon) || ''};
               })
             : [];
           c.description = (grpDef && grpDef.description) || '';
+          c.icon        = (grpDef && grpDef.icon) || '';
         });
         cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null});
       })
@@ -2290,7 +2294,15 @@ function renderTableView(data) {
   } else if (depth === 5) {
     titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> ';
   }
-  html += '<div class="eg-page-title">' + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
+  // Header icon: Groups list (depth 1) shows the model's Group-type icon;
+  // Resources list (depth 3) and Versions list (depth 5, no Version-level
+  // Type concept — reuses the owning Resource Type's icon) show the model's
+  // Resource-type icon. See plan.md "Icon propagation from model + entity
+  // data".
+  var titleIconUrl = '';
+  if (depth === 1) titleIconUrl = modelGroupIcon(model, _state.path[0]);
+  else if (depth === 3 || depth === 5) titleIconUrl = modelResourceIcon(model, _state.path[0], _state.path[2]);
+  html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrl, 'eg-page-title-icon') + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
 
   html += '<table class="xr-table"><thead><tr>';
   html += thSort('__id', idColLabel);
@@ -2337,8 +2349,17 @@ function renderTableView(data) {
     var rowSelf = entityHrefWithFilter(item.self || '', itemPath);
     var rowClickExpr = 'navigateTo(' + JSON.stringify(id) + ',' + JSON.stringify(rowSelf) + ')';
     var rowHref = pageHref(itemPath, rowSelf);
+    // Row icon: own instance `icon` attribute wins, else model Group-type
+    // (depth 1) or Resource-type (depth 3) icon fallback. Versions (depth
+    // 5) reuse the owning Resource's resolved icon (no separate Version
+    // Type icon concept) — see plan.md "Icon propagation from model +
+    // entity data".
+    var rowIconUrl = '';
+    if (depth === 1) rowIconUrl = resolveGroupIcon(model, _state.path[0], item);
+    else if (depth === 3) rowIconUrl = resolveResourceIcon(model, _state.path[0], _state.path[2], item);
+    else if (depth === 5) rowIconUrl = modelResourceIcon(model, _state.path[0], _state.path[2]);
     html += '<tr>';
-    html += '<td class="cell-id"><a href="' + esc(rowHref) + '" onclick="' + esc(guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
+    html += '<td class="cell-id">' + iconThumbHtml(rowIconUrl, 'row-icon-thumb') + '<a href="' + esc(rowHref) + '" onclick="' + esc(guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
     if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
     if (hasDesc) html += '<td class="cell-desc"><div class="cell-desc-text">' + esc(item.description != null ? String(item.description) : '') + '</div></td>';
     if (showVersionId) {
@@ -2528,7 +2549,20 @@ function renderSingleEntity(data) {
       ? '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> '
       : '';
     var titleTypeH = (depthH >= 6 && resSingularH) ? 'VERSION' : entityTypeH;
-    html += '<div class="eg-page-title">' + titleIdPrefixH
+    // Header icon: Registry root page (depth 0) uses its own `icon` if
+    // set; Group instance page (depth 2) uses its own `icon` if set, else
+    // the model's Group-type icon; Resource instance page (depth 4) and
+    // Version pages (depth >= 6, no separate Version Type icon concept —
+    // reuses the owning Resource Type's icon) use their own `icon` (depth
+    // 4 only — data at depth >=6 is a Version, not the Resource, so only
+    // the model fallback applies there) else the model's Resource-type
+    // icon. See plan.md "Icon propagation from model + entity data".
+    var titleIconUrlH = '';
+    if (depthH === 0) titleIconUrlH = (data && typeof data.icon === 'string' && data.icon.trim()) ? data.icon : '';
+    else if (depthH === 2) titleIconUrlH = resolveGroupIcon(model, _state.path[0], data);
+    else if (depthH === 4) titleIconUrlH = resolveResourceIcon(model, _state.path[0], _state.path[2], data);
+    else if (depthH >= 6) titleIconUrlH = modelResourceIcon(model, _state.path[0], _state.path[2]);
+    html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrlH, 'eg-page-title-icon') + titleIdPrefixH
       + '<span class="eg-page-title-type">' + esc(titleTypeH) + ':</span>'
       + (titleDisplayH ? ' <span class="eg-page-title-id">' + esc(titleDisplayH) + '</span>' : '')
       + '</div>';
@@ -2561,8 +2595,13 @@ function renderSingleEntity(data) {
       var resTypesHtml = showResTypes
         ? (c.resources && c.resources.length ? esc(c.resources.join(', ')) : '')
         : '';
+      // Collection row icon: depth 0 rows are Group Types, depth 2 rows are
+      // Resource Types — both are Type listings (not instances), so only
+      // the model-declared Type icon applies (no instance-level fallback).
+      var collIconUrl = depthT === 0 ? modelGroupIcon(model, c.plural)
+        : depthT === 2 ? modelResourceIcon(model, _state.path[0], c.plural) : '';
       html += '<tr>'
-        + '<td class="cell-id"><a href="' + esc(collHref) + '" onclick="' + esc(guardedOnclick(collClickExpr)) + '">' + esc(c.plural) + '</a></td>'
+        + '<td class="cell-id">' + iconThumbHtml(collIconUrl, 'row-icon-thumb') + '<a href="' + esc(collHref) + '" onclick="' + esc(guardedOnclick(collClickExpr)) + '">' + esc(c.plural) + '</a></td>'
         + '<td>' + c.count + '</td>'
         + (showResTypes ? '<td>' + resTypesHtml + '</td>' : '')
         + (showCollDesc ? '<td class="cell-desc"><div class="cell-desc-text">' + esc(c.description || '') + '</div></td>' : '')
@@ -2869,6 +2908,55 @@ function specAttrLevelName(path) {
   if (depth === 5) return 'meta';
   if (depth >= 6) return 'version';
   return null;
+}
+
+// ---- Icon resolution (model Group/Resource Type icon + instance override) --
+//
+// Per xRegistry spec (core/spec.md model schema), a Group Type or Resource
+// Type definition MAY declare an "icon" URL — a static icon representing
+// that *type*, independent of any icon an individual Group/Resource
+// *instance* may set via its own spec-defined "icon" attribute. Per user
+// request (2026-07-09): show model-declared Type icons in the Model/
+// ModelSource viewer, and everywhere a Group/Resource list or header is
+// shown, an instance's own icon (if set) wins over its Type's model icon.
+// Versions have no separate Type-level icon concept — the owning
+// Resource's icon (resolved the same way) is reused there.
+
+// Model definition's icon for a Group Type (path[0] = group plural), or ''.
+function modelGroupIcon(model, groupPlural) {
+  var grpDef = model && model.groups && model.groups[groupPlural];
+  return (grpDef && typeof grpDef.icon === 'string' && grpDef.icon.trim()) ? grpDef.icon : '';
+}
+
+// Model definition's icon for a Resource Type (path[0]=group plural,
+// path[2]=resource plural), or ''.
+function modelResourceIcon(model, groupPlural, resPlural) {
+  var grpDef = model && model.groups && model.groups[groupPlural];
+  var resDef = grpDef && grpDef.resources && grpDef.resources[resPlural];
+  return (resDef && typeof resDef.icon === 'string' && resDef.icon.trim()) ? resDef.icon : '';
+}
+
+// Resolves the icon to display for a Group instance: its own `icon`
+// attribute wins; otherwise falls back to the model's Group-type icon.
+function resolveGroupIcon(model, groupPlural, groupData) {
+  if (groupData && typeof groupData.icon === 'string' && groupData.icon.trim()) return groupData.icon;
+  return modelGroupIcon(model, groupPlural);
+}
+
+// Resolves the icon to display for a Resource instance: its own `icon`
+// attribute wins; otherwise falls back to the model's Resource-type icon.
+function resolveResourceIcon(model, groupPlural, resPlural, resourceData) {
+  if (resourceData && typeof resourceData.icon === 'string' && resourceData.icon.trim()) return resourceData.icon;
+  return modelResourceIcon(model, groupPlural, resPlural);
+}
+
+// Builds a small <img> icon-thumbnail tag (or '' if no url) — shared by
+// every icon-display spot added for this feature. onerror hides broken
+// images rather than showing a broken-image glyph.
+function iconThumbHtml(url, cssClass) {
+  if (!url) return '';
+  return '<img src="' + esc(url) + '" class="' + (cssClass || 'row-icon-thumb')
+    + '" alt="" onerror="this.style.display=\'none\'">';
 }
 
 // specAttrOrder returns the SPEC_ATTRS_ORDER array for the given path, or [].
@@ -7132,6 +7220,24 @@ function buildLeftNav(div) {
 
   function withCount(label, n) { return label + ' (' + n + ')' ; }
 
+  // Wraps a text label with a leading icon thumbnail when iconUrl is set —
+  // used for Group Type / Resource Type nav items so their model-declared
+  // "icon" (see resolveGroupIcon()/resolveResourceIcon()) shows in the
+  // left-nav list. Returns the plain string label when there's no icon, so
+  // navItem()'s string-vs-element branch still hits the plain string path.
+  function withIcon(label, iconUrl) {
+    if (!iconUrl) return label ;
+    var wrap = document.createElement('span') ;
+    wrap.style.cssText = 'display:inline-flex;align-items:center;' ;
+    var img = document.createElement('img') ; img.src = iconUrl ; img.alt = '' ;
+    img.className = 'row-icon-thumb' ;
+    img.onerror = function() { img.style.display = 'none' ; } ;
+    wrap.appendChild(img) ;
+    var span = document.createElement('span') ; span.textContent = label ;
+    wrap.appendChild(span) ;
+    return wrap ;
+  }
+
   if (_attrNestStack.length > 0) {
     var top = _attrNestStack[_attrNestStack.length - 1] ;
     if (top.isItem) {
@@ -7179,7 +7285,7 @@ function buildLeftNav(div) {
       if (!_modelReadOnly) div.appendChild(navAdd('+ Add Group', addNewGroup)) ;
       Object.keys(groups).sort().forEach(function(k) {
         var rCount = Object.keys((groups[k]||{}).resources || {}).length ;
-        div.appendChild(navItem(withCount(k, rCount), true, false,
+        div.appendChild(navItem(withIcon(withCount(k, rCount), groups[k] && groups[k].icon), true, false,
           (function(key){ return function(){ drillDown([key]) ; } ; })(k),
           (function(key){ return function(){ deleteGroup(key) ; } ; })(k))) ;
       }) ;
@@ -7203,7 +7309,7 @@ function buildLeftNav(div) {
       var resources = (model.groups[gk] || {}).resources || {} ;
       if (!_modelReadOnly) div.appendChild(navAdd('+ Add Resource', function(){ addNewResource(gk) ; })) ;
       Object.keys(resources).sort().forEach(function(k) {
-        div.appendChild(navItem(k, true, false,
+        div.appendChild(navItem(withIcon(k, resources[k] && resources[k].icon), true, false,
           (function(key){ return function(){ drillDown([gk, 'resources', key]) ; } ; })(k),
           (function(key){ return function(){ deleteResource(gk, key) ; } ; })(k))) ;
       }) ;
@@ -7457,7 +7563,7 @@ function renderGroupFields(div, gk) {
   div.appendChild(ef('ef_singular', 'Singular', grp.singular||'', true)) ;
   div.appendChild(ef('ef_description', 'Description', grp.description||'')) ;
   div.appendChild(ef('ef_documentation', 'Documentation', grp.documentation||'')) ;
-  div.appendChild(ef('ef_icon', 'Icon URL', grp.icon||'')) ;
+  div.appendChild(efIconPreview(ef('ef_icon', 'Icon URL', grp.icon||''))) ;
   div.appendChild(ef('ef_modelversion', 'Model Version', grp.modelversion||'')) ;
   div.appendChild(ef('ef_modelcompatiblewith', 'ModelCompatibleWith', grp.modelcompatiblewith||'')) ;
   div.appendChild(makeLabelsEditor('ef_labels', grp.labels||{})) ;
@@ -7479,7 +7585,7 @@ function renderResourceFields(div, gk, rk) {
   div.appendChild(ef('ef_singular', 'Singular', r.singular||'', true)) ;
   div.appendChild(ef('ef_description', 'Description', r.description||'')) ;
   div.appendChild(ef('ef_documentation', 'Documentation', r.documentation||'')) ;
-  div.appendChild(ef('ef_icon', 'Icon URL', r.icon||'')) ;
+  div.appendChild(efIconPreview(ef('ef_icon', 'Icon URL', r.icon||''))) ;
   div.appendChild(ef('ef_modelversion', 'Model Version', r.modelversion||'')) ;
   div.appendChild(ef('ef_modelcompatiblewith', 'ModelCompatibleWith', r.modelcompatiblewith||'')) ;
   div.appendChild(efNum('ef_maxversions', 'Max Versions', r.maxversions)) ;
@@ -7894,6 +8000,28 @@ function ef(id, label, value, required) {
   var inp = document.createElement('input') ;
   inp.type = 'text' ; inp.id = id ; inp.value = value ; inp.className = 'editorInput' ;
   row.appendChild(lbl) ; row.appendChild(inp) ; return row ;
+}
+
+// Attaches a live icon-thumbnail preview next to an "Icon URL" field row
+// (see ef()) — updates as the user types, hides automatically (via
+// onerror) when the URL is empty or doesn't resolve to a loadable image.
+// Used by the Group Type / Resource Type "Details" forms in the Model/
+// ModelSource viewer — see plan.md "Icon propagation from model + entity
+// data".
+function efIconPreview(row) {
+  var inp = row.querySelector('input') ;
+  var img = document.createElement('img') ;
+  img.className = 'eg-icon-preview' ; img.alt = '' ;
+  img.style.marginLeft = '10px' ;
+  img.onerror = function() { img.style.display = 'none' ; } ;
+  function refresh() {
+    var v = inp.value.trim() ;
+    if (v) { img.style.display = '' ; img.src = v ; } else { img.style.display = 'none' ; }
+  }
+  refresh() ;
+  inp.addEventListener('input', refresh) ;
+  row.appendChild(img) ;
+  return row ;
 }
 
 function efNum(id, label, value) {

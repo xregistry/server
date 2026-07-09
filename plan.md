@@ -11,6 +11,15 @@ goals.
 
 ## Outstanding
 
+- [ ] **Registry name override on Config page.** Add a UI control on the
+  Config page letting the user set a custom display name for a
+  registry, stored client-side (e.g. localStorage, keyed by registry
+  URL, alongside other per-server client state), so the UI uses that
+  name everywhere instead of the name returned by the server (e.g. in
+  the header, Registries list, breadcrumbs). Should not affect the
+  actual `name`/`registryid` returned by the API — purely a local
+  display override. Requested 2026-07-09; not yet implemented.
+
 - [x] ~~Add filter support to Grid (Tile) and List (Table) views for
   registry Data.~~ **OBSOLETE / done, no action needed** (updated
   2026-07-08 during a later session): Grid view was removed entirely for
@@ -3036,6 +3045,199 @@ above), so `buildPropsRowsHtml()` is the only properties-rendering path
 — no other code path needed the same treatment. `node --check app.js`
 passes. Test data (`icon` field) cleared, chromium test process and
 temp files cleaned up.
+
+**Status**: Complete.
+
+## Icon propagation from model + entity data (Model/Resource/Group Type
+## icons everywhere)
+
+**User request** (2026-07-09): when a Group Type or Resource Type
+definition in the model has an `icon` URL (a model-schema field, e.g.
+`groups.<plural>.icon`/`groups.<plural>.resources.<plural>.icon` — per
+core/spec.md model schema, distinct from an instance's own spec-defined
+`icon` attribute), show it in the Model/ModelSource viewer next to the
+Group/Resource type entry, and propagate icons everywhere a Group/
+Resource list or header is shown: Group Types list (Registry page),
+Groups list page (header + rows), Resources list within a Group
+Instance page (header + rows), Resource list page (header + rows),
+Resource instance page header, and Versions (reusing the owning
+Resource's resolved icon — no separate Version Type icon concept).
+Precedence everywhere: an instance's own `icon` attribute wins; else
+fall back to the model Type's `icon`.
+
+**Implementation** (`registry/ui/app.js`):
+- New shared helpers (near `getSingularName()`/`specAttrLevel()`):
+  `modelGroupIcon(model, groupPlural)`, `modelResourceIcon(model,
+  groupPlural, resPlural)` (read the model's Type-level icon),
+  `resolveGroupIcon(model, groupPlural, groupData)`,
+  `resolveResourceIcon(model, groupPlural, resPlural, resourceData)`
+  (apply the instance-icon-wins-else-model-icon precedence), and
+  `iconThumbHtml(url, cssClass)` (shared `<img onerror=...>` builder
+  used by every HTML-string rendering spot below).
+- **Model/ModelSource viewer** (`buildLeftNav()`): new `withIcon(label,
+  iconUrl)` local helper wraps a nav-item label with a leading icon
+  thumbnail (DOM-element label, since `navItem()` already supports
+  non-string labels) — applied to the Group Types list and the
+  Resources list inside a Group Type. Also added a live-updating icon
+  thumbnail preview next to the "Icon URL" field in both the Group Type
+  and Resource "Details" forms (new `efIconPreview(row)` helper wrapping
+  `ef()`, reusing the `.eg-icon-preview` class from the Properties-table
+  feature) — updates on `input`, hides via `onerror` when empty/broken.
+- **Registry page Group Types list** (`probeRegistry()` +
+  `renderHomeFlatList()`): `probeRegistry()` now also attaches `c.icon`
+  (Group Type's model icon) and per-resource `icon` (Resource Type's
+  model icon) alongside the existing description fields;
+  `renderHomeFlatList()` renders both as `row-icon-thumb` thumbnails
+  next to the Group Type name and each resource-type pill.
+- **Groups/Resources/Versions collection pages** (`renderTableView()`,
+  depths 1/3/5): page-title icon (`eg-page-title-icon` class, reusing
+  the pre-existing but previously-unwired CSS rule of that name) uses
+  `modelGroupIcon()` at depth 1, `modelResourceIcon()` at depth 3 and 5
+  (Versions has no separate Type-level icon — reuses the owning
+  Resource Type's). Each row's `cell-id` gets a `row-icon-thumb` via
+  `resolveGroupIcon()` (depth 1) / `resolveResourceIcon()` (depth 3) /
+  `modelResourceIcon()` fallback-only (depth 5, per user's explicit
+  "use whatever Resource icon is defined" direction — no per-Version
+  instance-icon check).
+- **Registry root / Group Instance single-entity pages**
+  (`renderSingleEntity()`, depths 0/2/4/6+): page-title icon added via
+  `resolveGroupIcon()` (depth 2), `resolveResourceIcon()` (depth 4), or
+  `modelResourceIcon()` fallback-only (depth 6+, Version pages — same
+  "no per-Version icon check" rule as above). The Group Types /
+  Resources collection-refs table (shown at depth 0 and depth 2) also
+  gets a `row-icon-thumb` per row via `modelGroupIcon()` (depth 0 rows
+  are Group Types) / `modelResourceIcon()` (depth 2 rows are Resource
+  Types) — these rows are Type listings, not instances, so no instance-
+  level fallback check applies there.
+- `registry/ui/style.css`: added `.row-icon-thumb` (16x16, inline,
+  margin-right) for table rows/pills/nav labels; reused the existing
+  (previously dead/unwired) `.eg-page-title-icon` rule for page titles.
+
+**Verified** via CDP against a live xrserver with a test model (Group
+Type "endpoints" + icon, Resource Type "messages" + icon) and instances
+covering every precedence combination (a Group/Resource with no own
+icon vs. one with its own override icon): confirmed correct icon +
+correct precedence (own-icon-wins-else-model-fallback) at every listed
+spot — Registry root Group Types table, Groups list page (header +
+both rows), Group Instance page (header + Resources row) for both the
+fallback and override Group instances, Resources list page (header +
+both rows), Resource instance page header for both the fallback and
+override Resource instances, Versions list page (header + row), Version
+instance page header, and the Model/ModelSource viewer's Group Types/
+Resources nav-item icons plus the live Icon-URL field preview. `node
+--check app.js` passes. Test model/instance data reverted (`PUT
+/modelsource` `{}`), chromium test process and temp files cleaned up.
+
+**Status**: Complete.
+
+## Follow-up: Home "Group Types" page uses the Group-type icon, not the
+## owning Registry's icon
+
+**User request** (2026-07-09, same session as the icon-propagation
+feature above): on the Home "Group Types" page, the main row icon
+(`.gt-row-icon`, the larger icon at the left of each row) should prefer
+the model-declared Group-type icon over the owning Registry's icon.
+
+**Implementation** (`registry/ui/app.js`, `renderHomeFlatList()`): the
+row's main `<img class="gt-row-icon">` src is now `r.icon || r.regIcon
+|| 'favicon.svg'` (was `r.regIcon || 'favicon.svg'`) — `r.icon` (the
+Group-type's model icon) already flows in from `probeRegistry()` (added
+in the icon-propagation feature above). Also added an inline
+`onerror="this.onerror=null;this.src='favicon.svg'"` fallback so a
+broken/unreachable Group-type icon URL falls back to the local favicon
+rather than showing a broken-image glyph (`r.regIcon` itself was never
+onerror-guarded before, so this also improves that pre-existing case).
+Removed the now-redundant small `row-icon-thumb` that had been added
+next to the Group Type name in the same feature (duplicate icon, same
+pattern as the earlier "Group Types page: small polish… duplicate
+icon" fix) — the resource-type pills' own thumbnails are unaffected.
+
+**Verified** via CDP: a Group Type with its own model icon shows that
+icon in `.gt-row-icon` (not the Registry's); a Group Type with no icon
+falls back to the Registry's icon logic (here, the local favicon, since
+the test registry had no icon set either); a broken Group-type icon URL
+correctly falls back to `favicon.svg` via `onerror` rather than showing
+a broken-image glyph. `node --check app.js` passes. Test model/instance
+data reverted, chromium test process and temp files cleaned up.
+
+**Status**: Complete.
+
+## Registry root page header shows the Registry's own `icon`
+
+**User request**: "if the registry has an icon defined, let's add it to
+the header on the Registry page" — followed by a clarifying "after the
+name" (initially interpreted literally as icon-after-text), then
+corrected: "I was wrong, it should be on the left, like all other header
+icons... with the title text" (i.e. same leading-icon position as
+Group/Resource/Version headers), followed by "can you ensure they're
+bottom (base) aligned?".
+
+**Implementation** (`registry/ui/app.js`, `renderSingleEntity()`'s shared
+title-building block): added a `depthH === 0` branch to `titleIconUrlH`
+reading `data.icon` directly (Registry root has no model-level Type icon
+to fall back to, unlike Group/Resource/Version). The icon renders via the
+same `iconThumbHtml(titleIconUrlH, 'eg-page-title-icon')` call already
+used at every other depth, in the same leading position (before the
+ID-prefix/"TYPE:"/name) — no special-casing needed once the "after the
+name" idea was reverted.
+
+**Alignment fix** (`registry/ui/style.css`): `.eg-page-title` was
+`align-items: center`, which vertically centered the 24px icon against
+the title text's line-box, looking slightly off since the icon and text
+don't share a true baseline. Changed to `align-items: flex-end` so the
+icon and text bottoms are flush — applies to all depths sharing this
+title bar (Registry/Group/Resource/Version), not just the Registry root.
+
+**Verified** via CDP against a live xrserver: setting the registry's
+`icon` (via `PATCH /`) shows it at the front of the "REGISTRY: xRegistry"
+title, bottom-aligned with the text; clearing `icon` back to `''`
+correctly shows no image (empty-string guard already in place). `node
+--check app.js` passes. Test data reverted, chromium processes and temp
+files cleaned up.
+
+**Status**: Complete.
+
+## Follow-up: `.eg-page-title` header icon/text alignment — settled on
+## uppercase-everywhere + center-aligned (not baseline)
+
+The `align-items: flex-end`/`baseline` experiments above were revisited
+after further feedback. Pixel measurement (crop + numpy analysis of a
+CDP screenshot) confirmed the CSS baseline math was in fact working
+correctly (icon and text bottom edges landed on the exact same pixel
+row), but the specific xRegistry logo SVG used for testing has an
+asymmetric shape (the "R"'s leg / "X"'s tail dip unevenly), so it never
+looks quite flush at the bottom regardless of the CSS rule — a red
+herring caused by that particular icon's artwork, not a CSS bug.
+
+Given that, the user asked to instead: 1) make `.eg-page-title` itself
+`text-transform: uppercase` (removing the now-redundant declaration from
+the nested `.eg-page-title-type` rule) so *all* header text — type label
+prefix, ID prefix (e.g. resource id before "VERSION"), and the
+name/id value — is consistently uppercased, since previously only the
+"TYPE:" label was uppercase while the name/id stayed mixed-case, an
+inconsistency across different header layouts (single-entity headers
+show "TYPE: Name", collection-list headers show only the plural type
+label); 2) remove `align-items: baseline` from `.eg-page-title` (reverted
+to `align-items: center`, which was the original rule before this whole
+investigation) — visually "some are still off a bit but overall it looks
+better" than baseline once everything is uppercase.
+
+**Implementation** (`registry/ui/style.css`): `.eg-page-title` gained
+`text-transform: uppercase` and `align-items: center` (was `baseline`);
+`.eg-page-title-type` had its own `text-transform: uppercase` removed
+(now redundant/inherited from the parent). No `app.js` changes needed —
+this is a pure CSS/typography change, the icon/name/id HTML structure is
+unchanged.
+
+**Verified** via CDP across Registry root (depth 0), Group instance
+(depth 2), Resource instance (depth 4), Groups list (depth 1), and
+Resources list (depth 3) pages, each with a model/instance/registry
+`icon` set: all headers now show fully uppercase text ("REGISTRY:
+XREGISTRY", "ENDPOINT: ENDPOINT ONE", "ENDPOINT EP1 MESSAGES", "MESSAGE:
+M1") with the icon vertically centered against the text. `node --check
+app.js` passes (no JS changes, but re-verified after the CSS edit per
+routine). Test model/instance/registry-icon data reverted, chromium
+processes and temp files cleaned up.
 
 **Status**: Complete.
 
