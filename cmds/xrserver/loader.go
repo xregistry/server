@@ -696,10 +696,11 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		}
 
 		if err != nil {
-			Verbose("  - Error loading samples dir: %s", err)
+			Verbose("  - Error loading samples dir(%s): %s", samplesDirURL,
+				err)
 		} else if res.StatusCode != 200 {
-			Verbose("  - Error loading samples dir: %s\n%s", res.Status,
-				string(body))
+			Verbose("  - Error loading samples dir(%s) : %s\n%s",
+				samplesDirURL, res.Status, string(body))
 		}
 
 		if err != nil || res.StatusCode != 200 {
