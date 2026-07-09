@@ -2263,6 +2263,17 @@ func (e *Entity) Validate() *XRError {
 		log.Printf("In Validate - Attrs:\n%s", ToJSON(attrs))
 	}
 
+	// Skip xref's versions since its owning resource should have done it
+	/* should not need this, but save as comment just in case
+	if e.Type == ENTITY_VERSION {
+		v := e.Self.(*Version)
+		r := v.Resource
+		if r.IsXref() {
+			return nil
+		}
+	}
+	*/
+
 	if e.Type == ENTITY_RESOURCE {
 		// Skip Resources // TODO DUG - would prefer to not do this
 		return nil

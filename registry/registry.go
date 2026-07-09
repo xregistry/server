@@ -1503,6 +1503,11 @@ func (r *Registry) VerifyData() *XRError {
 				return xErr
 			}
 
+			// Skip xref'd resources, the real owner will do it
+			if resource.IsXref() {
+				continue
+			}
+
 			// Now do Versions
 			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
 				`ParentSID=?`, resource.DbSID)
