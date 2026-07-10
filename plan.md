@@ -26,23 +26,8 @@ goals.
   filtering. The original design write-up is kept below (see "Filter
   support in Grid/List views (design)") for historical context only.
 
-- [ ] **Fix `navigateJsonUrl`/`syntaxHighlight`'s link reconstruction gap.**
-  Discovered during the above design discussion (2026-07-07), explicitly
-  deferred — not required for Grid/List filter support and has no
-  observable real-world impact today, but is a genuine robustness gap:
-  when a user clicks a URL string value shown inside JSON view's raw
-  text, `navigateJsonUrl()` only extracts `path` + `filter` from the
-  clicked link and reconstructs everything else via `buildBaseURL()` —
-  silently dropping any OTHER query params the link might carry (e.g. a
-  hypothetical required `?xreg=true`, or any other future non-filter
-  query convention). Confirmed via direct question/answer during design:
-  this would genuinely break in that hypothetical scenario. Fix: once
-  `stripFilterParams()` exists (see Grid/List filter design below),
-  retrofit `navigateJsonUrl`/`syntaxHighlight` to preserve the clicked
-  link verbatim as `apiURL` (stripping only `filter=`, same as
-  everywhere else) instead of reconstructing from path alone — making
-  all 3 views share one single, fully link-preserving mechanism instead
-  of JSON's in-content clicks being the one remaining exception.
+- [x] ~~Fix `navigateJsonUrl`/`syntaxHighlight`'s link reconstruction gap.~~
+  **Done** (see Completed section below) — implemented 2026-07-09.
 
 - [x] **Filter builder UI for JSON view** — implemented and live-tested
   via CDP (chip-based OR-groups, model-driven cascading wizard,
@@ -3315,7 +3300,493 @@ with the new URL as key). Delete still works via the unaffected
 
 **Status**: Complete.
 
-## Known non-gaps (design decisions made, not oversights)
+## `navigateJsonUrl`/`syntaxHighlight`/`renderUrlLinkValue` link
+## reconstruction gap — done
+
+**Problem** (deferred from 2026-07-07, fixed 2026-07-09): when a user
+clicked a same-server URL string value shown either in JSON view's raw
+text (`syntaxHighlight()`) or as a clickable Property-table value
+(`renderUrlLinkValue()`, e.g. `self`/`metaurl`/`versionsurl`/any
+URI-typed attribute), the click handler (`navigateJsonUrl()`) only
+extracted `path` + `filter=` from the clicked link via `filtersFromUrl()`
+and let `buildAPIURL()` reconstruct the rest of the fetch URL from
+generic `_state` fields — silently dropping any OTHER query param the
+server-provided link carried (e.g. a hypothetical `sort=`/`inline=` baked
+into a nested collection's `xxxurl` that didn't match the current page's
+own active state). The two hover-href builders (`syntaxHighlight()`'s
+`fakeSt`, `renderUrlLinkValue()`'s `fakeSt`) had the same issue one level
+earlier: neither ever set `apiURL` on their synthetic state object, so
+`buildURL()`'s `apiurl=` permalink param was never populated at all for
+these hrefs — only a `filter=` param, derived from `st.filters`, ever
+showed up.
+
+**Root-cause discussion** (talked through with user before implementing):
+confirmed the URL being parsed (`raw`/`inner`/`rawText`) is always a
+literal string pulled directly out of the server's own response (JSON
+text or an entity's data field) — i.e. it already **is** the correct,
+fully-computed link to the next page, including whatever filter the
+server subsetted for that specific target. There was never a real reason
+to drop it and let generic state reconstruction re-derive an equivalent
+URL: `filtersFromUrl()`'s only genuine job is populating the Filter/Sort
+panel's displayed state, not building the fetch URL. Since
+`pushStateReal()` already calls `syncFiltersFromApiURL()` unconditionally
+right after merging in any patch — deriving `_state.filters` from
+whatever real `apiURL` was just set — passing the clicked link through
+verbatim as `apiURL` (exactly like every other real-link navigation call
+site in the file, e.g. lines ~1076/1782/6715) makes the separate
+`filters: filtersFromUrl(raw)` in `navigateJsonUrl()`'s own `pushState()`
+patch redundant; it was removed.
+
+**Implementation** (`registry/ui/app.js`):
+- `navigateJsonUrl()`: now passes `apiURL: raw` in its `pushState()`
+  patch instead of `filters: filtersFromUrl(raw)`; `_state.filters` gets
+  synced automatically afterward by `pushStateReal()`'s existing
+  `syncFiltersFromApiURL()` call.
+- `syntaxHighlight()` / `renderUrlLinkValue()`: their `fakeSt` objects
+  (used only to compute the displayed hover/right-click href via
+  `buildURL()`) now also set `apiURL: inner`/`apiURL: rawText`
+  (verbatim), in addition to the pre-existing `filters:
+  filtersFromUrl(...)`. The `filters` field is still needed here
+  specifically — unlike `navigateJsonUrl()`, `fakeSt` is a one-off object
+  that never goes through `pushStateReal()`, and `buildURL()` has a
+  dedup check (`filterAlreadyInApiURL`) that compares `st.filters`
+  against what's embedded in `st.apiURL` to avoid appending a redundant,
+  stale top-level `filter=` — so `filters` must already match what
+  `apiURL` carries for that check to correctly suppress the duplicate.
+  Setting `apiURL` is what actually fixes the bug (every query param now
+  flows into `buildURL()`'s `apiurl=` permalink param, not just filter).
+- Updated/corrected surrounding comments (`syncFiltersFromApiURL()`'s doc
+  comment referenced navigateJsonUrl's old "no apiURL of its own"
+  behavior, now stale) to reflect the fixed behavior.
+
+**Verified** via CDP: called `navigateJsonUrl()` directly with a
+same-server URL carrying `filter=`, `sort=`, and an extra non-standard
+`foo=bar` param — confirmed `_state.apiURL` retained the exact original
+URL string (all three params intact), `_state.filters` correctly
+auto-derived to just the filter group, and the address bar's `apiurl=`
+param round-tripped the same full URL with no duplicate top-level
+`filter=`. Also called `renderUrlLinkValue()` and `syntaxHighlight()`
+directly with the same test URL and confirmed both produced an `<a>`
+href whose `apiurl=` carries every original query param verbatim, with
+matching `onclick="navigateJsonUrl(...)"` targets. `node --check app.js`
+passes. Chromium test processes and temp files cleaned up.
+
+**Status**: Complete.
+
+---
+
+## Fixed: registry-root breadcrumb loses/mis-shows a filter applied at depth 0
+
+**Bug reported**: starting at the registry root, applying a filter directly
+there (e.g. `schemagroups.schemas.versions.epoch`), then drilling all the
+way down to a deep child page, then clicking the ROOT breadcrumb (only the
+root — every other breadcrumb level worked fine) did not restore the
+filter. Separately, while deep in the hierarchy, hovering the root
+breadcrumb showed the wrong (deeper page's already-relativized) filter
+value instead of the root's own.
+
+**Root cause**: `crumbURLs` (the per-depth cache of each visited ancestor's
+real/filtered URL, used to restore breadcrumb clicks correctly) is only
+ever indexed for depths > 0 — both of `pushStateReal()`'s caching blocks,
+and the `defaultApiURL` computation that feeds a breadcrumb click's patch,
+were explicitly gated with `newDepth > 0` / `_state.path.length > 0`. This
+was a deliberate simplification based on an assumption (documented right
+next to `buildURL()`'s `apiurl=` gate) that "the registry root's own URL is
+always trivially `serverBase()`" — true only for an UNFILTERED root.
+Once a filter is applied directly at the root, that assumption breaks:
+the root's own filtered URL is never cached anywhere, so:
+- `buildBreadcrumbSegments()`'s root segment hardcoded `pageHref([], '',
+  ...)` for its hover-href — passing a falsy `apiURL` meant `pageHref()`'s
+  `st.filters = filtersFromUrl(st.apiURL)` reassignment never fired,
+  silently falling back to whatever `_state.filters` currently held (the
+  CURRENT/deepest page's already-relativized filter) — explaining the
+  "wrong filter shown on hover" symptom.
+- Clicking the root breadcrumb's onclick patch (`{path:[], section:'data',
+  ...}`, no `filters`/`apiURL` keys) let `pushStateReal()`'s default-patch
+  merge fill in `filters: []`/`apiURL: ''` (since `defaultApiURL` was
+  always `''` for depth 0) — wiping the filter entirely.
+- `buildURL()`'s `apiurl=` param is also gated the same way, so the root's
+  filtered state is only ever round-tripped to the address bar via the
+  plain top-level `filter=` param — which is why a manual page **refresh**
+  at the root correctly restored the filter (`loadStateFromURL()` reads
+  `filter=` directly) even though the breadcrumb-click path had nothing to
+  fall back on.
+
+**Fix** (`registry/ui/app.js`): added a new `_state.rootApiURL` field —
+crumbURLs' depth-0 counterpart, since crumbURLs itself is only indexed for
+depths > 0:
+- Initialized to `''` in the main `_state` object declaration.
+- `loadStateFromURL()`: synthesizes it via `buildAPIURL()` whenever landing
+  directly on the (data-section) root, so a same-session round-trip works
+  even without ever clicking Apply again in that session (e.g. a
+  bookmarked filtered-root URL).
+- `pushStateReal()`: `defaultApiURL`'s computation now falls back to
+  `_state.rootApiURL` for `newDepth === 0` (mirroring the `crumbURLs[newDepth
+  - 1]` lookup used for depths > 0); both existing apiURL-caching blocks
+  (the "path is changing" block and the "Apply changed apiURL without a
+  path change" block) now also populate `_state.rootApiURL` at depth 0,
+  alongside their existing depth > 0 `crumbURLs` writes; `rootApiURL` is
+  reset to `''` alongside `crumbURLs = []` wherever that cache is fully
+  invalidated (server/section change, entering data fresh).
+- `buildBreadcrumbSegments()`'s root segment now passes `_state.rootApiURL
+  || ''` (instead of a hardcoded `''`) to `pageHref()` for the hover-href.
+  The onclick patch itself needed NO change — it already omits `apiURL`
+  the same way every other depth's breadcrumb onclick does, relying
+  entirely on `pushStateReal()`'s `defaultApiURL` fallback to supply the
+  correct cached value; this keeps the root breadcrumb consistent with how
+  every other depth already works.
+
+**Verified** via headless-Chromium CDP against a live xrserver (nested
+`schemagroups`→`schemas`→`versions` test model, filter
+`schemagroups.schemas.versions.epoch>0` applied at the root):
+- Fresh page load directly on the filtered root correctly synthesizes
+  `_state.rootApiURL`.
+- Real DOM clicks drilling all the way down to the `versions` collection,
+  then a real click on the actual root breadcrumb `<a>` (both in List view
+  and in JSON view, starting the drill-down via real JSON-embedded link
+  clicks), correctly restored `_state.path = []`, `_state.filters =
+  ["schemagroups.schemas.versions.epoch>0"]` (the root-scoped value, not a
+  deeper relativized one), and `_state.apiURL` matching the real filtered
+  root URL.
+- The root breadcrumb's hover-href (`buildBreadcrumbSegments()`'s output)
+  was confirmed to show the correct root-scoped filter while deep in the
+  hierarchy, not the deeper page's relativized value.
+- `node --check app.js` passes. Test model/data reset to `{}`; chromium
+  test processes and temp profile/log files cleaned up.
+
+**Status**: Complete.
+
+---
+
+## Fixed: malformed version-link URLs corrupting filter after a breadcrumb click
+
+**Bug reported**: after applying a root-level filter (e.g.
+`schemagroups.schemas.versions.epoch`) and drilling all the way down to a
+specific version, clicking a GROUP INSTANCE breadcrumb (e.g. `Contoso.ERP`)
+lost the filter entirely; its hover-href showed a truncated/wrong filter
+(`filter=epoch` instead of the correct `filter=schemas.versions.epoch`).
+Every other breadcrumb level worked correctly.
+
+**Root cause**: `versionURLById()` and `defaultVersionURL()` (used to build
+the version-picker/"Default Version" links shown on a Resource's detail
+page, and by `navigateToVersionById()`/`navigateToVersion()`) constructed a
+version's URL by blindly appending `'/' + encodeURIComponent(vid)` onto a
+COLLECTION url (`d.versionsurl`, `versionsColl.url`, or the cached
+`crumbURLs[4]`) that may already carry a `?filter=...` query string (e.g.
+`.../versions?filter=epoch>0`). Appending after the query string produces
+a badly malformed URL like `.../versions?filter=epoch>0/v1` — the `/v1`
+segment lands INSIDE the query string's value instead of extending the
+path. This corrupted URL then became `_state.apiURL`/`crumbURLs[5]` for
+the version page, and once `syncFiltersFromApiURL()` (or downstream
+breadcrumb filter derivation) parsed it, the resulting filter value was
+itself corrupted (`"epoch>0/v1"` as a single bogus filter clause) —
+explaining both the "vanishes" and "wrong value shown" symptoms once that
+bad state propagated into further filter-relativization logic.
+
+**Fix** (`registry/ui/app.js`): added a shared `appendURLPathSegment(url,
+seg)` helper that splits any URL's query string off BEFORE appending the
+new path segment, then re-attaches the query string unchanged — instead of
+each of the three affected call sites hand-rolling
+`url.replace(/\/$/, '') + '/' + encodeURIComponent(seg)` (which silently
+assumed the URL never carried a query string). Updated `defaultVersionURL()`
+and both fallback branches in `versionURLById()` to use it.
+
+**Verified** via headless-Chromium CDP against a live xrserver (same
+`schemagroups`/`Contoso.ERP`/`schemas`/`s1`/`versions`/`v1`/`v2` test model
+as the root-breadcrumb fix above, filter
+`schemagroups.schemas.versions.epoch>0` applied at the root):
+- Before the fix: the resource detail page's `v1`/`v2` quick-links had
+  hrefs like `.../versions?filter=epoch>0/v1` (query string BEFORE the id) —
+  reproduced exactly. After the fix: correctly
+  `.../versions/v1?filter=epoch>0` (id in the path, filter as the query).
+- After the fix, drilling all the way down to `v1` via a real click on that
+  corrected link, then a real click on the `Contoso.ERP` breadcrumb,
+  correctly restored `_state.path = ["schemagroups","Contoso.ERP"]` and
+  `_state.filters = ["schemas.versions.epoch>0"]` (previously lost/
+  corrupted) — confirmed with `node --check app.js` passing.
+- Separately noted (not fixed, flagged to @duglin): drilling down via
+  **JSON view's own embedded `self` links** (rather than List view's
+  filter-augmented row links — see `entityHrefWithFilter()`) naturally
+  loses the filter at entity-instance depths, since a `self` link never
+  carries a filter per spec (confirmed: `GET .../Contoso.ERP` never
+  returns a `filter=` anywhere in its own response). This is a distinct,
+  pre-existing JSON-view-only gap, not the bug just fixed.
+- Test model/data reset to `{}`; chromium test processes and temp profile/
+  log files cleaned up.
+
+**Status**: Complete (version-link fix). JSON-view self-link filter gap
+noted separately, not yet addressed — pending @duglin's input on whether
+it's worth fixing.
+
+## Fixed: wrong breadcrumb filter at entity-instance depths skipped during
+## JSON-view collection-URL-only navigation
+
+**Bug reported** (@duglin): starting at a registry root with filter
+`schemagroups.schemas.versions.epoch` applied, then drilling down in JSON
+view by clicking ONLY `<plural>url` collection links (never `self`) —
+e.g. `schemagroupsurl` → the nested `schemasurl` embedded inside the
+`Contoso.ERP` entity's own data (without ever separately visiting/clicking
+`Contoso.ERP`'s own page) — the `Contoso.ERP` breadcrumb's hover URL showed
+`filter=epoch>0` instead of the correct `filter=schemas.versions.epoch>0`
+(the same value as its parent `schemagroups` breadcrumb). The same wrong-
+value pattern also affected the `s1` resource-instance breadcrumb one level
+further down (`filter=epoch>0` instead of the correct `versions.epoch>0`).
+@duglin clarified this navigation pattern (collection-URL-only, never
+`self`) is the way he actually browses — invalidating an earlier, incorrect
+diagnosis of this same symptom that assumed `self`-link clicks were
+involved.
+
+**Root cause**: `crumbURLs[]` (the per-depth cache of each visited depth's
+real server URL, used both for breadcrumb hover hrefs via `pageHref()` and
+for restoring `_state.filters`/`apiURL` on an actual breadcrumb click via
+`pushStateReal()`) only gets a cache entry for a depth when that depth's
+own page is actually visited/rendered. Jumping straight from one collection
+link to a NESTED collection link (`navigateJsonUrl()`'s multi-segment jump)
+skips over the intermediate entity-instance depth entirely — its
+`crumbURLs` slot is left empty. Both `pageHref()` (hover href) and
+`pushStateReal()`'s `defaultApiURL` computation (actual click/restore) then
+had no real URL to derive that depth's filter from, and silently fell back
+to whatever `_state.filters` happened to hold for the CURRENT/deepest page
+being viewed — an unrelated, generally-wrong value.
+
+**Key insight used for the fix**: an entity-instance depth's own filter
+context is always IDENTICAL to its immediate parent COLLECTION's filter,
+unchanged/un-relativized — crossing from a collection into one of its
+member entities never trims a filter clause; relativization
+(`FiltersRelativeToAbstract()` server-side) only happens when stepping INTO
+a nested collection. Verified against real HTTP fetches and against the
+already-correct List-view `entityHrefWithFilter()`-computed value for the
+same entity.
+
+**Fix** (`registry/ui/app.js`):
+- `pageHref()`: when the destination is an entity-instance depth (`path.
+  length` even, > 0) with no `apiURL` of its own, derive `st.filters` from
+  the immediate parent collection's cached `_state.crumbURLs[path.length -
+  2]` (if known) instead of leaving it to inherit `_state.filters` from the
+  current page. Fixes the breadcrumb's hover/ctrl-click/copy-link href.
+- `pushStateReal()`: added the identical fallback when computing
+  `defaultApiURL`/the patch defaults — when `defaultApiURL` is unknown for
+  an even `newDepth`, default `filters` (not `apiURL`) to
+  `filtersFromUrl(_state.crumbURLs[newDepth - 2])`. `apiURL` itself is
+  intentionally left `''` in this case (not backfilled to the parent's real
+  URL, which would point at the WRONG endpoint) — `buildAPIURL()`'s
+  existing no-real-link fallback already re-appends `_state.filters` onto
+  a plain `serverBase() + path.join('/')` construction, and `refresh()`'s
+  existing `needsDetails()`/`fetchWithDetailsFallback()` machinery already
+  handles appending `$details` for resource/version depths independently
+  at fetch time — confirmed via curl that a plain (non-`$details`) GET on
+  a resource entity returns its document content-negotiated view, not JSON
+  metadata, so this existing fallback machinery being reused here (rather
+  than reinvented) is important for correctness.
+
+**Verified** via headless-Chromium CDP against a live xrserver
+(`schemagroups`/`Contoso.ERP`/`schemas`/`s1`/`versions` v1,v2 test data,
+filter `schemagroups.schemas.versions.epoch>0` applied at root, JSON view,
+navigating via collection-URL clicks only): all 5 breadcrumb depths now
+show the correct filter (root: none shown in this direct-pushState test
+setup — unaffected/pre-existing; `schemagroups`: `schemas.versions.
+epoch>0`; `Contoso.ERP`: `schemas.versions.epoch>0`, was wrongly `epoch>0`
+before the fix; `schemas`: `versions.epoch>0`; `s1`: `versions.epoch>0`,
+was wrongly `epoch>0` before the fix). Confirmed actually CLICKING (not
+just hovering) both the `Contoso.ERP` and `s1` breadcrumbs correctly loads
+their pages with `_state.filters` restored to the right value, no error,
+and each entity's own nested `<plural>url` link in the resulting JSON
+correctly shows the properly-relativized filter one level down. `node
+--check app.js` passes. Test model reset to `{}`, chromium test processes
+and temp profile/log files cleaned up.
+
+**Status**: Complete.
+
+## Added: auto-expand Filters section on navigation when filters are set
+
+JSON view's left-panel Filters section (twisty-collapsible, always defaults
+to collapsed on first ever page load) now also auto-expands whenever a
+FRESH navigation (different server/section/path — see `fbKey()`) lands on
+a page that already has one or more filters active (e.g. followed a
+filtered link, typed/pasted a `filter=`-bearing URL, or restored via a
+breadcrumb click) — no point landing on an already-filtered page with that
+fact hidden behind a collapsed twisty. Still defaults to collapsed when a
+fresh navigation has no filters, and does not fight the user's own manual
+collapse/expand toggle, or auto-re-expand, for edits made while staying on
+the same page (applying a new filter via the wizard without navigating
+away doesn't rebuild the draft, so doesn't touch the collapse state either)
+— matches the existing "reset only on a fresh navigation" pattern already
+used for `_fbDraft`/`_sortDraft`.
+
+`registry/ui/app.js`, `ensureFbDraft()`: added
+`_filtersCollapsed = _state.filters.length === 0;` inside the existing
+draft-rebuild block (only runs once per fresh navigation, when `fbKey()`
+changes).
+
+Verified via headless-Chromium CDP: fresh nav to a path with a filter
+already set → twisty shows expanded (▼); fresh nav to a different path
+with no filter → collapsed (▶); manually collapsing a filtered page then
+adding another filter chip in the same-page draft (no navigation) does not
+force it back open. `node --check app.js` passes.
+
+**Status**: Complete.
+
+## Fixed: Version Details/Metadata property tables silently truncated
+## long values instead of scrolling horizontally
+
+**Bug reported** (@duglin): on the Resource page's List view, both the
+"Version Details" and "Metadata" tabs' tables chopped/truncated wide text
+instead of letting the panel scroll horizontally. Same problem on the
+Version page.
+
+**Root cause**: `buildEntityPropsTableHtml()`/`renderMetaTable()`'s Property
+tables share the generic `.xr-table` class, whose default `td` rule
+(`max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space:
+nowrap;`) is appropriate for the main collection List/Grid tables (fixed
+column widths, deliberately truncated) but was also silently truncating
+this Property table's "Value" column — the one column most likely to hold
+long text (URLs like `self`/`versionsurl`, long custom string attributes,
+etc.) — with no way to see the full value or scroll to it.
+
+**Fix** (`registry/ui/style.css`, `registry/ui/app.js`):
+- Added `.xr-table-props td:last-child` override (mirrors the existing
+  `.cell-tree` override used for object/array values) removing the
+  max-width/ellipsis truncation for the Value column, so the cell/table can
+  grow as wide as its content needs.
+- Added `overflow-x: auto` to `.eg-doc-tab-panel` so the resulting
+  horizontal scrollbar is scoped to just the active tab's content, not the
+  whole page (`#main-view` already had its own `overflow: auto`, but
+  scrolling at that level would carry the page title/tab bar along
+  sideways too).
+- The Version page's depth≥6 single-tab special case (no tab bar, content
+  rendered directly — see `renderSingleEntity()`) wasn't wrapped in
+  `.eg-doc-tab-panel` at all; wrapped it in that same class purely to pick
+  up the `overflow-x: auto` scoping.
+
+**Verified** via headless-Chromium CDP at a narrow viewport (500px) with a
+long custom string attribute value: both the Resource page's "Version
+Details" and "Metadata" tabs, and the Version page's "Version Details" tab,
+now report `panel.scrollWidth > panel.clientWidth` with `overflow-x: auto`
+and the value cell computed as `white-space: nowrap; text-overflow: clip`
+(no longer `ellipsis`) — confirming the long value is fully rendered and
+horizontally scrollable rather than chopped. `node --check app.js` passes.
+Test model/data reset to `{}`, chromium test processes and temp profile/log
+files cleaned up.
+
+**Status**: Complete.
+
+## Added: auto-expand Filters section on navigation when filters are set
+
+`ensureFbDraft()` now sets `_filtersCollapsed = _state.filters.length === 0`
+inside its once-per-navigation rebuild block (keyed by `fbKey()` = server +
+section + path, deliberately excluding filters so same-page filter edits
+never trigger this). Effect: landing on a fresh page with an active filter
+auto-expands the JSON-view Filters section; landing with none keeps it
+collapsed; manually toggling/editing filters on the same page is left
+alone. Verified via CDP with real model/data. Status: Complete.
+
+## Added: commit (⏎) button on Filter Builder's custom-attribute-name input
+
+**Bug reported** (@duglin): after picking "(other / custom attribute)" in
+the Filter Builder and typing a name, there was no visible way to confirm
+you were done — only worked by blurring the field or pressing Enter
+(`onchange`), with zero visual affordance.
+
+**Fix** (`app.js` `fbGenericSegRow()`, `style.css` `.fb-seg-custom-commit`):
+added a small `⏎` button right after the custom-name `<input>`, disabled
+while the field is empty, enabling live as you type (`fbSegCustomInput()`
+toggles it via `oninput`, no full rerender/focus-steal). Clicking it
+(`fbCommitSegCustom()`) reads the input's current value and calls the same
+`fbSetSegCustom()` the existing `onchange` already used. Covers all
+"(other/custom attribute)" entry points (root/group/resource attribute
+pickers, map keys, array indices) since they all share this one renderer.
+Verified end-to-end via CDP: disabled→enables on typing→click commits and
+advances to the operator picker. Status: Complete.
+
+## Fixed: ctrl/cmd/shift/middle-click didn't open a new tab for several
+## link types
+
+**Bug reported** (@duglin): testing ctrl-click consistency across the app,
+found `self`/`defaultversionurl` (Property-table URL values) didn't open a
+new window/tab.
+
+**Root cause found in 3 places**, all missing the `navShouldDefault()` /
+`guardedOnclick()` guard used everywhere else (breadcrumbs, rows, tiles):
+1. `renderUrlLinkValue()` — every same-server URL-typed scalar shown in a
+   Property table (`self`, `defaultversionurl`, `schemasurl`-as-scalar,
+   etc.) had `onclick="return navigateJsonUrl(...)"` with no modifier-key
+   check, so it always intercepted the click regardless of ctrl/cmd/shift.
+2. `syntaxHighlight()` — the JSON-view raw-JSON linkifier had the identical
+   unguarded `onclick="return navigateJsonUrl(...)"` for every same-server
+   URL string value rendered inline (e.g. `self` shown literally in the
+   JSON body).
+3. The left-panel "Viewing:" nav section (Data/Export/Model/Model
+   Source/Capabilities/Capabilities Offered) rendered as plain
+   `<span onclick="pushState(...)">` with no `href` at all — never had
+   ctrl-click support to begin with (not a regression, just never built).
+
+**Fix**: (1) and (2) now build their `onclick` via
+`guardedOnclick('navigateJsonUrl(...)')` instead of a bare
+`return navigateJsonUrl(...)` call. (3)'s "Viewing:" nav items
+(`buildRegEndpointPillsHtml()`'s sibling code in the left panel plus
+`lpNavPairRow()`) were converted from `<span onclick>` to real
+`<a href=... onclick=guardedOnclick(...)>`, using `pageHref()`/`buildURL()`
+for the href — same treatment breadcrumbs/rows/tiles/the "Config:" pills
+already had. Discussed and confirmed with @duglin that this is the right
+call specifically *because* switching "Viewing:" section is a genuinely
+different resource/endpoint (Data vs Model vs Capabilities — different API
+endpoint entirely), unlike the Resource/Version page's Version
+Details/Metadata/Document tabs, which deliberately stay plain tabs (no
+ctrl-click) since they show different facets of the *same* already-fetched
+entity and don't even touch the breadcrumbs/URL identity the way a real
+section switch does.
+
+Audited the rest of the app for the same gap (breadcrumbs, home-page
+registry cards/rows, group-type pills on the Group Types page, and the
+root page's "Config:" endpoint pills) — all already correctly guarded, no
+further gaps found.
+
+**Verified** via CDP: confirmed real `guardedOnclick`/href on all of the
+above, and simulated an actual `ctrlKey: true` MouseEvent dispatch on both
+the JSON-view `self` link and the "Viewing: Model" nav link — confirmed
+`_state`/`view` stayed unchanged (native browser new-tab behavior wins),
+where before the fix the same click would have intercepted and navigated
+in-app. `node --check app.js` passes. Chromium test processes/profiles
+cleaned up, test modelsource reset to `{}`.
+
+**Status**: Complete.
+
+## Open discussion (not yet decided): should collection `*url`/`*count`
+## mismatches and/or `self` be allowed to carry filter context?
+
+Extended `[[PLAN]]`-mode discussion with @duglin (no code changes) about
+two related xRegistry spec questions raised while testing filter/breadcrumb
+behavior:
+
+1. When a root-level filter's dotted `<PATH>` doesn't reference a sibling
+   group type (e.g. `schemagroups.schemas.versions.epoch` applied at root),
+   that sibling's `*count` correctly shows `0` (confirmed this matches a
+   strict reading of the spec's Filter Flag section — not a bug), but its
+   `*url` carries no filter at all, so following it returns the FULL
+   unfiltered collection — a misleading `count:0`/`url-returns-everything`
+   mismatch. Explored synthesizing an always-empty-but-valid filter clause
+   (e.g. `epoch<0`, using `epoch`'s spec-mandated `UINTEGER` type) for such
+   `*url`s instead of inventing new reserved syntax like a literal
+   `filter=none`. **Not decided/implemented.**
+2. Whether `self` should be allowed to carry filter/query context the same
+   way `<plural>url` attributes do (immutable base path + optional query
+   suffix). Worked through: relativization would only ever add
+   `<PATH>`-prefixed (descendant-scoping) fragments to `self`, never a bare
+   no-`<PATH>` fragment (confirmed empirically — a bare/no-`<PATH>` filter
+   on a single-entity GET is a spec-mandated existence gate, `404` if it
+   doesn't match, per spec.md ~line 4054), so the "self might later 404 for
+   unrelated reasons" concern doesn't actually materialize under that
+   model. Concluded remaining hesitation is largely `self`'s
+   REST/HATEOAS-inherited "permanent identity" naming connotation, not a
+   structural flaw — `xid` already covers pure identity duties, so a
+   separately-named sibling attribute (candidate names floated:
+   `contexturl`/`sourceurl`, undecided) carrying context wouldn't
+   compromise `self`'s existing contract. **@duglin is taking this to the
+   other spec authors before any decision/implementation.**
+
+No code or spec changes made for either item — purely exploratory. Revisit
+once @duglin has spec-author feedback.
+
 
 
 - `newui.md` originally sketched a *nested* dropdown structure
@@ -3324,6 +3795,97 @@ with the new URL as key). Delete still works via the unaffected
   "Registry Endpoints" tile/list (Model, Model Source, Capabilities,
   Capabilities Offered as siblings) after an explicit Option A vs.
   Option B discussion. Not a dropped requirement.
+
+## Fixed: Config-page breadcrumb text sat higher than other pages'
+## breadcrumb text (confirmed against the xR logo too)
+
+**Bug**: the "Config" breadcrumb (top of the Config page) rendered its
+text a few pixels higher than the equivalent last-segment text on every
+other page, and higher relative to the xR logo icon too (confirmed via
+side-by-side screenshots).
+
+**Root cause**: `#breadcrumbs { display:flex; align-items:flex-end; }`
+anchors all breadcrumb children to the row's bottom edge. On normal
+pages, the row's rendered height is 24px, set by its tallest child —
+the copy-API-URL `<button class="bc-copy-btn">` that
+`renderBreadcrumbs()` appends after the last segment. The Config page
+has no copy button at all (`showCopyLinkBtn()` explicitly excludes the
+`'config'` view), so its breadcrumb row was only 15px tall (bare text
+only). Measured `.bc-current` rects: normal page `top:17, bottom:32`
+(bottom-anchored within the 24px row); Config page (before fix)
+`top:12.5, bottom:27.5` (bottom-anchored within its own shorter 15px
+row) — same text height, different row height under the same
+`flex-end` rule, hence the ~4.5px offset.
+
+**Fix**: added `min-height: 24px` to `#breadcrumbs`
+(`registry/ui/style.css`), keeping `align-items: flex-end` unchanged.
+This makes the Config page's row reserve the same 24px box even
+without a button present, so its text bottom-aligns to the identical
+position as every other page — Config moved down to match the normal
+pages/logo, not the other way around.
+
+**Verified** via headless-Chromium CDP: `.bc-current`
+`getBoundingClientRect()` now reports identical `top:17, bottom:32` on
+both a normal data page and the Config page (previously Config was
+`top:12.5, bottom:27.5`). Side-by-side header screenshots confirm
+"Config" now sits at the same visual baseline as "xRegistry" and the
+xR logo. `node --check app.js` passes (CSS-only fix). Test chromium
+process/profile/log files cleaned up.
+
+**Status**: Complete.
+
+## Fixed: "Connecting…" stuck forever on unresponsive registries (no
+## error shown) — missing fetch timeout in probeRegistry()
+
+**Bug**: a registry whose host is unresponsive (DNS resolves but the
+server never answers, e.g. firewalled/down — reported for the "Bad
+URL" test registry `http://xregistry.soaphub.org/model`) left its
+Home-page card/row stuck on "Connecting…" forever, with no red error
+badge/text.
+
+**Root cause (confirmed with real `curl -v` against the actual host,
+plus a headless-Chromium simulation)**: `curl -v` showed DNS resolving
+fine (`208.97.140.135`) but the TCP connect itself timing out (SYN
+never ACKed) — a genuine network-level hang, not a fast DNS/CORS
+rejection and not the already-working "response is valid JSON but not
+a Registry entity" error path (`Not a valid xRegistry (missing
+specversion or registryid)`, still fires correctly and fast when a
+server actually responds with the wrong document type). `probeRegistry()`
+(`app.js` ~2026) had no timeout anywhere in its fetch pipeline — it
+relied purely on the browser's own fetch promise settling. Since
+`capP.then(...)` gates the entire rest of the function (including the
+`Promise.all(...).catch(cb-with-error)` that produces the red
+badge/text), a hung `/capabilities` fetch meant that error path never
+ran; the card stayed on its initial "Connecting…" HTML indefinitely
+(confirmed via a headless-Chromium test overriding `fetch` to return a
+never-settling `Promise`).
+
+**Fix**: added a `fetchWithTimeout(url, ms)` helper (`app.js`, just
+above `probeRegistry()`) that wraps `fetch()` with an `AbortController`
++ `setTimeout`, rejecting with a distinguishable `Error('Connection
+timed out')` if the request doesn't settle within
+`PROBE_FETCH_TIMEOUT_MS` (8000ms, per @duglin). Used it for all three
+of `probeRegistry()`'s fetches — `/capabilities`, `/model`, and the
+main `/` request (inlined the equivalent of `fetchJSON()`'s
+ok-check/error-throw logic since `fetchJSON()` itself is left
+unchanged/untouched — this fix is scoped to Home-page registry
+probing only, not the app's general-purpose fetch path, so it can't
+affect normal data-fetching elsewhere).
+
+**Verified** via headless-Chromium CDP:
+- A simulated abort-respecting hung fetch now surfaces "Connection
+  timed out" in the card's error text after ~16-18s (two sequential
+  8s timeout stages: `/capabilities` first, then the main `/` fetch,
+  since the main fetch only starts once `/capabilities` settles) —
+  a huge improvement over hanging forever.
+- A normal, healthy registry (`http://localhost:8080`) still probes
+  and renders correctly (name/label resolved, no error) — no
+  regression for the working case.
+- `node --check app.js` passes.
+
+Test chromium processes/profiles/log files cleaned up after each run.
+
+**Status**: Complete.
 
 ## Conventions
 

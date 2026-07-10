@@ -53,6 +53,12 @@ var _state = {
   // already-visited ancestor reuse it instead of reconstructing.
   apiURL:      '',
   crumbURLs:   [],
+  // Cached real/filtered URL for the registry ROOT (depth 0) specifically.
+  // crumbURLs only tracks depths > 0 (it's indexed by path segment), but the
+  // root itself can also carry a real, filtered apiURL (e.g. a filter
+  // applied directly at the root) — this mirrors crumbURLs' role for that
+  // one special depth. See pushStateReal()/buildBreadcrumbSegments().
+  rootApiURL:  '',
 
   // Resource/Version page Document/Details tab bar + version-selector
   // dropdown — remembered across a manual browser Refresh (but not across
@@ -297,6 +303,14 @@ function loadStateFromURL() {
   // an un-cached ancestor fall back to plain construction (accepted trade-off).
   _state.apiURL      = p.get('apiurl') || '';
   _state.crumbURLs   = [];
+  // Same trade-off as crumbURLs (can't survive a reload) — but if we're
+  // landing directly on the registry root with a filter/sort/etc already
+  // applied (e.g. a bookmark), synthesize the equivalent real root URL so a
+  // same-session breadcrumb round-trip (drill down, then click back to the
+  // root) restores it correctly. See buildBreadcrumbSegments()/
+  // pushStateReal() for how this is kept in sync afterward.
+  _state.rootApiURL  = (_state.section === 'data' && _state.path.length === 0)
+    ? buildAPIURL() : '';
   _state.docTab      = p.get('tab') || '';
   _state.resVersion  = p.get('ver') || '';
   // List view's "Filters" toggle panel (isGridFiltersOnlyMode()) — persist
@@ -473,15 +487,40 @@ function pushStateReal(patch) {
     // construction) only when truly nothing is known for this depth.
     if (changingServer || changingSection || enteringData) {
       _state.crumbURLs = [];
+      _state.rootApiURL = '';
     } else if (changingPath) {
       _state.crumbURLs = (_state.crumbURLs || []).slice(0, newDepth);
     }
-    var defaultApiURL = (newSection === 'data' && _state.crumbURLs && newDepth > 0)
-      ? (_state.crumbURLs[newDepth - 1] || '') : '';
+    // rootApiURL is crumbURLs' depth-0 counterpart (crumbURLs is only
+    // indexed for depths > 0 — see its own declaration comment).
+    var defaultApiURL = (newSection !== 'data') ? ''
+      : (newDepth > 0 ? (_state.crumbURLs[newDepth - 1] || '')
+                      : (_state.rootApiURL || ''));
+
+    // Entity-instance depths (Group/Resource/Version instances, i.e. even
+    // newDepth) never get their own crumbURLs entry when reached purely by
+    // following nested <plural>url collection links (the normal drill-down
+    // pattern) — that navigation jumps straight from one collection to the
+    // next, never landing on the entity's own page in between. When that's
+    // the case (defaultApiURL is unknown here), fall back to the immediate
+    // parent COLLECTION's cached filter, UNCHANGED/un-relativized: crossing
+    // from a collection into one of its member entities never trims a
+    // filter clause (only entering a NESTED collection does, per the
+    // server's FiltersRelativeToAbstract()) — so an entity's own filter
+    // context is always identical to its parent collection's. Leaving
+    // apiURL itself at '' is fine/intentional: buildAPIURL()'s existing
+    // no-real-link fallback already re-appends _state.filters onto the
+    // plain path-constructed URL, and refresh()'s needsDetails() handles
+    // any required "$details" suffix independently at fetch time.
+    var defaultFilters = [];
+    if (newSection === 'data' && !defaultApiURL && newDepth > 0 && newDepth % 2 === 0) {
+      var parentCollURL = _state.crumbURLs[newDepth - 2];
+      if (parentCollURL) defaultFilters = filtersFromUrl(parentCollURL);
+    }
 
     // Prepend defaults so explicit values in patch still win
     patch = Object.assign({
-      inlines: [], filters: [], sort: '', docView: false, binary: false, collections: false,
+      inlines: [], filters: defaultFilters, sort: '', docView: false, binary: false, collections: false,
       useExport: false, section: 'data', dataView: savedView, apiURL: defaultApiURL,
       // A real navigation (not a tab-click/version-select, which sync the URL
       // directly via history.replaceState and never reach pushStateReal) means
@@ -492,6 +531,8 @@ function pushStateReal(patch) {
 
     if (patch.apiURL && newSection === 'data' && newDepth > 0) {
       _state.crumbURLs[newDepth - 1] = patch.apiURL;
+    } else if (patch.apiURL && newSection === 'data' && newDepth === 0) {
+      _state.rootApiURL = patch.apiURL;
     }
   }
   Object.assign(_state, patch);
@@ -500,11 +541,14 @@ function pushStateReal(patch) {
 
   // applyFilters()/similar callers may set a new apiURL for the CURRENT
   // depth without a path change (so the block above never ran) — keep
-  // crumbURLs in sync here too, so a later breadcrumb click back to this
-  // depth doesn't regress to the pre-Apply link.
+  // crumbURLs (or rootApiURL, at depth 0) in sync here too, so a later
+  // breadcrumb click back to this depth doesn't regress to the pre-Apply
+  // link.
   if (patch.apiURL !== undefined && _state.section === 'data' && _state.path.length > 0) {
     _state.crumbURLs = _state.crumbURLs || [];
     _state.crumbURLs[_state.path.length - 1] = patch.apiURL;
+  } else if (patch.apiURL !== undefined && _state.section === 'data' && _state.path.length === 0) {
+    _state.rootApiURL = patch.apiURL;
   }
 
   history.pushState(null, '', buildURL(_state));
@@ -997,7 +1041,11 @@ function buildBreadcrumbSegments() {
   var segs = [];
   var regLabel = serverLabel(_state.serverURL || window.location.origin);
   var regClick = guardedOnclick('pushState({path:[],section:\'data\',useExport:false,editMode:false})');
-  var regHref  = pageHref([], '', {useExport: false});
+  // Use the cached real/filtered root URL (if any) so the hover-href
+  // reflects the root's OWN active filter, not whatever the current
+  // (deeper) page's already-relativized filter happens to be. See
+  // rootApiURL's declaration comment / pushStateReal().
+  var regHref  = pageHref([], _state.rootApiURL || '', {useExport: false});
   var isSection = _state.section !== 'data';
   segs.push({label: regLabel, onclick: isSection || _state.path.length > 0 ? regClick : null, href: regHref, isCurrent: !isSection && _state.path.length === 0});
 
@@ -1075,7 +1123,26 @@ function guardedOnclick(expr) {
 function pageHref(path, apiURL, extra) {
   var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data', editMode: false}, extra || {});
   if (!isCollection(st.path)) st.sort = '';
-  if (st.section === 'data' && st.apiURL) st.filters = filtersFromUrl(st.apiURL);
+  if (st.section === 'data' && st.apiURL) {
+    st.filters = filtersFromUrl(st.apiURL);
+  } else if (st.section === 'data' && path.length > 0 && path.length % 2 === 0) {
+    // Entity-instance depth (a Group/Resource/Version instance, e.g.
+    // Contoso.ERP or s1) with no cached real URL of its own. crumbURLs
+    // only gets populated for depths actually landed on directly — but
+    // browsing purely via nested <plural>url links (the normal/expected
+    // way to drill down, per @duglin) jumps straight from one COLLECTION
+    // to the next, never landing on the entity's own page in between, so
+    // its crumbURLs slot stays empty. An entity's own filter context is
+    // always IDENTICAL to its immediate parent COLLECTION's (crossing
+    // from a collection into one of its member entities never trims/
+    // relativizes a filter clause — only entering a NESTED collection
+    // does, per the server's FiltersRelativeToAbstract()) — so borrow the
+    // parent collection's cached URL here instead of falling through to
+    // _state.filters below, which is the CURRENT (possibly far deeper,
+    // unrelated) page's own value.
+    var parentURL = _state.crumbURLs && _state.crumbURLs[path.length - 2];
+    if (parentURL) st.filters = filtersFromUrl(parentURL);
+  }
   return buildURL(st);
 }
 
@@ -1956,11 +2023,33 @@ function serverCard(url) {
     + '</div>';
 }
 
+// Home-page registry-probing timeout, in ms. Without this, an unresponsive
+// host (e.g. a TCP connect that never gets ACKed) leaves probeRegistry()'s
+// fetch() promises pending forever, so the Home-page card/row stays stuck
+// on "Connecting…" indefinitely instead of showing an error. See plan.md
+// "Fix: probeRegistry() hangs forever on an unresponsive host".
+var PROBE_FETCH_TIMEOUT_MS = 8000;
+
+// fetch() wrapper that aborts (via AbortController) and rejects with a
+// distinguishable "Connection timed out" error if the request doesn't
+// settle within `ms` — used only for Home-page registry probing so a slow
+// data fetch elsewhere in the app isn't affected.
+function fetchWithTimeout(url, ms) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, ms);
+  return fetch(url, {signal: controller.signal})
+    .catch(function(err) {
+      if (err && err.name === 'AbortError') throw new Error('Connection timed out');
+      throw err;
+    })
+    .finally(function() { clearTimeout(timer); });
+}
+
 function probeRegistry(url, cb) {
   var normUrl = normalizeURL(url);
   // Fetch capabilities first; use it to decide what else to fetch.
   // Per spec: if /capabilities is 404, default available = {entities:{mutable:true}}
-  var capP = fetch(normUrl + '/capabilities')
+  var capP = fetchWithTimeout(normUrl + '/capabilities', PROBE_FETCH_TIMEOUT_MS)
     .then(function(r) { return r.ok ? r.json() : null; })
     .catch(function() { return null; });
 
@@ -1971,10 +2060,16 @@ function probeRegistry(url, cb) {
 
     // Only fetch model if capabilities says it's available
     var modelP = available.model
-      ? fetch(normUrl + '/model').then(function(r) { return r.json(); }).catch(function() { return null; })
+      ? fetchWithTimeout(normUrl + '/model', PROBE_FETCH_TIMEOUT_MS).then(function(r) { return r.json(); }).catch(function() { return null; })
       : Promise.resolve(null);
 
-    Promise.all([fetchJSON(normUrl + '/'), modelP])
+    Promise.all([
+      fetchWithTimeout(normUrl + '/', PROBE_FETCH_TIMEOUT_MS).then(function(r) {
+        if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ' — ' + t.slice(0, 300)); });
+        return r.json();
+      }),
+      modelP
+    ])
       .then(function(results) {
         var data  = results[0];
         var model = results[1];
@@ -2823,7 +2918,11 @@ function renderSingleEntity(data) {
       // just render its content directly, like the plain Properties table
       // shown for other single-entity pages (depth 0/2).
       if (depthD >= 6 && tabDefs.length === 1 && !versionSelectorHtml) {
-        html += tabDefs[0].content;
+        // Reuses .eg-doc-tab-panel purely for its overflow-x: auto scoping
+        // (see style.css) — there's no tab bar here to visually pair it
+        // with, but the Property table can still have long values that
+        // need a horizontal scrollbar scoped to just this table.
+        html += '<div class="eg-doc-tab-panel">' + tabDefs[0].content + '</div>';
       } else {
       // Restore the previously-active tab (from a Refresh) if it matches
       // one of this render's tabs; otherwise default to the first tab, as
@@ -3465,14 +3564,15 @@ function copyableMonospace(text) {
 // Renders a real, clickable <a> for a URL-shaped Property-table scalar
 // value — same-server URLs (self, metaurl, versionsurl, defaultversionurl,
 // any URI/URL-typed spec or extension attr, ...) navigate within the SPA
-// (mirrors syntaxHighlight()'s JSON-view linkification, including reusing
-// the URL's OWN embedded filter= via filtersFromUrl(), not the app's
-// current filter state); other (external) URLs open in a new tab. Detection
-// is purely content-based (any string starting with http(s)://), the same
-// approach syntaxHighlight() uses for JSON view — this way it applies
-// uniformly to every URI/URL-typed field without needing model-driven type
-// resolution everywhere (which isn't available at the Meta level — see
-// renderMetaTable()).
+// (mirrors syntaxHighlight()'s JSON-view linkification, setting apiURL to
+// the value's own raw URL verbatim — all query params, not just
+// filter= — so the displayed href and the actual navigation target both
+// match exactly what the server returned); other (external) URLs open in
+// a new tab. Detection is purely content-based (any string starting with
+// http(s)://), the same approach syntaxHighlight() uses for JSON view —
+// this way it applies uniformly to every URI/URL-typed field without
+// needing model-driven type resolution everywhere (which isn't available
+// at the Meta level — see renderMetaTable()).
 function renderUrlLinkValue(rawText, isMono) {
   var svBase = serverBase();
   var urlPath = rawText.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
@@ -3480,12 +3580,20 @@ function renderUrlLinkValue(rawText, isMono) {
   if (urlPath.indexOf(svBase) === 0) {
     var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
     var segments = rel ? rel.split('/') : [];
+    // filters is set here (in addition to apiURL) purely so buildURL()'s
+    // apiurl-vs-filter dedup logic sees them already matching and skips
+    // appending a redundant top-level filter= — see the longer comment
+    // in syntaxHighlight()'s equivalent fakeSt construction.
     var fakeSt   = Object.assign({}, _state, {
       view: 'table', section: 'data', path: segments, editMode: false,
-      filters: filtersFromUrl(rawText)
+      apiURL: rawText, filters: filtersFromUrl(rawText)
     });
     href    = buildURL(fakeSt);
-    onclick = ' onclick="return navigateJsonUrl(\'' + rawText.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"';
+    // guardedOnclick() lets ctrl/cmd/shift/middle-click fall through to the
+    // browser's native "open in new tab" on the real href above, instead of
+    // always intercepting the click for in-app navigation.
+    var navExpr = 'navigateJsonUrl(\'' + rawText.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
+    onclick = ' onclick="' + esc(guardedOnclick(navExpr)) + '"';
   } else {
     href   = rawText;
     target = ' target="_blank" rel="noopener"';
@@ -4636,16 +4744,20 @@ function renderJSONLeftPanel(filtersOnly) {
       // etc are, instead of the old checkmark-only indicator.
       var dataActive   = _state.section === 'data' && !_state.useExport;
       var exportActive = _state.section === 'data' && _state.useExport;
+      var dataHref   = pageHref([], _state.rootApiURL || '', {section: 'data', useExport: false});
+      var exportHref = pageHref([], _state.rootApiURL || '', {section: 'data', useExport: true});
       html += '<div class="lp-nav-row">'
-        + '<span class="lp-nav-item lp-nav-inline'
-        + (dataActive ? ' lp-nav-active' : '') + '" onclick="pushState('
-        + '{section:\'data\',path:[],editMode:false,useExport:false})">'
-        + 'Data</span>';
+        + '<a class="lp-nav-item lp-nav-inline'
+        + (dataActive ? ' lp-nav-active' : '') + '" href="' + esc(dataHref)
+        + '" onclick="' + esc(guardedOnclick('pushState('
+        + '{section:\'data\',path:[],editMode:false,useExport:false})'))
+        + '">Data</a>';
       if (hasExport) {
-        html += ' <span class="lp-nav-sub">(<span class="lp-nav-item '
+        html += ' <span class="lp-nav-sub">(<a class="lp-nav-item '
           + 'lp-nav-inline' + (exportActive ? ' lp-nav-active' : '')
-          + '" onclick="pushState({section:\'data\',path:[],'
-          + 'editMode:false,useExport:true})">Export</span>)</span>';
+          + '" href="' + esc(exportHref) + '" onclick="'
+          + esc(guardedOnclick('pushState({section:\'data\',path:[],'
+          + 'editMode:false,useExport:true})')) + '">Export</a>)</span>';
       }
       html += '</div>';
       // "Model (Source)" and "Capabilities (Offered)" share one line each
@@ -4847,9 +4959,11 @@ function lpNavPairRow(mainLabel, mainSection, hasMain,
     var mainActive = _state.section === mainSection;
     var mainCls = 'lp-nav-item lp-nav-inline' +
       (mainActive ? ' lp-nav-active' : '');
-    row += '<span class="' + mainCls + '" onclick="pushState('
+    var mainHref = pageHref([], '', {section: mainSection, useExport: false});
+    row += '<a class="' + mainCls + '" href="' + esc(mainHref) + '" onclick="'
+      + esc(guardedOnclick('pushState('
       + '{section:\'' + mainSection + '\',editMode:false,'
-      + 'useExport:false})">' + esc(mainLabel) + '</span>';
+      + 'useExport:false})')) + '">' + esc(mainLabel) + '</a>';
   } else {
     row += esc(mainLabel);
   }
@@ -4857,10 +4971,12 @@ function lpNavPairRow(mainLabel, mainSection, hasMain,
     var subActive = _state.section === subSection;
     var subCls = 'lp-nav-item lp-nav-inline' +
       (subActive ? ' lp-nav-active' : '');
-    row += ' <span class="lp-nav-sub">(<span class="' + subCls
-      + '" onclick="pushState({section:\'' + subSection + '\','
-      + 'editMode:false,useExport:false})">' + esc(subLabel)
-      + '</span>)</span>';
+    var subHref = pageHref([], '', {section: subSection, useExport: false});
+    row += ' <span class="lp-nav-sub">(<a class="' + subCls
+      + '" href="' + esc(subHref) + '" onclick="'
+      + esc(guardedOnclick('pushState({section:\'' + subSection + '\','
+      + 'editMode:false,useExport:false})')) + '">' + esc(subLabel)
+      + '</a>)</span>';
   }
   row += '</div>';
   return row;
@@ -4908,6 +5024,15 @@ function ensureFbDraft() {
                         // "the last group" (see fbAddTargetIndex())
     };
     _fbDraftKey = key;
+    // Auto-expand the Filters section on a fresh navigation when it
+    // arrives with at least one filter already defined (e.g. followed a
+    // filtered link, or a bookmark/history entry with filter= set) — no
+    // point landing on a page with active filters but hiding that fact
+    // behind a collapsed twisty. Still defaults to collapsed when empty,
+    // and doesn't fight the user's own manual toggle for the rest of this
+    // page view (this only runs when the draft is rebuilt, i.e. once per
+    // fresh navigation — see fbKey()).
+    _filtersCollapsed = _state.filters.length === 0;
   }
 }
 
@@ -5682,11 +5807,37 @@ function fbGenericSegRow(i, options, seg, joinKind) {
   if (chosenVal === '__custom__') {
     var custOnchg =
       'fbSetSegCustom(' + i + ', this.value, \'' + joinKind + '\')';
+    var curVal = seg && seg.kind === 'custom' ? seg.text : '';
     html += '<input type="text" class="fb-seg-custom" placeholder="name"'
-      + ' value="' + esc(seg && seg.kind === 'custom' ? seg.text : '') + '"'
-      + ' onchange="' + custOnchg + '">';
+      + ' id="fb-seg-custom-' + i + '"'
+      + ' value="' + esc(curVal) + '"'
+      + ' oninput="fbSegCustomInput(' + i + ')"'
+      + ' onchange="' + custOnchg + '">'
+      + '<button type="button" class="fb-seg-custom-commit"'
+      + (curVal.trim() ? '' : ' disabled')
+      + ' title="Confirm name" '
+      + 'onclick="fbCommitSegCustom(' + i + ', \'' + joinKind + '\')">'
+      + '\u23ce</button>';
   }
   return '<div class="fb-seg-row">' + html + '</div>';
+}
+
+// Live-typing handler for the custom-attribute-name input: just toggles the
+// adjacent commit (\u23ce) button's enabled state as the user types, without
+// a full fbRerender() (which would rebuild the input and steal focus).
+// The actual value only gets committed via fbSetSegCustom(), triggered by
+// the input's onchange (blur/Enter) or by clicking the commit button.
+function fbSegCustomInput(i) {
+  var inp = el('fb-seg-custom-' + i);
+  var btn = inp && inp.nextElementSibling;
+  if (btn && btn.classList.contains('fb-seg-custom-commit')) {
+    btn.disabled = !inp.value.trim();
+  }
+}
+
+function fbCommitSegCustom(i, joinKind) {
+  var inp = el('fb-seg-custom-' + i);
+  if (inp) fbSetSegCustom(i, inp.value, joinKind);
 }
 
 function fbSetRoot(v) {
@@ -6500,13 +6651,15 @@ function buildInlineOptions(model, path) {
 // pushStateReal() (ordinary navigation, breadcrumb click, applyFilters())
 // and loadStateFromURL() (fresh load / bookmark / popstate), so a bookmarked
 // deep link with a filter baked into `apiurl=` shows the same filter builder
-// state as arriving there by clicking through the UI. Only when a real link
-// is known: with no real link (apiURL falsy — navigateJsonUrl's own
-// path+filter extraction with no apiURL of its own) leave filters exactly as
-// already set. See plan.md "Filter support in Grid/List views" for the full
-// rationale. (Entity `self` links get the currently-active filter appended
-// by entityHrefWithFilter() before we ever navigate to them, so this plain
-// apiURL-derived sync is enough everywhere — no seed/reconstruction needed.)
+// state as arriving there by clicking through the UI. No-op when apiURL is
+// falsy (leaves filters exactly as already set) — every same-server
+// real-link navigation (navigateJsonUrl(), entity row/link clicks, etc.)
+// always sets apiURL, so this covers them all uniformly with no separate
+// per-call-site filter extraction needed. See plan.md "Filter support in
+// Grid/List views" for the full rationale. (Entity `self` links get the
+// currently-active filter appended by entityHrefWithFilter() before we
+// ever navigate to them, so this plain apiURL-derived sync is enough
+// everywhere — no seed/reconstruction needed.)
 function syncFiltersFromApiURL() {
   if (_state.section !== 'data' || !_state.apiURL) return;
   _state.filters = filtersFromUrl(_state.apiURL);
@@ -6531,9 +6684,16 @@ function navigateJsonUrl(encodedUrl) {
   if (urlPath.indexOf(svBase) === 0) {
     var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
     var segments = rel ? rel.split('/') : [];
+    // Pass the clicked link through verbatim as apiURL (like every other
+    // real-link navigation call site in this file) instead of only
+    // extracting its filter= and letting buildAPIURL() reconstruct the
+    // rest from generic state — that silently dropped any other query
+    // param the server-provided link carried. pushStateReal() already
+    // calls syncFiltersFromApiURL() right after this, which re-derives
+    // _state.filters from this same apiURL for the Filter/Sort panel, so
+    // no separate filtersFromUrl() call is needed here anymore.
     pushState({
-      view: 'table', section: 'data', path: segments, editMode: false,
-      filters: filtersFromUrl(raw)
+      view: 'table', section: 'data', path: segments, apiURL: raw, editMode: false
     });
   } else {
     window.open(raw, '_blank', 'noopener');
@@ -6559,25 +6719,36 @@ function syntaxHighlight(str) {
             var href, target = '', onclick;
             if (urlPath.indexOf(svBase) === 0) {
               // Same-server: build SPA href for right-click "open in new
-              // tab" support. Use the filter (if any) actually embedded
-              // in THIS url value — not the UI's current filter state —
-              // so the hover-preview href and the actual navigation
-              // target both match what the server returned, instead of
-              // re-blending in a stale/unrelated filter.
+              // tab" support. Set apiURL to the link's own raw value
+              // (verbatim, all query params included — not just filter=)
+              // so buildURL() encodes the exact target URL as `apiurl=`,
+              // matching what navigateJsonUrl() will actually navigate to
+              // on click. filters is still derived here (rather than left
+              // to sync automatically, as navigateJsonUrl()'s real
+              // pushStateReal() call does) because fakeSt is a synthetic,
+              // one-off object used only to compute this display href —
+              // it never goes through pushStateReal()/
+              // syncFiltersFromApiURL() — and buildURL() needs filters to
+              // already match apiURL's embedded filter to avoid appending
+              // a redundant, stale top-level filter= on top of it.
               var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
               var segments = rel ? rel.split('/') : [];
               var fakeSt   = Object.assign({}, _state, {
                 view: 'table', section: 'data', path: segments, editMode: false,
-                filters: filtersFromUrl(inner)
+                apiURL: inner, filters: filtersFromUrl(inner)
               });
               href    = buildURL(fakeSt);
-              onclick = 'return navigateJsonUrl(\'' + inner.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
+              // guardedOnclick() lets ctrl/cmd/shift/middle-click fall
+              // through to the browser's native "open in new tab" on the
+              // real href above, instead of always intercepting the click.
+              var navExpr = 'navigateJsonUrl(\'' + inner.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
+              onclick = guardedOnclick(navExpr);
             } else {
               href    = inner;
               target  = ' target="_blank" rel="noopener"';
               onclick = '';
             }
-            var attrOnclick = onclick ? ' onclick="' + onclick + '"' : '';
+            var attrOnclick = onclick ? ' onclick="' + esc(onclick) + '"' : '';
             return '<span class="' + c + '"><a class="json-url" href="' + esc(href) + '"' + target + attrOnclick + '>' + m + '</a></span>';
           }
         }
@@ -6732,6 +6903,20 @@ function navigateToDefaultVersion(itemId, versionId, url) {
   pushState({path: _state.path.concat([itemId, 'versions', String(versionId)]), apiURL: url || '', editMode: false});
 }
 
+// Appends a path segment (e.g. a version id) to a collection URL that may
+// already carry a query string (most commonly `?filter=...`, baked in by
+// the server or by our own applyFilters()) — a plain `url + '/' + seg`
+// would land the new segment AFTER the query string (e.g.
+// `.../versions?filter=epoch>0/v1`, badly malformed) instead of extending
+// the actual path. Splits off any query string first, appends the segment
+// to the path portion only, then re-attaches the query string unchanged.
+function appendURLPathSegment(url, seg) {
+  var qIdx = url.indexOf('?');
+  var path = qIdx >= 0 ? url.slice(0, qIdx) : url;
+  var query = qIdx >= 0 ? url.slice(qIdx) : '';
+  return path.replace(/\/$/, '') + '/' + encodeURIComponent(seg) + query;
+}
+
 // Resolve the real URL for a resource item's default version, shown as the
 // "Default Version: X" pill on a resource tile/row in the resources
 // collection view. item is one entry from collectionItems(data); colls is
@@ -6745,7 +6930,7 @@ function defaultVersionURL(item, itemPath, colls) {
   }
   var versionsColl = (colls || []).filter(function(c) { return c.plural === 'versions'; })[0];
   if (versionsColl && versionsColl.url) {
-    return versionsColl.url.replace(/\/$/, '') + '/' + encodeURIComponent(item.versionid);
+    return appendURLPathSegment(versionsColl.url, item.versionid);
   }
   return serverBase() + '/' + itemPath.concat(['versions', String(item.versionid)]).join('/');
 }
@@ -6769,13 +6954,14 @@ function versionURLById(vid) {
     return d.defaultversionurl;
   }
   if (d && d.versionsurl) {
-    return d.versionsurl.replace(/\/$/, '') + '/' + encodeURIComponent(vid);
+    return appendURLPathSegment(d.versionsurl, vid);
   }
   var vColl = _state.crumbURLs && _state.crumbURLs[4]; // depth 5 = ".../versions" collection
-  if (vColl) return vColl.replace(/\/$/, '') + '/' + encodeURIComponent(vid);
+  if (vColl) return appendURLPathSegment(vColl, vid);
   var basePath = _state.path.slice(0, 4);
   return serverBase() + '/' + basePath.concat(['versions', vid]).join('/');
 }
+
 
 // Navigate to a specific version from the meta page (path: [..., resource, rId, "meta"])
 function navigateToVersion(vId) {

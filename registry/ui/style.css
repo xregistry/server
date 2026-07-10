@@ -57,6 +57,7 @@ html, body {
 #breadcrumbs {
   display: flex;
   align-items: flex-end;
+  min-height: 24px;
   font-size: 13px;
   min-width: 0;
 }
@@ -414,6 +415,18 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
    nowrap/ellipsis/max-width truncation — that's only appropriate for plain
    scalar text, not a multi-row nested grid. */
 .xr-table .cell-tree { white-space: normal; max-width: none; overflow: visible; text-overflow: clip; }
+/* Property tables' Value column (buildEntityPropsTableHtml()/renderMetaTable()
+   — Version Details/Metadata tabs on Resource + Version pages, and the plain
+   Properties table on Registry root/Group pages): plain scalar values (e.g.
+   long self/versionsurl URLs) previously inherited the generic .xr-table td
+   nowrap/ellipsis/max-width truncation, silently chopping long text instead
+   of letting it scroll into view. Undo that here so the cell (and therefore
+   the table) can grow as wide as its content needs — paired with
+   .eg-doc-tab-panel's overflow-x: auto below, which scopes the resulting
+   horizontal scrollbar to just the tab's content instead of the whole page.
+   (.cell-tree above already got this same treatment for object/array values;
+   this covers the far more common plain-scalar case.) */
+.xr-table-props td:last-child { white-space: nowrap; max-width: none; overflow: visible; text-overflow: clip; }
 /* Collection Table view's Created/Modified columns */
 .xr-table .cell-timestamp { color: #999; font-size: 12px; white-space: nowrap; }
 /* List view's Property tables (formatTimestampValue()) — same color/size as
@@ -678,7 +691,7 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .lp-divider { border: none; border-top: 1px solid #ddd; margin: 6px 0; }
 .lp-filter-area { font-family: monospace; font-size: 11px; width: 100%; min-height: 60px; resize: vertical; border: 1px solid #ccc; border-radius: 4px; padding: 3px; }
-.lp-nav-item { font-size: 12px; padding: 3px 6px; cursor: pointer; border-radius: 4px; color: #335; transition: background 0.1s; }
+.lp-nav-item { font-size: 12px; padding: 3px 6px; cursor: pointer; border-radius: 4px; color: #335; transition: background 0.1s; text-decoration: none; }
 .lp-nav-item:hover { background: #e8eef8; }
 .lp-nav-active { background: #dde6f5; font-weight: bold; color: #224; }
 .lp-nav-active:hover { background: #ccd9f0; }
@@ -780,6 +793,14 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .fb-seg-custom, .fb-val-input {
   flex: 1; min-width: 0; font-size: 11px; font-family: monospace;
   padding: 2px 4px; border: 1px solid #ccc; border-radius: 4px;
+}
+.fb-seg-custom-commit {
+  flex-shrink: 0; font-size: 12px; line-height: 1; padding: 2px 6px;
+  border: 1px solid #407d16; border-radius: 4px;
+  background: #eef7e6; color: #2c5710; cursor: pointer;
+}
+.fb-seg-custom-commit:disabled {
+  border-color: #ccc; background: #f2f2f2; color: #aaa; cursor: default;
 }
 .fb-op-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .fb-error { color: #c33; font-size: 11px; margin-bottom: 4px; }
@@ -2075,7 +2096,12 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 .eg-version-selector select:disabled {
   color: #999; background: #eee; border-color: #ddd; cursor: not-allowed;
 }
-.eg-doc-tab-panel { margin-bottom: 16px; }
+/* overflow-x: auto scopes the horizontal scrollbar (needed when a
+   Property table's Value column holds long text — see .xr-table-props
+   td:last-child above) to just this tab's content, instead of scrolling
+   the whole page sideways (which #main-view's own overflow: auto would
+   otherwise do). */
+.eg-doc-tab-panel { margin-bottom: 16px; overflow-x: auto; }
 .eg-doc-textarea {
   width: 100%; min-height: 200px; overflow: auto;
   font-family: monospace; font-size: 12px; line-height: 1.4; color: #333;
