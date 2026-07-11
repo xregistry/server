@@ -111,10 +111,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	saveVerbose := log.GetVerbose()
 	if tmp := r.URL.Query().Get("verbose"); tmp != "" {
-		if v, err := strconv.Atoi(tmp); err == nil {
-			log.SetVerbose(v)
-		}
-		defer log.SetVerbose(saveVerbose)
+		log.AddVerboseString(tmp)
+		defer func() {
+			log.DelVerboseString(tmp)
+			log.SetVerbose(saveVerbose)
+		}()
 	}
 
 	log.VPrintf(2, "%s %s", r.Method, r.URL)

@@ -238,13 +238,14 @@ func (ri *RequestInfo) GetHeaderValues(name string) []string {
 
 type FilterExpr struct {
 	// User provided
-	Path     string // endpoints.id  TODO store a PropPath?
-	Value    string // myEndpoint
-	Operator int    // FILTER_PRESENT, ...
+	PP       *PropPath // endpoints.id as PP
+	Path     string    // endpoints.id  as string TODO store a PropPath?
+	Value    string    // myEndpoint
+	Operator int       // FILTER_PRESENT, ...
 
 	// helpers
 	Abstract string
-	PropName string
+	PropName string // PP.DB()
 }
 
 func (fe *FilterExpr) OpValue() string {
@@ -476,12 +477,14 @@ func (info *RequestInfo) ParseFilters() *XRError {
 				if value == "null" {
 					return NewXRError("bad_filter", info.GetParts(0),
 						"value="+expr,
-						"error_detail=null is not allowed with <, <=, >, >= operators")
+						"error_detail=null is not allowed "+
+							"with <, <=, >, >= operators")
 				}
 				if strings.ContainsRune(value, '*') {
 					return NewXRError("bad_filter", info.GetParts(0),
 						"value="+expr,
-						"error_detail=wildcards are not allowed with <, <=, >, >= operators")
+						"error_detail=wildcards are not allowed "+
+							"with <, <=, >, >= operators")
 				}
 			}
 
@@ -496,19 +499,27 @@ func (info *RequestInfo) ParseFilters() *XRError {
 				}
 			*/
 
+			// If the request wasn't at the root, then add in the
+			// abstract path that was provided so 'path' has the full
+			// path starting from the root
 			if info.Abstract != "" {
 				// Want: path = abs + "," + path in DB format
 				absPP, _ := PropPathFromPath(info.Abstract)
-				absPP = absPP.Append(pp)
-				path = absPP.DB()
+				pp = absPP.Append(pp)
+				path = pp.DB()
 			}
 
+			absPP, newPP := SplitProp(info.Registry, pp)
+
 			filter := &FilterExpr{
+				PP:       newPP,
 				Path:     path,
 				Value:    value,
 				Operator: filterOp,
+
+				Abstract: absPP.Abstract(),
+				PropName: newPP.DB(),
 			}
-			filter.Abstract, filter.PropName = SplitProp(info.Registry, path)
 
 			if AndFilters == nil {
 				AndFilters = []*FilterExpr{}
@@ -526,10 +537,12 @@ func (info *RequestInfo) ParseFilters() *XRError {
 	return nil
 }
 
-// path.DB() -> abstract.Abstract() + propName.DB()
-func SplitProp(reg *Registry, path string) (string, string) {
-	pp := MustPropPathFromDB(path)
-
+// pp == PP for full DB path of attribute we're looking for
+// (group.resource.attrPath) e.g abstractPP + propNamePP
+// Look at it and remove any Group or Resource type names
+// that appear and remove them. If none match then we MUST be left with just
+// the attribute path (PP) within the entity we're looking for.
+func SplitProp(reg *Registry, pp *PropPath) (*PropPath, *PropPath) {
 	abs := &PropPath{}
 
 	if pp.Top() != "" {
@@ -550,7 +563,7 @@ func SplitProp(reg *Registry, path string) (string, string) {
 		}
 	}
 
-	return abs.Abstract(), pp.DB()
+	return abs, pp
 }
 
 // This will extract the "reg-xxx" part of the URL if there and choose the

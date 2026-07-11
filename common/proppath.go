@@ -71,27 +71,27 @@ func (pp *PropPath) First() *PropPath {
 	if pp.Len() == 0 {
 		return nil
 	}
-	return &PropPath{
+	return (&PropPath{
 		Parts: pp.Parts[:1],
-	}
+	}).CalcHasWild()
 }
 
 func (pp *PropPath) Next() *PropPath {
 	if pp.Len() == 1 {
 		return nil
 	}
-	return &PropPath{
+	return (&PropPath{
 		Parts: pp.Parts[1:],
-	}
+	}).CalcHasWild()
 }
 
 func (pp *PropPath) FromIndex(i int) *PropPath {
 	if i > pp.Len() {
 		return nil
 	}
-	return &PropPath{
+	return (&PropPath{
 		Parts: pp.Parts[i:],
-	}
+	}).CalcHasWild()
 }
 
 func MustPropPathFromPath(str string) *PropPath {
@@ -112,6 +112,7 @@ func PropPathFromPath(str string) (*PropPath, error) {
 			Index: NO_INDEX,
 		})
 	}
+	// Should not have a * so no need to call CalcHasWild
 	return res, nil
 }
 
@@ -147,6 +148,44 @@ func (pp *PropPath) DB() string {
 	return res.String()
 }
 
+// Wildcard PP as needed for DB query + bool (has wild?)
+func (pp *PropPath) DBFilter() (string, bool) {
+	if pp == nil {
+		return "", false
+	}
+	res := strings.Builder{}
+	hasWild := false
+	for _, part := range pp.Parts {
+		if part.Index >= 0 {
+			res.WriteRune(DB_INDEX)
+		}
+		if part.Index == WILDCARD_INDEX {
+			res.WriteString("#[^,]*")
+			hasWild = true
+		} else {
+			if part.Text == "*" {
+				res.WriteString("[^#,]*")
+				hasWild = true
+			} else {
+				res.WriteString(part.Text)
+			}
+		}
+		res.WriteRune(DB_IN)
+	}
+
+	str := res.String()
+	if hasWild {
+		str = "^" + str + "$"
+	}
+	return str, hasWild
+}
+
+func (pp *PropPath) DBFilterExists() (string, bool) {
+	str, has := pp.DBFilter()
+	str += ".*"
+	return str, has
+}
+
 // Same as DB() but w/o the trailing ","
 func (pp *PropPath) Abstract() string {
 	if pp == nil {
@@ -166,7 +205,7 @@ func (pp *PropPath) Abstract() string {
 
 func MustPropPathFromDB(str string) *PropPath {
 	pp, err := PropPathFromDB(str)
-	PanicIf(err != nil, "Bad pp: %s", str)
+	Must(err)
 	return pp
 }
 
@@ -291,7 +330,8 @@ func init() {
 }
 
 func MustPropPathFromUI(str string) *PropPath {
-	pp, _ := PropPathFromUI(str)
+	pp, err := PropPathFromUI(str)
+	Must(err)
 	return pp
 }
 
@@ -341,15 +381,16 @@ func PropPathFromUI(str string) (*PropPath, error) {
 						return nil, fmt.Errorf("Unexpected \"*\" in %q",
 							buf.String())
 					}
-					res.Parts = append(res.Parts, PropPart{
+					newP := PropPart{
 						Text:  buf.String(),
 						Index: NO_INDEX,
 
 						// is wildcard unless we're in []
 						IsWild: hasStar && state != 5,
-					})
+					}
+					res.Parts = append(res.Parts, newP)
 
-					if hasStar && state != 5 { // bubble up if true
+					if newP.IsWild { // bubble up if true
 						res.HasWild = true
 					}
 
@@ -375,11 +416,14 @@ func PropPathFromUI(str string) (*PropPath, error) {
 								strBuf)
 						}
 					}
-					res.Parts = append(res.Parts, PropPart{
+
+					newP := PropPart{
 						Text:   strBuf,
 						Index:  index,
 						IsWild: hasStar,
-					})
+					}
+					res.Parts = append(res.Parts, newP)
+
 					buf.Reset()
 					hasStar = false
 				case 'P': // error case
@@ -415,6 +459,42 @@ func PropPathFromUI(str string) (*PropPath, error) {
 	}
 
 	return res, nil
+}
+
+func (pp *PropPath) Debug() string {
+	if pp == nil {
+		return ""
+	}
+	res := strings.Builder{}
+	for _, part := range pp.Parts {
+		wc := ""
+		if part.IsWild {
+			wc = "w"
+		}
+
+		text := part.Text + wc
+		if part.Index >= 0 {
+			res.WriteString(fmt.Sprintf("[%s]", text))
+		} else if part.Index == WILDCARD_INDEX {
+			res.WriteString(fmt.Sprintf("[-2%s]", wc))
+		} else { // must be NO_INDEX (-1)
+			if res.Len() > 0 {
+				if strings.Contains(part.Text, string(UX_IN)) {
+					res.WriteString("['" + text + "']")
+				} else {
+					res.WriteString(string(UX_IN) + text)
+				}
+			} else {
+				res.WriteString(text)
+			}
+		}
+	}
+
+	wc := ""
+	if pp.HasWild {
+		wc = "(w)"
+	}
+	return "PP" + wc + ":" + res.String()
 }
 
 func (pp *PropPath) UI() string {
@@ -459,28 +539,70 @@ func (pp *PropPath) P(prop string) *PropPath {
 
 func (pp *PropPath) Prop(prop string) *PropPath {
 	newPP := NewPP()
+	isWild := false
+
+	if strings.Contains(prop, "*") {
+		if len(prop) != 1 {
+			// This should never happen because anything coming from a
+			// user should be going thru PropPathFromUI to validate this.
+			// This func should only be used for internal (post user error
+			// checking) calls. If that ever changes, rename this func to
+			// PropErr() (*PropPath, error) and call then instead.
+			// The define a Prop() func that call this and uses Must(err).
+			// Basically turngin Prop() into MustProp().
+			panic("should have gone thru PropPathFromUI")
+			// return nil, fmt.Errorf("Unexpected \"*\" in %q", prop)
+		}
+		isWild = true
+	}
+
+	newP := PropPart{
+		Text:   prop,
+		Index:  NO_INDEX,
+		IsWild: isWild,
+	}
+
+	newPP.Parts = append(pp.Parts, newP)
+
 	newPP.Parts = append(pp.Parts, PropPart{
-		Text:  prop,
-		Index: NO_INDEX,
+		Text:   prop,
+		Index:  NO_INDEX,
+		IsWild: isWild,
 	})
+
+	newPP.HasWild = isWild
 	return newPP
 }
 
 func (pp *PropPath) Clone() *PropPath {
 	newPP := NewPP()
 	newPP.Parts = append([]PropPart{}, pp.Parts...)
+	newPP.HasWild = pp.HasWild
 	return newPP
+}
+
+func (pp *PropPath) CalcHasWild() *PropPath {
+	for _, p := range pp.Parts {
+		if p.IsWild {
+			pp.HasWild = true
+			return pp
+		}
+	}
+	pp.HasWild = false
+	return pp
 }
 
 func (pp *PropPath) Append(addPP *PropPath) *PropPath {
 	newPP := NewPP()
 	newPP.Parts = append(pp.Parts, addPP.Parts...)
+	newPP.CalcHasWild()
 	return newPP
 }
 
 func (pp *PropPath) RemoveLast() *PropPath {
 	newPP := NewPP()
 	newPP.Parts = append([]PropPart{}, pp.Parts[:len(pp.Parts)-1]...)
+	newPP.CalcHasWild()
 	return newPP
 }
 

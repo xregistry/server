@@ -3213,16 +3213,58 @@ function isMonoSpecAttr(k, specLevel, singular, path) {
   return false;
 }
 
+// Given an attrs map and the actual data object at that same nesting level,
+// returns a (possibly new) attrs map with any conditionally-added ifvalues
+// sibling attributes merged in, based on the real attribute values present
+// in `data`. Mirrors the server's Attributes.AddIfValuesAttributes()
+// (registry/shared_model.go): for each attribute with a non-empty
+// "ifvalues" map, if `data` has a matching value (case-insensitive) for
+// that attribute's name, the corresponding siblingattributes are added to
+// the returned map — and, since a newly-added sibling could itself declare
+// ifvalues, those are checked too (recursively, matching the server's
+// growing attrNames list). Non-destructive: never mutates the cached
+// model's attrs map. Returns `attrs` unchanged (same reference) when there
+// is nothing to resolve, or when `data` isn't available.
+function resolveIfValuesAttrs(attrs, data) {
+  if (!attrs || !data || typeof data !== 'object') return attrs;
+  var names = Object.keys(attrs);
+  var hasIfValues = names.some(function(n) { return attrs[n] && attrs[n].ifvalues; });
+  if (!hasIfValues) return attrs;
+
+  var result = Object.assign({}, attrs); // shallow copy — don't mutate the model
+  for (var i = 0; i < names.length; i++) { // names grows as siblings are added
+    var attr = result[names[i]];
+    if (!attr || !attr.ifvalues || attr.name === '*') continue;
+    var val = data[attr.name];
+    if (val === undefined || val === null) continue;
+    var valStr = String(val).toLowerCase();
+    Object.keys(attr.ifvalues).forEach(function(ifValStr) {
+      if (ifValStr.toLowerCase() !== valStr) return;
+      var ifValueData = attr.ifvalues[ifValStr];
+      var sibs = (ifValueData && ifValueData.siblingattributes) || {};
+      Object.keys(sibs).forEach(function(sName) {
+        if (!result[sName]) {
+          result[sName] = sibs[sName];
+          names.push(sName);
+        }
+      });
+    });
+  }
+  return result;
+}
+
 // getAttr returns the full Attribute definition object from the model for
 // the given attribute key path (array) within an entity at entityPath depth.
 // attrKeyPath is an array for nested traversal, e.g. ['myattr'] or ['obj','child'].
 // Falls back to the '*' wildcard entry for undeclared extension attributes.
 // Returns null only on model compliance violation (should not happen in practice).
 //
-// TODO(ifvalues): when ifvalues support is added, a 'data' parameter (the actual
-// entity JSON) will be needed here so conditional sibling-attribute rules can be
-// evaluated to find additional attributes introduced by ifvalues matches.
-function getAttr(model, entityPath, attrKeyPath) {
+// `data` (optional) is the actual entity JSON at entityPath's depth. When
+// provided, ifvalues conditional sibling-attribute rules are evaluated (see
+// resolveIfValuesAttrs()) at every level of the traversal, so attributes
+// that only exist because a sibling's value matched one of its "ifvalues"
+// keys are found too — not just the static model declaration.
+function getAttr(model, entityPath, attrKeyPath, data) {
   if (!model || !attrKeyPath || attrKeyPath.length === 0) return null;
   var depth = entityPath ? entityPath.length : 0;
 
@@ -3249,21 +3291,24 @@ function getAttr(model, entityPath, attrKeyPath) {
 
   // Traverse attrKeyPath, following .attributes for nested objects
   var attr = null;
+  var curData = data;
   for (var i = 0; i < attrKeyPath.length; i++) {
     var key = attrKeyPath[i];
-    attr = attrs[key] || attrs['*'] || null;
+    var resolvedAttrs = resolveIfValuesAttrs(attrs, curData);
+    attr = resolvedAttrs[key] || resolvedAttrs['*'] || null;
     if (!attr) return null;
     if (i < attrKeyPath.length - 1) {
       attrs = attr.attributes;
       if (!attrs) return null;
+      curData = (curData && typeof curData === 'object') ? curData[key] : null;
     }
   }
   return attr;
 }
 
 // Convenience wrapper — returns just the type string (or null).
-function getAttrType(model, entityPath, attrKeyPath) {
-  var attr = getAttr(model, entityPath, attrKeyPath);
+function getAttrType(model, entityPath, attrKeyPath, data) {
+  var attr = getAttr(model, entityPath, attrKeyPath, data);
   return attr ? (attr.type || null) : null;
 }
 
@@ -3287,7 +3332,13 @@ function typeFromAttrsMap(attrs, key) {
 // (see typeFromAttrsMap). Used for monospace decisions so that fully generic
 // extension attributes (wildcard type "any"/absent) aren't incorrectly monospaced,
 // while extensions under a concretely-typed wildcard (e.g. "*": {type: "url"}) are.
-function getExplicitAttrType(model, entityPath, key) {
+//
+// `data` (optional) is the actual entity JSON at entityPath's depth, used to
+// resolve ifvalues conditional sibling attributes (see resolveIfValuesAttrs())
+// before looking up `key` — e.g. an Endpoint's "envelopeoptions" attribute
+// only exists in the effective attrs map when that entity's "envelope"
+// attribute is set to "CloudEvents/1.0" (see endpoint/model.json).
+function getExplicitAttrType(model, entityPath, key, data) {
   if (!model || !key) return null;
   var depth = entityPath ? entityPath.length : 0;
   var attrs;
@@ -3308,6 +3359,7 @@ function getExplicitAttrType(model, entityPath, key) {
     var rm  = gm2 && gm2.resources && gm2.resources[entityPath[2]];
     attrs = rm && rm.attributes;
   }
+  attrs = resolveIfValuesAttrs(attrs, data);
   return typeFromAttrsMap(attrs, key);
 }
 // Like getExplicitAttrType but supports a multi-segment path for nested attrs (e.g.
@@ -3321,7 +3373,15 @@ function getExplicitAttrType(model, entityPath, key) {
 // fully model-driven: it reads the already-cached runtime /model, so it automatically
 // works for any spec-defined or model-defined complex attribute, without hardcoding
 // attribute names anywhere in the UI or in generated code.
-function getExplicitAttrTypeAtPath(model, entityPath, attrKeyPath) {
+//
+// `data` (optional) is the actual entity JSON at entityPath's depth — the same
+// root object attrKeyPath is addressing into. At every level of the
+// traversal (including the final segment) ifvalues are resolved against the
+// corresponding nested data object (see resolveIfValuesAttrs()), so e.g.
+// an Endpoint's "protocoloptions" (only present when "protocol" ==
+// "AMQP/1.0") gets its correct type, and any *nested* ifvalues within it
+// would be resolved too.
+function getExplicitAttrTypeAtPath(model, entityPath, attrKeyPath, data) {
   if (!model || !attrKeyPath || attrKeyPath.length === 0) return null;
   var depth = entityPath ? entityPath.length : 0;
   var attrs;
@@ -3344,16 +3404,19 @@ function getExplicitAttrTypeAtPath(model, entityPath, attrKeyPath) {
   }
   if (!attrs) return null;
   var attr = null;
+  var curData = data;
   for (var i = 0; i < attrKeyPath.length; i++) {
     var key = attrKeyPath[i];
     var isLast = (i === attrKeyPath.length - 1);
+    var resolvedAttrs = resolveIfValuesAttrs(attrs, curData);
     if (isLast) {
-      return typeFromAttrsMap(attrs, key);
+      return typeFromAttrsMap(resolvedAttrs, key);
     }
-    attr = attrs[key] || attrs['*'] || null;
+    attr = resolvedAttrs[key] || resolvedAttrs['*'] || null;
     if (!attr) return null;
     attrs = attr.attributes;
     if (!attrs) return null;
+    curData = (curData && typeof curData === 'object') ? curData[key] : null;
   }
   return null;
 }
@@ -3506,8 +3569,15 @@ function egCopyFallback(text, label) {
 // being rendered (e.g. ["deprecated", "effective"]); it is intentionally NOT
 // extended into array items (array item types aren't addressable this way),
 // so scalar array items keep their previous unstyled rendering.
-function renderValueTree(val, depth, model, entityPath, keyPath) {
-  var attrType = keyPath ? getExplicitAttrTypeAtPath(model, entityPath, keyPath) : null;
+//
+// rootData (optional) is the top-level entity JSON that keyPath is relative
+// to — i.e. the same object passed as `data` into buildPropsRowsHtml()/
+// renderMetaTable() — kept constant through the recursion (unlike `val`,
+// which changes at each nesting level) so getExplicitAttrTypeAtPath() can
+// resolve ifvalues conditional sibling attributes at every level by
+// drilling into rootData itself via keyPath.
+function renderValueTree(val, depth, model, entityPath, keyPath, rootData) {
+  var attrType = keyPath ? getExplicitAttrTypeAtPath(model, entityPath, keyPath, rootData) : null;
   var forceMono = attrType !== null && attrType !== 'string';
   function leaf(raw, display) {
     var cls = forceMono ? ' class="eg-mono"' : '';
@@ -3544,7 +3614,7 @@ function renderValueTree(val, depth, model, entityPath, keyPath) {
     var child = val[k];
     var isComplex = child !== null && typeof child === 'object';
     var childKeyPath = keyPath ? keyPath.concat([k]) : null;
-    var childHtml = renderValueTree(child, depth + 1, model, entityPath, childKeyPath);
+    var childHtml = renderValueTree(child, depth + 1, model, entityPath, childKeyPath, rootData);
     return '<div class="vt-kv' + (isComplex ? ' vt-kv-block' : '') + '">'
          + '<span class="vt-key">' + esc(k) + ':</span>'
          + '<span class="vt-kv-value">' + childHtml + '</span>'
@@ -3761,12 +3831,12 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
   keys.forEach(function(k, i) {
     var val = entityData[k];
     var display, valueCellClass = '';
-    var attrType = getExplicitAttrType(model, path, k);
+    var attrType = getExplicitAttrType(model, path, k, entityData);
     if (val !== null && typeof val === 'object') {
       var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
       display = isEmpty
         ? '<span class="vt-empty">empty</span>'
-        : renderValueTree(val, 0, model, path, [k]);
+        : renderValueTree(val, 0, model, path, [k], entityData);
       valueCellClass = ' class="cell-tree"';
     } else if (val == null) {
       display = '<span style="color:#999">null</span>';
@@ -4399,7 +4469,7 @@ function renderMetaTable(d, model) {
   function buildRow(k, banded) {
     var val = d[k];
     var display;
-    var attrType = getExplicitAttrType(model, metaPath, k);
+    var attrType = getExplicitAttrType(model, metaPath, k, d);
     if (val == null) {
       display = '<span style="color:#999">null</span>';
     } else if (typeof val === 'boolean') {
@@ -4441,6 +4511,7 @@ function renderMetaTable(d, model) {
 function renderMetaContent(d, model) {
   var html = '';
   var metaRendered = {};
+  var metaPath = (_state.path || []).concat(['meta']);
 
   // Suppress the resource's own ID field — it's already in the page title context
   if (_metaResourceIdField) metaRendered[_metaResourceIdField] = 1;
@@ -4537,12 +4608,12 @@ function renderMetaContent(d, model) {
       } else {
         html += '<div class="eg-ext-complex">'
               + '<div class="eg-ext-complex-key">' + esc(labelFor(k, metaSpecLevel, _metaSing)) + ':</div>'
-              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0, model, _state.path, [k]) + '</div>'
+              + '<div class="eg-ext-complex-body">' + renderValueTree(v, 0, model, metaPath, [k], d) + '</div>'
               + '</div>';
       }
     } else {
       // meta entity: use same logic as renderAttrRow with explicit-type-only monospace check
-      var attrTypeMeta = getExplicitAttrType(model, _state.path.concat(['meta']), k);
+      var attrTypeMeta = getExplicitAttrType(model, metaPath, k, d);
       var isMono = isMonoSpecAttr(k, metaSpecLevel, _metaSing)
         || (attrTypeMeta !== null && attrTypeMeta !== 'string');
       html += row(labelFor(k, metaSpecLevel, _metaSing), renderScalarValue(v, isMono));

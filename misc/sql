@@ -9,6 +9,13 @@ if [[ "$1" == "registry" || "$1" == "testreg" ]]; then
   shift
 fi
 
+args=( "$registry" )
+
+if [[ "$*" != "" ]]; then
+    echo hi
+  args=( "$registry" "-e" "$*" )
+fi
+
 docker run -ti --rm --network host --name mysql-client-cmd mysql mysql \
 	--host 127.0.0.1 --user root --password=password --protocol tcp \
-	$registry -e "$*"
+    "${args[@]}"

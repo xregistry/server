@@ -3887,6 +3887,87 @@ Test chromium processes/profiles/log files cleaned up after each run.
 
 **Status**: Complete.
 
+## Added: `ifvalues` support in model-attribute-lookup functions
+
+**Problem**: `getAttr()`/`getAttrType()`/`getExplicitAttrType()`/
+`getExplicitAttrTypeAtPath()` only walked the *static* model declaration
+of attributes, so any attribute that only exists conditionally via a
+model `ifvalues` rule (e.g. an Endpoint's `envelope: "CloudEvents/1.0"`
+triggering a sibling `envelopeoptions` attribute, or `protocol:
+"AMQP/1.0"` triggering `protocoloptions` — see
+`spec/endpoint/model.json`) was invisible to these functions. This meant
+such attributes never got correct type-driven rendering (e.g. monospace
+for non-string types) in List view's Property tables, meta table, or the
+JSON-tree renderer — they fell back to being treated as untyped
+extension attributes. Same underlying mechanism covers `messagegroups`/
+`messages` (per @duglin) and any other model using `ifvalues`.
+
+**Root cause / design**: mirrors the server's own dynamic-attribute
+algorithm, `Attributes.AddIfValuesAttributes()`
+(`registry/shared_model.go` ~1560): for each attribute with a non-empty
+`ifvalues` map, look up the actual value in the entity's real JSON data;
+if it matches (case-insensitively) one of the `ifvalues` keys, merge
+that key's `siblingattributes` into the effective attrs map — and check
+newly-added siblings' own `ifvalues` too (recursive). The client-side
+model walk had no access to the entity's actual data at the point these
+lookup functions ran, so it could never evaluate these conditional
+rules.
+
+**Fix** (`registry/ui/app.js`):
+- New `resolveIfValuesAttrs(attrs, data)` — non-destructive (shallow-
+  copies, never mutates the cached model), JS port of the server
+  algorithm above.
+- `getAttr(model, entityPath, attrKeyPath, data)` — added a `data`
+  param; at each traversal depth, resolves ifvalues via
+  `resolveIfValuesAttrs()` (using the actual data at that nesting level)
+  before doing the key lookup, and drills `data` alongside the attr-map
+  traversal for nested paths.
+- `getAttrType()`, `getExplicitAttrType()`, `getExplicitAttrTypeAtPath()`
+  — all threaded the same `data` param through to `getAttr()`/the attrs-
+  map resolution.
+- `renderValueTree()` — added a `rootData` param (the entity's top-level
+  JSON, held constant through the whole recursion, since
+  `getExplicitAttrTypeAtPath()` already does its own full drill-down
+  from the top using the complete key path at every call).
+- Updated all call sites to pass the actual entity data through:
+  `buildPropsRowsHtml()` (has `entityData`), `renderMetaTable()`/
+  `renderMetaContent()` (have `d`). While touching `renderMetaContent()`,
+  also fixed a pre-existing (unrelated to ifvalues, but on the exact
+  line being edited) bug: its `renderValueTree()` call used `_state.path`
+  instead of the meta-level path (`_state.path.concat(['meta'])`) — wrong
+  depth for meta-level nested-object type resolution. Introduced a
+  `metaPath` var and fixed both that call and its neighboring
+  `getExplicitAttrType()` call to use it consistently.
+
+**Verified**: `node --check app.js` passes. Live-tested against the
+`Endpoints` sample registry (PATCHed `e1`/`e2` test entities with
+`envelope: "CloudEvents/1.0"` + `envelopeoptions: {mode, format}` and
+`protocol: "AMQP/1.0"` + `protocoloptions: {deployed, durable,
+endpoints: [...]}`), calling `getExplicitAttrTypeAtPath()` directly via
+CDP against the live model:
+- With matching data: `envelopeoptions` → `object`, `envelopeoptions.
+  mode` → `string`, `protocoloptions` → `object`, `protocoloptions.
+  deployed` → `boolean`, `protocoloptions.endpoints` → `array` — all
+  correctly resolved only because of the ifvalues match.
+- Without matching data (`{}`/`null`): all of the above correctly
+  return `null` — confirming these attributes are genuinely conditional
+  and invisible when their trigger isn't set, matching server behavior.
+- Test entities/data deleted afterward; xrserver restarted with
+  `--recreatedb --samples` to restore clean sample data; chromium test
+  processes/profiles/logs cleaned up.
+
+**Not done / follow-up flagged, not yet actioned**: `isSpecAttr()`/
+categorization logic (spec vs. extension attribute grouping in Property
+tables) is not ifvalues-aware — an ifvalues-triggered attribute like
+`envelopeoptions` currently still renders in the "extension attributes"
+bucket rather than being recognized as a legitimately-declared attribute
+for that entity's current state. Flagging for a future discussion/
+decision rather than silently expanding scope here, since the original
+`TODO(ifvalues)` was specifically about type/monospace resolution.
+
+**Status**: Complete (core `ifvalues`-aware type resolution). Category-
+grouping ifvalues-awareness is a separate, unstarted follow-up.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file

@@ -1017,6 +1017,44 @@ ft.eSID IN ( -- eSID from query
 			firstAnd := true
 			andCount := 0
 			for _, filter := range OrFilters { // AndFilters
+				propNameSearch := "PropName=?"
+				filterPropName := filter.PropName
+				binary := "BINARY" // BINARY = case-sensitive for that operand
+
+				if filter.PP.HasWild {
+					// mysql format: column_name REGEXP 'pattern'
+					propNameSearch = "PropName REGEXP ?"
+					has := false
+
+					// Convert wildcards into appropriate regexp
+					if filter.Operator == FILTER_PRESENT ||
+						filter.Operator == FILTER_ABSENT {
+						// include .* at the end
+						filterPropName, has = filter.PP.DBFilterExists()
+					} else {
+						filterPropName, has = filter.PP.DBFilter()
+					}
+
+					PanicIf(!has, "Must have *") // Sanity check
+					// log.Printf("fpn: %q", filterPropName)
+					// log.Printf("fpn: %s", filter.PP.Debug())
+
+					// When just checking against NULL we can't use "binary"
+					if filter.Operator == FILTER_PRESENT ||
+						filter.Operator == FILTER_ABSENT {
+						binary = ""
+					}
+				} else {
+					if filter.Operator == FILTER_PRESENT ||
+						filter.Operator == FILTER_ABSENT {
+
+						// convert from "=" to "LIKE"
+						propNameSearch = "PropName LIKE ?"
+						// include % at the end
+						filterPropName = filter.PropName + "%"
+					}
+				}
+
 				andCount++
 				if !firstAnd {
 					query += `
@@ -1026,18 +1064,24 @@ ft.eSID IN ( -- eSID from query
 
 				if filter.Operator == FILTER_PRESENT { // ?filter=xxx
 					// BINARY means case-sensitive for that operand
-					check := "(BINARY Abstract=? AND PropName=? AND "
+					check := "(" + binary + " Abstract=? AND " +
+						propNameSearch + " AND "
 
 					args = append(args, reg.DbSID, filter.Abstract,
-						filter.PropName)
+						filterPropName)
 					check += "PropValue IS NOT NULL)"
+					// We may match lots of attrs, but we only want
+					// 1 to appear so the list.cnt check doesn't treat
+					// 2+ rows at matching more than one filter expression
+					check += " GROUP BY eSID" // " LIMIT 1"
 					query += `
-          SELECT eSID,Type,Path FROM FullTree WHERE RegSID=? AND ` + check
+          (SELECT eSID,Type,Path FROM FullTree  -- FILTER_PRESENT
+           WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
 
 				} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
 					// Look for non-existing prop
 					args = append(args, reg.DbSID, filter.Abstract,
-						filter.PropName)
+						filterPropName)
 
 					// BINARY means case-sensitive for that operand
 					query += `
@@ -1045,25 +1089,29 @@ ft.eSID IN ( -- eSID from query
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM FullTree WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (BINARY PropName=?))`
+              RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
+						propNameSearch + `))`
 
 				} else if filter.Operator == FILTER_EQUAL { // ?filter=xxx=zzz
 					// BINARY means case-sensitive for that operand
-					check := "(BINARY Abstract=? AND PropName=? AND "
+					check := "(" + binary + " Abstract=? AND " +
+						propNameSearch + " AND "
 
 					args = append(args, reg.DbSID, filter.Abstract,
-						filter.PropName)
-					value, wildcard := WildcardIt(filter.Value)
+						filterPropName)
+					value, wildcard := LikeWildcardIt(filter.Value)
 					args = append(args, value)
 					if !wildcard {
-						// String types: case-insensitive per spec; others: exact match
+						// Strings:case-insensitive per spec; others:exact match
 						args = append(args, value)
-						check += "((PropType='string' AND PropValue " + FILTER_CI_COLLATE + "=?)" +
+						check += "((PropType='string' AND PropValue " +
+							FILTER_CI_COLLATE + "=?)" +
 							" OR (PropType<>'string' AND PropValue=?))"
 					} else {
 						args = append(args, value)
 						check += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue " + FILTER_CI_COLLATE + " LIKE ?))"
+							" OR (PropType='string' AND PropValue " +
+							FILTER_CI_COLLATE + " LIKE ?))"
 					}
 					check += ")"
 					query += `
@@ -1072,26 +1120,29 @@ ft.eSID IN ( -- eSID from query
 
 				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
 					args = append(args, reg.DbSID, filter.Abstract,
-						filter.PropName)
+						filterPropName)
 					// BINARY means case-sensitive for that operand
 					query += `
           -- Entities that don't have the specified prop
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
             NOT EXISTS (SELECT 1 FROM FullTree WHERE
-              RegSID=e.RegSID AND eSID=e.eSID AND (BINARY PropName=? AND `
+              RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
+						propNameSearch + ` AND `
 
-					value, wildcard := WildcardIt(filter.Value)
+					value, wildcard := LikeWildcardIt(filter.Value)
 					args = append(args, value)
 					if !wildcard {
-						// String types: case-insensitive per spec; others: exact match
+						// Strings:case-insensitive per spec;others:exact match
 						args = append(args, value)
-						query += "((PropType='string' AND PropValue " + FILTER_CI_COLLATE + "=?)" +
+						query += "((PropType='string' AND PropValue " +
+							FILTER_CI_COLLATE + "=?)" +
 							" OR (PropType<>'string' AND PropValue=?))"
 					} else {
 						args = append(args, value)
 						query += "((PropType<>'string' AND PropValue=?) " +
-							" OR (PropType='string' AND PropValue " + FILTER_CI_COLLATE + " LIKE ?))"
+							" OR (PropType='string' AND PropValue " +
+							FILTER_CI_COLLATE + " LIKE ?))"
 					}
 					query += "))"
 
@@ -1112,8 +1163,11 @@ ft.eSID IN ( -- eSID from query
 						sqlOp = ">="
 					}
 
-					check := "(BINARY Abstract=? AND PropName=? AND "
-					args = append(args, reg.DbSID, filter.Abstract, filter.PropName)
+					check := "(" + binary + " Abstract=? AND " +
+						propNameSearch + " AND "
+					args = append(args, reg.DbSID, filter.Abstract,
+						filterPropName)
+
 					// Numeric: numeric comparison; string and others: case-insensitive string comparison
 					args = append(args, filter.Value, filter.Value)
 					check += "(CASE WHEN PropType IN ('integer','decimal','uinteger')" +
@@ -1191,11 +1245,14 @@ ft.eSID IN ( -- eSID from query
 	query += `  ORDER BY ` + sortOrder +
 		`    ft.Path COLLATE utf8mb4_general_ci ASC;`
 
-	log.VPrintf(3, "Query:\n%s\n\n", SubQuery(query, args))
+	if log.GetVerbose() > 3 || log.HasKeyword("genq") {
+		log.Printf("Query:\n%s\n\n", SubQuery(query, args))
+	}
 	return query, args, nil
 }
 
-func WildcardIt(str string) (string, bool) {
+// Convert each non-escaped * into SQL % for LIKE queries
+func LikeWildcardIt(str string) (string, bool) {
 	wild := false
 	res := strings.Builder{}
 

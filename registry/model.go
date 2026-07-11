@@ -198,6 +198,7 @@ func LoadModel(reg *Registry) *Model {
 
 	row := results.NextRow()
 	if row == nil {
+		ShowStack()
 		log.Printf("Can't find registry: %s", reg.UID)
 		return nil
 	}
