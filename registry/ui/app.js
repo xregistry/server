@@ -1361,6 +1361,18 @@ function renderBreadcrumbs() {
       +   '<span class="bc-home-opt' + (hg === 'types'    ? ' active' : '') + '" onclick="setHomeGroup(\'types\')">Group Types</span>'
       + '</span>';
     nav.style.overflow = '';
+    // Home has no breadcrumb segments to collapse (just the pill above), but
+    // on narrow screens the flex layout can still squeeze #breadcrumbs down
+    // below the pill's natural content width. The pill has its own
+    // overflow:hidden (to round its corners), which traps that clipping —
+    // so nav.scrollWidth never reports it. Check the pill itself instead:
+    // if its content (scrollWidth) is wider than the box it was actually
+    // given (clientWidth), it's being clipped, and folding the right-side
+    // buttons into the compact dropdown frees up enough room to fit it.
+    requestAnimationFrame(function() {
+      var pill = nav.querySelector('.bc-home-pill');
+      if (pill && pill.scrollWidth > pill.clientWidth) setHeaderCompact(true);
+    });
     return;
   }
 
@@ -1471,21 +1483,36 @@ function openCompactMenu(e) {
 function buildCompactMenuItems() {
   var items = [];
   var isHome = (_state.view === 'home');
-  var isData = !isHome && _state.view !== 'config';
-  if (isHome) {
-    var hg = _state.homeGroup;
-    items.push({label: 'By Registry',    onclick: "setHomeGroup('registry')", active: hg === 'registry'});
-    items.push({label: 'By Group Type',  onclick: "setHomeGroup('types')",    active: hg === 'types'});
-    items.push({sep: true});
+  var isConfig = (_state.view === 'config');
+  // Note: the "Registries / Group Types" home pill is NOT duplicated here —
+  // it lives in the breadcrumb area, which compact mode never hides (only
+  // view-controls/gear-btn get folded away; see setHeaderCompact()), so it
+  // stays directly clickable in the header itself.
+  // Build the Grid/List/JSON/Edit entries straight from the real header
+  // buttons (renderHeader() already computed their display/disabled state
+  // for the current page) instead of re-deriving the rules here — keeps
+  // this menu from drifting out of sync with which buttons actually exist
+  // (e.g. Grid view being removed entirely on most sections; see plan.md
+  // "Grid view removed").
+  if (!isConfig) {
+    var dv = isHome ? currentHomeLayout() : (_state.dataView || 'table');
+    var labels = {grid: 'Grid view', table: 'List view', json: 'JSON view'};
+    qsa('[data-dview]').forEach(function(b) {
+      if (b.style.display === 'none') return ;      // hidden entirely for this page
+      if (b.classList.contains('view-btn-disabled')) return ; // present but non-clickable
+      var v = b.dataset.dview ;
+      items.push({label: labels[v] || v, onclick: "setDataView('" + v + "')", active: v === dv}) ;
+    }) ;
+    var editBtn = el('edit-btn') ;
+    if (editBtn && editBtn.style.display !== 'none' && !editBtn.classList.contains('view-btn-disabled')) {
+      items.push({label: 'Edit', onclick: 'toggleEdit()', active: _state.editMode}) ;
+    }
   }
-  var dv = isHome ? currentHomeLayout() : (_state.dataView || 'grid');
-  items.push({label: 'Grid view',  onclick: "setDataView('grid')",  active: dv === 'grid'});
-  items.push({label: 'List view',  onclick: "setDataView('table')", active: dv === 'table'});
-  if (isData) {
-    items.push({label: 'JSON view',  onclick: "setDataView('json')",  active: dv === 'json'});
-    if (_state.mutable) items.push({label: 'Edit', onclick: 'toggleEdit()'});
-  }
-  if (!isData) {
+  // The gear/Config button is always hidden in compact mode (see
+  // setHeaderCompact()) regardless of page, so it must always have a
+  // replacement entry here too — not just on Home — otherwise Config
+  // becomes unreachable on narrow screens while browsing registry data.
+  if (!isConfig) {
     items.push({sep: true});
     items.push({label: 'Config', onclick: 'goToConfig()'});
   }

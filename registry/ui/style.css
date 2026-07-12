@@ -231,6 +231,8 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   border-right: 1px solid #aaa;
   user-select: none;
   transition: background 0.1s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .bc-home-opt:last-child { border-right: none; }
 .bc-home-opt:hover { background: #d0d0d0; }
