@@ -12,7 +12,6 @@ fi
 args=( "$registry" )
 
 if [[ "$*" != "" ]]; then
-    echo hi
   args=( "$registry" "-e" "$*" )
 fi
 
