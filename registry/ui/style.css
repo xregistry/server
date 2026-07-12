@@ -1899,6 +1899,11 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
     flex-direction: row ;
     align-items: center ;
     gap: 6px ;
+    padding: 4px 6px ;
+    border-radius: 4px ;
+  }
+  .boolCell:nth-child(even) {
+    background: #e9e9e9 ;
   }
   .boolCell label {
     font-size: 11px ;
