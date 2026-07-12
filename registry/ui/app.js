@@ -7747,6 +7747,12 @@ function buildRightPanel(div) {
 
 function collectCurrentEditor() {
   if (!_navSelected) return ;
+  // Read-only mode never renders editable inputs (just plain text spans), so
+  // there's nothing to collect — and doing so anyway would silently
+  // overwrite real data (e.g. constraints) with empty placeholders, since
+  // the DOM-reading helpers (collectConstraints, collectLabels, etc.)
+  // assume the edit-mode DOM structure.
+  if (_modelReadOnly) return ;
 
   // Nested attribute context — handle first
   if (_attrNestStack.length > 0) {
@@ -8088,7 +8094,8 @@ function renderAttrForm(div, attr) {
   optList.forEach(function(t) { boolGrid.appendChild(efBool('ef_'+t[0], t[1], t[2])) ; }) ;
   div.appendChild(boolGrid) ;
 
-  // If-Values drill-down button — left-aligned under section header
+  // If-Values drill-down button — next to the section header, matching the
+  // Labels/Enum/Constraints "+ Add" placement pattern.
   var ifvSec = document.createElement('div') ; ifvSec.className = 'editorSectionLabel' ; ifvSec.textContent = 'If-Values' ;
   div.appendChild(ifvSec) ;
   var ifvCount = Object.keys(attr.ifvalues || {}).length ;
@@ -8097,8 +8104,7 @@ function renderAttrForm(div, attr) {
     ifvNone.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
     div.appendChild(ifvNone) ;
   } else {
-    var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn navDrillBtn' ;
-    ifvBtn.style.cssText = 'font-size:11px;padding:3px 8px;margin-bottom:6px;' ;
+    var ifvBtn = document.createElement('button') ; ifvBtn.className = 'editorBtn editorBtnSmall navDrillBtn' ;
     ifvBtn.textContent = '\u25b6 If-Values' + (ifvCount ? ' ('+ifvCount+')' : '') ;
     ifvBtn.onclick = function() {
       collectCurrentEditor() ;
@@ -8106,7 +8112,7 @@ function renderAttrForm(div, attr) {
       _attrNestStack.push({key:resolvedKey, isIfValues:true}) ;
       _navSelected = null ; renderEditor() ;
     } ;
-    div.appendChild(ifvBtn) ;
+    ifvSec.appendChild(ifvBtn) ;
   }
 }
 
@@ -8431,19 +8437,16 @@ function makeLabelsEditor(containerId, labels) {
     none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
     sec.appendChild(none) ; return sec ;
   }
-  var wrap = document.createElement('div') ; wrap.className = 'labelsWrap' ;
-  if (!_modelReadOnly) {
-    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
-    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Label' ;
-    addBtn.style.flexShrink = '0' ; addBtn.style.alignSelf = 'flex-start' ;
-    addBtn.onclick = function() { rowsDiv.appendChild(makeLabelRow('','')) ; } ;
-    wrap.appendChild(addBtn) ;
-  }
   var rowsDiv = document.createElement('div') ; rowsDiv.className = 'labelsRows' ;
   rowsDiv.id = containerId ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn editorBtnSmall' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Label' ;
+    addBtn.onclick = function() { rowsDiv.appendChild(makeLabelRow('','')) ; } ;
+    hdr.appendChild(addBtn) ;
+  }
   Object.keys(labels).forEach(function(k) { rowsDiv.appendChild(makeLabelRow(k, labels[k])) ; }) ;
-  wrap.appendChild(rowsDiv) ;
-  sec.appendChild(wrap) ;
+  sec.appendChild(rowsDiv) ;
   return sec ;
 }
 
@@ -8479,19 +8482,16 @@ function makeEnumEditor(containerId, values) {
     none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
     sec.appendChild(none) ; return sec ;
   }
-  var wrap = document.createElement('div') ; wrap.className = 'labelsWrap' ;
-  if (!_modelReadOnly) {
-    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
-    addBtn.textContent = '+ Add' ; addBtn.title = 'Add enum value' ;
-    addBtn.style.flexShrink = '0' ; addBtn.style.alignSelf = 'flex-start' ;
-    addBtn.onclick = function() { rowsDiv.appendChild(makeEnumRow('')) ; } ;
-    wrap.appendChild(addBtn) ;
-  }
   var rowsDiv = document.createElement('div') ; rowsDiv.id = containerId ;
-  rowsDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:4px;' ;
+  rowsDiv.style.cssText = 'display:flex;flex-direction:column;gap:4px;' ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn editorBtnSmall' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add enum value' ;
+    addBtn.onclick = function() { rowsDiv.appendChild(makeEnumRow('')) ; } ;
+    hdr.appendChild(addBtn) ;
+  }
   values.forEach(function(v) { rowsDiv.appendChild(makeEnumRow(String(v))) ; }) ;
-  wrap.appendChild(rowsDiv) ;
-  sec.appendChild(wrap) ;
+  sec.appendChild(rowsDiv) ;
   return sec ;
 }
 
@@ -8546,24 +8546,27 @@ function makeConstraintsEditor(containerId, constraints, gk) {
   var sec = document.createElement('div') ;
   var hdr = document.createElement('div') ; hdr.className = 'editorSectionLabel' ;
   hdr.textContent = 'Constraints' ; sec.appendChild(hdr) ;
+  var blocksDiv = document.createElement('div') ; blocksDiv.id = containerId ;
+  blocksDiv.style.cssText = 'display:flex;flex-direction:column;' ;
+  if (!_modelReadOnly) {
+    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn editorBtnSmall' ;
+    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Constraint' ;
+    addBtn.onclick = function() {
+      var row = makeConstraintRow('', {}, gk) ;
+      blocksDiv.insertBefore(row, blocksDiv.firstChild) ;
+      row.scrollIntoView({block:'nearest'}) ;
+    } ;
+    hdr.appendChild(addBtn) ;
+  }
   if (_modelReadOnly && Object.keys(constraints||{}).length === 0) {
     var none = document.createElement('span') ; none.textContent = '\u2014 none \u2014' ;
     none.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;margin-left:4px;' ;
     sec.appendChild(none) ; return sec ;
   }
-  var blocksDiv = document.createElement('div') ; blocksDiv.id = containerId ;
-  blocksDiv.style.cssText = 'display:flex;flex-direction:column;' ;
   Object.keys(constraints||{}).forEach(function(k) {
     blocksDiv.appendChild(makeConstraintRow(k, constraints[k]||{}, gk)) ;
   }) ;
   sec.appendChild(blocksDiv) ;
-  if (!_modelReadOnly) {
-    var addBtn = document.createElement('button') ; addBtn.className = 'editorBtn' ;
-    addBtn.textContent = '+ Add' ; addBtn.title = 'Add Constraint' ;
-    addBtn.style.cssText = 'margin-top:4px;align-self:flex-start;' ;
-    addBtn.onclick = function() { blocksDiv.appendChild(makeConstraintRow('', {}, gk)) ; } ;
-    sec.appendChild(addBtn) ;
-  }
   return sec ;
 }
 
@@ -8590,20 +8593,26 @@ function makeConstraintRow(key, constraint, gk) {
   var initAttr = dotIdx !== -1 ? key.substring(dotIdx+1) : '' ;
 
   if (_modelReadOnly) {
-    // Read-only: show fields as text
+    // Read-only: show fields as text. Note: the "Path" isn't repeated here
+    // since it's already shown as this constraint block's title (see
+    // titleSpan above) — showing it again in the body would be redundant.
     function roRow(lbl, val) {
       var row = document.createElement('div') ; row.className = 'editorField' ;
       var l = document.createElement('label') ; l.textContent = lbl ;
       var s = document.createElement('span') ; s.style.cssText = 'font-size:13px;color:#333;' ;
       s.textContent = val || '\u2014' ; row.appendChild(l) ; row.appendChild(s) ; return row ;
     }
-    var pathStr = key || '\u2014' ;
-    block.appendChild(roRow('Path:', pathStr)) ;
     var defStr = constraint.default !== undefined ? JSON.stringify(constraint.default) : '' ;
     if (defStr) block.appendChild(roRow('Default:', defStr)) ;
-    if (constraint.equals) block.appendChild(roRow('Equals:', constraint.equals)) ;
+    if (constraint.equals) block.appendChild(roRow('Equals:', gk + '.' + constraint.equals)) ;
     var enumArr = Array.isArray(constraint.enum) ? constraint.enum : [] ;
     if (enumArr.length) block.appendChild(roRow('Enum:', enumArr.join(', '))) ;
+    if (!defStr && !constraint.equals && !enumArr.length) {
+      var noneSpan = document.createElement('span') ;
+      noneSpan.textContent = '\u2014 no constraint data set \u2014' ;
+      noneSpan.style.cssText = 'color:#aaa;font-size:12px;font-style:italic;' ;
+      block.appendChild(noneSpan) ;
+    }
     return block ;
   }
 
@@ -8640,7 +8649,9 @@ function makeConstraintRow(key, constraint, gk) {
     titleSpan.textContent = (r && a) ? (r + '.' + a) : (r ? r + '.?' : 'New Constraint') ;
   } ;
 
-  pathRow.appendChild(resSel) ; pathRow.appendChild(dot) ; pathRow.appendChild(attrSel) ;
+  var pathValueWrap = document.createElement('div') ; pathValueWrap.className = 'cstrPathValue' ;
+  pathValueWrap.appendChild(resSel) ; pathValueWrap.appendChild(dot) ; pathValueWrap.appendChild(attrSel) ;
+  pathRow.appendChild(pathValueWrap) ;
   block.appendChild(pathRow) ;
 
   // Default field
@@ -8655,6 +8666,8 @@ function makeConstraintRow(key, constraint, gk) {
   // Equals field — dropdown of group scalar attrs
   var eqRow = document.createElement('div') ; eqRow.className = 'editorField' ;
   var eqLbl = document.createElement('label') ; eqLbl.textContent = 'Equals:' ;
+  var eqPrefix = document.createElement('span') ; eqPrefix.className = 'cstrEqPrefix' ;
+  eqPrefix.textContent = gk + '.' ;
   var eqSel = document.createElement('select') ; eqSel.className = 'cstrEqSel editorSelectWrap editorInput' ;
   var eqBlank = document.createElement('option') ; eqBlank.value = '' ; eqBlank.textContent = '-- none --' ;
   eqSel.appendChild(eqBlank) ;
@@ -8664,24 +8677,22 @@ function makeConstraintRow(key, constraint, gk) {
     if (n === (constraint.equals||'')) o.selected = true ;
     eqSel.appendChild(o) ;
   }) ;
-  eqRow.appendChild(eqLbl) ; eqRow.appendChild(eqSel) ;
+  eqRow.appendChild(eqLbl) ; eqRow.appendChild(eqPrefix) ; eqRow.appendChild(eqSel) ;
   block.appendChild(eqRow) ;
 
   // Enum editor
   var enumSec = document.createElement('div') ; enumSec.className = 'cstrEnumSection' ;
   var enumHdr = document.createElement('div') ; enumHdr.className = 'editorSectionLabel' ;
   enumHdr.textContent = 'Enum' ; enumSec.appendChild(enumHdr) ;
-  var enumWrap = document.createElement('div') ; enumWrap.className = 'labelsWrap' ;
-  var enumAddBtn = document.createElement('button') ; enumAddBtn.className = 'editorBtn' ;
-  enumAddBtn.textContent = '+ Add' ; enumAddBtn.title = 'Add enum value' ;
-  enumAddBtn.style.flexShrink = '0' ; enumAddBtn.style.alignSelf = 'flex-start' ;
   var enumRowsDiv = document.createElement('div') ; enumRowsDiv.id = 'cstr_enum_' + idx ;
-  enumRowsDiv.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:4px;' ;
+  enumRowsDiv.style.cssText = 'display:flex;flex-direction:column;gap:4px;' ;
+  var enumAddBtn = document.createElement('button') ; enumAddBtn.className = 'editorBtn editorBtnSmall' ;
+  enumAddBtn.textContent = '+ Add' ; enumAddBtn.title = 'Add enum value' ;
   enumAddBtn.onclick = function() { enumRowsDiv.appendChild(makeEnumRow('')) ; } ;
+  enumHdr.appendChild(enumAddBtn) ;
   var enumArr2 = Array.isArray(constraint.enum) ? constraint.enum : [] ;
   enumArr2.forEach(function(v) { enumRowsDiv.appendChild(makeEnumRow(String(v))) ; }) ;
-  enumWrap.appendChild(enumAddBtn) ; enumWrap.appendChild(enumRowsDiv) ;
-  enumSec.appendChild(enumWrap) ; block.appendChild(enumSec) ;
+  enumSec.appendChild(enumRowsDiv) ; block.appendChild(enumSec) ;
 
   return block ;
 }

@@ -1671,3 +1671,306 @@ func TestFiltersMisc(t *testing.T) {
 }
 `)
 }
+
+func TestFiltersWildcardsInName(t *testing.T) {
+	reg := NewRegistry("TestFiltersWildcardsInName")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/", `{
+      "ext": {
+        "arr": [
+          {
+            "map": {
+              "k1": "v1",
+              "k2": "v2"
+            }
+          }, {
+            "obj": {
+              "a1": "b1"
+            }
+          }
+        ]
+      },
+      "modelsource": {
+        "attributes": {
+          "*": {
+            "type": "any"
+          }
+        },
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "hasdocument": false,
+                "attributes": {
+                  "obj": {
+                    "type": "object",
+                    "attributes": {
+                      "str": { "type": "string" },
+                      "*": { "type": "string" }
+                    }
+                  },
+                  "map": {
+                    "type": "map",
+                    "item": { "type": "string" }
+                  },
+                  "arr": {
+                    "type": "array",
+                    "item": { "type": "integer" }
+                  },
+                  "*": {
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "obj": {
+                "str": "astr",
+                "ext": "anext"
+              },
+              "map": {
+                "key1": "111",
+                "key2": "222"
+              },
+              "arr": [ 1, 2, 3 ],
+              "ext": {
+                "arr": [
+                  {
+                    "map": {
+                      "k1": "v1",
+                      "k2": "v2"
+                    }
+                  }, {
+                    "obj": {
+                      "a1": "b1"
+                    }
+                  }
+                ]
+              }
+            },
+            "f2": {}
+          }
+        }
+      }
+    }`, 200, "*")
+
+	// First make sure a basic test works
+	XHTTP(t, reg, "GET", "/dirs/d1/files?filter=obj.str", "", 200, `{
+  "f1": {
+    "fileid": "f1",
+    "versionid": "1",
+    "self": "http://localhost:8181/dirs/d1/files/f1",
+    "xid": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-07-10T14:46:49.221824428Z",
+    "modifiedat": "2026-07-10T14:46:49.221824428Z",
+    "ancestor": "1",
+    "arr": [
+      1,
+      2,
+      3
+    ],
+    "ext": {
+      "arr": [
+        {
+          "map": {
+            "k1": "v1",
+            "k2": "v2"
+          }
+        },
+        {
+          "obj": {
+            "a1": "b1"
+          }
+        }
+      ]
+    },
+    "map": {
+      "key1": "111",
+      "key2": "222"
+    },
+    "obj": {
+      "ext": "anext",
+      "str": "astr"
+    },
+
+    "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+    "versionscount": 1
+  }
+}
+`)
+
+	// Make sure "*" must stand alone in the path
+	for _, errQ := range []string{"*x", "x*", "x*x", "*x*"} {
+		XHTTP(t, reg, "GET", "/dirs/d1/files?filter=obj."+errQ+"=astr", "",
+			400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "An error was found in \"filter\" value (obj.`+errQ+`): Unexpected \"*\" in \"`+errQ+`\".",
+  "subject": "/dirs/d1/files",
+  "args": {
+    "error_detail": "Unexpected \"*\" in \"`+errQ+`\"",
+    "value": "obj.`+errQ+`"
+  },
+  "source": "6401a2345caa:registry:info:468"
+}
+`)
+	}
+
+	// --------------- OBJECT
+
+	// Test for wildcard as obj attr name
+	// Attr exists - Matches more than one attr
+	XHTTP(t, reg, "GET", "/dirs/d1?inline&filter=files.obj.*", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// Attr doesn't exists - Matches more than one attr
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.obj.*=null", "", 200,
+		`^(?s)^.*"f2".*filescount": 1`)
+
+	// Attr does OR doesn't exist
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.obj.*&filter=files.obj.*=null", "",
+		200, `^(?s)^.*"f1".*"f2".*filescount": 2`)
+
+	// Attr does AND doesn't exist - no match, no result
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.obj.*,files.obj.*=null", "",
+		404, `*`)
+
+	// Make sure multiple matches in the same entity doesn't mess it up
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.obj.*,files.obj.str=astr", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// --------------- MAPS
+
+	// test Map key - exists
+	XHTTP(t, reg, "GET", "/dirs/d1?inline&filter=files.map.*", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// key doesn't exist (empty map)
+	XHTTP(t, reg, "GET", "/dirs/d1?inline&filter=files.map.*=null", "", 200,
+		`^(?s)^.*"f2".*filescount": 1`)
+
+	// --------------- ARRAYS
+
+	// test Array index - exists
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// Bad array reference - maybe we should allow it?? Not sure yet
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr.*", "", 404, `*`)
+
+	// index doesn't exist (empty array)
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]=null", "", 200,
+		`^(?s)^.*"f2".*filescount": 1`)
+
+	// exact index missing
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[0]=null", "", 200,
+		`^(?s)^.*"f2".*filescount": 1`)
+
+	// exact index match
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[0]=1", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// exact index mismatch - no file returned
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[0]=2", "", 404, `*`)
+
+	// any index match
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]=2", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// any index mismatch
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]=4", "", 404, `*`)
+
+	// any index >
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]>2", "", 200,
+		`^(?s)^.*"f1".*filescount": 1`)
+
+	// any index > mismatch
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.arr[*]>4", "", 404, `*`)
+
+	// last index
+	/*
+		XHTTP(t, reg, "GET",
+			"/dirs/d1?inline&filter=files.arr[-1]", "", 200, ``)
+	*/
+
+	// --------------- MISC
+	/*
+			   "ext": {
+			     "arr": [
+		          {
+			       "map": {
+			         "k1": "v1",
+			         "k2": "v2"
+			       }
+		          },
+		          {
+			       "obj": {
+			         "a1": "b1"
+			       }
+		          }
+			     ]
+			   }
+	*/
+
+	// Go deep!!!
+	XHTTP(t, reg, "GET",
+		//                            e a m  k
+		"/dirs/d1?inline&filter=files.*.*[*].*.*=v1", "", 200,
+		`^(?s)^*"f1".*"filescount": 1`)
+
+	// Bad value
+	XHTTP(t, reg, "GET",
+		"/dirs/d1?inline&filter=files.*.*[*].*.*=v3", "", 404, `*`)
+
+	// Too few .*'s
+	XHTTP(t, reg, "GET",
+		`/dirs/d1?inline&filter=files.*.*["*x"].*=v2`, "", 404, `*`)
+
+	// Just a couple at root
+	XHTTP(t, reg, "GET", "/?filter=*.*[*].*.*=v1", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.*[*].*.*=v3", "", 404, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.arr[*].*.*=v2", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext.arr[*].*.*=v2", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.arr[*].obj.*=b1", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.arr[*].obj.a1=b1", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.arr[1].obj.a1=b1", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=*.arr[0].obj.a1=b1", "", 404, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext.arr[1].obj.a1=b1", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext.arr[2]", "", 404, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext.arr[1]", "", 200, `*`)
+
+	XHTTP(t, reg, "GET", "/?filter=ext=null", "", 404, `*`)
+	XHTTP(t, reg, "GET", "/?filter=ext.arr[1]=null", "", 404, `*`)
+
+	XHTTP(t, reg, "GET", "/?filter=epoch", "", 200, `*`)
+	XHTTP(t, reg, "GET", "/?filter=epoch=null", "", 404, `*`)
+
+	XHTTP(t, reg, "GET", "/?filter=foo", "", 404, `*`)
+	XHTTP(t, reg, "GET", "/?filter=foo=null", "", 200, `*`)
+}

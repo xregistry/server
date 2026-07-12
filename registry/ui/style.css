@@ -1883,7 +1883,10 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
     margin: 14px 0 6px ;
     padding-bottom: 4px ;
     border-bottom: 1px solid #e0e0e0 ;
+    display: flex ;
+    align-items: center ;
   }
+  .editorSectionLabel .editorBtn { margin-left: 10px ; }
   .boolGrid {
     display: grid ;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) ;
@@ -1945,6 +1948,7 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   .editorBtn:hover { background: #c4c4c4 ; color: black ; }
   .editorBtn:disabled { opacity: 0.4 ; cursor: not-allowed ; }
   .editorBtn:disabled:hover { background: inherit ; color: white ; }
+  .editorBtnSmall { padding: 0 8px ; line-height: 1.4 ; }
   #saveBtn { background: #2060a0 ; border-color: #2060a0 ; }
   #saveBtn:hover { background: #c4c4c4 ; color: black ; }
   #undoBtn { background: #a06020 ; border-color: #a06020 ; }
@@ -1978,16 +1982,16 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
     white-space: pre-wrap ;
     margin: 0 10px 6px ;
   }
-  .labelsWrap { display: flex ; align-items: flex-start ; gap: 8px ; }
-  .labelsRows { display: flex ; flex-direction: column ; gap: 4px ; flex: 1 ; }
+  .labelsRows { display: flex ; flex-direction: column ; gap: 4px ; }
   .labelRow { display: flex ; align-items: center ; gap: 6px ; }
   .labelKey { width: 120px ; }
   .labelVal { flex: 1 ; }
   .constraintBlock { border:1px solid #ddd; border-radius:4px; padding:8px; margin-bottom:8px; background:#fafafa; }
-  .constraintBlockHdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-  .constraintBlockTitle { font-size:12px; font-weight:600; color:#555; }
-  .cstrPathRow { display:flex; align-items:center; gap:4px; margin-bottom:4px; }
+  .constraintBlockHdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #ddd; }
+  .constraintBlockTitle { font-size:14px; font-weight:700; color:#222; }
+  .cstrPathRow { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
   .cstrPathRow label { width:160px; flex-shrink:0; font-size:13px; }
+  .cstrPathValue { display:flex; align-items:center; gap:4px; flex:1; }
   .cstrPathDot { font-weight:bold; padding:0 2px; color:#666; }
   .cstrResSel, .cstrAttrSel { flex:1; }
   .cstrEnumSection { margin-top:6px; }

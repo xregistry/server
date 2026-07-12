@@ -260,6 +260,26 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 }
 `)
 
+	// Make sure $details is ok on GET and not in response
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200,
+		`{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestor": "1",
+  "foo": "test",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
 	// also make sure $details is ok on PUT
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"foo2":"test2"}`, 200,
 		`{
