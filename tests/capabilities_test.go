@@ -23,6 +23,9 @@ func TestCapabilitySimple(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -135,6 +138,9 @@ func TestCapabilitySimple(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },
@@ -382,6 +388,9 @@ func TestCapabilityPath(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -1694,6 +1703,17 @@ func TestCapabilityOffered(t *testing.T) {
   "available": {
     "type": "object",
     "attributes": {
+      ".xregistry": {
+        "type": "object",
+        "attributes": {
+          "mutable": {
+            "type": "boolean",
+            "enum": [
+              false
+            ]
+          }
+        }
+      },
       "capabilities": {
         "type": "object",
         "attributes": {
@@ -2401,6 +2421,9 @@ func TestCapabilityPatch(t *testing.T) {
       "flags": ["inline"]
     }`, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -2523,6 +2546,9 @@ func TestCapabilityPatch(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },
@@ -2659,6 +2685,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
 	// Step 1: Verify initial state has full capabilities
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -2776,6 +2805,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },
@@ -2888,6 +2920,9 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
 	// Verify flags is still ["inline"] and other capabilities preserved
 	XHTTP(t, reg, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -3073,6 +3108,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "flags": ["inline"]
 }`, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -3169,6 +3207,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 	// other caps preserved
 	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -3284,6 +3325,9 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
 	// other caps preserved
 	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -3459,6 +3503,9 @@ func TestCapabilityNullHandling(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },
@@ -3564,6 +3611,9 @@ func TestCapabilityNullHandling(t *testing.T) {
 	// Should be back to default full capabilities
 	XHTTP(t, reg1, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
@@ -3748,6 +3798,9 @@ func TestCapabilityNullHandling(t *testing.T) {
 	// Should be back to default full capabilities
 	XHTTP(t, reg2, "GET", "/capabilities", ``, 200, `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },

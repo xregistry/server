@@ -469,9 +469,66 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 	return nil
 }
 
+// HTTPGETXRegistryDiscovery serves GET .xregistry - a small, extensible,
+// cross-registry discovery document. Unlike /model, /capabilities, etc.
+// this isn't scoped to the single Registry the request happened to be
+// routed through - it's host/server-level info, so it's exposed
+// unconditionally (no capabilities.available gating) and reachable under
+// ANY registry's own base URL (registry-scoped variant; a true host-root
+// `GET <host>/.xregistry` variant, when a deployment controls its own
+// host root, is a documented follow-up - not implemented here since this
+// server always routes a request to a specific Registry first).
+//
+// Response shape is intentionally minimal today (just a "registries" map)
+// but left open for future top-level attributes, which is why this got
+// its own dedicated, dot-prefixed endpoint name (avoiding collisions with
+// other tooling APIs, and avoiding ".well-known" - that name has strict
+// RFC 8615 host-root-only semantics, which would be misleading for this
+// registry-scoped variant).
+func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
+	if len(info.Parts) > 1 {
+		return NewXRError("api_not_found", info.GetParts(0))
+	}
+
+	names, xErr := GetRegistryNames()
+	if xErr != nil {
+		return NewXRError("server_error", "/.xregistry").
+			SetDetail(xErr.GetTitle())
+	}
+
+	// Recover the plain host base (scheme://host, no /reg-<name> suffix)
+	// regardless of whether THIS request itself came in via a /reg-<name>
+	// prefixed URL - every sibling registry's URL below is built from this
+	// same host base, not from whatever prefix this particular request
+	// happened to use.
+	hostBase := info.BaseURL
+	if info.Registry != nil {
+		hostBase = strings.TrimSuffix(hostBase, "/reg-"+info.Registry.UID)
+	}
+
+	registries := map[string]string{}
+	for _, name := range names {
+		registries[name] = hostBase + "/reg-" + name
+	}
+
+	buf, err := json.MarshalIndent(map[string]any{
+		"registries": registries,
+	}, "", "  ")
+	if err != nil {
+		return NewXRError("server_error", "/.xregistry").
+			SetDetailf("Error generating .xregistry doc: %s.", err.Error())
+	}
+
+	info.SetHeader("Content-Type", "application/json")
+	info.Write(buf)
+	info.Write([]byte("\n"))
+	return nil
+}
+
 func HTTPGETContent(info *RequestInfo) *XRError {
 	log.VPrintf(3, ">Enter: HTTPGetContent")
 	defer log.VPrintf(3, "<Exit: HTTPGetContent")
+
 
 	query := `
 SELECT
@@ -729,6 +786,13 @@ func HTTPGet(info *RequestInfo) *XRError {
 			return NewXRError("not_available", "/modelsource")
 		}
 		return HTTPGETModelSource(info)
+	}
+
+	if info.RootPath == ".xregistry" {
+		if !info.IsAvailable(".xregistry") {
+			return NewXRError("not_available", "/.xregistry")
+		}
+		return HTTPGETXRegistryDiscovery(info)
 	}
 
 	// 'metaInBody' tells us whether xReg metadata should be in the http

@@ -62,7 +62,7 @@ type RequestInfo struct {
 var explicitInlines = []string{"capabilities", "model", "modelsource"}
 var nonModelInlines = append([]string{"*"}, explicitInlines...)
 var rootPaths = []string{"capabilities", "capabilitiesoffered", "export",
-	"model", "modelsource", "proxy"}
+	"model", "modelsource", "proxy", ".xregistry"}
 
 type Inline struct {
 	Path    string    // value from ?inline query param
@@ -1061,6 +1061,10 @@ func (info *RequestInfo) GetAllowedMethods() []string {
 			if info.IsAvailableMutable("modelsource") {
 				methods = append(methods, "PUT")
 			}
+		}
+	} else if rootPath == ".xregistry" {
+		if info.IsAvailable(".xregistry") {
+			methods = append(methods, "GET")
 		}
 	} else if info.IsAvailable("entities") {
 		// Standard entity endpoints

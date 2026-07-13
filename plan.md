@@ -4147,6 +4147,103 @@ network-independent way to exercise proxy code paths):
 
 **Status**: Complete.
 
+## Known-registries auto-discovery + hide/scan controls + `.xregistry`
+## capability gating
+
+**Goal**: let the SPA automatically discover sibling registries served by
+hosts the user already knows about, without blind probing of arbitrary
+hosts, while giving the user full control (hide from Home without
+deleting from Config; toggle which servers are used as discovery
+sources; see where each auto-added entry came from).
+
+**Server-side**: added a new `GET <registryBaseURL>/.xregistry` discovery
+endpoint (`registry/httpStuff.go`'s `HTTPGETXRegistryDiscovery()`),
+returning `{"registries": {name: url, ...}}` for every registry the host
+serves (wraps the existing `GetRegistryNames()` DB query). Deliberately
+NOT named `.well-known` (that has strict RFC 8615 host-root-only
+semantics that would be misleading here) — `.xregistry` was chosen as a
+short, dot-prefixed, collision-avoiding name that can carry more
+cross-registry metadata later. Gated behind the capability system like
+`/model`/`/modelsource`/`/capabilities`: added `".xregistry"` to
+`SupportedAvailable` (`common/capabilities.go`, `Mutable: false`) and to
+`GetOffered()`'s attribute map; `HTTPGet()` checks
+`info.IsAvailable(".xregistry")` before serving it, and
+`GetAllowedMethods()` reports `GET` accordingly for `OPTIONS`. Confirmed
+`.xregistry` appears ONLY nested inside `capabilities.available` (never
+as a top-level Registry entity attribute) both via direct server testing
+and by auditing all test fixtures. Because JSON map keys are sorted
+lexicographically and `.` sorts before letters, `.xregistry` serializes
+as the *first* key in `available`, not last.
+
+**SPA storage model** (`registry/ui/app.js`): three independent
+per-server-URL localStorage maps, keyed by normalized URL:
+- `LS_DISCOVERED` (`xreg-discovered-from`) — the URL of the server whose
+  `.xregistry` response caused this entry to be added, or unset for a
+  manually-added entry. Set once at `addServer()` time and never
+  mutated afterward (first-seen wins if multiple sources report the same
+  URL). Purely informational/provenance.
+- `LS_SCAN` (`xreg-scan-enabled`) — whether this entry itself is used as
+  a discovery source (i.e. whether the SPA calls *its* `.xregistry`
+  endpoint during a scan pass). Defaults `true` for manually-added
+  entries and for the app's own origin server; defaults `false` for
+  freshly auto-discovered entries, so discovery is non-transitive by
+  default. Toggleable on any entry via the Config page without touching
+  `discoveredFrom` (preserves provenance even after promoting an
+  auto-discovered entry into a scan source).
+- `LS_HIDDEN` (`xreg-hidden-servers`) — excludes an entry from the Home
+  page listing without deleting it from Config; survives repeated
+  discovery/scan merges (a rediscovery of an already-hidden URL does not
+  silently un-hide it).
+
+**Scan logic** (`scanForRegistries()`): on Home page load, a
+non-blocking background pass calls `.xregistry` for every
+`scanEnabled=true` entry (including the app's own origin) and merges any
+newly-seen `{name, url}` pairs into `LS_SERVERS` (new entries get
+`discoveredFrom` = the scanning server's URL, `scanEnabled=false`,
+`hidden=false` unless already present/hidden). Self-URL matches are
+skipped. An explicit "Refresh known registries" button on the Config
+page runs the same pass on demand. `cfgSave()`'s URL-rename flow carries
+over `scanEnabled`/`hidden`/`discoveredFrom` to the renamed URL (mirrors
+the pre-existing `proxy`-flag carry-over).
+
+**Config page UI**: added Scan/Hide checkbox columns per server row plus
+a "Discovered via ..." badge (`.cfg-discovered-badge`, tooltip shows the
+source URL, visible text is just "auto") when `discoveredFrom` is set.
+The "Refresh known registries" button lives in a `.config-section-header`
+flex row (space-between) alongside the "Registry Servers" `<h3>` title,
+rather than in the Add-row. The Add-row itself has its own "Scan for
+more" checkbox (checked by default) — when adding a new server with it
+checked, `cfgAddNew()` immediately runs `scanForRegistries()` for that
+new entry instead of waiting for the next background/manual scan.
+
+**Verified** via a live 3-server test (real `xrserver` instances on
+ports 8080/8081/8082, backed by mysql, driven through headless Chromium
++ CDP):
+- Manually adding a server defaults it to `scanEnabled=true`.
+- Scanning a lone server with no siblings finds nothing new.
+- Creating a new registry on a second server and re-scanning discovers
+  it with the correct `discoveredFrom` = the source server's URL and
+  `scanEnabled=false` (non-transitive: the newly discovered registry is
+  not itself used as a further scan source until explicitly promoted).
+- Hiding an entry removes it from the Home page render while keeping it
+  in storage; hidden state survives a subsequent re-scan (does not get
+  silently un-hidden).
+- The Config page's header row correctly places the title and "Refresh
+  known registries" button together (`display:flex;
+  justify-content:space-between`).
+- Using the Add-row's "Scan for more" checkbox (checked by default) to
+  add a third server immediately discovered that server's sibling
+  registry without a separate manual refresh click.
+- "Discovered via ..." badges render correctly on all auto-added rows
+  with accurate source-URL tooltips.
+- `.xregistry` capability gating: confirmed via curl that it's
+  correctly nested only inside `capabilities.available`.
+- Full `make qtest` (all packages) passes.
+- Test databases (`registry1`/`registry2`/`registry3`), chromium
+  process/profile, and other temp files cleaned up after verification.
+
+**Status**: Complete.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file

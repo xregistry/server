@@ -56,6 +56,9 @@ type Offered struct {
 }
 
 var SupportedAvailable = map[string]*AvailableObject{
+	".xregistry": &AvailableObject{
+		Mutable: false,
+	},
 	"capabilities": &AvailableObject{
 		Mutable: true,
 	},
@@ -177,6 +180,11 @@ func GetOffered() *Offered {
 					Type: "object",
 					Attributes: map[string]*OfferedCapability{
 						"mutable": {Type: "boolean"}},
+				},
+				".xregistry": &OfferedCapability{
+					Type: "object",
+					Attributes: map[string]*OfferedCapability{
+						"mutable": {Type: "boolean", Enum: []any{false}}},
 				},
 			},
 		},

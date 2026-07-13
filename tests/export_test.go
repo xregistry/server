@@ -40,6 +40,9 @@ func TestExportBasic(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },
@@ -349,6 +352,9 @@ func TestExportBasic(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },

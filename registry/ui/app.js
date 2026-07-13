@@ -30,7 +30,7 @@ var _state = {
   dataView:    'grid',  // 'grid' | 'table' | 'json'
   serverURL:   '',      // full URL to registry root, e.g. 'http://localhost:8080'
                         // '' = same origin as the SPA
-  section:     'data',  // 'data' | 'model' | 'modelsource' | 'capabilities' | 'capabilitiesoffered'
+  section:     'data',  // 'data' | 'model' | 'modelsource' | 'capabilities' | 'capabilitiesoffered' | 'xregistry'
   path:        [],      // path segments relative to registry root (data section only)
   editMode:    false,
   mutable:     false,
@@ -74,6 +74,9 @@ var LS_SERVERS     = 'xreg-servers';
 var LS_OPTIONS     = 'xreg-options';
 var LS_NAMES       = 'xreg-name-overrides';
 var LS_PROXY       = 'xreg-proxy-servers';
+var LS_DISCOVERED  = 'xreg-discovered-from';
+var LS_SCAN        = 'xreg-scan-enabled';
+var LS_HIDDEN      = 'xreg-hidden-servers';
 var _labelCache    = {};  // normalizedURL → probed registry name
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
@@ -103,6 +106,13 @@ function saveOpts() {
 }
 
 function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
+
+// Global kill-switch for the automatic background scan renderHome() runs
+// on every Home-page load (see plan.md "known-registries-autoadd-hide").
+// Does NOT affect explicit user-initiated scans — the Config page's
+// "Refresh known registries" button and the Add-row's "Scan for more"
+// checkbox still work normally even while this is on.
+function isAutoScanDisabled() { return !!_opts.autoScanDisabled; }
 
 // Reflects the current JSON color-mode option onto <body> so the CSS
 // rules in style.css (scoped via body[data-json-color=...]) can
@@ -159,11 +169,28 @@ function normalizeURL(url) {
   return url;
 }
 
-function addServer(url) {
+// addServer(url) - manual add (from the Config page "Add" flow): scanning
+// for further sibling registries defaults ON, since a manually-added
+// server is one the user explicitly trusts.
+// addServer(url, discoveredFrom) - auto-discovered add (from
+// scanForRegistries()): scanning defaults OFF (non-transitive discovery -
+// see loadScanFlags()/isScanEnabled() below), and discoveredFrom records
+// which server's .xregistry response caused this to be added, purely for
+// traceability (never mutated afterward - see setDiscoveredFrom()).
+function addServer(url, discoveredFrom) {
   url = normalizeURL(url);
   if (!url) return;
   var list = loadServers();
-  if (!list.includes(url)) { list.push(url); saveServers(list); }
+  if (!list.includes(url)) {
+    list.push(url);
+    saveServers(list);
+    if (discoveredFrom) {
+      setDiscoveredFrom(url, discoveredFrom);
+      setScanEnabled(url, false);
+    } else {
+      setScanEnabled(url, true);
+    }
+  }
 }
 
 function removeServer(url) {
@@ -221,6 +248,137 @@ function setProxied(url, on) {
   var norm = normalizeURL(url);
   if (on) map[norm] = true; else delete map[norm];
   saveProxyFlags(map);
+}
+
+// ---- Known-registries auto-discovery (persisted) --------------------------
+//
+// See plan.md "known-registries-autoadd-hide". Three independent per-server
+// flags, each its own map (same keyed-by-normalizeURL() shape as the proxy
+// flags above), rather than folding them into LS_SERVERS itself (which
+// stays a plain array of URL strings) - this matches the existing
+// convention of one small parallel map per piece of per-server metadata.
+
+// discoveredFrom: which server's .xregistry response caused this URL to
+// be added (or unset for a manually-added server). Purely informational/
+// provenance - set once at creation time (see addServer()) and never
+// mutated afterward, even if the same URL is later re-discovered from a
+// different source (first-seen wins).
+function loadDiscoveredFrom() {
+  try { return JSON.parse(localStorage.getItem(LS_DISCOVERED) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveDiscoveredFrom(map) {
+  try { localStorage.setItem(LS_DISCOVERED, JSON.stringify(map)); } catch(e) {}
+}
+function getDiscoveredFrom(url) {
+  return loadDiscoveredFrom()[normalizeURL(url)] || '';
+}
+function setDiscoveredFrom(url, fromUrl) {
+  var map  = loadDiscoveredFrom();
+  var norm = normalizeURL(url);
+  if (map[norm]) return; // first-seen wins - never overwrite
+  if (fromUrl) map[norm] = fromUrl; else delete map[norm];
+  saveDiscoveredFrom(map);
+}
+
+// scanEnabled: whether THIS server is itself used as a discovery source
+// (i.e. whether scanForRegistries() calls its .xregistry endpoint too, to
+// look for further sibling registries). Defaults true for manually-added
+// servers, false for auto-discovered ones - see addServer() - so
+// discovery stays non-transitive until a person explicitly opts an
+// auto-discovered entry in via the Config page.
+function loadScanFlags() {
+  try { return JSON.parse(localStorage.getItem(LS_SCAN) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveScanFlags(map) {
+  try { localStorage.setItem(LS_SCAN, JSON.stringify(map)); } catch(e) {}
+}
+function isScanEnabled(url) {
+  var map = loadScanFlags();
+  var norm = normalizeURL(url);
+  if (map.hasOwnProperty(norm)) return !!map[norm];
+  // The local server (the one the SPA itself is being served from) is
+  // never explicitly "added" via addServer() - it's always shown on Home
+  // separately (see renderHome()) - so it has no default set here the
+  // way a manually-added server gets via addServer(). Treat it as
+  // trusted-by-default too, since it's the server the user is actively
+  // using the UI from.
+  return norm === normalizeURL(window.location.origin);
+}
+function setScanEnabled(url, on) {
+  var map  = loadScanFlags();
+  var norm = normalizeURL(url);
+  map[norm] = !!on;
+  saveScanFlags(map);
+}
+
+// hidden: excludes a server from the Home page listing without deleting
+// it from config - so re-running discovery does not keep re-adding
+// something the user chose to declutter, and its other settings (proxy,
+// scanEnabled, discoveredFrom) are preserved if unhidden later.
+function loadHiddenFlags() {
+  try { return JSON.parse(localStorage.getItem(LS_HIDDEN) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveHiddenFlags(map) {
+  try { localStorage.setItem(LS_HIDDEN, JSON.stringify(map)); } catch(e) {}
+}
+function isHidden(url) {
+  return !!loadHiddenFlags()[normalizeURL(url)];
+}
+function setHidden(url, on) {
+  var map  = loadHiddenFlags();
+  var norm = normalizeURL(url);
+  if (on) map[norm] = true; else delete map[norm];
+  saveHiddenFlags(map);
+}
+
+// Queries every currently-configured, scan-enabled server's .xregistry
+// endpoint (see registry/httpStuff.go HTTPGETXRegistryDiscovery()) for
+// sibling registries it knows about, and adds any not already present in
+// loadServers() — this is what makes newly-created registries "just
+// appear" without the user having to manually type each one in.
+// Deliberately non-transitive: a server discovered this way defaults to
+// scanEnabled=false (see addServer()), so it won't itself become a
+// scan source until a person explicitly opts it in via the Config page —
+// this bounds the "trust radius" to hosts the user configured themselves.
+// A single unreachable/non-implementing source (404, network error, etc)
+// is silently skipped — one bad host must not block discovery via the
+// others. cb(addedAny) is called once every source has settled (fetch
+// failures included), never throws.
+function scanForRegistries(cb) {
+  var origin = normalizeURL(window.location.origin);
+  var candidates = [origin].concat(loadServers().filter(function(u) { return u !== origin; }));
+  var sources = candidates.filter(isScanEnabled);
+  if (!sources.length) { if (cb) cb(false); return; }
+
+  var addedAny = false;
+  var remaining = sources.length;
+  function done() {
+    remaining--;
+    if (remaining <= 0 && cb) cb(addedAny);
+  }
+
+  sources.forEach(function(sourceUrl) {
+    fetch(serverFetchBase(sourceUrl) + '/.xregistry')
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(d) {
+        var regs = (d && d.registries) || {};
+        Object.keys(regs).forEach(function(name) {
+          var url = normalizeURL(regs[name] || '');
+          // Skip the local server's own address — it's always shown on
+          // Home separately (see renderHome()) and never belongs in the
+          // loadServers() array itself.
+          if (!url || url === origin) return;
+          var before = loadServers();
+          addServer(url, sourceUrl);
+          if (loadServers().length > before.length) addedAny = true;
+        });
+        done();
+      })
+      .catch(function() { done(); }); // server doesn't implement .xregistry, or unreachable — skip
+  });
 }
 
 // base64url-encode (no padding) a string for use as a single /xrproxy/ path
@@ -423,7 +581,8 @@ function buildURL(st) {
   // "list" (editor) dataView is not a JSON view, so it's excluded here.
   // New path-specific query params should be added here; they will naturally
   // be absent from the URL in all non-JSON-view contexts.
-  var isJsonOnlySection = st.section === 'capabilities' || st.section === 'capabilitiesoffered';
+  var isJsonOnlySection = st.section === 'capabilities' || st.section === 'capabilitiesoffered'
+    || st.section === 'xregistry';
   var inJsonView = st.dataView === 'json' || st.view === 'json' || isJsonOnlySection;
   // Filters and Sort are supported by List view too now (unlike inline/doc/
   // binary/collections, which remain JSON-view-only for now — see plan.md
@@ -628,7 +787,7 @@ function pushStateReal(patch) {
 //                         preference (_opts.sectionViews), default 'table' (list)
 function defaultDataView(section, pathLen, path) {
   if (section === 'model' || section === 'modelsource' || section === 'capabilities'
-      || section === 'capabilitiesoffered') {
+      || section === 'capabilitiesoffered' || section === 'xregistry') {
     return (_opts.sectionViews || {})[section] || 'table';
   }
   // Grid view has been removed entirely for the data section — Registry
@@ -705,6 +864,7 @@ function buildAPIURL() {
   if (_state.section === 'modelsource')          return base + '/modelsource';
   if (_state.section === 'capabilities')         return base + '/capabilities';
   if (_state.section === 'capabilitiesoffered')  return base + '/capabilitiesoffered';
+  if (_state.section === 'xregistry')            return base + '/.xregistry';
   if (_state.useExport)                          return base + '/export';
 
   // Link-driven navigation: when a real apiURL is already known, trust it
@@ -817,6 +977,8 @@ function renderHeader() {
   //                                 edit available when the doc itself is mutable
   //   capabilitiesoffered         — no grid (list-style viewer only), list+json available;
   //                                 always read-only (server-declared schema document)
+  //   xregistry                   — no grid (list-style viewer only), list+json available;
+  //                                 always read-only (server-declared discovery document)
   //   home 'types' (cross-registry Group Types list) — Grid removed, List
   //                                 only; home 'registry' (list of known
   //                                 registries) is unaffected.
@@ -824,7 +986,9 @@ function renderHeader() {
   var isModelSection    = isData && (section === 'model' || section === 'modelsource');
   var isCapSection      = isData && (section === 'capabilities');
   var isCapOfferedSection = isData && (section === 'capabilitiesoffered');
-  var isListOnlySection = isModelSection || isCapSection || isCapOfferedSection;
+  var isXRegistrySection  = isData && (section === 'xregistry');
+  var isListOnlySection = isModelSection || isCapSection || isCapOfferedSection
+    || isXRegistrySection;
 
   var enableGrid, enableList, enableJson, enableEdit;
   if (isConfig) {
@@ -1065,6 +1229,20 @@ function setDataView(v) {
     return;
   }
 
+  // .xregistry: same per-section persisted preference; always read-only
+  // (see refresh()'s isXRegistrySection branch).
+  if (_state.section === 'xregistry') {
+    if (!_opts.sectionViews) _opts.sectionViews = {};
+    _opts.sectionViews[_state.section] = v;
+    saveOpts();
+    history.replaceState(null, '', buildURL(_state));
+    if (_lastData) {
+      setLeftPanelVisible(v === 'json');
+      v === 'json' ? renderJSONView(_lastData) : renderXRegistryViewer(_lastData);
+    }
+    return;
+  }
+
   // Data page: persist grid/table preference per path depth.
   // JSON is not saved here — it's sticky within a session (see pushState) but
   // returns to the saved grid/table view when entering a registry fresh.
@@ -1130,7 +1308,7 @@ function buildBreadcrumbSegments() {
 
   // If in a section view, add the section name as the last breadcrumb
   if (isSection) {
-    var sectionLabels = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+    var sectionLabels = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered', xregistry:'.xregistry'};
     segs.push({label: sectionLabels[_state.section] || _state.section, onclick: null, href: null, isCurrent: true});
     return segs;
   }
@@ -1696,6 +1874,7 @@ function refresh() {
   var isModelSection        = (_state.section === 'model' || _state.section === 'modelsource');
   var isCapabilitiesSection = (_state.section === 'capabilities');
   var isCapOfferedSection   = (_state.section === 'capabilitiesoffered');
+  var isXRegistrySection    = (_state.section === 'xregistry');
   // Grid/List's own "Filters" toggle (separate from JSON view, which always
   // shows the full left panel) — see plan.md "Filter support in Grid/List
   // views".
@@ -1723,6 +1902,31 @@ function refresh() {
       .catch(function(err) {
         main.innerHTML = '<div class="error-banner">Error loading:\n'
           + esc(offeredURL) + '\n\n' + esc(String(err)) + '</div>';
+      });
+    return;
+  }
+
+  // .xregistry — the small cross-registry discovery document (see
+  // plan.md "known-registries-autoadd-hide") — list (simple read-only
+  // viewer) or JSON view, per _state.dataView. Always read-only, like
+  // Capabilities Offered — it's a server-generated document, never
+  // user-edited.
+  if (isXRegistrySection) {
+    var xregURL = buildAPIURL();
+    fetchJSON(xregURL)
+      .then(function(data) {
+        _lastData = data;
+        _state.mutable = false;
+        renderHeader();
+        if (_state.dataView === 'json') {
+          renderJSONView(data);
+        } else {
+          renderXRegistryViewer(data);
+        }
+      })
+      .catch(function(err) {
+        main.innerHTML = '<div class="error-banner">Error loading:\n'
+          + esc(xregURL) + '\n\n' + esc(String(err)) + '</div>';
       });
     return;
   }
@@ -1837,7 +2041,7 @@ function detectMutable(data) {
 function renderHome() {
   var main = el('main-view');
   var origin = window.location.origin;
-  var servers = loadServers();
+  var servers = loadServers().filter(function(u) { return !isHidden(u); });
   var allServers = [origin].concat(servers.filter(function(u) { return u !== origin; }));
 
   var g = _state.homeGroup;
@@ -1846,6 +2050,21 @@ function renderHome() {
     renderHomeFlatList(main, allServers); // Grid removed for this page — always List
   } else {
     l === 'table' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
+  }
+
+  // Non-blocking background check for new sibling registries advertised by
+  // any already-configured, scan-enabled server's .xregistry endpoint (see
+  // plan.md "known-registries-autoadd-hide") — re-render if anything new
+  // showed up, so newly-created registries "just appear" on a later visit
+  // without requiring a manual Config-page action. Guarded by the view
+  // check since the user may have navigated away by the time this
+  // resolves. Skipped entirely when the user has disabled auto-scanning
+  // via the Config page's Options section (manual scan triggers there are
+  // unaffected).
+  if (!isAutoScanDisabled()) {
+    scanForRegistries(function(addedAny) {
+      if (addedAny && _state.view === 'home') renderHome();
+    });
   }
 }
 
@@ -2256,34 +2475,74 @@ function renderConfig() {
   var servers = loadServers();
 
   var html = '<div class="config-page"><div class="config-section">'
-    + '<h3 class="config-section-title">Registry Servers</h3>'
-    + '<table class="config-table"><thead><tr><th>Name</th><th>Location</th>'
-    + '<th>Proxy</th><th></th></tr></thead><tbody>';
+    + '<div class="config-section-header">'
+    +   '<h3 class="config-section-title">Registry Servers</h3>'
+    +   '<div class="config-section-header-btns">'
+    +     '<button class="cfg-btn cfg-btn-danger" id="cfg-delete-selected-btn" disabled '
+    +       'onclick="cfgDeleteSelected()" title="Delete all checked servers'
+    +       ' below">Delete Selected</button>'
+    +     '<button class="cfg-btn" id="cfg-scan-now-btn" onclick="cfgScanNow()" '
+    +       'title="Check every scan-enabled server above for other registries'
+    +       ' it knows about, right now">Refresh known registries</button>'
+    +   '</div>'
+    + '</div>'
+    + '<table class="config-table"><thead><tr>'
+    + '<th class="cfg-select-cell"><input type="checkbox" id="cfg-select-all" '
+    +   'title="Select/deselect all deletable servers" '
+    +   'onchange="cfgToggleSelectAll(this)"></th>'
+    + '<th>Name</th><th>Location</th>'
+    + '<th>Proxy</th><th title="Also check this server for other registries it knows about">Scan</th>'
+    + '<th title="Hide from the Home page (without deleting)">Hide</th><th></th></tr></thead><tbody>';
 
   // Local server — its URL is fixed (can't ever be a different server),
   // but its display Name can still be overridden and edited like any
   // other registry, via its own Edit/Save/Cancel (no Delete/URL editing).
   // Proxying only ever makes sense for a *remote* server, so this row has
   // no checkbox at all (blank cell) rather than a disabled/checked one.
+  // Scan/Hide do make sense for the local server too (it may itself host
+  // sibling registries, and a user could still want to declutter it from
+  // Home), so those get real checkboxes here.
   html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
     + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
+    + '<td class="cfg-select-cell"></td>'
     + '<td class="cfg-name">' + cfgNameCellHTML(normalizeURL(origin)) + '</td>'
     + '<td><span class="cfg-url-display">' + esc(origin)
     + ' <span class="config-local-badge">this server</span></span></td>'
     + '<td></td>'
+    + '<td class="cfg-scan-cell">'
+    +   '<input type="checkbox" class="cfg-scan-input"'
+    +     (isScanEnabled(normalizeURL(origin)) ? ' checked' : '') + ' '
+    +     'onchange="cfgSetScanEnabled(\'' + esc(normalizeURL(origin)) + '\', this.checked)">'
+    + '</td>'
+    + '<td class="cfg-hide-cell">'
+    +   '<input type="checkbox" class="cfg-hide-input"'
+    +     (isHidden(normalizeURL(origin)) ? ' checked' : '') + ' '
+    +     'onchange="cfgSetHidden(\'' + esc(normalizeURL(origin)) + '\', this.checked)">'
+    + '</td>'
     + '<td class="cfg-actions">'
     +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
     +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
     +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
     + '</td></tr>';
 
-  // User-added servers
-  servers.filter(function(u) { return u !== origin; }).forEach(function(url) {
+  // User-added servers — sorted by display name (same
+  // serverLabel()-based ordering used on the Home page's Registries list)
+  // for a deterministic order, rather than insertion/add order.
+  servers.filter(function(u) { return u !== origin; }).sort(function(a, b) {
+    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
+  }).forEach(function(url) {
+    var discFrom = getDiscoveredFrom(url);
     html += '<tr data-cfg-url="' + esc(url) + '" '
       + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(url))) + '">'
+      + '<td class="cfg-select-cell">'
+      +   '<input type="checkbox" class="cfg-select-input" '
+      +     'onchange="cfgUpdateSelection()">'
+      + '</td>'
       + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
       + '<td>'
       +   '<span class="cfg-url-display">' + esc(url) + '</span>'
+      +   (discFrom ? ' <span class="cfg-discovered-badge" title="Discovered via '
+            + esc(discFrom) + '">auto</span>' : '')
       +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
       +     'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
       +               'else if(event.key===\'Escape\')cfgCancel(this)">'
@@ -2295,11 +2554,22 @@ function renderConfig() {
       +     (isProxied(url) ? ' checked' : '') + ' '
       +     'onchange="cfgSetProxied(\'' + esc(url) + '\', this.checked)">'
       + '</td>'
+      + '<td class="cfg-scan-cell" title="Also check this server for other'
+      +   ' registries it knows about">'
+      +   '<input type="checkbox" class="cfg-scan-input"'
+      +     (isScanEnabled(url) ? ' checked' : '') + ' '
+      +     'onchange="cfgSetScanEnabled(\'' + esc(url) + '\', this.checked)">'
+      + '</td>'
+      + '<td class="cfg-hide-cell" title="Hide from the Home page (without'
+      +   ' deleting)">'
+      +   '<input type="checkbox" class="cfg-hide-input"'
+      +     (isHidden(url) ? ' checked' : '') + ' '
+      +     'onchange="cfgSetHidden(\'' + esc(url) + '\', this.checked)">'
+      + '</td>'
       + '<td class="cfg-actions">'
       +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
       +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
       +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
-      +   '<button class="cfg-btn cfg-del" onclick="cfgDelete(this)">Delete</button>'
       + '</td></tr>';
   });
 
@@ -2315,6 +2585,12 @@ function renderConfig() {
     +     ' (CORS)">'
     +     '<input type="checkbox" id="cfg-new-proxy"> Use proxy'
     +   '</label>'
+    +   '<label class="cfg-new-proxy-label" title="Immediately check this'
+    +     ' server for other registries it knows about, right after adding'
+    +     ' it - otherwise it\u2019ll only happen on the next background/'
+    +     'manual scan">'
+    +     '<input type="checkbox" id="cfg-new-scan-now" checked> Scan for more'
+    +   '</label>'
     +   '<button class="cfg-btn" onclick="cfgAddNew()">Add</button>'
     + '</div>'
     + '</div>'
@@ -2322,6 +2598,17 @@ function renderConfig() {
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
+    + '<div class="cfg-option-row">'
+    +   '<span class="cfg-option-label">Auto-scan</span>'
+    +   '<input type="checkbox" id="opt-auto-scan"'
+    +     (isAutoScanDisabled() ? '' : ' checked') + ' '
+    +     'onchange="cfgSetAutoScan(this.checked)">'
+    +   '<span class="cfg-option-desc">Automatically scan for new'
+    +   ' registries when the Home page loads. When off, new registries are'
+    +   ' only discovered when you click "Refresh known registries" on this'
+    +   ' page, or check "Scan for more" while adding a server above.</span>'
+    + '</div>'
+
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -2458,11 +2745,17 @@ function cfgSave(el) {
   if (urlInp && newUrl !== oldUrl) {
     removeServer(oldUrl);
     addServer(newUrl);
-    // Carry the "use proxy" flag over to the renamed URL — it's keyed by
+    // Carry every per-URL flag over to the renamed URL — each is keyed by
     // URL (like the name override above), so a rename would otherwise
-    // silently lose it.
+    // silently lose it. discoveredFrom is provenance (set once, "first
+    // seen wins" — see setDiscoveredFrom()), so it's only copied when the
+    // renamed URL doesn't already have one of its own.
     setProxied(newUrl, isProxied(oldUrl));
     setProxied(oldUrl, false);
+    setScanEnabled(newUrl, isScanEnabled(oldUrl));
+    setHidden(newUrl, isHidden(oldUrl));
+    setHidden(oldUrl, false);
+    if (getDiscoveredFrom(oldUrl)) setDiscoveredFrom(newUrl, getDiscoveredFrom(oldUrl));
   }
   if (nameInp) setNameOverride(newUrl, nameInp.value.trim());
   renderConfig();
@@ -2475,8 +2768,68 @@ function cfgSetProxied(url, on) {
   setProxied(url, on);
 }
 
-function cfgDelete(btn) {
-  removeServer(btn.closest('tr').dataset.cfgUrl);
+function cfgSetScanEnabled(url, on) {
+  setScanEnabled(url, on);
+}
+
+function cfgSetHidden(url, on) {
+  setHidden(url, on);
+}
+
+// Manual "Refresh known registries" button — runs the same background
+// scan renderHome() triggers automatically, but synchronously-visible
+// here with a simple loading indicator, and re-renders the Config page
+// afterward so any newly-discovered rows show up immediately.
+function cfgScanNow() {
+  var btn = el('cfg-scan-now-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Scanning\u2026'; }
+  scanForRegistries(function() {
+    renderConfig();
+  });
+}
+
+// Multi-select bulk delete -----------------------------------------------
+
+// Header "select all" checkbox: check/uncheck every deletable row's
+// checkbox (the local "this server" row has no checkbox to begin with,
+// so querySelectorAll naturally skips it), then refresh the Delete
+// Selected button's enabled/count state.
+function cfgToggleSelectAll(cb) {
+  document.querySelectorAll('.cfg-select-input').forEach(function(inp) {
+    inp.checked = cb.checked;
+  });
+  cfgUpdateSelection();
+}
+
+// Called on every row checkbox change: updates the Delete Selected
+// button's label/enabled state and keeps the header "select all"
+// checkbox in sync (checked/indeterminate/unchecked) with the rows.
+function cfgUpdateSelection() {
+  var boxes  = document.querySelectorAll('.cfg-select-input');
+  var checked = document.querySelectorAll('.cfg-select-input:checked');
+  var btn = el('cfg-delete-selected-btn');
+  if (btn) {
+    btn.disabled = checked.length === 0;
+    btn.textContent = checked.length > 0
+      ? 'Delete Selected (' + checked.length + ')' : 'Delete Selected';
+  }
+  var all = el('cfg-select-all');
+  if (all) {
+    all.checked = boxes.length > 0 && checked.length === boxes.length;
+    all.indeterminate = checked.length > 0 && checked.length < boxes.length;
+  }
+}
+
+// Deletes every checked server row in one pass, then re-renders the
+// Config page (which naturally resets the selection since the table is
+// rebuilt from scratch).
+function cfgDeleteSelected() {
+  var urls = [];
+  document.querySelectorAll('.cfg-select-input:checked').forEach(function(inp) {
+    urls.push(inp.closest('tr').dataset.cfgUrl);
+  });
+  if (urls.length === 0) return;
+  urls.forEach(function(url) { removeServer(url); });
   renderConfig();
 }
 
@@ -2491,34 +2844,53 @@ function cfgSetJsonColor(mode) {
   applyJsonColorMode();
 }
 
+function cfgSetAutoScan(enabled) {
+  _opts.autoScanDisabled = !enabled;
+  saveOpts();
+}
+
 function cfgAddNew() {
   var inp      = el('cfg-new-url');
   var nameInp  = el('cfg-new-name');
   var proxyInp = el('cfg-new-proxy');
+  var scanInp  = el('cfg-new-scan-now');
   if (!inp || !inp.value.trim()) return;
   var url = inp.value.trim();
   addServer(url);
   if (nameInp && nameInp.value.trim()) setNameOverride(url, nameInp.value.trim());
   if (proxyInp && proxyInp.checked) setProxied(url, true);
-  renderConfig();
+  if (scanInp && scanInp.checked) {
+    // Immediately check every scan-enabled server (including the one just
+    // added, which defaults to scan-enabled — see addServer()) for further
+    // sibling registries, so the user doesn't have to separately click
+    // "Refresh known registries" right after adding one.
+    scanForRegistries(function() { renderConfig(); });
+  } else {
+    renderConfig();
+  }
   var newInp = el('cfg-new-url');
   if (newInp) newInp.focus();
 }
 
 // ---- Reset (clear browser-side state) -------------------------------------
 //
-// All browser-side state this app keeps lives in exactly three localStorage
-// keys (LS_SERVERS, LS_OPTIONS, LS_NAMES) plus a handful of in-memory caches
-// (_labelCache/_modelCache/_capCache/_offeredCache etc.) that are rebuilt
-// automatically on next use — a full page reload after clearing
-// localStorage is therefore sufficient to reset everything, with no need
-// to individually track/clear each in-memory cache here.
+// All browser-side state this app keeps lives in a handful of localStorage
+// keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED, LS_SCAN,
+// LS_HIDDEN) plus a handful of in-memory caches (_labelCache/_modelCache/
+// _capCache/_offeredCache etc.) that are rebuilt automatically on next use —
+// a full page reload after clearing localStorage is therefore sufficient to
+// reset everything, with no need to individually track/clear each in-memory
+// cache here.
 
 function cfgResetAll() {
   if (!window.confirm('Clear ALL saved registry locations and options, and reload? This cannot be undone.')) return;
   localStorage.removeItem(LS_SERVERS);
   localStorage.removeItem(LS_OPTIONS);
   localStorage.removeItem(LS_NAMES);
+  localStorage.removeItem(LS_PROXY);
+  localStorage.removeItem(LS_DISCOVERED);
+  localStorage.removeItem(LS_SCAN);
+  localStorage.removeItem(LS_HIDDEN);
   window.location.reload();
 }
 
@@ -2744,23 +3116,31 @@ function sortBy(col) {
 
 // Registry endpoint pills (depth 0 only, both List and Grid views) — a
 // compact presentation of which optional server endpoints (Model, Model
-// Source, Capabilities, Capabilities Offered) this registry exposes, replacing
-// the older separate "Registry Endpoints" table/tile-section. Mutable
-// endpoints get a trailing pencil icon. Returns '' when nothing to show
-// (i.e. no capabilities data cached yet, or no optional endpoints available).
+// Source, Capabilities, Capabilities Offered, .xregistry) this registry
+// exposes, replacing the older separate "Registry Endpoints" table/tile-
+// section. Mutable endpoints get a trailing pencil icon. Returns '' when
+// nothing to show (i.e. no capabilities data cached yet, or no optional
+// endpoints available).
+//
+// Section identifiers (used for _state.section/routing) never contain a
+// dot, but the .xregistry capability's key in the server's `available` map
+// literally does (see common/capabilities.go) — sectionCapKey() bridges
+// that one mismatch everywhere a section id is used to look into `available`.
+function sectionCapKey(s) { return s === 'xregistry' ? '.xregistry' : s; }
+
 function buildRegEndpointPillsHtml() {
   if (_state.path.length !== 0) return '';
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
-  var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered'];
-  var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[s]; });
+  var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered','xregistry'];
+  var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[sectionCapKey(s)]; });
   if (!availSectionsP.length) return '';
-  var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered'};
+  var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered', xregistry:'.xregistry'};
   var html = '<div class="reg-endpoint-pills">';
   html += '<span class="reg-endpoint-pills-title">Config:</span>';
   availSectionsP.forEach(function(s) {
-    var mutP = availP[s] && availP[s].mutable;
+    var mutP = availP[sectionCapKey(s)] && availP[sectionCapKey(s)].mutable;
     var pushExprP = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
     var sHrefP = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
     html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
@@ -4957,8 +5337,9 @@ function renderJSONLeftPanel(filtersOnly) {
     var hasMSource  = avail2 && avail2.modelsource;
     var hasCap     = avail2 && avail2.capabilities;
     var hasCapOff  = avail2 && avail2.capabilitiesoffered;
+    var hasXReg    = avail2 && avail2[sectionCapKey('xregistry')];
     var hasExport  = avail2 && avail2['export'];
-    if (hasModel || hasMSource || hasCap || hasCapOff || hasExport) {
+    if (hasModel || hasMSource || hasCap || hasCapOff || hasXReg || hasExport) {
       html += '<div class="lp-section"><div class="lp-title">Viewing:</div>';
       // "Registry Data (Export)" is listed first so it's always one click
       // away to get back from a Model/Capabilities section view, and so
@@ -4985,11 +5366,14 @@ function renderJSONLeftPanel(filtersOnly) {
       // "Model (Source)" and "Capabilities (Offered)" share one line each
       // (matches the old ui.go layout) instead of 4 stacked rows, to save
       // vertical space — the sub-link only appears when that endpoint is
-      // actually available.
+      // actually available. .xregistry has no sub-link of its own, so it
+      // gets its own single-item row via the same helper (hasSub: false).
       html += lpNavPairRow('Model', 'model', hasModel,
         'Source', 'modelsource', hasMSource);
       html += lpNavPairRow('Capabilities', 'capabilities', hasCap,
         'Offered', 'capabilitiesoffered', hasCapOff);
+      html += lpNavPairRow('.xregistry', 'xregistry', hasXReg,
+        '', '', false);
       html += '</div>';
       if (!filterHasApplyDivider) html += '<hr class="lp-divider">';
     }
@@ -9479,6 +9863,66 @@ function renderCapabilitiesOfferedViewer(data) {
     body.appendChild(sec.sec);
   });
   _capReadOnly = readOnlyPrev;
+}
+
+// .xregistry — the small, extensible cross-registry discovery document
+// (see plan.md "known-registries-autoadd-hide" and common/capabilities.go's
+// HTTPGETXRegistryDiscovery). Always read-only, list-style viewer — shares
+// the same capSectionEl visual structure as Capabilities Offered above, but
+// the data here is plain *values* (not a schema), so it's rendered
+// directly rather than through renderCapSchemaNode/renderCapValueGeneric.
+// Today's only defined key is "registries" (a name -> URL map of every
+// registry this server currently knows about); any other/future top-level
+// key falls back to a plain indented JSON blob so this stays forward-
+// compatible without needing a code change for every new key added later.
+function renderXRegistryViewer(data) {
+  var main = el('main-view');
+  main.innerHTML = '<div id="xregEditor"></div>';
+  var wrap = el('xregEditor');
+  wrap.insertAdjacentHTML('beforeend', serverURLLineHtml());
+  var body = document.createElement('div'); body.className = 'capBody';
+  wrap.appendChild(body);
+  Object.keys(data || {}).sort().forEach(function(k) {
+    var sec = capSectionEl(k);
+    if (k === 'registries' && data[k] && typeof data[k] === 'object') {
+      sec.body.appendChild(renderXRegRegistriesTable(data[k]));
+    } else {
+      var pre = document.createElement('pre'); pre.className = 'capRawFallback';
+      pre.textContent = JSON.stringify(data[k], null, 2);
+      sec.body.appendChild(pre);
+    }
+    body.appendChild(sec.sec);
+  });
+}
+
+// Builds the "registries" table for renderXRegistryViewer(): one row per
+// name -> URL entry, sorted by name, with the URL as a real clickable link
+// that browses straight to that registry (same doBrowse() used by the
+// Home page's registry cards/rows) — modifier-clicks still open a real new
+// tab/window via the normal <a href> since doBrowse() is only invoked from
+// onclick, never in place of the href itself.
+function renderXRegRegistriesTable(registries) {
+  var table = document.createElement('table'); table.className = 'capTable';
+  var thead = document.createElement('thead');
+  thead.innerHTML = '<tr><th>Name</th><th>URL</th></tr>';
+  table.appendChild(thead);
+  var tbody = document.createElement('tbody');
+  Object.keys(registries).sort(function(a, b) {
+    return a.toLowerCase().localeCompare(b.toLowerCase());
+  }).forEach(function(name) {
+    var url = registries[name];
+    var tr = document.createElement('tr');
+    var nameTd = document.createElement('td'); nameTd.textContent = name;
+    var urlTd = document.createElement('td');
+    var a = document.createElement('a');
+    a.href = url; a.textContent = url;
+    a.onclick = function(e) { return serverCardClick(e, tr, url); };
+    urlTd.appendChild(a);
+    tr.appendChild(nameTd); tr.appendChild(urlTd);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  return table;
 }
 
 // ---- Utilities -----------------------------------------------------------

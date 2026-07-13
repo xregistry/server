@@ -454,6 +454,9 @@ func TestRegistryRoot(t *testing.T) {
 
   "capabilities": {
     "available": {
+      ".xregistry": {
+        "mutable": false
+      },
       "capabilities": {
         "mutable": true
       },

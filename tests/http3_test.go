@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -4672,4 +4673,106 @@ func TestHTTPLinkHeader(t *testing.T) {
 		len(linkHeaders), linkHeaders)
 	XEqual(t, "Link header value",
 		linkHeaders[0], "<http://localhost:8181>;rel=xregistry-root")
+}
+
+// Verifies GET /.xregistry - the small, extensible, cross-registry
+// discovery document (see registry/httpStuff.go's
+// HTTPGETXRegistryDiscovery).
+func TestHTTPXRegistryDiscovery(t *testing.T) {
+	reg1 := NewRegistry("TestHTTPXRegistryDiscovery1")
+	defer PassDeleteReg(t, reg1)
+
+	prefix := ""
+	star := ""
+
+	if os.Getenv("NO_DELETE_REGISTRY") != "" {
+		prefix = `^(?s)^`
+		star = ".*"
+	}
+
+	// Plain (default registry) URL.
+	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
+  "registries": {`+star+`
+    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
+  }
+}
+`)
+
+	// Same, but via the "/reg-<name>/.xregistry" prefixed form - the
+	// returned URLs must still be built from the plain host base (no
+	// doubled-up "/reg-.../reg-..." segment), regardless of which
+	// registry's prefix the request itself came in through.
+	XHTTP(t, reg1, "GET", "/reg-TestHTTPXRegistryDiscovery1/.xregistry", ``,
+		200, prefix+`{
+  "registries": {`+star+`
+    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
+  }
+}
+`)
+
+	// Cross-registry: a second, unrelated Registry must show up too -
+	// this endpoint enumerates every Registry the server/DB knows about,
+	// not just the one the request happened to be routed through.
+	reg2 := NewRegistry("TestHTTPXRegistryDiscovery2")
+	defer PassDeleteReg(t, reg2)
+
+	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
+  "registries": {`+star+`
+    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1",
+    "TestHTTPXRegistryDiscovery2": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery2"`+star+`
+  }
+}
+`)
+
+	// Extra path segments aren't allowed under /.xregistry.
+	XHTTP(t, reg1, "GET", "/.xregistry/foo", ``, 404,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/http.md#api_not_found",
+  "title": "The specified API is not supported: /.xregistry/foo.",
+  "subject": "/.xregistry/foo",
+  "source": "xxx"
+}
+`)
+
+	// Disabling the ".xregistry" capability must make the endpoint
+	// unavailable, same as model/modelsource/capabilities/etc.
+	XHTTP(t, reg1, "PUT", "/capabilities", `{
+      "available":{
+        "capabilities":{
+          "mutable":true
+        }
+      }
+    }`, 200,
+		`{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
+
+	XHTTP(t, reg1, "GET", "/.xregistry", ``, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
+  "title": "The requested data (/.xregistry) is not available.",
+  "subject": "/.xregistry",
+  "source": "xxx"
+}
+`)
 }

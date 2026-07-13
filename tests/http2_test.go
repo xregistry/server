@@ -9087,6 +9087,9 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	// specversion requests.
 	caps := `{
   "available": {
+    ".xregistry": {
+      "mutable": false
+    },
     "capabilities": {
       "mutable": true
     },
