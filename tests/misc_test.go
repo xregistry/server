@@ -124,6 +124,7 @@ func TestMiscCORS(t *testing.T) {
 	for _, test := range []Test{
 		{"GET", "/", "", 200},
 		{"GET", "/?ui", "", 200},
+		{"GET", "/ui", "", 301},
 		{"GET", "/proxy?host=http://xregistry.io/xreg", "", 200},
 		{"GET", "/reg-TestMiscCORS", "", 200},
 		{"DELETE", "/", "", 405},
@@ -147,9 +148,16 @@ func TestMiscCORS(t *testing.T) {
 
 		// Different endpoints have different allowed methods
 		expectedMethods := "DELETE, GET, OPTIONS, PATCH, POST, PUT"
-		if test.url == "/" || test.url == "/?ui" || test.url == "/reg-TestMiscCORS" {
+		testLinkHeader := true
+
+		if test.url == "/" || test.url == "/?ui" ||
+			test.url == "/reg-TestMiscCORS" {
+
 			// Root doesn't support DELETE
 			expectedMethods = "GET, OPTIONS, PATCH, POST, PUT"
+		} else if test.url == "/ui" {
+			expectedMethods = ""
+			testLinkHeader = false
 		} else if test.url == "/proxy?host=http://xregistry.io/xreg" {
 			// Proxy has its own methods, skip check
 			expectedMethods = res.Header.Get("Access-Control-Allow-Methods")
@@ -162,15 +170,19 @@ func TestMiscCORS(t *testing.T) {
 			res.Header.Get("Access-Control-Allow-Methods"),
 			expectedMethods)
 
-		linkHeader := res.Header.Get("Link")
-		XCheck(t, linkHeader != "", "Link header should be present for %s %s", test.method, test.url)
+		if testLinkHeader {
+			linkHeader := res.Header.Get("Link")
+			XCheck(t, linkHeader != "",
+				"Link header should be present for %s %s",
+				test.method, test.url)
 
-		expectedURL := "http://localhost:8181"
-		if test.url == "/reg-TestMiscCORS" {
-			expectedURL = "http://localhost:8181/reg-TestMiscCORS"
+			expectedURL := "http://localhost:8181"
+			if test.url == "/reg-TestMiscCORS" {
+				expectedURL = "http://localhost:8181/reg-TestMiscCORS"
+			}
+			XEqual(t, "link header",
+				linkHeader, fmt.Sprintf("<%s>;rel=xregistry-root", expectedURL))
 		}
-		XEqual(t, "link header",
-			linkHeader, fmt.Sprintf("<%s>;rel=xregistry-root", expectedURL))
 	}
 }
 

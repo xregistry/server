@@ -104,6 +104,54 @@ func GenerateUI(info *RequestInfo, data []byte) []byte {
 	log.VPrintf(3, ">Enter: GenerateUI")
 	defer log.VPrintf(3, "<Exit: GenerateUI")
 
+	// The old hand-rolled "?ui" viewer below has been replaced by the new
+	// SPA served under /ui. Rather than silently redirecting (which would
+	// let stale bookmarks/scripts linger forever), show a message with a
+	// clickable link and force people to update whatever pointed them
+	// here. The old code is left in place below (unreachable) in case we
+	// need to resurrect any of it later - just comment out this early
+	// return to get the old behavior back.
+	scheme, rest, _ := strings.Cut(info.BaseURL, "://")
+	host, _, _ := strings.Cut(rest, "/")
+	newUIURL := scheme + "://" + host + "/ui/"
+
+	return []byte(`<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>xRegistry UI has moved</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif ;
+    display: flex ;
+    align-items: center ;
+    justify-content: center ;
+    height: 100vh ;
+    margin: 0 ;
+    background: #f5f5f5 ;
+  }
+  .box {
+    background: white ;
+    border: 1px solid #ddd ;
+    border-radius: 8px ;
+    padding: 2em 3em ;
+    text-align: center ;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) ;
+  }
+  a {
+    color: #0066FF ;
+    font-weight: bold ;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <p>The UI has moved to <a href="` + newUIURL + `">` + newUIURL + `</a></p>
+  </div>
+</body>
+</html>
+`)
+
 	list := ""
 	regs, err := GetRegistryNames()
 	Must(err)
