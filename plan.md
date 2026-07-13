@@ -314,25 +314,132 @@ goals.
   links to it — with no regression to the existing Capabilities
   List/edit functionality.
 
-- [ ] **New SPA lacks the old `?ui` HTML view's server-side proxy for
-  remote registries (real functional gap, found via analysis
-  2026-07-09).** Old UI has a real backend proxy: `GET
-  /proxy?host=<remote>&path=<path>` (`registry/httpStuff.go:122`,
-  `registry/ui.go:82-100,2919-2930`) — the local xrserver process
-  fetches the remote xRegistry server itself and relays it to the
-  browser, avoiding CORS entirely. The new `/ui/` SPA's `addServer()`
-  (`registry/ui/app.js:154`) only does direct client-side `fetch()` to
-  whatever server URL the user adds — confirmed zero references to
-  `/proxy` anywhere in `app.js`. Adding a remote registry that doesn't
-  set permissive CORS headers will silently fail in the new SPA where
-  the old UI would have worked. Needs discussion: should the SPA route
-  arbitrary remote-server fetches through `/proxy` transparently (e.g.
-  detect cross-origin servers, or fetch failures, and retry via
-  `/proxy`)? Everything else compared between the old `?ui` HTML view
-  and the new SPA (registry picker dropdown, "open source/commit" link,
-  a `<form id=url>` URL bar) was found to be either already replicated
-  differently or dead/commented-out code in the old UI — not a real
-  functional gap.
+- [x] ~~New SPA lacks the old `?ui` HTML view's server-side proxy for
+  remote registries~~ **DONE** (2026-07-12). Old UI's `/proxy?host=
+  <remote>&path=<path>` (`registry/httpStuff.go:122`, `registry/
+  ui.go:82-100,2919-2930`) is tightly coupled to the old HTML-templated
+  `GenerateUI()` renderer and GET-only — unusable as-is for the new
+  JSON-consuming SPA. Built a separate, new byte-level JSON reverse
+  proxy instead:
+  - **Design (confirmed with @duglin before implementing)**: proxying is
+    always **explicit opt-in per server** (a "Use proxy" checkbox at
+    add/edit time on the Config page) — no auto-detection of CORS vs.
+    network failures, since both throw an identical generic `fetch()`
+    error and can't be reliably distinguished.
+  - **New file `registry/xrproxy.go`** — route `/xrproxy/
+    <base64url(remoteOrigin)>/<rest-of-path>`. The remote origin is
+    base64url-encoded (no padding) as a single path segment (not a query
+    param) so any real xRegistry path/query can follow it exactly like a
+    normal registry root, with zero collision risk and zero special-
+    casing needed elsewhere in the SPA's URL-building code.
+    `HTTPXRProxy()` forwards the request (method/body/headers minus hop
+    headers) to the remote, reads the full response, `bytes.ReplaceAll`s
+    the remote's own origin throughout the body to point back through
+    the proxy, rewrites `Location`/`Content-Location`/`Link` headers the
+    same way, and sets CORS headers. Wired into `registry/httpStuff.go`'s
+    dispatcher alongside the existing `/proxy` route.
+  - **JS side (`registry/ui/app.js`)**: `LS_PROXY` localStorage map
+    (mirrors the existing `LS_NAMES` name-override pattern) +
+    `isProxied()`/`setProxied()`; `serverFetchBase(url)` is the new
+    central proxy-aware fetch-URL-base helper — `serverBase()` now
+    delegates to it. Audited every one of the ~25 existing call sites
+    using the raw `(_state.serverURL || window.location.origin)`
+    pattern, fixing the real fetch-URL-builder gaps (`probeRegistry()`,
+    `ensureModelCached()`, `ensureCapCached()`, `ensureOfferedCached()`,
+    the post-save `/model` refetch in `saveModel()`) while deliberately
+    leaving cache-key/identity usages (e.g. `_modelCache`/`_capCache`
+    lookups) keyed by the **raw** server URL, not the proxy URL — getting
+    this distinction right was the crux of the audit. `buildAPIURL()`/
+    `buildBaseURL()` were already proxy-safe by construction. Links
+    embedded in already-fetched JSON (metaurl, versionsurl, etc.) need no
+    separate client-side rewriting since the Go proxy already rewrites
+    all embedded absolute URLs server-side before the SPA ever sees them.
+  - **Config page UI**: new "Proxy" column/checkbox per server row, "Use
+    proxy" checkbox on the add-server form, `cfgSetProxied()`, and
+    `cfgSave()`/`cfgAddNew()` updated to carry/set the flag.
+  - **Bugs found and fixed via live testing** (against the real public
+    `https://xregistry.soaphub.org` test registry):
+    1. The proxy originally copied the remote's `Content-Length` header
+       verbatim while writing a body that had just been rewritten to a
+       different length — broke HTTP response framing (`Content-Length`
+       mismatch, truncated/empty body despite `200 OK`). Fixed by
+       excluding `Content-Length`/`Content-Encoding`/`Accept-Encoding`
+       from blindly-copied headers and explicitly recomputing
+       `Content-Length` from the final rewritten body.
+    2. Under concurrent load (matching the SPA's real fetch pattern:
+       several near-simultaneous requests per page), the remote
+       intermittently reported `self`/`Link` with `http://` instead of
+       `https://`. **Root-caused via a standalone Go reproduction**: the
+       remote runs this same server's code, which falls back to sniffing
+       an incoming `Referer` header's scheme (`https:`-prefixed vs. not)
+       to guess its own scheme when `r.TLS` is nil (i.e. behind a
+       TLS-terminating reverse proxy) — the exact same heuristic as this
+       proxy's own `ourOrigin()`. Our proxy was forwarding the browser's
+       own `Referer` (pointing at our SPA's `http://localhost:...` page)
+       straight through, tricking the remote into reporting itself as
+       `http`. Deterministic repro: `curl -H "Referer: http://x" https://
+       xregistry.soaphub.org/`. Fixed two ways: (a) stopped forwarding
+       `Referer` to the remote at all (added to the hop-header exclusion
+       list — verified via a local header-echoing test server that the
+       outgoing request now carries no `Referer`); (b) defensively made
+       the origin-rewrite itself scheme-agnostic (matches both `http://`
+       and `https://` variants of the remote host), so the symptom is
+       masked even for well-behaved remotes with their own unrelated
+       scheme quirks.
+  - **Verified end-to-end via headless-Chromium/CDP automation**: added a
+    proxied server via the Config page UI, confirmed `localStorage`
+    state, then browsed into it through the SPA's normal navigation
+    (List view root doc, drilling into a `schemagroups` collection with
+    real nested data/counts/timestamps, JSON view) — all correctly
+    routed through `/xrproxy/...` with no console errors and `self`
+    links correctly rewritten to the local proxy prefix. All test
+    artifacts (temp Chromium profile, scripts, screenshots, the
+    temporarily-added test server entry) cleaned up afterward.
+
+- [x] **"Server: <url>" info line under each page's title.** Every content
+  page (Data collection/entity, Model, Model Source, Capabilities,
+  Capabilities Offered, JSON view) now shows a small gray
+  `Server: <url>` line so users always know which server they're
+  looking at — always the real/raw server URL, never a proxy's
+  base64-encoded `/xrproxy/...` path (relies on `_state.serverURL`
+  always holding the raw URL, a deliberate design decision from the
+  xrproxy work above).
+  - `serverURLLineHtml()` (`registry/ui/app.js`) is the shared HTML-string
+    generator; `.eg-server-url-line` (`registry/ui/style.css`) is the
+    shared style (small `#888` text).
+  - **Data pages** (`renderTableView()`): line inserted directly below the
+    `.eg-page-title` div, for both the collection-page title and the
+    single-entity-page title (e.g. below "REGISTRY: CloudEvents").
+  - **Model/Model Source editor** (`renderEditor()`) and **Capabilities /
+    Capabilities Offered list views** (`renderCapEditor()`,
+    `renderCapabilitiesOfferedViewer()`): these pages have no page title,
+    only a breadcrumb bar, so the line goes directly below the header's
+    top breadcrumb bar, as the first child of the editor container —
+    i.e. *before* the sub-breadcrumb bar (the "Registry..."/entity-type
+    one), for consistency with the other page types. Has a
+    `border-bottom` to visually separate it from the sub-breadcrumb/
+    section boxes below (`#modelEditor > .eg-server-url-line`,
+    `#capEditor > .eg-server-url-line` in `style.css`).
+  - **JSON view** (`renderJSONView()`): rather than a separate line, the
+    server URL is shown on the left edge of the existing sticky
+    "&#9656; all" toolbar row (`.json-exp-wrap` changed to
+    `display:flex; justify-content:space-between`), so it doesn't take
+    extra vertical space.
+  - Hidden on Home and Config pages (neither calls any of the above
+    render functions).
+  - Verified via headless-Chromium/CDP screenshots across Model,
+    Capabilities, and Capabilities Offered list views, and JSON view.
+
+- [x] **Disable empty (count-0) drill-down items in Model/Model Source
+  left nav.** Items like "Attributes (0)", "Group Types (0)",
+  "Resources (0)", "Version/Resource/Meta Attrs (0)" used to be
+  clickable but just led to an empty list page — pointless. `navItem()`
+  (`registry/ui/app.js`) now takes an optional `disabled` flag; when the
+  underlying count is 0 the click handler isn't wired up and
+  `.navItemDisabled` (`style.css`) grays out the text/arrow and disables
+  hover/cursor. Actual group/resource entries (not count-based
+  container links) are unaffected even if their own sub-counts are 0,
+  since they still have a Details view worth visiting.
 
 ## Completed (for history / context)
 

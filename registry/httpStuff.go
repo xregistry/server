@@ -125,6 +125,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasPrefix(r.URL.Path, XRPROXY_PREFIX) {
+		HTTPXRProxy(w, r)
+		return
+	}
+
 	// Serve the new SPA UI for /ui and /ui/...
 	if r.URL.Path == "/ui" || strings.HasPrefix(r.URL.Path, "/ui/") {
 		ServeUIStatic(w, r)

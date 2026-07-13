@@ -73,6 +73,7 @@ var _state = {
 var LS_SERVERS     = 'xreg-servers';
 var LS_OPTIONS     = 'xreg-options';
 var LS_NAMES       = 'xreg-name-overrides';
+var LS_PROXY       = 'xreg-proxy-servers';
 var _labelCache    = {};  // normalizedURL → probed registry name
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
@@ -195,6 +196,54 @@ function setNameOverride(url, name) {
   name = (name || '').trim();
   if (name) map[norm] = name; else delete map[norm];
   saveNameOverrides(map);
+}
+
+// ---- Proxy-server flags (persisted) ----------------------------------------
+//
+// Some remote registries don't set permissive CORS headers, so direct
+// browser fetch() calls to them fail. Rather than try to auto-detect this
+// (a CORS failure and a real network failure both throw the same generic
+// fetch error, so it can't be told apart reliably), the user explicitly
+// flags a server as "use proxy" when adding/editing it on the Config page.
+// Keyed by normalizeURL(), same pattern as the name-overrides map above.
+function loadProxyFlags() {
+  try { return JSON.parse(localStorage.getItem(LS_PROXY) || '{}'); }
+  catch(e) { return {}; }
+}
+function saveProxyFlags(map) {
+  try { localStorage.setItem(LS_PROXY, JSON.stringify(map)); } catch(e) {}
+}
+function isProxied(url) {
+  return !!loadProxyFlags()[normalizeURL(url)];
+}
+function setProxied(url, on) {
+  var map  = loadProxyFlags();
+  var norm = normalizeURL(url);
+  if (on) map[norm] = true; else delete map[norm];
+  saveProxyFlags(map);
+}
+
+// base64url-encode (no padding) a string for use as a single /xrproxy/ path
+// segment - mirrors the encoding the Go server (EncodeRProxyOrigin in
+// registry/xrproxy.go) expects/produces.
+function b64urlEncode(str) {
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Returns the URL to actually use when building fetch() requests against
+// `url` - the raw url itself, unless the user flagged it as "use proxy" on
+// the Config page, in which case this returns the local /xrproxy/ URL that
+// transparently forwards to it (see registry/xrproxy.go). Everywhere else
+// in the app (labels, breadcrumbs, Config page, LS_SERVERS, cache keys)
+// keeps using the raw server URL as its identity - only the actual network
+// request needs to go through the proxy.
+function serverFetchBase(url) {
+  var norm = normalizeURL(url || window.location.origin);
+  if (isProxied(norm)) {
+    var origin = window.location.origin.replace(/\/$/, '');
+    return origin + '/xrproxy/' + b64urlEncode(norm);
+  }
+  return norm;
 }
 
 // ---- Init -----------------------------------------------------------------
@@ -623,7 +672,7 @@ function needsDetails(path) {
 // convention, akin to `.well-known`) — those stay constructed on purpose.
 
 function serverBase() {
-  return (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  return serverFetchBase(_state.serverURL);
 }
 
 // Fallback-only construction: serverBase() + path segments, no query. Used
@@ -702,6 +751,19 @@ function applyFilters() {
 }
 
 // ---- Header --------------------------------------------------------------
+
+// Returns an HTML string for a small "Server: <url>" line, meant to be
+// inserted directly below a page's title (e.g. "REGISTRY: CloudEvents").
+// Always shows the real server URL (_state.serverURL), never a proxy's
+// base64-encoded /xrproxy/ URL — that distinction is exactly why
+// _state.serverURL is kept as the raw identity everywhere and only
+// serverFetchBase()'s actual fetch calls get proxy-translated (see
+// plan.md's xrproxy writeup), so no special-casing is needed here.
+function serverURLLineHtml() {
+  var url = _state.serverURL || window.location.origin;
+  return '<div class="eg-server-url-line" title="' + esc(url) + '">Server: '
+    + esc(url) + '</div>';
+}
 
 function renderHeader() {
   var isHome   = (_state.view === 'home');
@@ -2073,10 +2135,11 @@ function fetchWithTimeout(url, ms) {
 }
 
 function probeRegistry(url, cb) {
-  var normUrl = normalizeURL(url);
+  var normUrl  = normalizeURL(url);
+  var fetchUrl = serverFetchBase(url);
   // Fetch capabilities first; use it to decide what else to fetch.
   // Per spec: if /capabilities is 404, default available = {entities:{mutable:true}}
-  var capP = fetchWithTimeout(normUrl + '/capabilities', PROBE_FETCH_TIMEOUT_MS)
+  var capP = fetchWithTimeout(fetchUrl + '/capabilities', PROBE_FETCH_TIMEOUT_MS)
     .then(function(r) { return r.ok ? r.json() : null; })
     .catch(function() { return null; });
 
@@ -2087,11 +2150,11 @@ function probeRegistry(url, cb) {
 
     // Only fetch model if capabilities says it's available
     var modelP = available.model
-      ? fetchWithTimeout(normUrl + '/model', PROBE_FETCH_TIMEOUT_MS).then(function(r) { return r.json(); }).catch(function() { return null; })
+      ? fetchWithTimeout(fetchUrl + '/model', PROBE_FETCH_TIMEOUT_MS).then(function(r) { return r.json(); }).catch(function() { return null; })
       : Promise.resolve(null);
 
     Promise.all([
-      fetchWithTimeout(normUrl + '/', PROBE_FETCH_TIMEOUT_MS).then(function(r) {
+      fetchWithTimeout(fetchUrl + '/', PROBE_FETCH_TIMEOUT_MS).then(function(r) {
         if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ' — ' + t.slice(0, 300)); });
         return r.json();
       }),
@@ -2174,16 +2237,20 @@ function renderConfig() {
 
   var html = '<div class="config-page"><div class="config-section">'
     + '<h3 class="config-section-title">Registry Servers</h3>'
-    + '<table class="config-table"><thead><tr><th>Name</th><th>Location</th><th></th></tr></thead><tbody>';
+    + '<table class="config-table"><thead><tr><th>Name</th><th>Location</th>'
+    + '<th>Proxy</th><th></th></tr></thead><tbody>';
 
   // Local server — its URL is fixed (can't ever be a different server),
   // but its display Name can still be overridden and edited like any
   // other registry, via its own Edit/Save/Cancel (no Delete/URL editing).
+  // Proxying only ever makes sense for a *remote* server, so this row has
+  // no checkbox at all (blank cell) rather than a disabled/checked one.
   html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
     + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
     + '<td class="cfg-name">' + cfgNameCellHTML(normalizeURL(origin)) + '</td>'
     + '<td><span class="cfg-url-display">' + esc(origin)
     + ' <span class="config-local-badge">this server</span></span></td>'
+    + '<td></td>'
     + '<td class="cfg-actions">'
     +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
     +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
@@ -2201,6 +2268,13 @@ function renderConfig() {
       +     'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
       +               'else if(event.key===\'Escape\')cfgCancel(this)">'
       + '</td>'
+      + '<td class="cfg-proxy-cell" title="Route requests to this server'
+      +   ' through this server\u2019s own proxy - use this if the remote'
+      +   ' registry doesn\u2019t allow direct cross-origin access (CORS)">'
+      +   '<input type="checkbox" class="cfg-proxy-input"'
+      +     (isProxied(url) ? ' checked' : '') + ' '
+      +     'onchange="cfgSetProxied(\'' + esc(url) + '\', this.checked)">'
+      + '</td>'
       + '<td class="cfg-actions">'
       +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
       +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
@@ -2215,6 +2289,12 @@ function renderConfig() {
     +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
     +   '<input type="text" id="cfg-new-url" placeholder="http://example.com" '
     +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
+    +   '<label class="cfg-new-proxy-label" title="Route requests to this'
+    +     ' server through this server\u2019s own proxy - use this if the'
+    +     ' remote registry doesn\u2019t allow direct cross-origin access'
+    +     ' (CORS)">'
+    +     '<input type="checkbox" id="cfg-new-proxy"> Use proxy'
+    +   '</label>'
     +   '<button class="cfg-btn" onclick="cfgAddNew()">Add</button>'
     + '</div>'
     + '</div>'
@@ -2358,9 +2438,21 @@ function cfgSave(el) {
   if (urlInp && newUrl !== oldUrl) {
     removeServer(oldUrl);
     addServer(newUrl);
+    // Carry the "use proxy" flag over to the renamed URL — it's keyed by
+    // URL (like the name override above), so a rename would otherwise
+    // silently lose it.
+    setProxied(newUrl, isProxied(oldUrl));
+    setProxied(oldUrl, false);
   }
   if (nameInp) setNameOverride(newUrl, nameInp.value.trim());
   renderConfig();
+}
+
+// Live-toggled straight from the Config page's per-server checkbox — takes
+// effect immediately, no Edit/Save/Cancel step needed (see cfgSave() above
+// for how the flag survives a URL rename via the Edit flow instead).
+function cfgSetProxied(url, on) {
+  setProxied(url, on);
 }
 
 function cfgDelete(btn) {
@@ -2380,12 +2472,14 @@ function cfgSetJsonColor(mode) {
 }
 
 function cfgAddNew() {
-  var inp     = el('cfg-new-url');
-  var nameInp = el('cfg-new-name');
+  var inp      = el('cfg-new-url');
+  var nameInp  = el('cfg-new-name');
+  var proxyInp = el('cfg-new-proxy');
   if (!inp || !inp.value.trim()) return;
   var url = inp.value.trim();
   addServer(url);
   if (nameInp && nameInp.value.trim()) setNameOverride(url, nameInp.value.trim());
+  if (proxyInp && proxyInp.checked) setProxied(url, true);
   renderConfig();
   var newInp = el('cfg-new-url');
   if (newInp) newInp.focus();
@@ -2507,6 +2601,7 @@ function renderTableView(data) {
   if (depth === 1) titleIconUrl = modelGroupIcon(model, _state.path[0]);
   else if (depth === 3 || depth === 5) titleIconUrl = modelResourceIcon(model, _state.path[0], _state.path[2]);
   html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrl, 'eg-page-title-icon') + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
+  html += serverURLLineHtml();
 
   html += '<table class="xr-table"><thead><tr>';
   html += thSort('__id', idColLabel);
@@ -2782,6 +2877,7 @@ function renderSingleEntity(data) {
       + '<span class="eg-page-title-type">' + esc(titleTypeH) + ':</span>'
       + (titleDisplayH ? ' <span class="eg-page-title-id">' + esc(titleDisplayH) + '</span>' : '')
       + '</div>';
+    html += serverURLLineHtml();
   }
 
   // Registry endpoint pills (depth 0 only) — see buildRegEndpointPillsHtml().
@@ -3025,7 +3121,7 @@ function renderSingleEntity(data) {
 function ensureModelCached(baseURL, cb) {
   var key = normalizeURL(baseURL);
   if (_modelCache[key]) { if (cb) cb(_modelCache[key]); return; }
-  fetch(baseURL.replace(/\/$/, '') + '/model')
+  fetch(serverFetchBase(baseURL) + '/model')
     .then(function(r) { return r.json(); })
     .then(function(m) { _modelCache[key] = m; if (cb) cb(m); })
     .catch(function()  { _modelCache[key] = null; if (cb) cb(null); });
@@ -3035,7 +3131,7 @@ function ensureCapCached(baseURL, cb) {
   var key = normalizeURL(baseURL);
   if (_capCache.hasOwnProperty(key)) { if (cb) cb(_capCache[key]); return; }
   _capCache[key] = undefined; // mark in-flight
-  fetch(baseURL.replace(/\/$/, '') + '/capabilities')
+  fetch(serverFetchBase(baseURL) + '/capabilities')
     .then(function(r) { return r.json(); })
     .then(function(c) { _capCache[key] = c; if (cb) cb(c); })
     .catch(function()  { _capCache[key] = null; if (cb) cb(null); });
@@ -3060,7 +3156,7 @@ function ensureOfferedCached(baseURL, cb) {
   var key = normalizeURL(baseURL);
   if (_offeredCache.hasOwnProperty(key)) { if (cb) cb(_offeredCache[key]); return; }
   _offeredCache[key] = undefined; // mark in-flight
-  fetch(baseURL.replace(/\/$/, '') + '/capabilitiesoffered')
+  fetch(serverFetchBase(baseURL) + '/capabilitiesoffered')
     .then(function(r) { return r.json(); })
     .then(function(o) { _offeredCache[key] = o; if (cb) cb(o); })
     .catch(function()  { _offeredCache[key] = null; if (cb) cb(null); });
@@ -4679,8 +4775,11 @@ function row(label, value, cls) {
 function renderJSONView(data) {
   renderJSONLeftPanel();
   var jsonHtml = addTwisties(syntaxHighlight(JSON.stringify(data, null, 2)));
+  var serverURL = _state.serverURL || window.location.origin;
   el('main-view').innerHTML =
     '<div class="json-exp-wrap">' +
+      '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
+        + esc(serverURL) + '</span>' +
       '<span class="json-exp-btn" id="json-exp-btn" data-open="false"' +
       ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</span>' +
     '</div>' +
@@ -7428,6 +7527,11 @@ function renderEditor() {
     else if (_navTab === 'groups' && (_navPath.length === 1 || _navPath.length === 3)) _navSelected = 'fields' ;
   }
 
+  // Server URL line (no page title on this view, so show it just below
+  // the header's breadcrumb bar, before the sub-breadcrumb ("Registry...")
+  // bar below — consistent with the other pages).
+  div.insertAdjacentHTML('beforeend', serverURLLineHtml()) ;
+
   // Breadcrumb (replaces tab bar)
   var bc = buildBreadcrumb() ;
   // Mobile nav toggle button — insert before breadcrumb content
@@ -7556,9 +7660,10 @@ function buildBreadcrumb() {
 function buildLeftNav(div) {
   var model = _modelData || {} ;
 
-  function navItem(label, isContainer, isSelected, clickFn, deleteFn) {
+  function navItem(label, isContainer, isSelected, clickFn, deleteFn, disabled) {
     var el = document.createElement('div') ;
-    el.className = 'navItem' + (isSelected ? ' navItemSelected' : '') ;
+    el.className = 'navItem' + (isSelected ? ' navItemSelected' : '')
+      + (disabled ? ' navItemDisabled' : '') ;
     var lbl = document.createElement('span') ; lbl.style.flex = '1' ;
     if (typeof label === 'string') { lbl.textContent = label ; } else { lbl.appendChild(label) ; }
     el.appendChild(lbl) ;
@@ -7572,7 +7677,10 @@ function buildLeftNav(div) {
       var arr = document.createElement('span') ; arr.className = 'navItemArrow' ; arr.textContent = '\u203a' ;
       el.appendChild(arr) ;
     }
-    el.onclick = clickFn ; return el ;
+    // Disabled container items (count of 0) have nothing to drill into —
+    // don't wire up the click handler so it's a visual no-op.
+    if (!disabled) el.onclick = clickFn ;
+    return el ;
   }
 
   function navAdd(label, fn) {
@@ -7646,8 +7754,10 @@ function buildLeftNav(div) {
   if (_navTab === 'registry') {
     if (_navPath.length === 0) {
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
-      div.appendChild(navItem(withCount('Attributes', Object.keys(model.attributes||{}).length), true, false, function() { drillDown(['attributes']) ; })) ;
-      div.appendChild(navItem(withCount('Group Types', Object.keys(model.groups||{}).length), true, false, function() { changeTab('groups') ; })) ;
+      var attrCount0 = Object.keys(model.attributes||{}).length ;
+      div.appendChild(navItem(withCount('Attributes', attrCount0), true, false, function() { drillDown(['attributes']) ; }, null, attrCount0 === 0)) ;
+      var groupCount0 = Object.keys(model.groups||{}).length ;
+      div.appendChild(navItem(withCount('Group Types', groupCount0), true, false, function() { changeTab('groups') ; }, null, groupCount0 === 0)) ;
     } else {
       var attrs = model.attributes || {} ;
       if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
@@ -7671,8 +7781,10 @@ function buildLeftNav(div) {
       var gk = _navPath[0] ;
       var grpData = model.groups[gk] || {} ;
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
-      div.appendChild(navItem(withCount('Attributes', Object.keys(grpData.attributes||{}).length), true, false, function() { drillDown([gk, 'attributes']) ; })) ;
-      div.appendChild(navItem(withCount('Resources', Object.keys(grpData.resources||{}).length), true, false, function() { drillDown([gk, 'resources']) ; })) ;
+      var grpAttrCount0 = Object.keys(grpData.attributes||{}).length ;
+      div.appendChild(navItem(withCount('Attributes', grpAttrCount0), true, false, function() { drillDown([gk, 'attributes']) ; }, null, grpAttrCount0 === 0)) ;
+      var grpResCount0 = Object.keys(grpData.resources||{}).length ;
+      div.appendChild(navItem(withCount('Resources', grpResCount0), true, false, function() { drillDown([gk, 'resources']) ; }, null, grpResCount0 === 0)) ;
     } else if (_navPath.length === 2 && _navPath[1] === 'attributes') {
       var gk = _navPath[0] ;
       var attrs = (model.groups[gk] || {}).attributes || {} ;
@@ -7695,9 +7807,12 @@ function buildLeftNav(div) {
       var gk = _navPath[0], rk = _navPath[2] ;
       var resData = ((model.groups[gk]||{}).resources||{})[rk] || {} ;
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
-      div.appendChild(navItem(withCount('Version Attrs', Object.keys(resData.attributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'versionattributes']) ; })) ;
-      div.appendChild(navItem(withCount('Resource Attrs', Object.keys(resData.resourceattributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'resourceattributes']) ; })) ;
-      div.appendChild(navItem(withCount('Meta Attrs', Object.keys(resData.metaattributes||{}).length), true, false, function(){ drillDown([gk,'resources',rk,'metaattributes']) ; })) ;
+      var verAttrCount0 = Object.keys(resData.attributes||{}).length ;
+      div.appendChild(navItem(withCount('Version Attrs', verAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'versionattributes']) ; }, null, verAttrCount0 === 0)) ;
+      var resAttrCount0 = Object.keys(resData.resourceattributes||{}).length ;
+      div.appendChild(navItem(withCount('Resource Attrs', resAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'resourceattributes']) ; }, null, resAttrCount0 === 0)) ;
+      var metaAttrCount0 = Object.keys(resData.metaattributes||{}).length ;
+      div.appendChild(navItem(withCount('Meta Attrs', metaAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'metaattributes']) ; }, null, metaAttrCount0 === 0)) ;
     } else if (_navPath.length === 4) {
       var gk = _navPath[0], rk = _navPath[2], attrSec = _navPath[3] ;
       var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
@@ -8804,7 +8919,7 @@ function saveModel(onSuccess) {
         // fresh GET /model before continuing.
         var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '') ;
         var mKey = normalizeURL(svBaseSave) ;
-        fetch(svBaseSave + '/model')
+        fetch(serverFetchBase(svBaseSave) + '/model')
           .then(function(r) { return r.json() ; })
           .then(function(m) { _modelCache[mKey] = m ; })
           .catch(function()  { delete _modelCache[mKey] ; })
@@ -9142,6 +9257,10 @@ function renderCapEditor() {
   host.innerHTML = '';
   var data = _capData || {};
 
+  // Server URL line (no page title on this view, so show it just below
+  // the breadcrumb bar instead, above the section boxes).
+  host.insertAdjacentHTML('beforeend', serverURLLineHtml()) ;
+
   // Action bar (Save/Undo) — only meaningful while editing.
   if (_state.editMode) {
     var bar = document.createElement('div'); bar.className = 'editorActionBar';
@@ -9315,6 +9434,7 @@ function renderCapabilitiesOfferedViewer(data) {
   var main = el('main-view');
   main.innerHTML = '<div id="capEditor"></div>';
   var wrap = el('capEditor');
+  wrap.insertAdjacentHTML('beforeend', serverURLLineHtml()) ;
   var body = document.createElement('div'); body.className = 'capBody';
   wrap.appendChild(body);
   var readOnlyPrev = _capReadOnly;

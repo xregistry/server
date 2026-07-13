@@ -62,6 +62,30 @@ html, body {
   min-width: 0;
 }
 
+/* Small "Server: <url>" info line shown directly below the page title
+   (e.g. "REGISTRY: CloudEvents") on every content page — always shows the
+   real server URL, never a proxy's encoded /xrproxy/ URL. See plan.md
+   "Server URL sub-title line". */
+.eg-server-url-line {
+  font-size: 12px;
+  color: #888;
+  margin: -8px 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Editor pages (Model/ModelSource/Capabilities) have no page title — the
+   line is placed just below the header's breadcrumb bar instead (as the
+   first child of the editor container, before the sub-breadcrumb bar),
+   so the negative top margin (meant to pull it up under a title) must
+   be reset here. */
+#modelEditor > .eg-server-url-line,
+#capEditor > .eg-server-url-line {
+  margin: 0;
+  padding: 4px 10px 6px;
+  border-bottom: 1px solid #ddd;
+}
+
 #header-spacer { flex: 1; }
 .bc-space { display: inline-block; width: 8px; flex-shrink: 0; }
 .bc-sep { color: #999; user-select: none; }
@@ -507,10 +531,21 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   position: sticky;
   top: 0;
   z-index: 5;
-  text-align: right;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 2px 6px;
   pointer-events: none;
   background: transparent;
+}
+.json-exp-server-url {
+  font-size: 11px;
+  font-family: monospace;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .json-exp-btn {
   pointer-events: auto;
@@ -1119,6 +1154,18 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .cfg-name-input::placeholder { color: #888; font-style: italic; }
 .cfg-add-row input#cfg-new-name { flex: 0 0 180px; }
+.cfg-proxy-cell { text-align: center; }
+.cfg-proxy-cell input[type=checkbox] { cursor: pointer; }
+.cfg-new-proxy-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
 .cfg-actions { white-space: nowrap; display: flex; gap: 6px; justify-content: flex-end; }
 .cfg-btn {
   font-size: 12px;
@@ -1787,6 +1834,10 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   }
   .navItemSelected { background: #dde8f8 ; font-weight: bold ; color: #1a3a6a ; }
   .navItemArrow { margin-left: auto ; color: #555 ; font-size: 18px ; font-weight: bold ; }
+  /* Count of 0 means the drill-down target is empty — disable the click
+     and gray it out so it doesn't look like a live link to nowhere. */
+  .navItemDisabled { cursor: default ; color: #aaa ; }
+  .navItemDisabled .navItemArrow { color: #ccc ; }
   .navItemDel { margin-left: 6px ; color: #a00 ; font-size: 11px ; cursor: pointer ; padding: 0 4px ; border-radius: 3px ; flex-shrink: 0 ; }
   .navItemAdd {
     padding: 7px 12px ;
@@ -1800,6 +1851,7 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   @media (hover: hover) {
     .navItem:hover { background: #e8eef8 ; }
     .navItemSelected:hover { background: #dde8f8 ; }
+    .navItemDisabled:hover { background: transparent ; }
     .navItemDel:hover { background: #fee ; }
     .navItemAdd:hover { background: #e8f8e0 ; }
   }
