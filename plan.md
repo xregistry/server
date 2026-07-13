@@ -4075,6 +4075,78 @@ decision rather than silently expanding scope here, since the original
 **Status**: Complete (core `ifvalues`-aware type resolution). Category-
 grouping ifvalues-awareness is a separate, unstarted follow-up.
 
+## Show real server URL (not proxy URL) in display-only text
+
+**Problem**: `xrproxy.go` rewrites the remote server's real origin to the
+local `/xrproxy/<base64>` prefix directly in the raw HTTP response body
+(and `Location`/`Content-Location`/`Link` headers) before the browser ever
+sees it — so `self`/`shortself`/`xid`-adjacent `*url` fields embedded in
+JSON responses are already proxy-encoded by the time `app.js` renders
+them. This made every displayed URL for a proxied server show the ugly
+local proxy form instead of the real remote address, even though only
+the *display text* needs to be real — actual `fetch()`/navigation must
+keep using the reachable proxy URL.
+
+**Fix**: added `toRealURL(url)` helper (`app.js`, right after
+`serverFetchBase()`) — the inverse of `serverFetchBase()`: computes the
+current server's proxy prefix and, if `url` starts with it, replaces
+that prefix with the real `_state.serverURL`; otherwise no-op (safe when
+not proxied too, since `serverFetchBase()` just returns the normalized
+real URL in that case, making the prefix-check a harmless identity
+substitution).
+
+Applied at 3 display-only sites, always leaving `href`/`onclick`/`fetch`
+targets untouched (still built from the raw/proxy value) so navigation
+keeps working:
+1. `copyBtn('Self', ...)` / `copyBtn('ShortSelf', ...)` in the entity
+   detail "Tech row" — tooltip + copy-to-clipboard payload only.
+2. `renderUrlLinkValue()` — the shared List-view Property-table link
+   renderer used for every same-server URL-shaped value across all
+   entity types (`self`, `metaurl`, `versionsurl`, `resourcesurl`,
+   `defaultversionurl`, any URI/URL-typed spec or extension attribute,
+   …) — added a `displayText` variable, set to `toRealURL(rawText)` only
+   on the same-server (in-app-navigable) branch; the external-URL branch
+   is untouched (external URLs are never proxy-encoded).
+3. `syntaxHighlight()`'s JSON-view same-server linkify branch — added a
+   `displayM` variable holding a re-escaped, re-quoted `toRealURL(inner)`
+   string whenever it differs from the raw matched token `m`; `href`/
+   `onclick` (built from `inner` via `buildURL()`/`navigateJsonUrl()`)
+   are unchanged.
+4. Breadcrumb bar's copy-URL button (`copyLinkBtnHTML()`'s tooltip
+   preview, `refreshCopyLinkBtnTooltip()`, and `copyCurrentAPIURL()`'s
+   actual clipboard payload) — all three wrap `buildTabAwareAPIURL()` in
+   `toRealURL()` before displaying/copying, since this button's whole
+   purpose (per its own doc comment) is giving the user a plain,
+   curl-able URL for what's on screen; a real remote URL is strictly
+   more useful there than the local proxy form, which only works while
+   this SPA/proxy instance is running.
+
+**Explicitly out of scope**: `d.defaultversionurl`'s "URL ↗" button
+(`target="_blank"` external navigation) — a hybrid display/navigation
+case, deliberately left untouched to avoid unintended behavior changes.
+
+**Verified** via a self-proxied test (flagged the app's own
+`http://localhost:8080` as "use proxy" via
+`localStorage['xreg-proxy-servers']`, so requests round-trip through
+`/xrproxy/<base64-of-itself>/...` back to the same server — a
+network-independent way to exercise proxy code paths):
+- List view: Registry root's Property table now shows `self` as
+  `http://localhost:8080/` (real URL) instead of the proxy-encoded form,
+  while the link's `href` still points at the in-app SPA route that
+  fetches through the proxy correctly.
+- JSON view: same page's `self` field shows the real URL as its
+  clickable display text; clicking still navigates correctly via the
+  proxy.
+- Breadcrumb copy-URL button: tooltip preview and the actual value
+  passed to `egCopy()` both confirmed (via direct `Runtime.evaluate` of
+  `toRealURL(buildTabAwareAPIURL())`) to be the real `http://localhost:8080`
+  URL rather than the proxy-encoded form.
+- `node --check app.js` passes throughout.
+- Chromium test processes and temp profile/log files cleaned up after
+  verification.
+
+**Status**: Complete.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file

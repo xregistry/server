@@ -246,6 +246,23 @@ function serverFetchBase(url) {
   return norm;
 }
 
+// Inverse of serverFetchBase(): given a URL that may be prefixed with our
+// local /xrproxy/<base64> proxy path (for the CURRENT server, _state.
+// serverURL), returns the real remote URL instead — for DISPLAY PURPOSES
+// ONLY (tooltips, copy-to-clipboard, JSON view text). Never use this for
+// anything that actually fetches or navigates — only the proxy URL works
+// from the browser (that's the entire reason the proxy exists: the real
+// remote origin is typically blocked by CORS). Returns `url` unchanged if
+// it isn't proxied (not proxied at all, already a real absolute URL, or a
+// relative path).
+function toRealURL(url) {
+  if (!url) return url;
+  var proxyBase = serverFetchBase(_state.serverURL).replace(/\/$/, '');
+  if (url.indexOf(proxyBase) !== 0) return url;
+  var real = normalizeURL(_state.serverURL || window.location.origin).replace(/\/$/, '');
+  return real + url.slice(proxyBase.length);
+}
+
 // ---- Init -----------------------------------------------------------------
 
 window.addEventListener('DOMContentLoaded', init);
@@ -1319,7 +1336,10 @@ var _copyIconSVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="curren
 function copyLinkBtnHTML() {
   // Second tooltip line previews the exact URL that will be copied, so
   // users don't have to click first just to see what they're about to get.
-  var urlPreview = buildTabAwareAPIURL();
+  // toRealURL() here is display-only (this is a preview, not a fetch/nav
+  // target) — when proxied, show/copy the real remote URL rather than our
+  // local /xrproxy/<base64> form, same as the other display-only sites.
+  var urlPreview = toRealURL(buildTabAwareAPIURL());
   return '<button class="icon-btn bc-copy-btn" onclick="copyCurrentAPIURL(event)" '
        + 'title="Copy API URL for this data\n' + esc(urlPreview) + '">' + _copyIconSVG + '</button>';
 }
@@ -1333,12 +1353,12 @@ function copyLinkBtnHTML() {
 // click-time) stays correct.
 function refreshCopyLinkBtnTooltip() {
   var btn = document.querySelector('.bc-copy-btn');
-  if (btn) btn.title = 'Copy API URL for this data\n' + buildTabAwareAPIURL();
+  if (btn) btn.title = 'Copy API URL for this data\n' + toRealURL(buildTabAwareAPIURL());
 }
 
 function copyCurrentAPIURL(event) {
   if (event) event.stopPropagation();
-  egCopy(buildTabAwareAPIURL(), 'API URL');
+  egCopy(toRealURL(buildTabAwareAPIURL()), 'API URL');
 }
 
 // buildAPIURL() returns the URL used to FETCH the current Resource/Version
@@ -3769,7 +3789,7 @@ function copyableMonospace(text) {
 function renderUrlLinkValue(rawText, isMono) {
   var svBase = serverBase();
   var urlPath = rawText.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
-  var href, target = '', onclick = '';
+  var href, target = '', onclick = '', displayText = rawText;
   if (urlPath.indexOf(svBase) === 0) {
     var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
     var segments = rel ? rel.split('/') : [];
@@ -3787,12 +3807,17 @@ function renderUrlLinkValue(rawText, isMono) {
     // always intercepting the click for in-app navigation.
     var navExpr = 'navigateJsonUrl(\'' + rawText.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
     onclick = ' onclick="' + esc(guardedOnclick(navExpr)) + '"';
+    // When browsing through the proxy, rawText is our local
+    // /xrproxy/<base64> URL — show the real remote URL instead (display
+    // text only; href/onclick above must keep using the proxy URL so
+    // clicking still navigates correctly).
+    displayText = toRealURL(rawText);
   } else {
     href   = rawText;
     target = ' target="_blank" rel="noopener"';
   }
   var cls = 'eg-value' + (isMono ? ' eg-mono' : '');
-  return '<a class="' + cls + '" href="' + esc(href) + '"' + target + onclick + '>' + esc(rawText) + '</a>';
+  return '<a class="' + cls + '" href="' + esc(href) + '"' + target + onclick + '>' + esc(displayText) + '</a>';
 }
 
 // Renders a Property-table scalar value: a clickable link (via
@@ -4664,8 +4689,8 @@ function renderMetaContent(d, model) {
   // row's grid-column placement.
   var techVal = '';
   if (d.epoch !== undefined) techVal += '<span class="eg-epoch">' + copyableMonospace(String(d.epoch)) + '</span>';
-  if (d.self)      techVal += copyBtn('Self', d.self);
-  if (d.shortself) techVal += copyBtn('ShortSelf', d.shortself);
+  if (d.self)      techVal += copyBtn('Self', toRealURL(d.self));
+  if (d.shortself) techVal += copyBtn('ShortSelf', toRealURL(d.shortself));
   if (d.xid)       techVal += copyBtn('XID', d.xid);
   if (techVal) {
     html += '<div class="eg-row eg-technical">'
@@ -6913,7 +6938,7 @@ function syntaxHighlight(str) {
           var inner = m.slice(1, -1).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
           if (/^https?:\/\//.test(inner)) {
             var urlPath = inner.split('?')[0].split('#')[0].replace(/\/?\$details$/, '');
-            var href, target = '', onclick;
+            var href, target = '', onclick, displayM = m;
             if (urlPath.indexOf(svBase) === 0) {
               // Same-server: build SPA href for right-click "open in new
               // tab" support. Set apiURL to the link's own raw value
@@ -6940,13 +6965,22 @@ function syntaxHighlight(str) {
               // real href above, instead of always intercepting the click.
               var navExpr = 'navigateJsonUrl(\'' + inner.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')';
               onclick = guardedOnclick(navExpr);
+              // When browsing through the proxy, the underlying data (and
+              // thus `inner`) contains our local /xrproxy/<base64> URL —
+              // show the real remote URL instead (display text only; href/
+              // onclick above must keep using the proxy URL so clicking
+              // still navigates correctly).
+              var realInner = toRealURL(inner);
+              if (realInner !== inner) {
+                displayM = '"' + realInner.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '"';
+              }
             } else {
               href    = inner;
               target  = ' target="_blank" rel="noopener"';
               onclick = '';
             }
             var attrOnclick = onclick ? ' onclick="' + esc(onclick) + '"' : '';
-            return '<span class="' + c + '"><a class="json-url" href="' + esc(href) + '"' + target + attrOnclick + '>' + m + '</a></span>';
+            return '<span class="' + c + '"><a class="json-url" href="' + esc(href) + '"' + target + attrOnclick + '>' + displayM + '</a></span>';
           }
         }
 
