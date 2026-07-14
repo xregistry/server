@@ -394,9 +394,7 @@ func main() {
 	log.SetVerbose(0)
 
 	if tmp := os.Getenv("XR_VERBOSE"); tmp != "" {
-		if tmpInt, err := strconv.Atoi(tmp); err == nil {
-			VerboseCount = tmpInt
-		}
+		log.AddVerboseString(tmp)
 	}
 
 	serverCmd := setupCmds()

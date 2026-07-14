@@ -27,7 +27,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -44,7 +44,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-04-11T20:40:37.146317496Z",
   "modifiedat": "2025-04-11T20:40:37.146317496Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `)
 
@@ -60,7 +60,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `)
@@ -74,13 +74,13 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files", ``, 204, ``)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"ancestor": null}`, 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"ancestorid": null}`, 201, `{
   "fileid": "f1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f1",
@@ -89,7 +89,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -97,20 +97,20 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": ""}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestorid": ""}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"ancestor\" for \"/dirs/d1/files/f2\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
+  "title": "The attribute \"ancestorid\" for \"/dirs/d1/files/f2\" is not valid: value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$.",
   "subject": "/dirs/d1/files/f2",
   "args": {
     "error_detail": "value \"\" must match: ^[a-zA-Z0-9_][a-zA-Z0-9_.\\-~:@]{0,127}$",
-    "name": "ancestor"
+    "name": "ancestorid"
   },
   "source": "e4e59b8a76c4:registry:shared_model:71"
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "vx"}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestorid": "vx"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"vx\" cannot be found.",
@@ -123,7 +123,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "1"}`, 201, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestorid": "1"}`, 201, `{
   "fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f2",
@@ -132,7 +132,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -140,7 +140,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "1"}`, 200, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestorid": "1"}`, 200, `{
   "fileid": "f2",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f2",
@@ -149,7 +149,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -157,7 +157,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", `{"ancestorid": "2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"2\" cannot be found.",
@@ -170,7 +170,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2", `{"ancestor": "2"}`, 400,
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f2", `{"ancestorid": "2"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/d1/files/f2\", the \"version\" with a \"versionid\" value of \"2\" cannot be found.",
@@ -183,7 +183,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f3", `{"ancestor": "1"}`, 201, `{
+	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f3", `{"ancestorid": "1"}`, 201, `{
   "fileid": "f3",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/f3",
@@ -192,7 +192,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
@@ -200,7 +200,7 @@ func TestAncestorBasic(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "POST", "/dirs/d1/files/f3", `{"ancestor": "2"}`, 201, `{
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f3", `{"ancestorid": "2"}`, 201, `{
   "fileid": "f3",
   "versionid": "2",
   "self": "http://localhost:8181/dirs/d1/files/f3/versions/2",
@@ -209,7 +209,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "2"
+  "ancestorid": "2"
 }
 `)
 
@@ -225,7 +225,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "2"
+    "ancestorid": "2"
   },
   "4": {
     "fileid": "f3",
@@ -236,7 +236,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "3"
+    "ancestorid": "3"
   },
   "5": {
     "fileid": "f3",
@@ -247,15 +247,15 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "4"
+    "ancestorid": "4"
   }
 }
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f3/versions", `{
-  "5":{"createdat": "2023-01-01T12:00:00Z","ancestor":null},
-  "3":{"ancestor":null},
-  "4":{"ancestor":null}
+  "5":{"createdat": "2023-01-01T12:00:00Z","ancestorid":null},
+  "3":{"ancestorid":null},
+  "4":{"ancestorid":null}
 }`, 200, `{
   "3": {
     "fileid": "f3",
@@ -266,7 +266,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "5"
+    "ancestorid": "5"
   },
   "4": {
     "fileid": "f3",
@@ -277,7 +277,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "3"
+    "ancestorid": "3"
   },
   "5": {
     "fileid": "f3",
@@ -288,15 +288,15 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:03Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "2"
+    "ancestorid": "2"
   }
 }
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f3/versions", `{
-  "5": {"createdat":null, "ancestor":null},
-  "4":{ "ancestor": "1"},
-  "3":{"ancestor": null}
+  "5": {"createdat":null, "ancestorid":null},
+  "4":{ "ancestorid": "1"},
+  "3":{"ancestorid": null}
 }`, 200, `{
   "3": {
     "fileid": "f3",
@@ -307,7 +307,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "4"
+    "ancestorid": "4"
   },
   "4": {
     "fileid": "f3",
@@ -318,7 +318,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "1"
+    "ancestorid": "1"
   },
   "5": {
     "fileid": "f3",
@@ -329,13 +329,13 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "3"
+    "ancestorid": "3"
   }
 }
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f4/versions", `{
-  "1": {"ancestor":"3"}, "2":{}, "3":{}
+  "1": {"ancestorid":"3"}, "2":{}, "3":{}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2, 3.",
@@ -348,7 +348,7 @@ func TestAncestorBasic(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f4/versions", `{
-  "1": {"ancestor":"2"}, "2":{}, "3":{}
+  "1": {"ancestorid":"2"}, "2":{}, "3":{}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2.",
@@ -361,8 +361,8 @@ func TestAncestorBasic(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f4/versions", `{
-  "1":{"ancestor":"2"}, "2":{"ancestor":"1"},
-  "3":{"ancestor":"4"}, "4":{"ancestor":"3"}
+  "1":{"ancestorid":"2"}, "2":{"ancestorid":"1"},
+  "3":{"ancestorid":"4"}, "4":{"ancestorid":"3"}
 }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f4\", the request would create a circular list of ancestors: 1, 2, 3, 4.",
@@ -386,7 +386,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "2"
+    "ancestorid": "2"
   },
   "3": {
     "fileid": "f3",
@@ -397,7 +397,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
-    "ancestor": "4"
+    "ancestorid": "4"
   },
   "4": {
     "fileid": "f3",
@@ -408,7 +408,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
-    "ancestor": "4"
+    "ancestorid": "4"
   },
   "5": {
     "fileid": "f3",
@@ -419,7 +419,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:03Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
-    "ancestor": "3"
+    "ancestorid": "3"
   }
 }
 `)
@@ -435,7 +435,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "1"
+    "ancestorid": "1"
   },
   "2": {
     "fileid": "f5",
@@ -446,7 +446,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "1"
+    "ancestorid": "1"
   }
 }
 `)
@@ -461,7 +461,7 @@ func TestAncestorBasic(t *testing.T) {
   "isdefault": false,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `)
 
@@ -477,7 +477,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f6",
@@ -488,7 +488,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v3": {
     "fileid": "f6",
@@ -499,7 +499,7 @@ func TestAncestorBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "v2"
+    "ancestorid": "v2"
   }
 }
 `)
@@ -533,7 +533,7 @@ func TestAncestorWithSicky(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -605,10 +605,10 @@ func TestAncestorOrdering(t *testing.T) {
 	// Reverse the order of the timestamps, and clear ancestor
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{
   "versions": {
-    "v1": { "createdat": "2022-01-01T12:00:00", "ancestor": null },
-    "v2": { "createdat": "2023-01-01T12:00:00", "ancestor": null },
-    "V3": { "createdat": "2024-01-01T12:00:00", "ancestor": null },
-    "v4": { "createdat": "2025-01-01T12:00:00", "ancestor": null }
+    "v1": { "createdat": "2022-01-01T12:00:00", "ancestorid": null },
+    "v2": { "createdat": "2023-01-01T12:00:00", "ancestorid": null },
+    "V3": { "createdat": "2024-01-01T12:00:00", "ancestorid": null },
+    "v4": { "createdat": "2025-01-01T12:00:00", "ancestorid": null }
   }
 }`, 200, `*`)
 
@@ -619,10 +619,10 @@ func TestAncestorOrdering(t *testing.T) {
 	// Make it into a tree 1<-2,3,4 diff timestamps
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{
   "versions": {
-    "v1": { "createdat": "2025-01-01T12:00:00", "ancestor": "v1" },
-    "v2": { "createdat": "2023-01-01T12:00:00", "ancestor": "v1" },
-    "V3": { "createdat": "2024-01-01T12:00:00", "ancestor": "v1" },
-    "v4": { "createdat": "2022-01-01T12:00:00", "ancestor": "v1" }
+    "v1": { "createdat": "2025-01-01T12:00:00", "ancestorid": "v1" },
+    "v2": { "createdat": "2023-01-01T12:00:00", "ancestorid": "v1" },
+    "V3": { "createdat": "2024-01-01T12:00:00", "ancestorid": "v1" },
+    "v4": { "createdat": "2022-01-01T12:00:00", "ancestorid": "v1" }
   }
 }`, 200, `*`)
 
@@ -647,15 +647,15 @@ func TestAncestorOrdering(t *testing.T) {
 	// Deep tree and add a new more
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1", `{
   "versions": {
-    "v1": { "ancestor": "v1" },
-    "v2": { "ancestor": "v1" },
-    "V3": { "ancestor": "v2" },
-    "v4": { "ancestor": "V3" },
+    "v1": { "ancestorid": "v1" },
+    "v2": { "ancestorid": "v1" },
+    "V3": { "ancestorid": "v2" },
+    "v4": { "ancestorid": "V3" },
 
-    "v1.1.0": { "ancestor": "v1" },
-    "v1.1.1": { "ancestor": "v1.1.0" },
+    "v1.1.0": { "ancestorid": "v1" },
+    "v1.1.1": { "ancestorid": "v1.1.0" },
 
-    "v2.1.0": { "ancestor": "v2" }
+    "v2.1.0": { "ancestorid": "v2" }
   }
 }`, 200, `*`)
 
@@ -681,8 +681,8 @@ func TestAncestorRoots(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
   "versionid": "v1",
   "versions": {
-    "v1": { "createdat": "2025-01-01T12:00:00", "ancestor":"v1" },
-    "v2": { "createdat": "2024-01-01T12:00:00", "ancestor":"v2" }
+    "v1": { "createdat": "2025-01-01T12:00:00", "ancestorid":"v1" },
+    "v2": { "createdat": "2024-01-01T12:00:00", "ancestorid":"v2" }
   }
 }`, 201, `*`)
 
@@ -713,7 +713,7 @@ func TestAncestorRoots(t *testing.T) {
 
 	// convert a root into a leaf and try again
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v2",
-		`{"ancestor":"v1"}`, 200, `*`)
+		`{"ancestorid":"v1"}`, 200, `*`)
 
 	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
 	XNoErr(t, err)
@@ -727,7 +727,7 @@ func TestAncestorRoots(t *testing.T) {
 
 	// make sure an add of a root fails
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3",
-		`{"ancestor":"v3"}`, 400,
+		`{"ancestorid":"v3"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -740,7 +740,7 @@ func TestAncestorRoots(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v3",
-		`{"ancestor":"v3"}`, 400,
+		`{"ancestorid":"v3"}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -753,7 +753,7 @@ func TestAncestorRoots(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions",
-		`{"v3":{"ancestor":"v3"}}`, 400,
+		`{"v3":{"ancestorid":"v3"}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -766,7 +766,7 @@ func TestAncestorRoots(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1",
-		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
+		`{"versions":{"v3":{"ancestorid":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -779,7 +779,7 @@ func TestAncestorRoots(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions":{"v3":{"ancestor":"v3"}}}`, 400,
+		`{"versions":{"v3":{"ancestorid":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
@@ -792,7 +792,7 @@ func TestAncestorRoots(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2",
-		`{"versions":{"v1":{"ancestor":"v1"},"v3":{"ancestor":"v3"}}}`, 400,
+		`{"versions":{"v1":{"ancestorid":"v1"},"v3":{"ancestorid":"v3"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f2\", which is not allowed for \"files\".",
@@ -815,11 +815,11 @@ func TestAncestorCircles(t *testing.T) {
 	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions":{"v1":{"ancestor":"v1"},"v2":{"ancestor":"v1"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v1"},"v2":{"ancestorid":"v1"}}}`,
 		201, `*`)
 
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1",
-		`{"versions":{"v1":{"ancestor":"v2"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v2"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f1\", the request would create a circular list of ancestors: v1, v2.",
@@ -832,7 +832,7 @@ func TestAncestorCircles(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2",
-		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v2"},"v2":{"ancestorid":"v1"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f2\", the request would create a circular list of ancestors: v1, v2.",
@@ -845,8 +845,8 @@ func TestAncestorCircles(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2",
-		`{"versions":{"v1":{"ancestor":"v2"},"v2":{"ancestor":"v1"},
-		              "v3":{"ancestor":"v4"},"v4":{"ancestor":"v3"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v2"},"v2":{"ancestorid":"v1"},
+		              "v3":{"ancestorid":"v4"},"v4":{"ancestorid":"v3"}}}`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#ancestor_circular_reference",
   "title": "For \"/dirs/d1/files/f2\", the request would create a circular list of ancestors: v1, v2, v3, v4.",
@@ -877,8 +877,8 @@ func TestAncestorMaxVersions(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
   "versionid": "v1",
   "versions":{
-    "v1":{"ancestor":"v2"},
-    "v2":{"ancestor":"v1"}
+    "v1":{"ancestorid":"v2"},
+    "v2":{"ancestorid":"v1"}
   }
 }`,
 		201, `{
@@ -890,7 +890,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -905,7 +905,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	XNoErr(t, reg.Model.VerifyAndSave(true))
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions":{"v1":{"ancestor":"v1"},"v2":{"ancestor":"v1"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v1"},"v2":{"ancestorid":"v1"}}}`,
 		200, `{
   "fileid": "f1",
   "versionid": "v2",
@@ -915,7 +915,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -924,7 +924,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions":{"v1":{"ancestor":"v3"},"v3":{"ancestor":"v3"}}}`,
+		`{"versions":{"v1":{"ancestorid":"v3"},"v3":{"ancestorid":"v3"}}}`,
 		200, `{
   "fileid": "f1",
   "versionid": "v2",
@@ -934,7 +934,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -954,7 +954,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 	// should delete v2, v3 becomes root
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"meta":{"defaultversionid":"v1","defaultversionsticky":true},
-          "versions":{"v1":{"ancestor":"v1"},"v3":{"ancestor":"v2"}}}`,
+          "versions":{"v1":{"ancestorid":"v1"},"v3":{"ancestorid":"v2"}}}`,
 		200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -964,7 +964,7 @@ func TestAncestorMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -990,7 +990,7 @@ func TestAncestorErrors(t *testing.T) {
 	_, err = gm.AddResourceModel("files", "file", 0, true, false)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
+		`{"versions": {"v1":{"ancestorid":"v2"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
@@ -1004,9 +1004,9 @@ func TestAncestorErrors(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions": {"v1":{"ancestor":"v1"}}}`, 201, `*`)
+		`{"versions": {"v1":{"ancestorid":"v1"}}}`, 201, `*`)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{"versions": {"v1":{"ancestor":"v2"}}}`, 400,
+		`{"versions": {"v1":{"ancestorid":"v2"}}}`, 400,
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/d1/files/f1\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
@@ -1025,7 +1025,7 @@ func VAS2String(vas []*registry.VersionAncestor) string {
 	res := ""
 	for _, va := range vas {
 		// Pos, 0=root, 1=middle, 2=leaf
-		res += fmt.Sprintf("(%s->%s,%s)", va.VID, va.Ancestor, va.Pos[:1])
+		res += fmt.Sprintf("(%s->%s,%s)", va.VID, va.AncestorID, va.Pos[:1])
 	}
 	return res
 }

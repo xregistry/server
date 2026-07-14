@@ -466,6 +466,16 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
    boundary rather than following raw row position across the whole
    table. See plan.md "Property table categories". */
 .xr-table-props .xr-row-band td { background: #fafbfc; }
+/* Dirty/changed attribute — in Edit mode, marks a row whose value differs
+   from its pristine snapshot (_dataEditSrc), i.e. exactly what would be
+   sent in a PATCH. Amber accent so it's clearly distinct from zebra
+   banding (which can be present on the same row simultaneously) — matches
+   .xr-row-band's specificity (two classes + element) so the dirty
+   background reliably wins over the zebra background on banded rows too,
+   instead of only showing on unbanded ("every other") rows.
+*/
+.xr-row-dirty td:first-child { color: #92610a; border-left: 3px solid #e0a020; }
+.xr-table-props .xr-row-dirty td { background: #fff8ea; }
 /* Category divider row — a slim, unbanded label row splitting spec-defined
    attributes into groups (Identity/Description/Versioning & State/Content/
    Timestamps), with non-spec/custom attrs always in a final "Extensions"
@@ -2030,6 +2040,218 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   .editorBtn:disabled { opacity: 0.4 ; cursor: not-allowed ; }
   .editorBtn:disabled:hover { background: inherit ; color: white ; }
   .editorBtnSmall { padding: 0 8px ; line-height: 1.4 ; }
+  .editorBtnDanger { background: #a00 ; border-color: #a00 ; }
+  .editorBtnDanger:hover { background: #c4c4c4 ; color: black ; }
+  #dataSavePutBtn, #dataSavePatchBtn { background: #2060a0 ; border-color: #2060a0 ; }
+  #dataSavePutBtn:hover, #dataSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
+  #dataUndoBtn { background: #a06020 ; border-color: #a06020 ; }
+  #dataUndoBtn:hover { background: #c4c4c4 ; color: black ; }
+  .xr-edit-input {
+    border: 1px solid #ccc ;
+    border-radius: 4px ;
+    padding: 2px 6px ;
+    font-size: 13px ;
+    font-family: inherit ;
+    box-sizing: border-box ;
+  }
+  /* Hide the native up/down spinner on number inputs (integer/decimal
+     attributes) — purely cosmetic clutter here since values are typed or
+     pasted, not incremented/decremented one unit at a time. */
+  input.xr-edit-input[type="number"] { -moz-appearance: textfield ; }
+  input.xr-edit-input[type="number"]::-webkit-outer-spin-button,
+  input.xr-edit-input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none ; margin: 0 ;
+  }
+  /* Text/number/select inputs stretch to fill the Value column (the
+     Property table's label column is a fixed 200px — see
+     .xr-table-props above — so the value cell has real room to give).
+     Checkboxes stay their natural small size. */
+  input.xr-edit-input:not([type="checkbox"]),
+  select.xr-edit-input { width: 100% ; }
+  .xr-edit-input:focus { border-color: #2060a0 ; outline: none ; }
+  /* Boolean checkbox edit widget — labels the checkbox with the value it'll
+     produce when checked, since a bare checkbox with no on-screen label
+     gives no hint what "checked" means for a given attribute. */
+  .xr-bool-edit {
+    display: inline-flex ; align-items: center ; gap: 4px ; cursor: pointer ;
+    font-size: 13px ; color: #444 ;
+  }
+  .xr-bool-edit input.xr-edit-input { width: auto ; }
+  /* ---- Complex (map/object/array) attribute editors — Full Data Edit
+     Mode's edit-mode rendering of map/object/array-typed attributes (see
+     renderEditableComplexValue() in app.js). Mirrors the read-only
+     .vt-obj/.vt-arr tree's compact key/value layout, but each row also
+     carries an editable input + a remove button. */
+  .xr-map-editor, .xr-arr-editor, .xr-obj-editor {
+    display: flex ; flex-direction: column ; gap: 4px ;
+  }
+  .xr-map-row, .xr-arr-row, .xr-obj-row {
+    display: flex ; align-items: center ; gap: 6px ;
+  }
+  /* Scalar map/object rows now wrap their key in the same *-row-head
+     column (with its border-right divider) that complex rows already
+     use — for that border to run the value's *full* height (not just
+     the height of the key label) whenever the value stacks a type pill
+     above its input, the row itself must stretch its children instead
+     of centering them (which is otherwise the default for the shared
+     rule above). Array rows already use flex-start (see below) and
+     don't need this. */
+  .xr-map-row, .xr-obj-row {
+    align-items: stretch ;
+  }
+  /* Array rows specifically: top-align (not center) so the [X] remove
+     button sits next to the *start* of its entry field rather than
+     drifting to the vertical middle whenever the value wraps to multiple
+     lines — otherwise it's ambiguous which button belongs to which item.
+     A thin divider between items (including before the "+ Add Item" row,
+     but not after it) keeps consecutive entries from visually blending
+     together. */
+  .xr-arr-row {
+    align-items: flex-start ; padding-bottom: 6px ; margin-bottom: 6px ;
+    border-bottom: 1px solid #e5e5e5 ;
+  }
+  .xr-arr-row.xr-arr-addrow {
+    border-bottom: none ; padding-bottom: 0 ; margin-bottom: 0 ;
+  }
+  .xr-arr-row .vt-arr-idx { padding-top: 5px ; }
+  /* A thin divider between map entries (including before the "+ Add" row,
+     but not after it) — same treatment as array rows above, and matters
+     most once the value is itself complex (a whole sub-editor with
+     several rows), where consecutive entries would otherwise visually
+     blend together with nothing marking where one ends and the next
+     begins. Object rows get the same treatment, for the same reason. */
+  .xr-map-row, .xr-obj-row {
+    padding-bottom: 6px ; margin-bottom: 6px ; border-bottom: 1px solid #e5e5e5 ;
+  }
+  .xr-map-row.xr-map-addrow, .xr-obj-row.xr-obj-addrow {
+    border-bottom: none ; padding-bottom: 0 ; margin-bottom: 0 ;
+  }
+  .xr-map-key, .xr-obj-key {
+    font-weight: bold ; color: #444 ; white-space: nowrap ;
+  }
+  /* Editable map key (see dataEditMapRenameKey() in app.js) — a fixed,
+     modest width (not the general width:100% edit-input rule) so it reads
+     like a label, not a full-width value field. */
+  .xr-map-key .xr-map-key-input { width: 140px ; flex: 0 0 auto ; }
+  .xr-map-val, .xr-arr-val, .xr-obj-val { flex: 1 ; min-width: 0 ; }
+  .xr-map-val .xr-edit-input, .xr-arr-val .xr-edit-input, .xr-obj-val .xr-edit-input,
+  .xr-map-addrow .xr-edit-input { width: 100% ; }
+  /* Complex (map/object/array) *value* nested one level down inside a map
+     entry or array item — placed to the *right* of the key/index (not
+     squeezed inline like a scalar, and not dropped fully below either),
+     top-aligned with the key/index so it doesn't drift down. The
+     key/index and its remove button form their own narrow left-hand
+     column (index on top, remove button directly below it, not beside
+     it) so the button stays visually anchored to what it removes even
+     though the value to its right can be several rows tall. `stretch`
+     (not flex-start) makes both columns match the row's full height, so
+     the divider — a border on the *header* column, not the value — always
+     runs the full height of the row instead of stopping short whenever
+     the value happens to be shorter than the header column. */
+  .xr-map-row-complex, .xr-arr-row-complex, .xr-obj-row-complex {
+    flex-direction: row ; align-items: stretch ; gap: 6px ;
+  }
+  .xr-map-row-head, .xr-arr-row-head, .xr-obj-row-head {
+    display: flex ; flex-direction: row ; align-items: flex-start ; gap: 6px ;
+    flex: 0 0 auto ; padding-right: 10px ; border-right: 2px solid #ddd ;
+  }
+  /* Shared small remove-button treatment for both map entries and array
+     items — the "X" sits directly next to the key/index it belongs to
+     (map: to its left; array: to its right of "[idx]") rather than
+     stacked below or drifting to the far end of the row. Narrower
+     horizontal padding (not a CSS transform/scale, which distorts and
+     blurs the glyph) keeps it visually smaller while its height still
+     matches the adjacent [#]/key label exactly.
+  */
+  .xr-rm-btn-small {
+    padding: 0 4px ;
+  }
+  /* Type pill (typePillHtml() in app.js) — a small faded one-line label
+     shown directly above a value's editor, since the Property/Meta
+     tables have no separate "Type" column. Kept muted/small so it doesn't
+     compete visually with the actual value below it. */
+  .xr-type-pill {
+    display: block ; width: fit-content ; font-size: 10px ; color: #999 ;
+    background: #f4f4f4 ; border-radius: 3px ; padding: 1px 6px ;
+    margin-bottom: 3px ; letter-spacing: 0.2px ;
+  }
+  .xr-map-addrow { gap: 6px ; }
+  /* "+ Add Entry/Item/Key" split button — same two-zone pattern as the
+     filter builder's "+ Add (AND) to" target picker (.fb-and-split): the
+     button itself, plus a compact type <select> overlaid on its right
+     edge, so an "any"-typed item's shape can be chosen right in the
+     button rather than as a separate floating control. Wider than the
+     filter builder's version (37px, just "F1"/"F2") since this shows full
+     type names (e.g. "uinteger", "timestamp"). See
+     renderComplexAddButtonHtml() in app.js. */
+  .xr-add-split {
+    position: relative ; display: inline-flex ; min-width: 190px ;
+  }
+  .xr-add-split-btn {
+    flex: 1 ; text-align: left ; padding-right: 90px ;
+  }
+  .xr-add-split-type {
+    position: absolute ; top: 1px ; right: 1px ; bottom: 1px ; z-index: 2 ;
+    width: 82px ; font-size: 11px ; padding: 0 2px ; cursor: pointer ;
+    border: none ; border-left: 1px solid #ccc ; border-radius: 0 7px 7px 0 ;
+    background: #eef2fa ; color: #2c5710 ;
+  }
+  .xr-map-val-indent {
+    flex: 1 ; min-width: 0 ; padding-left: 4px ;
+  }
+  /* "Items are: <select>" hint control (itemTypeHintSelectorHtml() in
+     app.js) — shown next to a map/array's "+ Add" button whenever its
+     item type is still "any"/undeclared, letting the user lock the
+     container down to a single homogeneous item type going forward.
+     Kept small/muted so it reads as a secondary option, not competing
+     with the primary Add button. */
+  .xr-item-hint {
+    font-size: 11px ; color: #888 ; margin-left: 8px ;
+  }
+  .xr-item-hint-select {
+    font-size: 11px ; padding: 1px 3px ; margin-left: 3px ;
+  }
+  /* Timestamp edit widget (renderTimestampInputHtml() in app.js) — input +
+     "Now" button. Without this, the input's own width:100% rule (above)
+     pushes the button off the visible Value column entirely; flex lets the
+     input shrink to make room instead. */
+  .xr-ts-edit {
+    display: flex ; align-items: center ; gap: 6px ; width: 100% ;
+  }
+  .xr-ts-edit input.xr-edit-input {
+    flex: 1 1 auto ; width: auto ; min-width: 0 ;
+  }
+  .xr-ts-edit .editorBtnSmall { flex: 0 0 auto ; }
+  /* Non-strict enum combo (input + suggestions caret button) — see
+     renderEnumInputHtml()/toggleEnumDropdown()/pickEnumValue() in app.js.
+     Same input+button flex layout as .xr-ts-edit above. The suggestion
+     list itself is a single shared #xr-enum-dropdown-portal element
+     appended directly to <body> and positioned with `position: fixed`
+     (see positionEnumDropdownPortal()) — not anchored under this combo —
+     so it's never clipped by a scrollable/overflow-hidden ancestor (e.g.
+     when the field is near the bottom of the visible Properties table). */
+  .xr-enum-combo {
+    display: flex ; align-items: center ; gap: 6px ; width: 100% ;
+  }
+  .xr-enum-combo input.xr-edit-input {
+    flex: 1 1 auto ; width: auto ; min-width: 0 ;
+  }
+  .xr-enum-caret-btn {
+    flex: 0 0 auto ; font-size: 9px ; padding: 2px 6px ;
+  }
+  .xr-enum-dropdown {
+    background: #fff ; border: 1px solid #ccc ; border-radius: 4px ;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18) ;
+    max-height: 200px ; overflow-y: auto ; min-width: 140px ;
+  }
+  .xr-enum-dropdown-portal {
+    position: fixed ; z-index: 9999 ;
+  }
+  .xr-enum-dropdown-item {
+    padding: 4px 10px ; cursor: pointer ; font-size: 12px ; white-space: nowrap ;
+  }
+  .xr-enum-dropdown-item:hover { background: #eef4fb ; }
+  .xr-enum-dropdown-item-selected { font-weight: bold ; background: #f5f5f5 ; }
   #saveBtn { background: #2060a0 ; border-color: #2060a0 ; }
   #saveBtn:hover { background: #c4c4c4 ; color: black ; }
   #undoBtn { background: #a06020 ; border-color: #a06020 ; }

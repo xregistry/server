@@ -419,7 +419,7 @@ var OrderedSpecProps = []*Attribute{
 		},
 	},
 	{
-		Name:      "ancestor",
+		Name:      "ancestorid",
 		Type:      STRING,
 		MatchCase: true,
 		Required:  true,

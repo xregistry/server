@@ -232,7 +232,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-06-17T01:30:46.61369913Z",
   "modifiedat": "2026-06-17T01:30:46.61369913Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "myint": 5
 }
 `)
@@ -248,7 +248,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-06-17T01:30:46.61369913Z",
   "modifiedat": "2026-06-17T01:30:46.61369913Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "myint": 5
 }
 `)
@@ -299,7 +299,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
     "isdefault": false,
     "createdat": "2026-06-18T17:36:37.441821397Z",
     "modifiedat": "2026-06-18T17:36:37.574269417Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "myint": 5,
     "mystr": "hello"
   },
@@ -312,7 +312,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-06-18T17:36:37.493260018Z",
     "modifiedat": "2026-06-18T17:36:37.574269417Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "myint": 5,
     "mystr": "hello"
   }
@@ -403,7 +403,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-06-17T14:54:56.889629554Z",
     "modifiedat": "2026-06-17T14:54:56.889629554Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "myint": 3,
     "myobj": {
       "intobj": {
@@ -428,7 +428,7 @@ func TestConstraintsMatchVersions(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-06-17T14:54:56.889629554Z",
     "modifiedat": "2026-06-17T14:54:56.889629554Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "myint": 3,
     "myobj": {
       "intobj": {
@@ -942,8 +942,8 @@ func TestConstraintsGroupTypeErrors(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1830,7 +1830,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
           "isdefault": true,
           "createdat": "2026-06-22T20:37:39.977265265Z",
           "modifiedat": "2026-06-22T20:37:39.977265265Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "myobj": {
             "objstr": "f1.myobj.objstr"
           },

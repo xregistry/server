@@ -72,7 +72,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/bars/b1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/bars/b1/versions",
@@ -98,7 +98,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "test": "foo",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/ff1/meta",
@@ -134,7 +134,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "barbase64": "",
 
       "metaurl": "http://localhost:8181/dirs/d1/bars/b1/meta",
@@ -162,7 +162,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:01Z",
           "modifiedat": "2024-01-01T12:00:01Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "barbase64": ""
         }
       },
@@ -181,7 +181,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "test": "foo",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/ff1/meta",
@@ -209,7 +209,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "test": "foo"
         }
       },
@@ -231,7 +231,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "foo": "test",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -251,7 +251,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "foo": "test",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -271,7 +271,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "foo": "test",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -291,7 +291,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "foo2": "test2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -310,7 +310,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "foo2": "test2"
 }
 `)
@@ -326,7 +326,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "2",
+    "ancestorid": "2",
     "foo3": "test3"
   }
 }
@@ -342,7 +342,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "2",
+  "ancestorid": "2",
   "foo3_1": "test3.1"
 }
 `)
@@ -357,7 +357,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "3",
+  "ancestorid": "3",
   "foo4": "test4"
 }
 `)
@@ -413,7 +413,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
     "meta": {
@@ -444,7 +444,7 @@ func TestHTTPReadOnlyResource(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -598,7 +598,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -622,7 +622,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 			"xRegistry-isdefault: false",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"Content-Disposition:f1",
@@ -643,7 +643,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"Content-Disposition:f1",
 		},
@@ -719,7 +719,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 2",
+			"xRegistry-ancestorid: 2",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
 			"Content-Disposition:f1",
 		},
@@ -738,7 +738,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 			"xRegistry-isdefault: false",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 3",
+			"xRegistry-ancestorid: 3",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/4",
 			"Content-Disposition:f1",
 		},
@@ -759,7 +759,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -782,7 +782,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
   "isdefault": false,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "2"
+  "ancestorid": "2"
 }
 `,
 	})
@@ -809,7 +809,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "3",
+  "ancestorid": "3",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -839,7 +839,7 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "2",
+  "ancestorid": "2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -876,7 +876,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -899,7 +899,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -920,7 +920,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": "hello",
 
@@ -948,7 +948,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -971,7 +971,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -992,7 +992,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": "\"hel\nlo",
 
@@ -1021,7 +1021,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1044,7 +1044,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -1066,7 +1066,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": {
     "foo": "bar"
@@ -1097,7 +1097,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1120,7 +1120,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -1144,7 +1144,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": [
     "hello",
@@ -1177,7 +1177,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1200,7 +1200,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -1220,7 +1220,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": 123,
 
@@ -1248,7 +1248,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1270,7 +1270,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "ImhlbGxvIgo=",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1298,7 +1298,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1320,7 +1320,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "aGVsbG8K",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1348,7 +1348,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1370,7 +1370,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "eyAiZm9vIjoiYmFyIjogfQo=",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1398,7 +1398,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1420,7 +1420,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1448,7 +1448,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1470,7 +1470,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1498,7 +1498,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1520,7 +1520,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1568,7 +1568,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": "",
 
@@ -1592,7 +1592,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f11/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f11/versions",
 			"xRegistry-versionscount:1",
@@ -1622,7 +1622,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f12/meta",
@@ -1645,7 +1645,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f12/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f12/versions",
 			"xRegistry-versionscount:1",
@@ -1677,7 +1677,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f13/meta",
@@ -1700,7 +1700,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f13/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f13/versions",
 			"xRegistry-versionscount:1",
@@ -1730,7 +1730,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f14/meta",
@@ -1753,7 +1753,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f14/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f14/versions",
 			"xRegistry-versionscount:1",
@@ -1786,7 +1786,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f15/meta",
@@ -1809,7 +1809,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f15/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f15/versions",
 			"xRegistry-versionscount:1",
@@ -1839,7 +1839,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f16/meta",
@@ -1862,7 +1862,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f16/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f16/versions",
 			"xRegistry-versionscount:1",
@@ -1893,7 +1893,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "foo/bar",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f17/meta",
@@ -1916,7 +1916,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f17/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f17/versions",
 			"xRegistry-versionscount:1",
@@ -1937,7 +1937,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "foo/bar",
   "filebase64": "aGUJbGxv",
 
@@ -1966,7 +1966,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f18/versions",
@@ -1988,7 +1988,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f18/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f18/versions",
 			"xRegistry-versionscount:1",
@@ -2008,7 +2008,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "aGUJbGxv",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2036,7 +2036,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f18/versions",
@@ -2058,7 +2058,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f18/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f18/versions",
 			"xRegistry-versionscount:1",
@@ -2078,7 +2078,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "Zm9v",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2105,7 +2105,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2128,7 +2128,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f18/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f18/versions",
 			"xRegistry-versionscount:1",
@@ -2149,7 +2149,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
   "file": "foo",
 
@@ -2178,7 +2178,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "foo/bar",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2201,7 +2201,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f18/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f18/versions",
 			"xRegistry-versionscount:1",
@@ -2222,7 +2222,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "foo/bar",
   "filebase64": "YmFy",
 
@@ -2250,7 +2250,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "YmFy",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2273,7 +2273,7 @@ func TestHTTPContent(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:02Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f18/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f18/versions",
 			"xRegistry-versionscount:1",
@@ -2293,7 +2293,7 @@ func TestHTTPContent(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "YmFy",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f18/meta",
@@ -2327,7 +2327,7 @@ func TestHTTPContent2(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -2353,7 +2353,7 @@ func TestHTTPContent2(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -2377,7 +2377,7 @@ func TestHTTPContent2(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -2405,7 +2405,7 @@ func TestHTTPContent2(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "my/format",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -2433,7 +2433,7 @@ func TestHTTPContent2(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -2472,7 +2472,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2487,7 +2487,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:03Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -2502,7 +2502,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "contenttype": "application/json",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
@@ -2518,7 +2518,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f4/versions",
@@ -2558,7 +2558,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "fv",
@@ -2569,7 +2569,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v3": {
     "fileid": "fv",
@@ -2580,7 +2580,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "v2",
+    "ancestorid": "v2",
     "contenttype": "application/json"
   },
   "v4": {
@@ -2592,7 +2592,7 @@ func TestHTTPContent2(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "v3"
+    "ancestorid": "v3"
   }
 }
 `})
@@ -2644,7 +2644,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f22/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f22/versions",
@@ -2700,7 +2700,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f2/versions",
@@ -2735,7 +2735,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "foo",
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f2/versions",
@@ -2802,7 +2802,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "foo",
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f2/versions",
@@ -2820,7 +2820,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     },
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f3/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f3/versions",
@@ -2912,7 +2912,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "description": "my f4",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f4/meta",
@@ -2938,7 +2938,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/dir1/files/f4/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/dir1/files/f4/versions",
 			"xRegistry-versionscount:1",
@@ -2973,7 +2973,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "description": "my f5",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f5/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f5/versions",
@@ -3000,7 +3000,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-description:my f6",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Length:5",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f6/versions/1",
 			"Content-Disposition:f6",
@@ -3027,7 +3027,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-description:my f61",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Length:5",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f61/versions/1",
 			"Content-Disposition:f61",
@@ -3054,7 +3054,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-description:my f62",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Length:5",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f62/versions/1",
 			"Content-Disposition:f62",
@@ -3081,7 +3081,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-description:my f63",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Length:5",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f63/versions/1",
 			"Content-Disposition:f63",
@@ -3109,7 +3109,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-description:my f7",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: v1",
+			"xRegistry-ancestorid: v1",
 			"Content-Length:5",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f7/versions/v1",
 			"Content-Disposition:f7",
@@ -3157,7 +3157,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `,
 	})
@@ -3179,7 +3179,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `,
 	})
@@ -3225,7 +3225,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "2"
+    "ancestorid": "2"
   }
 }
 `,
@@ -3296,7 +3296,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `,
@@ -3323,7 +3323,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": false,
     "createdat": "2025-01-04T13:31:22.013338763Z",
     "modifiedat": "2025-01-04T13:31:22.013338763Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f99",
@@ -3334,7 +3334,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": false,
     "createdat": "2025-01-04T13:31:22.013338763Z",
     "modifiedat": "2025-01-04T13:31:22.013338763Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v9": {
     "fileid": "f99",
@@ -3345,7 +3345,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2025-01-04T13:31:22.013338763Z",
     "modifiedat": "2025-01-04T13:31:22.013338763Z",
-    "ancestor": "v2"
+    "ancestorid": "v2"
   }
 }
 `,
@@ -3398,7 +3398,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `,
@@ -3427,7 +3427,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f11",
@@ -3438,7 +3438,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `,
@@ -3467,7 +3467,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f12",
@@ -3478,7 +3478,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `,
@@ -3509,7 +3509,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "my v1",
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f12",
@@ -3521,7 +3521,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "my v2",
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v3": {
     "fileid": "f12",
@@ -3533,7 +3533,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "my v3",
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:02Z",
-    "ancestor": "v2"
+    "ancestorid": "v2"
   }
 }
 `,
@@ -3563,7 +3563,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
     "description": "my v4",
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v3"
+    "ancestorid": "v3"
   }
 }
 `,
@@ -3635,7 +3635,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-isdefault:true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 3",
+			"xRegistry-ancestorid: 3",
 			"Content-Length:2",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f13/versions/3",
 			"Content-Disposition:f13",
@@ -3659,7 +3659,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 			"xRegistry-isdefault:true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 3",
+			"xRegistry-ancestorid: 3",
 			"Content-Length:2",
 			"Content-Location:http://localhost:8181/dirs/dir1/files/f13/versions/4",
 			"Content-Disposition:f13",
@@ -3684,7 +3684,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "4"
+  "ancestorid": "4"
 }
 `,
 	})
@@ -3706,7 +3706,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "5"
+  "ancestorid": "5"
 }
 `,
 	})
@@ -3728,7 +3728,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "5"
+  "ancestorid": "5"
 }
 `,
 	})
@@ -4130,7 +4130,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4153,7 +4153,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "description": "testing",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4172,7 +4172,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4197,7 +4197,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   },
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4217,7 +4217,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "labels": {},
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4236,7 +4236,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4255,7 +4255,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "rext": "str",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4275,7 +4275,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4326,7 +4326,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4345,7 +4345,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "description": "testing",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4360,7 +4360,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4381,7 +4381,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   },
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4397,7 +4397,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "labels": {},
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4412,7 +4412,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4427,7 +4427,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "rext": "str"
 }
 `)
@@ -4443,7 +4443,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4484,7 +4484,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/dir2/files/f2/meta",
   "versionsurl": "http://localhost:8181/dirs/dir2/files/f2/versions",
@@ -4501,7 +4501,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `)
 
@@ -4514,7 +4514,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v3"
+  "ancestorid": "v3"
 }
 `)
 
@@ -4537,7 +4537,7 @@ func TestHTTPEpoch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4564,7 +4564,7 @@ func TestHTTPEpoch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4581,7 +4581,7 @@ func TestHTTPEpoch(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4611,7 +4611,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
   "description": "desc",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4629,7 +4629,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4649,7 +4649,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
   "description": "desc",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4663,7 +4663,7 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4690,7 +4690,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -4705,7 +4705,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f2/versions",
@@ -4728,7 +4728,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f3/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f3/versions",
@@ -4743,7 +4743,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/dir1/files/f4/meta",
     "versionsurl": "http://localhost:8181/dirs/dir1/files/f4/versions",
@@ -4781,7 +4781,7 @@ func TestHTTPResourceCollections(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4797,7 +4797,7 @@ func TestHTTPResourceCollections(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4813,7 +4813,7 @@ func TestHTTPResourceCollections(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v2"
+  "ancestorid": "v2"
 }
 `)
 
@@ -4829,7 +4829,7 @@ func TestHTTPResourceCollections(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -4862,7 +4862,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "ff1",
@@ -4873,7 +4873,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `)
@@ -4892,7 +4892,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "ff8",
@@ -4903,7 +4903,7 @@ func TestHTTPResourceCollections(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `)
@@ -4943,7 +4943,7 @@ func TestHTTPmeta(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -5335,7 +5335,7 @@ func TestHTTPURLs(t *testing.T) {
     "description": "my f1",
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "contenttype": "application/json",
 
     "metaurl": "http://localhost:8181/dirs/d2/files/f1/meta",
@@ -5363,7 +5363,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-description:my f1",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d2/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d2/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -5395,7 +5395,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-description:new f1",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl:http://localhost:8181/dirs/d2/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d2/files/f1/versions",
 			"xRegistry-versionscount:1",
@@ -5448,7 +5448,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-description:new v",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Content-Location:http://localhost:8181/dirs/d2/files/f1/versions/2",
 			"Content-Disposition:f1",
 			"Content-Type:text/plain; charset=utf-8",
@@ -5475,7 +5475,7 @@ func TestHTTPURLs(t *testing.T) {
   "description": "new v",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d2/files/f1/versions",
@@ -5502,7 +5502,7 @@ func TestHTTPURLs(t *testing.T) {
   "description": "update 2",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d2/files/f1/versions",
@@ -5532,7 +5532,7 @@ func TestHTTPURLs(t *testing.T) {
   },
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d2/files/f1/versions",
@@ -5562,7 +5562,7 @@ func TestHTTPURLs(t *testing.T) {
   "description": "be 3!",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "2",
+  "ancestorid": "2",
   "contenttype": "application/json"
 }
 `})
@@ -5587,7 +5587,7 @@ func TestHTTPURLs(t *testing.T) {
     "description": "new f1",
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "contenttype": "application/json"
   },
   "2": {
@@ -5603,7 +5603,7 @@ func TestHTTPURLs(t *testing.T) {
     },
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:03Z",
-    "ancestor": "1"
+    "ancestorid": "1"
   },
   "3": {
     "fileid": "f1",
@@ -5615,7 +5615,7 @@ func TestHTTPURLs(t *testing.T) {
     "description": "be 3!",
     "createdat": "2024-01-01T12:00:04Z",
     "modifiedat": "2024-01-01T12:00:04Z",
-    "ancestor": "2",
+    "ancestorid": "2",
     "contenttype": "application/json"
   }
 }
@@ -5674,7 +5674,7 @@ func TestHTTPURLs(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "3"
+    "ancestorid": "3"
   },
   "v5": {
     "fileid": "f1",
@@ -5685,7 +5685,7 @@ func TestHTTPURLs(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:00Z",
     "modifiedat": "2024-01-01T12:00:00Z",
-    "ancestor": "v4",
+    "ancestorid": "v4",
     "contenttype": "application/json"
   }
 }
@@ -5708,7 +5708,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-isdefault:true",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:00Z",
-			"xRegistry-ancestor: v4",
+			"xRegistry-ancestorid: v4",
 			"Content-Type:application/json",
 		},
 		ResBody: `hello`,
@@ -5731,7 +5731,7 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-isdefault:true",
 			"xRegistry-createdat:2024-01-01T12:00:00Z",
 			"xRegistry-modifiedat:2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: v4",
+			"xRegistry-ancestorid: v4",
 			"Content-Type:application/json",
 		},
 		ResBody: `test doc`,
@@ -5796,7 +5796,7 @@ func TestHTTPURLs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v4",
+  "ancestorid": "v4",
   "contenttype": "application/json"
 }
 `})
@@ -5822,7 +5822,7 @@ func TestHTTPURLs(t *testing.T) {
   "description": "cool one",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v4"
+  "ancestorid": "v4"
 }
 `})
 
@@ -5850,7 +5850,7 @@ func TestHTTPURLs(t *testing.T) {
   },
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v4"
+  "ancestorid": "v4"
 }
 `})
 
@@ -5920,7 +5920,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -5941,7 +5941,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -5956,7 +5956,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:02Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -5994,7 +5994,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
@@ -6015,7 +6015,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/datas/d1/versions",
@@ -6030,7 +6030,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/datas/d2/versions",
@@ -6047,7 +6047,7 @@ func TestHTTPGroupResources(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
       "versionsurl": "http://localhost:8181/dirs/d1/files/f4/versions",
@@ -6242,7 +6242,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -6270,7 +6270,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": ""
             }
           },
@@ -6359,7 +6359,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "description": "f1-1",
           "createdat": "2024-01-01T12:00:04Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -6388,7 +6388,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-1",
               "createdat": "2024-01-01T12:00:04Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": ""
             }
           },
@@ -6485,7 +6485,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "description": "f1-2.1",
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -6514,7 +6514,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-1.1",
               "createdat": "2024-01-01T12:00:04Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": ""
             },
             "2": {
@@ -6527,7 +6527,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-2.1",
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": ""
             }
           },
@@ -6569,7 +6569,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6589,7 +6589,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -6618,7 +6618,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1",
       "createdat": "2024-01-01T12:00:00Z",
       "modifiedat": "2024-01-01T12:00:00Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "filebase64": ""
     }
   },
@@ -6730,7 +6730,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.2",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6762,7 +6762,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.2",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6794,7 +6794,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.2",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6841,7 +6841,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.3",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -6887,7 +6887,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.3",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -6932,7 +6932,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.3",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -6965,7 +6965,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "f1.3",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -6994,7 +6994,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1.3",
       "createdat": "2024-01-01T12:00:00Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "filebase64": ""
     },
     "v2": {
@@ -7006,7 +7006,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "filebase64": ""
     }
   },
@@ -7038,7 +7038,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7086,7 +7086,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-12T16:26:27.288794251Z",
   "modifiedat": "2026-02-12T16:26:27.288794251Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7114,7 +7114,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1.3",
       "createdat": "2026-02-12T16:26:27.001277092Z",
       "modifiedat": "2026-02-12T16:26:27.336834373Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v2": {
       "fileid": "f1",
@@ -7125,7 +7125,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-12T16:26:27.288794251Z",
       "modifiedat": "2026-02-12T16:26:27.288794251Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v3": {
       "fileid": "f1",
@@ -7137,7 +7137,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f2.4",
       "createdat": "2026-02-12T16:26:27.336834373Z",
       "modifiedat": "2026-02-12T16:26:27.376620896Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v4": {
       "fileid": "f1",
@@ -7149,7 +7149,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "v4.1",
       "createdat": "2026-02-12T16:26:27.376620896Z",
       "modifiedat": "2026-02-12T16:26:27.376620896Z",
-      "ancestor": "v3"
+      "ancestorid": "v3"
     }
   },
   "versionscount": 4
@@ -7184,7 +7184,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "v5.1",
   "createdat": "2026-02-12T16:31:35.370152691Z",
   "modifiedat": "2026-02-12T16:31:35.370152691Z",
-  "ancestor": "v4",
+  "ancestorid": "v4",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7212,7 +7212,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1.3",
       "createdat": "2026-02-12T16:31:34.901558473Z",
       "modifiedat": "2026-02-12T16:31:35.286568036Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v2": {
       "fileid": "f1",
@@ -7224,7 +7224,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "fx",
       "createdat": "2026-02-12T16:31:35.237751308Z",
       "modifiedat": "2026-02-12T16:31:35.370152691Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v3": {
       "fileid": "f1",
@@ -7236,7 +7236,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f2.4",
       "createdat": "2026-02-12T16:31:35.286568036Z",
       "modifiedat": "2026-02-12T16:31:35.326168113Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v4": {
       "fileid": "f1",
@@ -7248,7 +7248,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "v4.1",
       "createdat": "2026-02-12T16:31:35.326168113Z",
       "modifiedat": "2026-02-12T16:31:35.326168113Z",
-      "ancestor": "v3"
+      "ancestorid": "v3"
     },
     "v5": {
       "fileid": "f1",
@@ -7260,7 +7260,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "v5.1",
       "createdat": "2026-02-12T16:31:35.370152691Z",
       "modifiedat": "2026-02-12T16:31:35.370152691Z",
-      "ancestor": "v4"
+      "ancestorid": "v4"
     }
   },
   "versionscount": 5
@@ -7290,7 +7290,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "fx",
   "createdat": "2026-02-12T16:33:53.596153856Z",
   "modifiedat": "2026-02-12T16:33:53.732072745Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7318,7 +7318,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1.3",
       "createdat": "2026-02-12T16:33:53.31233674Z",
       "modifiedat": "2026-02-12T16:33:53.647940214Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v2": {
       "fileid": "f1",
@@ -7330,7 +7330,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "fx",
       "createdat": "2026-02-12T16:33:53.596153856Z",
       "modifiedat": "2026-02-12T16:33:53.732072745Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     },
     "v3": {
       "fileid": "f1",
@@ -7342,7 +7342,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f2.4",
       "createdat": "2026-02-12T16:33:53.647940214Z",
       "modifiedat": "2026-02-12T16:33:53.688791373Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v4": {
       "fileid": "f1",
@@ -7354,7 +7354,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "v4.1",
       "createdat": "2026-02-12T16:33:53.688791373Z",
       "modifiedat": "2026-02-12T16:33:53.688791373Z",
-      "ancestor": "v3"
+      "ancestorid": "v3"
     },
     "v5": {
       "fileid": "f1",
@@ -7366,7 +7366,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "v5.1",
       "createdat": "2026-02-12T16:33:53.732072745Z",
       "modifiedat": "2026-02-12T16:33:53.773201679Z",
-      "ancestor": "v4"
+      "ancestorid": "v4"
     }
   },
   "versionscount": 5
@@ -7396,7 +7396,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "fx",
   "createdat": "2026-02-12T16:35:12.114437656Z",
   "modifiedat": "2026-02-12T16:35:12.335927456Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7440,7 +7440,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "fx",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7484,7 +7484,7 @@ func TestHTTPNestedResources(t *testing.T) {
   "description": "fx",
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -7648,7 +7648,7 @@ func TestHTTPVersionIDs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -7665,7 +7665,7 @@ func TestHTTPVersionIDs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -7680,7 +7680,7 @@ func TestHTTPVersionIDs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -7696,7 +7696,7 @@ func TestHTTPVersionIDs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -7712,7 +7712,7 @@ func TestHTTPVersionIDs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -7861,7 +7861,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "bar": "foo"
@@ -7892,7 +7892,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "bar": "foo"
@@ -7910,7 +7910,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "contenttype": "application/json",
           "file": "string",
 
@@ -7939,7 +7939,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "contenttype": "application/json",
               "file": "string"
             }
@@ -7955,7 +7955,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "contenttype": "application/json",
           "file": 42,
 
@@ -7984,7 +7984,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "contenttype": "application/json",
               "file": 42
             }
@@ -8000,7 +8000,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "contenttype": "application/json",
           "file": [
             "foo"
@@ -8031,7 +8031,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "contenttype": "application/json",
               "file": [
                 "foo"
@@ -8049,7 +8049,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "filebase64": "YmluYXJ5Cg==",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f5/meta",
@@ -8077,7 +8077,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": "YmluYXJ5Cg=="
             }
           },
@@ -8157,7 +8157,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "bar": "foo"
@@ -8188,7 +8188,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "bar": "foo"
@@ -8206,7 +8206,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "contenttype": "application/json",
           "file": "string",
 
@@ -8235,7 +8235,7 @@ func TestHTTPRecursiveData(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "contenttype": "application/json",
               "file": "string"
             }
@@ -8305,7 +8305,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "isdefault": true,
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:01Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
         "file": {
           "bar": "foo"
@@ -8336,7 +8336,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "isdefault": true,
             "createdat": "2024-01-01T12:00:01Z",
             "modifiedat": "2024-01-01T12:00:01Z",
-            "ancestor": "v1",
+            "ancestorid": "v1",
             "contenttype": "application/json",
             "file": {
               "bar": "foo"
@@ -8354,7 +8354,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "isdefault": true,
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:01Z",
-        "ancestor": "1",
+        "ancestorid": "1",
         "contenttype": "application/json",
         "file": "string",
 
@@ -8383,7 +8383,7 @@ func TestHTTPRecursiveData(t *testing.T) {
             "isdefault": true,
             "createdat": "2024-01-01T12:00:01Z",
             "modifiedat": "2024-01-01T12:00:01Z",
-            "ancestor": "1",
+            "ancestorid": "1",
             "contenttype": "application/json",
             "file": "string"
           }
@@ -8446,7 +8446,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "bar": "foo"
@@ -8477,7 +8477,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:01Z",
           "modifiedat": "2024-01-01T12:00:01Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "bar": "foo"
@@ -8495,7 +8495,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "1",
+      "ancestorid": "1",
       "contenttype": "application/json",
       "file": "string",
 
@@ -8524,7 +8524,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:01Z",
           "modifiedat": "2024-01-01T12:00:01Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "contenttype": "application/json",
           "file": "string"
         }
@@ -8562,7 +8562,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -8578,7 +8578,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "contenttype": "application/json",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -8598,7 +8598,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json",
     "file": {
       "bar": "foo"
@@ -8629,7 +8629,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "isdefault": true,
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:01Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
         "file": {
           "bar": "foo"
@@ -8647,7 +8647,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "contenttype": "application/json",
     "file": "string",
 
@@ -8676,7 +8676,7 @@ func TestHTTPRecursiveData(t *testing.T) {
         "isdefault": true,
         "createdat": "2024-01-01T12:00:01Z",
         "modifiedat": "2024-01-01T12:00:01Z",
-        "ancestor": "1",
+        "ancestorid": "1",
         "contenttype": "application/json",
         "file": "string"
       }
@@ -8706,7 +8706,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -8724,7 +8724,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "contenttype": "application/json",
   "file": {
     "bar": "foo"
@@ -8755,7 +8755,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "bar": "foo"
@@ -8783,7 +8783,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json"
   }
 }
@@ -8799,7 +8799,7 @@ func TestHTTPRecursiveData(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json",
     "file": {
       "bar": "foo"
@@ -8836,7 +8836,7 @@ func TestHTTPDefVer(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2024-01-01T12:00:01Z",
 			"xRegistry-modifiedat: 2024-01-01T12:00:01Z",
-			"xRegistry-ancestor: v1",
+			"xRegistry-ancestorid: v1",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -8873,7 +8873,7 @@ func TestHTTPDefVer(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-12-12T21:53:22.592492247Z",
     "modifiedat": "2024-12-12T21:53:22.592492247Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
@@ -9480,7 +9480,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "isdefault": true,
           "createdat": "YYYY-MM-DDTHH:MM:01Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -9508,7 +9508,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:01Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -9534,7 +9534,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
       "isdefault": true,
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "filebase64": "",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -9562,7 +9562,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "isdefault": true,
           "createdat": "YYYY-MM-DDTHH:MM:01Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": ""
         }
       },
@@ -9789,7 +9789,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2020-03-01T14:00:00Z",
 			"xRegistry-modifiedat: 2020-03-01T14:05:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -9819,7 +9819,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2020-03-01T14:00:00Z",
 			"xRegistry-modifiedat: 2020-03-01T15:00:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
@@ -9849,7 +9849,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2020-03-02T10:00:00Z",
 			"xRegistry-modifiedat: 2020-03-02T10:05:00Z",
-			"xRegistry-ancestor: 1",
+			"xRegistry-ancestorid: 1",
 			"Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/2",
 			"Content-Disposition:f1",
@@ -9877,7 +9877,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2020-04-01T12:00:00Z",
 			"xRegistry-modifiedat: 2020-04-01T12:10:00Z",
-			"xRegistry-ancestor: 2",
+			"xRegistry-ancestorid: 2",
 			"Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
 			"Content-Disposition:f1",
@@ -9904,7 +9904,7 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 			"xRegistry-isdefault: true",
 			"xRegistry-createdat: 2020-04-01T12:00:00Z",
 			"xRegistry-modifiedat: 2020-04-01T13:00:00Z",
-			"xRegistry-ancestor: 2",
+			"xRegistry-ancestorid: 2",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/3",
 			"Content-Disposition:f1",
 		},
@@ -10086,7 +10086,7 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:03Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -10146,7 +10146,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -10188,7 +10188,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -10263,7 +10263,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:05Z",
     "modifiedat": "2024-01-01T12:00:05Z",
-    "ancestor": "v4"
+    "ancestorid": "v4"
   }
 }
 `)
@@ -10297,7 +10297,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
     "isdefault": false,
     "createdat": "2024-01-01T12:00:06Z",
     "modifiedat": "2024-01-01T12:00:06Z",
-    "ancestor": "v5"
+    "ancestorid": "v5"
   }
 }
 `)
@@ -10328,7 +10328,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:07Z",
-  "ancestor": "v2"
+  "ancestorid": "v2"
 }
 `)
 
@@ -10358,7 +10358,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:05Z",
   "modifiedat": "2024-01-01T12:00:08Z",
-  "ancestor": "v4"
+  "ancestorid": "v4"
 }
 `)
 
@@ -10389,7 +10389,7 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:09Z",
   "modifiedat": "2024-01-01T12:00:09Z",
-  "ancestor": "v6"
+  "ancestorid": "v6"
 }
 `)
 

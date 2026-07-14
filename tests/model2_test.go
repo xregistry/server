@@ -410,8 +410,8 @@ func TestModelLabels(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1044,8 +1044,8 @@ func TestModelLabels(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1720,8 +1720,8 @@ func TestModelLabels(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -2173,7 +2173,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
   "obj": {
-    "ancestor": 8,
+    "ancestorid": 10,
     "capabilities": 12,
     "compatibility": 13,
     "compatibilityvalidated": 22,
@@ -2290,8 +2290,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
         "name": "obj",
         "type": "object",
         "attributes": {
-          "ancestor": {
-            "name": "ancestor",
+          "ancestorid": {
+            "name": "ancestorid",
             "type": "integer"
           },
           "capabilities": {
@@ -2619,8 +2619,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "name": "obj",
             "type": "object",
             "attributes": {
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "integer"
               },
               "capabilities": {
@@ -2893,8 +2893,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -2931,8 +2931,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "obj",
                 "type": "object",
                 "attributes": {
-                  "ancestor": {
-                    "name": "ancestor",
+                  "ancestorid": {
+                    "name": "ancestorid",
                     "type": "integer"
                   },
                   "capabilities": {
@@ -3275,8 +3275,8 @@ func TestModelUseSpecAttrs(t *testing.T) {
                 "name": "obj",
                 "type": "object",
                 "attributes": {
-                  "ancestor": {
-                    "name": "ancestor",
+                  "ancestorid": {
+                    "name": "ancestorid",
                     "type": "integer"
                   },
                   "capabilities": {
@@ -3476,7 +3476,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:02Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
       "obj": {
-        "ancestor": 8,
+        "ancestorid": 10,
         "capabilities": 12,
         "compatibility": 13,
         "compatibilityvalidated": 22,
@@ -3527,9 +3527,9 @@ func TestModelUseSpecAttrs(t *testing.T) {
           "isdefault": true,
           "createdat": "YYYY-MM-DDTHH:MM:02Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "obj": {
-            "ancestor": 8,
+            "ancestorid": 10,
             "capabilities": 12,
             "compatibility": 13,
             "compatibilityvalidated": 22,
@@ -3582,7 +3582,7 @@ func TestModelUseSpecAttrs(t *testing.T) {
             "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
             "readonly": false,
             "obj": {
-              "ancestor": 8,
+              "ancestorid": 10,
               "capabilities": 12,
               "compatibility": 13,
               "compatibilityvalidated": 22,
@@ -3640,9 +3640,9 @@ func TestModelUseSpecAttrs(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:02Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "obj": {
-                "ancestor": 8,
+                "ancestorid": 10,
                 "capabilities": 12,
                 "compatibility": 13,
                 "compatibilityvalidated": 22,
@@ -4185,8 +4185,8 @@ func TestModelCompatibleWith(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -4523,8 +4523,8 @@ func TestModelCompatibleWith(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -4860,8 +4860,8 @@ func TestModelCompatibleWith(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -5871,8 +5871,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -6540,8 +6540,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -7026,8 +7026,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -7782,8 +7782,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -8268,8 +8268,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -8930,8 +8930,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -9416,8 +9416,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -10078,8 +10078,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -10564,8 +10564,8 @@ func TestModelIncludes(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -11314,8 +11314,8 @@ func TestModelMissingFields(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true

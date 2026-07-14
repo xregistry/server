@@ -182,14 +182,14 @@ CREATE TABLE Versions (
     Path                VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
     Abstract            VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
 
-    Ancestor            VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
+    AncestorID          VARCHAR(65) NOT NULL COLLATE utf8mb4_bin,  # Generated
     CreatedAt           VARCHAR(255),           # Generated (for ancestor stuff
 
     PRIMARY KEY (SID),
     UNIQUE INDEX (ResourceSID, UID),
     UNIQUE INDEX (RegistrySID, SID),
     INDEX (ResourceSID),
-    INDEX (RegistrySID, ResourceSID, Ancestor)
+    INDEX (RegistrySID, ResourceSID, AncestorID)
 );
 
 CREATE TABLE Props (
@@ -227,8 +227,8 @@ CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
 FOR EACH ROW
 BEGIN
     IF (NEW.eType=$ENTITY_VERSION) THEN
-        IF (NEW.PropName='ancestor$DB_IN') THEN
-          UPDATE Versions SET Ancestor=NEW.PropValue
+        IF (NEW.PropName='ancestorid$DB_IN') THEN
+          UPDATE Versions SET AncestorID=NEW.PropValue
               WHERE SID=NEW.EntitySID $$
         END IF $$
         IF (NEW.PropName='createdat$DB_IN') THEN
@@ -545,13 +545,13 @@ SELECT
     v.ResourceSID AS ResourceSID,
     v.SID AS VersionSID,
     v.UID AS VersionUID,
-    v.Ancestor AS Ancestor,
+    v.AncestorID AS AncestorID,
     v.CreatedAt AS CTime,
     CASE
-        WHEN v.UID=v.Ancestor THEN '0-root'
+        WHEN v.UID=v.AncestorID THEN '0-root'
         WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
                     # v2.RegistrySID=v2.ResistrySID AND
-                    v2.ResourceSID=v.ResourceSID AND v2.Ancestor=v.UID)
+                    v2.ResourceSID=v.ResourceSID AND v2.AncestorID=v.UID)
              THEN '1-middle'
         ELSE '2-leaf'
     END AS Pos
@@ -564,18 +564,18 @@ WITH RECURSIVE cte (RegistrySID,ResourceSID,UID) AS
 (
     # Start with the roots and leaves, they can never be part of a circle
     SELECT v.RegistrySID,v.ResourceSID,v.UID FROM Versions AS v
-    WHERE v.Ancestor=UID OR
+    WHERE v.AncestorID=UID OR
         NOT EXISTS(SELECT 1 FROM Versions AS v2 WHERE
                    v2.RegistrySID=v.RegistrySID AND
                    v2.ResourceSID=v.ResourceSID AND
-                   v2.Ancestor=v.UID)
+                   v2.AncestorID=v.UID)
     UNION
-    # Now find all Versions whose Ancestor is in cte
+    # Now find all Versions whose AncestorID is in cte
     SELECT v3.RegistrySID,v3.ResourceSID,v3.UID FROM Versions AS v3
     INNER JOIN cte ON (
         v3.RegistrySID=cte.RegistrySID AND
         v3.ResourceSID=cte.ResourceSID AND
-        v3.Ancestor=cte.UID )
+        v3.AncestorID=cte.UID )
 )
 # And finally, return all Version UID that are NOT in cte (these are circular)
 SELECT v.RegistrySID, v.ResourceSID, v.UID FROM Versions AS v

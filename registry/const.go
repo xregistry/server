@@ -32,7 +32,7 @@ const FILTER_CI_COLLATE = "COLLATE utf8mb4_0900_ai_ci"
 const HTML_EXP = "&#9662;" // Expanded json symbol for HTML output
 const HTML_MIN = "&#9656;" // Minimized json symbol for HTML output
 
-const ANCESTOR_TBD = "$TBD"
+const ANCESTORID_TBD = "$TBD"
 
 // For entity.AccessMode
 const (

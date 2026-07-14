@@ -3886,14 +3886,18 @@ func IsValidEnum(val any, enum []any, matchCase bool) bool {
 		for i, v := range enum {
 			if reflect.ValueOf(v).Kind() == reflect.String {
 				tmpEnum[i] = strings.ToLower(v.(string))
+			} else {
+				tmpEnum[i] = enum[i]
 			}
-			tmpEnum[i] = enum[i]
 		}
 		enum = tmpEnum
 	}
 
 	for _, v := range enum {
-		if v == val {
+		b := (v == val)
+		log.KPrintf("IsValidEnum", "IsValidEnum(case:%v): %q vs %q: %v",
+			matchCase, val, v, b)
+		if b {
 			return true
 		}
 	}

@@ -653,6 +653,47 @@ function pushState(patch) {
       return;
     }
   }
+  // Guard: leaving an in-progress entity data edit (List view) with unsaved
+  // changes — same pattern as modelsource/capabilities above.
+  if (_state.section === 'data' && _state.editMode && _dataDirty) {
+    var leavingDataEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingDataEdit) {
+      showLeaveEditDialog(
+        function() { saveDataEntity('PUT', function() { pushStateReal(patch); }); },
+        function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
+  // Guard: leaving an in-progress Meta-tab edit with unsaved changes — same
+  // pattern as the entity-data guard above (the Meta tab has its own
+  // separate working-copy pair, see _metaEditSrc/_metaEditData).
+  if (_state.section === 'data' && _state.editMode && _metaDirty) {
+    var leavingMetaEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingMetaEdit) {
+      showLeaveEditDialog(
+        function() { saveMetaEntity('PUT', function() { pushStateReal(patch); }); },
+        function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
+  // Guard: leaving an in-progress edit of a non-default version (picked via
+  // the Resource page's "Version:" dropdown) with unsaved changes — same
+  // pattern as the entity-data/Meta guards above (see _verEditSrc/_verEditData).
+  if (_state.section === 'data' && _state.editMode && _verDirty) {
+    var leavingVerEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingVerEdit) {
+      showLeaveEditDialog(
+        function() { saveVersionEntity('PUT', function() { pushStateReal(patch); }); },
+        function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
   pushStateReal(patch);
 }
 
@@ -701,6 +742,19 @@ function pushStateReal(patch) {
     // after breadcrumb round-trip".
     _sortDraft = null; _sortDraftKey = null;
     _fbDraft = null;   _fbDraftKey = null;
+
+    // Always land back at the top of the Model/Model Source editor's own
+    // drill-down tree when (re-)entering that section from anywhere else
+    // (or switching servers) — otherwise renderModelEditor()'s
+    // _modelLoadedFor cache-key check (serverURL|section, unchanged by a
+    // mere round trip through some other section and back) would silently
+    // keep the drilled-down _navPath/_navTab/_navSelected from a previous
+    // visit. A plain path/view toggle *within* an already-active
+    // model/modelsource page (e.g. switching List<->JSON view) must NOT
+    // reset this — only a genuine section/server change should.
+    if ((changingServer || changingSection) && (newSection === 'model' || newSection === 'modelsource')) {
+      _navTab = 'registry'; _navPath = []; _navSelected = null; _attrNestStack = [];
+    }
 
     // Link-driven navigation bookkeeping: crumbURLs caches the real URL used at
     // each visited depth this session. Server/section changes (or freshly
@@ -1147,6 +1201,16 @@ function setDataView(v) {
     showLeaveEditDialog(
       function() { saveCapabilities(function() { _capDirty = false; setDataView(v); }); },
       function() { _capDirty = false; _capData = deepClone(_capSrc); setDataView(v); }
+    );
+    return;
+  }
+  // Guard: leaving List view mid-entity-data-edit with unsaved changes —
+  // same pattern.
+  if (_state.section === 'data' && _state.editMode && _dataDirty
+      && v !== _state.dataView) {
+    showLeaveEditDialog(
+      function() { saveDataEntity('PUT', function() { setDataView(v); }); },
+      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); setDataView(v); }
     );
     return;
   }
@@ -2003,7 +2067,18 @@ function refresh() {
 // Shared tail of the fetch-based branch in refresh().
 function renderEntityFromData(data, coll) {
   _lastData = data;
-  _state.mutable = detectMutable(data);
+  var svBaseE = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var capKeyE = normalizeURL(svBaseE);
+  if (_capCache.hasOwnProperty(capKeyE)) {
+    _state.mutable = entitiesMutableFromCap(_capCache[capKeyE]);
+  } else {
+    // Not cached yet — render this pass as non-mutable (Edit button/Add-
+    // Delete controls hidden), then re-render once /capabilities resolves
+    // and gets cached, same async-then-rerender pattern renderHeader()
+    // already uses for the Filters/Sort toggle button (see capLoaded2).
+    _state.mutable = false;
+    ensureCapCached(svBaseE, function() { if (_lastData === data) renderEntityFromData(data, coll); });
+  }
   // Grid view has been removed entirely for the data section — normalize
   // any stale dview=grid (old bookmark/back-forward history, from before
   // this removal) to table so the header doesn't show Grid as "active"
@@ -2029,11 +2104,15 @@ function renderEntityFromData(data, coll) {
   if (isGridFiltersOnlyMode()) renderJSONLeftPanel(true);
 }
 
-
-function detectMutable(data) {
-  // Real implementation: check capabilities.available.entities.mutable or Allow header.
-  // For now, assume mutable when browsing a registry.
-  return !!_state.serverURL || _state.view !== 'home';
+// Whether the "entities" capability (i.e. Registry/Group/Resource/Version
+// data — as opposed to model/modelsource/capabilities/etc, each gated by
+// their own matching capability key) is declared mutable by the server's
+// /capabilities document. Drives both the Edit button's enabled state and
+// _state.mutable for the plain 'data' section (single-entity edit mode,
+// collection Add/Delete) — see plan.md "Full Data Edit Mode".
+function entitiesMutableFromCap(cap) {
+  var avail = cap && cap.available;
+  return !!(avail && avail.entities && avail.entities.mutable);
 }
 
 // ---- Home view -----------------------------------------------------------
@@ -2911,6 +2990,267 @@ var _sortCol = null;
 var _sortAsc = true;
 var _tableViewItems = []; // current renderTableView() items, indexed for per-row doc buttons
 
+// ---- Collection Add/Delete (List view) -------------------------------------
+//
+// "+ Add <Singular>" button on Group/Resource/Version collection List pages
+// (depth 1/3/5) opens an inline blank entity form above the table, reusing
+// renderEditableScalarInput() (the same per-attribute input rendering the
+// single-entity editor uses) so new/existing entities look and behave
+// consistently. Only the entity's own ID (required) + simple universal
+// spec fields (name/description/documentation/icon, offered only when
+// specAttrLevel() confirms they're defined at this depth) + model-declared
+// top-level SCALAR attributes are offered — nested object/array/map
+// attributes and Labels/Constraints/Deprecated are out of scope for v1,
+// same limitation as the single-entity editor (see plan.md "Full Data Edit
+// Mode").
+//
+// Bulk delete reuses the Config page's checkbox/select-all/"Delete
+// Selected (N)" pattern (cfgToggleSelectAll/cfgUpdateSelection/
+// cfgDeleteSelected) — see collToggleSelectAll()/collUpdateSelection()/
+// collDeleteSelected() below.
+var _addNewOpen  = false;
+var _addNewData  = {};
+var _addNewKey   = null; // "serverURL|collPath" — resets the form when navigating to a different collection
+
+// Returns the model's raw top-level attributes map (before ifvalues
+// resolution) for the entity that would live at `path` — depth 2 (group
+// instance), depth 4/6 (resource/version, which share one attributes map;
+// GET /resource returns the flattened default version) are the only depths
+// collection Add ever needs (collection paths are depth 1/3/5, so the
+// synthetic new-entity path is always +1 of that).
+function modelAttrsMapForPath(model, path) {
+  var depth = path ? path.length : 0;
+  if (depth === 2) {
+    var gm = model && model.groups && model.groups[path[0]];
+    return (gm && gm.attributes) || {};
+  }
+  if (depth >= 4) {
+    var gm2 = model && model.groups && model.groups[path[0]];
+    var rm  = gm2 && gm2.resources && gm2.resources[path[2]];
+    return (rm && rm.attributes) || {};
+  }
+  return {};
+}
+
+function toggleAddEntityForm() {
+  _addNewOpen = !_addNewOpen;
+  if (!_addNewOpen) _addNewData = {};
+  if (_lastData) renderTableView(_lastData);
+}
+
+function cancelAddEntity() {
+  _addNewOpen = false;
+  _addNewData = {};
+  if (_lastData) renderTableView(_lastData);
+}
+
+// onchange handler for every input in the Add form — mirrors
+// dataEditFieldChange() but writes into _addNewData instead of
+// _dataEditData (the Add form has no "pristine snapshot" — everything
+// typed is new).
+function addNewFieldChange(k, inputEl) {
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') {
+    val = inputEl.checked;
+  } else if (type === 'integer' || type === 'uinteger') {
+    val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  } else if (type === 'decimal') {
+    val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  } else {
+    val = inputEl.value;
+  }
+  if (val === '' || val == null) { delete _addNewData[k]; }
+  else { _addNewData[k] = val; }
+}
+
+function addNewEntityAddExtension() {
+  var nameEl = document.getElementById('addNewExtName');
+  var valEl  = document.getElementById('addNewExtVal');
+  if (!nameEl || !valEl) return;
+  var name = (nameEl.value || '').trim();
+  if (!name) return;
+  if (Object.prototype.hasOwnProperty.call(_addNewData, name)) {
+    alert('Attribute "' + name + '" already exists.');
+    return;
+  }
+  _addNewData[name] = readExtTypeValue('addNewExtType', 'addNewExtVal');
+  if (_lastData) renderTableView(_lastData);
+}
+
+// Builds the blank "Add new <Singular>" panel — shown above the collection
+// table when _addNewOpen is true.
+// Toolbar row above the collection table: "+ Add <Singular>" (toggles the
+// blank entity form) and "Delete Selected" (bulk-delete, disabled until at
+// least one row is checked) — same placement/styling convention as the
+// Config page's per-section header buttons.
+function buildAddEntityToolbarHtml(model) {
+  var entityPath = _state.path.concat(['__new__']);
+  var singular = capitalize(getSingularName(model, entityPath) || 'Item');
+  return '<div class="config-section-header" style="margin-bottom:8px">'
+    + '<div class="config-section-header-btns">'
+    + '<button class="cfg-btn" id="coll-add-new-btn" onclick="toggleAddEntityForm()">'
+    + (_addNewOpen ? 'Cancel' : '+ Add ' + esc(singular)) + '</button>'
+    + ' <button class="cfg-btn cfg-btn-danger" id="coll-delete-selected-btn" disabled '
+    + 'onclick="collDeleteSelected()" title="Delete all checked rows below">Delete Selected</button>'
+    + '</div></div>';
+}
+
+function buildAddEntityFormHtml(model, collPath) {
+  var entityPath = collPath.concat(['__new__']);
+  var singular   = getSingularName(model, entityPath) || 'entity';
+  var idKey      = singular.toLowerCase() + 'id';
+  var specLevel  = specAttrLevel(entityPath);
+  var attrsMap   = modelAttrsMapForPath(model, entityPath);
+
+  function propRow(label, inputHtml) {
+    return '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(label) + '</td><td>' + inputHtml + '</td></tr>';
+  }
+
+  var rowsHtml = '';
+  ['name', 'description', 'documentation', 'icon'].forEach(function(k) {
+    if (!specLevel || !specLevel[k]) return;
+    var attrType = (k === 'documentation' || k === 'icon') ? 'url' : 'string';
+    var val = _addNewData[k] != null ? _addNewData[k] : '';
+    rowsHtml += propRow(labelFor(k, specLevel, singular),
+      renderEditableScalarInput(k, val, {type: attrType}, 'addNewFieldChange'));
+  });
+  Object.keys(attrsMap).sort().forEach(function(k) {
+    if (k === '*') return;
+    var attr = attrsMap[k];
+    if (!attr || attr.type === 'object' || attr.type === 'array' || attr.type === 'map') return;
+    var val = _addNewData[k] != null ? _addNewData[k] : (attr.type === 'boolean' ? false : '');
+    rowsHtml += propRow(labelFor(k, specLevel, singular),
+      renderEditableScalarInput(k, val, attr, 'addNewFieldChange'));
+  });
+
+  var html = '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
+    + '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Property') + '</th><th>Value</th></tr></thead><tbody>'
+    + propRow(capitalize(singular) + ' ID *', '<input type="text" id="addNewIdInput" class="xr-edit-input" required>')
+    + rowsHtml;
+  if (attrsMap['*']) {
+    html += propRow('+ Add Extension',
+      '<input type="text" id="addNewExtName" class="xr-edit-input" placeholder="name" style="width:140px">'
+      + ' ' + renderExtTypeValueWidgetHtml('addNewExtType', 'addNewExtVal')
+      + ' <button class="editorBtn editorBtnSmall" onclick="addNewEntityAddExtension()">Add</button>');
+  }
+  html += '</tbody></table>'
+    + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar">'
+    + '<button class="editorBtn" onclick="saveNewEntity()">Create</button>'
+    + ' <button class="editorBtn" onclick="cancelAddEntity()">Cancel</button>'
+    + '</div></div>';
+  return html;
+}
+
+// Creates the new entity via PUT to <collection URL>/<id>, then refreshes
+// the collection page (a plain refresh() re-fetch — simplest way to pick
+// up the new row with correctly server-computed fields like self/xid/
+// createdat, same approach used elsewhere after a mutation).
+function saveNewEntity() {
+  var errDiv = document.getElementById('addNewEntityError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  var idInput = document.getElementById('addNewIdInput');
+  var id = idInput ? idInput.value.trim() : '';
+  if (!id) {
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'ID is required.'; }
+    return;
+  }
+  var url = buildBaseURL() + '/' + encodeURIComponent(id);
+  var body = Object.assign({}, _addNewData);
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
+  var msgEl = document.createElement('div'); msgEl.textContent = 'Creating\u2026';
+  box.appendChild(spinnerEl); box.appendChild(msgEl); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        _addNewOpen = false; _addNewData = {};
+        refresh();
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// ---- Collection bulk delete -------------------------------------------------
+
+var _collSelectedIds = {}; // id string -> true, current collection page only
+var _collSelectedKey = null; // "serverURL|collPath" — resets selection when navigating
+
+function collToggleSelectAll(cb) {
+  document.querySelectorAll('.coll-select-input').forEach(function(inp) {
+    inp.checked = cb.checked;
+    if (cb.checked) _collSelectedIds[inp.value] = true; else delete _collSelectedIds[inp.value];
+  });
+  collUpdateSelection();
+}
+
+function collUpdateSelection() {
+  var boxes = document.querySelectorAll('.coll-select-input');
+  _collSelectedIds = {};
+  var checked = 0;
+  boxes.forEach(function(inp) {
+    if (inp.checked) { _collSelectedIds[inp.value] = true; checked++; }
+  });
+  var btn = el('coll-delete-selected-btn');
+  if (btn) {
+    btn.disabled = checked === 0;
+    btn.textContent = checked > 0 ? 'Delete Selected (' + checked + ')' : 'Delete Selected';
+  }
+  var all = el('coll-select-all');
+  if (all) {
+    all.checked = boxes.length > 0 && checked === boxes.length;
+    all.indeterminate = checked > 0 && checked < boxes.length;
+  }
+}
+
+// Deletes every checked row's entity, one DELETE request each, then
+// refreshes the collection page. Reports the first failure but keeps
+// going so one bad row doesn't block deleting the rest.
+function collDeleteSelected() {
+  var ids = Object.keys(_collSelectedIds);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' item' + (ids.length > 1 ? 's' : '') + '? This cannot be undone.')) return;
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
+  var msgEl = document.createElement('div'); msgEl.textContent = 'Deleting\u2026';
+  box.appendChild(spinnerEl); box.appendChild(msgEl); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  var base = buildBaseURL();
+  var errors = [];
+  Promise.all(ids.map(function(id) {
+    return fetch(base + '/' + encodeURIComponent(id), {method: 'DELETE'}).then(function(resp) {
+      if (!resp.ok && resp.status !== 204) {
+        return resp.text().then(function(text) { errors.push(id + ': ' + resp.status + ' ' + text); });
+      }
+    }).catch(function(err) { errors.push(id + ': ' + err.message); });
+  })).then(function() {
+    removeOverlay();
+    _collSelectedIds = {};
+    if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
+    refresh();
+  });
+}
+
 function renderTableView(data) {
   var main = el('main-view');
   // If a server-side sort= is active (applied via the Sort picker, now
@@ -2922,11 +3262,6 @@ function renderTableView(data) {
   var preserveOrder = !_sortCol && !!_state.sort;
   var items = collectionItems(data, preserveOrder);
 
-  if (items.length === 0) {
-    main.innerHTML = '<div class="state-msg">No items found</div>';
-    return;
-  }
-
   var svBase = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var modelKey = normalizeURL(svBase);
   if (!_modelCache.hasOwnProperty(modelKey)) {
@@ -2936,6 +3271,29 @@ function renderTableView(data) {
   }
   var model  = _modelCache[modelKey] || null;
   var depth  = _state.path.length; // 1=groups, 3=resources, 5=versions
+
+  // Collection Add/Delete only ever apply to actual Group/Resource/Version
+  // collections (depth 1/3/5) — never the Registry root's own "Group
+  // Types"/"Resources" summary tables (those are rendered by
+  // renderSingleEntity(), a different function entirely). Also gated on
+  // _state.editMode — like single-entity edit mode, these mutation
+  // controls (Add button, selection checkboxes, Delete Selected) should
+  // stay hidden until the user explicitly turns edit mode on via the
+  // pencil button, not merely because the underlying collection happens
+  // to be mutable.
+  var canAddDelete = _state.mutable && _state.editMode
+    && (depth === 1 || depth === 3 || depth === 5);
+  var collKeyNow = svBase + '|' + _state.path.join('/');
+  if (_addNewKey !== collKeyNow) { _addNewOpen = false; _addNewData = {}; _addNewKey = collKeyNow; }
+  if (_collSelectedKey !== collKeyNow) { _collSelectedIds = {}; _collSelectedKey = collKeyNow; }
+
+  if (items.length === 0) {
+    main.innerHTML = '<div id="table-container">'
+      + (canAddDelete ? buildAddEntityToolbarHtml(model) : '')
+      + (canAddDelete && _addNewOpen ? buildAddEntityFormHtml(model, _state.path) : '')
+      + '<div class="state-msg">No items found</div></div>';
+    return;
+  }
 
   // Determine which optional columns to show based on data presence
   var hasName = items.some(function(it) { return it.name != null && it.name !== ''; });
@@ -2995,7 +3353,14 @@ function renderTableView(data) {
   html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrl, 'eg-page-title-icon') + titleIdPrefix + '<span class="eg-page-title-type">' + esc(pluralLabel) + '</span></div>';
   html += serverURLLineHtml();
 
+  if (canAddDelete) html += buildAddEntityToolbarHtml(model);
+  if (canAddDelete && _addNewOpen) html += buildAddEntityFormHtml(model, _state.path);
+
   html += '<table class="xr-table"><thead><tr>';
+  if (canAddDelete) {
+    html += '<th class="cfg-select-cell"><input type="checkbox" id="coll-select-all" '
+      + 'title="Select/deselect all" onchange="collToggleSelectAll(this)"></th>';
+  }
   html += thSort('__id', idColLabel);
   if (hasName) html += thSort('name', 'Name');
   if (hasDesc) html += thSort('description', 'Description');
@@ -3050,6 +3415,11 @@ function renderTableView(data) {
     else if (depth === 3) rowIconUrl = resolveResourceIcon(model, _state.path[0], _state.path[2], item);
     else if (depth === 5) rowIconUrl = modelResourceIcon(model, _state.path[0], _state.path[2]);
     html += '<tr>';
+    if (canAddDelete) {
+      var checkedNow = _collSelectedIds[id] ? ' checked' : '';
+      html += '<td class="cfg-select-cell"><input type="checkbox" class="coll-select-input" value="'
+        + esc(id) + '"' + checkedNow + ' onchange="collUpdateSelection()"></td>';
+    }
     html += '<td class="cell-id">' + iconThumbHtml(rowIconUrl, 'row-icon-thumb') + '<a href="' + esc(rowHref) + '" onclick="' + esc(guardedOnclick(rowClickExpr)) + '">' + esc(id) + '</a></td>';
     if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
     if (hasDesc) html += '<td class="cell-desc"><div class="cell-desc-text">' + esc(item.description != null ? String(item.description) : '') + '</div></td>';
@@ -3078,6 +3448,7 @@ function renderTableView(data) {
 
   html += '</tbody></table></div>';
   main.innerHTML = html;
+  if (canAddDelete) collUpdateSelection();
 }
 
 function sortBy(col) {
@@ -3178,9 +3549,50 @@ function renderSingleEntity(data) {
     });
   }
   var model  = _modelCache[modelKey] || null;
+
+  // Entity Data Editor (see "Entity Data Editor" section below) — only
+  // Registry root/Group/Resource/Version pages (single-entity Property
+  // tables) are editable; collection pages never get an inline edit form.
+  // _dataEditData is snapshotted fresh whenever the server+path changes, so
+  // navigating to a different entity always starts from that entity's own
+  // data — but re-rendering the SAME entity (e.g. after a save, or toggling
+  // edit mode on/off) reuses the existing working copy rather than
+  // clobbering an in-progress edit.
+  var dataEditDepth = _state.path.length;
+  var isEditableEntityPage = (dataEditDepth === 0 || dataEditDepth === 2
+    || dataEditDepth === 4 || dataEditDepth >= 6);
+  if (isEditableEntityPage) {
+    var dataEditKey = svBase + '|' + _state.path.join('/');
+    if (_dataLoadedFor !== dataEditKey) {
+      _dataEditSrc  = deepClone(data);
+      _dataEditData = deepClone(_dataEditSrc);
+      _dataDirty    = false;
+      _dataLoadedFor = dataEditKey;
+      _itemTypeHints = {};
+      _shapeHints = {};
+    }
+  }
+  var dataEditingNow = isEditableEntityPage && _state.editMode && _state.mutable;
+  var propsEntityData = dataEditingNow ? _dataEditData : data;
+  // Default to 'entity' — set to 'meta' below only if the Metadata tab ends
+  // up being the initially-active tab (see pendingDocTabActivate handling).
+  _dataEditActiveKind = 'entity';
+
   var colls  = findCollectionRefs(model, _state.path, data);
   var collKeys = {};
-  colls.forEach(function(c) { collKeys[c.plural + 'url'] = true; collKeys[c.plural + 'count'] = true; });
+  colls.forEach(function(c) {
+    collKeys[c.plural + 'url'] = true;
+    collKeys[c.plural + 'count'] = true;
+    // The bare plural name itself (e.g. "definitions") is also a model-
+    // declared attribute — the server's auto-generated map representation
+    // of the sub-collection — but it's structural navigation (like
+    // meta/metaurl), not real entity content, and editing a whole nested
+    // Resource/Version collection inline here makes no sense. Only matters
+    // in edit mode (see buildEntityPropsTableHtml()'s "show all model
+    // attributes" merge, which is what would otherwise surface it), but
+    // suppressing it unconditionally is harmless and simpler.
+    collKeys[c.plural] = true;
+  });
 
   // Attach model info to the Group Types collections row (depth 0), same as
   // renderEntityGrid's Grid-view tiles, so the table view can show matching
@@ -3210,7 +3622,7 @@ function renderSingleEntity(data) {
   // complex values render as a nested key/value tree in the same 2nd column, same
   // approach as Grid view's unknown-extension rows (see renderValueTree()).
   var priority = ['registryid','xid','name','description','specversion',
-    'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
+    'epoch','createdat','modifiedat','versionid','isdefault','ancestorid'];
   var attrKeys = Object.keys(data).filter(function(k) {
     return !collKeys[k];
   }).sort(function(a, b) {
@@ -3341,7 +3753,7 @@ function renderSingleEntity(data) {
     // helper (also used later to redraw this panel when the version-selector
     // dropdown, below, picks a different version).
     var propHeaderT = depthD === 4 ? versionPropHeaderLabel(true, data && data.versionid) : capTypeT + ' Property';
-    var propsTableHtml = buildEntityPropsTableHtml(data, propHeaderT, model, _state.path, collKeys);
+    var propsTableHtml = buildEntityPropsTableHtml(propsEntityData, propHeaderT, model, _state.path, collKeys, dataEditingNow);
 
     var tabDefs = [];
     if (hasDocD) {
@@ -3407,6 +3819,8 @@ function renderSingleEntity(data) {
     _resVersionsList = null;
     _resSelectedVersionId = 'default';
     _docActiveVersionData = data;
+    _verEditSrc = null; _verEditData = null; _verDirty = false; _verEditVid = null;
+    _verSelfUrl = ''; _verPanelId = null; _verHeaderLabel = null;
 
     // Standalone "Version:" dropdown (depth 4 only, when the resource has a
     // versions collection) — a separate control from the tab buttons, laid
@@ -3474,7 +3888,7 @@ function renderSingleEntity(data) {
       pendingDocTabActivate = tabDefs[initActiveIdx].key;
       }
     }
-  } else if (attrKeys.length) {
+  } else if (attrKeys.length || dataEditingNow) {
     // Registry root (depth 0) / Group instance (depth 2) — no tab bar here
     // (only Resource/Version entities get the Document/Details tabs), just
     // the plain Properties table, same as before this feature existed.
@@ -3485,7 +3899,29 @@ function renderSingleEntity(data) {
     var entityTypeP  = getSingularName(model, _state.path);
     var capTypeP = capitalize(entityTypeP);
     var propHeaderP = capTypeP + ' Property';
-    html += buildEntityPropsTableHtml(data, propHeaderP, model, _state.path, collKeys);
+    html += buildEntityPropsTableHtml(propsEntityData, propHeaderP, model, _state.path, collKeys, dataEditingNow);
+  }
+
+  // Entity Data Editor action bar — Save (PUT/PATCH) / Undo / Delete.
+  // Only rendered when editing is actually active; disabled at depth 0
+  // (Registry root) since deleting a whole registry has no sensible
+  // "back to parent" destination in this UI and is out of scope for v1.
+  // On the Resource page (depth 4) this bar always targets the Default
+  // version's data (_dataEditData) — while a non-Default version is picked
+  // from the "Version:" dropdown, it's hidden (see onVersionSelectChangeReal())
+  // so it doesn't sit alongside the version panel's own, differently-scoped
+  // action bar (buildVersionActionBarHtml()) and confuse which Save applies
+  // to what.
+  if (dataEditingNow) {
+    var deleteDisabled = (dataEditDepth === 0) ? ' disabled title="Deleting the registry itself is not supported here"' : '';
+    var hideForVerD = (dataEditDepth === 4 && _resSelectedVersionId && _resSelectedVersionId !== 'default');
+    html += '<div id="dataEditorError" class="error-banner" style="display:none"></div>';
+    html += '<div class="editorActionBar" id="dataEditorActionBar"' + (hideForVerD ? ' style="display:none"' : '') + '>'
+      + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
+      + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+      + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
+      + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabled + '>Delete</button>'
+      + '</div>';
   }
 
   html += '</div>';
@@ -3503,7 +3939,7 @@ function renderSingleEntity(data) {
   // (Document or Details — the Default/Version Details panels already have
   // their content inline and need no fetch).
   if (pendingDocTabActivate === 'doc') { _docPreviewLoaded = true; loadDocumentPreview(); }
-  else if (pendingDocTabActivate === 'meta') { loadMetaDetails(); }
+  else if (pendingDocTabActivate === 'meta') { _dataEditActiveKind = 'meta'; loadMetaDetails(); }
   // Populate the version-selector dropdown's options (Resource page only).
   if (_resVersionsUrl) loadVersionsForSelect();
   // Redirected here from a standalone "meta" page (depth 5) — land directly
@@ -3776,6 +4212,89 @@ function resolveIfValuesAttrs(attrs, data) {
   return result;
 }
 
+// Returns the resolved (ifvalues-applied) top-level attributes map declared
+// by the model for the entity at `path`'s depth — Registry root (depth 0),
+// Group (depth 2), Resource/Version (depth >= 4, shared attributes map), or
+// the Meta sub-entity (depth 5). Used by buildEntityPropsTableHtml() to
+// surface every model-declared attribute in edit mode, even ones the
+// current entity has no value for yet (see "Full Data Edit Mode" plan.md
+// notes — "show all model attributes").
+function topLevelAttrsMapFor(model, path, data) {
+  if (!model) return {};
+  var depth = path ? path.length : 0;
+  var attrs;
+  if (depth === 0) {
+    attrs = model.attributes;
+  } else if (depth === 2) {
+    var gm = model.groups && model.groups[path[0]];
+    attrs = gm && gm.attributes;
+  } else if (depth === 5) {
+    var gmM = model.groups && model.groups[path[0]];
+    var rmM = gmM && gmM.resources && gmM.resources[path[2]];
+    attrs = rmM && rmM.metaattributes;
+  } else if (depth >= 4) {
+    var gm2 = model.groups && model.groups[path[0]];
+    var rm  = gm2 && gm2.resources && gm2.resources[path[2]];
+    attrs = rm && rm.attributes;
+  }
+  if (!attrs) return {};
+  return resolveIfValuesAttrs(attrs, data) || {};
+}
+
+// Live ifvalues reactivity for the top-level scalar edit handlers
+// (dataEditFieldChange()/metaEditFieldChange()/verEditFieldChange()):
+// called right after a top-level attribute's value is changed, with
+// `beforeAttrs` being the resolved attrs map (topLevelAttrsMapFor()) taken
+// *before* the value was written into `data`. Compares it against the
+// freshly-resolved attrs map (using the new value already in `data`) and:
+//   - deletes any data value for an attribute that is no longer resolved
+//     (i.e. it only existed because the *old* value matched one of some
+//     attribute's "ifvalues" and added it as a sibling — now stale, so its
+//     data shouldn't linger and risk being rejected by the server on Save
+//     as an undeclared attribute), and
+//   - returns true if the set of resolved attribute names changed at all
+//     (sibling attributes appeared and/or disappeared), so the caller
+//     knows a full re-render is needed to show/hide the corresponding rows
+//     immediately, instead of waiting for some unrelated re-render.
+// Returns false (no data touched) when nothing changed, so ordinary edits
+// keep their existing no-rerender/toggleRowDirty-only behavior.
+function reconcileIfValuesOnChange(model, path, beforeAttrs, data) {
+  if (!model || !data) return false;
+  var afterAttrs = topLevelAttrsMapFor(model, path, data);
+  var beforeNames = {};
+  var changed = false;
+  Object.keys(beforeAttrs || {}).forEach(function(n) {
+    beforeNames[n] = true;
+    if (n === '*') return;
+    if (!afterAttrs.hasOwnProperty(n)) {
+      // Only present before because of the old value's ifvalues match —
+      // no longer valid, so drop its data along with its row.
+      if (data.hasOwnProperty(n)) delete data[n];
+      changed = true;
+      return;
+    }
+    // Same attribute name present both before and after, but two different
+    // ifvalues branches (e.g. two different values' siblingattributes) can
+    // redeclare the same sibling name with a completely different
+    // definition/shape (see e.g. CloudEvents' "protocol" attribute, whose
+    // "protocoloptions" sibling has a distinct shape per protocol value).
+    // A same-name check alone would miss this — compare object identity too
+    // (topLevelAttrsMapFor()/resolveIfValuesAttrs() only shallow-copies, so
+    // unrelated/always-present attrs keep the same reference across calls;
+    // only re-resolved ifvalues siblings get a new object each time their
+    // matching branch changes). Stale data no longer matching the new
+    // definition's shape must be dropped, same as a disappearing attribute.
+    if (beforeAttrs[n] !== afterAttrs[n]) {
+      if (data.hasOwnProperty(n)) delete data[n];
+      changed = true;
+    }
+  });
+  if (!changed) {
+    changed = Object.keys(afterAttrs).some(function(n) { return n !== '*' && !beforeNames[n]; });
+  }
+  return changed;
+}
+
 // getAttr returns the full Attribute definition object from the model for
 // the given attribute key path (array) within an entity at entityPath depth.
 // attrKeyPath is an array for nested traversal, e.g. ['myattr'] or ['obj','child'].
@@ -3833,6 +4352,117 @@ function getAttr(model, entityPath, attrKeyPath, data) {
 function getAttrType(model, entityPath, attrKeyPath, data) {
   var attr = getAttr(model, entityPath, attrKeyPath, data);
   return attr ? (attr.type || null) : null;
+}
+
+// getAttr()'s wildcard ('*') fallback for undeclared extension attributes
+// is always just {type:'any'} — the model has no way to know in advance
+// what shape a given extension's value will actually take. Without this,
+// an "any"-typed extension whose value happens to be a map/array/object
+// (e.g. one added via the "+ Add Extension" type picker's map/array/object
+// choice — see renderExtTypeValueWidgetHtml()) would fall through to the
+// plain scalar input/display, which just stringifies it — showing the
+// useless "[object Object]"/"[object Array]" instead of an editable
+// tree. This synthesizes an equivalent map/array attr (item type "any",
+// so its own children get the same any-type treatment recursively) purely
+// from the actual runtime value shape, whenever the declared attr doesn't
+// already commit to a complex type. Used by every complex-value edit
+// render site (buildPropsRowsHtml, renderMetaTable, and
+// renderEditableComplexValue's map/array/object branches for their own
+// nested values) so this applies uniformly no matter how deep the
+// wildcard-typed value is nested.
+// Like effectiveEditAttr(), but for one specific nested location
+// (keyPath) — checks _shapeHints first (an explicit map/object choice
+// recorded at add-time by dataEditMapAddEntry()/dataEditArrayAddItem()/
+// dataEditObjAddKey()) before falling back to inferring purely from the
+// declared attr + runtime value. Needed because an empty {} can't
+// otherwise be told apart as "map" vs "object" once the value has no
+// other content yet.
+function effectiveEditAttrAtPath(keyPath, attr, val) {
+  var hint = _shapeHints[JSON.stringify(keyPath)];
+  if (hint) return hint;
+  return effectiveEditAttr(attr, val);
+}
+
+// True for a top-level (or Meta tab) attribute whose type is still fully
+// ambiguous ("any"/undeclared, with no _shapeHints choice recorded yet —
+// see effectiveEditAttrAtPath()) AND which has no value at all yet. Used
+// by buildPropsRowsHtml()/renderMetaTable() to show the "Set Value" type
+// picker (see renderComplexAddButtonHtml()/dataEditSetAnyType()) instead
+// of a plain (always-string) text input for a never-set "any"-typed
+// attribute — otherwise there'd be no way to make it e.g. a boolean,
+// number, or complex value in the first place. Once a value/hint exists,
+// effectiveEditAttr()'s own runtime-type inference takes over as usual.
+function isAnyTypeUnset(attr, val) {
+  return (!attr || !attr.type || attr.type === 'any') && (val === null || val === undefined);
+}
+
+function effectiveEditAttr(attr, val) {
+  if (attr && (attr.type === 'map' || attr.type === 'object' || attr.type === 'array')) return attr;
+  if (val !== null && typeof val === 'object') {
+    // Array runtime shape is unambiguous. A plain object, though, could be
+    // either a homogeneous "map" or a free-form "object" — JSON alone
+    // can't tell us which the user meant. Default to "object" (a
+    // wildcarded, freely-extensible bag of any-typed keys) since that's
+    // the more general shape and matches how "any"-typed extensibility
+    // already works everywhere else (e.g. the top-level "+ Add
+    // Extension" row) — this also keeps the type pill accurate ("Object"
+    // instead of "Map, Any"). A genuinely-declared map<T> never reaches
+    // this branch at all (it's caught by the first line above).
+    return Array.isArray(val)
+      ? {type: 'array', item: {type: 'any'}}
+      : {type: 'object', attributes: {'*': {type: 'any'}}};
+  }
+  // Scalar runtime-type inference for "any"/undeclared attrs — e.g. an
+  // any-typed map/array/object entry whose actual value was set via the
+  // type-picker add-button (renderComplexAddButtonHtml()) with a concrete
+  // scalar type (boolean/integer/etc). The item's *declared* type stays
+  // "any" forever (that's the model's own wildcard/"any" declaration), so
+  // without this both the type pill and the scalar input widget (checkbox
+  // vs number vs text, see renderEditableScalarInput()/
+  // renderEditableScalarInputAtPath()) would keep showing "Any"/a plain
+  // text box even after a concrete type has clearly been chosen. Can't
+  // tell integer vs decimal apart at runtime (both are just JS numbers) —
+  // "decimal" is used as the generic numeric fallback, matching
+  // renderEditableScalarInput()'s own no-attr fallback.
+  if ((!attr || !attr.type || attr.type === 'any') && val !== null && val !== undefined) {
+    if (typeof val === 'boolean') return Object.assign({}, attr, {type: 'boolean'});
+    if (typeof val === 'number') return Object.assign({}, attr, {type: 'decimal'});
+    if (typeof val === 'string') return Object.assign({}, attr, {type: 'string'});
+  }
+  return attr;
+}
+
+// Display name for one attribute type, e.g. "uinteger" -> "Uinteger" — used
+// by typeLabelFor()/typePillHtml() below.
+function typeDisplayName(t) {
+  return t ? (t.charAt(0).toUpperCase() + t.slice(1)) : 'Any';
+}
+
+// One-line type description for a value's "type pill" (see typePillHtml()
+// below) — just the type name for a scalar or object (object is keyed/
+// heterogeneous, so there's no single "item type" to add), or "Type,
+// ItemType" for a map/array, showing one level of nesting so the user
+// knows what to expect/enter without fully expanding it (e.g. "Array,
+// Map" for an array of maps — the map's own contents get their own pill,
+// one level deeper, once expanded/added).
+function typeLabelFor(attr) {
+  var t = (attr && attr.type) || 'any';
+  var label = typeDisplayName(t);
+  if (t === 'map' || t === 'array') {
+    label += ', ' + typeDisplayName(attr.item && attr.item.type);
+  }
+  return label;
+}
+
+// Small faded "type" pill rendered directly above a value's editor (see
+// buildPropsRowsHtml()/renderMetaTable() for top-level attributes, and
+// renderEditableComplexValue()/its scalar-entry call sites for nested map/
+// array/object values) — the Property/Meta tables have no separate "Type"
+// column, so without this there's no way to tell e.g. an "any"-typed
+// extension's actual runtime type, or what an empty map/array's items are
+// supposed to be, before typing a value.
+function typePillHtml(attr) {
+  return '<div class="xr-type-pill">' + esc(typeLabelFor(attr)) + '</div>';
 }
 
 // Resolves the "effective" type for one attribute name within an already-resolved
@@ -4270,7 +4900,7 @@ var PROP_CATEGORY_DEFS = [
   { label: 'Identity',           keys: {id:1, versionid:1, xid:1, self:1, shortself:1},
     order: ['resourceid', 'id', 'versionid', 'xid', 'self', 'shortself'] },
   { label: 'Versioning & State',
-    keys: {specversion:1, epoch:1, isdefault:1, deprecated:1, readonly:1, ancestor:1,
+    keys: {specversion:1, epoch:1, isdefault:1, deprecated:1, readonly:1, ancestorid:1,
            xref:1, defaultversionid:1, defaultversionurl:1, defaultversionsticky:1, constraints:1} },
   { label: 'Content',
     keys: {contenttype:1, format:1, formatvalidated:1, formatvalidatedreason:1,
@@ -4345,27 +4975,1604 @@ function groupPropsByCategory(keys, specLevel, singular, resourceSingular) {
   return all.length > 1 ? all : null;
 }
 
-// Builds the <tbody> rows for one contiguous run of Property-table keys —
-// shared by both the grouped (per-category) and flat (ungrouped) render
-// paths in buildEntityPropsTableHtml()/renderMetaTable(). Zebra banding is
-// applied via an explicit per-row class (not CSS nth-child) so callers can
-// restart the alternation at each category boundary — every group's first
+// ---- Entity Data Editor (List view) ----------------------------------------
+//
+// Adds an in-place "edit mode" to the single-entity Properties table built
+// by buildEntityPropsTableHtml()/buildPropsRowsHtml() (Registry root, Group,
+// Resource, and Version pages — see renderSingleEntity()). Unlike the
+// ModelSource/Capabilities editors (which replace #main-view with a fully
+// separate custom UI), this piggybacks directly on the existing read-only
+// Property table renderer: when `editable` is passed as true AND
+// _state.editMode is on, each row's value cell swaps its normal read-only
+// display for an input matching the attribute's model type. See plan.md
+// "Full Data Edit Mode" for the full design/scope notes (v1 is scalar
+// attributes + adding extensions only — nested array/object/map editing and
+// live ifvalues-reactivity are tracked follow-ups).
+//
+// _dataEditSrc / _dataEditData mirror the _capSrc/_capData pattern: a
+// pristine snapshot (for Undo/PATCH-diffing) and the working copy being
+// edited. Keyed by server+path so navigating to a different entity always
+// starts from a fresh snapshot, but toggling edit mode on/off (or an
+// in-place refresh while already editing) doesn't clobber in-progress edits.
+var _dataEditSrc    = null;
+var _dataEditData   = null;
+var _dataDirty      = false;
+var _dataLoadedFor  = null;
+
+// Meta tab (Resource page "<Type> Metadata" tab) editing — same
+// pristine-snapshot/working-copy pattern as _dataEditSrc/_dataEditData
+// above, but kept as its own separate pair rather than reused, since the
+// Meta entity lives at a different URL (metaurl) than the Resource/
+// Version entity the "Version Details"/"Version" tab edits, and a user
+// can have unsaved changes on *either* tab (not both at once — see
+// _dataEditActiveKind below and switchDocTab()'s unsaved-changes guard).
+var _metaEditSrc    = null;
+var _metaEditData   = null;
+var _metaDirty      = false;
+
+// Resource page's "Version:" dropdown editing (a version other than
+// "Default") — same pristine-snapshot/working-copy pattern as the Meta
+// tab above, but scoped to whichever non-default version id is currently
+// selected (_verEditVid). Picking "Default" reuses _dataEditData/_dataDirty
+// directly instead (the resource's own data already IS the default
+// version's data), so this pair is only ever populated for a genuinely
+// non-default selection. _verSelfUrl/_verPanelId/_verHeaderLabel are
+// stashed alongside so saveVersionEntity()/rerenderVersionPanel() (run
+// from later, independent DOM events) know where to PUT/PATCH and which
+// panel/header to redraw. Reset whenever the Resource page itself
+// re-renders from scratch (see _resSelectedVersionId reset).
+var _verEditSrc     = null;
+var _verEditData    = null;
+var _verDirty       = false;
+var _verEditVid     = null;
+var _verSelfUrl     = '';
+var _verPanelId     = null;
+var _verHeaderLabel = null;
+
+// User-chosen "items are always this one type" hints for "any"/undeclared
+// map/array containers (see the "Items are:" selector in
+// renderEditableComplexValue()'s map/array branches, and
+// dataEditSetItemTypeHint() below) — JSON has no way to record this on the
+// data itself (an empty {}/[] looks the same either way), so it's tracked
+// here instead, keyed by the container's own keyPath (JSON.stringify'd).
+// Shared across both the entity/Meta tab working copies (data and meta
+// keyPaths never collide in practice, since they always start with a
+// different top-level attribute name) and reset whenever either working
+// copy is reloaded from scratch, same as _dataEditSrc/_metaEditSrc.
+//
+// NOTE: this is a *different* concept from _shapeHints below, even though
+// both are path-keyed "can't tell from the JSON alone" hints — this one
+// says "what type should THIS container's future children default to",
+// while _shapeHints says "what type IS the value already sitting at this
+// exact path". Keeping them in separate stores (rather than reusing one
+// for both) matters because a map/object's own path is used as the key
+// for both concepts at once (its own shape, and its children's item-type
+// default) — sharing a single store caused the map's own map-vs-object
+// shape hint to be misread back as its *own children's* item-type hint,
+// e.g. a key explicitly added as "map" showing a "Map, Map" pill instead
+// of "Map, Any" (or whatever its actual item type is/becomes).
+var _itemTypeHints  = {};
+
+// User-chosen "this specific value is definitely type X" hints — recorded
+// only for the map-vs-object ambiguity (see dataEditMapAddEntry()'s
+// comment for why: both start out as an indistinguishable empty {}, and
+// nothing else about the value can tell them apart later). Keyed by the
+// exact keyPath of the value itself (not a container's children, unlike
+// _itemTypeHints above). Reset alongside _itemTypeHints.
+var _shapeHints     = {};
+
+// Which working-copy pair (_dataEditData/_dataEditSrc/_dataDirty for the
+// entity itself, or _metaEditData/_metaEditSrc/_metaDirty for the Resource
+// page's Meta tab) the shared nested-attribute mutation primitives below
+// (dataEditNestedFieldChange(), dataEditMapAddEntry(), etc.) currently
+// target. Only one of the two tabs is ever visibly "being edited" at a
+// time, so a single shared indicator — flipped by switchDocTab() whenever
+// the active tab changes, and by renderMetaTable()/renderSingleEntity()
+// when (re)rendering their own editable rows — is enough; see
+// activeEditRoot()/markActiveEditDirty()/rerenderActiveEdit() just below.
+var _dataEditActiveKind = 'entity'; // 'entity' | 'meta' | 'version'
+
+function activeEditRoot() {
+  if (_dataEditActiveKind === 'meta') return _metaEditData;
+  if (_dataEditActiveKind === 'version') return _verEditData;
+  return _dataEditData;
+}
+// Pristine (pre-edit) snapshot matching activeEditRoot() above — used to
+// compute whether a nested edit actually differs from the saved value
+// (see dataEditNestedFieldChange()'s dirty-row highlight).
+function activeEditSrc() {
+  if (_dataEditActiveKind === 'meta') return _metaEditSrc;
+  if (_dataEditActiveKind === 'version') return _verEditSrc;
+  return _dataEditSrc;
+}
+function markActiveEditDirty() {
+  if (_dataEditActiveKind === 'meta') markMetaDirty();
+  else if (_dataEditActiveKind === 'version') markVerDirty();
+  else markDataDirty();
+}
+function rerenderActiveEdit() {
+  if (_dataEditActiveKind === 'meta') rerenderMetaTab();
+  else if (_dataEditActiveKind === 'version') rerenderVersionPanel();
+  else renderSingleEntity(_dataEditData);
+}
+
+// Core spec attributes that must always stay read-only in entity edit mode
+// regardless of model — server-generated/managed values PUT/PATCH can never
+// set (see common/shared_entity's OrderedSpecProps ReadOnly/Immutable
+// flags). specattrs.js (auto-generated) doesn't currently carry per-attr
+// readonly/immutable flags, so this is a small manually-maintained list
+// instead — see plan.md's "full-data-edit-mode" follow-up to fold this into
+// codegen later.
+//
+// NOTE: `createdat`/`modifiedat` are deliberately NOT in this list — per
+// spec.md's "createdat"/"modifiedat" Attribute sections, both are
+// client-settable in a write request ("If present in a write operation
+// request, the value MUST override any existing value..."); the server
+// only supplies a default (current time) when the request omits them.
+// They're genuinely editable, not read-only, matching what /model actually
+// declares (no readonly/immutable flag on either) — see isDataEditReadOnly()
+// below, which now checks the model instead of assuming.
+var DATA_EDIT_READONLY = {
+  specversion: 1, id: 1, versionid: 1, self: 1, shortself: 1, xid: 1,
+  epoch: 1, isdefault: 1, readonly: 1,
+  formatvalidated: 1, formatvalidatedreason: 1,
+  compatibilityvalidated: 1, compatibilityvalidatedreason: 1,
+  ancestorid: 1, meta: 1, metaurl: 1
+};
+// `attr` (the model's own Attribute definition, when available) is checked
+// too — any attribute (spec or extension) the model itself marks readonly
+// or immutable must stay read-only here regardless of the static list
+// above, which only covers spec-defined attributes not otherwise carried
+// with per-attr flags (see specattrs.js note above). `singular`/
+// `resourceSingular` catch the dynamic <singular>id / <resourceSingular>id
+// identity fields (e.g. "endpointid", "registryid") — these are just as
+// immutable as a literal "id" key, but aren't literally named "id" so the
+// static list can't match them by name alone.
+function isDataEditReadOnly(k, attr, singular, resourceSingular) {
+  if (DATA_EDIT_READONLY[k]) return true;
+  if (attr && (attr.readonly || attr.immutable)) return true;
+  if (singular && k === singular + 'id') return true;
+  if (resourceSingular && resourceSingular !== singular && k === resourceSingular + 'id') return true;
+  return false;
+}
+
+// Shared enum-input renderer for both renderEditableScalarInput() (top-
+// level scalar attrs) and renderEditableScalarInputAtPath() (nested
+// map/object/array leaf values). Strict enums (the model default — see
+// shared_model.go Attribute.GetStrict(), which returns true unless the
+// model explicitly sets strict:false) render as a plain <select>: the
+// value MUST be one of the declared enum entries. A non-strict enum
+// (attr.strict === false) offers the enum values as *suggestions* via a
+// small independent dropdown (see toggleEnumDropdown()/pickEnumValue()
+// below) — a native <input list="..."> + <datalist> combo was tried
+// first, but browsers unconditionally filter a datalist's options
+// against the input's *current* text (even when opened via
+// showPicker()), so a field that already has a value only ever shows the
+// one entry matching what's typed — indistinguishable from "no other
+// choices exist". There's no way to disable that browser-side filtering,
+// so instead this renders its own always-complete, unfiltered list: it
+// only ever reads the field's value (to highlight the current match) and
+// only ever writes to it when an item is actually clicked — typing in the
+// field itself is completely free-form and never touched by the dropdown.
+//
+// The list itself is rendered into a single shared, body-level "portal"
+// element (see ensureEnumDropdownPortal()) instead of inline next to the
+// input — an inline dropdown positioned via the input's own ancestor
+// (position:relative + position:absolute) can get clipped by any
+// scrollable/overflow-hidden ancestor (e.g. the Properties table's own
+// container) once the input is near the bottom of the visible area, with
+// no way to scroll to see the rest of it. The portal is appended directly
+// to <body> and positioned with `position: fixed` from the caret button's
+// own on-screen coordinates (see positionEnumDropdownPortal()), so it's
+// never clipped and flips to open upward automatically when there isn't
+// enough room below.
+var _enumInputSeq = 0;
+function renderEnumInputHtml(enumVals, val, type, isStrict, onchg) {
+  if (isStrict === false) {
+    var seq = ++_enumInputSeq;
+    var inputId = 'enuminput_' + seq;
+    var curStr = val == null ? '' : String(val);
+    var itemsJson = JSON.stringify(enumVals.map(function(ev) { return String(ev); }));
+    return '<span class="xr-enum-combo">'
+      + '<input type="text" id="' + esc(inputId) + '" class="xr-edit-input" autocomplete="off" data-ftype="' + esc(type) + '"'
+      + ' value="' + esc(curStr) + '"' + onchg + '>'
+      + '<button type="button" class="editorBtn editorBtnSmall xr-enum-caret-btn" '
+      + 'title="Show suggested values" data-input-id="' + esc(inputId) + '" data-items="' + esc(itemsJson) + '" '
+      + 'onclick="toggleEnumDropdown(this)">\u25BC</button>'
+      + '</span>';
+  }
+  var opts = '<option value=""></option>' + enumVals.map(function(ev) {
+    var sel = (val != null && String(ev) === String(val)) ? ' selected' : '';
+    return '<option value="' + esc(String(ev)) + '"' + sel + '>' + esc(String(ev)) + '</option>';
+  }).join('');
+  return '<select class="xr-edit-input" data-ftype="' + esc(type) + '"' + onchg + '>' + opts + '</select>';
+}
+
+// Lazily creates (once) the single shared portal element every non-strict
+// enum dropdown reuses — appended directly to <body> so `position: fixed`
+// coordinates (see positionEnumDropdownPortal()) are never affected by
+// any ancestor's scroll position or overflow clipping.
+function ensureEnumDropdownPortal() {
+  var portal = document.getElementById('xr-enum-dropdown-portal');
+  if (!portal) {
+    portal = document.createElement('div');
+    portal.id = 'xr-enum-dropdown-portal';
+    portal.className = 'xr-enum-dropdown xr-enum-dropdown-portal';
+    portal.style.display = 'none';
+    document.body.appendChild(portal);
+  }
+  return portal;
+}
+
+var _enumDropdownOutsideHandler = null;
+var _enumDropdownOpenBtn = null;
+
+// Closes the currently-open enum suggestion dropdown, if any.
+function closeAllEnumDropdowns() {
+  var portal = document.getElementById('xr-enum-dropdown-portal');
+  if (portal) { portal.style.display = 'none'; portal.innerHTML = ''; }
+  _enumDropdownOpenBtn = null;
+  if (_enumDropdownOutsideHandler) {
+    document.removeEventListener('mousedown', _enumDropdownOutsideHandler);
+    window.removeEventListener('scroll', closeAllEnumDropdowns, true);
+    window.removeEventListener('resize', closeAllEnumDropdowns);
+    _enumDropdownOutsideHandler = null;
+  }
+}
+
+// Positions the shared portal (already populated + display:block, but
+// still effectively invisible via visibility:hidden) against `anchorEl`
+// (the caret button), flipping above the anchor instead of below it when
+// there isn't enough viewport room underneath, and clamping both axes so
+// it never renders off-screen. Uses `position: fixed`, so all coordinates
+// are viewport-relative (getBoundingClientRect() already returns
+// viewport-relative rects too — no scroll-offset math needed).
+function positionEnumDropdownPortal(portal, anchorEl) {
+  var rect = anchorEl.getBoundingClientRect();
+  var vw = document.documentElement.clientWidth;
+  var vh = document.documentElement.clientHeight;
+  var ddRect = portal.getBoundingClientRect(); // measured while display:block + visibility:hidden
+  var spaceBelow = vh - rect.bottom;
+  var spaceAbove = rect.top;
+  var top = (spaceBelow >= ddRect.height || spaceBelow >= spaceAbove)
+    ? rect.bottom + 2
+    : rect.top - ddRect.height - 2;
+  top = Math.max(4, Math.min(top, vh - ddRect.height - 4));
+  var left = Math.max(4, Math.min(rect.left, vw - ddRect.width - 4));
+  portal.style.top = top + 'px';
+  portal.style.left = left + 'px';
+}
+
+// Opens/closes a non-strict enum's suggestion dropdown (see
+// renderEnumInputHtml()) — always shows every enum value, completely
+// independent of whatever text is currently in the field, since the whole
+// point is to work around the browser's own datalist filtering (which
+// can't be turned off). Clicking outside the dropdown, scrolling, or
+// resizing the window closes it without changing anything.
+function toggleEnumDropdown(btn) {
+  if (_enumDropdownOpenBtn === btn) { closeAllEnumDropdowns(); return; }
+  closeAllEnumDropdowns();
+  var inputId = btn.getAttribute('data-input-id');
+  var items;
+  try { items = JSON.parse(btn.getAttribute('data-items') || '[]'); } catch (e) { items = []; }
+  var inp = document.getElementById(inputId);
+  var curVal = inp ? inp.value : '';
+
+  var portal = ensureEnumDropdownPortal();
+  portal.innerHTML = '';
+  items.forEach(function(ev) {
+    var item = document.createElement('div');
+    item.className = 'xr-enum-dropdown-item' + (ev === curVal ? ' xr-enum-dropdown-item-selected' : '');
+    item.textContent = ev;
+    item.addEventListener('click', function() { pickEnumValue(inputId, ev); });
+    portal.appendChild(item);
+  });
+
+  portal.style.visibility = 'hidden';
+  portal.style.display = 'block';
+  positionEnumDropdownPortal(portal, btn);
+  portal.style.visibility = 'visible';
+  _enumDropdownOpenBtn = btn;
+
+  _enumDropdownOutsideHandler = function(e) {
+    if (!portal.contains(e.target) && e.target !== btn) closeAllEnumDropdowns();
+  };
+  // Deferred so the very click that opened the dropdown doesn't also
+  // immediately trigger the outside-click handler and close it again.
+  setTimeout(function() {
+    document.addEventListener('mousedown', _enumDropdownOutsideHandler);
+    window.addEventListener('scroll', closeAllEnumDropdowns, true);
+    window.addEventListener('resize', closeAllEnumDropdowns);
+  }, 0);
+}
+
+// Selects an enum value from the dropdown into its entry field — the only
+// path that ever writes into a non-strict enum input other than the user
+// directly typing into it. Fires a real change event so the existing
+// onchange handler (dataEditFieldChange()/dataEditNestedFieldChange()/
+// metaEditFieldChange()/verEditFieldChange(), whichever this input was
+// wired to) picks it up exactly like a normal edit.
+function pickEnumValue(inputId, val) {
+  var inp = document.getElementById(inputId);
+  if (!inp) return;
+  inp.value = val;
+  inp.dispatchEvent(new Event('change', {bubbles: true}));
+  closeAllEnumDropdowns();
+}
+
+// Renders an editable input for one scalar attribute value, matching its
+// model type (enum takes priority over type — a "select" is always clearer
+// than a typed input when the value is constrained to a fixed list).
+// `handlerFn` (default 'dataEditFieldChange') lets other callers — e.g. the
+// collection Add-entity form's addNewFieldChange() — reuse this same input
+// rendering against a different backing object.
+function renderEditableScalarInput(k, val, attr, handlerFn) {
+  var type = (attr && attr.type)
+    || (typeof val === 'boolean' ? 'boolean' : typeof val === 'number' ? 'decimal' : 'string');
+  var enumVals = attr && attr.enum;
+  var handler = handlerFn || 'dataEditFieldChange';
+  var onchg = ' onchange="' + esc(handler) + '(' + esc(JSON.stringify(k)) + ', this)"';
+  if (enumVals && enumVals.length) {
+    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg);
+  }
+  if (type === 'boolean') {
+    return '<label class="xr-bool-edit"><input type="checkbox" class="xr-edit-input" data-ftype="boolean"'
+      + (val ? ' checked' : '') + onchg + '> true</label>';
+  }
+  if (type === 'timestamp') {
+    return renderTimestampInputHtml(handler + '(' + JSON.stringify(k) + ', this)', val);
+  }
+  if (type === 'integer' || type === 'uinteger' || type === 'decimal') {
+    return '<input type="number" class="xr-edit-input" data-ftype="' + esc(type) + '"'
+      + (type === 'decimal' ? ' step="any"' : ' step="1"')
+      + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+  }
+  return '<input type="text" class="xr-edit-input" data-ftype="string"'
+    + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+}
+
+// Renders an editable text input for a timestamp-typed attribute (RFC3339
+// string, e.g. createdat/modifiedat or any model-declared timestamp
+// extension), plus a convenience "Now" button that fills in the current
+// time — mirroring spec.md's own "a value of null MUST use the current
+// date/time" behavior for createdat, and modifiedat's similar "absent ⇒
+// current time" default, as an explicit one-click option rather than
+// requiring the value be hand-typed. `onchgJs` is the raw (unescaped) JS
+// call to invoke on change (e.g. `dataEditFieldChange("createdat", this)`),
+// matching the calling convention renderEditableScalarInput()/
+// renderEditableScalarInputAtPath() already use for their other types.
+var _tsInputSeq = 0;
+function renderTimestampInputHtml(onchgJs, val) {
+  var id = 'tsinput_' + (++_tsInputSeq);
+  var nowJs = 'var e=document.getElementById(' + JSON.stringify(id) + ');'
+    + "e.value=new Date().toISOString();"
+    + "e.dispatchEvent(new Event('change',{bubbles:true}));";
+  return '<span class="xr-ts-edit">'
+    + '<input type="text" id="' + esc(id) + '" class="xr-edit-input eg-mono" data-ftype="timestamp" '
+    + 'placeholder="RFC3339, e.g. 2030-12-19T06:00:00Z" value="' + esc(val == null ? '' : String(val)) + '" '
+    + 'onchange="' + esc(onchgJs) + '">'
+    + ' <button type="button" class="editorBtn editorBtnSmall" onclick="' + esc(nowJs) + '">Now</button>'
+    + '</span>';
+}
+
+// ---- Complex (map/object/array) attribute editing -------------------------
+//
+// Like renderEditableScalarInput() but for one leaf value living at an
+// arbitrary nested location (keyPath, e.g. ['labels','env'] or
+// ['meta','tags', 2]) inside a complex attribute's editor — see
+// renderEditableComplexValue() below. Wired to dataEditNestedFieldChange()
+// instead of dataEditFieldChange() since a single top-level key string
+// isn't enough to address a nested location.
+function renderEditableScalarInputAtPath(keyPath, val, attr) {
+  var type = (attr && attr.type)
+    || (typeof val === 'boolean' ? 'boolean' : typeof val === 'number' ? 'decimal' : 'string');
+  var enumVals = attr && attr.enum;
+  var onchg = ' onchange="dataEditNestedFieldChange(' + esc(JSON.stringify(keyPath)) + ', this)"';
+  if (enumVals && enumVals.length) {
+    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg);
+  }
+  if (type === 'boolean') {
+    return '<label class="xr-bool-edit"><input type="checkbox" class="xr-edit-input" data-ftype="boolean"'
+      + (val ? ' checked' : '') + onchg + '> true</label>';
+  }
+  if (type === 'timestamp') {
+    return renderTimestampInputHtml('dataEditNestedFieldChange(' + JSON.stringify(keyPath) + ', this)', val);
+  }
+  if (type === 'integer' || type === 'uinteger' || type === 'decimal') {
+    return '<input type="number" class="xr-edit-input" data-ftype="' + esc(type) + '"'
+      + (type === 'decimal' ? ' step="any"' : ' step="1"')
+      + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+  }
+  return '<input type="text" class="xr-edit-input" data-ftype="string"'
+    + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+}
+
+// Renders an editable UI for a map/object/array-typed attribute value, at
+// the given keyPath into _dataEditData (e.g. ['labels'] for a top-level map
+// attribute, or ['meta','tags'] for a nested one). Mutations are written
+// directly into the value referenced by keyPath (via getInPath/setInPath),
+// so arbitrarily nested complex attributes all share the same small set of
+// mutation primitives instead of one bespoke handler per top-level
+// attribute. v1 scope: map (any item type, incl. nested complex items),
+// fixed-schema object (recursing into its declared .attributes), and array
+// (any item type). A complex value with no usable model shape info (no
+// declared .item/.attributes) falls back to the existing read-only tree
+// render, same graceful-degradation approach used elsewhere for unmodeled
+// shapes. See plan.md "Full Data Edit Mode" for design notes.
+function renderEditableComplexValue(keyPath, val, attr, model, entityPath, rootData) {
+  var type = attr && attr.type;
+  var kpJson = esc(JSON.stringify(keyPath));
+  if (type === 'map') {
+    var kpKey = JSON.stringify(keyPath);
+    var declaredItemAttr = (attr && attr.item) || {type: 'string'};
+    var itemTypeHintable = !declaredItemAttr.type || declaredItemAttr.type === 'any';
+    var itemAttr = effectiveItemAttr(keyPath, attr);
+    var mapVal = (val && typeof val === 'object' && !Array.isArray(val)) ? val : {};
+    var entries = Object.keys(mapVal).sort();
+    var rows = entries.map(function(mk) {
+      var childKeyPath = keyPath.concat([mk]);
+      // effectiveEditAttr() upgrades an "any"-typed item (e.g. a map whose
+      // values can be anything, per-entry) to a synthesized map/array attr
+      // when THIS entry's actual runtime value is complex — a map<any>
+      // can hold a mix of scalar and complex values across its different
+      // keys, so this has to be re-checked per entry, not once for the
+      // whole map.
+      var effItemAttr = effectiveEditAttrAtPath(childKeyPath, itemAttr, mapVal[mk]);
+      var itemIsComplexEntry = effItemAttr.type === 'object' || effItemAttr.type === 'map' || effItemAttr.type === 'array';
+      var inputHtml = itemIsComplexEntry
+        ? renderEditableComplexValue(childKeyPath, mapVal[mk], effItemAttr, model, entityPath, rootData)
+        : typePillHtml(effItemAttr) + renderEditableScalarInputAtPath(childKeyPath, mapVal[mk], effItemAttr);
+      // Key is itself editable (rename) — an <input>, not static text, so
+      // the map's key can be corrected/changed, not just its value. Commits
+      // (and does a full re-render, like Add/Remove) only on change/blur,
+      // never per-keystroke.
+      var keyInputHtml = '<input type="text" class="xr-edit-input xr-map-key-input" value="' + esc(mk) + '" '
+        + 'onchange="dataEditMapRenameKey(' + kpJson + ',' + esc(JSON.stringify(mk)) + ', this)">';
+      var removeBtnHtml = '<button class="editorBtn editorBtnSmall editorBtnDanger xr-rm-btn-small" '
+        + 'onclick="dataEditMapRemoveEntry(' + kpJson + ',' + esc(JSON.stringify(mk)) + ')" title="Remove">\u2715</button>';
+      // A complex (map/object/array) value renders on its own line below
+      // the key, indented — squeezing a whole nested editor to the right
+      // of its key (like a plain scalar value) makes it hard to see what
+      // belongs to what. Scalars keep the original compact inline layout.
+      // The remove button sits to the *left* of the key (small "X",
+      // matching the array item treatment below) in both cases.
+      if (itemIsComplexEntry) {
+        return '<div class="xr-map-row xr-map-row-complex">'
+          + '<div class="xr-map-row-head">' + removeBtnHtml + '<span class="xr-map-key">' + keyInputHtml + '</span></div>'
+          + '<div class="xr-map-val xr-map-val-indent">' + inputHtml + '</div>'
+          + '</div>';
+      }
+      return '<div class="xr-map-row">'
+        + '<div class="xr-map-row-head">' + removeBtnHtml + '<span class="xr-map-key">' + keyInputHtml + '</span></div>'
+        + '<span class="xr-map-val">' + inputHtml + '</span>'
+        + '</div>';
+    });
+    var addId = 'mapadd_' + keyPath.join('_').replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
+    // No key or value is collected up front — like the array's "+ Add
+    // Item" button, this just creates a new entry (an auto-generated,
+    // immediately-renamable key, and an empty default value for the
+    // chosen type) which is then edited normally afterward. See
+    // renderComplexAddButtonHtml() for why/how the type is chosen when
+    // the item type is "any"/undeclared.
+    rows.push('<div class="xr-map-row xr-map-addrow">'
+      + renderComplexAddButtonHtml(itemAttr, '+ Add Entry', addId, 'dataEditMapAddEntry', kpJson)
+      + (itemTypeHintable ? itemTypeHintSelectorHtml(kpJson, _itemTypeHints[kpKey] && _itemTypeHints[kpKey].type) : '')
+      + '</div>');
+    return typePillHtml(Object.assign({}, attr, {item: itemAttr})) + '<div class="xr-map-editor">' + rows.join('') + '</div>';
+  }
+  if (type === 'array') {
+    var kpKey2 = JSON.stringify(keyPath);
+    var declaredItemAttr2 = (attr && attr.item) || {type: 'string'};
+    var itemTypeHintable2 = !declaredItemAttr2.type || declaredItemAttr2.type === 'any';
+    var itemAttr2 = effectiveItemAttr(keyPath, attr);
+    var items = Array.isArray(val) ? val : [];
+    var rows2 = items.map(function(iv, idx) {
+      var childKeyPath = keyPath.concat([idx]);
+      // Per-index effectiveEditAttr() upgrade — see the map branch's
+      // itemIsComplexEntry comment above; an array<any> can likewise mix
+      // scalar and complex items across its indices.
+      var effItemAttr2 = effectiveEditAttrAtPath(childKeyPath, itemAttr2, iv);
+      var itemIsComplexEntry2 = effItemAttr2.type === 'object' || effItemAttr2.type === 'map' || effItemAttr2.type === 'array';
+      var inputHtml = itemIsComplexEntry2
+        ? renderEditableComplexValue(childKeyPath, iv, effItemAttr2, model, entityPath, rootData)
+        : typePillHtml(effItemAttr2) + renderEditableScalarInputAtPath(childKeyPath, iv, effItemAttr2);
+      var removeBtnHtml2 = '<button class="editorBtn editorBtnSmall editorBtnDanger xr-rm-btn-small" '
+        + 'onclick="dataEditArrayRemoveItem(' + kpJson + ',' + idx + ')" title="Remove">\u2715</button>';
+      // Complex items get the same stacked/indented treatment as a map's
+      // complex values (see the map branch above) — index + remove button
+      // side by side on their own header line, nested editor indented
+      // below. Scalar items get the same X-then-[idx]-then-value inline
+      // layout, for consistency — the remove button sits to the *left*
+      // of the index it belongs to (matching map/object entries' X-then-
+      // key layout), regardless of item shape.
+      if (itemIsComplexEntry2) {
+        return '<div class="xr-arr-row xr-arr-row-complex">'
+          + '<div class="xr-arr-row-head">' + removeBtnHtml2 + '<span class="vt-arr-idx">[' + idx + ']</span></div>'
+          + '<div class="xr-arr-val xr-map-val-indent">' + inputHtml + '</div>'
+          + '</div>';
+      }
+      return '<div class="xr-arr-row">' + removeBtnHtml2
+        + '<span class="vt-arr-idx">[' + idx + ']</span>'
+        + '<span class="xr-arr-val">' + inputHtml + '</span>'
+        + '</div>';
+    });
+    var arrAddId = 'arradd_' + keyPath.join('_').replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
+    rows2.push('<div class="xr-arr-row xr-arr-addrow">'
+      + renderComplexAddButtonHtml(itemAttr2, '+ Add Item', arrAddId, 'dataEditArrayAddItem', kpJson)
+      + (itemTypeHintable2 ? itemTypeHintSelectorHtml(kpJson, _itemTypeHints[kpKey2] && _itemTypeHints[kpKey2].type) : '')
+      + '</div>');
+    return typePillHtml(Object.assign({}, attr, {item: itemAttr2})) + '<div class="xr-arr-editor">' + rows2.join('') + '</div>';
+  }
+  if (type === 'object') {
+    var subAttrs = (attr && attr.attributes) || {};
+    var wildcardAttr = subAttrs['*'];
+    var declaredSubKeys = Object.keys(subAttrs).filter(function(sk) { return sk !== '*'; });
+    var objVal = (val && typeof val === 'object' && !Array.isArray(val)) ? val : {};
+    // Union of model-declared sub-attributes and any extension keys already
+    // present on this object (set via the "+ Add" row below in an earlier
+    // edit) — without this, an object whose model only declares "*" (no
+    // named sub-attributes at all, e.g. a bare extensible object) would
+    // have nothing to iterate and fall through to the read-only tree,
+    // even though it should be editable via its wildcard.
+    var allSubKeys = declaredSubKeys.slice();
+    Object.keys(objVal).forEach(function(pk) { if (allSubKeys.indexOf(pk) === -1) allSubKeys.push(pk); });
+    if (!allSubKeys.length && !wildcardAttr) return renderValueTree(val, 0, model, entityPath, keyPath, rootData);
+    var rows3 = allSubKeys.map(function(sk) {
+      var sAttr = subAttrs[sk] || wildcardAttr || {type: 'string'};
+      var childKeyPath = keyPath.concat([sk]);
+      var effSAttr = effectiveEditAttrAtPath(childKeyPath, sAttr, objVal[sk]);
+      var itemIsComplexEntry3 = effSAttr.type === 'object' || effSAttr.type === 'map' || effSAttr.type === 'array';
+      var inputHtml = itemIsComplexEntry3
+        ? renderEditableComplexValue(childKeyPath, objVal[sk], effSAttr, model, entityPath, rootData)
+        : typePillHtml(effSAttr) + renderEditableScalarInputAtPath(childKeyPath, objVal[sk], effSAttr);
+      // Only extension keys (not declared by the model) get a Remove button
+      // — a model-declared sub-attribute can be cleared/edited but not
+      // removed from the object's shape entirely. Extension keys are also
+      // renamable (an <input>, like a map key), since they're just
+      // user-chosen names, not fixed by the model.
+      var isExtKey = declaredSubKeys.indexOf(sk) === -1;
+      var keyHtml = isExtKey
+        ? '<input type="text" class="xr-edit-input xr-map-key-input" value="' + esc(sk) + '" '
+          + 'onchange="dataEditObjRenameKey(' + kpJson + ',' + esc(JSON.stringify(sk)) + ', this)">'
+        : esc(labelFor(sk));
+      var removeBtn = isExtKey
+        ? '<button class="editorBtn editorBtnSmall editorBtnDanger xr-rm-btn-small" '
+          + 'onclick="dataEditObjRemoveKey(' + kpJson + ',' + esc(JSON.stringify(sk)) + ')" title="Remove">\u2715</button>'
+        : '';
+      // Complex sub-values get the same head(X+key)/border + indented
+      // value layout as map/array complex entries above, for the same
+      // reason — squeezing a nested editor inline with the key makes it
+      // hard to tell what belongs to what. The remove button sits to the
+      // *left* of the key (same as a map entry's key) in both cases.
+      // Scalar sub-values get the *same* head/border wrapper (unlike map/
+      // array, which only border-wrap their complex entries) — an
+      // object's keys benefit from a consistent divider between "key" and
+      // "value" regardless of the value's shape, since object rows mix
+      // named/model-declared keys with free-form extension keys.
+      if (itemIsComplexEntry3) {
+        return '<div class="xr-obj-row xr-obj-row-complex">'
+          + '<div class="xr-obj-row-head">' + removeBtn + '<span class="xr-obj-key">' + keyHtml + ':</span></div>'
+          + '<div class="xr-obj-val xr-map-val-indent">' + inputHtml + '</div>'
+          + '</div>';
+      }
+      return '<div class="xr-obj-row">'
+        + '<div class="xr-obj-row-head">' + removeBtn + '<span class="xr-obj-key">' + keyHtml + ':</span></div>'
+        + '<span class="xr-obj-val">' + inputHtml + '</span></div>';
+    });
+    var html3 = '<div class="xr-obj-editor">' + rows3.join('');
+    if (wildcardAttr) {
+      var addId3 = 'objadd_' + keyPath.join('_').replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
+      html3 += '<div class="xr-obj-row xr-obj-addrow">'
+        + renderComplexAddButtonHtml(wildcardAttr, '+ Add Key', addId3, 'dataEditObjAddKey', kpJson)
+        + '</div>';
+    }
+    html3 += '</div>';
+    return typePillHtml(attr) + html3;
+  }
+  // Unknown/unsupported complex shape (no declared item/attributes info) —
+  // fall back to the existing read-only tree render.
+  return renderValueTree(val, 0, model, entityPath, keyPath, rootData);
+}
+
+// Reads the value at an arbitrary nested location (array of string/number
+// segments) inside obj — the read counterpart of setInPath() below.
+function getInPath(obj, keyPath) {
+  var cur = obj;
+  for (var i = 0; i < keyPath.length && cur != null; i++) cur = cur[keyPath[i]];
+  return cur;
+}
+
+// Writes val at an arbitrary nested location inside obj, creating any
+// missing intermediate containers along the way (object vs array chosen by
+// peeking at the *next* path segment's type — numeric segments imply an
+// array). Used by all the complex-attribute mutation handlers below so
+// map/object/array editing shares one small set of primitives regardless
+// of nesting depth.
+function setInPath(obj, keyPath, val) {
+  var cur = obj;
+  for (var i = 0; i < keyPath.length - 1; i++) {
+    var k = keyPath[i];
+    if (cur[k] == null || typeof cur[k] !== 'object') {
+      cur[k] = (typeof keyPath[i + 1] === 'number') ? [] : {};
+    }
+    cur = cur[k];
+  }
+  cur[keyPath[keyPath.length - 1]] = val;
+}
+
+// onchange handler for scalar leaf inputs anywhere inside a complex
+// (map/object/array) attribute's editor — mirrors dataEditFieldChange() but
+// addresses an arbitrary nested location via keyPath instead of a single
+// top-level key. No re-render (like dataEditFieldChange) so typing never
+// loses input focus.
+function dataEditNestedFieldChange(keyPath, inputEl) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') val = inputEl.checked;
+  else if (type === 'integer' || type === 'uinteger') val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  else if (type === 'decimal') val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  else val = inputEl.value;
+  setInPath(root, keyPath, val);
+  markActiveEditDirty();
+  // Highlight the containing top-level row as changed too (mirrors
+  // dataEditFieldChange()'s toggleRowDirty()) — otherwise a nested edit
+  // (e.g. "deprecated.alternative") marks the working copy dirty (Save
+  // buttons correctly enable) but gives no visual feedback at all on the
+  // row itself, since this handler deliberately never triggers a full
+  // re-render. Compares the whole top-level container's value against its
+  // pristine snapshot (activeEditSrc()) rather than just the one leaf,
+  // since any of its nested fields changing makes the row dirty.
+  var topKey = keyPath[0];
+  var src = activeEditSrc();
+  var newTopVal = getInPath(root, [topKey]);
+  var isDirty = !src || JSON.stringify(newTopVal) !== JSON.stringify(src[topKey]);
+  toggleRowDirty(inputEl, isDirty);
+}
+
+// Adds a new map entry at keyPath — no key or value is collected up front
+// (see renderComplexAddButtonHtml()): an auto-generated, unique key gets
+// an empty default value for the chosen type, then renders as a normal
+// row the user edits in place (rename the key via its own input, fill in
+// the value). itemType is the item's declared type when concrete, or null
+// when it's "any"/undeclared — in which case it's read from the add
+// button's type-select overlay (id addId + '_t') instead. Full re-render
+// (like dataEditAddExtensionV2()) since it's only ever triggered by an
+// explicit button click, never by typing.
+function dataEditMapAddEntry(keyPath, addId, itemType) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var mapObj = getInPath(root, keyPath);
+  if (!mapObj || typeof mapObj !== 'object' || Array.isArray(mapObj)) {
+    mapObj = {};
+    setInPath(root, keyPath, mapObj);
+  }
+  if (!itemType) {
+    var typeEl = document.getElementById(addId + '_t');
+    itemType = typeEl ? typeEl.value : 'string';
+  }
+  var key = genUniqueKey(mapObj, 'key');
+  mapObj[key] = defaultValueForType(itemType);
+  // Remember the explicitly-chosen type per-entry (not just per-container
+  // — see itemTypeHintSelectorHtml() for the container-wide version) —
+  // needed not only for the map-vs-object ambiguity (both start out as a
+  // plain {}, indistinguishable afterward — see effectiveEditAttr()) but
+  // also to keep e.g. "integer" vs "decimal" vs "uinteger", or
+  // "timestamp"/"uri"/"url"/"xid" vs plain "string", from collapsing back
+  // down to a generic runtime-type guess once a value exists.
+  _shapeHints[JSON.stringify(keyPath.concat([key]))] = shapedAttrForType(itemType);
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+function dataEditMapRemoveEntry(keyPath, mapKey) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var mapObj = getInPath(root, keyPath);
+  if (!mapObj || typeof mapObj !== 'object') return;
+  delete mapObj[mapKey];
+  delete _shapeHints[JSON.stringify(keyPath.concat([mapKey]))];
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Renames a map entry's key in place (preserving its value and the map's
+// insertion order) — triggered by the key <input>'s onchange (see
+// renderEditableComplexValue()'s map branch). Reverts to the old key
+// (via a full re-render, discarding the invalid typed value) if the new
+// name is empty, unchanged, or collides with another existing key.
+function dataEditMapRenameKey(keyPath, oldKey, inputEl) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var mapObj = getInPath(root, keyPath);
+  if (!mapObj || typeof mapObj !== 'object') return;
+  var newKey = (inputEl.value || '').trim();
+  if (!newKey || newKey === oldKey) { rerenderActiveEdit(); return; }
+  if (Object.prototype.hasOwnProperty.call(mapObj, newKey)) {
+    alert('Key "' + newKey + '" already exists.');
+    rerenderActiveEdit();
+    return;
+  }
+  var rebuilt = {};
+  Object.keys(mapObj).forEach(function(k) {
+    rebuilt[k === oldKey ? newKey : k] = mapObj[k];
+  });
+  setInPath(root, keyPath, rebuilt);
+  // Carry the entry's map-vs-object hint (if any) over to its new key —
+  // otherwise renaming would silently lose an explicit type choice (see
+  // dataEditMapAddEntry()'s matching comment).
+  var oldHintKey = JSON.stringify(keyPath.concat([oldKey]));
+  if (_shapeHints[oldHintKey]) {
+    _shapeHints[JSON.stringify(keyPath.concat([newKey]))] = _shapeHints[oldHintKey];
+    delete _shapeHints[oldHintKey];
+  }
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Adds a new item to an array-typed attribute at keyPath. itemType is the
+// item's declared type when concrete, or null when it's "any"/undeclared,
+// read instead from the add button's type-select overlay (id addId +
+// '_t') — see renderComplexAddButtonHtml(). The new item gets an empty
+// default value for the chosen type and is then edited normally in place
+// afterward, same as dataEditMapAddEntry() above.
+function dataEditArrayAddItem(keyPath, addId, itemType) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var arr = getInPath(root, keyPath);
+  if (!Array.isArray(arr)) { arr = []; setInPath(root, keyPath, arr); }
+  if (!itemType) {
+    var typeEl = document.getElementById(addId + '_t');
+    itemType = typeEl ? typeEl.value : 'string';
+  }
+  var idx = arr.length;
+  arr.push(defaultValueForType(itemType));
+  // See dataEditMapAddEntry()'s matching comment — remember the explicit
+  // type choice per-item.
+  _shapeHints[JSON.stringify(keyPath.concat([idx]))] = shapedAttrForType(itemType);
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+function dataEditArrayRemoveItem(keyPath, idx) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var arr = getInPath(root, keyPath);
+  if (!Array.isArray(arr)) return;
+  arr.splice(idx, 1);
+  delete _shapeHints[JSON.stringify(keyPath.concat([idx]))];
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Adds a new extension key to an object-typed attribute (or nested object)
+// whose model declares a wildcard ("*") — see renderEditableComplexValue()'s
+// object branch. No key is collected up front — an auto-generated, unique
+// key gets an empty default value for the chosen type (declared, or read
+// from the add button's type-select overlay when "any"/undeclared — see
+// renderComplexAddButtonHtml()), then renders as a normal, immediately-
+// renamable row, same as dataEditMapAddEntry()/dataEditArrayAddItem().
+function dataEditObjAddKey(keyPath, addId, itemType) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var objVal = getInPath(root, keyPath);
+  if (!objVal || typeof objVal !== 'object' || Array.isArray(objVal)) {
+    objVal = {};
+    setInPath(root, keyPath, objVal);
+  }
+  if (!itemType) {
+    var typeEl = document.getElementById(addId + '_t');
+    itemType = typeEl ? typeEl.value : 'string';
+  }
+  var key = genUniqueKey(objVal, 'key');
+  objVal[key] = defaultValueForType(itemType);
+  // See dataEditMapAddEntry()'s matching comment — remember the explicit
+  // type choice per-key.
+  _shapeHints[JSON.stringify(keyPath.concat([key]))] = shapedAttrForType(itemType);
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Sets a never-set, still-fully-ambiguous ("any"/undeclared) top-level (or
+// Meta tab) attribute's value for the first time — wired to the "Set
+// Value" split button rendered by buildPropsRowsHtml()/renderMetaTable()
+// (see isAnyTypeUnset()/renderComplexAddButtonHtml()) instead of the
+// plain always-string input those rows would otherwise get. Same
+// shape-hint bookkeeping as dataEditMapAddEntry()/dataEditObjAddKey()
+// above (keyed by the attribute's own keyPath here, e.g. ['mylabel'])
+// so the chosen type — including map/object/array, which then renders
+// via renderEditableComplexValue() on the next render — sticks instead
+// of collapsing back down to a runtime-type guess.
+function dataEditSetAnyType(keyPath, addId, itemType) {
+  var root = activeEditRoot();
+  if (!root) return;
+  if (!itemType) {
+    var typeEl = document.getElementById(addId + '_t');
+    itemType = typeEl ? typeEl.value : 'string';
+  }
+  setInPath(root, keyPath, defaultValueForType(itemType));
+  _shapeHints[JSON.stringify(keyPath)] = shapedAttrForType(itemType);
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Adds a brand-new top-level extension attribute (name typed up front,
+// same as before, since an extension's name is meaningful and can't be
+// auto-generated) — but its type/value is now chosen via the same split
+// "+ Add"-button-with-overlay-type-picker pattern used everywhere else
+// (map/array/object "+Add", the "Set Value" picker above), replacing the
+// older pre-collect {type select + value input + separate Add button}
+// row (renderExtTypeValueWidgetHtml() — still used, unchanged, by the
+// "Add new entity" form's own extension row). Shared by both the entity
+// and Meta tabs via activeEditRoot()/markActiveEditDirty()/
+// rerenderActiveEdit(), same as every other nested-edit handler above.
+function dataEditAddExtensionV2(nameInputId, addId, itemType) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var nameEl = document.getElementById(nameInputId);
+  var name = nameEl ? (nameEl.value || '').trim() : '';
+  if (!name) { alert('Enter an extension name.'); return; }
+  if (Object.prototype.hasOwnProperty.call(root, name)) {
+    alert('Attribute "' + name + '" already exists.');
+    return;
+  }
+  if (!itemType) {
+    var typeEl = document.getElementById(addId + '_t');
+    itemType = typeEl ? typeEl.value : 'string';
+  }
+  root[name] = defaultValueForType(itemType);
+  _shapeHints[JSON.stringify([name])] = shapedAttrForType(itemType);
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+
+// Renames an extension key of an object-typed attribute — same rename
+// semantics as dataEditMapRenameKey() above, but only ever wired to
+// extension keys (isExtKey in renderEditableComplexValue()'s object
+// branch), never a model-declared sub-attribute's name.
+function dataEditObjRenameKey(keyPath, oldKey, inputEl) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var objVal = getInPath(root, keyPath);
+  if (!objVal || typeof objVal !== 'object') return;
+  var newKey = (inputEl.value || '').trim();
+  if (!newKey || newKey === oldKey) { rerenderActiveEdit(); return; }
+  if (Object.prototype.hasOwnProperty.call(objVal, newKey)) {
+    alert('Key "' + newKey + '" already exists.');
+    rerenderActiveEdit();
+    return;
+  }
+  var rebuilt = {};
+  Object.keys(objVal).forEach(function(k) {
+    rebuilt[k === oldKey ? newKey : k] = objVal[k];
+  });
+  setInPath(root, keyPath, rebuilt);
+  var oldHintKey2 = JSON.stringify(keyPath.concat([oldKey]));
+  if (_shapeHints[oldHintKey2]) {
+    _shapeHints[JSON.stringify(keyPath.concat([newKey]))] = _shapeHints[oldHintKey2];
+    delete _shapeHints[oldHintKey2];
+  }
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// Removes an extension key from an object-typed attribute — only ever
+// wired to keys not declared by the model (see isExtKey in
+// renderEditableComplexValue()'s object branch), so this never removes a
+// model-declared sub-attribute's slot.
+function dataEditObjRemoveKey(keyPath, key) {
+  var root = activeEditRoot();
+  if (!root) return;
+  var objVal = getInPath(root, keyPath);
+  if (!objVal || typeof objVal !== 'object') return;
+  delete objVal[key];
+  delete _shapeHints[JSON.stringify(keyPath.concat([key]))];
+  markActiveEditDirty();
+  rerenderActiveEdit();
+}
+
+// onchange handler for every editable input rendered above — mutates the
+// working copy (_dataEditData) directly and marks the page dirty. No full
+// table re-render happens here (unlike dataEditAddExtensionV2()) so typing
+// never loses input focus — but the row's dirty (changed) highlight is
+// still updated immediately and deterministically via toggleRowDirty(),
+// rather than relying on some *other*, unrelated action (e.g. Add Item on
+// a different attribute) to eventually trigger a full re-render that
+// happens to recompute it. Previously this only happened as a side effect
+// of nested map/array/object handlers' rerenderActiveEdit() calls, which
+// is why scalar/boolean edits wouldn't show as changed until some other
+// edit elsewhere forced a redraw — and even then inconsistently, since it
+// depended on exactly when/whether that redraw happened to run.
+function dataEditFieldChange(k, inputEl) {
+  if (!_dataEditData) return;
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') {
+    val = inputEl.checked;
+  } else if (type === 'integer' || type === 'uinteger') {
+    val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  } else if (type === 'decimal') {
+    val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  } else {
+    val = inputEl.value;
+  }
+  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var beforeAttrs = topLevelAttrsMapFor(model, _state.path, _dataEditData);
+  _dataEditData[k] = val;
+  markDataDirty();
+  // ifvalues reactivity: if this attribute's new value adds/removes
+  // conditional sibling attributes, a full re-render is needed so those
+  // rows appear/disappear immediately (see reconcileIfValuesOnChange()).
+  if (reconcileIfValuesOnChange(model, _state.path, beforeAttrs, _dataEditData)) {
+    renderSingleEntity(_lastData || _dataEditSrc);
+    return;
+  }
+  toggleRowDirty(inputEl, _dataEditSrc && JSON.stringify(val) !== JSON.stringify(_dataEditSrc[k]));
+}
+
+// Toggles the "changed" (xr-row-dirty) highlight on the <tr> containing
+// the given input, without touching anything else in the table — used by
+// dataEditFieldChange()/metaEditFieldChange() so a scalar/boolean edit's
+// dirty-row highlight updates immediately and every time, regardless of
+// whether anything else on the page happens to trigger a full re-render.
+function toggleRowDirty(inputEl, isDirty) {
+  var tr = inputEl && inputEl.closest ? inputEl.closest('tr') : null;
+  if (tr) tr.classList.toggle('xr-row-dirty', !!isDirty);
+}
+
+function markDataDirty() {
+  if (!_dataDirty) {
+    _dataDirty = true;
+    var pb = document.getElementById('dataSavePutBtn');   if (pb) pb.disabled = false;
+    var ab = document.getElementById('dataSavePatchBtn'); if (ab) ab.disabled = false;
+    var ub = document.getElementById('dataUndoBtn');      if (ub) ub.disabled = false;
+  }
+}
+
+// Shared <option> list for every "pick a type" dropdown in Full Data Edit
+// Mode — the top-level "+ Add Extension" widget below, and the compact
+// type-only overlay used by renderComplexAddButtonHtml() for map/array/
+// object entries whose item type is "any"/undeclared.
+// `selectedType` (optional) marks the matching <option> "selected" — used
+// by the "Items are:" hint selector (dataEditSetItemTypeHint()) to reflect
+// a container's current item-type hint; other callers omit it, leaving the
+// browser's own default (the first option, "string") as before.
+function extTypeOptionsHtml(selectedType) {
+  var types = ['string', 'boolean', 'integer', 'uinteger', 'decimal',
+    'timestamp', 'uri', 'url', 'xid', 'map', 'array', 'object'];
+  return types.map(function(t) {
+    return '<option value="' + t + '"' + (t === selectedType ? ' selected' : '') + '>' + t + '</option>';
+  }).join('');
+}
+
+// Default "empty" value for a given type — used when a new map entry/array
+// item/object key is added without an inline value field (see
+// renderComplexAddButtonHtml() below): the entry is created with a
+// sensible empty default and then edited in place afterward, exactly like
+// a freshly-added complex value already works.
+function defaultValueForType(t) {
+  if (t === 'boolean') return false;
+  if (t === 'integer' || t === 'uinteger' || t === 'decimal') return 0;
+  if (t === 'array') return [];
+  if (t === 'map' || t === 'object') return {};
+  return '';
+}
+
+// Generates a key not already present in obj, e.g. "key1", "key2", ... —
+// used for new map entries/object extension keys, whose name isn't asked
+// for up front (see renderComplexAddButtonHtml()); the auto-generated key
+// then appears as a normal, immediately-renamable row (its rename input
+// works exactly like any other map/object key).
+function genUniqueKey(obj, base) {
+  base = base || 'key';
+  var n = 1;
+  while (Object.prototype.hasOwnProperty.call(obj, base + n)) n++;
+  return base + n;
+}
+
+// Renders a map entry/array item/object key's "+ Add" control. Mirrors the
+// array's existing "+ Add Item" button in NOT asking for any value up
+// front — the new entry is created with an empty default value/key and
+// then edited normally afterward (rename the key, fill in the value),
+// rather than pre-collecting key/value in the add-row itself (which read
+// oddly — data provided before the entry technically exists — and is
+// altogether impossible for a nested map/object/array value anyway).
+//
+// When itemAttr's type is concrete (a real scalar type, or already a
+// declared complex type), there's nothing to ask — a single button
+// suffices. When it's "any"/undeclared (e.g. a map<any> or the object's
+// "*" wildcard), the caller can't know in advance what shape the user
+// wants, so this renders a two-zone "split button" (same visual pattern
+// as the filter builder's "+ Add (AND) to" target picker): the button
+// itself, plus a compact type <select> overlaid on its right edge. The
+// button's onclick reads the currently-selected type out of that overlay.
+function renderComplexAddButtonHtml(itemAttr, label, addId, onclickFnName, keyPathJson) {
+  var isComplex = itemAttr && (itemAttr.type === 'object' || itemAttr.type === 'map' || itemAttr.type === 'array');
+  var isAny = !isComplex && (!itemAttr || !itemAttr.type || itemAttr.type === 'any');
+  if (!isAny) {
+    return '<button class="editorBtn editorBtnSmall" '
+      + 'onclick="' + onclickFnName + '(' + keyPathJson + ',' + esc(JSON.stringify(addId)) + ',' + esc(JSON.stringify(itemAttr.type)) + ')">'
+      + label + '</button>';
+  }
+  return '<span class="xr-add-split">'
+    + '<button class="editorBtn editorBtnSmall xr-add-split-btn" '
+    + 'onclick="' + onclickFnName + '(' + keyPathJson + ',' + esc(JSON.stringify(addId)) + ',null)">' + label + '</button>'
+    + '<select id="' + esc(addId) + '_t" class="xr-add-split-type">' + extTypeOptionsHtml() + '</select>'
+    + '</span>';
+}
+
+// A map/array whose item type is "any"/undeclared can hold a mix of
+// scalar/complex values (see effectiveEditAttr()) — but a user who wants
+// it to behave as a homogeneous "map/array of one type" (matching a
+// genuinely model-declared map<T>/array<T>, which never shows this
+// selector at all) needs a way to say so, since an empty {}/[] alone
+// can't record that intent in the JSON data itself. This renders that
+// small "Items are: <select>" control (wired to
+// dataEditSetItemTypeHint() below), shown alongside the container's own
+// "+ Add" button whenever its item type isn't already fixed by the
+// model. Choosing a concrete type here makes every subsequent Add use
+// that type directly (renderComplexAddButtonHtml() no longer needs its
+// own per-entry type overlay once the container's item type is no
+// longer "any") — "(any)" clears the hint back to the original
+// per-entry-typed behavior.
+// Builds a properly-shaped attr for a bare type name (as chosen from a
+// type <select>, e.g. an "Items are:" hint or an explicit add-time choice)
+// — a plain {type:'map'/'object'/'array'} alone isn't enough for either
+// shape to actually render/edit correctly (the map/array branches need an
+// .item, the object branch needs a wildcarded .attributes to have
+// anything to "+ Add" into), so any code recording a type choice for a
+// complex shape should go through this rather than building the attr by
+// hand, to avoid ending up with a shape that looks "empty" with no way to
+// add children (see dataEditSetItemTypeHint()/effectiveEditAttrAtPath()).
+function shapedAttrForType(t) {
+  if (t === 'object') return {type: 'object', attributes: {'*': {type: 'any'}}};
+  if (t === 'map') return {type: 'map', item: {type: 'any'}};
+  if (t === 'array') return {type: 'array', item: {type: 'any'}};
+  return {type: t};
+}
+
+function itemTypeHintSelectorHtml(keyPathJson, currentType) {
+  return ' <span class="xr-item-hint">Items are '
+    + '<select class="xr-item-hint-select" onchange="dataEditSetItemTypeHint(' + keyPathJson + ', this.value)">'
+    + '<option value=""' + (!currentType || currentType === 'any' ? ' selected' : '') + '>(any)</option>'
+    + extTypeOptionsHtml(currentType)
+    + '</select></span>';
+}
+
+// Sets (or, if chosenType is empty, clears) the "items are always this
+// type" hint for the map/array container at keyPath — see
+// itemTypeHintSelectorHtml() above. Purely a rendering hint (see
+// _itemTypeHints/effectiveItemAttr()); never written into the actual
+// JSON data.
+function dataEditSetItemTypeHint(keyPath, chosenType) {
+  var key = JSON.stringify(keyPath);
+  if (!chosenType) delete _itemTypeHints[key];
+  else _itemTypeHints[key] = shapedAttrForType(chosenType);
+  rerenderActiveEdit();
+}
+
+// Resolves a map/array's actual item attr for rendering: the user's own
+// "Items are:" hint (see above) takes priority when set, then the
+// model-declared item type, then a plain string fallback — same
+// resolution order/purpose as effectiveEditAttr(), but for the
+// container's *declared* item shape rather than one entry's actual
+// runtime value.
+function effectiveItemAttr(keyPath, attr) {
+  return _itemTypeHints[JSON.stringify(keyPath)] || (attr && attr.item) || {type: 'string'};
+}
+
+// Renders a "type" <select> + a matching value input for choosing an
+// extension attribute's actual JSON type before typing its value —
+// extension attributes are declared "any" by the model's wildcard ("*"),
+// so without this every new extension would always end up a plain string
+// regardless of what the user actually intended (e.g. a boolean flag or a
+// number). Now only used by the "Add new entity" form's own "+ Add
+// Extension" row (addNewEntityAddExtension()) — the existing-entity/Meta
+// tab "+ Add Extension" rows use the split-button pattern instead (see
+// dataEditAddExtensionV2()). `valId`'s DOM node gets swapped out (via
+// extTypeWidgetTypeChanged()) each time the type selector changes, since a
+// checkbox/number/text input aren't interchangeable via attribute tweaks
+// alone.
+function renderExtTypeValueWidgetHtml(typeId, valId) {
+  return '<select id="' + esc(typeId) + '" class="xr-edit-input" style="width:90px" '
+    + 'onchange="extTypeWidgetTypeChanged(' + esc(JSON.stringify(typeId)) + ',' + esc(JSON.stringify(valId)) + ')">'
+    + extTypeOptionsHtml()
+    + '</select>'
+    + ' <input type="text" id="' + esc(valId) + '" class="xr-edit-input" placeholder="value" style="width:160px">';
+}
+
+// onchange handler for the type <select> above — swaps the value input's
+// DOM node to match (checkbox for boolean, number for integer/uinteger/
+// decimal, a disabled placeholder for map/array/object since those start
+// out as an empty container to be edited afterward — not typed inline —
+// text otherwise), preserving its id so readExtTypeValue() below can
+// still find it.
+function extTypeWidgetTypeChanged(typeId, valId) {
+  var typeEl = document.getElementById(typeId);
+  var valEl  = document.getElementById(valId);
+  if (!typeEl || !valEl) return;
+  var t = typeEl.value;
+  var replacement;
+  if (t === 'boolean') {
+    replacement = '<input type="checkbox" id="' + esc(valId) + '" class="xr-edit-input">';
+  } else if (t === 'integer' || t === 'uinteger' || t === 'decimal') {
+    replacement = '<input type="number" id="' + esc(valId) + '" class="xr-edit-input" style="width:160px" '
+      + (t === 'decimal' ? 'step="any"' : 'step="1"') + '>';
+  } else if (t === 'map' || t === 'array' || t === 'object') {
+    replacement = '<input type="text" id="' + esc(valId) + '" class="xr-edit-input" style="width:160px" '
+      + 'value="(empty ' + (t === 'array' ? '[]' : '{}') + ' \u2014 edit after adding)" disabled>';
+  } else {
+    replacement = '<input type="text" id="' + esc(valId) + '" class="xr-edit-input" placeholder="value" style="width:160px">';
+  }
+  valEl.outerHTML = replacement;
+}
+
+// Reads the current value out of an extension-widget pair, converted to
+// match the chosen type (see renderExtTypeValueWidgetHtml() above). Complex
+// types (map/array/object) always start out as an empty container — see
+// extTypeWidgetTypeChanged() — which then renders with its own nested
+// editor (Add Item/+Add/wildcard "+Add") immediately after being added,
+// same as a complex map-entry's value (see dataEditMapAddEntry()).
+function readExtTypeValue(typeId, valId) {
+  var typeEl = document.getElementById(typeId);
+  var valEl  = document.getElementById(valId);
+  var t = typeEl ? typeEl.value : 'string';
+  if (t === 'boolean') return !!(valEl && valEl.checked);
+  if (t === 'integer' || t === 'uinteger') return (!valEl || valEl.value === '') ? 0 : parseInt(valEl.value, 10);
+  if (t === 'decimal') return (!valEl || valEl.value === '') ? 0 : parseFloat(valEl.value);
+  if (t === 'array') return [];
+  if (t === 'map' || t === 'object') return {};
+  return valEl ? valEl.value : '';
+}
+
+function undoDataEdit() {
+  _dataDirty = false;
+  _dataEditData = deepClone(_dataEditSrc);
+  renderSingleEntity(_lastData || _dataEditSrc);
+}
+
+// Deletes the entity currently on-screen, after confirmation, then
+// navigates back up to its parent (collection) page.
+function deleteDataEntity() {
+  var typeLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  if (!confirm('Delete this ' + typeLabel + '? This cannot be undone.')) return;
+  var errDiv = document.getElementById('dataEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  fetch(buildBaseURL(), {method: 'DELETE'}).then(function(resp) {
+    if (resp.ok || resp.status === 204) {
+      _dataDirty = false; _dataEditData = null; _dataEditSrc = null; _dataLoadedFor = null;
+      pushState({path: _state.path.slice(0, -1), editMode: false});
+      return;
+    }
+    return resp.text().then(function(text) {
+      if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+    });
+  }).catch(function(err) {
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// Saves the working copy via PUT (full replacement) or PATCH (only the
+// attributes that differ from the pristine snapshot — a shallow top-level
+// diff, matching the fact that v1 only supports editing top-level scalar
+// attributes/extensions). Resource/Version entities with a document body
+// must target the $details-suffixed URL — bare PATCH is otherwise rejected
+// server-side (registry/httpStuff.go's metaInBody check).
+function saveDataEntity(verb, cb) {
+  if (!_dataEditData) return;
+  var errDiv = document.getElementById('dataEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+
+  var url = buildBaseURL();
+  var depthS = _state.path.length;
+  if (depthS === 4 || depthS >= 6) {
+    var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var modelS = _modelCache[normalizeURL(svBaseS)] || null;
+    if (resourceHasDocument(modelS, _state.path)) {
+      url = url.replace(/(\?|$)/, '$details$1');
+    }
+  }
+
+  var body;
+  if (verb === 'PATCH') {
+    body = {};
+    Object.keys(_dataEditData).forEach(function(k) {
+      if (JSON.stringify(_dataEditData[k]) !== JSON.stringify(_dataEditSrc[k])) body[k] = _dataEditData[k];
+    });
+  } else {
+    body = _dataEditData;
+  }
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(url, {
+    method: verb,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        var updated = null;
+        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
+        _dataDirty = false;
+        _dataEditSrc  = updated ? deepClone(updated) : deepClone(_dataEditData);
+        _dataEditData = deepClone(_dataEditSrc);
+        _lastData = _dataEditSrc;
+        if (cb) { cb(); } else { renderSingleEntity(_dataEditSrc); }
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// ---- Meta tab (Resource page "<Type> Metadata") editing -------------------
+//
+// Mirrors dataEditFieldChange()/markDataDirty()/dataEditAddExtensionV2()/
+// undoDataEdit()/saveDataEntity() above almost exactly, but targets
+// _metaEditData/_metaEditSrc/_metaDirty and the Meta entity's own URL
+// (metaurl) instead of the Resource/Version entity's. Kept as separate
+// functions (rather than parameterizing the entity-edit ones) since the
+// two save paths differ in a few small but real ways: no $details
+// suffixing (Meta is never a document-bearing entity), no PATCH-vs-full
+// entity distinction beyond the same shallow top-level diff, and no
+// delete/navigate-away action (a Resource's Meta sub-entity isn't
+// independently deletable).
+
+// onchange handler for Meta's own top-level scalar inputs — passed as the
+// `handlerFn` override to renderEditableScalarInput() (see renderMetaTable()).
+function metaEditFieldChange(k, inputEl) {
+  if (!_metaEditData) return;
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') {
+    val = inputEl.checked;
+  } else if (type === 'integer' || type === 'uinteger') {
+    val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  } else if (type === 'decimal') {
+    val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  } else {
+    val = inputEl.value;
+  }
+  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var metaPath = (_state.path || []).concat(['meta']);
+  var beforeAttrs = topLevelAttrsMapFor(model, metaPath, _metaEditData);
+  _metaEditData[k] = val;
+  markMetaDirty();
+  // ifvalues reactivity — see reconcileIfValuesOnChange().
+  if (reconcileIfValuesOnChange(model, metaPath, beforeAttrs, _metaEditData)) {
+    rerenderMetaTab();
+    return;
+  }
+  toggleRowDirty(inputEl, _metaEditSrc && JSON.stringify(val) !== JSON.stringify(_metaEditSrc[k]));
+}
+
+function markMetaDirty() {
+  if (!_metaDirty) {
+    _metaDirty = true;
+    var pb = document.getElementById('metaSavePutBtn');   if (pb) pb.disabled = false;
+    var ab = document.getElementById('metaSavePatchBtn'); if (ab) ab.disabled = false;
+    var ub = document.getElementById('metaUndoBtn');      if (ub) ub.disabled = false;
+  }
+}
+
+// Re-renders just the Meta tab's box in place (analogous to
+// renderSingleEntity() for the main entity) — used by every nested
+// mutation handler above (dataEditMapAddEntry() etc.) when
+// _dataEditActiveKind is 'meta', and by dataEditAddExtensionV2()/
+// undoMetaEdit() below.
+function rerenderMetaTab() {
+  var box = document.getElementById('eg-meta-box');
+  if (!box || !_metaEditData) return;
+  var svURL = normalizeURL(_state.serverURL || window.location.origin);
+  box.innerHTML = renderMetaBoxContent(_metaEditData, _modelCache[svURL] || null, true);
+}
+
+function undoMetaEdit() {
+  _metaDirty = false;
+  _metaEditData = deepClone(_metaEditSrc);
+  rerenderMetaTab();
+}
+
+// Saves the Meta working copy via PUT/PATCH, same shallow top-level diff
+// as saveDataEntity(). Targets the Resource's metaurl (captured off
+// _lastData when the Meta tab was first loaded — see loadMetaDetails()),
+// not buildBaseURL() (which always points at the Resource/Version entity).
+function saveMetaEntity(verb, cb) {
+  if (!_metaEditData) return;
+  var errDiv = document.getElementById('metaEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+
+  var url = _metaEditSrc && _metaEditSrc.self;
+  if (!url) { url = _lastData && _lastData.metaurl; }
+  if (!url) return;
+
+  var body;
+  if (verb === 'PATCH') {
+    body = {};
+    Object.keys(_metaEditData).forEach(function(k) {
+      if (JSON.stringify(_metaEditData[k]) !== JSON.stringify(_metaEditSrc[k])) body[k] = _metaEditData[k];
+    });
+  } else {
+    body = _metaEditData;
+  }
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(url, {
+    method: verb,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        var updated = null;
+        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
+        _metaDirty = false;
+        _metaEditSrc  = updated ? deepClone(updated) : deepClone(_metaEditData);
+        _metaEditData = deepClone(_metaEditSrc);
+        _metaData = _metaEditSrc;
+        if (cb) { cb(); } else { rerenderMetaTab(); }
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// ---- Resource page "Version:" dropdown editing (non-default version) ------
+//
+// Mirrors the Meta tab's editing functions immediately above almost
+// exactly, but targets _verEditData/_verEditSrc/_verDirty and the selected
+// version's own URL (_verSelfUrl) instead of the Resource's metaurl.
+// Picking "Default" from the dropdown never uses this pair — it reuses
+// _dataEditData/_dataDirty directly (see onVersionSelectChangeReal()),
+// since the resource's own data already IS the default version's data.
+
+// onchange handler for the version panel's own top-level scalar inputs —
+// passed as the `handlerFn` override to renderEditableScalarInput() (see
+// onVersionSelectChangeReal()/rerenderVersionPanel()).
+function verEditFieldChange(k, inputEl) {
+  if (!_verEditData) return;
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') {
+    val = inputEl.checked;
+  } else if (type === 'integer' || type === 'uinteger') {
+    val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  } else if (type === 'decimal') {
+    val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  } else {
+    val = inputEl.value;
+  }
+  var beforeAttrs = topLevelAttrsMapFor(_resModel, _resPath, _verEditData);
+  _verEditData[k] = val;
+  markVerDirty();
+  // ifvalues reactivity — see reconcileIfValuesOnChange().
+  if (reconcileIfValuesOnChange(_resModel, _resPath, beforeAttrs, _verEditData)) {
+    rerenderVersionPanel();
+    return;
+  }
+  toggleRowDirty(inputEl, _verEditSrc && JSON.stringify(val) !== JSON.stringify(_verEditSrc[k]));
+}
+
+function markVerDirty() {
+  if (!_verDirty) {
+    _verDirty = true;
+    var pb = document.getElementById('verSavePutBtn');   if (pb) pb.disabled = false;
+    var ab = document.getElementById('verSavePatchBtn'); if (ab) ab.disabled = false;
+    var ub = document.getElementById('verUndoBtn');      if (ub) ub.disabled = false;
+  }
+}
+
+// Builds the Save/Undo/Delete action bar embedded directly in the version
+// panel's own content (like the Meta tab's own bar) — the page-level
+// "Entity Data Editor" action bar only ever targets the Default version,
+// so a genuinely different selected version needs its own, scoped to
+// _verEditData/_verSelfUrl.
+function buildVersionActionBarHtml() {
+  return '<div id="verEditorError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar">'
+    + '<button class="editorBtn" id="verSavePutBtn" onclick="saveVersionEntity(\'PUT\')"' + (_verDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
+    + ' <button class="editorBtn" id="verSavePatchBtn" onclick="saveVersionEntity(\'PATCH\')"' + (_verDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+    + ' <button class="editorBtn" id="verUndoBtn" onclick="undoVersionEdit()"' + (_verDirty ? '' : ' disabled') + '>Undo</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete</button>'
+    + '</div>';
+}
+
+// Re-renders just the version panel in place (analogous to
+// rerenderMetaTab()) — used by every nested mutation handler above
+// (dataEditMapAddEntry() etc.) when _dataEditActiveKind is 'version', and
+// by undoVersionEdit()/saveVersionEntity() below.
+function rerenderVersionPanel() {
+  var panel = document.getElementById(_verPanelId || 'eg-doc-panel-defver');
+  if (!panel || !_verEditData) return;
+  panel.innerHTML = buildEntityPropsTableHtml(_verEditData, _verHeaderLabel || 'Version Property',
+    _resModel, _resPath, null, true, 'verEditFieldChange') + buildVersionActionBarHtml();
+}
+
+function undoVersionEdit() {
+  _verDirty = false;
+  _verEditData = deepClone(_verEditSrc);
+  rerenderVersionPanel();
+}
+
+// Deletes the currently-selected (non-default) version, after confirmation,
+// then falls back the dropdown/panel back to "Default" and refreshes the
+// versions list (the deleted id must disappear from its options).
+function deleteVersionEntity() {
+  if (!_verSelfUrl) return;
+  if (!confirm('Delete this version? This cannot be undone.')) return;
+  var errDiv = document.getElementById('verEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  fetch(_verSelfUrl, {method: 'DELETE'}).then(function(resp) {
+    if (resp.ok || resp.status === 204) {
+      _verDirty = false; _verEditData = null; _verEditSrc = null; _verEditVid = null; _verSelfUrl = '';
+      _resVersionsList = null;
+      var sel = document.getElementById('eg-doc-version-select');
+      if (sel) sel.value = 'default';
+      onVersionSelectChangeReal('default');
+      loadVersionsForSelect();
+      return;
+    }
+    return resp.text().then(function(text) {
+      if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+    });
+  }).catch(function(err) {
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// Saves the version working copy via PUT/PATCH, same shallow top-level
+// diff as saveDataEntity()/saveMetaEntity(). Targets the version's own
+// self URL ($details-suffixed when the resource has a document body, same
+// rule as saveDataEntity()), not buildBaseURL() (which always points at
+// whichever entity/version the main page URL is on, not the dropdown pick).
+function saveVersionEntity(verb, cb) {
+  if (!_verEditData || !_verSelfUrl) return;
+  var errDiv = document.getElementById('verEditorError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+
+  // _verSelfUrl comes verbatim from the version's own server-provided
+  // "self" link (see onVersionSelectChangeReal()) — unlike saveDataEntity()'s
+  // buildBaseURL() (client-constructed from the page path, needing a manual
+  // $details suffix), the server already includes $details in "self" for
+  // document-bearing resources, so no extra suffixing is needed (or safe —
+  // appending again would double it up and corrupt the version id parsing).
+  var url = _verSelfUrl;
+
+  var body;
+  if (verb === 'PATCH') {
+    body = {};
+    Object.keys(_verEditData).forEach(function(k) {
+      if (JSON.stringify(_verEditData[k]) !== JSON.stringify(_verEditSrc[k])) body[k] = _verEditData[k];
+    });
+  } else {
+    body = _verEditData;
+  }
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(url, {
+    method: verb,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        var updated = null;
+        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
+        _verDirty = false;
+        _verEditSrc  = updated ? deepClone(updated) : deepClone(_verEditData);
+        _verEditData = deepClone(_verEditSrc);
+        if (_resVersionsList) {
+          _resVersionsList = _resVersionsList.map(function(v) {
+            return (itemNavKey(v) === _verEditVid) ? _verEditSrc : v;
+          });
+        }
+        if (cb) {
+          cb();
+        } else {
+          rerenderVersionPanel();
+          var pillsBox = document.getElementById('eg-doc-pills');
+          if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(_verEditSrc);
+          if (document.getElementById('eg-doc-preview-box')) {
+            _docActiveVersionData = _verEditSrc;
+            _docPreviewLoaded = true;
+            loadDocumentPreview();
+          }
+        }
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+
+
 // row always renders the same (unbanded) shade, so grouping still reads
 // as intentional. `startBand` lets a flat (single-run) list keep
 // continuous banding when there is no grouping at all.
-function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, startBand, resourceSingular) {
+// `editable` (default false) opts a call site into edit-mode rendering —
+// only renderSingleEntity()'s own top-level calls pass true; redraws of a
+// *different* version (version-selector dropdown) or the Meta tab stay
+// read-only regardless of _state.editMode, since editing there would
+// target the wrong URL.
+function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, startBand, resourceSingular, editable, handlerFn) {
   var html = '';
   var depthB = path ? path.length : 0;
   keys.forEach(function(k, i) {
     var val = entityData[k];
     var display, valueCellClass = '';
     var attrType = getExplicitAttrType(model, path, k, entityData);
-    if (val !== null && typeof val === 'object') {
+    var isAncestorLink = (k === 'ancestorid' || (k === 'versionid' && depthB === 4));
+    var isParentResLink = resourceSingular && resourceSingular !== singular
+      && k === resourceSingular + 'id' && depthB >= 6;
+    var editAttr = editable ? getAttr(model, path, [k], entityData) : null;
+    var effAttr = editable ? effectiveEditAttrAtPath([k], editAttr, val) : editAttr;
+    var isComplexKind = effAttr
+      && (effAttr.type === 'map' || effAttr.type === 'object' || effAttr.type === 'array');
+    var isEditableRow = editable
+      && !isDataEditReadOnly(k, editAttr, singular, resourceSingular)
+      && !isAncestorLink && !isParentResLink
+      && (isComplexKind || (val !== null && typeof val !== 'object'));
+    if (isEditableRow && isComplexKind) {
+      display = renderEditableComplexValue([k], val, effAttr, model, path, entityData);
+      valueCellClass = ' class="cell-tree"';
+    } else if (isEditableRow) {
+      if (isAnyTypeUnset(effAttr, val)) {
+        var anyAddId = 'anytype_' + k.replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
+        display = typePillHtml(effAttr)
+          + renderComplexAddButtonHtml(effAttr, 'Set Value', anyAddId, 'dataEditSetAnyType', esc(JSON.stringify([k])));
+      } else {
+        display = typePillHtml(effAttr) + renderEditableScalarInput(k, val, effAttr, handlerFn);
+      }
+    } else if (val !== null && typeof val === 'object') {
       var isEmpty = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
       display = isEmpty
         ? '<span class="vt-empty">empty</span>'
         : renderValueTree(val, 0, model, path, [k], entityData);
       valueCellClass = ' class="cell-tree"';
+    } else if (val === undefined) {
+      // A model-declared attribute merged into `keys` (see
+      // buildEntityPropsTableHtml()'s "show all model attributes" edit-mode
+      // support) that this entity has no value for at all, and which isn't
+      // itself editable here (e.g. read-only/immutable) — distinct from an
+      // explicit JSON null.
+      display = '<span style="color:#999">not set</span>';
     } else if (val == null) {
       display = '<span style="color:#999">null</span>';
     } else if (typeof val === 'boolean') {
@@ -4390,7 +6597,7 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
       if (k === 'compatibilityvalidated' && _docPillsMetaCompat) {
         display = '<span class="eg-value eg-mono">(' + esc(_docPillsMetaCompat) + ')</span> ' + display;
       }
-    } else if (k === 'ancestor' || (k === 'versionid' && depthB === 4)) {
+    } else if (k === 'ancestorid' || (k === 'versionid' && depthB === 4)) {
       // Link to the dedicated Version page for this version — ancestor on
       // both the Resource page's "Version Details" tab (depthB === 4) and
       // the Version page itself (depthB >= 6); versionid only on the
@@ -4431,7 +6638,20 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
         : renderScalarValue(val, isMono);
     }
     var banded = (startBand + i) % 2 === 1;
-    html += '<tr' + (banded ? ' class="xr-row-band"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
+    // Compare against the pristine snapshot matching *this* rendering's
+    // handlerFn/data, not always _dataEditSrc — this same function is
+    // reused for the Resource page's own data (dataEditFieldChange /
+    // _dataEditSrc) AND the version-selector's non-Default version panel
+    // (verEditFieldChange / _verEditSrc); hardcoding _dataEditSrc there
+    // compared a version's fields (e.g. xid/self) against the *Default*
+    // version's snapshot, falsely marking almost everything dirty.
+    var dirtySrc = (handlerFn === 'verEditFieldChange') ? _verEditSrc : _dataEditSrc;
+    var isDirty = editable && dirtySrc
+      && JSON.stringify(val) !== JSON.stringify(dirtySrc[k]);
+    var rowClasses = [];
+    if (banded) rowClasses.push('xr-row-band');
+    if (isDirty) rowClasses.push('xr-row-dirty');
+    html += '<tr' + (rowClasses.length ? ' class="' + rowClasses.join(' ') + '"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
           + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
   });
   return html;
@@ -4451,20 +6671,46 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
 // navigation to a separate sub-entity (accessible via the Meta tab), not
 // real content of this entity, and metaurl isn't caught by collKeys since
 // there's no matching "metacount" partner for the *url/*count fallback scan.
-function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKeys) {
+function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKeys, editable, handlerFn) {
+  // capabilities/model/modelsource are registry-root attributes the model
+  // declares (type object), but none are editable inline from this entity
+  // page (yet) — they each have their own dedicated viewer/editor UI
+  // (Capabilities, Model, ModelSource nav entries) reached via the server
+  // endpoints list, so surfacing them here in edit mode would just show a
+  // dead-end "Content" section with nothing actually usable. Suppressed
+  // like meta/metaurl above.
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
-    formatvalidatedreason: true, compatibilityvalidatedreason: true});
+    formatvalidatedreason: true, compatibilityvalidatedreason: true,
+    capabilities: true, model: true, modelsource: true});
   var priority = ['registryid','xid','name','description','specversion',
-    'epoch','createdat','modifiedat','versionid','isdefault','ancestor'];
-  var keys = Object.keys(entityData).filter(function(k) {
+    'epoch','createdat','modifiedat','versionid','isdefault','ancestorid'];
+  function sortKeys(arr) {
+    return arr.sort(function(a, b) {
+      var ai = priority.indexOf(a), bi = priority.indexOf(b);
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1; if (bi >= 0) return 1;
+      return a.localeCompare(b);
+    });
+  }
+  var keys = sortKeys(Object.keys(entityData).filter(function(k) {
     return k !== '__mapKey' && !suppressed[k];
-  }).sort(function(a, b) {
-    var ai = priority.indexOf(a), bi = priority.indexOf(b);
-    if (ai >= 0 && bi >= 0) return ai - bi;
-    if (ai >= 0) return -1; if (bi >= 0) return 1;
-    return a.localeCompare(b);
-  });
-  if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No properties</span></div>';
+  }));
+  // In edit mode, also surface every model-declared attribute this entity
+  // hasn't set a value for at all yet (e.g. an unset "labels" map, or a
+  // scalar extension attribute nobody has used) — otherwise there'd be no
+  // way to give one a value for the first time. See plan.md "Full Data
+  // Edit Mode" — "show all model attributes".
+  if (editable && model) {
+    var declaredAttrs = topLevelAttrsMapFor(model, path, entityData);
+    var addedAny = false;
+    Object.keys(declaredAttrs).forEach(function(ak) {
+      if (ak === '*' || suppressed[ak] || keys.indexOf(ak) !== -1) return;
+      keys.push(ak);
+      addedAny = true;
+    });
+    if (addedAny) keys = sortKeys(keys);
+  }
+  if (!keys.length && !editable) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No properties</span></div>';
   var specLevel = specAttrLevel(path);
   var singular  = (getSingularName(model, path) || '').toLowerCase();
   var depth = path ? path.length : 0;
@@ -4476,13 +6722,45 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   if (groups) {
     groups.forEach(function(g) {
       html += '<tr class="xr-props-cat"><td colspan="2">' + esc(g.label) + '</td></tr>';
-      html += buildPropsRowsHtml(g.keys, entityData, model, path, specLevel, singular, 0, resourceSingular);
+      html += buildPropsRowsHtml(g.keys, entityData, model, path, specLevel, singular, 0, resourceSingular, editable, handlerFn);
     });
   } else {
-    html += buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 0, resourceSingular);
+    html += buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 0, resourceSingular, editable, handlerFn);
+  }
+  // Editable "+ Add Extension" row — only shown when the model declares a
+  // wildcard ("*") attribute at this level, i.e. extensions are allowed.
+  // When the model exists but doesn't declare "*" (extensions genuinely
+  // disallowed by this model, per spec — the server itself will 400 an
+  // unknown_attribute), show an explanatory muted row instead of silently
+  // omitting the option — otherwise a user has no way to tell "extensions
+  // aren't offered" apart from "this UI can't add extensions".
+  if (editable && model) {
+    var wildcardAttrEntity = getAttr(model, path, ['*'], entityData);
+    if (wildcardAttrEntity) {
+      var extAddId = 'dataExtAdd_' + Math.random().toString(36).slice(2, 7);
+      html += '<tr><td style="font-weight:bold;color:#444;width:200px">+ Add Extension</td><td>'
+        + '<input type="text" id="dataEditExtName" class="xr-edit-input" placeholder="name" style="width:140px">'
+        + ' ' + renderComplexAddButtonHtml(wildcardAttrEntity, '+ Add', extAddId, 'dataEditAddExtensionV2', esc(JSON.stringify('dataEditExtName')))
+        + '</td></tr>';
+    } else {
+      html += '<tr><td style="font-weight:bold;color:#444;width:200px">+ Add Extension</td><td>'
+        + '<span style="color:#999;font-style:italic">This model does not allow extension attributes here</span>'
+        + '</td></tr>';
+    }
   }
   html += '</tbody></table>';
   return html;
+}
+
+// Whether the Resource page's Meta tab should render as editable right
+// now — same _state.mutable ("entities" capability) + _state.editMode gate
+// the main entity edit pipeline uses, but additionally scoped to depth 4
+// (Resource) since that's the only depth the Meta tab exists at all
+// (Version pages have no separate Meta split — see the tabDefs building
+// code in the entity render function).
+function metaEditableNow() {
+  return _state.section === 'data' && _state.editMode && _state.mutable
+    && _state.path && _state.path.length === 4;
 }
 
 function toggleMetaBox() {
@@ -4514,14 +6792,23 @@ function toggleMetaBox() {
 // Same fetch/render logic toggleMetaBox() uses, minus the collapse/twisty
 // toggling — used by the Document/Details tab bar's "<Singular> Details"
 // panel, which (unlike Grid view's box) is always visible once selected.
+// When metaEditableNow(), also snapshots _metaEditSrc/_metaEditData (the
+// Meta tab's own pristine/working-copy pair — see saveMetaEntity()/
+// undoMetaEdit()) so edit mode has something to diff/PATCH/undo against.
 function loadMetaDetails() {
   var box = document.getElementById('eg-meta-box');
   if (!box) return;
-  if (_metaData) {
+  var editableM = metaEditableNow();
+  function afterLoad(d) {
+    if (editableM) {
+      _metaEditSrc  = deepClone(d);
+      _metaEditData = deepClone(_metaEditSrc);
+      _metaDirty    = false;
+    }
     var svURL = normalizeURL(_state.serverURL || window.location.origin);
-    box.innerHTML = renderMetaBoxContent(_metaData, _modelCache[svURL] || null);
-    return;
+    box.innerHTML = renderMetaBoxContent(editableM ? _metaEditData : d, _modelCache[svURL] || null, editableM);
   }
+  if (_metaData) { afterLoad(_metaData); return; }
   box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
   var metaUrl = _lastData && _lastData.metaurl;
   if (!metaUrl) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#aaa">No meta URL available</span></div>'; return; }
@@ -4529,8 +6816,7 @@ function loadMetaDetails() {
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(d) {
       _metaData = d;
-      var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
-      box.innerHTML = renderMetaBoxContent(d, _modelCache[svURL2] || null);
+      afterLoad(d);
     })
     .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
 }
@@ -4592,7 +6878,27 @@ function loadVersionsForSelect() {
 // separate control from the tab bar (see plan.md "version-selector
 // dropdown") — it only changes *which version's data* feeds the tabs, it
 // does not itself switch tabs.
+//
+// Guards leaving an in-progress edit of the CURRENTLY-selected non-default
+// version (_verDirty) before switching to a different one — same
+// Save/Discard/Cancel pattern as switchDocTab()'s Meta-tab guard. Cancel
+// reverts the <select>'s already-changed displayed value back (the native
+// onchange event fires after the browser already updated it).
 function onVersionSelectChange(vid) {
+  if (_dataEditActiveKind === 'version' && _verDirty && vid !== _verEditVid) {
+    var sel = document.getElementById('eg-doc-version-select');
+    var prevVid = _resSelectedVersionId;
+    showLeaveEditDialog(
+      function() { saveVersionEntity('PUT', function() { onVersionSelectChangeReal(vid); }); },
+      function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); onVersionSelectChangeReal(vid); },
+      function() { if (sel) sel.value = prevVid; }
+    );
+    return;
+  }
+  onVersionSelectChangeReal(vid);
+}
+
+function onVersionSelectChangeReal(vid) {
   _resSelectedVersionId = vid;
   // Sync the URL in place (no navigation/refetch) so a later manual Refresh
   // restores this version — same idiom as pushStateReal()'s history.pushState,
@@ -4601,17 +6907,59 @@ function onVersionSelectChange(vid) {
   history.replaceState(null, '', buildURL(_state));
   var panel = document.getElementById('eg-doc-panel-defver');
   var verData, headerLabel, collKeysForVer;
+  // Editing a specific version requires the same _state.mutable/editMode
+  // gate the Meta tab uses (metaEditableNow() is depth-4-only, same scope
+  // the version-selector itself only ever exists at). See plan.md "Fix:
+  // can't edit versions from the Resource page's dropdown".
+  var editableNow = metaEditableNow();
+  var handlerFn = 'dataEditFieldChange';
   if (vid === 'default') {
-    verData = _resDefaultData;
+    // "Default" is the resource's own data — reuse the existing entity
+    // working copy (_dataEditData) instead of a separate snapshot, so
+    // edits here stay in sync with (and are saved by) the page's own
+    // Entity Data Editor action bar, exactly as before this fix.
+    verData = editableNow ? _dataEditData : _resDefaultData;
     headerLabel = versionPropHeaderLabel(true, verData && verData.versionid);
     collKeysForVer = _resCollKeys;
+    _dataEditActiveKind = 'entity';
+    _verEditVid = null;
   } else {
-    verData = (_resVersionsList || []).filter(function(v) { return itemNavKey(v) === vid; })[0];
+    var rawVerData = (_resVersionsList || []).filter(function(v) { return itemNavKey(v) === vid; })[0];
+    if (!rawVerData) return;
+    if (editableNow) {
+      // Only re-snapshot when switching to a version we don't already
+      // have an in-progress working copy for — re-selecting the same one
+      // (e.g. switching tabs and back) must not clobber unsaved edits.
+      if (_verEditVid !== vid) {
+        _verEditSrc  = deepClone(rawVerData);
+        _verEditData = deepClone(_verEditSrc);
+        _verDirty    = false;
+        _verEditVid  = vid;
+        _verSelfUrl  = rawVerData.self || '';
+      }
+      verData = _verEditData;
+      _dataEditActiveKind = 'version';
+      handlerFn = 'verEditFieldChange';
+    } else {
+      verData = rawVerData;
+    }
     headerLabel = versionPropHeaderLabel(false, vid);
     collKeysForVer = null; // versions have no sub-collections to suppress
   }
   if (!verData) return;
-  if (panel) panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer);
+  _verPanelId = 'eg-doc-panel-defver';
+  _verHeaderLabel = headerLabel;
+  if (panel) {
+    panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer, editableNow, handlerFn)
+      + ((editableNow && vid !== 'default') ? buildVersionActionBarHtml() : '');
+  }
+  // The page-level Entity Data Editor action bar always targets the
+  // Default version (_dataEditData) — hide it whenever a genuinely
+  // different version is selected, so it doesn't sit alongside the
+  // version panel's own action bar above and confuse which Save/Undo/
+  // Delete applies to what. Shown again when switching back to "Default".
+  var pageActionBar = document.getElementById('dataEditorActionBar');
+  if (pageActionBar) pageActionBar.style.display = (vid === 'default') ? '' : 'none';
 
   // Keep the Document tab showing the selected version's document too —
   // refresh it eagerly even if it's not the currently-visible tab.
@@ -4625,10 +6973,55 @@ function onVersionSelectChange(vid) {
   refreshCopyLinkBtnTooltip();
 }
 
+
+// Guard wrapper around switchDocTabReal(): leaving the Metadata tab with
+// unsaved edits (_metaDirty) offers Save / Discard / Cancel before the tab
+// actually switches — same pattern as pushState()'s edit-mode guards, but
+// scoped to the tab bar since Meta-tab edits are independent of (and don't
+// block) switching to the Document/Version-Details tabs' own content.
+function switchDocTab(tabKey) {
+  var curActive = document.querySelector('.eg-doc-tab.active');
+  var curKey = curActive ? curActive.getAttribute('data-tab') : null;
+  if (curKey === 'meta' && tabKey !== 'meta' && _metaDirty) {
+    showLeaveEditDialog(
+      function() { saveMetaEntity('PUT', function() { switchDocTabReal(tabKey); }); },
+      function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); switchDocTabReal(tabKey); }
+    );
+    return;
+  }
+  // Meta is a wholly separate object (its own URL/working-copy) from the
+  // entity/version data shown by the other tabs, so unsaved edits there
+  // (_dataDirty) must guard a switch INTO Meta too, not just out of it.
+  if (curKey !== 'meta' && tabKey === 'meta' && _dataDirty) {
+    showLeaveEditDialog(
+      function() { saveDataEntity('PUT', function() { switchDocTabReal(tabKey); }); },
+      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); switchDocTabReal(tabKey); }
+    );
+    return;
+  }
+  switchDocTabReal(tabKey);
+}
+
 // Toggle the active Document/Details tab: swaps the .active button class
 // and shows only the matching panel, lazy-loading the Document preview or
 // the Details meta content the first time each is shown (cached after that).
-function switchDocTab(tabKey) {
+function switchDocTabReal(tabKey) {
+  // Nested map/array/object edit handlers (dataEditNestedFieldChange() etc.)
+  // are shared between the main entity Property table and the Meta tab —
+  // see activeEditRoot(). Keep the flag in sync with whichever tab is now
+  // active so those handlers always target the right working copy.
+  // Nested map/array/object edit handlers (dataEditNestedFieldChange() etc.)
+  // are shared between the main entity Property table, the Meta tab, and
+  // the version-selector's non-default working copy — see activeEditRoot().
+  // Keep the flag in sync with whichever tab is now active so those
+  // handlers always target the right working copy. 'defver'/'version' both
+  // stay 'version' rather than resetting to 'entity' if a non-default
+  // version's working copy is currently in progress (_verEditVid set) —
+  // otherwise switching tabs and back would silently retarget nested edits
+  // at the wrong object.
+  if (tabKey === 'meta') _dataEditActiveKind = 'meta';
+  else if ((tabKey === 'defver' || tabKey === 'version') && _verEditVid) _dataEditActiveKind = 'version';
+  else _dataEditActiveKind = 'entity';
   var tabs = document.querySelectorAll('.eg-doc-tab');
   tabs.forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tabKey); });
   var panels = document.querySelectorAll('.eg-doc-tab-panel');
@@ -4971,8 +7364,11 @@ function loadDocumentPreview() {
 // Dispatch the meta box body to the format matching the current data view:
 // List view gets a plain key/value table (like the entity's own Property
 // table); Grid view keeps the richer label/row rendering (renderMetaContent).
-function renderMetaBoxContent(d, model) {
-  return _state.dataView === 'table' ? renderMetaTable(d, model) : renderMetaContent(d, model);
+// `editable` (default false) is only ever true for List view — Grid view's
+// renderMetaContent() stays read-only regardless (matching how the rest of
+// Full Data Edit Mode is List-view-only for now).
+function renderMetaBoxContent(d, model, editable) {
+  return _state.dataView === 'table' ? renderMetaTable(d, model, editable) : renderMetaContent(d, model);
 }
 
 // Plain table rendering of the meta/details data, for List view. Mirrors the
@@ -4983,22 +7379,65 @@ function renderMetaBoxContent(d, model) {
 // dedicated metaattributes map — see getAttr()) — timestamp detection and
 // monospace formatting work exactly like buildEntityPropsTableHtml(), no
 // hardcoded meta-only special-casing needed.
-function renderMetaTable(d, model) {
+//
+// `editable` opts into the same in-place edit-mode rendering
+// buildEntityPropsTableHtml()/buildPropsRowsHtml() give the entity's own
+// Property table — scalar inputs, map/object/array editors, dirty-row
+// highlighting, and a "+ Add Extension" row when the model allows it —
+// reusing renderEditableScalarInput()/renderEditableComplexValue() directly
+// (with a custom handlerFn so top-level scalar edits land in
+// _metaEditData, not _dataEditData — see metaEditFieldChange()). Complex
+// (map/object/array) edits go through the same shared nested-mutation
+// primitives the entity table uses (dataEditNestedFieldChange() etc.),
+// gated by _dataEditActiveKind === 'meta' (set here before rendering).
+function renderMetaTable(d, model, editable) {
+  if (editable) _dataEditActiveKind = 'meta';
   var suppressed = { metaurl: 1 };
   if (_metaResourceIdField) suppressed[_metaResourceIdField] = 1;
-  var keys = Object.keys(d).filter(function(k) { return !suppressed[k]; }).sort();
-  if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No details available</span></div>';
+  var metaPath = (_state.path || []).concat(['meta']);
+  var keys = Object.keys(d).filter(function(k) { return !suppressed[k]; });
+  // In edit mode, also surface every model-declared meta attribute with no
+  // value set yet — same "show all model attributes" treatment
+  // buildEntityPropsTableHtml() gives the entity's own Property table.
+  if (editable && model) {
+    var declaredMeta = topLevelAttrsMapFor(model, metaPath, d);
+    Object.keys(declaredMeta).forEach(function(ak) {
+      if (ak === '*' || suppressed[ak] || keys.indexOf(ak) !== -1) return;
+      keys.push(ak);
+    });
+  }
+  keys.sort();
+  if (!keys.length && !editable) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No details available</span></div>';
   var capType = capitalize(_metaEntityType);
   var specLevel = (typeof SPEC_ATTRS !== 'undefined') ? SPEC_ATTRS.meta : null;
   var singular = (_metaEntityType || '').toLowerCase();
   var groups = groupPropsByCategory(keys, specLevel, singular, null);
-  var metaPath = (_state.path || []).concat(['meta']);
 
   function buildRow(k, banded) {
     var val = d[k];
-    var display;
+    var display, valueCellClass = '';
     var attrType = getExplicitAttrType(model, metaPath, k, d);
-    if (val == null) {
+    var editAttr = editable ? getAttr(model, metaPath, [k], d) : null;
+    var effAttr = editable ? effectiveEditAttrAtPath([k], editAttr, val) : editAttr;
+    var isComplexKind = effAttr
+      && (effAttr.type === 'map' || effAttr.type === 'object' || effAttr.type === 'array');
+    // defaultversionid always stays a read-only link (changing the
+    // Resource's default version isn't in scope here) even in edit mode.
+    var isEditableRow = editable && k !== 'defaultversionid'
+      && !isDataEditReadOnly(k, editAttr, singular, null)
+      && (isComplexKind || (val !== null && typeof val !== 'object'));
+    if (isEditableRow) {
+      if (isComplexKind) {
+        display = renderEditableComplexValue([k], val, effAttr, model, metaPath, d);
+        valueCellClass = ' class="cell-tree"';
+      } else if (isAnyTypeUnset(effAttr, val)) {
+        var metaAnyAddId = 'metaanytype_' + k.replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
+        display = typePillHtml(effAttr)
+          + renderComplexAddButtonHtml(effAttr, 'Set Value', metaAnyAddId, 'dataEditSetAnyType', esc(JSON.stringify([k])));
+      } else {
+        display = typePillHtml(effAttr) + renderEditableScalarInput(k, val, effAttr || {type: attrType || 'string'}, 'metaEditFieldChange');
+      }
+    } else if (val == null) {
       display = '<span style="color:#999">null</span>';
     } else if (typeof val === 'boolean') {
       display = renderBoolBadge(val);
@@ -5019,8 +7458,13 @@ function renderMetaTable(d, model) {
         ? formatTimestampValue(String(val), isMono)
         : renderScalarValue(val, isMono);
     }
-    return '<tr' + (banded ? ' class="xr-row-band"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
-         + '</td><td>' + display + '</td></tr>';
+    var isDirty = editable && _metaEditSrc
+      && JSON.stringify(val) !== JSON.stringify(_metaEditSrc[k]);
+    var rowClasses = [];
+    if (banded) rowClasses.push('xr-row-band');
+    if (isDirty) rowClasses.push('xr-row-dirty');
+    return '<tr' + (rowClasses.length ? ' class="' + rowClasses.join(' ') + '"' : '') + '><td style="font-weight:bold;color:#444;width:200px">' + esc(labelFor(k, specLevel, singular))
+         + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
   }
 
   var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Property</th><th>Value</th></tr></thead><tbody>';
@@ -5032,9 +7476,34 @@ function renderMetaTable(d, model) {
   } else {
     keys.forEach(function(k, i) { html += buildRow(k, i % 2 === 1); });
   }
+  // Editable "+ Add Extension" row — same wildcard-gated treatment as
+  // buildEntityPropsTableHtml().
+  if (editable && model) {
+    var wildcardAttrMeta = getAttr(model, metaPath, ['*'], d);
+    if (wildcardAttrMeta) {
+      var metaExtAddId = 'metaExtAdd_' + Math.random().toString(36).slice(2, 7);
+      html += '<tr><td style="font-weight:bold;color:#444;width:200px">+ Add Extension</td><td>'
+        + '<input type="text" id="metaEditExtName" class="xr-edit-input" placeholder="name" style="width:140px">'
+        + ' ' + renderComplexAddButtonHtml(wildcardAttrMeta, '+ Add', metaExtAddId, 'dataEditAddExtensionV2', esc(JSON.stringify('metaEditExtName')))
+        + '</td></tr>';
+    } else {
+      html += '<tr><td style="font-weight:bold;color:#444;width:200px">+ Add Extension</td><td>'
+        + '<span style="color:#999;font-style:italic">This model does not allow extension attributes here</span>'
+        + '</td></tr>';
+    }
+  }
   html += '</tbody></table>';
+  if (editable) {
+    html += '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
+      + '<div class="editorActionBar">'
+      + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
+      + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+      + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
+      + '</div>';
+  }
   return html;
 }
+
 
 function renderMetaContent(d, model) {
   var html = '';
@@ -7457,7 +9926,7 @@ function findCollectionRefs(model, path, data) {
 function deriveColumns(items, collKeySet) {
   // Prefer xid first (shows navigable id), then common fields
   var priority = ['xid','name','description','epoch','createdat','modifiedat',
-    'versionid','isdefault','ancestor','contenttype'];
+    'versionid','isdefault','ancestorid','contenttype'];
   var seen = {}, cols = [];
   priority.forEach(function(c) {
     if (items.some(function(it) { return it[c] !== undefined; })) {
@@ -7551,7 +10020,7 @@ function defaultVersionURL(item, itemPath, colls) {
 }
 
 // Resolve the real URL for a sibling version ("→ Visit" buttons next to
-// defaultversionid/versionid/ancestor), preferring an actual link over any
+// defaultversionid/versionid/ancestorid), preferring an actual link over any
 // construction, in this order:
 //   1. An exact link the server already gave us for THIS id (defaultversionurl,
 //      when it happens to match) — zero construction.
@@ -7653,10 +10122,10 @@ function markDirty() {
 }
 
 window.addEventListener('beforeunload', function(e) {
-  if (_modelDirty || _capDirty) { e.preventDefault() ; e.returnValue = '' ; }
+  if (_modelDirty || _capDirty || _dataDirty) { e.preventDefault() ; e.returnValue = '' ; }
 }) ;
 
-function showLeaveEditDialog(onSave, onDiscard) {
+function showLeaveEditDialog(onSave, onDiscard, onCancel) {
   var overlay = document.createElement('div') ;
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;' ;
   var box = document.createElement('div') ;
@@ -7671,7 +10140,7 @@ function showLeaveEditDialog(onSave, onDiscard) {
     b.onclick = function() { document.body.removeChild(overlay) ; fn() ; } ;
     btns.appendChild(b) ;
   }
-  mkBtn('Cancel',  function(){},  'background:#f0f0f0;color:#333;border:1px solid #ccc;') ;
+  mkBtn('Cancel',  function(){ if (onCancel) onCancel(); },  'background:#f0f0f0;color:#333;border:1px solid #ccc;') ;
   mkBtn('Discard', onDiscard,     'background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;') ;
   mkBtn('Save',    onSave,        'background:#2060a0;color:white;border:1px solid #2060a0;') ;
   box.appendChild(btns) ; overlay.appendChild(box) ; document.body.appendChild(overlay) ;

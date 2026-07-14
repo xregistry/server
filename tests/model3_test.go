@@ -661,8 +661,8 @@ func TestModelResourceAttrs(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1282,8 +1282,8 @@ func TestModelResourceAttrs(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1765,7 +1765,7 @@ func TestModelFullModel(t *testing.T) {
               },
               "createdat": "2027-01-03T12:03:03",
               "modifiedat": "2027-01-03T12:03:04",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "text/text",
               "vext1": false,
               "meta": {
@@ -2208,8 +2208,8 @@ func TestModelFullModel(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -2485,7 +2485,7 @@ func TestModelFullModel(t *testing.T) {
           },
           "createdat": "2027-01-03T12:03:03Z",
           "modifiedat": "2027-01-03T12:03:04Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "text/text",
           "vext1": false,
 
@@ -2530,7 +2530,7 @@ func TestModelFullModel(t *testing.T) {
               },
               "createdat": "2027-01-03T12:03:03Z",
               "modifiedat": "2027-01-03T12:03:04Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "text/text",
               "vext1": false
             }
@@ -3408,7 +3408,7 @@ func TestHasDocumentValidation(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "1",
+  "ancestorid": "1",
   "contenttype": "application/json",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
@@ -3499,7 +3499,7 @@ func TestHasDocumentValidation(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-05-26T18:14:26.813463329Z",
   "modifiedat": "2026-05-26T18:14:26.813463329Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "fileurl": "http://example.com/somefile.txt"
 }
@@ -3586,7 +3586,7 @@ func TestHasDocumentValidation(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-05-26T18:14:26.813463329Z",
   "modifiedat": "2026-05-26T18:14:26.813463329Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "fileproxyurl": "http://example.com/proxy/doc.txt"
 }

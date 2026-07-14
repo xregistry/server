@@ -1,7 +1,7 @@
 content-disposition:f2
 content-length:0
 content-location:$HOST/ui/xreg/dirs/d2/files/f2/versions/v1.0
-xregistry-ancestor:v1.0
+xregistry-ancestorid:v1.0
 xregistry-createdat:2026-07-02T23:09:52.322608124Z
 xregistry-epoch:1
 xregistry-fileid:f2

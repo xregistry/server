@@ -28,7 +28,7 @@ func (vm *ManualVersionMode) Name() string { return "manual" }
 func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 	newestVerID := ""
 
-	// Problematic versions are ones that have Ancestor=ANCESTOR_TBD or
+	// Problematic versions are ones that have Ancestor=ANCESTORID_TBD or
 	// point to a non-existing Version
 	badVAs, xErr := r.GetProblematicVersions()
 	if xErr != nil {
@@ -40,14 +40,14 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 	// if we need to assign them a parent/ancestor, they'll be ordered
 	// correctly.
 	for _, va := range badVAs {
-		if va.Ancestor != ANCESTOR_TBD {
+		if va.AncestorID != ANCESTORID_TBD {
 			// Must be pointing to a non-exiting version, so error
 			return NewXRError("unknown_id", r.XID,
 				"singular=version",
-				"id="+va.Ancestor)
+				"id="+va.AncestorID)
 		}
 
-		// If Ancestor is ANCESTOR_TBD then assign it to the newest Ver
+		// If AncestorID is ANCESTORID_TBD then assign it to the newest Ver
 		if newestVerID == "" {
 			// First time thru, grab the Resource's newest versionID.
 			// Didn't need to get all attributes, just its ID
@@ -60,7 +60,7 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 				// Grab newest non-TBD version
 				for i := len(VIDs) - 1; i >= 0; i-- {
 					av := VIDs[len(VIDs)-1]
-					if av.Ancestor == ANCESTOR_TBD {
+					if av.AncestorID == ANCESTORID_TBD {
 						continue
 					}
 					newestVerID = av.VID // grab its versionID
@@ -80,7 +80,7 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", va.VID)
 
-		v.SetSave("ancestor", newestVerID)
+		v.SetSave("ancestorid", newestVerID)
 		newestVerID = v.UID // This one is now the latest
 	}
 
@@ -111,7 +111,7 @@ func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		ver.SetSave("ancestor", ver.UID)
+		ver.SetSave("ancestorid", ver.UID)
 	}
 
 	return nil
@@ -129,9 +129,9 @@ func (vm *ManualVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAncest
 	// - lowest versionid alphabetically (case insensitive) first
 
 	results := Query(r.tx, `
-                SELECT VersionUID, Ancestor, Pos, CTime FROM VersionAncestors
+                SELECT VersionUID, AncestorID, Pos, CTime FROM VersionAncestors
                 WHERE RegistrySID=? AND ResourceSID=? AND
-                  Ancestor<>'`+ANCESTOR_TBD+`'
+                  AncestorID<>'`+ANCESTORID_TBD+`'
                 ORDER BY Pos ASC, CTime ASC, VersionUID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -143,10 +143,10 @@ func (vm *ManualVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAncest
 			break
 		}
 		vers = append(vers, &VersionAncestor{
-			VID:       NotNilString(row[0]),
-			Ancestor:  NotNilString(row[1]),
-			Pos:       NotNilString(row[2]),
-			CreatedAt: NotNilString(row[3]),
+			VID:        NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+			Pos:        NotNilString(row[2]),
+			CreatedAt:  NotNilString(row[3]),
 		})
 	}
 
@@ -160,21 +160,21 @@ type CreatedatVersionMode struct{}
 func (vm *CreatedatVersionMode) Name() string { return "createdat" }
 
 func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
-	// select * from (select createdat,UID,Ancestor,ifnull(lag(UID) over (order by createdat,UID),UID) as expectedAncestor from Versions) list where list.Ancestor!=list.expectedAncestor  order by createdat
+	// select * from (select createdat,UID,AncestorID,ifnull(lag(UID) over (order by createdat,UID),UID) as expectedAncestorID from Versions) list where list.AncestorID!=list.expectedAncestorID  order by createdat
 
 	// Search the DB for all Versions of this Resource, sorted by 'createdat'
-	// and return the ones that do not have the proper 'ancestor' value.
+	// and return the ones that do not have the proper 'ancestorid' value.
 	// Meaning, they don't point to the next oldest one (based on createdat)
 	results := Query(r.tx, `
-                SELECT UID, ExpectedAncestor FROM (
+                SELECT UID, ExpectedAncestorID FROM (
                   SELECT CreatedAt,
                          UID,
-                         Ancestor,
+                         AncestorID,
                          IFNULL(lag(UID) OVER (ORDER BY CreatedAt, UID),
-                                UID) AS ExpectedAncestor
+                                UID) AS ExpectedAncestorID
                   FROM Versions
                   WHERE RegistrySID=? AND ResourceSID=?) AS list
-                WHERE list.Ancestor != list.ExpectedAncestor
+                WHERE list.AncestorID != list.ExpectedAncestorID
                 ORDER BY CreatedAt ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -185,7 +185,7 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 			break
 		}
 		vID := NotNilString(row[0])
-		ancestor := NotNilString(row[1])
+		ancestorID := NotNilString(row[1])
 
 		v, xErr := r.FindVersion(vID, false, FOR_WRITE)
 		if xErr != nil {
@@ -193,7 +193,7 @@ func (vm *CreatedatVersionMode) CheckAncestors(r *Resource) *XRError {
 		}
 		PanicIf(v == nil, "Didn't find version %q", vID)
 
-		v.SetSave("ancestor", ancestor)
+		v.SetSave("ancestorid", ancestorID)
 	}
 
 	return nil
@@ -217,7 +217,7 @@ func (vm *CreatedatVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	if xErr != nil {
 		return xErr
 	}
-	ancestor := v.GetAsString("ancestor")
+	ancestorID := v.GetAsString("ancestorid")
 
 	vers, xErr := r.GetChildVersionIDs(vID)
 	if xErr != nil {
@@ -229,8 +229,8 @@ func (vm *CreatedatVersionMode) WillDelete(r *Resource, vID string) *XRError {
 		if xErr != nil {
 			return xErr
 		}
-		if ver.GetAsString("ancestor") != ancestor {
-			ver.SetSave("ancestor", ancestor)
+		if ver.GetAsString("ancestorid") != ancestorID {
+			ver.SetSave("ancestorid", ancestorID)
 		}
 	}
 
@@ -249,9 +249,9 @@ func (vm *CreatedatVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAnc
 	// - lowest alphabetically (case insensitive) first
 
 	results := Query(r.tx, `
-                SELECT VersionUID, Ancestor, Pos, CTime FROM VersionAncestors
+                SELECT VersionUID, AncestorID, Pos, CTime FROM VersionAncestors
                 WHERE RegistrySID=? AND ResourceSID=? AND
-                  Ancestor<>'`+ANCESTOR_TBD+`'
+                  AncestorID<>'`+ANCESTORID_TBD+`'
                 ORDER BY Pos ASC, CTime ASC, VersionUID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -263,10 +263,10 @@ func (vm *CreatedatVersionMode) GetOrderedVersionIDs(r *Resource) ([]*VersionAnc
 			break
 		}
 		vers = append(vers, &VersionAncestor{
-			VID:       NotNilString(row[0]),
-			Ancestor:  NotNilString(row[1]),
-			Pos:       NotNilString(row[2]),
-			CreatedAt: NotNilString(row[3]),
+			VID:        NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+			Pos:        NotNilString(row[2]),
+			CreatedAt:  NotNilString(row[3]),
 		})
 	}
 

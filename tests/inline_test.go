@@ -92,7 +92,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -120,7 +120,7 @@ func TestInlineBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v2": {
@@ -132,7 +132,7 @@ func TestInlineBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -160,7 +160,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
@@ -188,7 +188,7 @@ func TestInlineBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v1.1": {
@@ -200,7 +200,7 @@ func TestInlineBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -232,7 +232,7 @@ func TestInlineBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs2/d2/files/f2/meta",
@@ -260,7 +260,7 @@ func TestInlineBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -776,7 +776,7 @@ func TestInlineResource(t *testing.T) {
 			`"defaultversionsticky"`,
 			`"createdat"`,
 			`"modifiedat"`,
-			`"ancestor"`,
+			`"ancestorid"`,
 			`"versionsurl"`,
 			`"dirsurl"`,
 		}
@@ -838,7 +838,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -869,7 +869,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -917,7 +917,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -948,7 +948,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -996,7 +996,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -1027,7 +1027,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -1075,7 +1075,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1090,7 +1090,7 @@ func TestInlineWildcards(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -1128,7 +1128,7 @@ func TestInlineWildcards(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:02Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
 
         "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1143,7 +1143,7 @@ func TestInlineWildcards(t *testing.T) {
             "isdefault": true,
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:02Z",
-            "ancestor": "v1",
+            "ancestorid": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1179,7 +1179,7 @@ func TestInlineWildcards(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:02Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
         "file": {
           "hello": "world"
@@ -1210,7 +1210,7 @@ func TestInlineWildcards(t *testing.T) {
             "isdefault": true,
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:02Z",
-            "ancestor": "v1",
+            "ancestorid": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1245,7 +1245,7 @@ func TestInlineWildcards(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1260,7 +1260,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -1294,7 +1294,7 @@ func TestInlineWildcards(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1325,7 +1325,7 @@ func TestInlineWildcards(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"

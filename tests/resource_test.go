@@ -68,7 +68,7 @@ func TestResourceCreate(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -396,7 +396,7 @@ func TestResourceMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-06-10T22:08:00.537178943Z",
   "modifiedat": "2026-06-10T22:08:00.83551978Z",
-  "ancestor": "v5",
+  "ancestorid": "v5",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -596,7 +596,7 @@ func TestResourceDeprecated(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T00:00:00Z",
   "modifiedat": "2025-01-01T00:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -657,7 +657,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:39:34.121124603Z",
   "modifiedat": "2026-02-04T20:39:34.121124603Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -691,7 +691,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:39:34.121124603Z",
   "modifiedat": "2026-02-04T20:39:34.121124603Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -732,7 +732,7 @@ func TestResourceSamples(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-02-04T20:45:06.826527109Z",
     "modifiedat": "2026-02-04T20:45:06.826527109Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
     "meta": {
@@ -773,7 +773,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:54:11.336910391Z",
   "modifiedat": "2026-02-04T20:54:11.336910391Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -800,7 +800,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -811,7 +811,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -837,7 +837,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:54:11.336910391Z",
   "modifiedat": "2026-02-04T20:54:11.336910391Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -864,7 +864,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -875,7 +875,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -904,7 +904,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:54:11.336910391Z",
   "modifiedat": "2026-02-04T20:54:11.336910391Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -932,7 +932,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -943,7 +943,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v3": {
       "fileid": "f1",
@@ -954,7 +954,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 3
@@ -984,7 +984,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T20:54:11.336910391Z",
   "modifiedat": "2026-02-04T20:54:11.336910391Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1012,7 +1012,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1023,7 +1023,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v3": {
       "fileid": "f1",
@@ -1034,7 +1034,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:54:11.336910391Z",
       "modifiedat": "2026-02-04T20:54:11.336910391Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 3
@@ -1069,7 +1069,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "3030-01-01T12:00:00Z",
   "modifiedat": "2026-02-04T20:59:37.791374128Z",
-  "ancestor": "v3",
+  "ancestorid": "v3",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1096,7 +1096,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-04T20:59:37.791374128Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1107,7 +1107,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "3030-01-01T12:00:00Z",
       "modifiedat": "2026-02-04T20:59:37.791374128Z",
-      "ancestor": "v3"
+      "ancestorid": "v3"
     },
     "v3": {
       "fileid": "f1",
@@ -1118,7 +1118,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T20:59:37.791374128Z",
       "modifiedat": "2026-02-04T20:59:37.791374128Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 3
@@ -1145,7 +1145,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T21:04:14.240631033Z",
   "modifiedat": "2026-02-04T21:04:14.240631033Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1173,7 +1173,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T21:04:14.240631033Z",
       "modifiedat": "2026-02-04T21:04:14.240631033Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 1
@@ -1203,7 +1203,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-04T21:06:12.940653748Z",
   "modifiedat": "2026-02-04T21:06:12.940653748Z",
-  "ancestor": "v0",
+  "ancestorid": "v0",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1231,7 +1231,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-04T21:06:12.940653748Z",
       "modifiedat": "2026-02-04T21:06:12.940653748Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v1": {
       "fileid": "f1",
@@ -1242,7 +1242,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-04T21:06:12.940653748Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1253,7 +1253,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-04T21:06:12.940653748Z",
       "modifiedat": "2026-02-04T21:06:12.940653748Z",
-      "ancestor": "v0"
+      "ancestorid": "v0"
     }
   },
   "versionscount": 3
@@ -1283,7 +1283,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2021-01-01T12:00:00Z",
   "modifiedat": "2021-01-01T12:00:00Z",
-  "ancestor": "v0",
+  "ancestorid": "v0",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1310,7 +1310,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2021-01-01T12:00:00Z",
       "modifiedat": "2021-01-01T12:00:00Z",
-      "ancestor": "v0"
+      "ancestorid": "v0"
     }
   },
   "versionscount": 1
@@ -1345,7 +1345,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2020-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T12:15:38.555135964Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1373,7 +1373,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2021-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v1": {
       "fileid": "f1",
@@ -1384,7 +1384,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1395,7 +1395,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v0"
+      "ancestorid": "v0"
     }
   },
   "versionscount": 3
@@ -1429,7 +1429,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2020-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T12:15:38.555135964Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1457,7 +1457,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v1": {
       "fileid": "f1",
@@ -1468,7 +1468,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1479,7 +1479,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v0"
+      "ancestorid": "v0"
     }
   },
   "versionscount": 3
@@ -1512,7 +1512,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-11T12:15:38.555135964Z",
   "modifiedat": "2026-02-11T12:15:38.555135964Z",
-  "ancestor": "v0",
+  "ancestorid": "v0",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1540,7 +1540,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v1": {
       "fileid": "f1",
@@ -1551,7 +1551,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1562,7 +1562,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v0"
+      "ancestorid": "v0"
     }
   },
   "versionscount": 3
@@ -1594,7 +1594,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2020-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T12:15:38.555135964Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1621,7 +1621,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1632,7 +1632,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T12:15:38.555135964Z",
       "modifiedat": "2026-02-11T12:15:38.555135964Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -1671,7 +1671,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1698,7 +1698,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1709,7 +1709,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -1738,7 +1738,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T12:54:32.492627638Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1766,7 +1766,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:54:32.492627638Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v2": {
       "fileid": "f1",
@@ -1777,7 +1777,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T12:54:32.492627638Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 2
@@ -1818,7 +1818,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1845,7 +1845,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -1856,7 +1856,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -1884,7 +1884,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:45:16.34043263Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1911,7 +1911,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:45:16.34043263Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v2": {
       "fileid": "f1",
@@ -1922,7 +1922,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:45:16.34043263Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 2
@@ -1963,7 +1963,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -1990,7 +1990,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -2001,7 +2001,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -2029,7 +2029,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2020-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:52:51.187504012Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2056,7 +2056,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:52:51.187504012Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v2": {
       "fileid": "f1",
@@ -2067,7 +2067,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2020-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:52:51.187504012Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 2
@@ -2100,7 +2100,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2128,7 +2128,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2147,7 +2147,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2174,7 +2174,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2207,7 +2207,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2235,7 +2235,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2255,7 +2255,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2283,7 +2283,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2316,7 +2316,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2344,7 +2344,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2365,7 +2365,7 @@ func TestResourceSamples(t *testing.T) {
   "description": "very cool",
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2393,7 +2393,7 @@ func TestResourceSamples(t *testing.T) {
       "description": "very cool",
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2426,7 +2426,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2454,7 +2454,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2476,7 +2476,7 @@ func TestResourceSamples(t *testing.T) {
   "description": "very cool",
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2505,7 +2505,7 @@ func TestResourceSamples(t *testing.T) {
       "description": "very cool",
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2538,7 +2538,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2566,7 +2566,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2588,7 +2588,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2615,7 +2615,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2648,7 +2648,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2676,7 +2676,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2699,7 +2699,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T15:57:59.428348579Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2727,7 +2727,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T15:57:59.428348579Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2766,7 +2766,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2793,7 +2793,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -2804,7 +2804,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -2841,7 +2841,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2868,7 +2868,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -2879,7 +2879,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -2916,7 +2916,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -2944,7 +2944,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -2984,7 +2984,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T17:02:26.753415624Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3011,7 +3011,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T17:02:26.753415624Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -3048,7 +3048,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3076,7 +3076,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -3118,7 +3118,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T17:06:48.948313868Z",
-  "ancestor": "1",
+  "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3145,7 +3145,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T17:06:48.948313868Z",
-      "ancestor": "1"
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -3180,7 +3180,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:00Z",
   "modifiedat": "2025-01-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3207,7 +3207,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:00Z",
       "modifiedat": "2025-01-01T12:00:00Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 1
@@ -3237,7 +3237,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "1999-01-01T12:00:00Z",
   "modifiedat": "2026-02-11T18:07:21.627075803Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3265,7 +3265,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "1999-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T18:07:21.627075803Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     },
     "v2": {
       "fileid": "f1",
@@ -3276,7 +3276,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "1998-01-01T12:00:00Z",
       "modifiedat": "2026-02-11T18:07:21.627075803Z",
-      "ancestor": "v2"
+      "ancestorid": "v2"
     }
   },
   "versionscount": 2
@@ -3309,7 +3309,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-11T18:11:11.509170139Z",
   "modifiedat": "2026-02-11T18:11:11.509170139Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3337,7 +3337,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T18:11:11.509170139Z",
       "modifiedat": "2026-02-11T18:11:11.509170139Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -3348,7 +3348,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-11T18:11:11.509170139Z",
       "modifiedat": "2026-02-11T18:11:11.509170139Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -3379,7 +3379,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-11T18:13:29.243111729Z",
   "modifiedat": "2026-02-11T18:13:29.243111729Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3407,7 +3407,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T18:13:29.243111729Z",
       "modifiedat": "2026-02-11T18:13:29.243111729Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -3418,7 +3418,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-11T18:13:29.243111729Z",
       "modifiedat": "2026-02-11T18:13:29.243111729Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -3447,7 +3447,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-11T18:15:05.715666555Z",
   "modifiedat": "2026-02-11T18:15:05.715666555Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3475,7 +3475,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T18:15:05.715666555Z",
       "modifiedat": "2026-02-11T18:15:05.715666555Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -3486,7 +3486,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-11T18:15:05.715666555Z",
       "modifiedat": "2026-02-11T18:15:05.715666555Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -3515,7 +3515,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-11T18:15:05.715666555Z",
   "modifiedat": "2026-02-11T18:15:05.715666555Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3543,7 +3543,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-11T18:15:05.715666555Z",
       "modifiedat": "2026-02-11T18:15:05.715666555Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -3554,7 +3554,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-11T18:15:05.715666555Z",
       "modifiedat": "2026-02-11T18:15:05.715666555Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2
@@ -3582,7 +3582,7 @@ func TestResourceSamples(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-02-12T14:10:25.20755952Z",
     "modifiedat": "2026-02-12T14:10:25.20755952Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   },
   "v2": {
     "fileid": "f1",
@@ -3593,7 +3593,7 @@ func TestResourceSamples(t *testing.T) {
     "isdefault": false,
     "createdat": "2026-02-12T14:10:25.20755952Z",
     "modifiedat": "2026-02-12T14:10:25.20755952Z",
-    "ancestor": "v1"
+    "ancestorid": "v1"
   }
 }
 `)
@@ -3609,7 +3609,7 @@ func TestResourceSamples(t *testing.T) {
   "isdefault": true,
   "createdat": "2026-02-12T14:11:41.527893268Z",
   "modifiedat": "2026-02-12T14:11:41.527893268Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -3637,7 +3637,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": true,
       "createdat": "2026-02-12T14:11:41.527893268Z",
       "modifiedat": "2026-02-12T14:11:41.527893268Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     },
     "v2": {
       "fileid": "f1",
@@ -3648,7 +3648,7 @@ func TestResourceSamples(t *testing.T) {
       "isdefault": false,
       "createdat": "2026-02-12T14:11:41.527893268Z",
       "modifiedat": "2026-02-12T14:11:41.527893268Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 2

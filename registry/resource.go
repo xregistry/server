@@ -896,19 +896,19 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	// Do some quick checks on the incoming vu.Obj
 	if vu.Obj != nil {
 		// We check for ancestor stuff here instead of in the checkFn
-		// so that we allow for ANCESTOR_TBD by the system w/o allowing the
+		// so that we allow for ANCESTORID_TBD by the system w/o allowing the
 		// user to use it
-		val, ok := vu.Obj["ancestor"]
+		val, ok := vu.Obj["ancestorid"]
 		if ok && !IsNil(val) {
 			valStr, ok := val.(string)
 			if !ok {
 				return nil, false,
 					NewXRError("invalid_attribute", r.XID,
-						"name=ancestor",
+						"name=ancestorid",
 						"error_detail="+
 							fmt.Sprintf(`must be a string, not %T`, val))
 			}
-			if xErr := IsValidID(valStr, "ancestor"); xErr != nil {
+			if xErr := IsValidID(valStr, "ancestorid"); xErr != nil {
 				xErr.Subject = r.XID
 				return nil, false, xErr
 			}
@@ -1122,20 +1122,20 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 	}
 
 	if v.NewObject != nil {
-		anc, ok := v.NewObject["ancestor"]
+		anc, ok := v.NewObject["ancestorid"]
 		if ok {
-			// ancestor was explicitly set to null then point to latest
+			// ancestorid was explicitly set to null then point to latest
 			// Otherwise it must be trying to point to a version, leave it
 			if IsNil(anc) {
-				v.NewObject["ancestor"] = ANCESTOR_TBD
+				v.NewObject["ancestorid"] = ANCESTORID_TBD
 			}
 		} else {
 			// Not there, so try to grab old value, else point to latest
-			anc, ok = v.Object["ancestor"]
+			anc, ok = v.Object["ancestorid"]
 			if ok {
-				v.NewObject["ancestor"] = anc
+				v.NewObject["ancestorid"] = anc
 			} else {
-				v.NewObject["ancestor"] = ANCESTOR_TBD
+				v.NewObject["ancestorid"] = ANCESTORID_TBD
 			}
 		}
 	}
@@ -1149,7 +1149,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 
 	// If there are no more versions to be processed for this Resource in
 	// this transaction, go ahead and clean-up the versions wrt the latest
-	// and ancestor pointers
+	// and ancestorid pointers
 	if !vu.More {
 		if vu.DefaultVersionID == "null" {
 			if xErr := r.SetDefaultID(""); xErr != nil {
@@ -1256,7 +1256,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 		}
 	}
 
-	// Clean-up and verify all Ancestor attributes before we continue
+	// Clean-up and verify all AncestorID attributes before we continue
 	if !onlyMetaChanged {
 		if xErr := r.CheckAncestors(); xErr != nil {
 			return xErr
@@ -1327,10 +1327,10 @@ func (r *Resource) AddVersionWithObject(id string, obj Object) (*Version, *XRErr
 }
 
 type VersionAncestor struct {
-	VID       string
-	Ancestor  string
-	CreatedAt string
-	Pos       string // 0-root, 1-middle, 2-leaf
+	VID        string
+	AncestorID string
+	CreatedAt  string
+	Pos        string // 0-root, 1-middle, 2-leaf
 }
 
 func (r *Resource) GetVersionIDs() ([]string, *XRError) {
@@ -1354,10 +1354,10 @@ func (r *Resource) GetVersionIDs() ([]string, *XRError) {
 }
 
 func (r *Resource) GetRootVersionIDs() ([]string, *XRError) {
-	// Find all versions whose Ancestor = its vID
+	// Find all versions whose AncestorID = its vID
 	results := Query(r.tx, `
             SELECT UID FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=? AND UID=Ancestor`,
+			WHERE RegistrySID=? AND ResourceSID=? AND UID=AncestorID`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
 
@@ -1373,22 +1373,22 @@ func (r *Resource) GetRootVersionIDs() ([]string, *XRError) {
 	return vIDs, nil
 }
 
-// Return all versions whose 'ancestor' is ANCESTOR_TBD or points to a missing
-// version (which include pointing to null).
+// Return all versions whose 'ancestorid' is ANCESTORID_TBD or points to a
+// missing version (which include pointing to null).
 // Note that the results is ordered so that we can process the ones with
-// a missing Ancestor in oldest->newest order
+// a missing AncestorID in oldest->newest order
 func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 	// Find all versions that point to non-existing versions
 	results := Query(r.tx, `
-            SELECT v1.UID, v1.Ancestor, v1.CreatedAt FROM Versions AS v1
+            SELECT v1.UID, v1.AncestorID, v1.CreatedAt FROM Versions AS v1
 			WHERE v1.RegistrySID=? AND
 			      v1.ResourceSID=? AND
-                  (v1.Ancestor='`+ANCESTOR_TBD+`' OR (
-			          v1.UID<>v1.Ancestor AND
+                  (v1.AncestorID='`+ANCESTORID_TBD+`' OR (
+			          v1.UID<>v1.AncestorID AND
 			          NOT EXISTS(SELECT 1 FROM Versions AS v2
 				                WHERE v2.RegistrySID=v1.RegistrySID AND
 							          v2.ResourceSID=v1.ResourceSID AND
-							          v2.UID=v1.Ancestor)))
+							          v2.UID=v1.AncestorID)))
 			ORDER BY CreatedAt ASC, UID ASC`,
 		r.Registry.DbSID, r.DbSID)
 	defer results.Close()
@@ -1400,10 +1400,10 @@ func (r *Resource) GetProblematicVersions() ([]*VersionAncestor, *XRError) {
 			break
 		}
 		vers = append(vers, &VersionAncestor{
-			VID:       NotNilString(row[0]),
-			Ancestor:  NotNilString(row[1]),
-			CreatedAt: NotNilString(row[2]),
-			Pos:       "n/a",
+			VID:        NotNilString(row[0]),
+			AncestorID: NotNilString(row[1]),
+			CreatedAt:  NotNilString(row[2]),
+			Pos:        "n/a",
 		})
 	}
 
@@ -1415,7 +1415,7 @@ func (r *Resource) GetChildVersionIDs(parentVID string) ([]string, *XRError) {
 	// Note that roots will include themselves - not sure if this is ok or not
 	results := Query(r.tx, `
 			SELECT UID FROM Versions
-			WHERE RegistrySID=? AND ResourceSID=? AND Ancestor=?`,
+			WHERE RegistrySID=? AND ResourceSID=? AND AncestorID=?`,
 		r.Registry.DbSID, r.DbSID, parentVID)
 	defer results.Close()
 
@@ -1743,7 +1743,7 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	changedVersions := []string{}        // v.UID
 
 	doneChecks := map[string]bool{}    // "direction>oldID">"newID" -> true
-	ancestorMap := map[string]string{} // v.UID -> v.ancestorUID
+	ancestorMap := map[string]string{} // v.UID -> v.ancestorID
 
 	// 'direction' = 'backward', 'forward'
 	doCheckCompat := func(direction string, oldVID string, newVID string) *XRError {
@@ -1810,15 +1810,15 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 		// For each Version, save it's list of ancestors for easy lookup later.
 		// Note that we may need this even if the Version didn't change
-		oldList := childrenMap[va.Ancestor]
-		if va.Ancestor != va.VID {
+		oldList := childrenMap[va.AncestorID]
+		if va.AncestorID != va.VID {
 			// Don't add roots to themselves
-			childrenMap[va.Ancestor] = append(oldList, va.VID)
+			childrenMap[va.AncestorID] = append(oldList, va.VID)
 		}
 
 		// Save for easy look-up later
-		ancestorMap[va.VID] = va.Ancestor
-		PanicIf(va.Ancestor == "", "Not good")
+		ancestorMap[va.VID] = va.AncestorID
+		PanicIf(va.AncestorID == "", "Not good")
 
 		// Build our list of changed Versions.
 		// So, either doAll=true, or version's epoch was changed, otherwise

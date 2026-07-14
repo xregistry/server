@@ -62,7 +62,7 @@ func TestVersionCreate(t *testing.T) {
   "isdefault": false,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 	XCheckGet(t, reg, "/dirs/d1/files/f1/versions/xxx", `{
@@ -140,7 +140,7 @@ func TestVersionCreate(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -241,7 +241,7 @@ func TestVersionCreate(t *testing.T) {
     "isdefault": true,
     "createdat": "2024-01-01T12:00:01Z",
     "modifiedat": "2024-01-01T12:00:01Z",
-    "ancestor": "v1.1",
+    "ancestorid": "v1.1",
 
     "metaurl": "http://localhost:8181/dirs/d2/files/f1/meta",
     "meta": {
@@ -286,7 +286,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -320,7 +320,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -353,7 +353,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -386,7 +386,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -421,7 +421,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v3",
+  "ancestorid": "v3",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -454,7 +454,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v3",
+  "ancestorid": "v3",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -499,7 +499,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -532,7 +532,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v4",
+  "ancestorid": "v4",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -564,7 +564,7 @@ func TestVersionDefault(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v5",
+  "ancestorid": "v5",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -618,7 +618,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v2",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -651,7 +651,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
-  "ancestor": "v3",
+  "ancestorid": "v3",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -690,7 +690,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
   "isdefault": true,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
-  "ancestor": "v4",
+  "ancestorid": "v4",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -717,7 +717,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
       "isdefault": true,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v4"
+      "ancestorid": "v4"
     },
     "v7": {
       "fileid": "f1",
@@ -728,7 +728,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v7"
+      "ancestorid": "v7"
     },
     "v8": {
       "fileid": "f1",
@@ -739,7 +739,7 @@ func TestVersionDefaultMaxVersions(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:02Z",
-      "ancestor": "v7"
+      "ancestorid": "v7"
     }
   },
   "versionscount": 3
@@ -817,12 +817,12 @@ func TestVersionOrdering(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, false)
 	d1, _ := reg.AddGroup("dirs", "d1")
 	f1, _ := d1.AddResource("files", "f1", "z5")
-	f1.AddVersionWithObject("v2", Object{"ancestor": "v2"})
-	f1.AddVersionWithObject("v9", Object{"ancestor": "v9"})
-	f1.AddVersionWithObject("V3", Object{"ancestor": "V3"})
-	f1.AddVersionWithObject("V1", Object{"ancestor": "V1"})
-	f1.AddVersionWithObject("Z1", Object{"ancestor": "Z1"})
-	f1.AddVersionWithObject("v5", Object{"ancestor": "v5"})
+	f1.AddVersionWithObject("v2", Object{"ancestorid": "v2"})
+	f1.AddVersionWithObject("v9", Object{"ancestorid": "v9"})
+	f1.AddVersionWithObject("V3", Object{"ancestorid": "V3"})
+	f1.AddVersionWithObject("V1", Object{"ancestorid": "V1"})
+	f1.AddVersionWithObject("Z1", Object{"ancestorid": "Z1"})
+	f1.AddVersionWithObject("v5", Object{"ancestorid": "v5"})
 
 	t0 := "2020-01-02T12:00:00Z"
 	t1 := "2024-01-02T12:00:00Z"
@@ -847,7 +847,7 @@ func TestVersionOrdering(t *testing.T) {
   "isdefault": true,
   "createdat": "`+t9+`",
   "modifiedat": "`+t2+`",
-  "ancestor": "V1",
+  "ancestorid": "V1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -876,7 +876,7 @@ func TestVersionOrdering(t *testing.T) {
   "isdefault": true,
   "createdat": "`+ct+`",
   "modifiedat": "`+t2+`",
-  "ancestor": "%s",
+  "ancestorid": "%s",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -914,11 +914,11 @@ func TestVersionOrdering2(t *testing.T) {
 		ReqBody: `{
   "versionid": "v1",
   "versions": {
-    "v1": { "createdat": "` + ts1 + `","ancestor":"v1"},
-    "v2": { "createdat": "` + ts1 + `","ancestor":"v2"},
-    "v3": { "createdat": "` + ts1 + `","ancestor":"v3"},
-    "v4": { "createdat": "` + ts1 + `","ancestor":"v4"},
-    "v5": { "createdat": "` + ts1 + `","ancestor":"v5"}
+    "v1": { "createdat": "` + ts1 + `","ancestorid":"v1"},
+    "v2": { "createdat": "` + ts1 + `","ancestorid":"v2"},
+    "v3": { "createdat": "` + ts1 + `","ancestorid":"v3"},
+    "v4": { "createdat": "` + ts1 + `","ancestorid":"v4"},
+    "v5": { "createdat": "` + ts1 + `","ancestorid":"v5"}
 		}}`,
 
 		Code: 201,
@@ -931,7 +931,7 @@ func TestVersionOrdering2(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "v5",
+  "ancestorid": "v5",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -978,7 +978,7 @@ func TestVersionOrdering2(t *testing.T) {
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-  "ancestor": "v3"
+  "ancestorid": "v3"
 }
 `})
 }

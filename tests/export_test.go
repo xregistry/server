@@ -186,7 +186,7 @@ func TestExportBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -201,7 +201,7 @@ func TestExportBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:04Z",
               "modifiedat": "2025-01-01T12:00:04Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -289,7 +289,7 @@ func TestExportBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2025-01-01T12:00:02Z",
               "modifiedat": "2025-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -304,7 +304,7 @@ func TestExportBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:04Z",
               "modifiedat": "2025-01-01T12:00:04Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -850,8 +850,8 @@ func TestExportBasic(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -1146,7 +1146,7 @@ func TestExportBasic(t *testing.T) {
             "isdefault": false,
             "createdat": "2025-01-01T12:00:02Z",
             "modifiedat": "2025-01-01T12:00:02Z",
-            "ancestor": "v1",
+            "ancestorid": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1161,7 +1161,7 @@ func TestExportBasic(t *testing.T) {
             "isdefault": true,
             "createdat": "2025-01-01T12:00:04Z",
             "modifiedat": "2025-01-01T12:00:04Z",
-            "ancestor": "v1",
+            "ancestorid": "v1",
             "contenttype": "application/json",
             "file": {
               "hello": "world"
@@ -1229,7 +1229,7 @@ func TestExportBasic(t *testing.T) {
           "isdefault": false,
           "createdat": "2025-01-01T12:00:02Z",
           "modifiedat": "2025-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -1244,7 +1244,7 @@ func TestExportBasic(t *testing.T) {
           "isdefault": true,
           "createdat": "2025-01-01T12:00:04Z",
           "modifiedat": "2025-01-01T12:00:04Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "contenttype": "application/json",
           "file": {
             "hello": "world"
@@ -1302,7 +1302,7 @@ func TestExportBasic(t *testing.T) {
         "isdefault": false,
         "createdat": "2025-01-01T12:00:02Z",
         "modifiedat": "2025-01-01T12:00:02Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
         "file": {
           "hello": "world"
@@ -1317,7 +1317,7 @@ func TestExportBasic(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:04Z",
         "modifiedat": "2025-01-01T12:00:04Z",
-        "ancestor": "v1",
+        "ancestorid": "v1",
         "contenttype": "application/json",
         "file": {
           "hello": "world"
@@ -1372,7 +1372,7 @@ func TestExportBasic(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1387,7 +1387,7 @@ func TestExportBasic(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:04Z",
       "modifiedat": "2025-01-01T12:00:04Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1446,7 +1446,7 @@ func TestExportBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "2025-01-01T12:00:02Z",
     "modifiedat": "2025-01-01T12:00:02Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json",
     "file": {
       "hello": "world"
@@ -1461,7 +1461,7 @@ func TestExportBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "2025-01-01T12:00:04Z",
     "modifiedat": "2025-01-01T12:00:04Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json",
     "file": {
       "hello": "world"
@@ -1479,7 +1479,7 @@ func TestExportBasic(t *testing.T) {
   "isdefault": false,
   "createdat": "2025-01-01T12:00:02Z",
   "modifiedat": "2025-01-01T12:00:02Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "contenttype": "application/json",
   "file": {
     "hello": "world"
@@ -1530,7 +1530,7 @@ func TestExportBasic(t *testing.T) {
       "isdefault": false,
       "createdat": "2025-01-01T12:00:01Z",
       "modifiedat": "2025-01-01T12:00:01Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1573,7 +1573,7 @@ func TestExportBasic(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-01T12:00:02Z",
       "modifiedat": "2025-01-01T12:00:02Z",
-      "ancestor": "v1",
+      "ancestorid": "v1",
       "contenttype": "application/json",
       "file": {
         "hello": "world"
@@ -1644,7 +1644,7 @@ func TestExportBasic(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:04Z",
               "modifiedat": "2025-01-01T12:00:04Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "contenttype": "application/json",
               "file": {
                 "hello": "world"
@@ -1900,7 +1900,7 @@ func TestExportBasic(t *testing.T) {
     "isdefault": false,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json"
   },
   "v2": {
@@ -1912,7 +1912,7 @@ func TestExportBasic(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:02Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
-    "ancestor": "v1",
+    "ancestorid": "v1",
     "contenttype": "application/json"
   }
 }
@@ -1928,7 +1928,7 @@ func TestExportBasic(t *testing.T) {
   "isdefault": false,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "contenttype": "application/json"
 }
 `)
@@ -2316,7 +2316,7 @@ func TestExportURLs(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:03Z",
               "modifiedat": "2025-01-01T12:00:03Z",
-              "ancestor": "1"
+              "ancestorid": "1"
             }
           },
           "versionscount": 1
@@ -2382,7 +2382,7 @@ func TestExportURLs(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:03Z",
               "modifiedat": "2025-01-01T12:00:03Z",
-              "ancestor": "1"
+              "ancestorid": "1"
             }
           },
           "versionscount": 1
@@ -2428,7 +2428,7 @@ func TestExportURLs(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:03Z",
         "modifiedat": "2025-01-01T12:00:03Z",
-        "ancestor": "1"
+        "ancestorid": "1"
       }
     },
     "versionscount": 1
@@ -2480,7 +2480,7 @@ func TestExportURLs(t *testing.T) {
         "isdefault": true,
         "createdat": "2025-01-01T12:00:03Z",
         "modifiedat": "2025-01-01T12:00:03Z",
-        "ancestor": "1"
+        "ancestorid": "1"
       }
     },
     "versionscount": 1
@@ -2579,7 +2579,7 @@ func TestExportURLs(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:03Z",
               "modifiedat": "2025-01-01T12:00:03Z",
-              "ancestor": "1"
+              "ancestorid": "1"
             }
           },
           "versionscount": 1
@@ -2619,7 +2619,7 @@ func TestExportURLs(t *testing.T) {
     "isdefault": true,
     "createdat": "2025-01-01T12:00:03Z",
     "modifiedat": "2025-01-01T12:00:03Z",
-    "ancestor": "1"
+    "ancestorid": "1"
   }
 }
 `)
@@ -2633,7 +2633,7 @@ func TestExportURLs(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:03Z",
   "modifiedat": "2025-01-01T12:00:03Z",
-  "ancestor": "1"
+  "ancestorid": "1"
 }
 `)
 
@@ -2708,7 +2708,7 @@ func TestExportURLs(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:04Z",
               "modifiedat": "2025-01-01T12:00:04Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "filebase64": ""
             }
           },
@@ -2756,7 +2756,7 @@ func TestExportNoDoc(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -2816,7 +2816,7 @@ func TestExportNoDoc(t *testing.T) {
       "isdefault": true,
       "createdat": "2025-01-23T23:08:08.330305606Z",
       "modifiedat": "2025-01-23T23:08:08.390182537Z",
-      "ancestor": "v1"
+      "ancestorid": "v1"
     }
   },
   "versionscount": 1
@@ -2926,7 +2926,7 @@ func TestExportImportModel(t *testing.T) {
           "isdefault": true,
           "createdat": "2026-06-29T21:14:59.433057599Z",
           "modifiedat": "2026-06-29T21:14:59.433057599Z",
-          "ancestor": "1",
+          "ancestorid": "1",
           "foo": "bar",
           "test": "d1",
 
@@ -2956,7 +2956,7 @@ func TestExportImportModel(t *testing.T) {
               "isdefault": true,
               "createdat": "2026-06-29T21:14:59.433057599Z",
               "modifiedat": "2026-06-29T21:14:59.433057599Z",
-              "ancestor": "1",
+              "ancestorid": "1",
               "foo": "bar",
               "test": "d1"
             }

@@ -186,7 +186,7 @@ func TestFiltersBasic(t *testing.T) {
   "isdefault": false,
   "createdat": "2024-12-01T12:00:00Z",
   "modifiedat": "2024-12-01T12:00:00Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
   "filebase64": ""
 }
 `,
@@ -296,7 +296,7 @@ func TestFiltersBasic(t *testing.T) {
           },
           "createdat": "2024-12-01T12:00:02Z",
           "modifiedat": "2024-12-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
@@ -324,7 +324,7 @@ func TestFiltersBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-12-01T12:00:02Z",
               "modifiedat": "2024-12-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v1.1": {
@@ -339,7 +339,7 @@ func TestFiltersBasic(t *testing.T) {
               },
               "createdat": "2024-12-01T12:00:02Z",
               "modifiedat": "2024-12-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -425,7 +425,7 @@ func TestFiltersBasic(t *testing.T) {
           },
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
@@ -453,7 +453,7 @@ func TestFiltersBasic(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v1.1": {
@@ -468,7 +468,7 @@ func TestFiltersBasic(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -1500,7 +1500,7 @@ func TestFiltersURLs(t *testing.T) {
     "isdefault": true,
     "createdat": "YYYY-MM-DDTHH:MM:01Z",
     "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-    "ancestor": "1",
+    "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d2/datas/d2/meta",
     "versionsurl": "http://localhost:8181/dirs/d2/datas/d2/versions",
@@ -1774,7 +1774,7 @@ func TestFiltersWildcardsInName(t *testing.T) {
     "isdefault": true,
     "createdat": "2026-07-10T14:46:49.221824428Z",
     "modifiedat": "2026-07-10T14:46:49.221824428Z",
-    "ancestor": "1",
+    "ancestorid": "1",
     "arr": [
       1,
       2,

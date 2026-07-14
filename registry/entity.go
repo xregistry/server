@@ -1512,10 +1512,10 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name: "ancestor",
+		Name: "ancestorid",
 		internals: &AttrInternals{
 			updateFn: func(e *Entity) *XRError {
-				_, ok := e.NewObject["ancestor"]
+				_, ok := e.NewObject["ancestorid"]
 				PanicIf(!ok, "Missing versionid")
 				if !ok {
 					_, ok := e.NewObject["versionid"]
@@ -1523,7 +1523,7 @@ var PropsFuncs = []*Attribute{
 					// Just assign a placeholder to get past validation.
 					// CheckAncestors() should fix this before we commit
 					// the tx
-					e.NewObject["ancestor"] = ANCESTOR_TBD
+					e.NewObject["ancestorid"] = ANCESTORID_TBD
 				}
 				return nil
 			},

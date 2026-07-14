@@ -28,7 +28,7 @@ func TestMiscDBRows(t *testing.T) {
   "isdefault": true,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:01Z",
-  "ancestor": "v1"
+  "ancestorid": "v1"
 }
 `)
 
@@ -93,7 +93,7 @@ dirs/d1/files/f1/meta: epoch, -> 1
 dirs/d1/files/f1/meta: fileid, -> f1
 dirs/d1/files/f1/meta: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/meta: readonly, -> false
-dirs/d1/files/f1/versions/v1: ancestor, -> v1
+dirs/d1/files/f1/versions/v1: ancestorid, -> v1
 dirs/d1/files/f1/versions/v1: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/versions/v1: epoch, -> 1
 dirs/d1/files/f1/versions/v1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z

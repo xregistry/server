@@ -529,7 +529,6 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 	log.VPrintf(3, ">Enter: HTTPGetContent")
 	defer log.VPrintf(3, "<Exit: HTTPGetContent")
 
-
 	query := `
 SELECT
   RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
@@ -2164,7 +2163,7 @@ func HTTPDeleteVersions(info *RequestInfo) *XRError {
 
 	// Before we delete each one, make sure the epoch value is ok.
 	// We can't check and delete at the same time before deleting one
-	// might update a future one's ancestor value which will also change
+	// might update a future one's ancestorid value which will also change
 	// its epoch value - which will make the epoch check fail.
 	// However, we can save the Versions for the next loop.
 	vers := []*Version{}

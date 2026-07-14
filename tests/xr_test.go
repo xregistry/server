@@ -171,7 +171,7 @@ GROUP: dirs / dir
     Strict valiation    : false
 
     ATTRIBUTES:                      TYPE         REQ   RO   MUT   DEFAULT
-    ├ ancestor                       string       y     -    y
+    ├ ancestorid                     string       y     -    y
     ├ compatibilityvalidated         boolean      -     y    y
     ├ compatibilityvalidatedreason   string       -     y    y
     ├ contenttype                    string       -     -    y
@@ -249,7 +249,7 @@ GROUP: dirs / dir
   "isdefault": true,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-  "ancestor": "v1",
+  "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1453,8 +1453,8 @@ files2 / file2   true      0
     "validatecompatibility": false,
     "strictvalidation": false,
     "attributes": {
-      "ancestor": {
-        "name": "ancestor",
+      "ancestorid": {
+        "name": "ancestorid",
         "type": "string",
         "matchcase": true,
         "required": true

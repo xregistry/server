@@ -480,7 +480,7 @@ func TestSetLabels(t *testing.T) {
           },
           "createdat": "2024-01-01T12:00:03Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -511,7 +511,7 @@ func TestSetLabels(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:03Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v2": {
@@ -531,7 +531,7 @@ func TestSetLabels(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:03Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -585,7 +585,7 @@ func TestSetLabels(t *testing.T) {
           },
           "createdat": "2024-01-01T12:00:03Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -616,7 +616,7 @@ func TestSetLabels(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:03Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v2": {
@@ -636,7 +636,7 @@ func TestSetLabels(t *testing.T) {
               },
               "createdat": "2024-01-01T12:00:03Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },

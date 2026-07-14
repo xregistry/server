@@ -1494,8 +1494,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -1980,8 +1980,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -2631,8 +2631,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -3403,8 +3403,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -4150,8 +4150,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -4774,8 +4774,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -5430,8 +5430,8 @@ func TestResourceModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -6073,8 +6073,8 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -6327,7 +6327,7 @@ func TestResourceModelCreate(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
           "versionsurl": "http://localhost:8181/dirs/dir1/files/f1/versions",
@@ -6747,8 +6747,8 @@ func TestResourceModelCreate(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -8026,8 +8026,8 @@ func TestMultModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -8362,8 +8362,8 @@ func TestMultModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -8878,8 +8878,8 @@ func TestMultModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -9214,8 +9214,8 @@ func TestMultModelCreate(t *testing.T) {
               "type": "timestamp",
               "required": true
             },
-            "ancestor": {
-              "name": "ancestor",
+            "ancestorid": {
+              "name": "ancestorid",
               "type": "string",
               "matchcase": true,
               "required": true
@@ -9920,8 +9920,8 @@ func TestMultModel2Create(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -10410,8 +10410,8 @@ func TestMultModel2Create(t *testing.T) {
                 "type": "timestamp",
                 "required": true
               },
-              "ancestor": {
-                "name": "ancestor",
+              "ancestorid": {
+                "name": "ancestorid",
                 "type": "string",
                 "matchcase": true,
                 "required": true
@@ -10680,7 +10680,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs1/d1/files/f1/meta",
@@ -10708,7 +10708,7 @@ func TestMultModel2Create(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v2": {
@@ -10720,7 +10720,7 @@ func TestMultModel2Create(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -10748,7 +10748,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs1/d2/files/f2/meta",
@@ -10776,7 +10776,7 @@ func TestMultModel2Create(t *testing.T) {
               "isdefault": false,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             },
             "v1.1": {
@@ -10788,7 +10788,7 @@ func TestMultModel2Create(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
@@ -10820,7 +10820,7 @@ func TestMultModel2Create(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
-          "ancestor": "v1",
+          "ancestorid": "v1",
           "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs2/d2/files/f2/meta",
@@ -10848,7 +10848,7 @@ func TestMultModel2Create(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestor": "v1",
+              "ancestorid": "v1",
               "filebase64": ""
             }
           },
