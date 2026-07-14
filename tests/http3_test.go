@@ -4684,10 +4684,12 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 
 	prefix := ""
 	star := ""
+	esc := ""
 
 	if os.Getenv("NO_DELETE_REGISTRY") != "" {
 		prefix = `^(?s)^`
 		star = ".*"
+		esc = "\\"
 	}
 
 	// Plain (default registry) URL. reg1 is the default registry here
@@ -4696,10 +4698,10 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	// bare host base URL (no "/reg-<name>" suffix - it's just an alias
 	// for whichever registry is currently the default) must show up too.
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
-  "registries": [`+star+`
-    "http://localhost:8181",
+  "registries": `+esc+`[`+star+`
+    "http://localhost:8181",`+star+`
     "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
-  ]
+  `+esc+`]
 }
 `)
 
@@ -4709,10 +4711,10 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	// registry's prefix the request itself came in through.
 	XHTTP(t, reg1, "GET", "/reg-TestHTTPXRegistryDiscovery1/.xregistry", ``,
 		200, prefix+`{
-  "registries": [`+star+`
-    "http://localhost:8181",
+  "registries": `+esc+`[`+star+`
+    "http://localhost:8181",`+star+`
     "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
-  ]
+  `+esc+`]
 }
 `)
 
@@ -4726,11 +4728,11 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	defer PassDeleteReg(t, reg2)
 
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
-  "registries": [`+star+`
-    "http://localhost:8181",
+  "registries": `+esc+`[`+star+`
+    "http://localhost:8181",`+star+`
     "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1",
     "http://localhost:8181/reg-TestHTTPXRegistryDiscovery2"`+star+`
-  ]
+  `+esc+`]
 }
 `)
 
