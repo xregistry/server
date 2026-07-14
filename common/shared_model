@@ -3408,6 +3408,27 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 			}
 		}
 
+		if attr.IsScalar() && attr.Item != nil {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("%q must not have \"item\" set "+
+						"because it's a scalar",
+						tmpLD.UI()))
+		}
+
+		if attr.GetMatchCase() {
+			// Only allow matchcase for strings
+			if attr.Type != STRING &&
+				(attr.Item == nil || attr.Item.Type != STRING) {
+
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf("%q must not have \"matchcase\" set "+
+							"to \"true\" unless it's of type \"string\"",
+							tmpLD.UI()))
+			}
+		}
+
 		// check enum values
 		/* Not true
 		if attr.Enum != nil && len(attr.Enum) == 0 {

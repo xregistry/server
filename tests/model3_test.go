@@ -3677,3 +3677,150 @@ func TestModelStrictEnum(t *testing.T) {
 }
 `)
 }
+
+func TestModelMatchCase(t *testing.T) {
+	reg := NewRegistry("TestModelMatchCase")
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "string",
+            "item": {}
+          }
+        }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"str\" must not have \"item\" set because it's a scalar.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"str\" must not have \"item\" set because it's a scalar"
+  },
+  "source": "637a8784fa0d:registry:shared_model:3412"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "integer",
+            "matchcase": true
+          }
+        }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\""
+  },
+  "source": "637a8784fa0d:registry:shared_model:3424"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "array",
+            "matchcase": true,
+            "item": {
+              "type": "integer"
+            }
+          }
+        }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: \"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "\"str\" must not have \"matchcase\" set to \"true\" unless it's of type \"string\""
+  },
+  "source": "637a8784fa0d:registry:shared_model:3424"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "string",
+            "matchcase": true
+          }
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "array",
+            "matchcase": true,
+            "item": {
+              "type": "string"
+            }
+          }
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "string",
+            "matchcase": true,
+            "enum": [ "YeS", "no" ]
+          }
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/", `{ "str": "YeS" }`, 200, `*`)
+	XHTTP(t, reg, "PUT", "/", `{ "str": "yes" }`, 400,
+		`^(?s)^.*"value \(yes\) must be one of the enum values: YeS, no"`)
+	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "array",
+            "matchcase": true,
+            "item": { "type": "string" },
+            "enum": [ "YeS", "no" ]
+          }
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/", `{ "str": [ "YeS", "no" ] }`, 200, `*`)
+	XHTTP(t, reg, "PUT", "/", `{ "str": [ "yeS", "no" ] }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"str[0]\" for \"/\" is not valid: value (yeS) must be one of the enum values: YeS, no.",
+  "subject": "/",
+  "args": {
+    "error_detail": "value (yeS) must be one of the enum values: YeS, no",
+    "name": "str[0]"
+  },
+  "source": "637a8784fa0d:registry:entity:2975"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+        "attributes": {
+          "str": {
+            "type": "map",
+            "matchcase": true,
+            "item": { "type": "string" },
+            "enum": [ "YeS", "no" ]
+          }
+        }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "YeS", "2": "no" } }`, 200, `*`)
+	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "yeS", "2": "no" } }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"str.1\" for \"/\" is not valid: value (yeS) must be one of the enum values: YeS, no.",
+  "subject": "/",
+  "args": {
+    "error_detail": "value (yeS) must be one of the enum values: YeS, no",
+    "name": "str.1"
+  },
+  "source": "637a8784fa0d:registry:entity:2976"
+}
+`)
+}

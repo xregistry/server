@@ -244,6 +244,17 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 		methodsStr := strings.Join(methods, ", ")
 		dw.AddHeader("Access-Control-Allow-Methods", methodsStr)
 
+		// Reflect whatever headers the browser's preflight asked for
+		// (e.g. Content-Type) so cross-origin PUT/PATCH/POST/DELETE
+		// requests with a JSON body aren't blocked by CORS.
+		reqHeaders := dw.Info.OriginalRequest.Header.Get(
+			"Access-Control-Request-Headers")
+		if reqHeaders != "" {
+			dw.AddHeader("Access-Control-Allow-Headers", reqHeaders)
+		} else {
+			dw.AddHeader("Access-Control-Allow-Headers", "Content-Type")
+		}
+
 		// For OPTIONS requests, also set the Allow header
 		if dw.Info.OriginalRequest.Method == "OPTIONS" {
 			dw.AddHeader("Allow", methodsStr)

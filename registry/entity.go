@@ -2649,7 +2649,8 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 		Item:       mapAttr.Item.Item,
 		Attributes: mapAttr.Item.Attributes,
 		// Enum:       e.CalcAttrEnum(mapAttr, path), // mapAttr.Enum,
-		Strict: mapAttr.Strict,
+		Strict:    mapAttr.Strict,
+		MatchCase: mapAttr.MatchCase,
 	}
 	attr.Enum, _ = e.CalcAttrEnum(mapAttr, path)
 
@@ -2713,7 +2714,8 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Item:       arrayAttr.Item.Item,
 		Attributes: arrayAttr.Item.Attributes,
 		// Enum:       e.CalcAttrEnum(arrayAttr, path), // arrayAttr.Enum,
-		Strict: arrayAttr.Strict,
+		Strict:    arrayAttr.Strict,
+		MatchCase: arrayAttr.MatchCase,
 	}
 	attr.Enum, _ = e.CalcAttrEnum(arrayAttr, path)
 
