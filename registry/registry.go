@@ -213,7 +213,7 @@ func GetRegistryNames() ([]string, *XRError) {
 	}
 	defer tx.Rollback()
 
-	results := Query(tx, `SELECT UID FROM Registries`)
+	results := Query(tx, `SELECT UID FROM Registries ORDER BY UID`)
 	defer results.Close()
 
 	res := []string{}

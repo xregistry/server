@@ -479,12 +479,18 @@ func HTTPGETModelSource(info *RequestInfo) *XRError {
 // host root, is a documented follow-up - not implemented here since this
 // server always routes a request to a specific Registry first).
 //
-// Response shape is intentionally minimal today (just a "registries" map)
-// but left open for future top-level attributes, which is why this got
-// its own dedicated, dot-prefixed endpoint name (avoiding collisions with
-// other tooling APIs, and avoiding ".well-known" - that name has strict
-// RFC 8615 host-root-only semantics, which would be misleading for this
-// registry-scoped variant).
+// Response shape is intentionally minimal today (just a "registries" array
+// of URLs) but left open for future top-level attributes, which is why
+// this got its own dedicated, dot-prefixed endpoint name (avoiding
+// collisions with other tooling APIs, and avoiding ".well-known" - that
+// name has strict RFC 8615 host-root-only semantics, which would be
+// misleading for this registry-scoped variant).
+//
+// "registries" is intentionally just an array of URLs, not a map keyed
+// by name - the name is server-owned info (the Registry's own "name"
+// attribute, fetched from its own URL), so baking a name into this
+// discovery doc would create a second, easily-stale copy of it. Clients
+// that want a name should GET the registry's own URL and read it there.
 func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 	if len(info.Parts) > 1 {
 		return NewXRError("api_not_found", info.GetParts(0))
@@ -506,9 +512,16 @@ func HTTPGETXRegistryDiscovery(info *RequestInfo) *XRError {
 		hostBase = strings.TrimSuffix(hostBase, "/reg-"+info.Registry.UID)
 	}
 
-	registries := map[string]string{}
+	registries := make([]string, 0, len(names)+1)
+	// The plain host base URL (no "/reg-<name>" suffix) is itself a valid
+	// way to reach a registry too - it's just an alias for whichever
+	// registry the server was started with as its default (see
+	// GetDefaultReg()/cmds/xrserver's "Default(/): reg-<name>" startup
+	// log). Include it so clients relying solely on this discovery doc
+	// don't miss that registry.
+	registries = append(registries, hostBase)
 	for _, name := range names {
-		registries[name] = hostBase + "/reg-" + name
+		registries = append(registries, hostBase+"/reg-"+name)
 	}
 
 	buf, err := json.MarshalIndent(map[string]any{

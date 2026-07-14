@@ -4690,11 +4690,16 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 		star = ".*"
 	}
 
-	// Plain (default registry) URL.
+	// Plain (default registry) URL. reg1 is the default registry here
+	// (NewRegistry() sets registry.DefaultRegDbSID to whichever Registry
+	// was created/found most recently - see tests/utils_test.go), so the
+	// bare host base URL (no "/reg-<name>" suffix - it's just an alias
+	// for whichever registry is currently the default) must show up too.
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
-  "registries": {`+star+`
-    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
-  }
+  "registries": [`+star+`
+    "http://localhost:8181",
+    "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
+  ]
 }
 `)
 
@@ -4704,23 +4709,28 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 	// registry's prefix the request itself came in through.
 	XHTTP(t, reg1, "GET", "/reg-TestHTTPXRegistryDiscovery1/.xregistry", ``,
 		200, prefix+`{
-  "registries": {`+star+`
-    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
-  }
+  "registries": [`+star+`
+    "http://localhost:8181",
+    "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1"`+star+`
+  ]
 }
 `)
 
 	// Cross-registry: a second, unrelated Registry must show up too -
 	// this endpoint enumerates every Registry the server/DB knows about,
 	// not just the one the request happened to be routed through.
+	// Creating reg2 also makes IT the new default registry (see
+	// NewRegistry() above), but the bare host base URL is unconditionally
+	// included regardless of which registry it currently aliases.
 	reg2 := NewRegistry("TestHTTPXRegistryDiscovery2")
 	defer PassDeleteReg(t, reg2)
 
 	XHTTP(t, reg1, "GET", "/.xregistry", ``, 200, prefix+`{
-  "registries": {`+star+`
-    "TestHTTPXRegistryDiscovery1": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1",
-    "TestHTTPXRegistryDiscovery2": "http://localhost:8181/reg-TestHTTPXRegistryDiscovery2"`+star+`
-  }
+  "registries": [`+star+`
+    "http://localhost:8181",
+    "http://localhost:8181/reg-TestHTTPXRegistryDiscovery1",
+    "http://localhost:8181/reg-TestHTTPXRegistryDiscovery2"`+star+`
+  ]
 }
 `)
 

@@ -1150,6 +1150,17 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   color: #333;
   font-weight: bold;
 }
+.config-table th.cfg-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.config-table th.cfg-sortable:hover { background: #d5d5d5; }
+.cfg-sort-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  color: #666;
+  font-size: 11px;
+}
 .config-table td {
   border-bottom: 1px solid #f0f0f0;
   padding: 7px 12px;

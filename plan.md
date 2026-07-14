@@ -4158,8 +4158,12 @@ sources; see where each auto-added entry came from).
 
 **Server-side**: added a new `GET <registryBaseURL>/.xregistry` discovery
 endpoint (`registry/httpStuff.go`'s `HTTPGETXRegistryDiscovery()`),
-returning `{"registries": {name: url, ...}}` for every registry the host
+returning `{"registries": [url, ...]}` for every registry the host
 serves (wraps the existing `GetRegistryNames()` DB query). Deliberately
+only a plain array of URLs, not a name -> URL map — the name is
+server-owned info the client can always get by fetching the URL itself,
+so baking it into this doc would create a second, staleness-prone copy.
+Deliberately
 NOT named `.well-known` (that has strict RFC 8615 host-root-only
 semantics that would be misleading here) — `.xregistry` was chosen as a
 short, dot-prefixed, collision-avoiding name that can carry more
@@ -4241,6 +4245,145 @@ ports 8080/8081/8082, backed by mysql, driven through headless Chromium
 - Full `make qtest` (all packages) passes.
 - Test databases (`registry1`/`registry2`/`registry3`), chromium
   process/profile, and other temp files cleaned up after verification.
+
+**Status**: Complete.
+
+## Fixed: several Full Data Edit Mode bugs (ifvalues-on-dropdown-pick,
+## duplicate Resource action bars on non-Default version, false-dirty
+## xid/self on version switch, modelsource nav position reset, nested-
+## field dirty highlighting)
+
+Six distinct edit-mode bugs reported and fixed in one session (all
+verified live against a running `xrserver` + headless Chromium/CDP):
+
+1. **ifvalues not reconciled when a same-named sibling's *shape* changes
+   across `ifvalues` branches** (e.g. CloudEvents' `protocol`/
+   `protocoloptions` — both KAFKA and NATS branches define a
+   `protocoloptions` sibling, but with different sub-schemas).
+   `reconcileIfValuesOnChange()` previously only diffed attribute
+   *names* before/after a value change, so a same-name/different-
+   definition case was invisible to it. Fixed by also comparing
+   attribute-definition object identity (`beforeAttrs[n] !==
+   afterAttrs[n]`) — cheap and reliable because
+   `resolveIfValuesAttrs()` always starts from the same base-attrs
+   object reference for unrelated/always-present attributes.
+2. **Duplicate Save/Undo/Delete action bars on the Resource page** when
+   a non-Default version was selected — the page-level action bar (bound
+   to the Default version) was never hidden, so it showed alongside the
+   version-selector's own embedded action bar. Fixed by giving the
+   page-level bar `id="dataEditorActionBar"` and toggling its visibility
+   in `onVersionSelectChangeReal()` based on the selected version.
+3. **False "changed" (dirty) highlighting on `xid`/`self` etc. when
+   viewing a non-Default version** — `buildPropsRowsHtml()`'s dirty-row
+   comparison was hardcoded against `_dataEditSrc` (the Default
+   version's snapshot) regardless of which entity was actually being
+   rendered. Fixed to pick `_verEditSrc` when
+   `handlerFn === 'verEditFieldChange'`.
+4. **Modelsource/Model editor remembered drill-down position across
+   section re-entry** — the cache-key check in `renderModelEditor()`
+   only reset nav state on a genuinely new server/section combo, not on
+   a round trip through some other section and back to the same one.
+   Fixed in `pushStateReal()`: explicitly reset `_navTab`/`_navPath`/
+   `_navSelected`/`_attrNestStack` when entering `model`/`modelsource` via
+   a real server/section change (but not a mere view toggle like
+   List↔JSON).
+5. **Nested-field edits (e.g. `deprecated.alternative`) never gave a
+   live dirty-row visual highlight** — only top-level scalar edits got
+   the `xr-row-dirty` class via `toggleRowDirty()`. Added an
+   `activeEditSrc()` helper (parallel to `activeEditRoot()`) and wired
+   `dataEditNestedFieldChange()` to also call `toggleRowDirty()` on the
+   containing row. (Save/Undo button enabling itself was already working
+   correctly in every tested scenario for this report.)
+6. Confirmed the user's manual `ancestor` → `ancestorid` model/server
+   rename needed **no UI code changes** — `app.js`/`specattrs.js` already
+   used `ancestorid` consistently everywhere (link detection, display,
+   priority/suppression key lists, spec-attrs metadata); verified
+   end-to-end live against the real server/model/UI afterward.
+
+**Status**: Complete.
+
+## Changed: `.xregistry` discovery doc's `registries` from a
+## name→URL map to a plain array of URLs
+
+**Why**: a `name→URL` map bakes a second, easily-stale copy of each
+registry's name into the discovery document. The name is
+server-owned info (the target registry's own `registryid`/`name`
+attribute) — a client that wants it should fetch the registry's own URL,
+not trust a possibly-outdated copy embedded in the discovery doc.
+
+**Changes**:
+- `registry/httpStuff.go` (`HTTPGETXRegistryDiscovery()`): now returns
+  `{"registries": [url, ...]}` instead of `{"registries": {name: url}}`.
+- `registry/registry.go` (`GetRegistryNames()`): added `ORDER BY UID` so
+  the array has a deterministic order.
+- `tests/http3_test.go` (`TestHTTPXRegistryDiscovery`): updated expected
+  JSON shape to the array form.
+- `registry/ui/app.js`: `scanForRegistries()` now iterates
+  `d.registries` as an array of URLs (no more `Object.keys(regs)`); the
+  `.xregistry` JSON viewer's `renderXRegRegistriesTable()` now renders a
+  single "URL" column (no "Name" column — the server no longer sends
+  one).
+
+**Verified**: full `make qtest` passes; live-checked against a running
+server that `/model` and `/<resource>$details` already reflect the
+user's separate `ancestor` → `ancestorid` rename has no bearing on this
+(unrelated), and that `/.xregistry` returns the new array shape.
+
+**Status**: Complete.
+
+## Added: sortable column headers on the Config page's Registry
+## Servers table
+
+Clicking a column header (Name, Location, Proxy, Scan, Hide) sorts the
+table by that column; clicking the same header again reverses direction.
+A `▲`/`▼` arrow (`.cfg-sort-arrow`) shows the active column/direction.
+Sort state (`_cfgSortCol`/`_cfgSortDir`) is in-memory only (resets to
+Name/ascending on reload) — see `cfgSortBy()`/`cfgSortedServerUrls()`/
+`cfgSortHeaderHTML()` in `app.js`. The local ("this server") row always
+stays pinned first regardless of sort column/direction, since it isn't a
+regular addable/removable entry.
+
+**Status**: Complete.
+
+## Fixed: a server's last-known display name could revert to its
+## bare hostname after a page reload if the server was temporarily
+## unreachable
+
+**Bug**: `_labelCache` (normalizedURL → probed registry name) was
+purely in-memory. A full page reload while a previously-known server
+happened to be offline/unreachable meant the cache came back empty, so
+`serverLabel()` fell back to displaying the bare hostname instead of the
+name that had been successfully learned earlier — even though nothing
+about the server's actual name had changed.
+
+**Fix**: `_labelCache` is now persisted to `localStorage` under a new
+key, `LS_LABELS` (`xreg-label-cache`), loaded at startup and saved via
+`saveLabelCache()` every time `probeRegistry()`'s underlying fetch chain
+successfully resolves a non-empty `registryid`. The failure path
+(network error, non-2xx, malformed response) was already careful to
+never write an empty label into the cache (`cb({label: '', ...})`, and
+callers already guard with `if (info.label && ...)` before touching the
+DOM) — so no code needed to change there; only the *storage* needed to
+survive a reload. `LS_LABELS` was also added to `cfgResetAll()`'s
+list of localStorage keys to clear.
+
+**Verified live** with an isolated second `xrserver` instance (separate
+`--db` name and port, to avoid touching the real database) added as a
+known server: after a successful probe populated and persisted its
+label, CDP's `Network.setBlockedURLs` was used to simulate the server
+going fully offline, then the page was hard-navigated (simulating F5).
+Both the top-level server card and its auto-discovered sibling
+registries continued to display their correct last-known names (not
+bare hostnames), confirming the fix.
+
+**Caution for future sessions**: do NOT start a second local `xrserver`
+instance for testing without an explicit `--db <different-name>` (and
+ideally a non-default `-p <port>`) — the default DB name (`registry`)
+and port (8080) match whatever instance the user has running, and
+`--recreatedb` will destroy their live data. This happened once this
+session (an unintended `--recreatedb` against the shared DB); confirmed
+recoverable only because the wiped data was just stock `--samples` data,
+but it must not be repeated.
 
 **Status**: Complete.
 

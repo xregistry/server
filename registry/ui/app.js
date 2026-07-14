@@ -77,7 +77,19 @@ var LS_PROXY       = 'xreg-proxy-servers';
 var LS_DISCOVERED  = 'xreg-discovered-from';
 var LS_SCAN        = 'xreg-scan-enabled';
 var LS_HIDDEN      = 'xreg-hidden-servers';
-var _labelCache    = {};  // normalizedURL → probed registry name
+var LS_LABELS      = 'xreg-label-cache';
+// normalizedURL → last-known-good probed registry name. Persisted (not
+// just in-memory) so that a server which happens to be offline/unreachable
+// at page-load time doesn't lose its previously-learned display name —
+// probeServer()'s failure path deliberately never writes an empty label
+// here; only an actual successful GET is allowed to update (or clear, if
+// the registry itself really reports registryid: "") this cache.
+var _labelCache = (function() {
+  try { return JSON.parse(localStorage.getItem(LS_LABELS) || '{}'); } catch(e) { return {}; }
+})();
+function saveLabelCache() {
+  try { localStorage.setItem(LS_LABELS, JSON.stringify(_labelCache)); } catch(e) {}
+}
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
 var _offeredCache  = {};  // normalizedURL → capabilitiesoffered JSON
@@ -364,9 +376,9 @@ function scanForRegistries(cb) {
     fetch(serverFetchBase(sourceUrl) + '/.xregistry')
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(d) {
-        var regs = (d && d.registries) || {};
-        Object.keys(regs).forEach(function(name) {
-          var url = normalizeURL(regs[name] || '');
+        var regs = (d && d.registries) || [];
+        regs.forEach(function(url) {
+          url = normalizeURL(url || '');
           // Skip the local server's own address — it's always shown on
           // Home separately (see renderHome()) and never belongs in the
           // loadServers() array itself.
@@ -2486,7 +2498,7 @@ function probeRegistry(url, cb) {
           return;
         }
         var label = data.registryid || '';
-        if (label) _labelCache[normUrl] = label;
+        if (label) { _labelCache[normUrl] = label; saveLabelCache(); }
         var colls = findCollectionRefs(model, [], data);
         colls.forEach(function(c) {
           var grpDef = model && model.groups && model.groups[c.plural];
@@ -2548,6 +2560,69 @@ function cfgJsonColorRadio(mode, label, desc) {
     + '</label>';
 }
 
+// Sort state for the Config page's Registry Servers table — persisted only
+// in-memory (resets to the default Name/ascending on reload), toggled by
+// clicking a sortable column header (see cfgSortBy()/cfgSortHeaderHTML()).
+// The local server's row is always pinned first regardless of sort column/
+// direction (it's "this server", not a regular addable/removable entry).
+var _cfgSortCol = 'name';
+var _cfgSortDir = 'asc';
+
+// Builds one sortable <th>, wiring up the click handler and rendering the
+// ▲/▼ arrow when this is the currently active sort column.
+function cfgSortHeaderHTML(col, label, extraAttrs) {
+  var arrow = '';
+  if (_cfgSortCol === col) {
+    arrow = '<span class="cfg-sort-arrow">' + (_cfgSortDir === 'asc' ? '\u25B2' : '\u25BC') + '</span>';
+  }
+  return '<th class="cfg-sortable"' + (extraAttrs || '') + ' onclick="cfgSortBy(\'' + col + '\')">'
+    + esc(label) + arrow + '</th>';
+}
+
+// Handles a click on a Registry Servers column header — toggles direction
+// if the same column is clicked again, otherwise switches to the new
+// column defaulting to ascending.
+function cfgSortBy(col) {
+  if (_cfgSortCol === col) {
+    _cfgSortDir = (_cfgSortDir === 'asc') ? 'desc' : 'asc';
+  } else {
+    _cfgSortCol = col;
+    _cfgSortDir = 'asc';
+  }
+  renderConfig();
+}
+
+// Returns the sort-key value for one server URL/column, used by
+// cfgSortedServerUrls() below.
+function cfgSortKeyFor(url, col) {
+  switch (col) {
+    case 'location': return url.toLowerCase();
+    case 'proxy':     return isProxied(url) ? 1 : 0;
+    case 'scan':      return isScanEnabled(url) ? 1 : 0;
+    case 'hide':      return isHidden(url) ? 1 : 0;
+    case 'name':
+    default:          return serverLabel(url).toLowerCase();
+  }
+}
+
+// Sorts the (non-local) server URL list per the current
+// _cfgSortCol/_cfgSortDir, with a stable Name tie-breaker so equal-value
+// rows (e.g. two servers both un-proxied) don't visibly reshuffle between
+// renders.
+function cfgSortedServerUrls(urls) {
+  var col = _cfgSortCol, dir = _cfgSortDir;
+  return urls.slice().sort(function(a, b) {
+    var ka = cfgSortKeyFor(a, col), kb = cfgSortKeyFor(b, col);
+    var cmp;
+    if (typeof ka === 'number' && typeof kb === 'number') cmp = ka - kb;
+    else cmp = String(ka).localeCompare(String(kb));
+    if (cmp === 0) {
+      cmp = serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
+    }
+    return dir === 'desc' ? -cmp : cmp;
+  });
+}
+
 function renderConfig() {
   var main   = el('main-view');
   var origin = window.location.origin;
@@ -2569,9 +2644,12 @@ function renderConfig() {
     + '<th class="cfg-select-cell"><input type="checkbox" id="cfg-select-all" '
     +   'title="Select/deselect all deletable servers" '
     +   'onchange="cfgToggleSelectAll(this)"></th>'
-    + '<th>Name</th><th>Location</th>'
-    + '<th>Proxy</th><th title="Also check this server for other registries it knows about">Scan</th>'
-    + '<th title="Hide from the Home page (without deleting)">Hide</th><th></th></tr></thead><tbody>';
+    + cfgSortHeaderHTML('name', 'Name')
+    + cfgSortHeaderHTML('location', 'Location')
+    + cfgSortHeaderHTML('proxy', 'Proxy')
+    + cfgSortHeaderHTML('scan', 'Scan', ' title="Also check this server for other registries it knows about"')
+    + cfgSortHeaderHTML('hide', 'Hide', ' title="Hide from the Home page (without deleting)"')
+    + '<th></th></tr></thead><tbody>';
 
   // Local server — its URL is fixed (can't ever be a different server),
   // but its display Name can still be overridden and edited like any
@@ -2604,12 +2682,11 @@ function renderConfig() {
     +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
     + '</td></tr>';
 
-  // User-added servers — sorted by display name (same
-  // serverLabel()-based ordering used on the Home page's Registries list)
-  // for a deterministic order, rather than insertion/add order.
-  servers.filter(function(u) { return u !== origin; }).sort(function(a, b) {
-    return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
-  }).forEach(function(url) {
+  // User-added servers — sorted per the current column/direction chosen
+  // via the sortable column headers (see cfgSortBy()/cfgSortedServerUrls()),
+  // defaulting to Name/ascending (same serverLabel()-based ordering used
+  // on the Home page's Registries list) for a deterministic initial order.
+  cfgSortedServerUrls(servers.filter(function(u) { return u !== origin; })).forEach(function(url) {
     var discFrom = getDiscoveredFrom(url);
     html += '<tr data-cfg-url="' + esc(url) + '" '
       + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(url))) + '">'
@@ -2955,7 +3032,7 @@ function cfgAddNew() {
 //
 // All browser-side state this app keeps lives in a handful of localStorage
 // keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED, LS_SCAN,
-// LS_HIDDEN) plus a handful of in-memory caches (_labelCache/_modelCache/
+// LS_HIDDEN, LS_LABELS) plus a handful of in-memory caches (_modelCache/
 // _capCache/_offeredCache etc.) that are rebuilt automatically on next use —
 // a full page reload after clearing localStorage is therefore sufficient to
 // reset everything, with no need to individually track/clear each in-memory
@@ -2970,6 +3047,7 @@ function cfgResetAll() {
   localStorage.removeItem(LS_DISCOVERED);
   localStorage.removeItem(LS_SCAN);
   localStorage.removeItem(LS_HIDDEN);
+  localStorage.removeItem(LS_LABELS);
   window.location.reload();
 }
 
@@ -12340,9 +12418,9 @@ function renderCapabilitiesOfferedViewer(data) {
 // the same capSectionEl visual structure as Capabilities Offered above, but
 // the data here is plain *values* (not a schema), so it's rendered
 // directly rather than through renderCapSchemaNode/renderCapValueGeneric.
-// Today's only defined key is "registries" (a name -> URL map of every
-// registry this server currently knows about); any other/future top-level
-// key falls back to a plain indented JSON blob so this stays forward-
+// Today's only defined key is "registries" (an array of every registry
+// URL this server currently knows about); any other/future top-level key
+// falls back to a plain indented JSON blob so this stays forward-
 // compatible without needing a code change for every new key added later.
 function renderXRegistryViewer(data) {
   var main = el('main-view');
@@ -12353,7 +12431,7 @@ function renderXRegistryViewer(data) {
   wrap.appendChild(body);
   Object.keys(data || {}).sort().forEach(function(k) {
     var sec = capSectionEl(k);
-    if (k === 'registries' && data[k] && typeof data[k] === 'object') {
+    if (k === 'registries' && Array.isArray(data[k])) {
       sec.body.appendChild(renderXRegRegistriesTable(data[k]));
     } else {
       var pre = document.createElement('pre'); pre.className = 'capRawFallback';
@@ -12365,29 +12443,30 @@ function renderXRegistryViewer(data) {
 }
 
 // Builds the "registries" table for renderXRegistryViewer(): one row per
-// name -> URL entry, sorted by name, with the URL as a real clickable link
-// that browses straight to that registry (same doBrowse() used by the
-// Home page's registry cards/rows) — modifier-clicks still open a real new
-// tab/window via the normal <a href> since doBrowse() is only invoked from
-// onclick, never in place of the href itself.
+// URL, sorted, with the URL as a real clickable link that browses
+// straight to that registry (same doBrowse() used by the Home page's
+// registry cards/rows) — modifier-clicks still open a real new tab/window
+// via the normal <a href> since doBrowse() is only invoked from onclick,
+// never in place of the href itself. There's no "name" column here — the
+// server intentionally only sends URLs (see HTTPGETXRegistryDiscovery());
+// the name lives at the target URL itself so it can never get out of
+// sync with this discovery doc.
 function renderXRegRegistriesTable(registries) {
   var table = document.createElement('table'); table.className = 'capTable';
   var thead = document.createElement('thead');
-  thead.innerHTML = '<tr><th>Name</th><th>URL</th></tr>';
+  thead.innerHTML = '<tr><th>URL</th></tr>';
   table.appendChild(thead);
   var tbody = document.createElement('tbody');
-  Object.keys(registries).sort(function(a, b) {
-    return a.toLowerCase().localeCompare(b.toLowerCase());
-  }).forEach(function(name) {
-    var url = registries[name];
+  (registries || []).slice().sort(function(a, b) {
+    return String(a).toLowerCase().localeCompare(String(b).toLowerCase());
+  }).forEach(function(url) {
     var tr = document.createElement('tr');
-    var nameTd = document.createElement('td'); nameTd.textContent = name;
     var urlTd = document.createElement('td');
     var a = document.createElement('a');
     a.href = url; a.textContent = url;
     a.onclick = function(e) { return serverCardClick(e, tr, url); };
     urlTd.appendChild(a);
-    tr.appendChild(nameTd); tr.appendChild(urlTd);
+    tr.appendChild(urlTd);
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
