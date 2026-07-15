@@ -75,7 +75,6 @@ var LS_OPTIONS     = 'xreg-options';
 var LS_NAMES       = 'xreg-name-overrides';
 var LS_PROXY       = 'xreg-proxy-servers';
 var LS_DISCOVERED  = 'xreg-discovered-from';
-var LS_SCAN        = 'xreg-scan-enabled';
 var LS_HIDDEN      = 'xreg-hidden-servers';
 var LS_LABELS      = 'xreg-label-cache';
 // normalizedURL → last-known-good probed registry name. Persisted (not
@@ -118,13 +117,6 @@ function saveOpts() {
 }
 
 function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
-
-// Global kill-switch for the automatic background scan renderHome() runs
-// on every Home-page load (see plan.md "known-registries-autoadd-hide").
-// Does NOT affect explicit user-initiated scans — the Config page's
-// "Refresh known registries" button and the Add-row's "Scan for more"
-// checkbox still work normally even while this is on.
-function isAutoScanDisabled() { return !!_opts.autoScanDisabled; }
 
 // Reflects the current JSON color-mode option onto <body> so the CSS
 // rules in style.css (scoped via body[data-json-color=...]) can
@@ -181,32 +173,45 @@ function normalizeURL(url) {
   return url;
 }
 
-// addServer(url) - manual add (from the Config page "Add" flow): scanning
-// for further sibling registries defaults ON, since a manually-added
-// server is one the user explicitly trusts.
-// addServer(url, discoveredFrom) - auto-discovered add (from
-// scanForRegistries()): scanning defaults OFF (non-transitive discovery -
-// see loadScanFlags()/isScanEnabled() below), and discoveredFrom records
-// which server's .xregistry response caused this to be added, purely for
-// traceability (never mutated afterward - see setDiscoveredFrom()).
+// addServer(url) - manual add (from the Config page "Add" flow).
+// addServer(url, discoveredFrom) - auto-add from a reviewed discovery
+// scan (see discoverRegistriesFrom()/the Config page's "Scan for
+// registries" action): discoveredFrom records which server's
+// `.xregistry` response reported this URL, purely for traceability
+// (never mutated afterward - see setDiscoveredFrom()).
+// Blocks (returns false, no-ops entirely) if the URL is already
+// configured — a URL is always a server's unique identity, so adding an
+// already-known URL again does nothing; the caller must show an error
+// telling the user to delete the existing entry first if they want to
+// re-add it with different settings (e.g. a different proxy flag).
+// Returns true if the server was actually added.
 function addServer(url, discoveredFrom) {
   url = normalizeURL(url);
-  if (!url) return;
+  if (!url) return false;
   var list = loadServers();
-  if (!list.includes(url)) {
-    list.push(url);
-    saveServers(list);
-    if (discoveredFrom) {
-      setDiscoveredFrom(url, discoveredFrom);
-      setScanEnabled(url, false);
-    } else {
-      setScanEnabled(url, true);
-    }
-  }
+  if (list.includes(url)) return false;
+  list.push(url);
+  saveServers(list);
+  if (discoveredFrom) setDiscoveredFrom(url, discoveredFrom);
+  return true;
 }
 
+// Removes a server from LS_SERVERS AND clears every other per-URL flag
+// map keyed to it (name override, proxy, hidden, discoveredFrom) —
+// deleting a server is a full teardown, not just a list removal, so a
+// later re-add/re-discovery of the same URL starts from clean defaults
+// instead of silently inheriting stale state (e.g. a "hidden" flag from
+// a server that was hidden, then deleted, then re-discovered much later
+// under the same URL).
 function removeServer(url) {
+  var norm = normalizeURL(url);
   saveServers(loadServers().filter(function(u) { return u !== url; }));
+  setNameOverride(norm, '');
+  setProxied(norm, false);
+  setHidden(norm, false);
+  var discMap = loadDiscoveredFrom();
+  delete discMap[norm];
+  saveDiscoveredFrom(discMap);
 }
 
 // ---- Registry name overrides (persisted) -----------------------------------
@@ -293,42 +298,10 @@ function setDiscoveredFrom(url, fromUrl) {
   saveDiscoveredFrom(map);
 }
 
-// scanEnabled: whether THIS server is itself used as a discovery source
-// (i.e. whether scanForRegistries() calls its .xregistry endpoint too, to
-// look for further sibling registries). Defaults true for manually-added
-// servers, false for auto-discovered ones - see addServer() - so
-// discovery stays non-transitive until a person explicitly opts an
-// auto-discovered entry in via the Config page.
-function loadScanFlags() {
-  try { return JSON.parse(localStorage.getItem(LS_SCAN) || '{}'); }
-  catch(e) { return {}; }
-}
-function saveScanFlags(map) {
-  try { localStorage.setItem(LS_SCAN, JSON.stringify(map)); } catch(e) {}
-}
-function isScanEnabled(url) {
-  var map = loadScanFlags();
-  var norm = normalizeURL(url);
-  if (map.hasOwnProperty(norm)) return !!map[norm];
-  // The local server (the one the SPA itself is being served from) is
-  // never explicitly "added" via addServer() - it's always shown on Home
-  // separately (see renderHome()) - so it has no default set here the
-  // way a manually-added server gets via addServer(). Treat it as
-  // trusted-by-default too, since it's the server the user is actively
-  // using the UI from.
-  return norm === normalizeURL(window.location.origin);
-}
-function setScanEnabled(url, on) {
-  var map  = loadScanFlags();
-  var norm = normalizeURL(url);
-  map[norm] = !!on;
-  saveScanFlags(map);
-}
-
 // hidden: excludes a server from the Home page listing without deleting
 // it from config - so re-running discovery does not keep re-adding
 // something the user chose to declutter, and its other settings (proxy,
-// scanEnabled, discoveredFrom) are preserved if unhidden later.
+// discoveredFrom) are preserved if unhidden later.
 function loadHiddenFlags() {
   try { return JSON.parse(localStorage.getItem(LS_HIDDEN) || '{}'); }
   catch(e) { return {}; }
@@ -346,52 +319,88 @@ function setHidden(url, on) {
   saveHiddenFlags(map);
 }
 
-// Queries every currently-configured, scan-enabled server's .xregistry
-// endpoint (see registry/httpStuff.go HTTPGETXRegistryDiscovery()) for
-// sibling registries it knows about, and adds any not already present in
-// loadServers() — this is what makes newly-created registries "just
-// appear" without the user having to manually type each one in.
-// Deliberately non-transitive: a server discovered this way defaults to
-// scanEnabled=false (see addServer()), so it won't itself become a
-// scan source until a person explicitly opts it in via the Config page —
-// this bounds the "trust radius" to hosts the user configured themselves.
-// A single unreachable/non-implementing source (404, network error, etc)
-// is silently skipped — one bad host must not block discovery via the
-// others. cb(addedAny) is called once every source has settled (fetch
-// failures included), never throws.
-function scanForRegistries(cb) {
-  var origin = normalizeURL(window.location.origin);
-  var candidates = [origin].concat(loadServers().filter(function(u) { return u !== origin; }));
-  var sources = candidates.filter(isScanEnabled);
-  if (!sources.length) { if (cb) cb(false); return; }
+// Reverses the local xrproxy rewrite (see registry/xrproxy.go
+// HTTPXRProxy()'s response-body ReplaceAll of the remote origin) for a
+// single URL string, IF it's one of our own /xrproxy/<b64-origin>/...
+// URLs. The proxy rewrites the remote origin wherever it appears in ANY
+// response body it forwards (so embedded self/xid/*url links route back
+// through it) — but this is semantically wrong for a `.xregistry`
+// discovery document's `registries` list, whose entries are meant to be
+// the REAL addresses of other, independent registries, not self-
+// referential navigation links. Without this reversal,
+// discoverRegistriesFrom() would report the proxy-rewritten URL as a
+// sibling registry's "identity", silently hard-wiring it through this
+// one local server's proxy forever - even though nothing
+// flags it as proxied on the Config page (see plan.md's xrproxy writeup:
+// identity URLs are always supposed to be the real remote address; only
+// serverFetchBase() ever translates to a proxy URL, and only at
+// fetch-time). Returns `url` unchanged if it isn't one of our own
+// /xrproxy/ URLs (or doesn't decode to a plausible origin).
+function decodeAnyXRProxyURL(url) {
+  var prefix = normalizeURL(window.location.origin) + '/xrproxy/';
+  if (!url || url.indexOf(prefix) !== 0) return url;
+  var rest = url.slice(prefix.length);
+  var slashIdx = rest.indexOf('/');
+  var seg = slashIdx === -1 ? rest : rest.slice(0, slashIdx);
+  var suffix = slashIdx === -1 ? '' : rest.slice(slashIdx);
+  try {
+    var pad = seg.replace(/-/g, '+').replace(/_/g, '/');
+    pad += '='.repeat((4 - pad.length % 4) % 4);
+    var decodedOrigin = atob(pad);
+    if (!/^https?:\/\//i.test(decodedOrigin)) return url;
+    return decodedOrigin.replace(/\/$/, '') + suffix;
+  } catch (e) { return url; }
+}
 
-  var addedAny = false;
-  var remaining = sources.length;
+// Queries `.xregistry` (see registry/httpStuff.go
+// HTTPGETXRegistryDiscovery()) on each given source URL for sibling
+// registries it knows about, and reports back a categorized list —
+// does NOT mutate storage itself (see the Config page's "Scan for
+// registries" bulk action / cfgScanSelected(), which shows the results
+// in a review dialog and only calls addServer() for entries the user
+// explicitly confirms). A single unreachable/non-implementing source
+// (404, network error, etc) is silently skipped — one bad host must not
+// block discovery via the others. Results are deduped across sources
+// (first-seen source wins for discoveredFrom, matching the existing
+// "first seen wins" convention in setDiscoveredFrom()). Excludes the
+// local origin itself (always shown on Home separately). Calls
+// cb(results) once every source has settled (fetch failures included),
+// never throws — results is an array of
+// {url, discoveredFrom, alreadyKnown}.
+function discoverRegistriesFrom(sourceUrls, cb) {
+  var origin = normalizeURL(window.location.origin);
+  var known  = loadServers();
+  var seen   = {};   // normalizedURL -> true, for cross-source dedup
+  var results = [];
+  var remaining = sourceUrls.length;
+  if (!remaining) { if (cb) cb([]); return; }
+
   function done() {
     remaining--;
-    if (remaining <= 0 && cb) cb(addedAny);
+    if (remaining <= 0 && cb) cb(results);
   }
 
-  sources.forEach(function(sourceUrl) {
+  sourceUrls.forEach(function(sourceUrl) {
     fetch(serverFetchBase(sourceUrl) + '/.xregistry')
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(d) {
         var regs = (d && d.registries) || [];
         regs.forEach(function(url) {
-          url = normalizeURL(url || '');
-          // Skip the local server's own address — it's always shown on
-          // Home separately (see renderHome()) and never belongs in the
-          // loadServers() array itself.
-          if (!url || url === origin) return;
-          var before = loadServers();
-          addServer(url, sourceUrl);
-          if (loadServers().length > before.length) addedAny = true;
+          url = normalizeURL(decodeAnyXRProxyURL(url || ''));
+          if (!url || url === origin || seen[url]) return;
+          seen[url] = true;
+          results.push({
+            url: url,
+            discoveredFrom: sourceUrl,
+            alreadyKnown: known.includes(url)
+          });
         });
         done();
       })
       .catch(function() { done(); }); // server doesn't implement .xregistry, or unreachable — skip
   });
 }
+
 
 // base64url-encode (no padding) a string for use as a single /xrproxy/ path
 // segment - mirrors the encoding the Go server (EncodeRProxyOrigin in
@@ -437,7 +446,7 @@ function toRealURL(url) {
 
 window.addEventListener('DOMContentLoaded', init);
 window.addEventListener('popstate', function() { loadStateFromURL(); renderHeader(); refresh(); });
-window.addEventListener('resize', function() { renderHeader(); sizeDocTextarea(); });
+window.addEventListener('resize', function() { renderHeader(); sizeDocTextarea(); sizeJsonEditTextarea(); });
 
 // Scope Ctrl/Cmd+A to just the JSON output when focus is inside it, instead
 // of selecting the entire page (mirrors the old ui.go `dokeydown()` trick).
@@ -705,6 +714,32 @@ function pushState(patch) {
       );
       return;
     }
+  }
+  // Guard: leaving JSON view's raw-textarea edit ("postman-style", see
+  // renderJSONEditView()) with unsaved changes, or turning edit off while
+  // staying on the same page — same pattern as the guards above. This one
+  // applies regardless of `_state.section`, since the raw JSON editor works
+  // the same way for data/capabilities/modelsource alike.
+  if (_state.dataView === 'json' && _state.editMode && _jsonEditDirty) {
+    var leavingJsonEdit = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingJsonEdit) {
+      showLeaveEditDialog(
+        function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); pushStateReal(patch); }); },
+        function() { resetJsonEditBuffer(); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
+  // Whenever we're leaving JSON-edit mode entirely (editMode turned off, or
+  // navigating away) with NO unsaved changes, still reset the buffer so the
+  // next time Edit is turned on in JSON view it starts fresh from the
+  // server (see resetJsonEditBuffer()'s doc comment / the "Independent
+  // buffer" design decision in plan.md).
+  if (_state.dataView === 'json' && _state.editMode && _jsonEditOrigText !== null) {
+    var leavingJsonClean = patch.editMode === false || patch.section !== undefined
+      || patch.path !== undefined || patch.serverURL !== undefined || patch.view !== undefined;
+    if (leavingJsonClean) resetJsonEditBuffer();
   }
   pushStateReal(patch);
 }
@@ -1008,6 +1043,30 @@ function serverURLLineHtml() {
     + esc(url) + '</div>';
 }
 
+// Whether the current page's "Edit" button is enabled, independent of
+// which dataView (list/json) is currently showing. Shared by renderHeader()
+// (to enable/disable the Edit button itself) and renderJSONView() (to
+// decide whether to show the raw-JSON-textarea editor). Keeping this in one
+// place avoids the two drifting out of sync — see plan.md "Raw JSON edit".
+function computeEnableEdit() {
+  var isHome   = (_state.view === 'home');
+  var isConfig = (_state.view === 'config');
+  var isData   = !isHome && !isConfig;
+  if (isConfig || isHome) return false;
+  var section      = _state.section;
+  var isCapSection  = isData && (section === 'capabilities');
+  var isModelSourceSection = isData && (section === 'modelsource');
+  var isModelSection    = isData && (section === 'model' || section === 'modelsource');
+  var isCapOfferedSection = isData && (section === 'capabilitiesoffered');
+  var isXRegistrySection  = isData && (section === 'xregistry');
+  var isListOnlySection = isModelSection || isCapSection || isCapOfferedSection
+    || isXRegistrySection;
+  if (isListOnlySection) {
+    return isCapSection ? _state.mutable : isModelSourceSection && _state.mutable;
+  }
+  return _state.mutable;
+}
+
 function renderHeader() {
   var isHome   = (_state.view === 'home');
   var isConfig = (_state.view === 'config');
@@ -1064,10 +1123,10 @@ function renderHeader() {
     enableGrid = !isHomeTypes; enableList = true; enableJson = false; enableEdit = false;
   } else if (isListOnlySection) {
     enableGrid = false; enableList = true; enableJson = true;
-    enableEdit = isCapSection ? _state.mutable : (section === 'modelsource') && _state.mutable;
+    enableEdit = computeEnableEdit();
   } else {
     enableGrid = false; enableList = enableJson = true;
-    enableEdit = _state.mutable;
+    enableEdit = computeEnableEdit();
   }
 
   qsa('[data-dview]').forEach(function(b) {
@@ -1225,6 +1284,24 @@ function setDataView(v) {
       function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); setDataView(v); }
     );
     return;
+  }
+  // Guard: leaving JSON view's raw-textarea edit with unsaved changes — same
+  // pattern (applies regardless of _state.section, see pushState()'s
+  // matching guard for the same reasoning).
+  if (_state.dataView === 'json' && _state.editMode && _jsonEditDirty
+      && v !== 'json') {
+    showLeaveEditDialog(
+      function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); setDataView(v); }); },
+      function() { resetJsonEditBuffer(); setDataView(v); }
+    );
+    return;
+  }
+  // No unsaved JSON-edit changes, but still leaving JSON view while it was
+  // in edit mode — reset the buffer so re-entering JSON view later starts
+  // fresh (see resetJsonEditBuffer()'s doc comment).
+  if (_state.dataView === 'json' && _state.editMode && v !== 'json'
+      && _jsonEditOrigText !== null) {
+    resetJsonEditBuffer();
   }
 
   _state.dataView = v;
@@ -2039,6 +2116,20 @@ function refresh() {
     var svBaseM  = (_state.serverURL || window.location.origin).replace(/\/$/, '');
     ensureCapCached(svBaseM, function(cap) {
       var avail = cap && cap.available;
+      // /model and /modelsource are optional, capability-gated endpoints
+      // (per spec) — buildRegEndpointPillsHtml() already hides their pills
+      // when unavailable, but a stale bookmark/pushState (or switching to a
+      // server that doesn't expose one) can still land here directly. Once
+      // capabilities are known, check availability up front instead of
+      // firing the fetch and rendering a raw "Error loading" banner on 404.
+      if (avail && !avail[_state.section]) {
+        _lastData = null;
+        renderHeader();
+        main.innerHTML = '<div class="state-msg">This server does not expose a '
+          + esc(_state.section === 'modelsource' ? 'model source' : 'model')
+          + ' endpoint.</div>';
+        return;
+      }
       _state.mutable = !!(avail && avail[_state.section] && avail[_state.section].mutable);
       fetchJSON(modelURL)
         .then(function(data) {
@@ -2141,21 +2232,6 @@ function renderHome() {
     renderHomeFlatList(main, allServers); // Grid removed for this page — always List
   } else {
     l === 'table' ? renderHomeTable(main, allServers) : renderHomeGrid(main, allServers);
-  }
-
-  // Non-blocking background check for new sibling registries advertised by
-  // any already-configured, scan-enabled server's .xregistry endpoint (see
-  // plan.md "known-registries-autoadd-hide") — re-render if anything new
-  // showed up, so newly-created registries "just appear" on a later visit
-  // without requiring a manual Config-page action. Guarded by the view
-  // check since the user may have navigated away by the time this
-  // resolves. Skipped entirely when the user has disabled auto-scanning
-  // via the Config page's Options section (manual scan triggers there are
-  // unaffected).
-  if (!isAutoScanDisabled()) {
-    scanForRegistries(function(addedAny) {
-      if (addedAny && _state.view === 'home') renderHome();
-    });
   }
 }
 
@@ -2598,7 +2674,6 @@ function cfgSortKeyFor(url, col) {
   switch (col) {
     case 'location': return url.toLowerCase();
     case 'proxy':     return isProxied(url) ? 1 : 0;
-    case 'scan':      return isScanEnabled(url) ? 1 : 0;
     case 'hide':      return isHidden(url) ? 1 : 0;
     case 'name':
     default:          return serverLabel(url).toLowerCase();
@@ -2635,19 +2710,20 @@ function renderConfig() {
     +     '<button class="cfg-btn cfg-btn-danger" id="cfg-delete-selected-btn" disabled '
     +       'onclick="cfgDeleteSelected()" title="Delete all checked servers'
     +       ' below">Delete Selected</button>'
-    +     '<button class="cfg-btn" id="cfg-scan-now-btn" onclick="cfgScanNow()" '
-    +       'title="Check every scan-enabled server above for other registries'
-    +       ' it knows about, right now">Refresh known registries</button>'
+    +     '<button class="cfg-btn" id="cfg-scan-selected-btn" disabled '
+    +       'onclick="cfgScanSelected()" title="Check all checked servers'
+    +       ' below (and/or this server) for other registries they know'
+    +       ' about, and review the results before adding any">Scan for'
+    +       ' registries</button>'
     +   '</div>'
     + '</div>'
     + '<table class="config-table"><thead><tr>'
     + '<th class="cfg-select-cell"><input type="checkbox" id="cfg-select-all" '
-    +   'title="Select/deselect all deletable servers" '
+    +   'title="Select/deselect all servers" '
     +   'onchange="cfgToggleSelectAll(this)"></th>'
     + cfgSortHeaderHTML('name', 'Name')
     + cfgSortHeaderHTML('location', 'Location')
     + cfgSortHeaderHTML('proxy', 'Proxy')
-    + cfgSortHeaderHTML('scan', 'Scan', ' title="Also check this server for other registries it knows about"')
     + cfgSortHeaderHTML('hide', 'Hide', ' title="Hide from the Home page (without deleting)"')
     + '<th></th></tr></thead><tbody>';
 
@@ -2656,21 +2732,18 @@ function renderConfig() {
   // other registry, via its own Edit/Save/Cancel (no Delete/URL editing).
   // Proxying only ever makes sense for a *remote* server, so this row has
   // no checkbox at all (blank cell) rather than a disabled/checked one.
-  // Scan/Hide do make sense for the local server too (it may itself host
-  // sibling registries, and a user could still want to declutter it from
-  // Home), so those get real checkboxes here.
+  // Its select checkbox is still real (usable as a scan source, or to
+  // hide it), even though it can't be deleted.
   html += '<tr data-cfg-url="' + esc(normalizeURL(origin)) + '" '
     + 'data-cfg-name="' + esc(getNameOverride(normalizeURL(origin))) + '">'
-    + '<td class="cfg-select-cell"></td>'
+    + '<td class="cfg-select-cell">'
+    +   '<input type="checkbox" class="cfg-select-input" '
+    +     'onchange="cfgUpdateSelection()">'
+    + '</td>'
     + '<td class="cfg-name">' + cfgNameCellHTML(normalizeURL(origin)) + '</td>'
     + '<td><span class="cfg-url-display">' + esc(origin)
     + ' <span class="config-local-badge">this server</span></span></td>'
     + '<td></td>'
-    + '<td class="cfg-scan-cell">'
-    +   '<input type="checkbox" class="cfg-scan-input"'
-    +     (isScanEnabled(normalizeURL(origin)) ? ' checked' : '') + ' '
-    +     'onchange="cfgSetScanEnabled(\'' + esc(normalizeURL(origin)) + '\', this.checked)">'
-    + '</td>'
     + '<td class="cfg-hide-cell">'
     +   '<input type="checkbox" class="cfg-hide-input"'
     +     (isHidden(normalizeURL(origin)) ? ' checked' : '') + ' '
@@ -2678,8 +2751,8 @@ function renderConfig() {
     + '</td>'
     + '<td class="cfg-actions">'
     +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
-    +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
-    +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+    +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
+    +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
     + '</td></tr>';
 
   // User-added servers — sorted per the current column/direction chosen
@@ -2696,9 +2769,8 @@ function renderConfig() {
       + '</td>'
       + '<td class="cfg-name">' + cfgNameCellHTML(url) + '</td>'
       + '<td>'
-      +   '<span class="cfg-url-display">' + esc(url) + '</span>'
-      +   (discFrom ? ' <span class="cfg-discovered-badge" title="Discovered via '
-            + esc(discFrom) + '">auto</span>' : '')
+      +   '<span class="cfg-url-display"' + (discFrom ? ' title="Discovered via '
+            + esc(discFrom) + '"' : '') + '>' + esc(url) + '</span>'
       +   '<input class="cfg-url-input" style="display:none" value="' + esc(url) + '" '
       +     'onkeydown="if(event.key===\'Enter\')cfgSave(this);'
       +               'else if(event.key===\'Escape\')cfgCancel(this)">'
@@ -2710,12 +2782,6 @@ function renderConfig() {
       +     (isProxied(url) ? ' checked' : '') + ' '
       +     'onchange="cfgSetProxied(\'' + esc(url) + '\', this.checked)">'
       + '</td>'
-      + '<td class="cfg-scan-cell" title="Also check this server for other'
-      +   ' registries it knows about">'
-      +   '<input type="checkbox" class="cfg-scan-input"'
-      +     (isScanEnabled(url) ? ' checked' : '') + ' '
-      +     'onchange="cfgSetScanEnabled(\'' + esc(url) + '\', this.checked)">'
-      + '</td>'
       + '<td class="cfg-hide-cell" title="Hide from the Home page (without'
       +   ' deleting)">'
       +   '<input type="checkbox" class="cfg-hide-input"'
@@ -2724,47 +2790,39 @@ function renderConfig() {
       + '</td>'
       + '<td class="cfg-actions">'
       +   '<button class="cfg-btn cfg-edit" onclick="cfgEdit(this)">Edit</button>'
-      +   '<button class="cfg-btn cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
-      +   '<button class="cfg-btn cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
+      +   '<button class="cfg-btn cfg-btn-primary cfg-save" style="display:none" onclick="cfgSave(this)">Save</button>'
+      +   '<button class="cfg-btn cfg-btn-cancel cfg-cancel" style="display:none" onclick="cfgCancel(this)">Cancel</button>'
       + '</td></tr>';
   });
 
-  html += '</tbody></table>'
-    + '<div class="cfg-add-row">'
-    +   '<input type="text" id="cfg-new-name" placeholder="Name (optional)" '
-    +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
-    +   '<input type="text" id="cfg-new-url" placeholder="http://example.com" '
-    +          'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
-    +   '<label class="cfg-new-proxy-label" title="Route requests to this'
-    +     ' server through this server\u2019s own proxy - use this if the'
-    +     ' remote registry doesn\u2019t allow direct cross-origin access'
-    +     ' (CORS)">'
-    +     '<input type="checkbox" id="cfg-new-proxy"> Use proxy'
-    +   '</label>'
-    +   '<label class="cfg-new-proxy-label" title="Immediately check this'
-    +     ' server for other registries it knows about, right after adding'
-    +     ' it - otherwise it\u2019ll only happen on the next background/'
-    +     'manual scan">'
-    +     '<input type="checkbox" id="cfg-new-scan-now" checked> Scan for more'
-    +   '</label>'
-    +   '<button class="cfg-btn" onclick="cfgAddNew()">Add</button>'
-    + '</div>'
+  html += '</tbody><tfoot><tr class="cfg-add-tr">'
+    + '<td class="cfg-select-cell"></td>'
+    + '<td>'
+    +   '<input type="text" id="cfg-new-name" class="cfg-name-input" '
+    +     'placeholder="Name (optional)" '
+    +     'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
+    + '</td>'
+    + '<td>'
+    +   '<input type="text" id="cfg-new-url" class="cfg-url-input" '
+    +     'placeholder="http://example.com" '
+    +     'onkeydown="if(event.key===\'Enter\')cfgAddNew()">'
+    +   '<span id="cfg-new-error" class="cfg-inline-error" style="display:none"></span>'
+    + '</td>'
+    + '<td class="cfg-proxy-cell" title="Route requests to this server'
+    +   ' through this server\u2019s own proxy - use this if the remote'
+    +   ' registry doesn\u2019t allow direct cross-origin access (CORS)">'
+    +   '<input type="checkbox" id="cfg-new-proxy">'
+    + '</td>'
+    + '<td class="cfg-hide-cell"></td>'
+    + '<td class="cfg-actions">'
+    +   '<button class="cfg-btn cfg-btn-primary" onclick="cfgAddNew()">Add</button>'
+    + '</td>'
+    + '</tr></tfoot></table>'
     + '</div>'
 
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
-    + '<div class="cfg-option-row">'
-    +   '<span class="cfg-option-label">Auto-scan</span>'
-    +   '<input type="checkbox" id="opt-auto-scan"'
-    +     (isAutoScanDisabled() ? '' : ' checked') + ' '
-    +     'onchange="cfgSetAutoScan(this.checked)">'
-    +   '<span class="cfg-option-desc">Automatically scan for new'
-    +   ' registries when the Home page loads. When off, new registries are'
-    +   ' only discovered when you click "Refresh known registries" on this'
-    +   ' page, or check "Scan for more" while adding a server above.</span>'
-    + '</div>'
-
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -2899,6 +2957,20 @@ function cfgSave(el) {
   if (urlInp && !newUrl) return;
 
   if (urlInp && newUrl !== oldUrl) {
+    // Renaming to a URL that's already configured elsewhere is blocked,
+    // same as adding a duplicate via the Add row — a URL is a server's
+    // unique identity (see plan.md's duplicate-URL discussion).
+    if (loadServers().includes(newUrl)) {
+      alert('Already configured — delete the existing entry for that URL'
+        + ' first if you want to merge settings into it.');
+      return;
+    }
+    // Capture the old URL's flags BEFORE removeServer() wipes them (it
+    // now clears all per-URL state on delete — see removeServer()) so
+    // they can be carried over to the renamed URL below instead of lost.
+    var oldProxied  = isProxied(oldUrl);
+    var oldHidden   = isHidden(oldUrl);
+    var oldDiscFrom = getDiscoveredFrom(oldUrl);
     removeServer(oldUrl);
     addServer(newUrl);
     // Carry every per-URL flag over to the renamed URL — each is keyed by
@@ -2906,12 +2978,9 @@ function cfgSave(el) {
     // silently lose it. discoveredFrom is provenance (set once, "first
     // seen wins" — see setDiscoveredFrom()), so it's only copied when the
     // renamed URL doesn't already have one of its own.
-    setProxied(newUrl, isProxied(oldUrl));
-    setProxied(oldUrl, false);
-    setScanEnabled(newUrl, isScanEnabled(oldUrl));
-    setHidden(newUrl, isHidden(oldUrl));
-    setHidden(oldUrl, false);
-    if (getDiscoveredFrom(oldUrl)) setDiscoveredFrom(newUrl, getDiscoveredFrom(oldUrl));
+    setProxied(newUrl, oldProxied);
+    setHidden(newUrl, oldHidden);
+    if (oldDiscFrom) setDiscoveredFrom(newUrl, oldDiscFrom);
   }
   if (nameInp) setNameOverride(newUrl, nameInp.value.trim());
   renderConfig();
@@ -2924,32 +2993,16 @@ function cfgSetProxied(url, on) {
   setProxied(url, on);
 }
 
-function cfgSetScanEnabled(url, on) {
-  setScanEnabled(url, on);
-}
-
 function cfgSetHidden(url, on) {
   setHidden(url, on);
 }
 
-// Manual "Refresh known registries" button — runs the same background
-// scan renderHome() triggers automatically, but synchronously-visible
-// here with a simple loading indicator, and re-renders the Config page
-// afterward so any newly-discovered rows show up immediately.
-function cfgScanNow() {
-  var btn = el('cfg-scan-now-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Scanning\u2026'; }
-  scanForRegistries(function() {
-    renderConfig();
-  });
-}
+// Multi-select bulk actions (Delete / Scan for registries) ----------------
 
-// Multi-select bulk delete -----------------------------------------------
-
-// Header "select all" checkbox: check/uncheck every deletable row's
-// checkbox (the local "this server" row has no checkbox to begin with,
-// so querySelectorAll naturally skips it), then refresh the Delete
-// Selected button's enabled/count state.
+// Header "select all" checkbox: check/uncheck every row's checkbox
+// (including the local "this server" row, which is now selectable too —
+// it can be used as a scan source or hidden, even though it can't be
+// deleted), then refresh the bulk-action buttons' enabled/count state.
 function cfgToggleSelectAll(cb) {
   document.querySelectorAll('.cfg-select-input').forEach(function(inp) {
     inp.checked = cb.checked;
@@ -2957,17 +3010,30 @@ function cfgToggleSelectAll(cb) {
   cfgUpdateSelection();
 }
 
-// Called on every row checkbox change: updates the Delete Selected
-// button's label/enabled state and keeps the header "select all"
-// checkbox in sync (checked/indeterminate/unchecked) with the rows.
+// Called on every row checkbox change: updates the Delete Selected/Scan
+// for registries buttons' label/enabled state and keeps the header
+// "select all" checkbox in sync (checked/indeterminate/unchecked) with
+// the rows.
 function cfgUpdateSelection() {
   var boxes  = document.querySelectorAll('.cfg-select-input');
   var checked = document.querySelectorAll('.cfg-select-input:checked');
-  var btn = el('cfg-delete-selected-btn');
-  if (btn) {
-    btn.disabled = checked.length === 0;
-    btn.textContent = checked.length > 0
-      ? 'Delete Selected (' + checked.length + ')' : 'Delete Selected';
+  var origin = normalizeURL(window.location.origin);
+  // The local server row can be selected for scanning/hiding, but can
+  // never be deleted, so it's excluded from the Delete Selected count.
+  var deletableChecked = Array.prototype.filter.call(checked, function(inp) {
+    return inp.closest('tr').dataset.cfgUrl !== origin;
+  });
+  var delBtn = el('cfg-delete-selected-btn');
+  if (delBtn) {
+    delBtn.disabled = deletableChecked.length === 0;
+    delBtn.textContent = deletableChecked.length > 0
+      ? 'Delete Selected (' + deletableChecked.length + ')' : 'Delete Selected';
+  }
+  var scanBtn = el('cfg-scan-selected-btn');
+  if (scanBtn) {
+    scanBtn.disabled = checked.length === 0;
+    scanBtn.textContent = checked.length > 0
+      ? 'Scan for registries (' + checked.length + ')' : 'Scan for registries';
   }
   var all = el('cfg-select-all');
   if (all) {
@@ -2976,16 +3042,129 @@ function cfgUpdateSelection() {
   }
 }
 
-// Deletes every checked server row in one pass, then re-renders the
-// Config page (which naturally resets the selection since the table is
-// rebuilt from scratch).
+// Deletes every checked, deletable server row in one pass (the local
+// server row, if checked, is silently skipped — it can't be deleted),
+// then re-renders the Config page (which naturally resets the selection
+// since the table is rebuilt from scratch).
 function cfgDeleteSelected() {
+  var origin = normalizeURL(window.location.origin);
   var urls = [];
   document.querySelectorAll('.cfg-select-input:checked').forEach(function(inp) {
-    urls.push(inp.closest('tr').dataset.cfgUrl);
+    var url = inp.closest('tr').dataset.cfgUrl;
+    if (url !== origin) urls.push(url);
   });
   if (urls.length === 0) return;
   urls.forEach(function(url) { removeServer(url); });
+  renderConfig();
+}
+
+// "Scan for registries" bulk action: queries `.xregistry` on every
+// checked row (see discoverRegistriesFrom()) and opens a review dialog
+// grouping results into "Already added" / "Not yet added" — no server is
+// actually added until the user confirms via the dialog's "Add Selected"
+// button (see cfgConfirmScanResults()). Replaces the old automatic
+// background scan entirely (see plan.md).
+function cfgScanSelected() {
+  var sources = [];
+  document.querySelectorAll('.cfg-select-input:checked').forEach(function(inp) {
+    sources.push(inp.closest('tr').dataset.cfgUrl);
+  });
+  if (sources.length === 0) return;
+  var btn = el('cfg-scan-selected-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Scanning\u2026'; }
+  discoverRegistriesFrom(sources, function(results) {
+    if (btn) { btn.disabled = false; cfgUpdateSelection(); }
+    cfgShowScanResults(results);
+  });
+}
+
+// Renders the post-scan review dialog: a simple centered overlay with
+// two grouped sections (Already added / Not yet added), each row for a
+// "Not yet added" entry getting its own pre-checked checkbox so the user
+// can deselect any they don't want before confirming. A "Select all"
+// checkbox atop the "Not yet added" group toggles them all at once (see
+// cfgToggleScanResultsAll()).
+function cfgShowScanResults(results) {
+  var existing = document.getElementById('cfg-scan-results-overlay');
+  if (existing) existing.remove();
+
+  var known   = results.filter(function(r) { return r.alreadyKnown; });
+  var unknown = results.filter(function(r) { return !r.alreadyKnown; });
+
+  var body;
+  if (results.length === 0) {
+    body = '<p class="cfg-scan-empty">No sibling registries were found on'
+      + ' the selected server(s).</p>';
+  } else {
+    body = '';
+    if (unknown.length) {
+      body += '<h4 class="cfg-scan-group-title">Not yet added</h4>'
+        + '<label class="cfg-scan-select-all">'
+        +   '<input type="checkbox" id="cfg-scan-select-all-input" checked '
+        +     'onchange="cfgToggleScanResultsAll(this.checked)"> Select all'
+        + '</label>'
+        + '<ul class="cfg-scan-list">'
+        + unknown.map(function(r, i) {
+            return '<li class="cfg-scan-item">'
+              + '<label><input type="checkbox" class="cfg-scan-result-input" '
+              +   'data-url="' + esc(r.url) + '" data-from="' + esc(r.discoveredFrom) + '" '
+              +   'checked onchange="cfgUpdateScanSelectAll()"> '
+              + esc(r.url) + '</label>'
+              + '</li>';
+          }).join('')
+        + '</ul>';
+    }
+    if (known.length) {
+      body += '<h4 class="cfg-scan-group-title">Already added</h4><ul class="cfg-scan-list cfg-scan-list-known">'
+        + known.map(function(r) {
+            return '<li class="cfg-scan-item cfg-scan-item-known">' + esc(r.url) + '</li>';
+          }).join('')
+        + '</ul>';
+    }
+  }
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cfg-scan-results-overlay';
+  overlay.className = 'cfg-modal-overlay';
+  overlay.innerHTML = '<div class="cfg-modal">'
+    + '<h3 class="cfg-modal-title">Scan Results</h3>'
+    + body
+    + '<div class="cfg-modal-btns">'
+    +   (unknown.length ? '<button class="cfg-btn" onclick="cfgConfirmScanResults()">Add Selected</button>' : '')
+    +   '<button class="cfg-btn" onclick="document.getElementById(\'cfg-scan-results-overlay\').remove()">Close</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(overlay);
+}
+
+// "Select all" checkbox atop the "Not yet added" list — checks/unchecks
+// every per-row checkbox in that group to match.
+function cfgToggleScanResultsAll(checked) {
+  document.querySelectorAll('.cfg-scan-result-input').forEach(function(inp) {
+    inp.checked = checked;
+  });
+}
+
+// Keeps the "Select all" checkbox in sync (checked only when every row is
+// checked) when a user toggles individual rows one at a time.
+function cfgUpdateScanSelectAll() {
+  var all  = el('cfg-scan-select-all-input');
+  if (!all) return;
+  var rows = document.querySelectorAll('.cfg-scan-result-input');
+  var checkedCount = document.querySelectorAll('.cfg-scan-result-input:checked').length;
+  all.checked = rows.length > 0 && checkedCount === rows.length;
+}
+
+// "Add Selected" in the scan-results dialog: adds every checked "Not yet
+// added" entry (addServer() itself still guards against a URL that
+// somehow became known in the meantime), then closes the dialog and
+// re-renders Config so the new rows appear immediately.
+function cfgConfirmScanResults() {
+  document.querySelectorAll('.cfg-scan-result-input:checked').forEach(function(inp) {
+    addServer(inp.dataset.url, inp.dataset.from);
+  });
+  var overlay = document.getElementById('cfg-scan-results-overlay');
+  if (overlay) overlay.remove();
   renderConfig();
 }
 
@@ -3000,30 +3179,30 @@ function cfgSetJsonColor(mode) {
   applyJsonColorMode();
 }
 
-function cfgSetAutoScan(enabled) {
-  _opts.autoScanDisabled = !enabled;
-  saveOpts();
-}
-
+// Adds a new server from the Config page's Add row. Blocks (shows an
+// inline error, touches nothing) if the URL is already configured — a
+// URL is a server's unique identity, so re-adding a known URL (e.g. to
+// try a different proxy setting) is not supported; the user must delete
+// the existing entry first (see plan.md's duplicate-URL discussion).
 function cfgAddNew() {
   var inp      = el('cfg-new-url');
   var nameInp  = el('cfg-new-name');
   var proxyInp = el('cfg-new-proxy');
-  var scanInp  = el('cfg-new-scan-now');
+  var errEl    = el('cfg-new-error');
   if (!inp || !inp.value.trim()) return;
   var url = inp.value.trim();
-  addServer(url);
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (!addServer(url)) {
+    if (errEl) {
+      errEl.textContent = 'Already configured — delete the existing entry'
+        + ' first if you want to re-add it with different settings.';
+      errEl.style.display = '';
+    }
+    return;
+  }
   if (nameInp && nameInp.value.trim()) setNameOverride(url, nameInp.value.trim());
   if (proxyInp && proxyInp.checked) setProxied(url, true);
-  if (scanInp && scanInp.checked) {
-    // Immediately check every scan-enabled server (including the one just
-    // added, which defaults to scan-enabled — see addServer()) for further
-    // sibling registries, so the user doesn't have to separately click
-    // "Refresh known registries" right after adding one.
-    scanForRegistries(function() { renderConfig(); });
-  } else {
-    renderConfig();
-  }
+  renderConfig();
   var newInp = el('cfg-new-url');
   if (newInp) newInp.focus();
 }
@@ -3031,7 +3210,7 @@ function cfgAddNew() {
 // ---- Reset (clear browser-side state) -------------------------------------
 //
 // All browser-side state this app keeps lives in a handful of localStorage
-// keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED, LS_SCAN,
+// keys (LS_SERVERS, LS_OPTIONS, LS_NAMES, LS_PROXY, LS_DISCOVERED,
 // LS_HIDDEN, LS_LABELS) plus a handful of in-memory caches (_modelCache/
 // _capCache/_offeredCache etc.) that are rebuilt automatically on next use —
 // a full page reload after clearing localStorage is therefore sufficient to
@@ -3045,7 +3224,6 @@ function cfgResetAll() {
   localStorage.removeItem(LS_NAMES);
   localStorage.removeItem(LS_PROXY);
   localStorage.removeItem(LS_DISCOVERED);
-  localStorage.removeItem(LS_SCAN);
   localStorage.removeItem(LS_HIDDEN);
   localStorage.removeItem(LS_LABELS);
   window.location.reload();
@@ -3165,10 +3343,16 @@ function addNewEntityAddExtension() {
 function buildAddEntityToolbarHtml(model) {
   var entityPath = _state.path.concat(['__new__']);
   var singular = capitalize(getSingularName(model, entityPath) || 'Item');
+  // When the "Add" form is open, show Create/Cancel here (up top) instead of
+  // the bottom of the form — avoids the earlier duplicate Create/Cancel
+  // pair (one up top toggling the form, one at the bottom of the form).
+  var addBtnsHtml = _addNewOpen
+    ? '<button class="cfg-btn cfg-btn-primary" id="coll-add-new-create-btn" onclick="saveNewEntity()">Create</button>'
+      + ' <button class="cfg-btn cfg-btn-cancel" id="coll-add-new-btn" onclick="cancelAddEntity()">Cancel</button>'
+    : '<button class="cfg-btn cfg-btn-primary" id="coll-add-new-btn" onclick="toggleAddEntityForm()">+ Add ' + esc(singular) + '</button>';
   return '<div class="config-section-header" style="margin-bottom:8px">'
     + '<div class="config-section-header-btns">'
-    + '<button class="cfg-btn" id="coll-add-new-btn" onclick="toggleAddEntityForm()">'
-    + (_addNewOpen ? 'Cancel' : '+ Add ' + esc(singular)) + '</button>'
+    + addBtnsHtml
     + ' <button class="cfg-btn cfg-btn-danger" id="coll-delete-selected-btn" disabled '
     + 'onclick="collDeleteSelected()" title="Delete all checked rows below">Delete Selected</button>'
     + '</div></div>';
@@ -3214,10 +3398,7 @@ function buildAddEntityFormHtml(model, collPath) {
   }
   html += '</tbody></table>'
     + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
-    + '<div class="editorActionBar">'
-    + '<button class="editorBtn" onclick="saveNewEntity()">Create</button>'
-    + ' <button class="editorBtn" onclick="cancelAddEntity()">Cancel</button>'
-    + '</div></div>';
+    + '</div>';
   return html;
 }
 
@@ -3236,6 +3417,17 @@ function saveNewEntity() {
   }
   var url = buildBaseURL() + '/' + encodeURIComponent(id);
   var body = Object.assign({}, _addNewData);
+
+  // Resources with hasdocument=true treat a plain (non-$details) PUT body
+  // as the literal document content — so sending our metadata-only object
+  // (even an empty {}) here would create the resource with THAT as its
+  // document instead of leaving it empty. Use $details so this body is
+  // parsed as metadata only, leaving the actual document unset for now
+  // (the user can add real document content afterward).
+  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  if (_state.path.length === 3 && resourceHasDocument(model, _state.path.concat(['__new__']))) {
+    url += '$details';
+  }
 
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
   var box = document.createElement('div'); box.className = 'savingBox';
@@ -3601,6 +3793,24 @@ function buildRegEndpointPillsHtml() {
   return html;
 }
 
+// Builds the "Entity Data Editor" Save (PUT/PATCH)/Undo/Delete action bar —
+// shared by renderSingleEntity() (initial render) and
+// onVersionSelectChangeReal() (redraw when the "Version:" dropdown is
+// switched back to "Default") so both stay in sync. Always targets the
+// Default version's data (_dataEditData); deleteDisabled is only true at
+// depth 0 (Registry root), where deleting the whole registry has no
+// sensible "back to parent" destination in this UI.
+function buildDataEditorActionBarHtml(deleteDisabled) {
+  var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
+  return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
+    + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
+    + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+    + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabledAttr + '>Delete</button>'
+    + '</div>';
+}
+
 function renderSingleEntity(data) {
   var main = el('main-view');
   if (!data || typeof data !== 'object') {
@@ -3812,6 +4022,19 @@ function renderSingleEntity(data) {
     html += '</tbody></table>';
   }
 
+  // Entity Data Editor action bar — Save (PUT/PATCH) / Undo / Delete.
+  // Only rendered when editing is actually active; disabled at depth 0
+  // (Registry root) since deleting a whole registry has no sensible
+  // "back to parent" destination in this UI and is out of scope for v1.
+  // On Registry root/Group instance pages (depth 0/2, no tab bar — see the
+  // plain Properties table branch below) it's placed directly above that
+  // table. On Resource/Version pages (depth 4/6+, which have a Document/
+  // Details tab bar) it's rendered as a sibling of the tab panels, right
+  // below the tab bar buttons — see further down — so it stays visible no
+  // matter which tab is active instead of being tucked inside one panel's
+  // content (and hidden along with it via display:none when inactive).
+  var dataEditorActionBarHtml = dataEditingNow ? buildDataEditorActionBarHtml(dataEditDepth === 0) : '';
+
   // Document / Details tab bar (depth 4 = Resource entity, depth 6+ =
   // Version entity) — replaces the old always-stacked meta-box +
   // Document-table + Properties-table layout with a small pill tab bar;
@@ -3937,7 +4160,7 @@ function renderSingleEntity(data) {
         // (see style.css) — there's no tab bar here to visually pair it
         // with, but the Property table can still have long values that
         // need a horizontal scrollbar scoped to just this table.
-        html += '<div class="eg-doc-tab-panel">' + tabDefs[0].content + '</div>';
+        html += dataEditorActionBarHtml + '<div class="eg-doc-tab-panel">' + tabDefs[0].content + '</div>';
       } else {
       // Restore the previously-active tab (from a Refresh) if it matches
       // one of this render's tabs; otherwise default to the first tab, as
@@ -3959,6 +4182,13 @@ function renderSingleEntity(data) {
       });
       if (versionsListLinkHtml) rowParts.push(versionsListLinkHtml);
       html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
+      // Entity Data Editor action bar (Save/Undo/Delete for the Default
+      // version) — rendered once here, as a sibling of the tab panels
+      // rather than nested inside any single one of them, so it stays
+      // visible no matter which tab (Document/Version Details/Metadata) is
+      // currently active instead of being hidden along with an inactive
+      // panel's display:none.
+      html += dataEditorActionBarHtml;
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
           + '"' + (i === initActiveIdx ? '' : ' style="display:none"') + '>' + t.content + '</div>';
@@ -3977,29 +4207,8 @@ function renderSingleEntity(data) {
     var entityTypeP  = getSingularName(model, _state.path);
     var capTypeP = capitalize(entityTypeP);
     var propHeaderP = capTypeP + ' Property';
-    html += buildEntityPropsTableHtml(propsEntityData, propHeaderP, model, _state.path, collKeys, dataEditingNow);
-  }
-
-  // Entity Data Editor action bar — Save (PUT/PATCH) / Undo / Delete.
-  // Only rendered when editing is actually active; disabled at depth 0
-  // (Registry root) since deleting a whole registry has no sensible
-  // "back to parent" destination in this UI and is out of scope for v1.
-  // On the Resource page (depth 4) this bar always targets the Default
-  // version's data (_dataEditData) — while a non-Default version is picked
-  // from the "Version:" dropdown, it's hidden (see onVersionSelectChangeReal())
-  // so it doesn't sit alongside the version panel's own, differently-scoped
-  // action bar (buildVersionActionBarHtml()) and confuse which Save applies
-  // to what.
-  if (dataEditingNow) {
-    var deleteDisabled = (dataEditDepth === 0) ? ' disabled title="Deleting the registry itself is not supported here"' : '';
-    var hideForVerD = (dataEditDepth === 4 && _resSelectedVersionId && _resSelectedVersionId !== 'default');
-    html += '<div id="dataEditorError" class="error-banner" style="display:none"></div>';
-    html += '<div class="editorActionBar" id="dataEditorActionBar"' + (hideForVerD ? ' style="display:none"' : '') + '>'
-      + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
-      + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
-      + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
-      + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabled + '>Delete</button>'
-      + '</div>';
+    html += dataEditorActionBarHtml
+      + buildEntityPropsTableHtml(propsEntityData, propHeaderP, model, _state.path, collKeys, dataEditingNow);
   }
 
   html += '</div>';
@@ -7031,11 +7240,13 @@ function onVersionSelectChangeReal(vid) {
     panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer, editableNow, handlerFn)
       + ((editableNow && vid !== 'default') ? buildVersionActionBarHtml() : '');
   }
-  // The page-level Entity Data Editor action bar always targets the
-  // Default version (_dataEditData) — hide it whenever a genuinely
-  // different version is selected, so it doesn't sit alongside the
-  // version panel's own action bar above and confuse which Save/Undo/
-  // Delete applies to what. Shown again when switching back to "Default".
+  // The page-level Entity Data Editor action bar (rendered as a sibling of
+  // the tab panels, right below the tab bar — see renderSingleEntity())
+  // always targets the Default version (_dataEditData) — hide it whenever
+  // a genuinely different version is selected, so it doesn't sit alongside
+  // the version panel's own, differently-scoped action bar
+  // (buildVersionActionBarHtml()) and confuse which Save/Undo/Delete
+  // applies to what. Shown again when switching back to "Default".
   var pageActionBar = document.getElementById('dataEditorActionBar');
   if (pageActionBar) pageActionBar.style.display = (vid === 'default') ? '' : 'none';
 
@@ -7724,18 +7935,409 @@ function row(label, value, cls) {
 
 // ---- JSON view -----------------------------------------------------------
 
+// Details/Document toggle state — lets JSON view switch a Resource/Version
+// entity page between the normal $details metadata JSON (default) and the
+// entity's actual document content, mirroring List view's Document/Version
+// Details tabs (see plan.md "JSON view Details/Document toggle"). Read-only
+// for now — no edit-mode support for the Document side yet. Reset whenever
+// navigation moves to a different server/path so switching entities always
+// starts back on Details.
+var _jsonDocMode    = '';   // '' = details (default), 'doc' = raw document
+var _jsonDocModeKey = null; // "serverURL|path" — resets _jsonDocMode when navigating elsewhere
+
+// Whether the current page is a Resource (depth 4) or Version (depth >= 6,
+// path[4] === 'versions') entity — the only structural shape where a plain
+// (non-$details) URL means something different from $details. The toggle
+// is shown even when this resource type has no document defined
+// (hasdocument=false) — Document mode then just renders an explanatory
+// empty state instead of hiding the toggle entirely, so switching back and
+// forth always works the same way regardless of resource type.
+function jsonDocToggleApplies() {
+  return needsDetails(_state.path);
+}
+
+// "Details | Document" toggle for the JSON view header — styled to match
+// Edit mode's action-bar buttons (.editorBtn) rather than a bespoke pill,
+// so JSON view doesn't look like a different app from Edit mode. The
+// currently-active side is rendered disabled (same convention already used
+// for Edit mode's Save/Undo buttons when there's nothing to do) instead of
+// a separate "active" color scheme.
+function buildJsonDocToggleHtml(active) {
+  return '<span class="json-doc-toggle eg-doc-tabs">' +
+    '<button class="eg-doc-tab json-doc-toggle-btn' + (active === 'details' ? ' active' : '')
+      + '" onclick="jsonSetDocMode(\'details\')">Details</button>' +
+    '<button class="eg-doc-tab json-doc-toggle-btn' + (active === 'doc' ? ' active' : '')
+      + '" onclick="jsonSetDocMode(\'doc\')">Document</button>' +
+  '</span>';
+}
+
+function jsonSetDocMode(mode) {
+  if (_jsonDocMode === mode) return;
+  _jsonDocMode = mode;
+  if (_lastData) renderJSONView(_lastData);
+}
+
+// "Expand all" button markup — kept identical (same id, same position in
+// the header) whether it's currently usable or not, so switching between
+// Details/Document mode never shifts the other header buttons around.
+// `disabled` is true whenever the content on screen isn't a collapsible
+// JSON tree (e.g. Document mode showing plain text/binary, or still
+// loading) — the button stays visible but inert in that case.
+function buildJsonExpandAllBtnHtml(disabled) {
+  return '<button type="button" class="eg-doc-tab json-exp-btn' + (disabled ? ' json-exp-btn-disabled' : '') + '"'
+    + ' id="json-exp-btn" data-open="false"'
+    + (disabled ? ' disabled' : '')
+    + ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</button>';
+}
+
 function renderJSONView(data) {
   renderJSONLeftPanel();
+  if (_state.editMode && computeEnableEdit()) {
+    renderJSONEditView(data);
+    return;
+  }
+
+  var keyNow = normalizeURL(_state.serverURL || window.location.origin) + '|' + _state.path.join('/');
+  if (_jsonDocModeKey !== keyNow) { _jsonDocMode = ''; _jsonDocModeKey = keyNow; }
+
+  var showDocToggle = jsonDocToggleApplies();
+  if (showDocToggle && _jsonDocMode === 'doc') {
+    renderJSONViewDocumentMode(data);
+    return;
+  }
+
   var jsonHtml = addTwisties(syntaxHighlight(JSON.stringify(data, null, 2)));
   var serverURL = _state.serverURL || window.location.origin;
   el('main-view').innerHTML =
     '<div class="json-exp-wrap">' +
       '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
         + esc(serverURL) + '</span>' +
-      '<span class="json-exp-btn" id="json-exp-btn" data-open="false"' +
-      ' onclick="jsonToggleAll()" title="Expand all">&#9656; all</span>' +
+      '<span class="json-exp-btn-group">' +
+        (showDocToggle ? buildJsonDocToggleHtml('details') : '') +
+        buildJsonExpandAllBtnHtml(false) +
+      '</span>' +
     '</div>' +
     '<div id="json-output" tabindex="0">' + jsonHtml + '</div>';
+}
+
+// JSON view's "Document" mode — instead of the $details metadata JSON,
+// shows the resource/version's actual document content: parsed and shown
+// via the same twisty tree when it happens to be JSON, otherwise as plain
+// read-only text, or a "binary, not previewable" message — mirroring List
+// view's Document tab preview (loadDocumentPreview()), just rendered as
+// the whole JSON view page instead of one tab's panel. Read-only: no Edit
+// support for the Document side yet (see plan.md). When the resource type
+// has no document defined at all (hasdocument=false), this renders an
+// empty/explanatory state instead of attempting a fetch — a plain GET on
+// such a resource just returns the same metadata as $details, which would
+// be confusing to show under a "Document" label.
+function renderJSONViewDocumentMode(entityData) {
+  var serverURL = _state.serverURL || window.location.origin;
+  el('main-view').innerHTML =
+    '<div class="json-exp-wrap">' +
+      '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
+        + esc(serverURL) + '</span>' +
+      '<span class="json-exp-btn-group">' +
+        buildJsonDocToggleHtml('doc') +
+        buildJsonExpandAllBtnHtml(true) +
+      '</span>' +
+    '</div>' +
+    '<div id="json-output" tabindex="0"><div class="eg-loading">Loading document\u2026</div></div>';
+
+  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
+  var depthJ = _state.path.length;
+  var singular = (depthJ === 4) ? getSingularName(model, _state.path)
+                                 : getSingularName(model, _state.path.slice(0, 4));
+  var key = (singular || '').toLowerCase();
+  var box = el('json-output');
+  if (!box) return;
+
+  if (!resourceHasDocument(model, _state.path)) {
+    box.innerHTML = '<div class="eg-doc-binary-msg">No document defined for this resource type.</div>';
+    return;
+  }
+
+  function showJSONTree(obj) {
+    box.innerHTML = addTwisties(syntaxHighlight(JSON.stringify(obj, null, 2)));
+    var expBtn = document.getElementById('json-exp-btn');
+    if (expBtn) { expBtn.classList.remove('json-exp-btn-disabled'); expBtn.dataset.open = 'false'; }
+  }
+  function actionsHtml(url) {
+    return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url)
+      + '" target="_blank" rel="noopener" class="eg-link-btn">Open in new tab</a></div>' : '';
+  }
+  function showText(text, url) {
+    box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + actionsHtml(url);
+  }
+  function showBinary(url) {
+    box.innerHTML = '<div class="eg-doc-binary-msg">Binary file \u2014 preview not available.</div>' + actionsHtml(url);
+  }
+  function showError(msg, url) {
+    box.innerHTML = '<div class="eg-doc-error-msg">' + esc(msg) + '</div>' + actionsHtml(url);
+  }
+  function renderTextOrJSON(text, url) {
+    try { showJSONTree(JSON.parse(text)); }
+    catch (e) { showText(text, url); }
+  }
+  function fetchAndRender(url) {
+    fetch(url)
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      .then(function(buf) { isBinaryContent(buf) ? showBinary(url) : renderTextOrJSON(decodeUTF8Bytes(buf), url); })
+      .catch(function(e) { showError('Could not load document: ' + ((e && e.message) || String(e)), url); });
+  }
+
+  if (!key || !entityData) { box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>'; return; }
+
+  if (entityData[key + 'url']) { fetchAndRender(entityData[key + 'url']); return; }
+
+  if (entityData[key + 'base64']) {
+    try {
+      var binary = atob(entityData[key + 'base64']);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      var blobUrl = URL.createObjectURL(new Blob([bytes], { type: entityData.contenttype || 'application/octet-stream' }));
+      if (isBinaryContent(bytes.buffer)) showBinary(blobUrl); else renderTextOrJSON(decodeUTF8Bytes(bytes.buffer), blobUrl);
+    } catch (e) { showError('Error decoding document: ' + ((e && e.message) || String(e))); }
+    return;
+  }
+
+  if (entityData[key] !== undefined && entityData[key] !== null) { showJSONTree(entityData[key]); return; }
+
+  if (entityData.self) { fetchAndRender(entityData.self.replace(/\$details$/, '')); return; }
+
+  box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>';
+}
+
+// ---- JSON view raw editing ("postman-style") ------------------------------
+//
+// When Edit is turned on while in JSON view, the read-only twisty tree above
+// is replaced by a plain, fully-editable textarea containing the entity/
+// collection/document's pretty-printed JSON. Save (PUT) and Save (PATCH)
+// both send whatever is currently in the textarea verbatim — no auto-diff
+// against the original, unlike List view's PATCH — so the user has full
+// manual control (true "postman"-style editing). See plan.md "Raw JSON
+// edit ('postman-style') for JSON view" for the full design discussion.
+//
+// This is an INDEPENDENT edit buffer from List view's own per-section
+// working copies (_dataEditData/_modelData/_capData) — it always starts
+// fresh from the latest server-fetched data every time Edit is turned on
+// in JSON view (see resetJsonEditBuffer()/the null-sentinel pattern below),
+// and switching List<->JSON view mid-edit warns about losing whichever
+// view's changes are unsaved (see the _jsonEditDirty guards added to
+// pushState()/setDataView()).
+var _jsonEditOrigText  = null;  // null = needs (re)initializing from `data`
+var _jsonEditDraftText = null;  // current (possibly unsaved) textarea text
+var _jsonEditDirty     = false;
+var _jsonEditKind      = '';    // 'entity' | 'collection' | 'capabilities' | 'modelsource'
+var _jsonEditURL       = '';    // target endpoint for Save/Delete
+
+function resetJsonEditBuffer() {
+  _jsonEditOrigText  = null;
+  _jsonEditDraftText = null;
+  _jsonEditDirty     = false;
+  _jsonEditKind      = '';
+  _jsonEditURL       = '';
+}
+
+// Resolves {kind, url} for the current page — mirrors the URL-construction
+// logic already used by saveDataEntity() (entity $details suffixing) and
+// buildAPIURL() (modelsource/capabilities fixed endpoints).
+function jsonEditTarget() {
+  if (_state.section === 'modelsource') return {kind: 'modelsource', url: serverBase() + '/modelsource'};
+  if (_state.section === 'capabilities') return {kind: 'capabilities', url: serverBase() + '/capabilities'};
+  var coll = isCollection(_state.path);
+  if (coll) return {kind: 'collection', url: buildBaseURL()};
+  var url = buildBaseURL();
+  var depthS = _state.path.length;
+  if (depthS === 4 || depthS >= 6) {
+    var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    var modelS = _modelCache[normalizeURL(svBaseS)] || null;
+    if (resourceHasDocument(modelS, _state.path)) url = url.replace(/(\?|$)/, '$details$1');
+  }
+  return {kind: 'entity', url: url};
+}
+
+function renderJSONEditView(data) {
+  if (_jsonEditOrigText === null) {
+    // Fresh entry into JSON edit mode for this page — snapshot the current
+    // server data as both the pristine original and the initial draft.
+    var target = jsonEditTarget();
+    _jsonEditKind = target.kind;
+    _jsonEditURL  = target.url;
+    _jsonEditOrigText  = JSON.stringify(data, null, 2);
+    _jsonEditDraftText = _jsonEditOrigText;
+    _jsonEditDirty     = false;
+  }
+  var serverURL = _state.serverURL || window.location.origin;
+  var isEntity = (_jsonEditKind === 'entity');
+  var deleteDisabled = (isEntity && _state.path.length === 0)
+    ? ' disabled title="Deleting the registry itself is not supported here"' : '';
+  // Action bar lives in the same sticky header row as "Server: ..." (see
+  // .json-exp-wrap, also used by the read-only JSON view) rather than
+  // below the textarea — with a server error banner shown, the old
+  // bottom-of-page action bar could scroll off screen entirely. Sticky-
+  // positioning it at the top (like the read-only view's "expand all"
+  // button) keeps Save/Undo/Format/Delete always reachable.
+  var html = '<div class="json-exp-wrap json-edit-header">' +
+      '<span class="json-exp-server-url" title="' + esc(serverURL) + '">Server: '
+        + esc(serverURL) + '</span>' +
+      '<div class="editorActionBar" id="jsonEditActionBar">' +
+        '<button class="editorBtn" id="jsonEditFormatBtn" onclick="jsonEditFormat()"'
+          + '>Format</button>' +
+        ' <button class="editorBtn" id="jsonEditPutBtn" onclick="jsonEditSave(\'PUT\')"'
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>' +
+        ' <button class="editorBtn" id="jsonEditPatchBtn" onclick="jsonEditSave(\'PATCH\')"'
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>' +
+        ' <button class="editorBtn" id="jsonEditUndoBtn" onclick="jsonEditUndo()"'
+          + (_jsonEditDirty ? '' : ' disabled') + '>Undo</button>' +
+        (isEntity ? ' <button class="editorBtn editorBtnDanger" onclick="jsonEditDelete()"' + deleteDisabled + '>Delete</button>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div id="jsonEditError" class="error-banner" style="display:none"></div>' +
+    '<div id="jsonEditInvalid" class="error-banner" style="display:none"></div>' +
+    '<textarea id="jsonEditTextarea" class="json-edit-textarea" spellcheck="false"' +
+      ' oninput="jsonEditInputChanged()">' + esc(_jsonEditDraftText) + '</textarea>';
+  el('main-view').innerHTML = html;
+  sizeJsonEditTextarea();
+}
+
+// Stretches the JSON-edit textarea down to the bottom of the viewport
+// (minus a little breathing room), same idiom as sizeDocTextarea() for
+// the Document tab's read-only preview — otherwise the textarea's CSS
+// min-height leaves it stopping well short of the window on tall screens.
+function sizeJsonEditTextarea() {
+  var ta = el('jsonEditTextarea');
+  if (!ta || ta.offsetParent === null) return; // not rendered / panel hidden
+  var available = window.innerHeight - ta.getBoundingClientRect().top - 16; // bottom breathing room
+  ta.style.height = Math.max(200, Math.floor(available)) + 'px';
+}
+
+// oninput handler for the raw JSON textarea. Deliberately does NOT
+// validate JSON on every keystroke — flagging "invalid JSON" errors while
+// someone is mid-edit (e.g. right after typing an opening brace) is bad
+// UX. Instead this only tracks whether the buffer is dirty (differs from
+// the pristine original) to toggle Save/Undo; syntax is only checked when
+// the user explicitly clicks Format (see jsonEditFormat()) or Save (see
+// jsonEditSave(), which still guards against submitting invalid JSON).
+function jsonEditInputChanged() {
+  var ta = el('jsonEditTextarea');
+  if (!ta) return;
+  _jsonEditDraftText = ta.value;
+  _jsonEditDirty = _jsonEditDraftText !== _jsonEditOrigText;
+  var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
+  if (putBtn)   putBtn.disabled   = !_jsonEditDirty;
+  if (patchBtn) patchBtn.disabled = !_jsonEditDirty;
+  if (undoBtn)  undoBtn.disabled  = !_jsonEditDirty;
+}
+
+// "Format" button — the only place JSON syntax is actually validated
+// before Save. Parses the current textarea content and, if valid,
+// replaces it with a pretty-printed (2-space indent) version; if invalid,
+// shows the parse error in the same banner Save's own validation uses,
+// without touching the textarea content.
+function jsonEditFormat() {
+  var ta = el('jsonEditTextarea');
+  if (!ta) return;
+  var invalidDiv = el('jsonEditInvalid');
+  try {
+    var parsed = JSON.parse(ta.value);
+    var pretty = JSON.stringify(parsed, null, 2);
+    ta.value = pretty;
+    _jsonEditDraftText = pretty;
+    _jsonEditDirty = pretty !== _jsonEditOrigText;
+    if (invalidDiv) { invalidDiv.style.display = 'none'; invalidDiv.textContent = ''; }
+  } catch (e) {
+    if (invalidDiv) { invalidDiv.style.display = 'block'; invalidDiv.textContent = 'Invalid JSON: ' + e.message; }
+    return;
+  }
+  var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
+  if (putBtn)   putBtn.disabled   = !_jsonEditDirty;
+  if (patchBtn) patchBtn.disabled = !_jsonEditDirty;
+  if (undoBtn)  undoBtn.disabled  = !_jsonEditDirty;
+}
+
+function jsonEditUndo() {
+  _jsonEditDraftText = _jsonEditOrigText;
+  _jsonEditDirty = false;
+  var ta = el('jsonEditTextarea');
+  if (ta) ta.value = _jsonEditDraftText;
+  var invalidDiv = el('jsonEditInvalid');
+  if (invalidDiv) { invalidDiv.style.display = 'none'; invalidDiv.textContent = ''; }
+  var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
+  if (putBtn)   putBtn.disabled   = true;
+  if (patchBtn) patchBtn.disabled = true;
+  if (undoBtn)  undoBtn.disabled  = true;
+}
+
+// Saves the raw textarea content verbatim (no auto-diff, per the "fully
+// manual/postman-style" design decision) via PUT or PATCH to the target
+// endpoint resolved when edit mode was entered. Mirrors saveDataEntity()'s
+// overlay/error-banner UX.
+function jsonEditSave(verb, cb) {
+  var errDiv = el('jsonEditError');
+  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  var body;
+  try { body = JSON.parse(_jsonEditDraftText); } catch (e) {
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Invalid JSON: ' + e.message; }
+    return;
+  }
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(_jsonEditURL, {
+    method: verb,
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        var updated = null;
+        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
+        var newText = JSON.stringify(updated !== null ? updated : body, null, 2);
+        _jsonEditOrigText  = newText;
+        _jsonEditDraftText = newText;
+        _jsonEditDirty     = false;
+        // Keep the underlying section's own "source of truth" cache in sync
+        // so switching back to List view afterward reflects the saved
+        // state rather than stale pre-save data.
+        var updatedData = updated !== null ? updated : body;
+        if (_jsonEditKind === 'modelsource') {
+          _modelSrc = deepClone(updatedData); _modelData = deepClone(_modelSrc); _modelDirty = false;
+        } else if (_jsonEditKind === 'capabilities') {
+          _capSrc = deepClone(updatedData); _capData = deepClone(_capSrc); _capDirty = false;
+        } else if (_jsonEditKind === 'entity') {
+          _dataEditSrc = deepClone(updatedData); _dataEditData = deepClone(_dataEditSrc); _dataDirty = false;
+        }
+        _lastData = updatedData;
+        if (cb) { cb(); } else { renderJSONEditView(updatedData); }
+      } else {
+        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+  });
+}
+
+// Delete — single entities only (not collections/capabilities/modelsource),
+// same scope as List view. Delegates directly to the existing
+// deleteDataEntity() confirm+DELETE+navigate-to-parent flow. Clears the
+// dirty flag (not the whole buffer — deleteDataEntity()'s own confirm()
+// dialog is synchronous, so we don't yet know if the user will actually go
+// through with it) just so a successful delete's own pushState() call
+// below doesn't ALSO trigger the "unsaved JSON edit" leave-guard on top of
+// the delete confirmation the user already answered.
+function jsonEditDelete() {
+  _jsonEditDirty = false;
+  deleteDataEntity();
 }
 
 // Process syntaxHighlighted JSON HTML to add twisty expand/collapse spans.
@@ -7823,6 +8425,7 @@ function jsonToggle(n) {
 // Toggle all blocks expand/collapse.
 function jsonToggleAll() {
   var btn    = document.getElementById('json-exp-btn');
+  if (btn && btn.classList.contains('json-exp-btn-disabled')) return;
   var expand = btn ? btn.dataset.open !== 'true' : true;
   for (var i = 1; ; i++) {
     var blk  = document.getElementById('jb' + i);
@@ -10720,9 +11323,9 @@ function buildLeftNav(div) {
     if (_navPath.length === 0) {
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
       var attrCount0 = Object.keys(model.attributes||{}).length ;
-      div.appendChild(navItem(withCount('Attributes', attrCount0), true, false, function() { drillDown(['attributes']) ; }, null, attrCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Attributes', attrCount0), true, false, function() { drillDown(['attributes']) ; }, null, _modelReadOnly && attrCount0 === 0)) ;
       var groupCount0 = Object.keys(model.groups||{}).length ;
-      div.appendChild(navItem(withCount('Group Types', groupCount0), true, false, function() { changeTab('groups') ; }, null, groupCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Group Types', groupCount0), true, false, function() { changeTab('groups') ; }, null, _modelReadOnly && groupCount0 === 0)) ;
     } else {
       var attrs = model.attributes || {} ;
       if (!_modelReadOnly) div.appendChild(navAdd('+ Add Attribute', addNewAttr)) ;
@@ -10747,9 +11350,9 @@ function buildLeftNav(div) {
       var grpData = model.groups[gk] || {} ;
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
       var grpAttrCount0 = Object.keys(grpData.attributes||{}).length ;
-      div.appendChild(navItem(withCount('Attributes', grpAttrCount0), true, false, function() { drillDown([gk, 'attributes']) ; }, null, grpAttrCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Attributes', grpAttrCount0), true, false, function() { drillDown([gk, 'attributes']) ; }, null, _modelReadOnly && grpAttrCount0 === 0)) ;
       var grpResCount0 = Object.keys(grpData.resources||{}).length ;
-      div.appendChild(navItem(withCount('Resources', grpResCount0), true, false, function() { drillDown([gk, 'resources']) ; }, null, grpResCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Resources', grpResCount0), true, false, function() { drillDown([gk, 'resources']) ; }, null, _modelReadOnly && grpResCount0 === 0)) ;
     } else if (_navPath.length === 2 && _navPath[1] === 'attributes') {
       var gk = _navPath[0] ;
       var attrs = (model.groups[gk] || {}).attributes || {} ;
@@ -10773,11 +11376,11 @@ function buildLeftNav(div) {
       var resData = ((model.groups[gk]||{}).resources||{})[rk] || {} ;
       div.appendChild(navItem('Details', false, _navSelected === 'fields', function() { selectItem('fields') ; })) ;
       var verAttrCount0 = Object.keys(resData.attributes||{}).length ;
-      div.appendChild(navItem(withCount('Version Attrs', verAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'versionattributes']) ; }, null, verAttrCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Version Attrs', verAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'versionattributes']) ; }, null, _modelReadOnly && verAttrCount0 === 0)) ;
       var resAttrCount0 = Object.keys(resData.resourceattributes||{}).length ;
-      div.appendChild(navItem(withCount('Resource Attrs', resAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'resourceattributes']) ; }, null, resAttrCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Resource Attrs', resAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'resourceattributes']) ; }, null, _modelReadOnly && resAttrCount0 === 0)) ;
       var metaAttrCount0 = Object.keys(resData.metaattributes||{}).length ;
-      div.appendChild(navItem(withCount('Meta Attrs', metaAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'metaattributes']) ; }, null, metaAttrCount0 === 0)) ;
+      div.appendChild(navItem(withCount('Meta Attrs', metaAttrCount0), true, false, function(){ drillDown([gk,'resources',rk,'metaattributes']) ; }, null, _modelReadOnly && metaAttrCount0 === 0)) ;
     } else if (_navPath.length === 4) {
       var gk = _navPath[0], rk = _navPath[2], attrSec = _navPath[3] ;
       var dataKey = attrSec === 'versionattributes' ? 'attributes' : attrSec ;
@@ -10944,9 +11547,12 @@ function saveAttrFrom(attrsObj, origKey) {
     else if (v === false) attr[f] = false ;
     else delete attr[f] ;
   }) ;
-  // Preserve nested structures edited via drill-down (not part of this form)
-  if (existing.attributes) attr.attributes = existing.attributes ;
-  if (existing.item) attr.item = existing.item ;
+  // Preserve nested structures edited via drill-down (not part of this
+  // form) — but only when still relevant to the (possibly just-changed)
+  // type, so switching e.g. map -> string doesn't leave a stale "item"
+  // (or object -> string leaving a stale "attributes") in the saved JSON.
+  if (existing.attributes && t === 'object') attr.attributes = existing.attributes ;
+  if (existing.item && (t === 'map' || t === 'array')) attr.item = existing.item ;
   if (existing.ifvalues) attr.ifvalues = existing.ifvalues ;
   if (newName !== origKey && attrsObj[origKey] !== undefined) delete attrsObj[origKey] ;
   attrsObj[newName] = attr ;

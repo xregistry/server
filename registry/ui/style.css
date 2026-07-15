@@ -227,8 +227,8 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 .view-btn:last-child { border-right: none; }
 .view-btn:hover { background: #d0d0d0; }
-.view-btn.active { background: #407d16; color: white; }
-.view-btn.active:hover { background: #407d16; }
+.view-btn.active { background: #2060a0; color: white; }
+.view-btn.active:hover { background: #2060a0; }
 .view-btn.view-btn-disabled {
   opacity: 0.35;
   cursor: default;
@@ -261,7 +261,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 .bc-home-opt:last-child { border-right: none; }
 .bc-home-opt:hover { background: #d0d0d0; }
-.bc-home-opt.active { background: #407d16; color: white; cursor: default; }
+.bc-home-opt.active { background: #2060a0; color: white; cursor: default; }
 
 .edit-btn {
   cursor: pointer;
@@ -277,7 +277,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   transition: background 0.1s;
 }
 .edit-btn:hover { background: #d0d0d0; }
-.edit-btn.active { background: #407d16; color: white; border-color: #407d16; }
+.edit-btn.active { background: #2060a0; color: white; border-color: #2060a0; }
 
 .icon-btn {
   cursor: pointer;
@@ -294,7 +294,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   line-height: 22px;
 }
 .icon-btn:hover { background: #d0d0d0; }
-.icon-btn.active { background: #407d16; color: white; border-color: #407d16; }
+.icon-btn.active { background: #2060a0; color: white; border-color: #2060a0; }
 .icon-sym { font-size: 24px; line-height: 1; }
 
 /* Copy-API-URL button, appended after the last breadcrumb segment */
@@ -549,6 +549,7 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   padding: 2px 6px;
   pointer-events: none;
   background: transparent;
+  border-bottom: 1px solid #ddd;
 }
 .json-exp-server-url {
   font-size: 11px;
@@ -558,20 +559,57 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.json-exp-btn {
-  pointer-events: auto;
-  cursor: pointer;
-  display: inline-block;
-  user-select: none;
-  border: 1px solid #bbb;
-  border-radius: 3px;
-  background: #eee;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-family: monospace;
-  color: #444;
+/* "Expand all" reuses .eg-doc-tab directly (added alongside .json-exp-btn
+   in the markup) so it's pixel-identical to the Details/Document toggle
+   buttons — .json-exp-btn itself now only adds the JSON-view-header-
+   specific bits (pointer-events, since it sits inside the sticky header
+   whose default is pointer-events:none) and the disabled/inert state. */
+.json-exp-btn { pointer-events: auto; user-select: none; }
+.json-exp-btn-disabled {
+  cursor: default;
+  opacity: 0.4;
 }
-.json-exp-btn:hover { background: #ddd; }
+.json-exp-btn-disabled:hover { background: #eef2fa; border-color: #c8d6ec; }
+
+/* Group wrapper for the header's right-side button cluster (Details/
+   Document toggle + "expand all") so .json-exp-wrap's space-between only
+   ever splits it into two groups (server URL on the left, buttons on the
+   right) regardless of how many buttons are present. */
+.json-exp-btn-group {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Details/Document toggle — JSON view's equivalent of List view's
+   Document/Version Details tabs, for any Resource/Version entity page
+   (shown even when the resource type has no document defined; Document
+   mode then just shows an explanatory empty state). Reuses List view's
+   own .eg-doc-tab/.eg-doc-tabs pill styling/color scheme (blue) verbatim
+   — see the .json-doc-toggle overrides placed alongside .eg-doc-tab below
+   for the compact sizing needed to fit this header (see plan.md "JSON
+   view Details/Document toggle"). */
+
+/* JSON edit view's header row reuses .json-exp-wrap's sticky positioning
+   as-is (transparent background, compact single-row padding, no wrap) so
+   it looks and behaves exactly like the read-only view's header rather
+   than growing/jumping into a separate boxed toolbar — the action bar's
+   buttons sit inline in the same row, using the smaller .editorBtnSmall
+   sizing to match the compact height of the read-only header's buttons. */
+.json-edit-header .editorActionBar {
+  pointer-events: auto;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+.json-edit-header .editorActionBar .editorBtn {
+  padding: 1px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
 
 /* Outer gutter column present on every JSON line (first column, before any
    indentation) — purely cosmetic left margin. */
@@ -710,15 +748,15 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .lp-dotstar input[type=checkbox] { cursor: pointer; }
 .lp-dotstar-label { font-size: 11px; color: #888; }
 .lp-sep-line { border-top: 1px dashed #999; margin: 3px 0; }
-.lp-even { background: #dfe8df; }
+.lp-even { background: #e6eef9; }
 .lp-no-opts { color: #aaa; font-style: italic; font-size: 12px; padding: 10px 6px; text-align: center; }
 .lp-apply {
   margin-top: 8px;
   width: 100%;
   padding: 4px;
   border-radius: 8px;
-  border: 1px solid #407d16;
-  background: #407d16;
+  border: 1px solid #2060a0;
+  background: #2060a0;
   color: white;
   font-weight: bold;
   cursor: pointer;
@@ -844,8 +882,8 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 }
 .fb-seg-custom-commit {
   flex-shrink: 0; font-size: 12px; line-height: 1; padding: 2px 6px;
-  border: 1px solid #407d16; border-radius: 4px;
-  background: #eef7e6; color: #2c5710; cursor: pointer;
+  border: 1px solid #b8cce4; border-radius: 4px;
+  background: #eef3fa; color: #2060a0; cursor: pointer;
 }
 .fb-seg-custom-commit:disabled {
   border-color: #ccc; background: #f2f2f2; color: #aaa; cursor: default;
@@ -867,16 +905,16 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
 .fb-and-split-target {
   position: absolute; top: 1px; right: 1px; bottom: 1px; z-index: 2;
   width: 37px; font-size: 10px; padding: 0 1px; border: none;
-  border-left: 1px solid #407d16; border-radius: 0 3px 3px 0;
-  background: #dcefce; color: #2c5710; cursor: pointer;
+  border-left: 1px solid #b8cce4; border-radius: 0 3px 3px 0;
+  background: #dce8f8; color: #2060a0; cursor: pointer;
 }
 .fb-add-btn {
   flex: 1; min-width: 96px; font-size: 11px; padding: 3px 4px;
   border-radius: 4px;
-  border: 1px solid #407d16; background: #eef7e6; color: #2c5710;
+  border: 1px solid #b8cce4; background: #eef3fa; color: #2060a0;
   cursor: pointer;
 }
-.fb-add-btn:hover:not(:disabled) { background: #407d16; color: #fff; }
+.fb-add-btn:hover:not(:disabled) { background: #2060a0; color: #fff; }
 .fb-add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .fb-cancel-btn {
   border-color: #999; background: #f2f2f2; color: #555;
@@ -1087,7 +1125,7 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   padding-top: 10px;
 }
 
-.home-btn { border-radius: 6px; border: 1px solid #407d16; background: #407d16; color: white; padding: 3px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
+.home-btn { border-radius: 6px; border: 1px solid #2060a0; background: #2060a0; color: white; padding: 3px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
 
 /* ---- Home group/layout controls ---- */
 .group-type-item {
@@ -1182,33 +1220,12 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   border-radius: 4px;
 }
 .cfg-name-input::placeholder { color: #888; font-style: italic; }
-.cfg-add-row input#cfg-new-name { flex: 0 0 180px; }
 .cfg-proxy-cell { text-align: center; }
 .cfg-proxy-cell input[type=checkbox] { cursor: pointer; }
 .cfg-select-cell { text-align: center; width: 26px; }
 .cfg-select-cell input[type=checkbox] { cursor: pointer; }
-.cfg-scan-cell, .cfg-hide-cell { text-align: center; }
-.cfg-scan-cell input[type=checkbox], .cfg-hide-cell input[type=checkbox] { cursor: pointer; }
-.cfg-discovered-badge {
-  font-size: 10px;
-  background: #eef2fb;
-  color: #567;
-  border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: 6px;
-  font-weight: normal;
-  cursor: help;
-}
-.cfg-new-proxy-label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #555;
-  white-space: nowrap;
-  flex: 0 0 auto;
-  cursor: pointer;
-}
+.cfg-hide-cell { text-align: center; }
+.cfg-hide-cell input[type=checkbox] { cursor: pointer; }
 .cfg-actions { white-space: nowrap; display: flex; gap: 6px; justify-content: flex-end; }
 .cfg-btn {
   font-size: 12px;
@@ -1224,21 +1241,97 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 .cfg-btn:disabled:hover { background: #f8f8f8; }
 .config-section-desc { font-size: 13px; color: #666; margin: 0 0 14px; line-height: 1.5; }
 .cfg-reset-row { display: flex; gap: 10px; }
-.cfg-btn-danger { color: #a00; border-color: #d88; }
-.cfg-btn-danger:hover { background: #fee; }
-.cfg-add-row {
+/* Primary action (e.g. "+ Add X" / "Create" on collection pages) — solid
+   blue, matching the app's blue action-button scheme (.eg-link-btn/
+   .editorBtn's Save override) instead of the plain neutral gray every
+   other .cfg-btn uses. */
+.cfg-btn-primary { background: #2060a0; border-color: #2060a0; color: #fff; }
+.cfg-btn-primary:hover { background: #c4c4c4; color: #000; }
+.cfg-btn-primary:disabled { background: #f8f8f8; border-color: #ccc; color: #999; }
+/* Destructive action (e.g. "Delete Selected") — solid red, matching
+   .editorBtnDanger's weight instead of the previous light outline-only
+   red-on-gray look. */
+.cfg-btn-danger { background: #a00; border-color: #a00; color: #fff; }
+.cfg-btn-danger:hover { background: #c4c4c4; color: #000; }
+.cfg-btn-danger:disabled { background: #f8f8f8; border-color: #ccc; color: #999; }
+/* Discard-in-progress-edits action (e.g. "Cancel" on the collection
+   add-form toggle, or the Config page's per-row Cancel) — solid brown,
+   matching #dataUndoBtn/#jsonEditUndoBtn's "Undo" color, since both are
+   semantically the same "give up my unsaved edits" action, just with
+   different surrounding UI (Cancel closes the form, Undo resets it in
+   place). */
+.cfg-btn-cancel { background: #a06020; border-color: #a06020; color: #fff; }
+.cfg-btn-cancel:hover { background: #c4c4c4; color: #000; }
+.cfg-btn-cancel:disabled { background: #f8f8f8; border-color: #ccc; color: #999; }
+/* Add-new-server row — a real <tfoot> row sharing the same <td> column
+   classes/widths as the data rows above it, so its "Add" button lines up
+   exactly under the "Edit" buttons rather than approximating it via a
+   separately-laid-out flex row. */
+.cfg-add-tr td { background: #fafafa; border-top: 2px solid #e2e2e2; }
+.cfg-inline-error {
+  display: block;
+  font-size: 11px;
+  color: #a00;
+  margin-top: 3px;
+}
+
+/* "Scan for registries" results dialog — a simple centered overlay,
+   consistent with the rest of the Config page's visual language (same
+   .cfg-btn buttons, same border/radius conventions as .config-section). */
+.cfg-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.cfg-modal {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 560px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.cfg-modal-title { margin: 0 0 12px; font-size: 15px; font-weight: bold; color: #333; }
+.cfg-scan-group-title {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cfg-scan-group-title:first-of-type { margin-top: 0; }
+.cfg-scan-select-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.cfg-scan-list { list-style: none; margin: 0; padding: 0; }
+.cfg-scan-item {
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
   align-items: center;
 }
-.cfg-add-row input {
-  flex: 1;
-  font-size: 13px;
-  padding: 5px 8px;
-  border: 1px solid #bbb;
-  border-radius: 5px;
-}
+.cfg-scan-item:last-child { border-bottom: none; }
+.cfg-scan-item label { display: flex; align-items: center; gap: 6px; cursor: pointer; flex: 1; }
+.cfg-scan-item-known { color: #888; }
+.cfg-scan-empty { font-size: 13px; color: #888; }
+.cfg-modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 .config-local-badge {
   font-size: 10px;
   background: #e8f4e8;
@@ -1884,7 +1977,7 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   .navItemDel { margin-left: 6px ; color: #a00 ; font-size: 11px ; cursor: pointer ; padding: 0 4px ; border-radius: 3px ; flex-shrink: 0 ; }
   .navItemAdd {
     padding: 7px 12px ;
-    color: #407d16 ;
+    color: #2060a0 ;
     cursor: pointer ;
     font-size: 12px ;
     font-weight: bold ;
@@ -2033,14 +2126,14 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
     justify-content: center ;
   }
   .boolSegBtn:not(:last-child) { border-right: 1px solid #ccc ; }
-  .boolSegBtn.boolSegActive { background: #4a7c24 ; color: #fff ; }
+  .boolSegBtn.boolSegActive { background: #2060a0 ; color: #fff ; }
   .boolSegBtn:hover:not(.boolSegActive) { background: #e8e8e8 ; }
   .boolSegReadOnly .boolSegBtn { cursor: default ; pointer-events: none ; }
   .boolSegReadOnly .boolSegBtn:not(.boolSegActive) { color: #888 ; }
   .editorBtn {
     border-radius: 8px ;
-    border: 1px solid #407d16 ;
-    background: #407d16 ;
+    border: 1px solid #2060a0 ;
+    background: #2060a0 ;
     padding: 3px 12px ;
     color: white ;
     cursor: pointer ;
@@ -2057,6 +2150,17 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   #dataSavePutBtn:hover, #dataSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
   #dataUndoBtn { background: #a06020 ; border-color: #a06020 ; }
   #dataUndoBtn:hover { background: #c4c4c4 ; color: black ; }
+  /* JSON view's raw-edit action bar (Format/Save/Undo/Delete) reuses the
+     exact same Save=blue/Undo=brown scheme as List view's own data-entity
+     editor above, instead of staying the plain green .editorBtn default —
+     Format (no List view equivalent) gets the same light "secondary
+     action" blue used for .eg-link-btn elsewhere in the app. */
+  #jsonEditFormatBtn { background: #eef3fa ; border-color: #b8cce4 ; color: #2060a0 ; }
+  #jsonEditFormatBtn:hover { background: #dce8f8 ; border-color: #7aabdb ; color: #2060a0 ; }
+  #jsonEditPutBtn, #jsonEditPatchBtn { background: #2060a0 ; border-color: #2060a0 ; }
+  #jsonEditPutBtn:hover, #jsonEditPatchBtn:hover { background: #c4c4c4 ; color: black ; }
+  #jsonEditUndoBtn { background: #a06020 ; border-color: #a06020 ; }
+  #jsonEditUndoBtn:hover { background: #c4c4c4 ; color: black ; }
   .xr-edit-input {
     border: 1px solid #ccc ;
     border-radius: 4px ;
@@ -2205,7 +2309,7 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
     position: absolute ; top: 1px ; right: 1px ; bottom: 1px ; z-index: 2 ;
     width: 82px ; font-size: 11px ; padding: 0 2px ; cursor: pointer ;
     border: none ; border-left: 1px solid #ccc ; border-radius: 0 7px 7px 0 ;
-    background: #eef2fa ; color: #2c5710 ;
+    background: #eef2fa ; color: #2060a0 ;
   }
   .xr-map-val-indent {
     flex: 1 ; min-width: 0 ; padding-left: 4px ;
@@ -2389,6 +2493,14 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .eg-doc-tab:hover { background: #dce4f5; border-color: #a8c0e6; }
 .eg-doc-tab.active { background: #2060a0; color: #fff; border-color: #2060a0; }
+/* JSON view's Details/Document toggle AND "expand all" button all reuse
+   .eg-doc-tab verbatim (see line ~592) but need a smaller/no-wrap
+   footprint to fit the compact sticky header instead of List view's
+   roomier tab-bar layout — kept identical to each other (font/padding/
+   radius) so all three buttons in the header render pixel-for-pixel the
+   same size/shape. */
+.json-doc-toggle.eg-doc-tabs { margin-bottom: 0; flex-wrap: nowrap; gap: 6px; }
+.eg-doc-tab.json-doc-toggle-btn, .eg-doc-tab.json-exp-btn { font-size: 11px; padding: 2px 10px; border-radius: 10px; }
 /* "Versions List" link — visually a pill like the other tabs, but it's a
    real navigation link (to the raw Versions collection page) rather than a
    panel-switching tab, so it never gets an "active" state; a small arrow
@@ -2433,6 +2545,24 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 .eg-doc-preview-actions { margin-top: 8px; }
 .eg-doc-binary-msg { color: #666; font-style: italic; padding: 10px 0; }
 .eg-doc-error-msg { color: #c00; font-family: monospace; font-size: 12px; padding: 10px 0; }
+/* JSON view's raw "postman-style" editor (renderJSONEditView()) — same
+   monospace-textarea look as .eg-doc-textarea above. min-height is just a
+   small floor (matches the JS-computed floor in sizeJsonEditTextarea());
+   the real height is set inline by sizeJsonEditTextarea() to stretch the
+   textarea down to the bottom of the viewport, same idiom as
+   .eg-doc-textarea's sizeDocTextarea(). */
+.json-edit-textarea {
+  width: 100%; min-height: 200px; overflow: auto;
+  font-family: monospace; font-size: 12px; line-height: 1.4; color: #333;
+  background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px;
+  resize: vertical; box-sizing: border-box; margin-bottom: 10px;
+}
+/* Suppress the browser's default focus ring (a blue halo) on the JSON
+   textareas — keep the same neutral gray border used unfocused, instead
+   of an unrequested blue outline appearing on click/focus. */
+.json-edit-textarea:focus, .eg-doc-textarea:focus {
+  outline: none; border-color: #ddd;
+}
 /* Document tab's info-pill row (contenttype/format/compatibility) — sits
    between the tab button row and the document preview; see
    buildDocInfoPillsHtml(). Empty (no pills) when none of the underlying

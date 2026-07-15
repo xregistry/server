@@ -4387,6 +4387,551 @@ but it must not be repeated.
 
 **Status**: Complete.
 
+## Added: raw JSON edit ("postman-style") for JSON view
+
+**Feature**: JSON view (`renderJSONView()` in `registry/ui/app.js`) was
+always read-only. Hitting "Edit" while in JSON view now swaps the
+read-only twisty tree for a fully-editable `<textarea>` containing the
+current entity/collection/document's pretty-printed JSON. The user can
+freely retype/restructure it (including adding inlined nested xreg
+entities) and hit Save (PUT or PATCH, sent verbatim — no auto-diffing,
+unlike List view's PATCH) — a lightweight, built-in "Postman" for the
+current page. Applies to data entities, data collections, the
+Capabilities document, and modelsource; Delete is entity-only (mirrors
+List view's existing Delete scope). `model`, `capabilitiesoffered`, and
+`xregistry` stay pure read-only, unchanged.
+
+**Changes**:
+- `registry/ui/app.js`: added `computeEnableEdit()` (shared helper
+  factored out of `renderHeader()`'s inline `enableEdit` logic, now used
+  by both `renderHeader()` and the new JSON-edit-mode check so they
+  can't drift out of sync); `renderJSONView(data)` now branches to a new
+  `renderJSONEditView(data)` when `_state.editMode &&
+  computeEnableEdit()`; new state (`_jsonEditDirty`,
+  `_jsonEditOrigText`, `_jsonEditDraftText`, `_jsonEditKind`,
+  `_jsonEditURL`) and functions `resetJsonEditBuffer()`,
+  `jsonEditTarget()`, `renderJSONEditView()`, `jsonEditInputChanged()`
+  (live JSON.parse validation, dirty tracking, button enable/disable),
+  `jsonEditUndo()`, `jsonEditSave(verb, cb)` (PUT/PATCH, updates the
+  section's own source-of-truth cache on success), `jsonEditDelete()`
+  (entity-only, delegates to existing `deleteDataEntity()`). Added
+  matching `_jsonEditDirty` guards (with "clean leave" buffer reset) to
+  `pushState()` and `setDataView()`, following the existing per-buffer
+  dirty-guard pattern (`_modelDirty`/`_capDirty`/`_dataDirty`/etc.). The
+  buffer is an independent edit buffer that always starts fresh from the
+  latest server data each time Edit is turned on in JSON view (does not
+  persist across toggle-off/toggle-on, unlike List view's buffers).
+- `registry/ui/style.css`: added `.json-edit-textarea` (modeled on the
+  existing `.eg-doc-textarea` style).
+
+**Verified live** via headless Chromium/CDP against an isolated test
+`xrserver` instance (own `--db`/`-p`, dropped afterward): entity Save
+(PUT) and Save (PATCH) with a genuinely partial body both round-tripped
+correctly (PATCH confirmed non-auto-diffed — only included keys were
+touched server-side); invalid JSON correctly disabled both Save buttons
+and showed an inline error; Undo correctly reverted the textarea and
+cleared dirty state; the entity Delete button correctly deleted and
+navigated to the parent (collection); collection-page JSON edit
+correctly rejected PUT (405, server-side collections don't support
+full-replace) but accepted PATCH, with no Delete button shown;
+Capabilities-document and modelsource JSON edit both saved correctly
+via raw JSON, neither showing a Delete button; the new
+`_jsonEditDirty` guard correctly triggered the Save/Discard/Cancel
+dialog when switching away from an unsaved JSON edit (via List view
+switch), and the buffer correctly reset to fresh/empty after Discard;
+the pre-existing reverse guard (unsaved List-view edit → switch to
+JSON view) was confirmed unaffected and still fires correctly. `make
+qtest` is a no-op for this change (UI-only, no Go files touched).
+
+**Status**: Complete.
+
+## Fixed: CORS preflight missing `Access-Control-Allow-Headers`
+
+**Bug**: cross-origin PUT/PATCH/POST/DELETE requests from the SPA (e.g.
+editing modelsource on a registry served from a different origin) were
+silently failing with a generic CORS error, even though the *actual*
+request would have succeeded. Root cause: `DefaultWriter.Write()`
+(`registry/httpStuff.go`) set `Access-Control-Allow-Origin` and
+`Access-Control-Allow-Methods` on every response, but never
+`Access-Control-Allow-Headers`. Since the SPA always sends
+`Content-Type: application/json` on mutating requests, the browser
+issues a preflight `OPTIONS` request first, and without
+`Access-Control-Allow-Headers` echoing back `Content-Type` (or whatever
+headers were requested), the browser blocks the real request before it
+is ever sent — indistinguishable client-side from a network failure.
+This was invisible for same-origin (local or already-proxied) requests,
+which is why it went unnoticed until testing against a genuinely
+different-origin remote server.
+
+**Fix**: `DefaultWriter.Write()` now reflects back the incoming
+preflight's `Access-Control-Request-Headers` value as
+`Access-Control-Allow-Headers` (falling back to `Content-Type` if that
+request header is absent).
+
+**Verified** via `curl` (both an isolated test server and the full
+`make xrserver` rebuild): a preflight `OPTIONS` request now returns
+`Access-Control-Allow-Headers`, and GET/PUT continue to work normally.
+`make qtest` showed one `TestXRBasic` failure, confirmed pre-existing/
+environmental (caused by a live server occupying the default port 8080
+during the test run), not caused by this change — `git diff --stat`
+showed only `httpStuff.go` touched, plus an unrelated pre-existing
+`common/shared_model` diff not made this session. Requires a server
+rebuild + restart to take effect (Go-side change, no hot reload).
+
+**Status**: Complete.
+
+## Fixed: modelsource edit-mode nav disabled on empty registry
+
+**Bug**: on an empty registry (0 groups, 0 attributes, etc.), the
+Attributes/Group Types nav rows (and their nested Attributes/Resources/
+Version Attrs/Resource Attrs/Meta Attrs equivalents) were disabled
+whenever their count was 0 — even while in **edit** mode — making it
+impossible to drill in and add the very first attribute or group type.
+The disable-when-empty behavior is only meant to apply in read-only
+(view) mode, where there's nothing to show.
+
+**Fix**: all 7 `navItem(..., disabled)` call sites in the modelsource
+nav-building code (`registry/ui/app.js`) changed the disabled condition
+from `xCount === 0` to `_modelReadOnly && xCount === 0`.
+
+**Verified** via code inspection (all 7 call sites confirmed via
+`grep`); not live-verified in-browser due to a transient headless
+Chromium launch failure at the time (see the Chromium/CDP note below —
+since resolved).
+
+**Status**: Complete.
+
+## Fixed: stale nested `item`/`attributes` JSON after attribute type switch
+
+**Bug**: in the modelsource editor, switching an attribute's type from
+a complex type (`map`/`array`, which carries an `item` sub-object, or
+`object`, which carries an `attributes` sub-object) back to a scalar
+type (e.g. `string`) left the stale nested `item`/`attributes` data in
+the saved JSON, since `saveAttrFrom()` unconditionally copied both
+fields over from the existing attribute regardless of the new type.
+
+**Fix**: `saveAttrFrom()` (`registry/ui/app.js`) now only preserves
+`attr.attributes` from the existing attribute when the new type is
+`object`, and only preserves `attr.item` when the new type is `map` or
+`array`.
+
+**Verified** live via headless Chromium/CDP against an isolated test
+server: confirmed `map` → `string` correctly strips `item`, and
+`object` → `string` correctly strips `attributes`.
+
+**Status**: Complete.
+
+## Fixed: xrproxy corrupting sibling-registry identities in `.xregistry`
+
+**Bug**: many sibling registries served by the same remote host as a
+flagged "use proxy" server were being silently, permanently routed
+through the local `/xrproxy/...` path even though only the one origin
+was ever flagged proxied on the Config page — with no visible
+indication why. Observed as a large volume of `/xrproxy/<b64>/...`
+requests in the server log for registries that appeared un-proxied in
+Config.
+
+**Root cause**: `HTTPXRProxy()` (`registry/xrproxy.go`) does a blind
+`bytes.ReplaceAll` of the remote origin string across every proxied
+response body, to rewrite embedded `self`/`xid`/`*url` links so they
+route back through the local proxy when browsing. This is correct for
+entity/collection JSON, but is semantically wrong for the `.xregistry`
+discovery document's `registries` array, whose entries are meant to be
+the REAL addresses of other, independent sibling registries — not
+self-referential navigation links. `scanForRegistries()`
+(`registry/ui/app.js`) then naively stored these already-rewritten
+proxy URLs as each sibling's permanent identity in `LS_SERVERS`,
+hard-wiring them through one specific local proxy path forever (with
+`isProxied()` on that literal URL always returning false, since the
+flag map is keyed by the corrupted URL itself, not the real origin).
+
+**Fix**: added `decodeAnyXRProxyURL(url)` in `registry/ui/app.js`,
+which reverses the local `/xrproxy/<b64url-origin>/...` rewrite back to
+the real remote URL (base64url-decoding the origin segment and
+reattaching the suffix path). `scanForRegistries()`'s `regs.forEach()`
+loop now calls this on every discovered URL before `normalizeURL()` and
+the existing "skip local origin" check, restoring the invariant that
+identity URLs stored client-side are always the real remote address —
+proxy translation happens only at actual fetch time, via
+`serverFetchBase()`.
+
+**Verified** live via headless Chromium/CDP against an isolated test
+server: added a real remote proxied server, ran `scanForRegistries()`
+directly, and confirmed `loadServers()` now contains the siblings'
+real remote URLs (not local proxy paths), while `proxyFlags` correctly
+contains only the one explicitly-flagged origin — siblings are NOT
+auto-flagged proxied, matching the existing per-server opt-in design
+(this was a deliberate open question, decided as "no" — see below).
+
+**Open design question, decided**: should auto-discovered siblings of
+a proxied server automatically inherit the proxy flag, since in
+practice they're almost always served by the identical physical host?
+Decided **no** for now — siblings default to non-proxied and the user
+must flag each one individually via Config if the host truly requires
+proxying for all of them.
+
+**Status**: Complete.
+
+## Fixed: deleting a server left orphaned per-URL state behind
+
+**Bug**: `removeServer()` (`registry/ui/app.js`) only removed the URL
+from `LS_SERVERS`, but never cleared the other per-URL localStorage
+maps keyed to it (`LS_NAMES`, `LS_PROXY`, `LS_SCAN`, `LS_HIDDEN`,
+`LS_DISCOVERED`). If the same URL was later re-added or
+re-auto-discovered (e.g. via `scanForRegistries()`), it silently
+inherited whatever flags (hidden, proxied, scan-enabled, name override,
+discoveredFrom) it had before being deleted — observed as newly
+auto-discovered registries mysteriously showing up already hidden.
+
+**Fix**: `removeServer()` now clears all of `LS_NAMES`, `LS_PROXY`,
+`LS_SCAN`, `LS_HIDDEN`, and `LS_DISCOVERED` for the removed URL, so a
+delete is a full teardown and a later re-add/re-discovery starts from
+clean defaults. `cfgSave()`'s URL-rename flow (which calls
+`removeServer(oldUrl)` internally as part of the rename) was updated to
+capture the old URL's flags into local variables *before* calling
+`removeServer()`, since it now wipes them, then apply the captured
+values to the new URL afterward — preserving the existing carry-over
+behavior.
+
+**Verified** via a standalone Node.js test (stubbed `localStorage`,
+functions extracted directly from `app.js`): confirmed hide → delete →
+re-add now correctly starts unhidden (previously stayed hidden);
+confirmed the rename flow still correctly carries over
+proxied/scanEnabled/hidden/discoveredFrom to the new URL and clears
+them from the old one.
+
+**Status**: Complete.
+
+## Config page: removed auto-scan, added explicit "Scan for registries"
+## review workflow, blocked duplicate-URL adds
+
+**Problem**: the Config page previously auto-scanned `.xregistry` on
+every registry visited (via `renderHome()`) and silently auto-added any
+newly discovered registries, causing the "known servers" list to grow
+unexpectedly large without user awareness or consent. There was also a
+per-server "Scan for more" flag/checkbox controlling this background
+behavior. Separately, attempting to add the same server URL twice (e.g.
+once direct, once via proxy) silently no-op'd with no explanation, since
+duplicate handling was based on the URL alone.
+
+**Decision** (discussed at length with the user): remove automatic
+background scanning entirely. Add an explicit, user-initiated "Scan for
+registries" bulk action on the Config page: select one or more known
+server rows (any row can act as a scan source, including the local/
+origin row, which is now selectable), click "Scan for registries", and
+review the results in a modal before deciding what to add — discovered
+URLs are grouped into "Not yet added" (checked by default) vs. "Already
+added" (informational only). Clicking "Add Selected" adds only the
+checked entries.
+
+True per-entry duplicate-URL support (e.g. one entry proxied, one direct,
+both pointing at the same URL) was considered and rejected: proxy state,
+the model/label/capabilities caches, and `_state.serverURL`/the
+`?server=` query param are all resolved by URL string alone everywhere
+in the app — supporting genuine duplicates would require threading a new
+per-entry identity through every fetch/cache call site, which the user
+judged not worth the complexity. Instead, adding (or renaming to) a URL
+that's already configured is now explicitly **blocked**, with an inline
+error message telling the user to delete the existing entry first.
+
+**Changes** (`registry/ui/app.js`):
+- Removed: `LS_SCAN`, `isAutoScanDisabled()`, `loadScanFlags()`,
+  `saveScanFlags()`, `isScanEnabled()`, `setScanEnabled()`,
+  `cfgSetAutoScan()`, `cfgScanNow()`, the automatic background scan call
+  in `renderHome()`, the Options page's "Auto-scan" toggle row, the
+  Config page's "Scan" column, the Add-row's "Scan for more" checkbox,
+  and the old "Refresh known registries" button.
+- `addServer(url, discoveredFrom)` now returns `true`/`false` (added vs.
+  blocked-duplicate) instead of silently no-op'ing; all callers
+  (`cfgAddNew()`, the new `cfgConfirmScanResults()`) check this.
+- `removeServer(url)` no longer touches the (now-removed) scan-flag map.
+- Replaced `scanForRegistries()` with `discoverRegistriesFrom(sourceUrls,
+  cb)` — a pure, side-effect-free fetch/categorize helper returning
+  `{url, discoveredFrom, alreadyKnown}[]`; it never calls `addServer()`
+  itself, so discovery always requires explicit user confirmation via
+  the new review modal.
+- Added: `cfgScanSelected()` (runs `discoverRegistriesFrom()` on checked
+  rows), `cfgShowScanResults(results)` (renders the grouped review
+  modal), `cfgConfirmScanResults()` (adds checked new entries, closes
+  the modal, re-renders Config).
+- The local/origin server row on the Config page is now selectable (so
+  it can be used as a scan source or bulk-hidden), but `cfgDeleteSelected()`
+  still excludes it from deletion.
+- `cfgAddNew()` shows an inline error (`#cfg-new-error`) instead of
+  silently doing nothing when the URL is already configured.
+- `cfgSave()`'s rename flow now blocks renaming to a URL that's already
+  configured elsewhere (`alert(...)`), consistent with the new
+  duplicate-blocking policy; removed its now-dead scan-flag references.
+
+**Changes** (`registry/ui/style.css`): removed `.cfg-scan-cell`; added
+`.cfg-inline-error`, `.cfg-modal-overlay`, `.cfg-modal`,
+`.cfg-modal-title`, `.cfg-scan-group-title`, `.cfg-scan-list`,
+`.cfg-scan-item`, `.cfg-scan-item-known`, `.cfg-scan-empty`,
+`.cfg-modal-btns`.
+
+**Verified** via headless-Chromium CDP against an isolated test
+`xrserver` (own DB/port) serving 3 sibling registries plus the origin
+server:
+- No auto-growth of the server list across repeated page reloads
+  (confirms the background scan is fully gone).
+- Selecting all rows and clicking "Scan for registries" correctly listed
+  all 3 sibling registries under "Not yet added" (pre-checked); "Add
+  Selected" added exactly those 3, bringing the total to 4 rows.
+- Re-adding an already-configured URL via the Add row was blocked with
+  the correct inline error message and no change to the stored list.
+- Re-running the scan afterward correctly reclassified all 3 as "Already
+  added" (no "Add Selected" button shown, since nothing was new).
+- Deleting a server still fully clears its hidden/proxy state (existing
+  fix from earlier this session, re-verified against the new code path).
+- `node --check app.js` passes; `make qtest` shows no new failures (only
+  the known pre-existing `TestXRBasic` port-8080 flake, unrelated).
+- Test DB/server/Chromium instance and temp files all cleaned up
+  afterward.
+
+**Status**: Complete.
+
+## Note: headless Chromium/CDP launch — use the snap wrapper, not the raw binary
+
+Launching Chromium via its raw snap binary path
+(`/snap/chromium/<rev>/usr/lib/chromium-browser/chrome ...`) can
+intermittently fail with `error while loading shared libraries:
+libnspr4.so: cannot open shared object file` in this environment. Use
+the `chromium` snap wrapper command instead (`/snap/bin/chromium ...`,
+or just `chromium ...` if on `PATH`) — `snap run` sets up the correct
+library/environment context, and this has proven reliable across
+multiple sessions.
+
+## Config page: "Select All" spacing fix
+
+**Changes** (`registry/ui/style.css`): `.cfg-scan-select-all` padding
+adjusted (`padding-bottom: 4px` → `padding-bottom: 8px; margin-bottom:
+6px;`) so the "Select all" checkbox row in the Scan Results modal isn't
+crowded against the first result row below it.
+
+**Verified** via CDP: gap between `.cfg-scan-select-all`'s bottom edge
+and the first `.cfg-scan-item`'s top edge measured at 6px (matches the
+new `margin-bottom`).
+
+**Status**: Complete.
+
+## JSON edit view UX overhaul
+
+Problem: the raw JSON edit view (Server Endpoints / entity JSON "Edit"
+mode) validated JSON on every keystroke, which meant it constantly
+flashed an "Invalid JSON" error the instant someone started typing
+(e.g. right after an opening `{`) — bad UX. Separately, when a real
+server error or the invalid-JSON banner appeared, the action buttons
+(which lived below the textarea) could scroll off the bottom of the
+screen along with it.
+
+**Changes** (`registry/ui/app.js`):
+- `renderJSONEditView()`: moved the action bar (now includes a new
+  **Format** button, plus the existing Save PUT/Save PATCH/Undo/Delete)
+  into the same sticky top header row as "Server: ..." (reusing the
+  read-only JSON view's `.json-exp-wrap` sticky-positioning pattern),
+  instead of rendering it below the textarea. Error banners
+  (`#jsonEditError`/`#jsonEditInvalid`) now render directly under that
+  header too, so they're always visible without scrolling.
+- `jsonEditInputChanged()`: no longer calls `JSON.parse()` on every
+  keystroke. Now only compares the draft text against the pristine
+  original to track dirtiness; Save/Undo buttons are enabled/disabled
+  based purely on dirtiness, not JSON validity.
+- Added `jsonEditFormat()`: the only place JSON is now actually
+  validated before Save. Parses the textarea content on click; if
+  valid, pretty-prints it (`JSON.stringify(parsed, null, 2)`) in place;
+  if invalid, shows the error in `#jsonEditInvalid` without touching
+  the textarea content.
+- `jsonEditSave()`'s existing validate-before-send behavior (via
+  `#jsonEditError`) is unchanged.
+
+**Changes** (`registry/ui/style.css`): added `.json-edit-header`
+(opaque background + border, since this sticky header now hosts a full
+button row rather than the read-only view's single small button) and
+`.json-edit-header .editorActionBar { pointer-events: auto; }` (since
+the parent `.json-exp-wrap` has `pointer-events: none` by default).
+
+**Verified** via CDP against the live dev server: header renders with
+all 5 buttons + "Server: ..."; typing invalid JSON shows no live error
+and enables Save (dirty-based); clicking Format on invalid JSON shows
+the error banner without altering the textarea; clicking Format on
+valid-but-unformatted JSON pretty-prints it in place; Undo reverts and
+disables Save/Undo; header confirmed `position: sticky` via computed
+style.
+
+**Status**: Complete.
+
+## Resource creation: don't pad an empty `{}` as the document body
+
+Bug: creating a new Resource entity (e.g. `dirs/d1/files/<id>`) via the
+collection page's "+ Add" form always PUT the form's metadata object
+(`{}` if no extra fields were filled in) to the plain, non-`$details`
+resource URL. For any resource type with `hasdocument: true`, the
+server treats a plain PUT/POST body as the resource's literal document
+content (see `registry/httpStuff.go` `metaInBody` logic) — so this
+silently created every new hasdocument resource with its document body
+set to the two-byte string `{}`, instead of leaving it empty.
+
+**Fix** (`registry/ui/app.js`, `saveNewEntity()`): when creating an
+entity at a Resource collection path (`_state.path.length === 3`) whose
+resource type has `hasdocument: true` (checked via
+`resourceHasDocument()`), append `$details` to the create URL. This
+makes the server parse the PUT body as metadata only, leaving the
+actual document unset (empty) until the user explicitly sets real
+document content afterward.
+
+**Verified**: intercepted the real `fetch()` call from the Add form
+(mocked `window.fetch`) and confirmed the URL now ends in `$details`
+for a `hasdocument: true` resource type; then did a real create via
+curl using that exact `$details` URL/body and confirmed `GET` on the
+plain resource URL (non-`$details`) returns an empty body — the
+document is no longer padded with `{}`. Test resource deleted
+afterward.
+
+**Status**: Complete.
+
+## JSON view Details/Document toggle
+
+Gap found: the old `ui.go` UI had a `detailsSwitch` button letting users
+toggle any Resource/Version entity page between `$details` (metadata)
+and the plain URL (raw document) when `hasdocument=true`. The new SPA's
+List view already has full parity for this via its Document/Meta/
+Version Details tab bar, but **JSON view** had no equivalent — it
+always force-fetches `$details` for Resource/Version paths
+(`needsDetails()`), so there was no way to see a resource's actual
+document content while in JSON view.
+
+**Design decisions** (confirmed with @duglin before implementing):
+- Toggle defaults to "Details" (today's behavior), not "Document".
+- Read-only for this first pass — no Edit-mode support for the
+  Document side yet.
+- Toggle is always shown on Resource/Version pages, even when the
+  resource type has no document defined (`hasdocument: false`) —
+  Document mode then just shows a "No document defined" message
+  instead of hiding the toggle entirely, so the control behaves the
+  same way regardless of resource type (per @duglin: "It should allow
+  you to alternate between doc/details even if there's no doc - it'll
+  just be blank in that case").
+- Visual style: reuses List view's own `.eg-doc-tab`/`.eg-doc-tabs`
+  pill styling verbatim (blue, same as the Document/Details tabs on
+  List view's Resource/Version pages), not a separate green
+  `.editorBtn`-styled or bespoke-color pill — per @duglin: "the style
+  of things in json view are green-ish [while list view has] a blue
+  tint... let's move json view to match list view."
+
+**Changes** (`registry/ui/app.js`):
+- Added `_jsonDocMode` ('' = details, 'doc' = raw document) and
+  `_jsonDocModeKey` (resets the toggle back to 'details' whenever
+  navigation moves to a different server/path, so switching entities
+  always starts back on Details).
+- `jsonDocToggleApplies()`: true for any Resource (depth 4) or Version
+  (depth >= 6, `path[4] === 'versions'`) entity page — delegates to
+  `needsDetails(_state.path)`'s existing depth check, with no
+  `hasdocument` gate (the toggle is shown regardless; Document mode
+  itself handles the no-document case).
+- `buildJsonDocToggleHtml(active)` / `jsonSetDocMode(mode)`: render the
+  Details/Document pill (reusing `.eg-doc-tab`/`.eg-doc-tabs`) and
+  handle clicks (just re-renders from `_lastData` — no re-fetch needed
+  when switching to Details, since that data is already the
+  `$details` JSON already in hand).
+- `buildJsonExpandAllBtnHtml(disabled)`: factored out the "expand all"
+  button so both Details and Document mode headers render the exact
+  same button (same id/position) whether usable or not — Document mode
+  starts it disabled (grayed out, inert) since raw text/binary content
+  isn't a collapsible JSON tree, then enables it if the document
+  content does turn out to be JSON. Keeping the button always present
+  (rather than only in Details mode) avoids the other header buttons
+  shifting position when switching modes, per @duglin: "rather than
+  deleting the 'all' button when it's not applicable, let's just
+  disable it because otherwise the other buttons move and that looks
+  funky".
+- `renderJSONView()`: shows the toggle (grouped with "expand all" in a
+  `.json-exp-btn-group` wrapper so `.json-exp-wrap`'s `space-between`
+  still only splits two groups) when `jsonDocToggleApplies()`;
+  delegates to the new `renderJSONViewDocumentMode()` when in 'doc'
+  mode.
+- `renderJSONViewDocumentMode(entityData)`: when the resource type has
+  no document defined (`!resourceHasDocument()`), renders a "No
+  document defined for this resource type." message directly, skipping
+  the fetch entirely (a plain GET on such a resource just returns the
+  same `$details` metadata again, which would be confusing to show
+  under a "Document" label). Otherwise fetches and renders the actual
+  document content — parsed and shown via the same twisty JSON tree
+  when the content happens to be valid JSON (which also re-enables the
+  "expand all" button), otherwise as a plain read-only textarea
+  (reusing `.eg-doc-textarea`), or a "binary, not previewable" message
+  — mirroring List view's Document tab preview
+  (`loadDocumentPreview()`'s `<key>url`/`<key>base64`/inline-`<key>`/
+  `self`-fallback resolution and `isBinaryContent()`/
+  `decodeUTF8Bytes()` helpers), just as JSON view's whole page instead
+  of one List-view tab's panel. Its header wraps the toggle in a
+  `.json-exp-btn-group` (pointer-events: auto) exactly like the
+  Details-mode header does — an earlier version placed it unwrapped as
+  a direct child of `.json-exp-wrap` (which has `pointer-events: none`
+  by default), which silently made the "Details" button unclickable
+  once in Document mode (bug: "once I switch to doc, I can't seem to
+  go back. Clicking on 'details' does nothing").
+- `renderJSONEditView()` (raw JSON edit mode): now calls a new
+  `sizeJsonEditTextarea()` after rendering (and on window resize,
+  alongside the existing `sizeDocTextarea()` call) to stretch the
+  textarea down to the bottom of the viewport — same idiom as
+  `sizeDocTextarea()` for the Document tab's preview — instead of
+  stopping short at a fixed `min-height`.
+
+**Changes** (`registry/ui/style.css`):
+- `.json-exp-btn-group` (pointer-events: auto wrapper for the header's
+  right-side button cluster).
+- `.json-exp-btn`/`.json-exp-btn-disabled` restyled from a neutral gray
+  pill to List view's blue `.eg-link-btn` color scheme (`#2060a0` text,
+  `#eef3fa` background, `#b8cce4` border) for consistency; disabled
+  state just dims via `opacity: 0.4`.
+- `.json-doc-toggle`/`.json-doc-toggle-btn`: no longer a bespoke pill —
+  the toggle buttons now carry `.eg-doc-tab`/`.eg-doc-tabs` classes
+  directly (List view's own Document/Details tab styling, verbatim
+  blue color scheme), with small `.json-doc-toggle-btn`-scoped overrides
+  (smaller font/padding/radius) placed right after `.eg-doc-tab`'s
+  rules so they win the cascade, fitting the compact single-row JSON
+  view header instead of List view's roomier tab-bar layout.
+- `.json-edit-header` no longer has its own background/border/padding
+  override — it now inherits `.json-exp-wrap`'s transparent, compact,
+  single-row styling as-is, so Edit mode's header no longer visibly
+  "grows" or looks like a different design than the read-only header
+  (per @duglin: "we're inconsistent between edit mode and view mode
+  w.r.t. how the buttons are shown... let's be consistent... I prefer
+  the way view mode looks - it's more compact"). The nested
+  `.editorActionBar`'s own box styling (padding/border-bottom/
+  background) is stripped to `none`/`transparent` so its buttons sit
+  inline in the same row, using smaller `.editorBtn` sizing
+  (`padding: 1px 8px; font-size: 11px`) to match.
+- `.json-edit-textarea`'s `min-height` lowered from `420px` to `200px`
+  to match the JS-computed floor in `sizeJsonEditTextarea()` — the
+  previous 420px floor was silently overriding the dynamic height calc
+  on short viewports (CSS `min-height` always wins over a smaller
+  inline `height`), defeating "full window height" on small windows.
+
+**Verified** via CDP against the live dev server, using real
+`.click()` calls (not direct function calls, which had previously
+masked the pointer-events bug above):
+- Toggle renders (defaulting to "Details" active) on Resource entity
+  pages regardless of `hasdocument`; a temporary `hasdocument: false`
+  resource type/entity was added to `/modelsource` for this, then
+  removed again afterward.
+- Clicking "Document" on the no-document resource shows the "No
+  document defined..." message, with "expand all" auto-disabled and
+  no fetch performed.
+- Real-click "Details" from Document mode correctly switches back
+  (confirms the pointer-events fix) and re-enables "expand all".
+- Toggle buttons render with `background-color: rgb(32, 96, 160)`
+  (`#2060a0`) when active — matching List view's `.eg-doc-tab.active`
+  exactly.
+- Edit mode's header height (~23px) now matches the read-only header's
+  (~22px) instead of growing into a separate boxed toolbar.
+- JSON edit textarea now stretches to fill the viewport down to a
+  16px bottom margin (confirmed via `getBoundingClientRect()`) instead
+  of stopping short at the old fixed `min-height: 420px`.
+
+**Status**: Complete (read-only). Editing the Document side directly
+from JSON view is a possible future follow-up.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file
