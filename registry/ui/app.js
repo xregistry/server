@@ -659,7 +659,7 @@ function buildURL(st) {
     if (st.inlines && st.inlines.length)   p.set('inline',      st.inlines.join(','));
     if (st.docView)                        p.set('doc',         '1');
     if (st.binary)                         p.set('binary',      '1');
-    if (st.collections)                    p.set('collections', '1');
+    if (st.collections && collectionsEligible(st.path))  p.set('collections', '1');
     if (st.useExport && st.path && st.path.length === 0) p.set('export', '1');
   }
 
@@ -772,7 +772,8 @@ function pushState(patch) {
         function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); pushStateReal(patch); }); },
         function() { resetJsonEditBuffer(); pushStateReal(patch); },
         null,
-        function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); pushStateReal(patch); }); }
+        function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); pushStateReal(patch); }); },
+        true
       );
       return;
     }
@@ -1032,6 +1033,16 @@ function isCollection(path) {
   return (path.length % 2 === 1);                 // odd depth = collection
 }
 
+// Per spec, the "collections" flag (inline nested Group-type/Resource-type
+// collections in the response) is only meaningful on the Registry root
+// (path.length === 0) or on a Group instance (path.length === 2) — every
+// other entity type (a collection itself, a Resource, a Version, etc.) has
+// no nested `<plural>` collections of its own for it to affect.
+function collectionsEligible(path) {
+  var len = (path || []).length;
+  return len === 0 || len === 2;
+}
+
 // Should we append $details to force JSON metadata view?
 // True for resource (depth 4) and version (depth 6) entities.
 // Safe to always do: spec says $details on non-doc resources = same as absent.
@@ -1102,7 +1113,7 @@ function buildAPIURL() {
   if (_state.sort)        q.push('sort=' + encodeURIComponent(_state.sort));
   if (_state.docView)     q.push('doc');
   if (_state.binary)      q.push('binary');
-  if (_state.collections) q.push('collections');
+  if (_state.collections && collectionsEligible(_state.path)) q.push('collections');
 
   if (!q.length) return url;
   return url + (url.indexOf('?') >= 0 ? '&' : '?') + q.join('&');
@@ -1420,7 +1431,8 @@ function setDataView(v) {
       function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); setDataView(v); }); },
       function() { resetJsonEditBuffer(); setDataView(v); },
       null,
-      function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); setDataView(v); }); }
+      function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); setDataView(v); }); },
+      true
     );
     return;
   }
@@ -4349,7 +4361,7 @@ function renderSingleEntity(data) {
         var versionsListHref = pageHref(_state.path.concat(['versions']), versionsCollD.url);
         var versionsListClick = guardedOnclick('navigateTo(\'versions\',' + JSON.stringify(versionsCollD.url) + ')');
         versionsListLinkHtml = '<a class="eg-doc-tab eg-doc-tab-link" href="' + esc(versionsListHref)
-          + '" onclick="' + esc(versionsListClick) + '">Versions (' + esc(String(versionsCollD.count)) + ') List</a>';
+          + '" onclick="' + esc(versionsListClick) + '">Versions List (' + esc(String(versionsCollD.count)) + ')</a>';
       }
     } else { // depthD >= 6, Version entity — no separate meta split
       tabDefs.push({ key: 'version', label: 'Version Details', content: propsTableHtml });
@@ -8012,7 +8024,15 @@ function renderMetaTable(d, model, editable) {
     } else if (typeof val === 'boolean') {
       display = renderBoolBadge(val);
     } else if (typeof val === 'object') {
-      display = esc(JSON.stringify(val));
+      // Pretty nested tree, matching buildPropsRowsHtml()'s view-mode
+      // rendering of map/object/array attributes on the entity's own
+      // Property table — was previously a raw JSON.stringify() dump here,
+      // inconsistent with every other List-view table.
+      var isEmptyM = Array.isArray(val) ? val.length === 0 : Object.keys(val).length === 0;
+      display = isEmptyM
+        ? '<span class="vt-empty">empty</span>'
+        : renderValueTree(val, 0, model, metaPath, [k], d);
+      valueCellClass = ' class="cell-tree"';
     } else if (k === 'defaultversionid') {
       // Link to the dedicated Version page for this version, matching Grid
       // view's "→ Visit" link for the same field (renderMetaContent()).
@@ -8483,9 +8503,9 @@ function renderJSONEditView(data) {
         '<button class="editorBtn" id="jsonEditFormatBtn" onclick="jsonEditFormat()"'
           + '>Format</button>' +
         ' <button class="editorBtn" id="jsonEditPutBtn" onclick="jsonEditSave(\'PUT\')"'
-          + (_jsonEditDirty ? '' : ' disabled') + '>Save (full)</button>' +
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (PUT)</button>' +
         ' <button class="editorBtn" id="jsonEditPatchBtn" onclick="jsonEditSave(\'PATCH\')"'
-          + (_jsonEditDirty ? '' : ' disabled') + '>Save (delta)</button>' +
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (PATCH)</button>' +
         ' <button class="editorBtn" id="jsonEditUndoBtn" onclick="jsonEditUndo()"'
           + (_jsonEditDirty ? '' : ' disabled') + '>Undo</button>' +
         (isEntity ? ' <button class="editorBtn editorBtnDanger" onclick="jsonEditDelete()"' + deleteDisabled + '>Delete</button>' : '') +
@@ -8508,6 +8528,17 @@ function sizeJsonEditTextarea() {
   if (!ta || ta.offsetParent === null) return; // not rendered / panel hidden
   var available = window.innerHeight - ta.getBoundingClientRect().top - 16; // bottom breathing room
   ta.style.height = Math.max(200, Math.floor(available)) + 'px';
+}
+
+// Hides both of JSON edit view's error banners (the parse-error one from
+// Format/Save, and the server-error one from a failed Save/Delete) —
+// called at the start of every action-bar button handler so clicking any
+// of them (Format/Save/Undo/Delete) clears whatever error was left over
+// from a previous action, instead of leaving a stale message on screen
+// while a new action is attempted.
+function clearJsonEditErrors() {
+  hideErrorBanner(el('jsonEditError'));
+  hideErrorBanner(el('jsonEditInvalid'));
 }
 
 // oninput handler for the raw JSON textarea. Deliberately does NOT
@@ -8536,6 +8567,7 @@ function jsonEditInputChanged() {
 function jsonEditFormat() {
   var ta = el('jsonEditTextarea');
   if (!ta) return;
+  clearJsonEditErrors();
   var invalidDiv = el('jsonEditInvalid');
   try {
     var parsed = JSON.parse(ta.value);
@@ -8543,7 +8575,6 @@ function jsonEditFormat() {
     ta.value = pretty;
     _jsonEditDraftText = pretty;
     _jsonEditDirty = pretty !== _jsonEditOrigText;
-    if (invalidDiv) { hideErrorBanner(invalidDiv); }
   } catch (e) {
     if (invalidDiv) { showErrorBanner(invalidDiv, 'Invalid JSON: ' + e.message); }
     return;
@@ -8555,12 +8586,11 @@ function jsonEditFormat() {
 }
 
 function jsonEditUndo() {
+  clearJsonEditErrors();
   _jsonEditDraftText = _jsonEditOrigText;
   _jsonEditDirty = false;
   var ta = el('jsonEditTextarea');
   if (ta) ta.value = _jsonEditDraftText;
-  var invalidDiv = el('jsonEditInvalid');
-  if (invalidDiv) { hideErrorBanner(invalidDiv); }
   var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
   if (putBtn)   putBtn.disabled   = true;
   if (patchBtn) patchBtn.disabled = true;
@@ -8572,8 +8602,8 @@ function jsonEditUndo() {
 // endpoint resolved when edit mode was entered. Mirrors saveDataEntity()'s
 // overlay/error-banner UX.
 function jsonEditSave(verb, cb) {
+  clearJsonEditErrors();
   var errDiv = el('jsonEditError');
-  if (errDiv) { hideErrorBanner(errDiv); }
   var body;
   try { body = JSON.parse(_jsonEditDraftText); } catch (e) {
     if (errDiv) { showErrorBanner(errDiv, 'Invalid JSON: ' + e.message); }
@@ -8658,6 +8688,7 @@ function finishJsonEditSave(updatedData, cb) {
 // below doesn't ALSO trigger the "unsaved JSON edit" leave-guard on top of
 // the delete confirmation the user already answered.
 function jsonEditDelete() {
+  clearJsonEditErrors();
   _jsonEditDirty = false;
   deleteDataEntity();
 }
@@ -8916,7 +8947,7 @@ function renderJSONLeftPanel(filtersOnly) {
     var optHtml = '';
     if (hasF('doc'))         optHtml += lpCheck('lp-doc', 'doc view',    _state.docView);
     if (hasF('binary'))      optHtml += lpCheck('lp-bin', 'binary',      _state.binary);
-    if (hasF('collections')) optHtml += lpCheck('lp-col', 'collections', _state.collections);
+    if (hasF('collections') && collectionsEligible(_state.path)) optHtml += lpCheck('lp-col', 'collections', _state.collections);
     if (optHtml) {
       hasOpts = true;
       html += '<div class="lp-section"><div class="lp-title">Options</div>'
@@ -10603,7 +10634,40 @@ function buildWizardHTML(model) {
   return html;
 }
 
+// Applying a new filter/sort/inline/doc/binary/collections combination from
+// the left nav re-fetches and re-renders the page — effectively a
+// navigation away from whatever's currently in the JSON edit textarea, same
+// as clicking a breadcrumb or switching view. So it needs the same
+// unsaved-changes guard pushState()'s own leaving-JSON-edit check gives
+// real navigations (that guard doesn't fire here since this doesn't change
+// section/path/serverURL/view — it's a same-page options change — so
+// without this it would silently discard an in-progress edit). See
+// showLeaveEditDialog()'s usePutPatchLabels doc comment for why JSON view
+// uses "Save (PUT)"/"Save (PATCH)" wording here.
 function applyJSONOptions() {
+  if (_state.dataView === 'json' && _state.editMode && _jsonEditDirty) {
+    showLeaveEditDialog(
+      function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); applyJSONOptionsReal(); }); },
+      function() { resetJsonEditBuffer(); applyJSONOptionsReal(); },
+      null,
+      function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); applyJSONOptionsReal(); }); },
+      true
+    );
+    return;
+  }
+  // Not dirty — nothing to lose, but renderJSONEditView() only (re)seeds its
+  // buffer from freshly-fetched data when _jsonEditOrigText is still null
+  // (see its own doc comment). Without resetting it here first, the refetch
+  // below would silently keep showing the OLD (pre-Apply) buffer contents
+  // even though a new request for the new options was actually sent — the
+  // same "already initialized meanwhile" guard that (correctly) prevents a
+  // stale buffer from clobbering an in-progress edit would otherwise also
+  // (incorrectly) prevent a clean buffer from ever picking up the new data.
+  if (_state.dataView === 'json' && _state.editMode) resetJsonEditBuffer();
+  applyJSONOptionsReal();
+}
+
+function applyJSONOptionsReal() {
   var doc = el('lp-doc'), bin = el('lp-bin'), col = el('lp-col');
   var cbs = qsa('.lp-inline-cb');
   var inlines = [];
@@ -11138,7 +11202,12 @@ window.addEventListener('beforeunload', function(e) {
 // user can pick PUT vs PATCH right here instead of being forced back to
 // the page to choose. Labels mirror the entity action bar's own Save
 // buttons (see buildDataEditorActionBarHtml() etc.) for consistency.
-function showLeaveEditDialog(onSaveFull, onDiscard, onCancel, onSaveDelta) {
+// `usePutPatchLabels` swaps those two labels for "Save (PUT)"/"Save
+// (PATCH)" instead — used only by JSON view's raw-edit callers, whose own
+// action-bar buttons already say PUT/PATCH (technical users editing raw
+// JSON directly benefit from the literal HTTP verb; the Data/Meta/Version
+// Property-table editors keep the friendlier full/delta wording).
+function showLeaveEditDialog(onSaveFull, onDiscard, onCancel, onSaveDelta, usePutPatchLabels) {
   var overlay = document.createElement('div') ;
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;' ;
   var box = document.createElement('div') ;
@@ -11156,8 +11225,10 @@ function showLeaveEditDialog(onSaveFull, onDiscard, onCancel, onSaveDelta) {
   mkBtn('Cancel',  function(){ if (onCancel) onCancel(); },  'background:#f0f0f0;color:#333;border:1px solid #ccc;') ;
   mkBtn('Discard', onDiscard,     'background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;') ;
   if (onSaveDelta) {
-    mkBtn('Save (full)',  onSaveFull,  'background:#2060a0;color:white;border:1px solid #2060a0;') ;
-    mkBtn('Save (delta)', onSaveDelta, 'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+    var fullLabel  = usePutPatchLabels ? 'Save (PUT)'   : 'Save (full)';
+    var deltaLabel = usePutPatchLabels ? 'Save (PATCH)' : 'Save (delta)';
+    mkBtn(fullLabel,  onSaveFull,  'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+    mkBtn(deltaLabel, onSaveDelta, 'background:#2060a0;color:white;border:1px solid #2060a0;') ;
   } else {
     mkBtn('Save', onSaveFull, 'background:#2060a0;color:white;border:1px solid #2060a0;') ;
   }

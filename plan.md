@@ -5315,6 +5315,163 @@ temp files cleaned up.
 
 **Status**: Complete.
 
+## Fixed: Versions List button label order ("Versions (N) List" ->
+"Versions List (N)")
+
+**Problem**: the Resource page's "Versions List" link (a real navigation
+to the raw Versions collection page) showed the count BEFORE the word
+"List" — "Versions (2) List" — which could be misread as if "2" were
+part of a versionid rather than a count.
+
+**Fix**: moved the count to the end — now reads "Versions List (2)".
+
+**Status**: Complete.
+
+## Fixed: JSON-view "collections" option available on ineligible entity
+types
+
+**Problem**: the JSON left-nav panel's "collections" checkbox was shown
+whenever the server declared the `collections` capability flag,
+regardless of what entity type the JSON viewer was currently pointed at.
+Per spec (and enforced server-side — see `registry/info.go`'s
+`bad_flag`/"?collections is only allow on the Registry or Group instance
+level" check), `collections=` is only valid at the Registry root or a
+Group instance; sending it for any other entity type (a collection
+itself, a Resource, a Version, etc.) causes the server to return an
+error.
+
+**Fix** (`registry/ui/app.js`):
+- Added `collectionsEligible(path)` — true only when `path.length === 0`
+  (Registry root) or `path.length === 2` (Group instance).
+- The "collections" checkbox in the left panel now only renders when
+  `hasF('collections') && collectionsEligible(_state.path)`.
+- As defense-in-depth (in case `_state.collections` lingers `true` from
+  an earlier eligible page), also gated the `collections=` query param in
+  both `buildAPIURL()` (the actual server-fetch URL) and `buildURL()`
+  (the address-bar URL) behind the same `collectionsEligible()` check, so
+  it can never actually be sent to the server for an ineligible entity
+  type even if the state variable is stale.
+
+**Verified** via CDP (isolated test server): checkbox visible at
+Registry root and at a Group instance (`dirs/d1`); hidden at a
+Group-type collection (`dirs`) and at a Resource instance (`f1`).
+
+**Status**: Complete.
+
+## Fixed: List view's Metadata tab rendered map/object attributes as raw
+JSON instead of a pretty nested tree
+
+**Problem**: viewing a Resource/Version's Metadata tab in List view (not
+edit mode), a map-typed attribute like `labels` displayed as a raw
+`JSON.stringify()` dump (e.g. `{"none":"","stage":"dev"}`) instead of the
+same pretty nested key/value tree every other List-view Property table
+uses for map/object/array attributes.
+
+**Root cause**: `renderMetaTable()`'s `buildRow()` had its own
+`typeof val === 'object'` branch that just did `esc(JSON.stringify(val))`
+— it never called `renderValueTree()`, unlike the entity's own Property
+table (`buildPropsRowsHtml()`), which already handled the identical case
+by rendering a proper nested tree.
+
+**Fix** (`registry/ui/app.js`): changed `renderMetaTable()`'s object
+branch to match `buildPropsRowsHtml()`'s exact pattern — empty
+maps/arrays show `<span class="vt-empty">empty</span>`, non-empty ones
+render via `renderValueTree(val, 0, model, metaPath, [k], d)`, with the
+`cell-tree` CSS class applied to the value cell for correct layout.
+
+**Verified** via CDP: the Metadata tab's "Labels" row now renders as a
+`.vt-obj`/`.vt-kv` nested tree (`none:` / `stage: dev`) instead of raw
+JSON text.
+
+**Status**: Complete.
+
+## Fixed: JSON edit view Save button wording + Apply-while-dirty guard
+
+**Problem** (2 related requests):
+1. JSON edit view's Save buttons said "Save (full)"/"Save (delta)" —
+   fine for the Data/Meta/Version Property-table editors (friendlier,
+   less technical wording), but misleading for JSON view specifically,
+   where technical users editing raw JSON directly want to know the
+   literal HTTP verb being used ("delta" doesn't obviously mean PATCH).
+2. In JSON edit view, clicking "Apply" in the left nav (to apply a new
+   filter/sort/inline/doc/binary/collections combination) silently
+   discarded any unsaved edits in the JSON textarea and re-fetched fresh
+   data — with no warning, unlike every other real navigation away from
+   a dirty JSON edit (breadcrumb click, view switch, etc.), which already
+   prompts via `showLeaveEditDialog()`.
+
+**Fix** (`registry/ui/app.js`):
+1. JSON edit view's own action-bar buttons now read "Save (PUT)"/"Save
+   (PATCH)" instead of "Save (full)"/"Save (delta)". `showLeaveEditDialog()`
+   gained a new `usePutPatchLabels` parameter (5th arg) that swaps its
+   own two Save-button labels the same way — passed `true` only by JSON
+   view's two callers (in `pushState()`'s and `setDataView()`'s
+   leaving-JSON-edit guards), so the Data/Meta/Version entity editors'
+   leave-dialogs keep their existing "Save (full)"/"Save (delta)"
+   wording unchanged.
+2. `applyJSONOptions()` was split into a thin guard + `applyJSONOptionsReal()`
+   (the original logic, unchanged). The guard checks
+   `_state.dataView === 'json' && _state.editMode && _jsonEditDirty` and,
+   if true, shows the same leave-edit dialog (Save PUT / Save PATCH /
+   Discard / Cancel) before proceeding — approving any option (Save or
+   Discard) resets the JSON edit buffer and then runs
+   `applyJSONOptionsReal()` (refreshing the data with the new options);
+   Cancel leaves the dirty edit and the previous options untouched.
+
+**Verified** via CDP: JSON edit buttons show "Save (PUT)"/"Save (PATCH)";
+typing a dirty edit then calling Apply shows the leave dialog; Cancel
+correctly leaves the dirty textarea content untouched; Discard correctly
+clears it and proceeds with the option change.
+
+**Status**: Complete.
+
+### Follow-up: Apply (not dirty) silently refetched but didn't refresh the JSON edit textarea
+
+**Problem**: In JSON edit view, changing a left-nav option (filter/sort/
+inline/doc/binary/collections) while NOT dirty and clicking Apply sent a
+new request to the server (confirmed via network trace) but the visible
+textarea kept showing the stale pre-Apply content.
+
+**Root cause**: `renderJSONEditView()` only (re)seeds its buffer
+(`_jsonEditOrigText`/`_jsonEditDraftText`) from freshly-fetched data when
+`_jsonEditOrigText` is still `null` — a guard meant to protect an
+in-progress edit from being silently clobbered by a background refresh.
+Since Apply (not dirty) skips the leave-dialog guard and goes straight to
+`applyJSONOptionsReal()`, the buffer was already initialized from the
+previous render, so the new data never made it onscreen even though it was
+fetched.
+
+**Fix**: `applyJSONOptions()` now calls `resetJsonEditBuffer()` before
+re-fetching whenever in JSON edit mode and not dirty (nothing to lose),
+forcing `renderJSONEditView()` to re-seed from the fresh response.
+
+**Verified** via CDP: toggled an inline option while in edit mode (not
+dirty), clicked Apply — textarea now correctly shows the newly-fetched
+(inlined) data instead of the stale pre-Apply buffer.
+
+**Status**: Complete.
+
+### Follow-up: clear JSON edit error banners on any action-bar button click
+
+**Problem**: JSON edit view's two error banners (`jsonEditError` for
+server-side Save/Delete failures, `jsonEditInvalid` for client-side JSON
+parse errors from Format/Save) weren't consistently cleared when a
+different button was clicked afterward — e.g. a stale Save error would
+still show after clicking Format or Undo.
+
+**Fix** (`registry/ui/app.js`): added a `clearJsonEditErrors()` helper
+(hides both banners) and call it at the start of `jsonEditFormat()`,
+`jsonEditUndo()`, `jsonEditSave()`, and `jsonEditDelete()` — so clicking
+any action-bar button clears whatever error was left over from a previous
+action.
+
+**Verified** via CDP: bad Format leaves the invalid banner visible; Undo
+clears it; bad Save shows the error banner; a subsequent Format call
+clears it; a valid Save after a bad Format also clears the invalid banner
+(via the full re-render on success).
+
+**Status**: Complete.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file
