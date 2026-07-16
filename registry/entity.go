@@ -2183,9 +2183,7 @@ func (e *Entity) GetCollections() [][2]string {
 		return result
 	case ENTITY_GROUP:
 		gm, _ := e.GetModels()
-		keys := gm.GetResourceList()
-		for _, k := range keys {
-			rm := gm.FindResourceModel(k)
+		for _, rm := range gm.Resources {
 			result = append(result, [2]string{rm.Plural, rm.Singular})
 		}
 		return result
@@ -2849,7 +2847,7 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 			}
 
 			if xid.Resource != "" {
-				rm := gm.FindResourceModel(xid.Resource)
+				rm := gm.Resources[xid.Resource]
 				if rm == nil {
 					return NewXRError("invalid_attribute", e.XID,
 						"name="+path.UI(),
@@ -2890,7 +2888,7 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 			}
 
 			if xidType.Resource != "" {
-				rm := gm.FindResourceModel(xidType.Resource)
+				rm := gm.Resources[xidType.Resource]
 				if rm == nil {
 					return NewXRError("invalid_attribute", e.XID,
 						"name="+path.UI(),
@@ -3104,7 +3102,7 @@ func (e *Entity) MatchXID(str string, xid string, attr string) *XRError {
 					xid, str, targetParts[2]))
 	}
 
-	rm := gm.FindResourceModel(targetParts[2])
+	rm := gm.Resources[targetParts[2]]
 	if rm == nil {
 		return NewXRError("invalid_attribute", e.XID,
 			"name="+attr,

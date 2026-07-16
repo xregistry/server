@@ -47,12 +47,12 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: Group \"g2p\" references a non-existing Group \"gxx\".",
+  "title": "There was an error in the model definition provided: Group \"g2p\" references a non-existing Resource \"/gxx/xxx\".",
   "subject": "/model",
   "args": {
-    "error_detail": "Group \"g2p\" references a non-existing Group \"gxx\""
+    "error_detail": "Group \"g2p\" references a non-existing Resource \"/gxx/xxx\""
   },
-  "source": "e4e59b8a76c4:registry:shared_model:1956"
+  "source": "4ee3efa85d83:registry:shared_model:2173"
 }
 `)
 
@@ -136,12 +136,12 @@ func TestModelXImportErrors(t *testing.T) {
       }
     }`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: Group \"g2p\" has a duplicate Resource \"plural\" name \"r1p\".",
+  "title": "There was an error in the model definition provided: Group \"g2p\" is trying to ximport a Resource (/g1p/r1p) but a Resource with that name (r1p) already exists.",
   "subject": "/model",
   "args": {
-    "error_detail": "Group \"g2p\" has a duplicate Resource \"plural\" name \"r1p\""
+    "error_detail": "Group \"g2p\" is trying to ximport a Resource (/g1p/r1p) but a Resource with that name (r1p) already exists"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:1981"
+  "source": "4ee3efa85d83:registry:shared_model:2115"
 }
 `)
 
@@ -186,14 +186,29 @@ func TestModelXImportErrors(t *testing.T) {
           "ximportresources": [ "/g2p/r1p" ]
         }
       }
-    }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
-  "title": "There was an error in the model definition provided: Group \"g3p\" references an imported Resource \"/g2p/r1p\", try using \"/g1p/r1p\" instead.",
-  "subject": "/model",
-  "args": {
-    "error_detail": "Group \"g3p\" references an imported Resource \"/g2p/r1p\", try using \"/g1p/r1p\" instead"
-  },
-  "source": "e4e59b8a76c4:registry:shared_model:1967"
+    }`, 200, `{
+  "groups": {
+    "g1p": {
+      "singular": "g1s",
+      "resources": {
+        "r1p": {
+          "singular": "r1s"
+        }
+      }
+    },
+    "g2p": {
+      "singular": "g2s",
+      "ximportresources": [
+        "/g1p/r1p"
+      ]
+    },
+    "g3p": {
+      "singular": "g3s",
+      "ximportresources": [
+        "/g2p/r1p"
+      ]
+    }
+  }
 }
 `)
 
@@ -239,6 +254,15 @@ func TestModelXImport(t *testing.T) {
         }
       }
     }`, 200, "*")
+
+	// Make sure ximportresources isn't in "model"
+	res := XDoHTTP(t, reg, "GET", "/model", "")
+	XEqual(t, "", res.Response.StatusCode, 200)
+	if strings.Contains(res.body, "ximportresources") {
+		t.Logf("Body should not contain ximportresources but it does.\n%s",
+			res.body)
+		t.FailNow()
+	}
 
 	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
 	XHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")

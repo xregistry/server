@@ -131,7 +131,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	}
 
 	gModel := g.GetGroupModel()
-	rModel := gModel.FindResourceModel(ru.RType)
+	rModel := gModel.Resources[ru.RType]
 	if rModel == nil {
 		return nil, false, NewXRError("unknown_resource_type", g.XID,
 			"group="+g.Plural,
@@ -631,7 +631,7 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 
 	// Just for nicer error msg than what IncomingObj2Map would produce
 	for attrName, _ := range rootObj {
-		if g.GroupModel.FindResourceModel(attrName) == nil {
+		if g.GroupModel.Resources[attrName] == nil {
 			return nil, NewXRError("resources_only", g.XID,
 				"name="+attrName)
 		}
@@ -798,7 +798,7 @@ func (g *Group) Validate() *XRError {
 		binary := ""
 
 		if constraint.attr == nil {
-			constraint.rm = g.GroupModel.FindResourceModel(resPlural)
+			constraint.rm = g.GroupModel.Resources[resPlural]
 			attrStack, xErr :=
 				constraint.rm.VersionAttributes.FindAbstractAttribute(pp)
 			Must(xErr)

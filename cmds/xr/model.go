@@ -6,7 +6,6 @@ import (
 	"io"
 	"maps"
 	"os"
-	"sort"
 	"strings"
 	// "text/tabwriter"
 
@@ -539,10 +538,8 @@ func PrintGroupModel(gm *xrlib.GroupModel, format, indent string, showResources 
 		return
 	}
 
-	rList := gm.GetResourceList()
-	sort.Strings(rList)
-	for _, rName := range rList {
-		rm := gm.FindResourceModel(rName)
+	for _, rName := range SortedKeys(gm.Resources) {
+		rm := gm.Resources[rName]
 
 		fmt.Println("")
 		PrintResourceModel(rm, format, indent+"  ", all)
@@ -1122,7 +1119,7 @@ func modelResourceGetFunc(cmd *cobra.Command, args []string) {
 	}
 
 	for _, rmName := range args {
-		rm := gm.FindResourceModel(rmName)
+		rm := gm.Resources[rmName]
 		if rm == nil {
 			Error("Unknown Resource type: %s", rmName)
 		}
@@ -1218,7 +1215,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 		}
 
 		// First see if one exists already with the given plural name
-		rm := gm.FindResourceModel(resourcePlural)
+		rm := gm.Resources[resourcePlural]
 
 		isNew := false
 
@@ -1376,7 +1373,7 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 	jsonOutput := map[string]any{}
 
 	for i, rmName := range resourceNames {
-		rm := gm.FindResourceModel(rmName)
+		rm := gm.Resources[rmName]
 		if rm == nil {
 			Error("Unknown Resource type: %s", rmName)
 		}
@@ -1425,7 +1422,7 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 
 	verMsg := ""
 	for _, arg := range args {
-		rm := gm.FindResourceModel(arg)
+		rm := gm.Resources[arg]
 		if rm == nil {
 			msg := fmt.Sprintf("Resource type %q does not exist", arg)
 			if !force {

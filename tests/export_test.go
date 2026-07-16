@@ -2708,8 +2708,7 @@ func TestExportURLs(t *testing.T) {
               "isdefault": true,
               "createdat": "2025-01-01T12:00:04Z",
               "modifiedat": "2025-01-01T12:00:04Z",
-              "ancestorid": "1",
-              "filebase64": ""
+              "ancestorid": "1"
             }
           },
           "versionscount": 1

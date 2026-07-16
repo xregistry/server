@@ -290,9 +290,7 @@ func ValidateTypes(xid *Xid, reg *Registry, allowSingular bool) *XRError {
 	}
 
 	rm := (*ResourceModel)(nil)
-	rList := gm.GetResourceList()
-	for _, rName := range rList {
-		m := gm.FindResourceModel(rName)
+	for _, m := range gm.Resources {
 		if m.Plural == xid.Resource || (allowSingular && m.Singular == xid.Resource) {
 			rm = m
 			break
@@ -328,7 +326,7 @@ func GetResourceModelFrom(xid *Xid, reg *Registry) (*ResourceModel, *XRError) {
 			SetDetailf("Unknown group type: %s.", xid.Group)
 	}
 
-	rm := gm.FindResourceModel(xid.Resource)
+	rm := gm.Resources[xid.Resource]
 	if rm == nil {
 		return nil, NewXRError("not_found", "/"+xid.Group+"/"+xid.Resource).
 			SetDetailf("Unknown resource type: %s.", xid.Resource)

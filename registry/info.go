@@ -117,10 +117,7 @@ func (info *RequestInfo) AddInline(path string) *XRError {
 			return nil
 		}
 
-		rList := group.GetResourceList()
-		for _, rName := range rList {
-			res := group.FindResourceModel(rName)
-			PanicIf(res == nil, "Not found: %s", rName)
+		for _, res := range group.Resources {
 			// Check for wildcard available ones first
 			rPPP := gPPP.P(res.Plural)
 			vPPP := rPPP.P("versions")
@@ -550,7 +547,7 @@ func SplitProp(reg *Registry, pp *PropPath) (*PropPath, *PropPath) {
 			abs = abs.Append(pp.First())
 			pp = pp.Next()
 
-			if rm := gm.FindResourceModel(pp.Top()); rm != nil {
+			if rm := gm.Resources[pp.Top()]; rm != nil {
 				abs = abs.Append(pp.First())
 				pp = pp.Next()
 
@@ -847,7 +844,7 @@ func (info *RequestInfo) ParseRequestPath() *XRError {
 			"error_detail=Resource type in URL cannot be an empty string")
 	}
 
-	rModel := gModel.FindResourceModel(info.Parts[2])
+	rModel := gModel.Resources[info.Parts[2]]
 	if rModel == nil {
 		return NewXRError("not_found", info.GetParts(3)).
 			SetDetailf("Unknown Resource type: %s.", info.Parts[2])

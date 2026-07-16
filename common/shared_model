@@ -179,7 +179,7 @@ type GroupModel struct {
 	ModelCompatibleWith string            `json:"modelcompatiblewith,omitempty"`
 	Attributes          Attributes        `json:"attributes,omitempty"`
 
-	// [ GROUPS/RESOURCES * ]
+	// [ /GROUPS/RESOURCES * ]
 	XImportResources []string                  `json:"ximportresources,omitempty"`
 	Constraints      Constraints               `json:"constraints,omitempty"`
 	Resources        map[string]*ResourceModel `json:"resources,omitempty"` // Plural
@@ -240,6 +240,7 @@ type ResourceModel struct {
 	ValidateCompatibility *bool             `json:"validatecompatibility,omitempty"`
 	StrictValidation      *bool             `json:"strictvalidation,omitempty"`
 	TypeMap               map[string]string `json:"typemap,omitempty"`
+	XImportOrigin         string            `json:"ximportorigin,omitempty"`
 
 	// Version-level Attributes (yes we do a rename for clarity in the code)
 	VersionAttributes   Attributes `json:"attributes,omitempty"`
@@ -911,7 +912,62 @@ func (m *Model) FindResourceModel(gType string, rType string) *ResourceModel {
 		return nil
 	}
 
-	return gm.FindResourceModel(rType)
+	return gm.Resources[rType]
+}
+
+// Starting on "gm" (but don't look at gm's ximportresources or resources */
+// Given GROUPTYPE + RESOURCEType, find Resource, following ximports if needed
+func (gm *GroupModel) FindXImportResource(gType string, rType string) (*ResourceModel, *XRError) {
+
+	seen := []string{gm.Plural} // "GROUPTYPE"
+	origXID := "/" + gType + "/" + rType
+
+	checkFn := (func(gm *GroupModel, gType, rType string) (*ResourceModel, *XRError))(nil)
+	checkFn = func(gm *GroupModel, gType, rType string) (*ResourceModel, *XRError) {
+		if ArrayContains(seen, gType) {
+			return nil, NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("The ximportresources reference %q is "+
+						"recursive", origXID))
+		}
+		seen = append(seen, gType)
+
+		rm := gm.Resources[rType]
+		if rm != nil {
+			// Native Resource definition, so return it
+			return rm, nil
+		}
+		for _, xr := range gm.XImportResources {
+			parts := strings.Split(xr, "/")
+			if len(parts) != 3 {
+				// Someone else will report this as an error
+				continue
+			}
+			if parts[2] != rType {
+				// Not the right ResourceModel.Plural name
+				continue
+			}
+			g := gm.Model.Groups[parts[1]]
+			if g == nil {
+				// Someone else will report this as an error
+				continue
+			}
+			rm, xErr := checkFn(g, parts[1], rType)
+			if rm != nil || xErr != nil {
+				return rm, xErr
+			}
+		}
+
+		return nil, nil
+	}
+
+	gm = gm.Model.Groups[gType]
+	if gm == nil {
+		// Group not found
+		return nil, nil
+	}
+
+	return checkFn(gm, gType, rType)
 }
 
 func (gm *GroupModel) ClearPropsOrdered() {
@@ -1150,72 +1206,54 @@ func (gm *GroupModel) AddXImportResource(absXID string) *XRError {
 	return nil
 }
 
-func (gm *GroupModel) GetImports() map[string]*ResourceModel {
-	if gm.imports == nil && len(gm.XImportResources) > 0 {
-		gm.imports = map[string]*ResourceModel{}
-		for _, grName := range gm.XImportResources {
-			parts := strings.Split(grName, "/")
-			r := gm.Model.FindResourceModel(parts[1], parts[2])
-			if r == nil {
-				// While this should technically be an error, assume that
-				// we'll flag it during the verify() work and not here since
-				// some calls to this are just looking to see if something
-				// exists in the list and we don't really care about bad
-				// refs right then.
-				continue
-			}
-			gm.imports[parts[2]] = r
-		}
-	}
-	return gm.imports
-}
-
-func (gm *GroupModel) FindResourceModel(rType string) *ResourceModel {
-	if gm == nil {
-		return nil
-	}
-	if rm := gm.Resources[rType]; rm != nil {
-		return rm
-	}
-
-	imps := gm.GetImports()
-	if imps != nil {
-		return imps[rType]
-	}
-	return nil
-}
-
-func (gm *GroupModel) GetResourceList() []string {
-	list := make([]string, len(gm.Resources)+len(gm.XImportResources))
-	i := 0
-	for plural, _ := range gm.Resources {
-		list[i] = plural
-		i++
-	}
-
-	imps := gm.GetImports()
-	for k, _ := range imps {
-		list[i] = k
-		i++
-	}
-	return list
-}
-
 // Return the abstract type of this Resource (meaning its /Groups/Resources
 // value) but not just it's current value w/o the IDs, but instead the true
 // abstract /Groups/Resources its based on if it's here due to an ximport.
 func (rm *ResourceModel) GetOriginAbstractModel() string {
+	if rm.XImportOrigin != "" {
+		return rm.XImportOrigin
+	}
+
 	if len(rm.GroupModel.Resources) > 0 && rm.GroupModel.Resources[rm.Plural] != nil {
 		return "/" + rm.GroupModel.Plural + "/" + rm.Plural
 	}
 
-	for _, grName := range rm.GroupModel.XImportResources {
-		if strings.HasSuffix(grName, "/"+rm.Plural) {
-			return grName
-		}
+	panic("Can't find myself!")
+}
+
+func (rm *ResourceModel) Clone(newGM *GroupModel) *ResourceModel {
+	newRM := &ResourceModel{
+		SID:        "", // leave blank
+		GroupModel: newGM,
+
+		Plural:              rm.Plural,
+		Singular:            rm.Singular,
+		Description:         rm.Description,
+		Documentation:       rm.Documentation,
+		Icon:                rm.Icon,
+		Labels:              maps.Clone(rm.Labels),
+		ModelVersion:        rm.ModelVersion,
+		ModelCompatibleWith: rm.ModelCompatibleWith,
+
+		MaxVersions:           rm.MaxVersions,
+		SetVersionId:          ClonePtrBool(rm.SetVersionId),
+		HasDocument:           ClonePtrBool(rm.HasDocument),
+		VersionMode:           rm.VersionMode,
+		SingleVersionRoot:     ClonePtrBool(rm.SingleVersionRoot),
+		ValidateFormat:        ClonePtrBool(rm.ValidateFormat),
+		ValidateCompatibility: ClonePtrBool(rm.ValidateCompatibility),
+		StrictValidation:      ClonePtrBool(rm.StrictValidation),
+		TypeMap:               maps.Clone(rm.TypeMap),
+		XImportOrigin:         rm.XImportOrigin,
+
+		VersionAttributes:  rm.VersionAttributes.Clone(),
+		ResourceAttributes: rm.ResourceAttributes.Clone(),
+		MetaAttributes:     rm.MetaAttributes.Clone(),
 	}
 
-	panic("Can't find myself!")
+	newRM.SetModel(newGM.Model)
+
+	return newRM
 }
 
 func (rm *ResourceModel) ClearPropsOrdered() {
@@ -1907,11 +1945,28 @@ func (m *Model) RemoveConditionalProps() {
 	}
 }
 
+// Technically, this operates on "modelsource" not "model".
+// At some point we may want to be more explicit about this split.
 func (m *Model) Verify() *XRError {
-	// TODO: Verify that the Registry data is model compliant
-
 	m.ClearPropsOrdered()
 	m.SetPointers()
+
+	// Make sure groups and resources have their plural values set.
+	// Too much is dependent on that
+	for gmName, gm := range m.Groups {
+		// can be nil for testing but not in reality
+		if gm != nil {
+			if gm.Plural == "" {
+				gm.Plural = gmName
+			}
+
+			for rmName, rm := range gm.Resources {
+				if rm != nil && rm.Plural == "" {
+					rm.Plural = rmName
+				}
+			}
+		}
+	}
 
 	// Check Groups first so that if the Group name isn't valid we'll
 	// flag that instead of an invalid GROUPScount attribute name
@@ -1931,7 +1986,7 @@ func (m *Model) Verify() *XRError {
 		}
 	}
 
-	// First, make sure we have the xRegistry core/spec defined attributes
+	// Make sure we have the xRegistry core/spec defined attributes
 	// in the list and they're not changed in an inappropriate way.
 	// This just checks the Registry.Attributes. Groups and Resources will
 	// be done in their own Verify funcs
@@ -1993,10 +2048,7 @@ func (m *Model) GetBaseAttributes() Attributes {
 }
 
 func (gm *GroupModel) RemoveConditionalProps() {
-	rList := gm.GetResourceList()
-	for _, rName := range rList {
-		rm := gm.FindResourceModel(rName)
-		PanicIf(rm == nil, "Not found: %s", rName)
+	for _, rm := range gm.Resources {
 		gm.propsOrdered = RemoveCollectionProps(rm.Plural, gm.Attributes,
 			gm.propsOrdered, gm.propsMap)
 	}
@@ -2051,15 +2103,15 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 
 	// TODO: verify the Groups data are model compliant
 
-	// Save the plurals/singulars are we go so we can quickly see when
+	// Save the plurals/singulars as we go so we can quickly see when
 	// dups are specified. We don't use the values, yet... maybe one day
 	plurals := map[string]string{}   // plural->singular
 	singulars := map[string]string{} // singular->plural
 
-	// Verify the "ximportresources" list, same names for later checking
+	// Verify the "ximportresources" list, save names for later checking
 	for _, grName := range gm.XImportResources {
 		// In this func be careful using the *.Plural value because some
-		// may not be filled in yet - like r.Plural.  gm.Plural as done above
+		// may not be filled in yet - like r.Plural.  gm.Plural is done above
 
 		parts := strings.Split(grName, "/")
 		if len(parts) != 3 {
@@ -2084,56 +2136,45 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 						gm.Plural, grName))
 		}
 
-		g := gm.Model.FindGroupModel(parts[1])
-		if g == nil {
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("Group %q references a non-existing "+
-						"Group %q", gm.Plural, parts[1]))
+		r, xErr := gm.FindXImportResource(parts[1], parts[2])
+		if xErr != nil {
+			return xErr
 		}
 
-		// r := g.FindResourceModel(parts[2]) - don't use, don't want ximps
-		r := g.Resources[parts[2]]
 		if r == nil {
-			for _, imp := range g.XImportResources {
-				if strings.HasSuffix(imp, "/"+parts[2]) {
-					return NewXRError("model_error", "/model",
-						"error_detail="+
-							fmt.Sprintf("Group %q references an imported "+
-								"Resource %q, try using %q instead",
-								gm.Plural, grName, imp))
-				}
-			}
 			return NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("Group %q references a non-existing "+
 						"Resource %q", gm.Plural, grName))
 		}
 
-		if _, ok := plurals[parts[2]]; ok {
+		if gm.Resources[parts[2]] != nil {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
-					fmt.Sprintf("Group %q has a duplicate Resource \"plural\" "+
-						"name %q", gm.Plural, parts[2]))
+					fmt.Sprintf("Group %q is trying to ximport a Resource "+
+						"(%s) but a Resource with that name (%s) already "+
+						"exists",
+						gm.Plural, grName, parts[2]))
 		}
 
-		if _, ok := plurals[r.Singular]; ok {
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("Group %q has a \"singular\" Resource name "+
-						"%q that conflicts with a \"plural\" Resource name",
-						gm.Plural, parts[2]))
+		if gm.Resources == nil {
+			gm.Resources = map[string]*ResourceModel{}
 		}
 
-		if _, ok := singulars[r.Singular]; ok {
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("Group %q has a duplicate \"singular\" "+
-						"Resource name %q", gm.Plural, r.Singular))
+		if r.Plural == "" {
+			r.Plural = parts[2] // in case it's not set yet
 		}
 
-		plurals[parts[2]] = r.Singular
-		singulars[r.Singular] = parts[2]
+		rClone := r.Clone(gm)
+
+		// Save what our real type is
+		rClone.XImportOrigin = "/" + r.GroupModel.Plural + "/" + r.Plural
+
+		gm.AddResourceModelFull(rClone)
+
+		// Don't save it in the model
+		// It's just for initial construction of the model
+		gm.XImportResources = nil
 	}
 
 	// Verify the Resources to catch invalid Resource names early
@@ -2430,7 +2471,7 @@ func (rm *ResourceModel) Verify(rmName string) *XRError {
 					`and "singular"`, rmName))
 	}
 
-	if rm.GroupModel.FindResourceModel(rm.Singular) != nil {
+	if rm.GroupModel.Resources[rm.Singular] != nil {
 		return NewXRError("model_error", "/model",
 			"error_detail="+
 				fmt.Sprintf(`Resource %q has a "singular" value (%s) that `+
@@ -3372,7 +3413,7 @@ func (attrs Attributes) Verify(namecharset string, ld *LevelData) *XRError {
 								tmpLD.UI(), parts[1]))
 				}
 				if parts[2] != "" {
-					if rm := gm.FindResourceModel(parts[2]); rm == nil {
+					if rm := gm.Resources[parts[2]]; rm == nil {
 						return NewXRError("model_error", "/model",
 							"error_detail="+
 								fmt.Sprintf("%q has an unknown Resource "+
@@ -3842,7 +3883,7 @@ func AbstractToSingular(reg *Registry, abs string) string {
 		return gm.Singular
 	}
 
-    rm := gm.FindResourceModel(absParts[1])
+    rm := gm.Resources[absParts[1]]
 	PanicIf(rm == nil, "no rm")
 	return rm.Singular
 }
@@ -3858,14 +3899,25 @@ func AbstractToModels(reg *Registry, abs string) (*GroupModel, *ResourceModel) {
 
 	rm := (*ResourceModel)(nil)
 	if len(parts) > 1 {
-		rm = gm.FindResourceModel(parts[1])
+		rm = gm.Resources[parts[1]]
 		PanicIf(rm == nil, "Cant' find Resource \"%s/%s\"", parts[0], parts[1])
 	}
 	// *GroupModel, *ResourceModel, isVersion
 	return gm, rm
 }
 
+func (attrs Attributes) Clone() Attributes {
+	newAttrs := map[string]*Attribute{}
+
+	for key, attr := range attrs {
+		newAttrs[key] = attr.Clone("")
+	}
+
+	return newAttrs
+}
+
 func (attr *Attribute) Clone(newName string) *Attribute {
+	// This should be deep! TODO
 	newAttr := *attr
 	if newName != "" {
 		newAttr.Name = newName
@@ -3959,7 +4011,7 @@ func (gm *GroupModel) ValidateConstraints(g *Group, constraints Constraints) *XR
 		}
 
 		// Must be a known Resource type
-		rm := gm.FindResourceModel(resPlural)
+		rm := gm.Resources[resPlural]
 		if rm == nil {
 			return NewXRError(errType, subject, "error_detail="+
 				fmt.Sprintf(prefix+" has an unknown Resource type %q", key,

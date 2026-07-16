@@ -2937,7 +2937,7 @@ func GetGroupModelInlines(gm *GroupModel) []string {
 	sort.Strings(list)
 
 	for _, key := range list {
-		rm := gm.FindResourceModel(key)
+		rm := gm.Resources[key]
 		res = append(res, rm.Plural)
 		for _, inline := range GetResourceModelInlines(rm) {
 			res = append(res, rm.Plural+"."+inline)

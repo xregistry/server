@@ -1869,7 +1869,7 @@ func HTTPDelete(info *RequestInfo) *XRError {
 	}
 
 	// DELETE /GROUPs/gID/RESOURCEs...
-	if rm := gm.FindResourceModel(info.ResourceType); rm == nil {
+	if rm := gm.Resources[info.ResourceType]; rm == nil {
 		return NewXRError("not_found", info.GetParts(3))
 	}
 

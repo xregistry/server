@@ -87,7 +87,6 @@ TODOs:
 ** support "xr model group/resource create/update" with "--data"
 ** add support for setversionid, and flag an error when not allowed
 ** support min/max in capabilities
-** support ximportresource being transitive
 - add tests for xr model group update/upsert/create & --flags
 ** UI: when hasdoc=true and we're in /meta, the URL to its parent (in the breadcrumbs) should have $details - maybe
 ** UI: add support for wrapping the output text (style=text-wrap=wrap)
@@ -119,3 +118,5 @@ TODOs:
   check versions, but other updates won't. THey'll validate the constraints
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
+- more ximportresources testing
+- attr.clone should be deep

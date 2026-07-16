@@ -163,6 +163,13 @@ func PtrBool(b bool) *bool {
 	return &b
 }
 
+func ClonePtrBool(b *bool) *bool {
+	if b == nil {
+		return nil
+	}
+	return PtrBool(*b)
+}
+
 func PtrBoolDef(val *any, def bool) *bool {
 	result := NotNilBoolDef(val, def)
 	return &result

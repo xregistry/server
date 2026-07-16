@@ -3135,11 +3135,10 @@ func GetRegistryModelInlines(m *Model) []string {
 func GetGroupModelInlines(gm *GroupModel) []string {
 	res := []string{}
 
-	list := gm.GetResourceList()
-	sort.Strings(list)
+	list := SortedKeys(gm.Resources)
 
 	for _, key := range list {
-		rm := gm.FindResourceModel(key)
+		rm := gm.Resources[key]
 		res = append(res, rm.Plural)
 		for _, inline := range GetResourceModelInlines(rm) {
 			res = append(res, rm.Plural+"."+inline)

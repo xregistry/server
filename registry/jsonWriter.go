@@ -480,8 +480,8 @@ func SerializeResourceContents(jw *JsonWriter, e *Entity, info *RequestInfo, ext
 		return nil
 	}
 
-	data := []byte{}
-	if val := jw.Entity.Get(singular); val != nil {
+	data := []byte(nil)
+	if val := jw.Entity.Get(singular); !IsNil(val) {
 		var ok bool
 		data, ok = val.([]byte)
 		PanicIf(!ok, "Can't convert to []byte: %s", val)

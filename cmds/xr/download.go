@@ -177,8 +177,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			gm, xErr := reg.FindGroupModel(xid.Group)
 			Error(xErr)
 
-			rList := gm.GetResourceList()
-			for _, rName := range rList {
+			for rName, _ := range gm.Resources {
 				plurals = append(plurals, rName) // rm.Plural)
 			}
 			fallthrough
@@ -244,8 +243,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 				obj["self"] = []byte(fmt.Sprintf("%q", self))
 				gm, xErr := reg.FindGroupModel(xid.Group)
 				Error(xErr)
-				rList := gm.GetResourceList()
-				for _, rName := range rList {
+				for rName, _ := range gm.Resources {
 					p := fmt.Sprintf(`"%s/%s"`, self, rName) // rm.Plural)
 					// obj[rm.Plural+"url"] = []byte(p)
 					obj[rName+"url"] = []byte(p)
@@ -658,9 +656,7 @@ func traverseFromXid(reg *xrlib.Registry, xid *Xid, root string, fn traverseFunc
 
 		gm, xErr := reg.FindGroupModel(xid.Group)
 		Error(xErr)
-		rList := gm.GetResourceList()
-		sort.Strings(rList)
-		for _, rName := range rList {
+		for _, rName := range SortedKeys(gm.Resources) {
 			nextXid, err := xid.AddPath(rName)
 			Error(err)
 			traverseFromXid(reg, nextXid, root, fn)

@@ -83,6 +83,7 @@ CREATE TABLE ModelEntities (        # Group or Resource (no parentSID=Group)
     HasDocument         BOOL,
     SingleVersionRoot   BOOL,
     TypeMap             JSON,
+    XImportOrigin       VARCHAR(255),
     MetaAttributes      JSON,
 
     PRIMARY KEY(SID),

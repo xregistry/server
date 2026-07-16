@@ -59,6 +59,16 @@ var _state = {
   // applied directly at the root) — this mirrors crumbURLs' role for that
   // one special depth. See pushStateReal()/buildBreadcrumbSegments().
   rootApiURL:  '',
+  // Per-depth snapshot of the JSON-view option flags (inline/sort/docView/
+  // binary/collections) actually last applied AT that depth — the query-
+  // string portion of the exact address-bar URL buildURL() would produce
+  // for that page, captured whenever pushStateReal() lands on/updates it.
+  // Parallel arrays to crumbURLs/rootApiURL (same depth-0-is-special split),
+  // used by pageHref() to restore an ancestor's own real option state
+  // instead of leaking the CURRENT (possibly much deeper) page's values
+  // onto every breadcrumb/tile/row href — see parseJSONOptionsFromQuery().
+  crumbOpts:   [],
+  rootOpts:    '',
 
   // Resource/Version page Document/Details tab bar + version-selector
   // dropdown — remembered across a manual browser Refresh (but not across
@@ -529,16 +539,17 @@ function loadStateFromURL() {
   // section/depth (data pages restore per-depth, model/modelsource restore per-section)
   _state.dataView    = p.get('dview') || defaultDataView(_state.section, _state.path.length, _state.path);
   _state.editMode    = p.get('edit') === '1';
-  _state.inlines     = csvList(p.get('inline'));
+  var jsonOpts       = parseJSONOptionsFromQuery(p.toString());
+  _state.inlines     = jsonOpts.inlines;
   _state.filters     = (p.get('filter') || '').split('\n').filter(Boolean);
   // Sort is only valid on collection-shaped paths (see pageHref()'s note) —
   // the server 400s if asked to sort a non-collection endpoint. Guard here
   // too so a stale/hand-edited/bookmarked URL degrades gracefully (silently
   // drops the invalid param) instead of producing a server error on load.
-  _state.sort        = isCollection(_state.path) ? (p.get('sort') || '') : '';
-  _state.docView     = p.get('doc')         === '1';
-  _state.binary      = p.get('binary')      === '1';
-  _state.collections = p.get('collections') === '1';
+  _state.sort        = isCollection(_state.path) ? jsonOpts.sort : '';
+  _state.docView     = jsonOpts.docView;
+  _state.binary      = jsonOpts.binary;
+  _state.collections = jsonOpts.collections;
   _state.useExport   = p.get('export')      === '1';
   // apiurl= is the real, server-provided absolute URL that produced the current
   // page (see "Link-driven navigation" notes) — reused verbatim on refresh/
@@ -556,6 +567,14 @@ function loadStateFromURL() {
   // pushStateReal() for how this is kept in sync afterward.
   _state.rootApiURL  = (_state.section === 'data' && _state.path.length === 0)
     ? buildAPIURL() : '';
+  // crumbOpts/rootOpts — same trade-off/pattern as crumbURLs/rootApiURL just
+  // above: ancestor snapshots can't survive a reload, so crumbOpts always
+  // starts empty; but the CURRENT (root) page's own just-loaded query string
+  // already IS the snapshot rootOpts would hold, so seed it directly rather
+  // than leaving it blank until the next navigation.
+  _state.crumbOpts   = [];
+  _state.rootOpts    = (_state.section === 'data' && _state.path.length === 0)
+    ? p.toString() : '';
   _state.docTab      = p.get('tab') || '';
   _state.resVersion  = p.get('ver') || '';
   // List view's "Filters" toggle panel (isGridFiltersOnlyMode()) — persist
@@ -674,6 +693,25 @@ function pushState(patch) {
       return;
     }
   }
+  // Guard: leaving a collection page with an open, non-empty inline
+  // "Add new <Type>" form (Group/Resource/Version create) — same
+  // unsaved-changes pattern as the entity/meta/version/modelsource/
+  // capabilities guards above, but for the Add form's own separate
+  // _addNewOpen/_addNewData state (see isAddNewFormDirty()). Only a
+  // single "Create" save action applies here (always a PUT-by-id, no
+  // PUT-vs-PATCH choice), so no 4th onSaveDelta argument is passed.
+  if (_state.section === 'data' && isCollection(_state.path) && isAddNewFormDirty()) {
+    var leavingAddNew = patch.section !== undefined || patch.path !== undefined
+      || patch.serverURL !== undefined || patch.view !== undefined
+      || (patch.dataView !== undefined && patch.dataView !== _state.dataView);
+    if (leavingAddNew) {
+      showLeaveEditDialog(
+        function() { saveNewEntity(function() { pushStateReal(patch); }); },
+        function() { cancelAddEntity(); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
   // Guard: leaving an in-progress entity data edit (List view) with unsaved
   // changes — same pattern as modelsource/capabilities above.
   if (_state.section === 'data' && _state.editMode && _dataDirty) {
@@ -682,7 +720,9 @@ function pushState(patch) {
     if (leavingDataEdit) {
       showLeaveEditDialog(
         function() { saveDataEntity('PUT', function() { pushStateReal(patch); }); },
-        function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); pushStateReal(patch); }
+        function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); pushStateReal(patch); },
+        null,
+        function() { saveDataEntity('PATCH', function() { pushStateReal(patch); }); }
       );
       return;
     }
@@ -696,7 +736,9 @@ function pushState(patch) {
     if (leavingMetaEdit) {
       showLeaveEditDialog(
         function() { saveMetaEntity('PUT', function() { pushStateReal(patch); }); },
-        function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); pushStateReal(patch); }
+        function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); pushStateReal(patch); },
+        null,
+        function() { saveMetaEntity('PATCH', function() { pushStateReal(patch); }); }
       );
       return;
     }
@@ -710,7 +752,9 @@ function pushState(patch) {
     if (leavingVerEdit) {
       showLeaveEditDialog(
         function() { saveVersionEntity('PUT', function() { pushStateReal(patch); }); },
-        function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); pushStateReal(patch); }
+        function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); pushStateReal(patch); },
+        null,
+        function() { saveVersionEntity('PATCH', function() { pushStateReal(patch); }); }
       );
       return;
     }
@@ -726,7 +770,9 @@ function pushState(patch) {
     if (leavingJsonEdit) {
       showLeaveEditDialog(
         function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); pushStateReal(patch); }); },
-        function() { resetJsonEditBuffer(); pushStateReal(patch); }
+        function() { resetJsonEditBuffer(); pushStateReal(patch); },
+        null,
+        function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); pushStateReal(patch); }); }
       );
       return;
     }
@@ -814,8 +860,11 @@ function pushStateReal(patch) {
     if (changingServer || changingSection || enteringData) {
       _state.crumbURLs = [];
       _state.rootApiURL = '';
+      _state.crumbOpts = [];
+      _state.rootOpts = '';
     } else if (changingPath) {
       _state.crumbURLs = (_state.crumbURLs || []).slice(0, newDepth);
+      _state.crumbOpts = (_state.crumbOpts || []).slice(0, newDepth);
     }
     // rootApiURL is crumbURLs' depth-0 counterpart (crumbURLs is only
     // indexed for depths > 0 — see its own declaration comment).
@@ -844,9 +893,33 @@ function pushStateReal(patch) {
       if (parentCollURL) defaultFilters = filtersFromUrl(parentCollURL);
     }
 
+    // Likewise restore whatever JSON-view option flags (inline/sort/
+    // docView/binary/collections) were actually last applied AT this
+    // destination depth this session, from the same per-depth snapshot
+    // pageHref() already reads (crumbOpts/rootOpts — see their declaration
+    // and pushStateReal()'s own snapshot logic further below). Without
+    // this, clicking an ancestor breadcrumb whose HOVER preview correctly
+    // showed e.g. "?inline=file" would still silently land on a page with
+    // inline cleared — the click patch here never mentions inlines at all,
+    // so only this "fresh navigation defaults" merge below actually
+    // decides what the destination page ends up with. A depth with no
+    // cached snapshot yet (a genuinely fresh drill-down, never visited
+    // this session) naturally gets all-blank/false defaults from
+    // parseJSONOptionsFromQuery(''), identical to the previous hardcoded
+    // literals — so this one path now correctly covers both "returning to
+    // an already-visited page" (restore) and "drilling into a brand new
+    // one" (blank).
+    var defaultOptsQS = (newSection !== 'data') ? ''
+      : (newDepth > 0 ? ((_state.crumbOpts && _state.crumbOpts[newDepth - 1]) || '')
+                      : (_state.rootOpts || ''));
+    var defaultJsonOpts = parseJSONOptionsFromQuery(defaultOptsQS);
+    if (!isCollection(newPath)) defaultJsonOpts.sort = '';
+
     // Prepend defaults so explicit values in patch still win
     patch = Object.assign({
-      inlines: [], filters: defaultFilters, sort: '', docView: false, binary: false, collections: false,
+      inlines: defaultJsonOpts.inlines, filters: defaultFilters, sort: defaultJsonOpts.sort,
+      docView: defaultJsonOpts.docView, binary: defaultJsonOpts.binary,
+      collections: defaultJsonOpts.collections,
       useExport: false, section: 'data', dataView: savedView, apiURL: defaultApiURL,
       // A real navigation (not a tab-click/version-select, which sync the URL
       // directly via history.replaceState and never reach pushStateReal) means
@@ -877,6 +950,26 @@ function pushStateReal(patch) {
     _state.rootApiURL = patch.apiURL;
   }
 
+  // Snapshot this depth's current JSON-view option flags (inline/sort/
+  // docView/binary/collections) as the exact query string buildURL() would
+  // produce for this page right now — i.e. the same string a browser
+  // refresh/bookmark would already need in order to restore this page
+  // correctly. Runs unconditionally on every navigation/in-page option
+  // change (not just when apiURL itself changed), so pageHref() can later
+  // restore an ancestor's own real last-applied options (see crumbOpts/
+  // rootOpts's declaration and parseJSONOptionsFromQuery()) instead of
+  // leaking the CURRENT (possibly much deeper) page's values onto every
+  // other breadcrumb/tile/row href.
+  if (_state.section === 'data') {
+    var optsQS = buildURL(_state).split('?')[1] || '';
+    if (_state.path.length > 0) {
+      _state.crumbOpts = _state.crumbOpts || [];
+      _state.crumbOpts[_state.path.length - 1] = optsQS;
+    } else {
+      _state.rootOpts = optsQS;
+    }
+  }
+
   history.pushState(null, '', buildURL(_state));
   renderHeader();
   refresh();
@@ -905,6 +998,26 @@ function defaultDataView(section, pathLen, path) {
 function encodePath(parts) { return parts.map(encodeURIComponent).join('/'); }
 function decodePath(str)   { return str ? str.split('/').map(decodeURIComponent).filter(Boolean) : []; }
 function csvList(s)        { return s ? s.split(',').filter(Boolean) : []; }
+
+// Parses the JSON-view option flags (inline/sort/docView/binary/collections)
+// out of a query string. Shared by loadStateFromURL() (the browser address
+// bar on a real page load/refresh) and pageHref() (restoring an ancestor's
+// own last-applied options from its cached per-depth snapshot — see
+// crumbOpts/rootOpts in pushStateReal()) so both read these fields
+// identically instead of keeping two separate lists of fields in sync.
+// Does NOT itself apply the "sort is only valid on a collection path" guard
+// — every caller already applies that separately against its own
+// destination path (see loadStateFromURL()/pageHref()).
+function parseJSONOptionsFromQuery(qs) {
+  var p = new URLSearchParams(qs || '');
+  return {
+    inlines:     csvList(p.get('inline')),
+    sort:        p.get('sort') || '',
+    docView:     p.get('doc')         === '1',
+    binary:      p.get('binary')      === '1',
+    collections: p.get('collections') === '1'
+  };
+}
 
 // ---- Entity type from path -----------------------------------------------
 //
@@ -1222,7 +1335,7 @@ function renderHeader() {
 }
 
 function goToConfig() {
-  pushState({view: 'config', editMode: false});
+  pushState({view: 'config'});
 }
 
 function setHomeGroup(v) {
@@ -1255,6 +1368,17 @@ function toggleHomeLayout() {
 }
 
 function setDataView(v) {
+  // Guard: leaving a collection's List view (where the inline "Add new
+  // <Type>" form lives) with an open, non-empty Add form — e.g. switching
+  // to JSON view — same pattern as pushState()'s matching guard.
+  if (_state.section === 'data' && isCollection(_state.path) && isAddNewFormDirty()
+      && v !== _state.dataView) {
+    showLeaveEditDialog(
+      function() { saveNewEntity(function() { setDataView(v); }); },
+      function() { cancelAddEntity(); setDataView(v); }
+    );
+    return;
+  }
   // Guard: leaving the modelsource list/editor view while mid-edit with unsaved
   // changes (e.g. switching to JSON view) — offer Save / Discard / Cancel first.
   if (_state.section === 'modelsource' && _state.editMode && _modelDirty
@@ -1281,7 +1405,9 @@ function setDataView(v) {
       && v !== _state.dataView) {
     showLeaveEditDialog(
       function() { saveDataEntity('PUT', function() { setDataView(v); }); },
-      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); setDataView(v); }
+      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); setDataView(v); },
+      null,
+      function() { saveDataEntity('PATCH', function() { setDataView(v); }); }
     );
     return;
   }
@@ -1292,7 +1418,9 @@ function setDataView(v) {
       && v !== 'json') {
     showLeaveEditDialog(
       function() { jsonEditSave('PUT', function() { resetJsonEditBuffer(); setDataView(v); }); },
-      function() { resetJsonEditBuffer(); setDataView(v); }
+      function() { resetJsonEditBuffer(); setDataView(v); },
+      null,
+      function() { jsonEditSave('PATCH', function() { resetJsonEditBuffer(); setDataView(v); }); }
     );
     return;
   }
@@ -1410,7 +1538,7 @@ function setDataView(v) {
 
   if (_lastData) {
     setLeftPanelVisible(v === 'json' || _filtersPanelOpen);
-    if (v === 'json') { renderJSONView(_lastData); return; }
+    if (v === 'json') { renderJSONViewForCurrentTab(_lastData); return; }
     if (_filtersPanelOpen) renderJSONLeftPanel(true);
     var coll = isCollection(_state.path);
     if (coll) {
@@ -1430,8 +1558,28 @@ function serverLabel(url) {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '') || url;
 }
 
+// When JSON view is entered while the List-view "Metadata" tab is active
+// (_state.docTab === 'meta'), show the /meta object's own JSON instead of
+// silently falling back to the parent Resource/Version's JSON — the user
+// should see whatever they were just looking at. Only applies to single
+// entities (collections never have a Metadata tab).
+function renderJSONViewForCurrentTab(data) {
+  if (_state.section === 'data' && _state.docTab === 'meta' && !isCollection(_state.path)) {
+    if (_metaData) { renderJSONView(_metaData); return; }
+    var metaUrl = data && data.metaurl;
+    if (metaUrl) {
+      fetch(metaUrl)
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(d) { _metaData = d; renderJSONView(d); })
+        .catch(function() { renderJSONView(data); }); // fall back to entity JSON on error
+      return;
+    }
+  }
+  renderJSONView(data);
+}
+
 function setView(view) {
-  pushState({view: view, editMode: false});
+  pushState({view: view});
 }
 
 function toggleEdit() {
@@ -1450,7 +1598,7 @@ function buildBreadcrumbSegments() {
 
   var segs = [];
   var regLabel = serverLabel(_state.serverURL || window.location.origin);
-  var regClick = guardedOnclick('pushState({path:[],section:\'data\',useExport:false,editMode:false})');
+  var regClick = guardedOnclick('pushState({path:[],section:\'data\',useExport:false})');
   // Use the cached real/filtered root URL (if any) so the hover-href
   // reflects the root's OWN active filter, not whatever the current
   // (deeper) page's already-relativized filter happens to be. See
@@ -1471,13 +1619,47 @@ function buildBreadcrumbSegments() {
     var isLast  = (i === _state.path.length - 1);
     var click   = isLast ? null
       : guardedOnclick('pushState({path:' + esc(JSON.stringify(newPath))
-        + ',section:\'data\',editMode:false})');
+        + ',section:\'data\'})');
     // Real bookmarkable URL for this breadcrumb level — a cached real link
     // (_state.crumbURLs[i]) if this ancestor was visited this session,
     // otherwise the same trim fallback pushStateReal() would use.
     var href = isLast ? null : pageHref(newPath, _state.crumbURLs[i] || '');
     segs.push({label: seg, onclick: click, href: href, isCurrent: isLast});
   });
+
+  // When the Resource/Version page's Metadata tab is active, the visible
+  // content (List view's Metadata tab, or JSON view's routed /meta doc —
+  // see renderJSONViewForCurrentTab()) is really a distinct sub-entity, not
+  // just another view of the Resource/Version itself. List view still has
+  // its own tab bar as a visual cue, but JSON view has none — so without an
+  // extra breadcrumb segment here, JSON view gives no indication you're
+  // looking at /meta rather than the Resource/Version's own document. Only
+  // applies at Resource (depth 4) or Version (depth >= 6) pages — the only
+  // depths that ever have a Metadata tab (see tabDefs.push() in
+  // renderSingleEntity()).
+  var metaDepth = _state.path.length;
+  var isResourceOrVersion = metaDepth === 4 || metaDepth >= 6;
+  // Only JSON view gets the extra "meta" segment: List view's own tab bar
+  // already makes the Metadata-tab selection visually unambiguous (see
+  // switchDocTab()'s perf-skip comment), so adding a breadcrumb segment
+  // there too would be redundant — and worse, it would outlive the tab
+  // switch that goes back to List (a fresh, full render, not the tab-click
+  // skip-optimization) since docTab stays 'meta' the whole time.
+  if (isResourceOrVersion && _state.docTab === 'meta' && _state.dataView === 'json') {
+    var lastSeg = segs[segs.length - 1];
+    if (lastSeg) {
+      lastSeg.isCurrent = false;
+      // This segment was originally built as the last (current, non-link)
+      // segment, so it got onclick:null/href:null above. Now that "meta" is
+      // the true last segment, restore a real link so clicking the
+      // Resource/Version id navigates back to its own (non-meta) tab.
+      var lastPath = _state.path.slice(0, metaDepth);
+      lastSeg.onclick = guardedOnclick('pushState({path:' + esc(JSON.stringify(lastPath))
+        + ',section:\'data\',docTab:\'\'})');
+      lastSeg.href = pageHref(lastPath, _state.crumbURLs[metaDepth - 1] || '');
+    }
+    segs.push({label: 'meta', onclick: null, href: null, isCurrent: true});
+  }
   return segs;
 }
 
@@ -1531,7 +1713,35 @@ function guardedOnclick(expr) {
 // filter a real navigation would end up with, instead of carrying the
 // CURRENT page's differently-scoped filter forward and showing both.
 function pageHref(path, apiURL, extra) {
-  var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data', editMode: false}, extra || {});
+  var st = Object.assign({}, _state, {path: path, apiURL: apiURL || '', section: 'data'}, extra || {});
+  // JSON-view option flags (inline/sort/docView/binary/collections) are
+  // local to whichever depth they were actually applied at — unlike
+  // filters, they aren't designed to propagate across the hierarchy, so
+  // Object.assign() above would otherwise leak the CURRENT (possibly much
+  // deeper) page's own values onto every other page's synthetic hover-
+  // preview href, even the registry root's. Restore whatever was really
+  // last applied AT this destination depth instead, from the per-depth
+  // query-string snapshot pushStateReal() caches in crumbOpts/rootOpts —
+  // reusing the exact same parser loadStateFromURL() uses for a real
+  // browser refresh/bookmark (parseJSONOptionsFromQuery()), rather than
+  // keeping a second bespoke list of these fields in sync. A depth never
+  // actually visited this session (no cached snapshot yet) simply gets
+  // none of these applied, same as a brand new page would.
+  var cachedOptsQS = (path.length > 0)
+    ? (_state.crumbOpts || [])[path.length - 1]
+    : (_state.rootOpts || '');
+  var jsonOpts = parseJSONOptionsFromQuery(cachedOptsQS || '');
+  st.inlines     = jsonOpts.inlines;
+  st.sort        = jsonOpts.sort;
+  st.docView     = jsonOpts.docView;
+  st.binary      = jsonOpts.binary;
+  st.collections = jsonOpts.collections;
+  // Sort is only valid on collection-shaped paths — the server explicitly
+  // rejects `sort=` on a non-collection endpoint (spec `sort_noncollection`).
+  // The cached snapshot above might have been taken at a collection-shaped
+  // ancestor whose sort doesn't apply to this specific `path` (or there may
+  // be no cached snapshot at all for a non-collection destination), so this
+  // guard still applies on top, same as before.
   if (!isCollection(st.path)) st.sort = '';
   if (st.section === 'data' && st.apiURL) {
     st.filters = filtersFromUrl(st.apiURL);
@@ -2192,10 +2402,10 @@ function renderEntityFromData(data, coll) {
   }
   renderHeader();
   switch (_state.view) {
-    case 'json': renderJSONView(data); break;
+    case 'json': renderJSONViewForCurrentTab(data); break;
     default:
       if (_state.dataView === 'json') {
-        renderJSONView(data);
+        renderJSONViewForCurrentTab(data);
       } else if (coll) {
         renderTableView(data);
       } else {
@@ -2259,7 +2469,7 @@ function renderHomeTable(main, servers) {
   var html = '<div class="home-page"><div class="reg-list">';
   sorted.forEach(function(url) {
     var sv = (url === window.location.origin) ? '' : url;
-    var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
+    var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
     html += '<div class="reg-row" data-server-url="' + esc(url) + '">'
       + '<img src="favicon.svg" class="reg-row-icon" alt="" width="20" height="20">'
       + '<div class="reg-row-main">'
@@ -2341,7 +2551,7 @@ function renderHomeTable(main, servers) {
 
 function browseGroupCollection(serverUrl, collName, url) {
   var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
-  pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], apiURL: url || '', editMode: false});
+  pushState({view: 'table', serverURL: sv, section: 'data', path: [collName], apiURL: url || ''});
 }
 
 // Renders a single "group-type-item" pill as a clickable link to that
@@ -2352,7 +2562,7 @@ function browseGroupCollection(serverUrl, collName, url) {
 function groupTypePillHTML(serverUrl, c) {
   var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(serverUrl) + ',' + JSON.stringify(c.plural) + ',' + JSON.stringify(c.url) + ')');
   var sv = (serverUrl === window.location.origin) ? '' : serverUrl;
-  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [c.plural], apiURL: c.url || '', editMode: false}));
+  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [c.plural], apiURL: c.url || ''}));
   // Hover help shows the Group Type's model description, if any, so users
   // don't have to leave the page to learn what a pill (e.g. "dirs") means.
   var titleAttr = c.description ? ' title="' + esc(c.description) + '"' : '';
@@ -2390,8 +2600,8 @@ function renderHomeFlatList(main, servers) {
     container.innerHTML = allRows.map(function(r) {
       var onclick = guardedOnclick('browseGroupCollection(' + JSON.stringify(r.serverUrl) + ',' + JSON.stringify(r.plural) + ',' + JSON.stringify(r.url) + ')');
       var sv = (r.serverUrl === window.location.origin) ? '' : r.serverUrl;
-      var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [r.plural], apiURL: r.url || '', editMode: false}));
-      var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
+      var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [r.plural], apiURL: r.url || ''}));
+      var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
       var regOnclick = guardedOnclick('doBrowse(' + JSON.stringify(r.serverUrl) + ')');
       return '<div class="gt-row">'
         + '<img src="' + esc(r.icon || r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'favicon.svg\'">'
@@ -2501,7 +2711,7 @@ function probeAllCards(main) {
 
 function serverCard(url) {
   var sv = (url === window.location.origin) ? '' : url;
-  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: [], editMode: false}));
+  var href = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
   return '<div class="server-card" data-server-url="' + esc(url) + '">'
     + '<div class="server-card-title">'
     +   '<img src="favicon.svg" class="server-card-icon" alt="" width="16" height="16">'
@@ -2606,7 +2816,7 @@ function doRemoveServer(url) {
 
 function doBrowse(url) {
   var sv = (url === window.location.origin) ? '' : url;
-  pushState({view: 'table', serverURL: sv, section: 'data', path: [], editMode: false});
+  pushState({view: 'table', serverURL: sv, section: 'data', path: []});
 }
 
 // Returns true (let the browser perform its native <a> action) for any
@@ -3191,7 +3401,7 @@ function cfgAddNew() {
   var errEl    = el('cfg-new-error');
   if (!inp || !inp.value.trim()) return;
   var url = inp.value.trim();
-  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (errEl) { hideErrorBanner(errEl); }
   if (!addServer(url)) {
     if (errEl) {
       errEl.textContent = 'Already configured — delete the existing entry'
@@ -3300,6 +3510,21 @@ function cancelAddEntity() {
   if (_lastData) renderTableView(_lastData);
 }
 
+// True whenever the inline "Add new <Type>" form is open AND has some
+// actual content typed in — used by pushState()/setDataView()'s
+// leave-guard so navigating away doesn't silently discard an in-progress
+// new Group/Resource the way it used to (see plan.md "Add-new-entity
+// leave-without-saving guard"). _addNewData only tracks the model/
+// extension attribute inputs (see addNewFieldChange()) — the required ID
+// input has no onchange handler and is only read live from the DOM at
+// save time (see saveNewEntity()), so it must be checked separately here.
+function isAddNewFormDirty() {
+  if (!_addNewOpen) return false;
+  if (Object.keys(_addNewData).length > 0) return true;
+  var idInput = document.getElementById('addNewIdInput');
+  return !!(idInput && idInput.value && idInput.value.trim());
+}
+
 // onchange handler for every input in the Add form — mirrors
 // dataEditFieldChange() but writes into _addNewData instead of
 // _dataEditData (the Add form has no "pristine snapshot" — everything
@@ -3360,10 +3585,14 @@ function buildAddEntityToolbarHtml(model) {
 
 function buildAddEntityFormHtml(model, collPath) {
   var entityPath = collPath.concat(['__new__']);
-  var singular   = getSingularName(model, entityPath) || 'entity';
-  var idKey      = singular.toLowerCase() + 'id';
+  var singular   = (getSingularName(model, entityPath) || 'entity').toLowerCase();
+  var idKey      = singular + 'id';
   var specLevel  = specAttrLevel(entityPath);
   var attrsMap   = modelAttrsMapForPath(model, entityPath);
+  var depth = entityPath.length;
+  var resourceSingular = (depth === 4) ? singular
+    : (depth >= 6 && model) ? (getSingularName(model, entityPath.slice(0, 4)) || '').toLowerCase()
+    : null;
 
   function propRow(label, inputHtml) {
     return '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(label) + '</td><td>' + inputHtml + '</td></tr>';
@@ -3377,16 +3606,37 @@ function buildAddEntityFormHtml(model, collPath) {
     rowsHtml += propRow(labelFor(k, specLevel, singular),
       renderEditableScalarInput(k, val, {type: attrType}, 'addNewFieldChange'));
   });
-  Object.keys(attrsMap).sort().forEach(function(k) {
-    if (k === '*') return;
+  // Remaining model-declared attributes (extensions, plus any timestamp
+  // spec attrs like createdat/modifiedat that are legitimately settable at
+  // creation time) — exclude the dedicated ID field, name/description/
+  // documentation/icon (already rendered above, would otherwise duplicate),
+  // complex types (object/array/map, not editable here), and anything the
+  // model marks readonly (server-computed: self/shortself/xid/epoch/etc, or
+  // a <plural>url/<plural>count sub-collection pair) since those can never
+  // be set by the client. Ordered the same way View mode's Property table
+  // orders its rows (see orderPropKeysFlat()), instead of a flat
+  // alphabetical sort, so this form reads in the same familiar order.
+  var alreadyShown = {name: true, description: true, documentation: true, icon: true};
+  var scalarKeys = Object.keys(attrsMap).filter(function(k) {
+    if (k === '*' || k === idKey || alreadyShown[k]) return false;
     var attr = attrsMap[k];
-    if (!attr || attr.type === 'object' || attr.type === 'array' || attr.type === 'map') return;
+    if (!attr || attr.type === 'object' || attr.type === 'array' || attr.type === 'map') return false;
+    if (attr.readonly) return false;
+    return true;
+  });
+  orderPropKeysFlat(scalarKeys, specLevel, singular, resourceSingular).forEach(function(k) {
+    var attr = attrsMap[k];
     var val = _addNewData[k] != null ? _addNewData[k] : (attr.type === 'boolean' ? false : '');
     rowsHtml += propRow(labelFor(k, specLevel, singular),
       renderEditableScalarInput(k, val, attr, 'addNewFieldChange'));
   });
 
+  // Error banner sits at the top of the panel (right below the Create/
+  // Cancel buttons in buildAddEntityToolbarHtml(), which is rendered just
+  // before this) rather than below the property table, so a Create-time
+  // error is immediately visible without scrolling past the whole form.
   var html = '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
+    + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
     + '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Property') + '</th><th>Value</th></tr></thead><tbody>'
     + propRow(capitalize(singular) + ' ID *', '<input type="text" id="addNewIdInput" class="xr-edit-input" required>')
     + rowsHtml;
@@ -3397,7 +3647,6 @@ function buildAddEntityFormHtml(model, collPath) {
       + ' <button class="editorBtn editorBtnSmall" onclick="addNewEntityAddExtension()">Add</button>');
   }
   html += '</tbody></table>'
-    + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
     + '</div>';
   return html;
 }
@@ -3406,13 +3655,13 @@ function buildAddEntityFormHtml(model, collPath) {
 // the collection page (a plain refresh() re-fetch — simplest way to pick
 // up the new row with correctly server-computed fields like self/xid/
 // createdat, same approach used elsewhere after a mutation).
-function saveNewEntity() {
+function saveNewEntity(cb) {
   var errDiv = document.getElementById('addNewEntityError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
   var idInput = document.getElementById('addNewIdInput');
   var id = idInput ? idInput.value.trim() : '';
   if (!id) {
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'ID is required.'; }
+    if (errDiv) { showErrorBanner(errDiv, 'ID is required.'); }
     return;
   }
   var url = buildBaseURL() + '/' + encodeURIComponent(id);
@@ -3446,14 +3695,14 @@ function saveNewEntity() {
       removeOverlay();
       if (resp.ok) {
         _addNewOpen = false; _addNewData = {};
-        refresh();
+        if (cb) { cb(); } else { refresh(); }
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -3782,8 +4031,8 @@ function buildRegEndpointPillsHtml() {
   html += '<span class="reg-endpoint-pills-title">Config:</span>';
   availSectionsP.forEach(function(s) {
     var mutP = availP[sectionCapKey(s)] && availP[sectionCapKey(s)].mutable;
-    var pushExprP = 'pushState({section:\'' + s + '\',editMode:false,useExport:false})';
-    var sHrefP = buildURL(Object.assign({}, _state, {section: s, editMode: false, useExport: false}));
+    var pushExprP = 'pushState({section:\'' + s + '\',useExport:false})';
+    var sHrefP = buildURL(Object.assign({}, _state, {section: s, useExport: false}));
     html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
       + esc(sectionNamesP[s])
       + (mutP ? ' <span class="reg-endpoint-pill-edit" title="Mutable">&#9998;</span>' : '')
@@ -3804,8 +4053,8 @@ function buildDataEditorActionBarHtml(deleteDisabled) {
   var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
   return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
-    + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
-    + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+    + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (full)</button>'
+    + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
     + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabledAttr + '>Delete</button>'
     + '</div>';
@@ -3825,7 +4074,7 @@ function renderSingleEntity(data) {
   // clobbering the view (table) the user just clicked to get here.
   if (_state.path.length === 5 && _state.path[4] === 'meta') {
     _pendingMetaTabOnLoad = true;
-    pushState({path: _state.path.slice(0, 4), dataView: _state.dataView, editMode: false});
+    pushState({path: _state.path.slice(0, 4), dataView: _state.dataView});
     return;
   }
 
@@ -5095,7 +5344,7 @@ function renderUrlLinkValue(rawText, isMono) {
     // appending a redundant top-level filter= — see the longer comment
     // in syntaxHighlight()'s equivalent fakeSt construction.
     var fakeSt   = Object.assign({}, _state, {
-      view: 'table', section: 'data', path: segments, editMode: false,
+      view: 'table', section: 'data', path: segments,
       apiURL: rawText, filters: filtersFromUrl(rawText)
     });
     href    = buildURL(fakeSt);
@@ -5260,6 +5509,34 @@ function groupPropsByCategory(keys, specLevel, singular, resourceSingular) {
   });
   var all = buckets.concat([extBucket]).filter(function(b) { return b.keys.length > 0; });
   return all.length > 1 ? all : null;
+}
+
+// Global attribute-priority list used to order a Property table's keys
+// before any category grouping is applied — shared by
+// buildEntityPropsTableHtml() (View mode) and orderPropKeysFlat() below
+// (the Add-entity form), so both always agree on ordering.
+var PROPS_PRIORITY = ['registryid', 'xid', 'name', 'description', 'specversion',
+  'epoch', 'createdat', 'modifiedat', 'versionid', 'isdefault', 'ancestorid'];
+
+// Returns `keys` re-ordered to match exactly what View mode's Property
+// table would show (buildEntityPropsTableHtml()'s priority sort, then
+// flattened through the same category buckets groupPropsByCategory()
+// uses) — but as a plain flat array, with no category header rows. Used
+// by callers (e.g. the Add-entity form) that want the same left-to-right
+// attribute ordering as View mode without needing the header rows
+// themselves.
+function orderPropKeysFlat(keys, specLevel, singular, resourceSingular) {
+  var sorted = keys.slice().sort(function(a, b) {
+    var ai = PROPS_PRIORITY.indexOf(a), bi = PROPS_PRIORITY.indexOf(b);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1; if (bi >= 0) return 1;
+    return a.localeCompare(b);
+  });
+  var groups = groupPropsByCategory(sorted, specLevel, singular, resourceSingular);
+  if (!groups) return sorted;
+  var flat = [];
+  groups.forEach(function(g) { flat = flat.concat(g.keys); });
+  return flat;
 }
 
 // ---- Entity Data Editor (List view) ----------------------------------------
@@ -6426,18 +6703,18 @@ function deleteDataEntity() {
   var typeLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
   if (!confirm('Delete this ' + typeLabel + '? This cannot be undone.')) return;
   var errDiv = document.getElementById('dataEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
   fetch(buildBaseURL(), {method: 'DELETE'}).then(function(resp) {
     if (resp.ok || resp.status === 204) {
       _dataDirty = false; _dataEditData = null; _dataEditSrc = null; _dataLoadedFor = null;
-      pushState({path: _state.path.slice(0, -1), editMode: false});
+      pushState({path: _state.path.slice(0, -1)});
       return;
     }
     return resp.text().then(function(text) {
-      if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
     });
   }).catch(function(err) {
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -6450,7 +6727,7 @@ function deleteDataEntity() {
 function saveDataEntity(verb, cb) {
   if (!_dataEditData) return;
   var errDiv = document.getElementById('dataEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
 
   var url = buildBaseURL();
   var depthS = _state.path.length;
@@ -6496,12 +6773,12 @@ function saveDataEntity(verb, cb) {
         _lastData = _dataEditSrc;
         if (cb) { cb(); } else { renderSingleEntity(_dataEditSrc); }
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -6580,7 +6857,7 @@ function undoMetaEdit() {
 function saveMetaEntity(verb, cb) {
   if (!_metaEditData) return;
   var errDiv = document.getElementById('metaEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
 
   var url = _metaEditSrc && _metaEditSrc.self;
   if (!url) { url = _lastData && _lastData.metaurl; }
@@ -6620,12 +6897,12 @@ function saveMetaEntity(verb, cb) {
         _metaData = _metaEditSrc;
         if (cb) { cb(); } else { rerenderMetaTab(); }
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -6682,8 +6959,8 @@ function markVerDirty() {
 function buildVersionActionBarHtml() {
   return '<div id="verEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar">'
-    + '<button class="editorBtn" id="verSavePutBtn" onclick="saveVersionEntity(\'PUT\')"' + (_verDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
-    + ' <button class="editorBtn" id="verSavePatchBtn" onclick="saveVersionEntity(\'PATCH\')"' + (_verDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+    + '<button class="editorBtn" id="verSavePutBtn" onclick="saveVersionEntity(\'PUT\')"' + (_verDirty ? '' : ' disabled') + '>Save (full)</button>'
+    + ' <button class="editorBtn" id="verSavePatchBtn" onclick="saveVersionEntity(\'PATCH\')"' + (_verDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="verUndoBtn" onclick="undoVersionEdit()"' + (_verDirty ? '' : ' disabled') + '>Undo</button>'
     + ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete</button>'
     + '</div>';
@@ -6713,7 +6990,7 @@ function deleteVersionEntity() {
   if (!_verSelfUrl) return;
   if (!confirm('Delete this version? This cannot be undone.')) return;
   var errDiv = document.getElementById('verEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
   fetch(_verSelfUrl, {method: 'DELETE'}).then(function(resp) {
     if (resp.ok || resp.status === 204) {
       _verDirty = false; _verEditData = null; _verEditSrc = null; _verEditVid = null; _verSelfUrl = '';
@@ -6725,10 +7002,10 @@ function deleteVersionEntity() {
       return;
     }
     return resp.text().then(function(text) {
-      if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+      if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
     });
   }).catch(function(err) {
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -6740,7 +7017,7 @@ function deleteVersionEntity() {
 function saveVersionEntity(verb, cb) {
   if (!_verEditData || !_verSelfUrl) return;
   var errDiv = document.getElementById('verEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
 
   // _verSelfUrl comes verbatim from the version's own server-provided
   // "self" link (see onVersionSelectChangeReal()) — unlike saveDataEntity()'s
@@ -6799,12 +7076,12 @@ function saveVersionEntity(verb, cb) {
           }
         }
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -6969,8 +7246,7 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
-  var priority = ['registryid','xid','name','description','specversion',
-    'epoch','createdat','modifiedat','versionid','isdefault','ancestorid'];
+  var priority = PROPS_PRIORITY;
   function sortKeys(arr) {
     return arr.sort(function(a, b) {
       var ai = priority.indexOf(a), bi = priority.indexOf(b);
@@ -7178,7 +7454,8 @@ function onVersionSelectChange(vid) {
     showLeaveEditDialog(
       function() { saveVersionEntity('PUT', function() { onVersionSelectChangeReal(vid); }); },
       function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); onVersionSelectChangeReal(vid); },
-      function() { if (sel) sel.value = prevVid; }
+      function() { if (sel) sel.value = prevVid; },
+      function() { saveVersionEntity('PATCH', function() { onVersionSelectChangeReal(vid); }); }
     );
     return;
   }
@@ -7274,7 +7551,9 @@ function switchDocTab(tabKey) {
   if (curKey === 'meta' && tabKey !== 'meta' && _metaDirty) {
     showLeaveEditDialog(
       function() { saveMetaEntity('PUT', function() { switchDocTabReal(tabKey); }); },
-      function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); switchDocTabReal(tabKey); }
+      function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); switchDocTabReal(tabKey); },
+      null,
+      function() { saveMetaEntity('PATCH', function() { switchDocTabReal(tabKey); }); }
     );
     return;
   }
@@ -7284,7 +7563,9 @@ function switchDocTab(tabKey) {
   if (curKey !== 'meta' && tabKey === 'meta' && _dataDirty) {
     showLeaveEditDialog(
       function() { saveDataEntity('PUT', function() { switchDocTabReal(tabKey); }); },
-      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); switchDocTabReal(tabKey); }
+      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); switchDocTabReal(tabKey); },
+      null,
+      function() { saveDataEntity('PATCH', function() { switchDocTabReal(tabKey); }); }
     );
     return;
   }
@@ -7785,8 +8066,8 @@ function renderMetaTable(d, model, editable) {
   if (editable) {
     html += '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
       + '<div class="editorActionBar">'
-      + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>'
-      + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>'
+      + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (full)</button>'
+      + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (delta)</button>'
       + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
       + '</div>';
   }
@@ -8161,12 +8442,29 @@ function renderJSONEditView(data) {
   if (_jsonEditOrigText === null) {
     // Fresh entry into JSON edit mode for this page — snapshot the current
     // server data as both the pristine original and the initial draft.
-    var target = jsonEditTarget();
-    _jsonEditKind = target.kind;
-    _jsonEditURL  = target.url;
-    _jsonEditOrigText  = JSON.stringify(data, null, 2);
-    _jsonEditDraftText = _jsonEditOrigText;
-    _jsonEditDirty     = false;
+    // jsonEditTarget()'s $details-suffix decision (for Resource/Version
+    // entities) depends on the model already being cached (resourceHasDocument()).
+    // On a normal in-app navigation the model is already warm by the time
+    // edit mode is reachable, but a fresh/bookmarked direct URL load straight
+    // into edit=1&dview=json can race ahead of the model fetch — silently
+    // omitting $details and causing every subsequent Save to PUT/PATCH the
+    // bare (non-$details) endpoint, which replaces the resource's raw
+    // document content wholesale instead of updating its attributes. Route
+    // through ensureModelCached() (a same-tick callback if already cached,
+    // otherwise a real fetch-then-callback) to close that race before
+    // computing/locking in _jsonEditURL.
+    var svBaseJ = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+    ensureModelCached(svBaseJ, function() {
+      if (_jsonEditOrigText !== null) return; // already initialized meanwhile
+      var target = jsonEditTarget();
+      _jsonEditKind = target.kind;
+      _jsonEditURL  = target.url;
+      _jsonEditOrigText  = JSON.stringify(data, null, 2);
+      _jsonEditDraftText = _jsonEditOrigText;
+      _jsonEditDirty     = false;
+      renderJSONEditView(data);
+    });
+    return;
   }
   var serverURL = _state.serverURL || window.location.origin;
   var isEntity = (_jsonEditKind === 'entity');
@@ -8185,9 +8483,9 @@ function renderJSONEditView(data) {
         '<button class="editorBtn" id="jsonEditFormatBtn" onclick="jsonEditFormat()"'
           + '>Format</button>' +
         ' <button class="editorBtn" id="jsonEditPutBtn" onclick="jsonEditSave(\'PUT\')"'
-          + (_jsonEditDirty ? '' : ' disabled') + '>Save (Full/PUT)</button>' +
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (full)</button>' +
         ' <button class="editorBtn" id="jsonEditPatchBtn" onclick="jsonEditSave(\'PATCH\')"'
-          + (_jsonEditDirty ? '' : ' disabled') + '>Save (Partial/PATCH)</button>' +
+          + (_jsonEditDirty ? '' : ' disabled') + '>Save (delta)</button>' +
         ' <button class="editorBtn" id="jsonEditUndoBtn" onclick="jsonEditUndo()"'
           + (_jsonEditDirty ? '' : ' disabled') + '>Undo</button>' +
         (isEntity ? ' <button class="editorBtn editorBtnDanger" onclick="jsonEditDelete()"' + deleteDisabled + '>Delete</button>' : '') +
@@ -8245,9 +8543,9 @@ function jsonEditFormat() {
     ta.value = pretty;
     _jsonEditDraftText = pretty;
     _jsonEditDirty = pretty !== _jsonEditOrigText;
-    if (invalidDiv) { invalidDiv.style.display = 'none'; invalidDiv.textContent = ''; }
+    if (invalidDiv) { hideErrorBanner(invalidDiv); }
   } catch (e) {
-    if (invalidDiv) { invalidDiv.style.display = 'block'; invalidDiv.textContent = 'Invalid JSON: ' + e.message; }
+    if (invalidDiv) { showErrorBanner(invalidDiv, 'Invalid JSON: ' + e.message); }
     return;
   }
   var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
@@ -8262,7 +8560,7 @@ function jsonEditUndo() {
   var ta = el('jsonEditTextarea');
   if (ta) ta.value = _jsonEditDraftText;
   var invalidDiv = el('jsonEditInvalid');
-  if (invalidDiv) { invalidDiv.style.display = 'none'; invalidDiv.textContent = ''; }
+  if (invalidDiv) { hideErrorBanner(invalidDiv); }
   var putBtn = el('jsonEditPutBtn'), patchBtn = el('jsonEditPatchBtn'), undoBtn = el('jsonEditUndoBtn');
   if (putBtn)   putBtn.disabled   = true;
   if (patchBtn) patchBtn.disabled = true;
@@ -8275,10 +8573,10 @@ function jsonEditUndo() {
 // overlay/error-banner UX.
 function jsonEditSave(verb, cb) {
   var errDiv = el('jsonEditError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
   var body;
   try { body = JSON.parse(_jsonEditDraftText); } catch (e) {
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Invalid JSON: ' + e.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Invalid JSON: ' + e.message); }
     return;
   }
 
@@ -8298,33 +8596,57 @@ function jsonEditSave(verb, cb) {
     return resp.text().then(function(text) {
       removeOverlay();
       if (resp.ok) {
-        var updated = null;
-        try { updated = JSON.parse(text); } catch (e) { /* fall back below */ }
-        var newText = JSON.stringify(updated !== null ? updated : body, null, 2);
-        _jsonEditOrigText  = newText;
-        _jsonEditDraftText = newText;
-        _jsonEditDirty     = false;
-        // Keep the underlying section's own "source of truth" cache in sync
-        // so switching back to List view afterward reflects the saved
-        // state rather than stale pre-save data.
-        var updatedData = updated !== null ? updated : body;
-        if (_jsonEditKind === 'modelsource') {
-          _modelSrc = deepClone(updatedData); _modelData = deepClone(_modelSrc); _modelDirty = false;
-        } else if (_jsonEditKind === 'capabilities') {
-          _capSrc = deepClone(updatedData); _capData = deepClone(_capSrc); _capDirty = false;
-        } else if (_jsonEditKind === 'entity') {
-          _dataEditSrc = deepClone(updatedData); _dataEditData = deepClone(_dataEditSrc); _dataDirty = false;
-        }
-        _lastData = updatedData;
-        if (cb) { cb(); } else { renderJSONEditView(updatedData); }
+        // The PUT/PATCH response body only ever reflects the bare entity —
+        // it never honors this page's inline=/filter=/etc query params the
+        // way a GET via buildAPIURL() does (same URL a plain browser
+        // refresh would use). Re-fetch through that same URL (with the same
+        // $details fallback refresh() itself uses for document-backed
+        // Resource/Version entities — a plain GET on those returns the raw
+        // document body, not the entity JSON, which would silently drop
+        // fields like filebase64) so any inlined sub-collections the user
+        // had selected (e.g. "file", "meta", "versions") are still present
+        // after Save, instead of disappearing. Falls back to the raw
+        // response body (or the just-submitted request body, worst case) if
+        // this re-fetch itself fails for some reason — better to show
+        // *something* than nothing after a successful save.
+        var fallback = null;
+        try { fallback = JSON.parse(text); } catch (e) { /* fall back further below */ }
+        fetchWithDetailsFallback(buildAPIURL(), needsDetails(_state.path)).catch(function() {
+          return fallback !== null ? fallback : body;
+        }).then(function(updatedData) {
+          finishJsonEditSave(updatedData, cb);
+        });
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
+}
+
+// Shared tail of jsonEditSave()'s success path — updates every buffer/cache
+// that needs to reflect the freshly (re-)fetched post-save data, then
+// either hands off to the caller's continuation (cb, e.g. navigating away)
+// or re-renders in place.
+function finishJsonEditSave(updatedData, cb) {
+  var newText = JSON.stringify(updatedData, null, 2);
+  _jsonEditOrigText  = newText;
+  _jsonEditDraftText = newText;
+  _jsonEditDirty     = false;
+  // Keep the underlying section's own "source of truth" cache in sync
+  // so switching back to List view afterward reflects the saved
+  // state rather than stale pre-save data.
+  if (_jsonEditKind === 'modelsource') {
+    _modelSrc = deepClone(updatedData); _modelData = deepClone(_modelSrc); _modelDirty = false;
+  } else if (_jsonEditKind === 'capabilities') {
+    _capSrc = deepClone(updatedData); _capData = deepClone(_capSrc); _capDirty = false;
+  } else if (_jsonEditKind === 'entity') {
+    _dataEditSrc = deepClone(updatedData); _dataEditData = deepClone(_dataEditSrc); _dataDirty = false;
+  }
+  _lastData = updatedData;
+  if (cb) { cb(); } else { renderJSONEditView(updatedData); }
 }
 
 // Delete — single entities only (not collections/capabilities/modelsource),
@@ -8503,14 +8825,14 @@ function renderJSONLeftPanel(filtersOnly) {
         + '<a class="lp-nav-item lp-nav-inline'
         + (dataActive ? ' lp-nav-active' : '') + '" href="' + esc(dataHref)
         + '" onclick="' + esc(guardedOnclick('pushState('
-        + '{section:\'data\',path:[],editMode:false,useExport:false})'))
+        + '{section:\'data\',path:[],useExport:false})'))
         + '">Data</a>';
       if (hasExport) {
         html += ' <span class="lp-nav-sub">(<a class="lp-nav-item '
           + 'lp-nav-inline' + (exportActive ? ' lp-nav-active' : '')
           + '" href="' + esc(exportHref) + '" onclick="'
           + esc(guardedOnclick('pushState({section:\'data\',path:[],'
-          + 'editMode:false,useExport:true})')) + '">Export</a>)</span>';
+          + 'useExport:true})')) + '">Export</a>)</span>';
       }
       html += '</div>';
       // "Model (Source)" and "Capabilities (Offered)" share one line each
@@ -8718,7 +9040,7 @@ function lpNavPairRow(mainLabel, mainSection, hasMain,
     var mainHref = pageHref([], '', {section: mainSection, useExport: false});
     row += '<a class="' + mainCls + '" href="' + esc(mainHref) + '" onclick="'
       + esc(guardedOnclick('pushState('
-      + '{section:\'' + mainSection + '\',editMode:false,'
+      + '{section:\'' + mainSection + '\','
       + 'useExport:false})')) + '">' + esc(mainLabel) + '</a>';
   } else {
     row += esc(mainLabel);
@@ -8731,7 +9053,7 @@ function lpNavPairRow(mainLabel, mainSection, hasMain,
     row += ' <span class="lp-nav-sub">(<a class="' + subCls
       + '" href="' + esc(subHref) + '" onclick="'
       + esc(guardedOnclick('pushState({section:\'' + subSection + '\','
-      + 'editMode:false,useExport:false})')) + '">' + esc(subLabel)
+      + 'useExport:false})')) + '">' + esc(subLabel)
       + '</a>)</span>';
   }
   row += '</div>';
@@ -10449,7 +10771,7 @@ function navigateJsonUrl(encodedUrl) {
     // _state.filters from this same apiURL for the Filter/Sort panel, so
     // no separate filtersFromUrl() call is needed here anymore.
     pushState({
-      view: 'table', section: 'data', path: segments, apiURL: raw, editMode: false
+      view: 'table', section: 'data', path: segments, apiURL: raw
     });
   } else {
     window.open(raw, '_blank', 'noopener');
@@ -10490,7 +10812,7 @@ function syntaxHighlight(str) {
               var rel      = urlPath.slice(svBase.length).replace(/^\//, '');
               var segments = rel ? rel.split('/') : [];
               var fakeSt   = Object.assign({}, _state, {
-                view: 'table', section: 'data', path: segments, editMode: false,
+                view: 'table', section: 'data', path: segments,
                 apiURL: inner, filters: filtersFromUrl(inner)
               });
               href    = buildURL(fakeSt);
@@ -10648,7 +10970,7 @@ function deriveColumns(items, collKeySet) {
 function navigateTo(id, url) {
   // If navigating INTO a collection from the registry root or single entity,
   // the id IS the collection name (e.g., "endpoints") and we just append it.
-  pushState({path: _state.path.concat([id]), apiURL: url || '', editMode: false});
+  pushState({path: _state.path.concat([id]), apiURL: url || ''});
 }
 
 // Navigate directly into a nested collection shown as a resource-pill on a
@@ -10657,7 +10979,7 @@ function navigateTo(id, url) {
 // of first landing on the d1 entity page). itemId is the clicked row/tile's
 // own id; plural is the nested collection's name; url is its real <plural>url.
 function navigateToNestedColl(itemId, plural, url) {
-  pushState({path: _state.path.concat([itemId, plural]), apiURL: url || '', editMode: false});
+  pushState({path: _state.path.concat([itemId, plural]), apiURL: url || ''});
 }
 
 // Navigate straight to a resource's default version (the "Default Version: X"
@@ -10665,7 +10987,7 @@ function navigateToNestedColl(itemId, plural, url) {
 // itemId is the resource's own id; versionId is its default version's id;
 // url is that version's real self link (see defaultVersionURL()).
 function navigateToDefaultVersion(itemId, versionId, url) {
-  pushState({path: _state.path.concat([itemId, 'versions', String(versionId)]), apiURL: url || '', editMode: false});
+  pushState({path: _state.path.concat([itemId, 'versions', String(versionId)]), apiURL: url || ''});
 }
 
 // Appends a path segment (e.g. a version id) to a collection URL that may
@@ -10731,13 +11053,13 @@ function versionURLById(vid) {
 // Navigate to a specific version from the meta page (path: [..., resource, rId, "meta"])
 function navigateToVersion(vId) {
   var basePath = _state.path.slice(0, -1); // strip "meta"
-  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId), editMode: false});
+  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId)});
 }
 
 // Navigate to a version by ID from the current resource or version context
 function navigateToVersionById(vId) {
   var basePath = _state.path.slice(0, 4); // [G, gId, R, rId]
-  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId), editMode: false});
+  pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId)});
 }
 
 // Navigate to the parent resource from a version page. Version entities carry
@@ -10747,7 +11069,7 @@ function navigateToVersionById(vId) {
 function navigateToParentResource() {
   var basePath = _state.path.slice(0, 4);
   var url = (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + basePath.join('/'));
-  pushState({path: basePath, apiURL: url, editMode: false});
+  pushState({path: basePath, apiURL: url});
 }
 
 // ---- Model Editor (ported from registry/ui.go's ?html model editor) ------
@@ -10806,7 +11128,17 @@ window.addEventListener('beforeunload', function(e) {
   if (_modelDirty || _capDirty || _dataDirty) { e.preventDefault() ; e.returnValue = '' ; }
 }) ;
 
-function showLeaveEditDialog(onSave, onDiscard, onCancel) {
+// Shows the "unsaved changes" dialog with Cancel / Discard / Save button(s).
+// `onSaveFull` is the sole Save action for editors that only ever do a
+// full-document PUT (Model Source, Capabilities, and any other single-verb
+// editor) — rendered as a plain "Save" button. Callers whose editor also
+// supports a partial PATCH (Data entity, Meta, Version, JSON view's raw
+// edit) additionally pass `onSaveDelta`, which renders two buttons instead
+// — "Save (full)" (onSaveFull) and "Save (delta)" (onSaveDelta) — so the
+// user can pick PUT vs PATCH right here instead of being forced back to
+// the page to choose. Labels mirror the entity action bar's own Save
+// buttons (see buildDataEditorActionBarHtml() etc.) for consistency.
+function showLeaveEditDialog(onSaveFull, onDiscard, onCancel, onSaveDelta) {
   var overlay = document.createElement('div') ;
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.35);z-index:9999;display:flex;align-items:center;justify-content:center;' ;
   var box = document.createElement('div') ;
@@ -10814,7 +11146,7 @@ function showLeaveEditDialog(onSave, onDiscard, onCancel) {
   var msg = document.createElement('p') ; msg.textContent = 'You have unsaved changes.' ;
   msg.style.cssText = 'margin:0 0 20px;font-size:14px;color:#333;' ;
   box.appendChild(msg) ;
-  var btns = document.createElement('div') ; btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;' ;
+  var btns = document.createElement('div') ; btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;' ;
   function mkBtn(label, fn, css) {
     var b = document.createElement('button') ; b.textContent = label ;
     b.style.cssText = 'padding:6px 16px;border-radius:5px;cursor:pointer;font-size:13px;font-weight:bold;' + css ;
@@ -10823,9 +11155,15 @@ function showLeaveEditDialog(onSave, onDiscard, onCancel) {
   }
   mkBtn('Cancel',  function(){ if (onCancel) onCancel(); },  'background:#f0f0f0;color:#333;border:1px solid #ccc;') ;
   mkBtn('Discard', onDiscard,     'background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;') ;
-  mkBtn('Save',    onSave,        'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+  if (onSaveDelta) {
+    mkBtn('Save (full)',  onSaveFull,  'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+    mkBtn('Save (delta)', onSaveDelta, 'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+  } else {
+    mkBtn('Save', onSaveFull, 'background:#2060a0;color:white;border:1px solid #2060a0;') ;
+  }
   box.appendChild(btns) ; overlay.appendChild(box) ; document.body.appendChild(overlay) ;
 }
+
 
 
 // ---- Navigation primitives ----
@@ -11085,7 +11423,7 @@ function renderEditor() {
 
   if (!_modelReadOnly) {
     var errDiv = document.createElement('div') ;
-    errDiv.id = 'editorError' ; errDiv.style.display = 'none' ;
+    errDiv.id = 'editorError' ; errDiv.className = 'error-banner' ; errDiv.style.display = 'none' ;
     div.appendChild(errDiv) ;
   }
 
@@ -12462,7 +12800,7 @@ function saveModel(onSuccess) {
   collectCurrentEditor() ;
   var model = _modelData || {} ;
   var errDiv = document.getElementById('editorError') ;
-  if (errDiv) { errDiv.style.display = 'none' ; errDiv.textContent = '' ; }
+  if (errDiv) { hideErrorBanner(errDiv) ; }
 
   // Show blocking overlay while PUT is in flight
   var overlay = document.createElement('div') ; overlay.className = 'savingOverlay' ;
@@ -12497,11 +12835,11 @@ function saveModel(onSuccess) {
           .then(function() {
             if (onSuccess) { onSuccess() ; } else { window.location.reload() ; }
           }) ;
-      } else { if (errDiv) { errDiv.style.display = 'block' ; errDiv.textContent = 'Error (' + resp.status + '):\n' + text ; } }
+      } else { if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text) ; } }
     }) ;
   }).catch(function(err) {
     removeOverlay() ;
-    if (errDiv) { errDiv.style.display = 'block' ; errDiv.textContent = 'Network error: ' + err.message ; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message) ; }
   }) ;
 }
 
@@ -12563,7 +12901,7 @@ function undoCapabilities() {
 
 function saveCapabilities(onSuccess) {
   var errDiv = document.getElementById('capEditorError');
-  if (errDiv) { errDiv.style.display = 'none'; errDiv.textContent = ''; }
+  if (errDiv) { hideErrorBanner(errDiv); }
 
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
   var box = document.createElement('div'); box.className = 'savingBox';
@@ -12597,12 +12935,12 @@ function saveCapabilities(onSuccess) {
         _capCache[normalizeURL(svBaseSave)] = deepClone(_capSrc);
         if (onSuccess) { onSuccess(); } else { window.location.reload(); }
       } else {
-        if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Error (' + resp.status + '):\n' + text; }
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
     });
   }).catch(function(err) {
     removeOverlay();
-    if (errDiv) { errDiv.style.display = 'block'; errDiv.textContent = 'Network error: ' + err.message; }
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
   });
 }
 
@@ -13115,6 +13453,38 @@ function spinner() {
 
 function el(id)    { return document.getElementById(id); }
 function qsa(sel)  { return Array.from(document.querySelectorAll(sel)); }
+
+// ---- Error banners (Save/Create/Delete failure messages) -----------------
+//
+// All the inline ".error-banner" divs shown after a failed Save/Create/
+// Delete (Add-new-entity, Data/Meta/Version editors, JSON raw edit, Model
+// Source, Capabilities) go through these two helpers so every one of them
+// gets the same dismissible "X" close button, instead of each call site
+// duplicating the markup. showErrorBanner() rebuilds the div's content
+// (a message span + close button) rather than plain textContent, since a
+// close button needs to coexist with the message text as a DOM child.
+function hideErrorBanner(div) {
+  if (!div) return;
+  div.style.display = 'none';
+  div.textContent = '';
+}
+
+function showErrorBanner(div, message) {
+  if (!div) return;
+  div.textContent = '';
+  var closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'error-banner-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.textContent = '\u00d7';
+  closeBtn.onclick = function() { hideErrorBanner(div); };
+  div.appendChild(closeBtn);
+  var msgSpan = document.createElement('span');
+  msgSpan.className = 'error-banner-msg';
+  msgSpan.textContent = message;
+  div.appendChild(msgSpan);
+  div.style.display = 'block';
+}
 
 function capitalize(s) {
   s = String(s || '');

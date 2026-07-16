@@ -109,7 +109,6 @@ func TestTimestampRegistry(t *testing.T) {
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "v1",
-          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -136,8 +135,7 @@ func TestTimestampRegistry(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestorid": "v1",
-              "filebase64": ""
+              "ancestorid": "v1"
             }
           },
           "versionscount": 1

@@ -4932,6 +4932,389 @@ masked the pointer-events bug above):
 **Status**: Complete (read-only). Editing the Document side directly
 from JSON view is a possible future follow-up.
 
+## Three List-view cleanup fixes: meta→JSON routing, persistent edit
+## mode, Add-entity form attribute order
+
+Three unrelated cleanup items requested together.
+
+**1. Meta tab → JSON view now shows the `/meta` object, not the parent
+entity.** Previously, switching to JSON view while the List-view
+"Metadata" tab was active always rendered the parent Resource/Version's
+own JSON (`_lastData`), silently ignoring which tab was active. New
+`renderJSONViewForCurrentTab(data)` (`app.js`) checks
+`_state.docTab === 'meta'` (only meaningful for non-collection `data`
+section pages) and, if so, renders the already-cached `_metaData` (or
+fetches it via `data.metaurl` first) instead. Wired into both
+`setDataView()`'s data-page JSON branch and `renderEntityFromData()`'s
+JSON branches (covers both switching view live and a fresh page
+load/refresh while already on `tab=meta&dview=json`).
+
+**2. Edit mode no longer auto-disables on navigation.** Previously,
+essentially every navigation helper (`navigateTo()`, breadcrumb clicks,
+`pageHref()`'s synthetic links, version/tab selectors, the meta-page
+redirect, etc. — ~29 call sites) explicitly forced `editMode: false`
+into its `pushState()`/`pushStateReal()` patch, silently turning edit
+mode off on every click even when the existing unsaved-changes
+guard (`showLeaveEditDialog()`) had nothing to warn about. Removed
+`editMode: false` from all of these navigation patches — `_state.editMode`
+(a single flag shared across Data/Model Source/Capabilities/JSON-view
+edit) now persists across any navigation, including switching sections
+entirely, until the user explicitly toggles it off via the Edit button
+(`toggleEdit()`) or dismisses the leave-edit dialog with an explicit
+`editMode: false` action. The dirty-state guards themselves
+(`pushState()`'s `leavingXEdit` checks, `setDataView()`'s equivalents)
+were unaffected — they already keyed off `patch.path`/`patch.section`/
+`patch.serverURL`/`patch.view` changing, not `patch.editMode`, so they
+still correctly prompt Save/Discard/Cancel before any navigation while
+mid-edit; only the forced turn-off after the guard resolves was removed.
+Confirmed via CDP: edit mode stays `true` after navigating between
+entities and across a section change (Data → root, etc.); the leave-edit
+dialog still fires on a simulated dirty edit and, after clicking
+Discard, edit mode remains on for the new page.
+
+**3. Add-entity form now orders (and filters) attributes like View
+mode.** `buildAddEntityFormHtml()` previously appended every
+non-object/array/map key from the model's `attributes` map, alphabetically
+sorted, on top of a hardcoded `name`/`description`/`documentation`/`icon`
+block — with no `readonly` filter and no de-duplication. Since
+`modelAttrsMapForPath()` returns the *full* per-type attribute map
+(including core spec attributes like `self`/`shortself`/`xid`/`epoch`/
+`self`/`filesurl`/`filescount`, not just genuine extensions), this
+actually rendered several server-computed, non-settable fields as
+editable inputs, PLUS duplicate rows for `name`/`description`/
+`documentation`/`icon` (once from the hardcoded block, again from the
+generic loop) — confirmed live via CDP before the fix (extra rows:
+`Description`, `dirid`, `Documentation`, `epoch`, `filescount`,
+`filesurl`, `Icon`, `Name`, `self`, `shortself`, `xid`). Fixed by:
+excluding the dedicated ID field's own key, the four already-rendered
+core fields, and any attribute the model marks `readonly`; and ordering
+the remaining keys with a new shared helper, `orderPropKeysFlat()` (added
+alongside `groupPropsByCategory()`), which applies the exact same
+priority sort + category-bucket flattening `buildEntityPropsTableHtml()`
+(View mode) uses — just returned as a flat array with no header rows,
+since the Add form doesn't need category headers, only matching order.
+The global priority list itself was extracted into a shared
+`PROPS_PRIORITY` constant so both call sites can never drift apart.
+Verified via CDP against a live xrserver (`dirs` group, `d1` entity): Add
+form now shows exactly `Name, Description, Documentation, Icon, Created,
+Modified` (no duplicates, no readonly/server-computed fields), matching
+View mode's category ordering (General before Identity/Versioning/
+Content before Timestamps).
+
+`node --check app.js` passes throughout. Chromium test process/profile
+cleaned up.
+
+**Status**: Complete.
+
+## Save button relabeling ("full"/"delta") and dual-save leave-edit
+## dialog
+
+User asked for two related changes to the app-wide "unsaved changes"
+leave-edit dialog (`showLeaveEditDialog()`) and Save button labels:
+
+**1. Renamed all Save button labels.** `Save (Full/PUT)` and
+`Save (Partial/PATCH)` were felt to be too geeky — PUT/PATCH are
+accurate but jargon-y even though more descriptive than "full"/
+"partial" alone. Renamed to `Save (full)` and `Save (delta)`
+everywhere: the Data entity, Version, and Meta action bars
+(`dataSavePutBtn`/`dataSavePatchBtn`, `verSavePutBtn`/`verSavePatchBtn`,
+`metaSavePutBtn`/`metaSavePatchBtn`) and the JSON view's raw-edit action
+bar (`jsonEditPutBtn`/`jsonEditPatchBtn`). The Config page's plain
+"Save" button (PUT-only, no PATCH concept for that entity) was
+correctly left untouched.
+
+**2. Leave-edit dialog now offers a PUT-vs-PATCH choice where relevant.**
+Previously, `showLeaveEditDialog(onSave, onDiscard, onCancel)` always
+saved via whatever single verb the caller hardcoded (always PUT) when
+the user chose to save before navigating away from a dirty editor —
+so leaving via the dialog silently discarded the option to do a partial
+PATCH save, even on editors (Data entity, Meta, Version, JSON raw edit)
+whose on-page action bar already offers both. Added an optional 4th
+parameter, `onSaveDelta`: when provided, the dialog renders two Save
+buttons — "Save (full)" and "Save (delta)" (both same blue styling) —
+letting the user pick right there instead of being forced back to the
+page to choose; when omitted, the dialog falls back to the previous
+single plain "Save" button. Model Source and Capabilities
+(`saveModel()`/`saveCapabilities()`) are single-verb, whole-document-
+replace editors (both always call `fetch(url, {method: 'PUT', ...})`
+with no verb parameter) — their two `showLeaveEditDialog()` call sites
+(in both `pushState()` and `setDataView()`) were intentionally left
+unchanged (2-arg, single Save button). The 6 call sites for editors
+that genuinely support both verbs (Data entity and JSON-edit guards in
+both `pushState()` and `setDataView()`, plus Meta/Version guards in
+`pushState()`, `onVersionSelectChange()`, and `switchDocTab()`) were all
+updated to pass a `saveXEntity('PATCH', ...)` callback as the 4th arg.
+Verified via CDP (Puppeteer-launched Chromium — see note below) against
+a live xrserver: editing `dirs/d1`'s Name field then clicking the
+"dirs" breadcrumb correctly shows the dialog with both "Save (full)"
+and "Save (delta)" buttons; clicking "Save (delta)" fires a real
+`PATCH` request (confirmed via intercepted network requests) and
+"Save (full)" fires a `PUT`; Model Source's dialog still shows only a
+single "Save" button, unchanged.
+
+**False alarm, investigated and disproved:** initial CDP testing
+appeared to show a bug where, after the dialog's Save succeeded, the
+app didn't navigate to the destination and the dialog stayed open.
+Root-caused (via temporary `console.log` instrumentation in
+`pushStateReal()`, the dialog's `mkBtn()` onclick, and
+`saveDataEntity()`'s success path, all removed again afterward) to a
+flaw in the *test script*, not the app: with the dialog open, the page
+behind it still has its own (non-disabled, since data was dirty when
+it last rendered) action-bar "Save (delta)"/"Save (full)" buttons in
+the DOM, sharing the exact same button text as the dialog's buttons.
+The test's `Array.from(document.querySelectorAll('button')).find(...)`
+matched the *first* one in DOM order — the underlying action-bar
+button (which calls `saveDataEntity('PATCH')` with no callback, so it
+just re-renders the same entity in place) — not the dialog's own
+button. Re-tested scoping the click strictly to the dialog overlay
+element and confirmed the real flow works correctly end-to-end: click
+"Save (delta)" in the dialog → `PATCH` fires → `saveDataEntity()`'s
+success callback runs → `pushStateReal(patch)` fires → URL/page
+correctly updates to the original destination (e.g. the `dirs`
+collection list). No app bug exists; nothing further to fix.
+
+**Note on headless Chromium via Puppeteer instead of the snap
+wrapper:** after `/tmp` was wiped externally mid-session, the system's
+snap-confined Chromium (`/snap/bin/chromium`) began failing to launch
+headless with "Failed to create socket directory" / process-singleton
+errors — traced (via `strace`) to a stale per-snap mount namespace
+(`/run/snapd/ns/chromium.mnt`) whose private view of `/tmp` no longer
+matched the host's post-wipe `/tmp`, so `mkdir()` calls inside the
+sandbox returned `ENOENT` for paths that visibly existed on the host.
+Restarting `snapd` could likely fix this but risks disrupting other
+users/services on a shared machine, so instead installed `puppeteer`
+(`npm install puppeteer` in a scratch dir) purely for its bundled,
+non-snap Chromium binary (`~/.cache/puppeteer/chrome/.../chrome`),
+after installing its missing shared-lib runtime deps (`libnspr4`,
+`libnss3`, `libatk-bridge2.0-0`, etc. via `apt-get install`). Launched
+that binary directly with `--headless=new --no-sandbox
+--remote-debugging-port=<port> --remote-allow-origins=*
+--user-data-dir=<fresh dir>`, then used Puppeteer's `connect()` (not
+`launch()`) to attach a script to it over CDP — this sidesteps the
+snap sandbox entirely. All scratch dirs/processes cleaned up after
+testing.
+
+**Status**: Complete. No app bug found — the earlier "navigate-after-
+save" concern was a test-script artifact, not a real issue.
+
+## Fixed: JSON view breadcrumb missing "meta" segment
+
+**Problem**: viewing a Resource/Version's Metadata tab and switching to
+JSON view showed the correct `/meta` JSON content, but the breadcrumb
+still stopped at the Resource/Version id, not showing "meta".
+
+**Fix**: `buildBreadcrumbSegments()` (`registry/ui/app.js`) now appends
+an extra plain (non-clickable) "meta" breadcrumb segment when at a
+Resource (depth 4) or Version (depth 6+) page with `_state.docTab ===
+'meta'`, marking the previous (entity-id) segment as no longer
+"current". List view's own tab-click doesn't trigger this (that path
+intentionally skips a full breadcrumb re-render for performance, and
+the List page's own tab bar already shows which sub-view is selected),
+but a direct page load with `?tab=meta`, or switching to JSON view from
+the Metadata tab, both correctly show `.../meta` in the breadcrumb.
+
+**Verified** via CDP against a live xrserver: breadcrumb text reads
+`/xRegistry/dirs/d1/files/file1/meta` after clicking the Metadata tab
+then switching to JSON view; JSON content's `self` field confirms it's
+the actual `/meta` document.
+
+**Status**: Complete.
+
+## Fixed: unsaved "Add new Group/Resource" entity silently discarded on navigate-away
+
+**Problem**: opening the "+ Add <Type>" inline form on a collection
+page, entering data, then navigating away (breadcrumb click, section
+switch, view switch) before hitting Save gave no unsaved-changes
+warning — the in-progress new entity was just silently discarded, with
+no indication anything was lost.
+
+**Root cause**: `_addNewOpen`/`_addNewData` (the Add form's state) were
+never checked by any of the existing dirty-guard blocks in `pushState()`
+/ `setDataView()` — those only check `_dataDirty`, `_metaDirty`,
+`_verDirty`, `_modelDirty`, `_capDirty`, `_jsonEditDirty`.
+
+**Fix** (`registry/ui/app.js`):
+- New `isAddNewFormDirty()` helper — true if `_addNewOpen` is set AND
+  either `_addNewData` has any keys, or the live `addNewIdInput` DOM
+  element (whose value is only read at save-time, with no
+  onchange/oninput handler wired to `_addNewData`) has a non-empty
+  trimmed value.
+- `saveNewEntity()` signature extended to accept an optional `cb`
+  callback (calls it on success instead of the default `refresh()`,
+  preserving old behavior when called with no args from the plain
+  "Create" button).
+- Added a matching guard block to both `pushState()` and
+  `setDataView()` — triggers when on a collection page
+  (`isCollection(_state.path)`) with `isAddNewFormDirty()` true and the
+  navigation would actually change something relevant. Shows
+  `showLeaveEditDialog()` with a single Save button (creating the
+  entity is always a PUT-by-id, never PATCH, so no dual-button variant
+  is needed) and Discard (calls `cancelAddEntity()`).
+
+**Verified** via CDP against a live xrserver (`dirs` collection):
+opening the Add form, typing an ID, then clicking a breadcrumb link
+correctly shows the Save/Discard/Cancel dialog; Save creates the entity
+via PUT and navigates to the destination; Discard navigates away
+without creating anything (confirmed via a 404 on the would-be entity's
+URL); an empty/untouched Add form navigates away silently with no
+dialog, as before. Test data cleaned up.
+
+**Status**: Complete.
+
+## Fixed: JSON view meta breadcrumb shown after switching back to List view
+
+**Problem**: viewing a Resource/Version's Metadata tab in List view, then
+switching to JSON view, correctly showed "meta" as an extra breadcrumb
+segment — but switching back to List view kept showing "meta" too,
+even though List view's own Metadata tab bar already makes the
+selection clear and was never meant to show the extra segment.
+
+**Fix**: `buildBreadcrumbSegments()` (`registry/ui/app.js`) now only
+appends the extra "meta" segment when `_state.dataView === 'json'`, in
+addition to the existing Resource/Version-depth and `docTab === 'meta'`
+checks. List view (`dataView === 'table'`) never gets the segment,
+regardless of how it was reached (fresh tab click, or a full re-render
+after switching back from JSON view).
+
+**Verified** via CDP: List view → Metadata tab → JSON view shows
+`.../file1/meta`; switching back to List view shows the breadcrumb
+stopping at `file1` (no "meta"), while the "File Metadata" tab remains
+selected/active, exactly as expected.
+
+**Status**: Complete.
+
+## Added: dismissible "X" close button on error banners
+
+**Problem**: the inline `.error-banner` divs shown after a failed
+Save/Create/Delete (Add-new-entity, Data/Meta/Version entity editors,
+JSON raw edit's Save and Format validation, Model Source, Capabilities)
+had no way to dismiss them except fixing the underlying error and
+retrying (which happens to also clear the banner as a side effect) —
+there was no direct affordance to just close the message.
+
+**Fix** (`registry/ui/app.js`, `registry/ui/style.css`):
+- Added two small helpers, `showErrorBanner(div, message)` and
+  `hideErrorBanner(div)`, that every error-banner call site now funnels
+  through instead of directly poking `.style.display`/`.textContent`.
+  `showErrorBanner()` builds the banner's content as a message `<span>`
+  plus a `.error-banner-close` `<button>` (rendered as an "×") whose
+  `onclick` calls `hideErrorBanner()` on the same div.
+- Mechanically replaced every existing
+  `div.style.display = 'block'; div.textContent = msg;` /
+  `div.style.display = 'none'; div.textContent = '';` pair (across
+  `saveNewEntity()`, `saveDataEntity()`, `deleteDataEntity()`,
+  `saveMetaEntity()`/its delete, `saveVersionEntity()`/its delete,
+  `jsonEditFormat()`, `jsonEditSave()`, `saveModel()`,
+  `saveCapabilities()`/its delete) with calls to the two helpers.
+- `.error-banner` CSS gained `position: relative` and right-side
+  padding to make room for the new `.error-banner-close` button,
+  absolutely positioned top-right.
+- Also gave the Model Source section's dynamically-created
+  `#editorError` div the `error-banner` class it was missing (a small
+  pre-existing inconsistency noticed while doing this sweep), so its
+  close button renders styled consistently with the others.
+
+**Verified** via CDP: triggering a Create error (invalid dir ID) shows
+the red banner with a working "×" in its top-right corner; clicking it
+hides the banner (`display: none`). Also verified the JSON raw-edit
+view's "Invalid JSON" banner (triggered via `jsonEditSave('PATCH')`
+with malformed textarea content) renders and dismisses the same way.
+
+**Status**: Complete.
+
+## Fixed: JSON-view Save losing inline content (missing `$details` suffix
+race)
+
+**Problem**: editing/saving a Resource or Version in JSON view sometimes
+lost previously-applied `inline=` content after Save — the post-save
+refresh wasn't using the same URL-building logic as a normal page load.
+
+**Root cause (two related bugs)**:
+1. `jsonEditSave()`'s post-save refresh used `buildBaseURL()` (no query
+   params at all) instead of `buildAPIURL()` — fixed by refreshing via
+   `fetchWithDetailsFallback(buildAPIURL(), needsDetails(_state.path))`,
+   matching `refresh()`'s own logic exactly (a plain `buildAPIURL()` GET
+   doesn't honor `$details` on a document-backed Resource/Version, so it
+   fetched the raw document instead of entity JSON).
+2. `renderJSONEditView()` computed its target save URL (`_jsonEditURL`,
+   via `jsonEditTarget()`, which decides whether to append `$details`)
+   only once, the first time edit mode was entered — but that decision
+   depends on `_modelCache` already being populated
+   (`resourceHasDocument()`). On a fresh/bookmarked direct URL load
+   straight into `edit=1&dview=json`, the model isn't cached yet, so
+   `$details` was silently omitted and locked in for the rest of the
+   session (this is what caused the separate-looking "file: null saves a
+   weird value" bug reported by the user — the PUT was going to `f1`
+   instead of `f1$details`, so it replaced the whole document body
+   instead of updating attributes). Fixed by calling
+   `ensureModelCached()` before computing `_jsonEditURL`.
+
+**Verified** via isolated headless-Chromium testing (throwaway `xrserver`
+instances, never the user's live server): inline content now survives
+Save; setting an inlined attribute to `null` and saving correctly clears
+it server-side instead of reverting to old document content.
+
+**Status**: Complete.
+
+## Fixed: breadcrumb JSON-view options (inline/sort/docView/binary/
+collections) not remembered per-depth
+
+**Problem**: In JSON view, applying `inline=`/`sort=`/doc-view/binary/
+collections at one depth of the hierarchy (e.g. inlining "file" on a
+Resource, then again on its Version) leaked those options onto every
+ancestor breadcrumb (even the registry root), and there was no way to
+restore a given depth's own previously-applied options when navigating
+back up to it — unlike `filters`, which already had correct per-depth
+memory via `_state.crumbURLs`.
+
+**Root cause**: `_state.crumbURLs`/`rootApiURL` (the only genuine
+"memory" the app kept per hierarchy depth) only ever stores the bare
+`filter=`-bearing API link — `buildAPIURL()` always appends
+`inline=`/`sort=`/`doc`/`binary`/`collections` freshly from the CURRENT
+global `_state` at fetch time, so there was nothing in the existing
+cache to recover these options from. `pageHref()` (breadcrumb/tile hover
+hrefs) blindly copied the deepest page's `_state.inlines` etc. onto
+every ancestor's synthetic link, and `pushStateReal()`'s "fresh
+navigation defaults" block hardcoded `inlines: [], sort: '', docView:
+false, binary: false, collections: false` on every real navigation
+(including breadcrumb clicks), with no per-depth restoration at all.
+
+**Fix** (Option B, per user: reuse existing URL-parsing logic rather
+than a bespoke snapshot object):
+- Added a shared `parseJSONOptionsFromQuery(qs)` parser (extracts
+  `inline`/`sort`/`doc`/`binary`/`collections` from a query string),
+  reused by `loadStateFromURL()` instead of duplicating field parsing.
+- Added `_state.crumbOpts[]`/`_state.rootOpts` — a per-depth cache of
+  the query-string portion of `buildURL(_state)` (mirrors `crumbURLs`/
+  `rootApiURL`'s existing pattern exactly), populated on every
+  `pushStateReal()` call and reset/trimmed alongside `crumbURLs` on
+  server/section/path changes.
+- `pageHref()` now restores `inlines`/`sort`/`docView`/`binary`/
+  `collections` for a breadcrumb/tile's destination depth by parsing
+  its cached `crumbOpts[depth-1]`/`rootOpts` snapshot, instead of
+  copying the current page's values — fixes the hover-href leak.
+- `pushStateReal()`'s "fresh navigation defaults" block now computes
+  `defaultOptsQS` from the same `crumbOpts`/`rootOpts` cache (mirroring
+  how `defaultApiURL`/`defaultFilters` already restore from
+  `crumbURLs`) and merges those as defaults instead of hardcoded
+  blanks — this is what makes an actual breadcrumb click (not just the
+  hover preview) correctly restore a previously-applied depth's
+  options. `sort` is additionally guarded to blank when the destination
+  isn't a collection (sort is invalid on non-collection paths, same
+  guard already used elsewhere).
+
+**Verified** via CDP (isolated test server, throwaway db): inlined
+"file" on `dirs/d1/files/f1`, navigated to its version `v1` (confirmed
+`_state.inlines` correctly reset there — no leak), then clicked (not
+just hovered) the `f1` breadcrumb from `v1` — `_state.inlines` correctly
+restored to `["file"]`, the "file" inline checkbox in the left panel was
+checked, and the page actually rendered the inlined file content,
+confirming the fix works end-to-end for real navigation, not just the
+hover-preview href. `node --check app.js` passes. Test server/chromium/
+temp files cleaned up.
+
+**Status**: Complete.
+
 ## Conventions
 
 - Wrap text/comments in the `common/` directory and in this file

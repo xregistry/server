@@ -53,7 +53,7 @@ func (m *Model) Save() *XRError {
 		return nil
 	}
 
-	if log.GetVerbose() > 4 {
+	if log.HasKeyword("ModelSave") || log.GetVerbose() > 4 {
 		buf, _ := json.MarshalIndent(m, "", "  ")
 		log.Printf("Saving model:\n%s", string(buf))
 	}
@@ -133,23 +133,6 @@ func (m *Model) Save() *XRError {
 	// Now just add the new ones
 	for _, gm := range m.Groups {
 		gmAbs := "/" + gm.Plural
-		for _, rName := range gm.XImportResources {
-			// See if the ximported resource is alread there, if so skip it
-			parts := strings.Split(rName, "/")
-			targetRM := gm.Model.FindResourceModel(parts[1], parts[2])
-			rSID := gm.SID + "-" + targetRM.SID // parts[2]
-			rAbs := gmAbs + "/" + parts[2]
-			if _, ok := existingModelEntities[rAbs]; !ok {
-				// add the new ximported resource
-				Do(m.Registry.tx,
-					`INSERT INTO ModelEntities(
-                         SID, RegistrySID, ParentSID,
-                         Abstract, Plural, Singular)
-                     VALUES(?,?,?,?,?,?)`,
-					rSID, m.Registry.DbSID, gm.SID,
-					rAbs, targetRM.Plural, targetRM.Singular)
-			}
-		}
 
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
@@ -246,7 +229,7 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 
 			for rmPlural, rm := range gm.Resources {
 				// Note: rm.Plural might be ""
-				if oldRM := oldGM.FindResourceModel(rmPlural); oldRM != nil {
+				if oldRM := oldGM.Resources[rmPlural]; oldRM != nil {
 					if oldRM.Singular != rm.Singular {
 						return NewXRError("model_error", "/model",
 							"error_detail="+

@@ -135,7 +135,6 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
-      "barbase64": "",
 
       "metaurl": "http://localhost:8181/dirs/d1/bars/b1/meta",
       "meta": {
@@ -162,8 +161,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
           "isdefault": true,
           "createdat": "2024-01-01T12:00:01Z",
           "modifiedat": "2024-01-01T12:00:01Z",
-          "ancestorid": "1",
-          "barbase64": ""
+          "ancestorid": "1"
         }
       },
       "versionscount": 1
@@ -1471,7 +1469,6 @@ func TestHTTPContent(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "1",
-  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -1482,7 +1479,7 @@ func TestHTTPContent(t *testing.T) {
 
 	// file - null
 	XCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/dirs/d1/files/f1$details",
+		URL:    "/dirs/d1/files/f1$details?inline=file",
 		Method: "PUT",
 		ReqBody: `{
 	"file": null
@@ -1521,7 +1518,6 @@ func TestHTTPContent(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "1",
-  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -2443,7 +2439,7 @@ func TestHTTPContent2(t *testing.T) {
 	})
 
 	XCheckHTTP(t, reg, &HTTPTest{
-		URL:        "/dirs/d1/files",
+		URL:        "/dirs/d1/files?inline=file",
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
@@ -2504,6 +2500,7 @@ func TestHTTPContent2(t *testing.T) {
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestorid": "1",
     "contenttype": "application/json",
+    "file": "howdy",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f3/versions",
@@ -2519,6 +2516,7 @@ func TestHTTPContent2(t *testing.T) {
     "createdat": "2024-01-01T12:00:02Z",
     "modifiedat": "2024-01-01T12:00:02Z",
     "ancestorid": "1",
+    "filebase64": "aGVsbG8gd29ybGQ=",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
     "versionsurl": "http://localhost:8181/dirs/d1/files/f4/versions",
@@ -6243,7 +6241,6 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "1",
-          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -6270,8 +6267,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "isdefault": true,
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestorid": "1",
-              "filebase64": ""
+              "ancestorid": "1"
             }
           },
           "versionscount": 1
@@ -6360,7 +6356,6 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "createdat": "2024-01-01T12:00:04Z",
           "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "1",
-          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -6388,8 +6383,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-1",
               "createdat": "2024-01-01T12:00:04Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestorid": "1",
-              "filebase64": ""
+              "ancestorid": "1"
             }
           },
           "versionscount": 1
@@ -6486,7 +6480,6 @@ func TestHTTPNestedRegistry(t *testing.T) {
           "createdat": "2024-01-01T12:00:02Z",
           "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "1",
-          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -6514,8 +6507,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-1.1",
               "createdat": "2024-01-01T12:00:04Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestorid": "1",
-              "filebase64": ""
+              "ancestorid": "1"
             },
             "2": {
               "fileid": "f1",
@@ -6527,8 +6519,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
               "description": "f1-2.1",
               "createdat": "2024-01-01T12:00:02Z",
               "modifiedat": "2024-01-01T12:00:02Z",
-              "ancestorid": "1",
-              "filebase64": ""
+              "ancestorid": "1"
             }
           },
           "versionscount": 2
@@ -6590,7 +6581,6 @@ func TestHTTPNestedResources(t *testing.T) {
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
   "ancestorid": "1",
-  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -6618,8 +6608,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1",
       "createdat": "2024-01-01T12:00:00Z",
       "modifiedat": "2024-01-01T12:00:00Z",
-      "ancestorid": "1",
-      "filebase64": ""
+      "ancestorid": "1"
     }
   },
   "versionscount": 1
@@ -6966,7 +6955,6 @@ func TestHTTPNestedResources(t *testing.T) {
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
-  "filebase64": "",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -6994,8 +6982,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "description": "f1.3",
       "createdat": "2024-01-01T12:00:00Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestorid": "1",
-      "filebase64": ""
+      "ancestorid": "1"
     },
     "v2": {
       "fileid": "f1",
@@ -7006,8 +6993,7 @@ func TestHTTPNestedResources(t *testing.T) {
       "isdefault": false,
       "createdat": "2024-01-01T12:00:01Z",
       "modifiedat": "2024-01-01T12:00:01Z",
-      "ancestorid": "1",
-      "filebase64": ""
+      "ancestorid": "1"
     }
   },
   "versionscount": 2
@@ -9481,7 +9467,6 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "createdat": "YYYY-MM-DDTHH:MM:01Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
           "ancestorid": "v1",
-          "filebase64": "",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
           "meta": {
@@ -9508,8 +9493,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
               "isdefault": true,
               "createdat": "YYYY-MM-DDTHH:MM:01Z",
               "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-              "ancestorid": "v1",
-              "filebase64": ""
+              "ancestorid": "v1"
             }
           },
           "versionscount": 1
@@ -9535,7 +9519,6 @@ func TestHTTPCollectionsFlag(t *testing.T) {
       "createdat": "YYYY-MM-DDTHH:MM:01Z",
       "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
       "ancestorid": "v1",
-      "filebase64": "",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
       "meta": {
@@ -9562,8 +9545,7 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "isdefault": true,
           "createdat": "YYYY-MM-DDTHH:MM:01Z",
           "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
-          "ancestorid": "v1",
-          "filebase64": ""
+          "ancestorid": "v1"
         }
       },
       "versionscount": 1

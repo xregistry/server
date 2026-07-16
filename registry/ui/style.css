@@ -937,11 +937,33 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   background: #fee;
   border: 1px solid #c00;
   border-radius: 4px;
-  padding: 10px 14px;
+  padding: 10px 34px 10px 14px;
   margin: 16px;
   font-size: 13px;
   color: #900;
   white-space: pre-wrap;
+  position: relative;
+}
+
+.error-banner-msg {
+  white-space: pre-wrap;
+}
+
+.error-banner-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #900;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.error-banner-close:hover {
+  color: #600;
 }
 
 /* ---- Loading spinner ---- */

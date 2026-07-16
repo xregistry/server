@@ -348,7 +348,7 @@ func (reg *Registry) GetResourceModelFromXID(xidStr string) (*ResourceModel, *XR
 			SetDetailf("Unknown Group type: %s.", xid.Group)
 	}
 
-	rm := gm.FindResourceModel(xid.Resource)
+	rm := gm.Resources[xid.Resource]
 	if rm == nil {
 		return nil, NewXRError("not_found", xid.Resource).
 			SetDetailf("Unknown Resource type: %s.", xid.Group)
