@@ -585,6 +585,10 @@ function loadStateFromURL() {
   // isGridFiltersOnlyMode() to decide whether to show the panel, so simply
   // restoring this flag is enough to bring the panel back on load.
   _filtersPanelOpen  = p.get('panel') === '1';
+  // Retire the dedicated Version page for anything but JSON view — see
+  // normalizeVersionDepth()'s doc comment. Covers direct/bookmarked loads
+  // of an old `.../versions/<vid>` URL with no (or a non-json) `dview=`.
+  normalizeVersionDepth(_state);
   syncFiltersFromApiURL();
 }
 
@@ -937,6 +941,15 @@ function pushStateReal(patch) {
   }
   Object.assign(_state, patch);
 
+  // Retire the dedicated Version page for anything but JSON view — see
+  // normalizeVersionDepth()'s doc comment. Runs AFTER dataView is fully
+  // resolved (including the sticky-JSON-view logic above), so a version
+  // link clicked from inside JSON view (dataView already 'json' by the
+  // time we get here) is correctly left alone, while a plain List-view row
+  // click into `.../versions/<vid>` gets rewritten to the Resource page +
+  // resVersion before anything renders.
+  normalizeVersionDepth(_state);
+
   syncFiltersFromApiURL();
 
   // applyFilters()/similar callers may set a new apiURL for the CURRENT
@@ -994,6 +1007,53 @@ function defaultDataView(section, pathLen, path) {
   // before this removal) is intentionally ignored.
   if (section === 'data') return 'table';
   return (_opts.depthViews || {})[pathLen] || 'grid';
+}
+
+// True when `path` points at an individual Version entity (depth >= 6,
+// path[4] === 'versions'). The dedicated List-view Version page has been
+// retired (see plan.md "Retire the List-view dedicated Version page") — a
+// path like this is only ever meant to be rendered by JSON view now;
+// anywhere else it must be normalized to the owning Resource page (depth 4)
+// + resVersion, via normalizeVersionDepth() below.
+function isVersionEntityPath(path) {
+  return !!path && path.length >= 6 && path[4] === 'versions';
+}
+
+// Central invariant enforcement for the retired dedicated Version page: a
+// depth >= 6 ("data" section) path is only ever valid when dataView is
+// 'json' — JSON view is the only view left that still addresses a version
+// by its own literal URL (needed for link-driven navigation inside JSON
+// content, and because it has no version-selector dropdown of its own).
+// Any other dataView (List view, the only other data-section view) gets
+// silently rewritten here to the Resource page (depth 4) + resVersion,
+// landing on that page's normal default tab. Called from the two places
+// state is fully resolved just before rendering: loadStateFromURL() (direct/
+// bookmarked loads) and the tail of pushStateReal() (all real navigation,
+// including the Versions List row click and the "Default Version" pill,
+// which intentionally still navigate straight to the depth-6 path — this
+// function is what actually retires the page, not the callers). Returns
+// true if `state` was rewritten.
+function normalizeVersionDepth(state) {
+  if (state.section !== 'data' || state.dataView === 'json'
+      || !isVersionEntityPath(state.path)) {
+    return false;
+  }
+  state.resVersion = state.path[5];
+  state.path = state.path.slice(0, 4);
+  // Any apiURL carried in (a real link) pointed at the VERSION's own
+  // endpoint — leaving it as-is would make buildAPIURL() fetch the wrong
+  // entity now that path points at the Resource instead. Derive the
+  // Resource's own real URL by stripping the trailing "/versions/<vid>"
+  // segment pair (mirrors resolveResourceMetaUrl()'s same technique);
+  // falls back to '' (buildBaseURL() reconstructs it from the now-
+  // truncated path) if there was no apiURL to begin with.
+  if (state.apiURL) {
+    var qIdx = state.apiURL.indexOf('?');
+    var base = qIdx >= 0 ? state.apiURL.slice(0, qIdx) : state.apiURL;
+    var qs   = qIdx >= 0 ? state.apiURL.slice(qIdx) : '';
+    state.apiURL = base.replace(/\/versions\/[^/?]+\/?$/, '') + qs;
+  }
+  return true;
 }
 
 function encodePath(parts) { return parts.map(encodeURIComponent).join('/'); }
@@ -1442,6 +1502,38 @@ function setDataView(v) {
   if (_state.dataView === 'json' && _state.editMode && v !== 'json'
       && _jsonEditOrigText !== null) {
     resetJsonEditBuffer();
+  }
+
+  // Retiring the dedicated Version page (see normalizeVersionDepth()):
+  // this view-toggle mutates _state directly and never routes through
+  // pushStateReal(), so it needs its own explicit check. Switching a
+  // depth->=6 Version's JSON view to List view must redirect to the
+  // Resource page + resVersion (the retired page's replacement) rather
+  // than reviving List-view rendering at depth 6 in place.
+  if (_state.section === 'data' && v !== 'json' && isVersionEntityPath(_state.path)) {
+    var verId = _state.path[5];
+    pushState({path: _state.path.slice(0, 4), resVersion: verId, dataView: v});
+    return;
+  }
+  // The reverse: switching a Resource page's List view TO JSON view while
+  // the "Version:" dropdown has a non-default version selected takes the
+  // user to that VERSION's own JSON view (depth 6, its real URL) — JSON
+  // view has no version-selector control of its own, so this is the only
+  // way to reach a specific version's raw JSON. Selecting "Default"
+  // (resVersion === '') keeps JSON view scoped to the Resource itself, as
+  // today.
+  if (_state.section === 'data' && v === 'json' && _state.path.length === 4
+      && _state.resVersion) {
+    var selVid = _state.resVersion;
+    var verEntry = (_resVersionsList || []).filter(function(rv) {
+      return itemNavKey(rv) === selVid;
+    })[0];
+    var verSelf = (verEntry && verEntry.self) || _verSelfUrl || '';
+    pushState({
+      path: _state.path.concat(['versions', selVid]),
+      resVersion: '', dataView: 'json', apiURL: verSelf
+    });
+    return;
   }
 
   _state.dataView = v;
@@ -2222,6 +2314,13 @@ var _resCollKeys = null;       // collKeys snapshot, to suppress <plural>url/<pl
 var _resVersionsUrl = '';      // this resource's versions collection URL
 var _resVersionsList = null;   // fetched versions collection items, cached
 var _resSelectedVersionId = 'default'; // currently selected dropdown value
+// The page-level "Entity Data Editor" action bar's own HTML (Save/Undo/
+// Delete for the Default version), stashed so onVersionSelectChangeReal()/
+// rerenderVersionPanel() can restore it into #dataEditorActionBarSlot when
+// switching back to "Default", without needing to recompute it (its
+// disabled/enabled state reflects _dataDirty at the time renderSingleEntity()
+// last ran, same as before this slot existed).
+var _dataEditorActionBarHtml = '';
 
 function refresh() {
   var main = el('main-view');
@@ -4443,13 +4542,18 @@ function renderSingleEntity(data) {
       });
       if (versionsListLinkHtml) rowParts.push(versionsListLinkHtml);
       html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
-      // Entity Data Editor action bar (Save/Undo/Delete for the Default
-      // version) — rendered once here, as a sibling of the tab panels
-      // rather than nested inside any single one of them, so it stays
-      // visible no matter which tab (Document/Version Details/Metadata) is
-      // currently active instead of being hidden along with an inactive
-      // panel's display:none.
-      html += dataEditorActionBarHtml;
+      // Entity Data Editor action bar (Save/Undo/Delete) — rendered once
+      // here, as a sibling of the tab panels rather than nested inside any
+      // single one of them, so it stays visible no matter which tab
+      // (Document/Version Details/Metadata) is currently active instead of
+      // being hidden along with an inactive panel's display:none. Wrapped
+      // in a stable-id slot so the version-selector dropdown can swap its
+      // content in place (Default version's own bar vs. a differently-
+      // selected version's own scoped bar) without moving the action bar
+      // down to the bottom of the panel content — see
+      // onVersionSelectChangeReal()/rerenderVersionPanel().
+      _dataEditorActionBarHtml = dataEditorActionBarHtml;
+      html += '<div id="dataEditorActionBarSlot">' + dataEditorActionBarHtml + '</div>';
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
           + '"' + (i === initActiveIdx ? '' : ' style="display:none"') + '>' + t.content + '</div>';
@@ -6986,7 +7090,13 @@ function rerenderVersionPanel() {
   var panel = document.getElementById(_verPanelId || 'eg-doc-panel-defver');
   if (!panel || !_verEditData) return;
   panel.innerHTML = buildEntityPropsTableHtml(_verEditData, _verHeaderLabel || 'Version Property',
-    _resModel, _resPath, null, true, 'verEditFieldChange') + buildVersionActionBarHtml();
+    _resModel, _resPath, null, true, 'verEditFieldChange');
+  // Refresh the shared action-bar slot too (its Save/Undo buttons' disabled
+  // state depends on _verDirty, which just changed) — see
+  // onVersionSelectChangeReal()'s matching comment for why this lives in
+  // the slot rather than appended to the panel itself.
+  var actionBarSlot = document.getElementById('dataEditorActionBarSlot');
+  if (actionBarSlot) actionBarSlot.innerHTML = buildVersionActionBarHtml();
 }
 
 function undoVersionEdit() {
@@ -7526,18 +7636,29 @@ function onVersionSelectChangeReal(vid) {
   _verPanelId = 'eg-doc-panel-defver';
   _verHeaderLabel = headerLabel;
   if (panel) {
-    panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer, editableNow, handlerFn)
-      + ((editableNow && vid !== 'default') ? buildVersionActionBarHtml() : '');
+    panel.innerHTML = buildEntityPropsTableHtml(verData, headerLabel, _resModel, _resPath, collKeysForVer, editableNow, handlerFn);
   }
-  // The page-level Entity Data Editor action bar (rendered as a sibling of
-  // the tab panels, right below the tab bar — see renderSingleEntity())
-  // always targets the Default version (_dataEditData) — hide it whenever
-  // a genuinely different version is selected, so it doesn't sit alongside
-  // the version panel's own, differently-scoped action bar
-  // (buildVersionActionBarHtml()) and confuse which Save/Undo/Delete
-  // applies to what. Shown again when switching back to "Default".
-  var pageActionBar = document.getElementById('dataEditorActionBar');
-  if (pageActionBar) pageActionBar.style.display = (vid === 'default') ? '' : 'none';
+  // The single shared action-bar slot (right below the "Version:"/tab-bar
+  // row — see renderSingleEntity()) shows whichever action bar applies to
+  // the CURRENTLY selected version: the page-level Entity Data Editor bar
+  // (_dataEditorActionBarHtml, targets the Default version/_dataEditData)
+  // when "Default" is selected, or this version's own scoped bar
+  // (buildVersionActionBarHtml(), targets _verEditData/_verSelfUrl) for any
+  // other selection — never both, and never appended to the bottom of the
+  // property table itself (previously buildVersionActionBarHtml() was
+  // appended inside the panel's own innerHTML, landing it below whatever
+  // else happened to be in that panel instead of in the same fixed spot
+  // used for every other version/tab).
+  var actionBarSlot = document.getElementById('dataEditorActionBarSlot');
+  if (actionBarSlot) {
+    if (vid === 'default') {
+      actionBarSlot.innerHTML = _dataEditorActionBarHtml;
+    } else if (editableNow) {
+      actionBarSlot.innerHTML = buildVersionActionBarHtml();
+    } else {
+      actionBarSlot.innerHTML = '';
+    }
+  }
 
   // Keep the Document tab showing the selected version's document too —
   // refresh it eagerly even if it's not the currently-visible tab.
@@ -8361,7 +8482,18 @@ function renderJSONViewDocumentMode(entityData) {
   function showJSONTree(obj) {
     box.innerHTML = addTwisties(syntaxHighlight(JSON.stringify(obj, null, 2)));
     var expBtn = document.getElementById('json-exp-btn');
-    if (expBtn) { expBtn.classList.remove('json-exp-btn-disabled'); expBtn.dataset.open = 'false'; }
+    // The button starts genuinely HTML-disabled (see buildJsonExpandAllBtnHtml())
+    // since Document mode doesn't know yet whether the fetched content will
+    // turn out to be JSON (twisty tree, expandable) or plain text/binary
+    // (nothing to expand). Once it turns out to be JSON, clear the actual
+    // `disabled` attribute too, not just its CSS class — a disabled button
+    // never fires click events at all, so leaving the attribute set left
+    // "All" visually enabled but permanently inert (see plan.md).
+    if (expBtn) {
+      expBtn.classList.remove('json-exp-btn-disabled');
+      expBtn.disabled = false;
+      expBtn.dataset.open = 'false';
+    }
   }
   function actionsHtml(url) {
     return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url)

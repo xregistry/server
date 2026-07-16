@@ -5476,3 +5476,34 @@ clears it; a valid Save after a bad Format also clears the invalid banner
 
 - Wrap text/comments in the `common/` directory and in this file
   (`plan.md`) to 80 characters per line.
+
+## Fixed: JSON view's "All" expand/collapse button inert in Document mode when the document is JSON
+
+**Bug**: viewing a resource/version's Document content in JSON view
+(the "Document" toggle, `dview=json` + Document mode) showed the "All"
+expand/collapse button in the top-right corner, but clicking it did
+nothing whenever the document itself happened to be JSON (rendered as a
+collapsible twisty tree, same as Details mode).
+
+**Root cause**: `buildJsonExpandAllBtnHtml(true)` renders the button
+genuinely HTML-`disabled` up front (Document mode doesn't yet know if the
+about-to-be-fetched content is JSON or plain text/binary). Once the fetch
+resolves and the content turns out to be JSON,
+`renderJSONViewDocumentMode()`'s `showJSONTree()` helper only removed the
+button's `json-exp-btn-disabled` CSS class — it never cleared the actual
+`disabled` DOM attribute. A disabled `<button>` never fires click events
+at all, so the button looked enabled but stayed inert.
+
+**Fix** (`registry/ui/app.js`, `renderJSONViewDocumentMode()`'s
+`showJSONTree()`): also set `expBtn.disabled = false` alongside removing
+the CSS class.
+
+**Verified** via CDP against an isolated test server (port 9095, db
+`copiloti_allbtn1`, cleaned up after): for both a Resource-level and a
+Version-level document that happens to be JSON, switching to Document
+mode leaves the "All" button with `disabled === false`, and clicking it
+correctly toggles `data-open`/expands-collapses the tree (confirmed via
+`jb1`'s `display` and the button's glyph/label). `node --check app.js`
+passes.
+
+**Status**: Complete.
