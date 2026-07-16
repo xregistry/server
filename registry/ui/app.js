@@ -4019,19 +4019,26 @@ function renderTableView(data) {
   // Page title — collection pages have no single-entity name to show (Grid
   // view's tile layout doesn't show one either), but for visual consistency
   // with the single-entity table views' new page title, show the plural
-  // collection name (e.g. "SCHEMAGROUPS") using the same title styling. The
-  // Resources collection (depth 3) gets its owning Group's singular type +
-  // id prefixed (e.g. "schemagroup Contoso.ERP schemas"), and the Versions
-  // collection (depth 5) gets its owning Resource ID prefixed (e.g.
-  // "Contoso.ERP.CancellationData VERSIONS") — both previously only visible
-  // via the breadcrumb.
+  // collection name (e.g. "schemagroups") using the same title styling,
+  // prefixed with whichever parent identity applies — consistently shaped
+  // as "Singular-Parent: Child" at every depth (see plan.md "Collection
+  // page title parent prefixes"):
+  //   - Groups collection (depth 1): the Registry's own display name (same
+  //     name shown as the first breadcrumb segment — see serverLabel()).
+  //   - Resources collection (depth 3): the owning Group instance's id
+  //     (its singular Group-type name is dropped — the id alone is enough
+  //     context here, unlike depth 5 below where the Resource id doesn't
+  //     otherwise appear on screen).
+  //   - Versions collection (depth 5): the owning Resource instance's id.
   var pluralLabel = _state.path[_state.path.length - 1];
   var titleIdPrefix = '';
-  if (depth === 3) {
-    var groupSingularH = getSingularName(model, _state.path.slice(0, 2));
-    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(groupSingularH) + ' ' + esc(_state.path[1]) + '</span> ';
+  if (depth === 1) {
+    var regLabelT = serverLabel(_state.serverURL || window.location.origin);
+    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(regLabelT) + ':</span> ';
+  } else if (depth === 3) {
+    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[1]) + ':</span> ';
   } else if (depth === 5) {
-    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> ';
+    titleIdPrefix = '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + ':</span> ';
   }
   // Header icon: Groups list (depth 1) shows the model's Group-type icon;
   // Resources list (depth 3) and Versions list (depth 5, no Version-level

@@ -6093,3 +6093,42 @@ non-null (A's leftover) when B's tab was clicked.
 live confirmation, since this reproduced consistently for them but not
 reliably in headless Chrome testing until this exact click sequence was
 replicated.
+
+## Collection page title parent prefixes + page-title color consistency
+
+**Change**: collection page titles (Groups/Resources/Versions, depth
+1/3/5) now show a parent-identity prefix, matching the existing
+single-entity page title's "Singular: Value" shape but reversed
+("Parent: pluraltype"):
+- Groups collection (depth 1): `<RegistryName>: <plural group label>`
+  (e.g. "CloudEvents: schemagroups") — RegistryName is `serverLabel()`,
+  the same name shown as the first breadcrumb segment.
+- Resources collection (depth 3): `<Group instance id>: <plural resource
+  label>` (e.g. "Contoso.ERP: schemas") — dropped the owning Group's
+  singular *type* name that used to prefix this (e.g. previously
+  "schemagroup Contoso.ERP schemas"), since the id alone is enough
+  context and matches the "Singular-Parent: Child" shape used elsewhere.
+- Versions collection (depth 5): `<Resource instance id>: <versions>`
+  (e.g. "Contoso.ERP.CancellationData: versions") — added the colon that
+  was missing before.
+
+**Color consistency fix**: `.eg-page-title-type` (used for the generic
+type/category word half of every page title — "Registry:"/
+"schemagroup:"/"schema:" on single-entity pages, and "schemagroups"/
+"schemas"/"versions" on collection pages) previously rendered in a muted
+blue-gray (`#557`) while `.eg-page-title-id`/`.eg-page-title-id-prefix`
+(the actual identifier/name half) rendered dark (`#222`). The two colors
+were semantically consistent (dark = specific id/name, muted = generic
+type word) but visually looked inconsistent because which one appears
+*before* the colon flips between single-entity pages (type word first)
+and collection pages (parent id first) — @duglin found it distracting
+("feels like my eyes are bugging out"). Fixed by making
+`.eg-page-title-type` also `#222`, so every page title segment is now
+the same dark color regardless of depth/ordering.
+
+**Verified**: CDP-checked rendered title text + computed color on all 6
+depths (0,1,2,3,4,5) against a live remote registry (read-only) —
+correct prefix text and uniform `rgb(34,34,34)` color throughout.
+@duglin confirmed live ("yup - thanks").
+
+**Status**: Complete.
