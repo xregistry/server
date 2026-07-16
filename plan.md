@@ -223,17 +223,16 @@ goals.
   - Once proven out for JSON view, revisit whether to surface it in
     Grid/List too (see item above).
 
-- [ ] **Support `ifvalues` in `getAttr()` / `getAttrType()` /
-  `getExplicitAttrType()` / `getExplicitAttrTypeAtPath()`**
-  (`registry/ui/app.js`, ~line 1868). These functions currently only
-  walk the model's static `.attributes`/`.attributes.*` maps. They do
-  not evaluate `ifvalues` conditional sibling-attribute rules, so
-  attributes that only become defined when a sibling has a specific
-  value are invisible to model-driven UI logic (e.g. monospace-type
-  lookups, label overrides). Will need a `data` (actual entity JSON)
-  parameter threaded through so conditional matches can be evaluated
-  alongside the static model walk. There's already a `TODO(ifvalues)`
-  comment marking this in the code.
+- [x] ~~Support `ifvalues` in `getAttr()` / `getAttrType()` /
+  `getExplicitAttrType()` / `getExplicitAttrTypeAtPath()`~~ **DONE**
+  (checklist item stale — implementation already completed in a later
+  session; see the full "ifvalues" writeup further below, ~line 4000, for
+  the `resolveIfValuesAttrs()`/`data`-threading design and
+  `reconcileIfValuesOnChange()` live-reactivity follow-up). Verified by
+  re-reading `registry/ui/app.js` ~line 5020-5065: `getAttr()` takes a
+  `data` param and calls `resolveIfValuesAttrs(attrs, curData)` at every
+  traversal depth; `getAttrType()`/`getExplicitAttrType()`/
+  `getExplicitAttrTypeAtPath()` all thread the same `data` param through.
 
 - [ ] **Generic xRegistry JSON pretty-printer (JS + Go)**. The spec
   (`core/spec.md`, "Design: JSON Serialization" section) shows a
@@ -5507,3 +5506,590 @@ correctly toggles `data-open`/expands-collapses the tree (confirmed via
 passes.
 
 **Status**: Complete.
+
+---
+
+## "Domain Focused" mode — hide xReg plumbing in View mode
+
+**Goal**: a global, persisted Config-page toggle ("Domain Focused") that
+hides xRegistry-specific chrome for end-users who just want a plain
+domain-data catalog (e.g. a "schema registry"), without any per-domain
+custom UI.
+
+**Scope**: View mode only (edit mode and JSON view completely
+unaffected). When on:
+- Hides the "Identity" and "Versioning & State" Property-table categories
+  on Registry root / Group / Resource / Version / the Resource page's
+  Metadata tab. "Content" and "Timestamps" stay visible.
+- Renames the "Extensions" bucket to "<Singular> Metadata" (e.g. "Schema
+  Metadata"; "Registry Metadata" at the root, where there's no singular).
+- Hides the Registry root's "Config:" pills row (Model/ModelSource/
+  Capabilities/etc links).
+- Exception: 3 Meta-level "Versioning & State" attributes stay visible
+  even when the rest of that category is hidden — `defaultversionid`,
+  `defaultversionsticky`, `readonly` — since they're useful, non-plumbing
+  info for end users (which version is active, is it locked). Added per
+  follow-up user feedback after the initial implementation.
+
+**Implementation** (`registry/ui/app.js`):
+- `_opts.domainFocused` (persisted boolean) + `optDomainFocused()` helper,
+  following the exact `jsonColorMode` pattern.
+- Config page: new checkbox row (`cfgSetDomainFocused()`), immediate
+  effect via `refresh()` (no reload needed).
+- `groupPropsByCategory()`: new `editable`/`extLabel` params. When
+  `optDomainFocused() && !editable`: drops the Identity bucket, reduces
+  Versioning & State down to just `DOMAIN_FOCUSED_KEEP_KEYS` (see above),
+  and renames Extensions to the caller-supplied `extLabel`. Bug fixed
+  during implementation: the function used to return `null` (meaning
+  "render the caller's raw flat/unfiltered key list") whenever filtering
+  collapsed the bucket count to ≤1 — which silently un-hid everything.
+  Fixed by tracking total key count before/after domain-focus filtering
+  and always returning the filtered array whenever any keys were actually
+  removed, even if that leaves only one bucket.
+- 3 call sites (`buildEntityPropsTableHtml()`, `renderMetaTable()`,
+  `orderPropKeysFlat()`) updated to pass `editable` + a computed
+  `extLabel` per depth/context.
+- `buildRegEndpointPillsHtml()`: returns `''` when
+  `optDomainFocused() && !_state.editMode`.
+
+**Verified** via headless Chrome (Chrome-for-Testing standalone binary —
+the machine's snap-packaged `chromium-browser` has a broken private-`/tmp`
+mount preventing headless launch, unrelated to this change) against an
+isolated test server (`schemagroups`/`schemas` model, extension attrs
+`org`/`owner`/`team` added at each level):
+- Config toggle persists across reload and applies immediately without a
+  manual refresh.
+- Registry root / Group / Resource (View mode): Identity + Versioning &
+  State hidden, Extensions renamed to "Registry Metadata" / "<Group>
+  Metadata" / "<Resource> Metadata" respectively.
+- Metadata tab: Identity hidden; Versioning & State bucket still renders
+  but only shows "Default Version ID" / "Default Version Sticky" / "Read
+  Only" (their human-friendly `uiLabel`s) — `epoch`/`defaultversionurl`
+  correctly still hidden; Timestamps unaffected.
+- Edit mode: completely unaffected (Identity/Versioning & State still
+  shown, "Extensions" label unchanged).
+- JSON view: completely unaffected.
+- Toggling back off restores exact prior behavior everywhere.
+- `node --check app.js` passes throughout. Test data/model reset, test
+  server killed, temp Chrome binary/profile/test scripts cleaned up. Live
+  user server (port 8080, default db) untouched throughout.
+
+**Status**: Complete.
+
+---
+
+## Property table cleanup (both xReg and Domain Focused views)
+
+Follow-up polish after "Domain Focused" mode landed:
+
+1. **Removed the redundant "Value" column header** from every Property/
+   Meta table's `<th>` row (it's obviously the value column; keeping it
+   made the table feel more spreadsheet-ish than intended). The header
+   `<th>` is now empty (`<th></th>`) rather than removing the column
+   entirely, so the table structure/widths stay unchanged.
+2. **Renamed "<Singular> Property" → "<Singular> Details"** (and "Default
+   Version/Version (n) Property" → "...Details") everywhere it appears:
+   Registry root/Group/Resource/Version Property tables, the Add-entity
+   form's table, and the Meta table — in both xReg and Domain Focused
+   views.
+3. **Domain Focused mode**: removed the text category sub-headings
+   (General/Identity/Versioning & State/Content/Timestamps) — not enough
+   content remains per category to justify a heading/separator once
+   Identity/Versioning & State are hidden. The one exception is the
+   Extensions/"<Singular> Metadata" bucket, which still gets a visual
+   break — now a plain dark `<hr>` divider line instead of a text label.
+   New shared helper `buildPropsCatRowHtml(group, domainFocused)` in
+   `app.js` centralizes this (used by both `buildEntityPropsTableHtml()`
+   and `renderMetaTable()`); groups are tagged `ext: true` by
+   `groupPropsByCategory()` so the helper knows which bucket gets the
+   divider instead of nothing.
+4. **Row-banding bugfix**: removing the category headers in Domain
+   Focused mode exposed a pre-existing quirk — `buildPropsRowsHtml()`'s
+   banding always restarted at row 0 for each category group (harmless
+   before, since a header row provided a visual break between groups).
+   With headers gone, adjacent groups now sit flush against each other,
+   so restarting the band count could produce two same-shaded rows
+   touching. Fixed by threading a running band-offset across groups
+   (`bandT`/`bandM` in the two call sites) — only when Domain Focused is
+   active; the normal xReg view keeps its original per-group reset
+   (harmless there, so left unchanged to minimize risk).
+
+Verified via headless Chrome (Chrome-for-Testing standalone binary, same
+tooling note as the Domain Focused section above) against an isolated
+test server: xReg view header/labels/banding all unchanged from before;
+Domain Focused view shows no text category headings except a divider
+line before Extensions/"<Singular> Metadata", and row shading now
+alternates continuously with no adjacent same-shade rows. `node --check
+app.js` passes. Test server killed, temp files cleaned up, live user
+server (port 8080, default db) untouched throughout.
+
+**Status**: Complete.
+
+---
+
+## Domain Focused: keep "Is Default" + "Ancestor Version ID" visible
+
+Extended `DOMAIN_FOCUSED_KEEP_KEYS` (app.js) to also keep `isdefault` and
+`ancestorid` visible on the Version Details table in Domain Focused mode
+(previously only `defaultversionid`/`defaultversionsticky`/`readonly`
+were kept, for the Meta tab). Same mechanism as before — these two are
+useful, non-plumbing info (is this the default version, which version it
+descends from) even though the rest of "Versioning & State" stays hidden.
+
+Verified via headless Chrome against an isolated test server: Version
+Details table (Domain Focused ON) now shows "Is Default" and "Ancestor
+Version ID" while `epoch` etc. remain hidden. `node --check app.js`
+passes. Test server cleaned up; live user server untouched.
+
+**Status**: Complete.
+
+---
+
+## Three small follow-up fixes: self-ancestor hiding, Resource tab rename, new-version $details bug
+
+**1. Domain Focused: hide self-referencing Ancestor ID row**
+
+On a resource's first/root version, `ancestorid` always equals that
+version's own `versionid` (self-reference), which is a meaningless row
+to show an end-user in Domain Focused mode. Added a check in
+`buildEntityPropsTableHtml()`: when Domain Focused is on and
+`entityData.ancestorid === entityData.versionid`, `ancestorid` is added
+to the row-suppression set (on top of the existing `DOMAIN_FOCUSED_KEEP_
+KEYS` mechanism that normally keeps it visible). xreg (non-Domain-
+Focused) view is unaffected — still always shows Ancestor ID, including
+the self-referencing case.
+
+**2. Resource page tab rename: "<Singular> Metadata" -> "<Singular> Details"**
+
+Confirmed with the user this refers to the Resource page's tab
+(`tabDefs.push({ key: 'meta', ... })`, e.g. "Schema Metadata"), not the
+Domain-Focused-only Extensions-bucket rename inside the Property table
+(a separate, already-existing mechanism). Renamed the tab label from
+`capTypeT + ' Metadata'` to `capTypeT + ' Details'` — applies in both
+xreg and Domain Focused views, since the tab bar itself doesn't depend
+on the Domain Focused setting.
+
+**3. Fixed: creating a new Version via the Versions List "+ Add" form
+didn't append `$details` to the PUT URL**
+
+`saveNewEntity()` (the shared Add-entity-form save handler, used for
+Groups/Resources/Versions alike) only appended `$details` when
+`_state.path.length === 3` (creating a Resource) AND the model's
+`resourceHasDocument()` was true — so creating a new Version
+(`_state.path.length === 5`) never got `$details` at all. For a
+`hasdocument=true` resource, a plain (non-`$details`) PUT body is parsed
+as the literal document content, not metadata — so the new version's
+metadata-only creation body (even `{}`) was being stored as its document,
+corrupting/hiding the real document slot.
+
+Per user: "using $details all the time... will always work so no need
+to check hasDoc first" — simplified the condition to unconditionally
+append `$details` whenever creating a Resource (`path.length === 3`) or a
+Version (`path.length === 5`), dropping the `resourceHasDocument()` check
+entirely (harmless no-op when there's no document concept, e.g. Groups
+are unaffected since `path.length` there is 1).
+
+**Verified** via headless Chrome-for-Testing against an isolated test
+xrserver (port 9095, db `copiloti_test3`, dropped afterward):
+- Self-ancestor hiding: root version's Ancestor ID row absent in Domain
+  Focused mode, present in xreg view.
+- Tab rename: "Schema Details" tab label confirmed present, "Schema
+  Metadata" confirmed absent, in both views.
+- $details fix: captured the actual PUT network request when creating
+  version "2" via the Versions List "+ Add Version" form — confirmed URL
+  is `.../versions/2$details`; confirmed via direct API fetch afterward
+  that `$details` returned the correct metadata (`versionid`, `ancestorid`,
+  etc.) and the raw (non-`$details`) document endpoint returned an empty
+  body, not the metadata JSON — proving the document slot was correctly
+  left untouched.
+- `node --check app.js` passes throughout. Test server killed, test DB
+  dropped, Chrome/puppeteer temp artifacts removed. Live user server
+  (default port/db) untouched throughout.
+
+**Status**: Complete.
+
+---
+
+## Meta tab: make defaultversionid editable when sticky is true; JSON view header solid background
+
+**1. `defaultversionid` on the Meta tab is now editable, gated by `defaultversionsticky`**
+
+Previously `defaultversionid` was unconditionally hard-coded read-only in
+edit mode (a link to that version) — this was an intentional but
+temporary scoping decision from a prior round. Per user request, it's now
+editable exactly when `defaultversionsticky` is `true` (this is what
+tells the server to honor an explicit pinned default instead of always
+tracking the newest version). When sticky is `false`, the field stays
+the read-only link, now with an inline hint: "To edit, set Sticky to
+'true'." Toggling the `defaultversionsticky` checkbox forces a full
+Meta-tab re-render (`rerenderMetaTab()`) so `defaultversionid`'s row
+immediately flips between its read-only/hint form and its editable-input
+form, matching the existing `ifvalues` reactivity pattern used elsewhere
+in `metaEditFieldChange()`.
+
+**2. JSON view's sticky "Server: ..." header now has a solid background**
+
+`.json-exp-wrap` (the sticky toolbar row showing "Server: <url>" plus the
+Details/Document toggle and Expand-all button) had `background:
+transparent`, so scrolled JSON content visually overlapped/collided with
+the header text as the user scrolled the page. Changed to `background:
+ghostwhite` (matching `#json-output`'s background) so the header now
+sits on a solid, visually separated bar. Applies to both the read-only
+JSON view and the JSON edit view (shares the same `.json-exp-wrap` CSS
+class).
+
+**Verified** via headless Chrome-for-Testing against an isolated test
+xrserver (port 9096, db `copiloti_test4`, dropped afterward):
+- Confirmed `defaultversionid` row renders as a read-only link + hint
+  text when sticky is `false`; toggling the sticky checkbox re-renders
+  the row as a real `<input type="text">` bound to
+  `metaEditFieldChange('defaultversionid', this)`.
+- Confirmed `.json-exp-wrap`'s computed background-color is
+  `rgb(248, 248, 255)` (ghostwhite), no longer transparent.
+- `node --check app.js` passes. Test server killed, test DB dropped,
+  Chrome/puppeteer temp artifacts removed. Live user server (default
+  port/db) untouched throughout.
+
+**Status**: Complete.
+
+---
+
+## Meta tab: defaultversionid dropdown + revert-on-sticky-off
+
+Follow-up to the previous "editable defaultversionid" round:
+
+1. **Dropdown instead of free text.** `defaultversionid` must reference an
+   actual version, so a free-text input risked typos. Now renders as a
+   `<select>` populated from `_resVersionsList` (the same versions
+   collection already fetched/cached for the Resource page's "Version:"
+   selector) with the current value pre-selected. Falls back to the
+   previous plain text input if that list hasn't loaded yet (rare
+   race — the fetch is normally already in flight/done by the time the
+   Meta tab is opened).
+2. **Revert on sticky-off.** If the user edits `defaultversionid` (with
+   sticky on) and then flips `defaultversionsticky` back to `false`
+   before saving, the in-progress `defaultversionid` edit is now reverted
+   back to its original server value in `_metaEditData` (since it can no
+   longer be shown/saved as editable once sticky is off) — handled in
+   `metaEditFieldChange()`'s existing `defaultversionsticky` special case.
+
+**Verified** via headless Chrome-for-Testing against an isolated test
+xrserver (port 9097, db `copiloti_test5`, 3 versions, dropped afterward):
+- Confirmed the rendered `<select>` lists all 3 real version IDs (1, 2,
+  3) with the current one selected.
+- Confirmed selecting a different version (e.g. "2"), then toggling
+  sticky off, reverts the field back to showing the original value ("3")
+  as a read-only link + hint, not the unsaved "2".
+- `node --check app.js` passes. Test server killed, test DB dropped,
+  Chrome/puppeteer temp artifacts removed. Live user server untouched
+  throughout.
+
+**Status**: Complete.
+
+---
+
+## Fixed: Meta tab / Version Details tab "stale DOM on discard" + "edits silently wiped by a redundant render" bugs
+
+Two related bugs found while chasing a user report that the Meta tab's
+Save/Undo buttons sometimes stayed disabled even though edited rows showed
+the dirty highlight.
+
+### Bug 1 — tab-switch discard never re-rendered the panel being left
+
+`switchDocTabReal()` only toggles CSS `display` on the Document/Version
+Details/Meta tab panels — it never re-renders their content (they're built
+once, lazily, and then just shown/hidden). Every "Discard" callback in
+`switchDocTab()`'s leave-edit guards only reset state variables (`_metaDirty
+= false`, `_dataDirty = false`, etc.) but never re-rendered the panel being
+left, so stale (pre-discard) HTML — including old input values and
+enabled Save/Undo buttons — stayed sitting in the DOM and reappeared
+unchanged the next time that tab became visible again. Reported by the user
+as: "I edit a version, leave to go to meta, dismiss my changes, then when I
+go back to the version tab I see my edits again."
+
+**Fix** (`switchDocTab()` in `registry/ui/app.js`):
+- The "leaving Meta tab, discard" callback now calls `rerenderMetaTab()`
+  before switching away.
+- The "entering Meta tab" leave-guard condition was extended from
+  `_dataDirty` alone to also check `_dataEditActiveKind === 'version' &&
+  _verDirty` — it was previously missing the case where the user was
+  editing a *non-default* version selected via the "Version:" dropdown
+  (only checked the default-version/entity edit buffer).
+- The "entering Meta tab, discard/save" callbacks now correctly branch on
+  which buffer was active (`renderSingleEntity()`/`saveDataEntity()` for
+  entity/default-version vs. `rerenderVersionPanel()`/`saveVersionEntity()`
+  for a non-default version) instead of assuming only the entity buffer
+  could be dirty.
+
+**Verified**: edit Version Details' Name field → switch to Meta tab
+(triggers leave-dialog) → Discard → switch back to Version Details →
+field correctly reverted, Save button disabled.
+
+### Bug 2 — a harmless redundant re-render could silently reset in-progress edits
+
+`renderSingleEntity()` calls `loadMetaDetails()` once on its first pass
+(model not yet cached) and then, once `ensureModelCached()`'s async
+callback resolves for the *same* resource, calls `renderSingleEntity()`
+again — a second, otherwise-harmless full re-render meant only to apply
+the now-available model. But `renderSingleEntity()` unconditionally reset
+`_metaData = null` on *every* call, and `loadMetaDetails()`'s `afterLoad()`
+unconditionally re-cloned `_metaEditSrc`/`_metaEditData` from the freshly
+(re-)fetched server data and reset `_metaDirty = false` on every call too —
+so if a user started editing the Meta tab in the narrow window between the
+first and second render, the second render's redundant reload would
+silently discard the edit and re-disable Save/Undo, while any not-yet-
+re-rendered dirty-row highlight from the first render's DOM could still
+briefly linger, exactly matching the reported symptom.
+
+**Fix** (`registry/ui/app.js`):
+- New `_metaLoadedFor` global tracks which resource's `self` the current
+  `_metaData`/`_metaEditSrc`/`_metaEditData` belong to. `renderSingleEntity()`
+  now only resets that Meta-tab state when `_metaLoadedFor !== data.self`
+  (i.e. genuinely a different resource), not on every redundant render for
+  the same one.
+- `loadMetaDetails()`'s `afterLoad()` now only (re)initializes
+  `_metaEditSrc`/`_metaEditData`/`_metaDirty` the first time
+  (`_metaEditData == null`) — a later, redundant call (whether via the
+  early-return "already have `_metaData`" path or an actual second fetch)
+  just re-renders using whatever edit state already exists, instead of
+  clobbering it.
+
+**Verified** via CDP against the live xrserver (read-only reconnaissance +
+in-browser edits only, no Save clicks — never mutated the live registry):
+traced `renderSingleEntity()`'s two calls directly, confirmed
+`_metaLoadedFor` correctly matches on the second (redundant) call and skips
+the reset; ran multiple sequential edit/undo/re-edit cycles (Compatibility
+enum, a plain string field, a nested `deprecated.effective` timestamp via
+its "Now" button, adding a Labels entry, adding an Extension) — Save/Undo
+buttons and dirty-row highlighting stayed correctly in sync with
+`_metaDirty` throughout every sequence tried.
+
+`node --check app.js` passes. No changes needed elsewhere — this class of
+redundant-render risk is specific to the Meta tab's own lazy-load path.
+
+**Status**: Complete.
+
+---
+
+## Version page removal: dead-code cleanup + final verification
+
+Final follow-up to "Retire the List-view 'dedicated Version page'" above.
+The redirect/normalizer behavior (`normalizeVersionDepth()`,
+`isVersionEntityPath()`, `setDataView()`'s guards) was already implemented
+and verified in an earlier session; this pass removed the now-unreachable
+List-view rendering code for depth >= 6 paths and re-verified end-to-end.
+
+**Removed (confirmed dead via call-site tracing, not just line-range
+deletion)**:
+- `renderSingleEntity()`: the page-title/icon depth>=6 branches, the
+  `dataEditDepth >= 6` disjunct in `isEditableEntityPage`, the entire
+  `depthD >= 6` tab-building `else` branch (which pushed the only-ever
+  `'eg-doc-panel-version'` lone tab), and the dead single-tab-shortcut
+  branch that was only reachable at that same depth.
+- `saveDataEntity()`: its `depthS >= 6` `$details`-suffix check — dead
+  because `_dataEditData` (this function's only precondition) is now only
+  ever snapshotted for depth 0/2/4 pages.
+- `buildPropsRowsHtml()`/`buildEntityPropsTableHtml()`: the `isParentResLink`
+  ("link back to parent Resource" row) and version-page-only
+  `resourceSingular` derivation — dead because every caller of these two
+  functions now only ever passes a depth <= 4 path (confirmed by tracing
+  all 5 call sites: `renderSingleEntity()`, `rerenderVersionPanel()`,
+  `onVersionSelectChangeReal()`, `refreshVersionDetailsPanel()`).
+- `navigateToParentResource()` — fully dead (its only caller was the
+  just-removed `isParentResLink` branch); function deleted entirely.
+
+**Confirmed NOT dead / intentionally left unchanged** (traced individually
+per the earlier plan's caution, not bulk-removed): `isVersionEntityPath()`/
+`normalizeVersionDepth()`, `setDataView()`'s two depth>=6 guards,
+breadcrumb-building's JSON-view "meta" segment logic, `buildTabAwareAPIURL()`'s
+`isVersion` branch, `buildAddEntityFormHtml()`'s depth>=6 case (the
+"Add Version" form on the Versions *collection* page, a different,
+still-valid code path), `jsonEditTarget()`'s `$details` check (JSON view's
+own Edit mode, which legitimately still operates at depth >= 6), and the
+generic depth-classification helpers (`getSingularName()`,
+`specAttrLevel()`, `specAttrLevelName()`, `jsonDocToggleApplies()`) shared
+by JSON view.
+
+**Verified** via headless-Chromium CDP against an isolated throwaway
+xrserver (port 9095, db `copiloti_verdead1`, dropped after testing) with a
+`dirs`/`files` model and a resource with 2 versions (1 default, 1 not):
+- Resource page (depth 4, default and non-default `?ver=`) renders its tab
+  bar (Document/Version Details/File Details/Versions List) and Properties
+  table correctly, no JS errors.
+- Registry root (depth 0) and Group instance (depth 2) render correctly.
+- An old-style bookmarked depth-6 URL with no `dview` redirects to the
+  Resource page + `?ver=`, as before.
+- The same depth-6 URL with `dview=json` renders unchanged/unredirected —
+  JSON view at depth >= 6 fully intact.
+- Versions collection page (depth 5) renders correctly.
+- Selecting a non-default version via the dropdown, then switching to JSON
+  view, correctly navigates to that version's own real depth-6 JSON URL.
+- `node --check app.js` passes. No console/page errors observed in any of
+  the above scenarios.
+
+All 4 tracking todos (`ver-page-normalizer`, `ver-page-setdataview-check`,
+`ver-page-dead-code`, `ver-page-verify`) now marked done.
+
+**Status**: Complete. The "Retire the dedicated Version page" project (all
+phases: normalizer, redirect guards, dead-code removal, verification) is
+fully finished.
+
+---
+
+## Fixed: Meta tab permanently stuck on "Loading…" (stale detached DOM
+## element across an in-flight fetch)
+
+**Root cause**: `loadMetaDetails()` captured `#eg-meta-box` once in a local
+`box` variable, then wrote to that same closured reference inside its
+`fetch(metaUrl).then(...)` callback. But `renderSingleEntity()` can
+legitimately do a full re-render (replacing `main.innerHTML`, and with it
+this exact element) *while that fetch is still in flight* — e.g.
+`ensureModelCached()`/`ensureCapCached()` resolving asynchronously shortly
+after the user switches to the Metadata tab (both trigger a fresh
+`renderSingleEntity()`/`renderEntityFromData()` call once they resolve, a
+pattern already used to fill in the model/mutable-state once available).
+If the user's click happened before those resolved, `_state.docTab` was
+already `'meta'`, so the *next* re-render's own tab-building code also
+re-invoked `loadMetaDetails()` against a brand-new (but still
+"Loading…") `#eg-meta-box`. Whichever fetch/write ended up targeting a
+since-replaced, detached box did nothing visible — and if that happened to
+be the last one to resolve, the *currently attached* box was left showing
+its "Loading…" placeholder forever, with no further trigger to refresh it.
+This explains the "no network traffic when I click the tab" symptom too:
+the relevant fetch(es) already happened earlier (racing the model/
+capabilities load), just before the user looked, and nothing fires again
+on the click itself once `_metaData` reflects a completed (if
+misdirected) fetch.
+
+**Fix**: `loadMetaDetails()` no longer writes through the closured `box`
+reference from inside its async callbacks. It now re-queries
+`document.getElementById('eg-meta-box')` at each DOM-write point (success
+and error paths), bailing out harmlessly if the element no longer exists.
+This guarantees whichever fetch resolves *last* always paints whatever
+`#eg-meta-box` is currently in the document, regardless of how many
+overlapping re-renders happened in between.
+
+**Verified**: directly simulated the race in a live page (clicked the
+Metadata tab to start `loadMetaDetails()`'s fetch, delayed that fetch by
+400ms via a monkey-patched `window.fetch`, then forced a full
+`renderSingleEntity()` re-render 100ms later mid-flight to detach the
+original box) — confirmed the Metadata panel still ends up correctly
+populated instead of stuck on "Loading…".
+
+**General pattern worth remembering**: any function that captures a DOM
+element reference before an `await`/`.then()` and writes to that same
+reference afterward is at risk of this exact bug if the surrounding page
+can legitimately do a full-HTML-replacement re-render while the async work
+is in flight (true for any Resource/Version page render, which can be
+re-triggered by `ensureModelCached()`/`ensureCapCached()`/
+`ensureOfferedCached()` resolving after the fact). Prefer re-querying
+`getElementById()` right before each write instead of reusing an
+earlier-captured reference.
+
+**Follow-up: a second, more significant compounding root cause** (found
+after the user offered a more precise theory: "I wonder if it thinks
+something is already cached (but it's not) so it doesn't hit the network
+but then it waits forever for it to appear in the cache — but never
+does"): the shared global `_metaData` is written by **two independent**
+code paths — `loadMetaDetails()` (List view's Metadata tab) and
+`renderJSONViewForCurrentTab()` (JSON view's meta-segment) — and both had
+an unguarded `if (_metaData) {...}` "already loaded, skip the fetch"
+check with no verification that `_metaData` actually belonged to the
+CURRENTLY-displayed resource. A late-arriving response from either path
+(fired for a previous resource, or racing a resource-navigation) could
+overwrite the shared `_metaData` with the WRONG resource's data right
+after a legitimate reset had already correctly nulled it — so the very
+next cache-check on the new resource wrongly treated it as "already
+loaded" and skipped the real fetch entirely (explaining "no new network
+traffic on click"), and if the mismatched resource/model combination made
+`renderMetaBoxContent()` throw, the box was stuck on its placeholder
+forever (uncaught exception, same "permanently stuck on Loading" symptom).
+
+**Fix (more complete)**: both `loadMetaDetails()` and
+`renderJSONViewForCurrentTab()` now snapshot which entity a call is
+actually for (`requestedFor = _lastData` / the `data` parameter) and gate
+every subsequent `_metaData`/`_metaLoadedFor` read AND write against that
+snapshot still matching the current entity (`stillCurrent()` helper in
+`loadMetaDetails()`; `_lastData !== data` checks in
+`renderJSONViewForCurrentTab()`) — mirroring the same `_lastData === data`
+idiom already used elsewhere in the file (e.g. `ensureModelCached()`/
+`ensureCapCached()` re-render callbacks) to guard against acting on a
+stale closure after navigation. A stale/foreign response is now silently
+discarded instead of being committed, so it can never contaminate the
+resource actually on screen. This is the more precise/complete fix for
+the bug (Fix #1 above closed a related but secondary hole).
+
+Also removed `toggleMetaBox()` as dead code while auditing this area — it
+was Grid view's old collapsible meta-box toggler, unreachable since Grid
+view was removed for the data section (see "Grid view removed..." entries
+above); it had the exact same stale-`box`-reference bug as the original
+`loadMetaDetails()`, so deleting it removes a latent copy of the bug
+rather than leaving it to bite again if ever reintroduced.
+
+**Verified**: re-ran the original stale-DOM-reference race simulation
+(still passes, box no longer stuck on Loading) plus two new tests
+directly exercising `loadMetaDetails()`'s cross-resource guard — (1)
+confirmed `_metaLoadedFor` always matches the current entity's `self`
+after a normal load, and (2) simulated resource A's delayed `/meta` fetch
+resolving *after* `_lastData` had already been swapped to a different
+resource B (with A's own reset already having nulled `_metaData`/
+`_metaLoadedFor` for B, as `renderSingleEntity()` does on real
+navigation) — confirmed A's late response is discarded and does NOT get
+committed as B's `_metaLoadedFor`/`_metaData` (previously, before this
+fix, an equivalent scenario without the guard incorrectly left
+`_metaLoadedFor` pointing at resource A while `_lastData` was already B).
+
+**Status**: still reproduced live after the two fixes above — see the
+third, actual root cause below.
+
+**Third root cause (the real one)**: found via the user's own debugging —
+they reported that when switching to the Metadata tab on a resource, the
+debugger showed `_metaData` already non-null (with what looked like a
+valid meta object) at the point `switchDocTabReal()` checks it, yet the
+panel never painted. The bug was in `switchDocTabReal()` itself (the tab
+*click* handler — distinct from the initial-render path fixed above): its
+own gate was
+
+    if (tabKey === 'meta' && !_metaData) { loadMetaDetails(); }
+
+This duplicates `loadMetaDetails()`'s own (now-correct) cache-validity
+check, but does it wrong: `_metaData` is a global shared across
+resources, so if the user had already viewed a *different* resource's
+Metadata tab earlier in the session, `_metaData` was simply non-null
+(leftover from that other resource) — `switchDocTabReal()` treated that
+as "already loaded for this resource" and skipped `loadMetaDetails()`
+entirely. But this new resource's Metadata *panel* is a fresh DOM element
+whose innerHTML is still the initial "Loading…" placeholder (see
+`renderSingleEntity()`'s tab-panel scaffold) — it had never actually been
+populated. Since `loadMetaDetails()` was never called, nothing ever wrote
+to that panel, and no fetch ever fired either (matching the "no network
+traffic" symptom exactly, and matching the user's own guess: "it thinks
+something is already cached... so it doesn't hit the network but then it
+waits forever").
+
+**Fix**: `switchDocTabReal()` now calls `loadMetaDetails()`
+unconditionally whenever the Metadata tab is activated, exactly matching
+the pattern already used elsewhere (`pendingDocTabActivate === 'meta'`
+during the initial render always calls `loadMetaDetails()` too — see
+around the "Kick off the lazy fetch for whichever tab ended up
+default-selected" comment). `loadMetaDetails()` itself already has the
+correct `stillCurrent()`/`_metaLoadedFor` cache-validity guard (from the
+second fix above), so calling it unconditionally is cheap when the cache
+is genuinely still valid, and correctly fetches fresh data otherwise.
+Removing the redundant, buggy gate at the call site — rather than trying
+to fix it in place — avoids having two different (and now
+inconsistent) ideas of "is `_metaData` valid" living in two places.
+
+**Verified**: reproduced the exact user workflow via CDP — loaded
+resource A, clicked its Metadata tab (populating `_metaData` for A),
+then client-side-navigated to a *different* resource B (schemas list →
+click another schema row, no full page reload) and clicked B's Metadata
+tab. Confirmed B's panel correctly populates with B's own meta data
+(`_metaLoadedFor` matches B's `self`), not stuck on "Loading…" — this
+exact sequence would have hung before this fix, since `_metaData` was
+non-null (A's leftover) when B's tab was clicked.
+
+**Status**: Complete (all three fixes verified). Awaiting the user's own
+live confirmation, since this reproduced consistently for them but not
+reliably in headless Chrome testing until this exact click sequence was
+replicated.

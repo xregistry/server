@@ -128,6 +128,17 @@ function saveOpts() {
 
 function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
 
+// "Domain Focused" mode: hides xRegistry-plumbing Property-table
+// categories (Identity, Versioning & State) in View mode, and renames
+// the "Extensions" bucket to "<Singular> Metadata". See plan.md
+// "Domain Focused" mode section. View mode only — edit mode and JSON
+// view are unaffected regardless of this setting. Defaults to ON for
+// anyone who hasn't explicitly chosen a value yet (i.e. `!== false`
+// rather than a plain truthy check) so it's enabled out of the box,
+// while still letting a user who explicitly unchecked it keep that
+// choice persisted across sessions.
+function optDomainFocused() { return _opts.domainFocused !== false; }
+
 // Reflects the current JSON color-mode option onto <body> so the CSS
 // rules in style.css (scoped via body[data-json-color=...]) can
 // override the default per-token colors used by syntaxHighlight().
@@ -1669,13 +1680,25 @@ function serverLabel(url) {
 // entities (collections never have a Metadata tab).
 function renderJSONViewForCurrentTab(data) {
   if (_state.section === 'data' && _state.docTab === 'meta' && !isCollection(_state.path)) {
-    if (_metaData) { renderJSONView(_metaData); return; }
+    // Trust the shared _metaData cache only when _metaLoadedFor confirms it
+    // was actually populated for THIS entity (same guard renderSingleEntity()
+    // uses) — _metaData is shared with loadMetaDetails() (List view's own
+    // Metadata tab), so without this check, switching to JSON view could
+    // show a stale, different resource's meta object left over from
+    // whichever entity was last viewed there. See loadMetaDetails()'s
+    // matching "stillCurrent()" comment for the fuller race explanation.
+    if (_metaData && _metaLoadedFor === (data && data.self)) { renderJSONView(_metaData); return; }
     var metaUrl = data && data.metaurl;
     if (metaUrl) {
       fetch(metaUrl)
         .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(function(d) { _metaData = d; renderJSONView(d); })
-        .catch(function() { renderJSONView(data); }); // fall back to entity JSON on error
+        .then(function(d) {
+          if (_lastData !== data) return; // navigated away before this resolved — discard
+          _metaData = d;
+          _metaLoadedFor = data.self;
+          renderJSONView(d);
+        })
+        .catch(function() { if (_lastData === data) renderJSONView(data); }); // fall back to entity JSON on error
       return;
     }
   }
@@ -2278,6 +2301,14 @@ function crumb(label, clickExpr) {
 
 var _lastData = null;
 var _metaData = null;          // cached meta response for resource page meta box
+// Which resource's `self` the above _metaData/_metaEditSrc/_metaEditData
+// currently belong to — lets renderSingleEntity()'s redundant re-render
+// (fired again once ensureModelCached()'s async callback resolves for the
+// SAME resource — see its `_metaData = null` reset below) tell "same
+// resource, just re-rendering" apart from "genuinely navigated to a
+// different resource", so an in-progress Meta-tab edit isn't silently
+// wiped out by that harmless second render. See loadMetaDetails().
+var _metaLoadedFor = null;
 var _docPillsMetaCompat = null; // cached meta.compatibility value for the Document tab's
                                  // Compatibility pill; null = not yet fetched, '' = fetched
                                  // but not set/unavailable. Reset whenever a new resource
@@ -3144,6 +3175,23 @@ function renderConfig() {
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
+    // Options below are alphabetized by label (Domain Focused, then JSON
+    // coloring) — keep new options inserted in alphabetical order too.
+    + '<div class="cfg-option-row" onclick="cfgSetDomainFocused(!optDomainFocused())"'
+    +   ' title="Hides xRegistry-specific Property-table sections (Identity,'
+    +   ' Versioning &amp; State) and the Config: links, so the UI focuses on'
+    +   ' your own data. View mode only \u2014 edit mode and JSON view are'
+    +   ' unaffected.">'
+    +   '<span class="cfg-option-label">Domain Focused</span>'
+    +   '<input type="checkbox" id="cfg-domain-focused"'
+    +   (optDomainFocused() ? ' checked' : '')
+    +   ' onclick="event.stopPropagation()"'
+    +   ' onchange="cfgSetDomainFocused(this.checked)">'
+    +   '<span class="cfg-option-desc">Hide xRegistry-specific details in'
+    +   ' view mode (Identity, Versioning &amp; State, Config links) so the'
+    +   ' UI reads more like a plain data catalog</span>'
+    + '</div>'
+
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -3500,6 +3548,15 @@ function cfgSetJsonColor(mode) {
   applyJsonColorMode();
 }
 
+// Flips the "Domain Focused" option (see optDomainFocused()) and
+// re-renders the current page immediately so the effect is visible
+// without a manual reload, matching cfgSetJsonColor()'s behavior.
+function cfgSetDomainFocused(checked) {
+  _opts.domainFocused = !!checked;
+  saveOpts();
+  refresh();
+}
+
 // Adds a new server from the Config page's Add row. Blocks (shows an
 // inline error, touches nothing) if the URL is already configured — a
 // URL is a server's unique identity, so re-adding a known URL (e.g. to
@@ -3748,7 +3805,7 @@ function buildAddEntityFormHtml(model, collPath) {
   // error is immediately visible without scrolling past the whole form.
   var html = '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
     + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
-    + '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Property') + '</th><th>Value</th></tr></thead><tbody>'
+    + '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Details') + '</th><th></th></tr></thead><tbody>'
     + propRow(capitalize(singular) + ' ID *', '<input type="text" id="addNewIdInput" class="xr-edit-input" required>')
     + rowsHtml;
   if (attrsMap['*']) {
@@ -3778,14 +3835,18 @@ function saveNewEntity(cb) {
   var url = buildBaseURL() + '/' + encodeURIComponent(id);
   var body = Object.assign({}, _addNewData);
 
-  // Resources with hasdocument=true treat a plain (non-$details) PUT body
-  // as the literal document content — so sending our metadata-only object
-  // (even an empty {}) here would create the resource with THAT as its
-  // document instead of leaving it empty. Use $details so this body is
-  // parsed as metadata only, leaving the actual document unset for now
-  // (the user can add real document content afterward).
-  var model = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
-  if (_state.path.length === 3 && resourceHasDocument(model, _state.path.concat(['__new__']))) {
+  // Resources/Versions treat a plain (non-$details) PUT body as the
+  // literal document content when the entity has a document (or as soon
+  // as one is added later, for Versions of a hasdocument=true Resource)
+  // — so sending our metadata-only object (even an empty {}) here would
+  // create the entity with THAT as its document instead of leaving it
+  // empty. Use $details so this body is always parsed as metadata only,
+  // leaving the actual document unset for now (the user can add real
+  // document content afterward). Always applied for these two collection
+  // types (Resources: path length 3, Versions: path length 5) regardless
+  // of the model's hasdocument setting — $details is a harmless no-op
+  // when there's no document concept, so there's no need to check first.
+  if (_state.path.length === 3 || _state.path.length === 5) {
     url += '$details';
   }
 
@@ -4131,6 +4192,10 @@ function sectionCapKey(s) { return s === 'xregistry' ? '.xregistry' : s; }
 
 function buildRegEndpointPillsHtml() {
   if (_state.path.length !== 0) return '';
+  // Domain Focused mode (View mode only, see optDomainFocused()): hide
+  // the whole "Config:" pills row — these are xRegistry-specific
+  // endpoints (Model/ModelSource/Capabilities/etc), not domain data.
+  if (optDomainFocused() && !_state.editMode) return '';
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
@@ -4199,8 +4264,12 @@ function renderSingleEntity(data) {
   var model  = _modelCache[modelKey] || null;
 
   // Entity Data Editor (see "Entity Data Editor" section below) — only
-  // Registry root/Group/Resource/Version pages (single-entity Property
-  // tables) are editable; collection pages never get an inline edit form.
+  // Registry root/Group/Resource pages (single-entity Property tables) are
+  // editable; collection pages never get an inline edit form. (Version
+  // pages, depth >= 6, no longer render through this List-view path at
+  // all — the dedicated Version page was retired; see
+  // normalizeVersionDepth(). Version entities are still editable, just via
+  // the Resource page's "Version:" dropdown — see _verEditData/_verDirty.)
   // _dataEditData is snapshotted fresh whenever the server+path changes, so
   // navigating to a different entity always starts from that entity's own
   // data — but re-rendering the SAME entity (e.g. after a save, or toggling
@@ -4208,7 +4277,7 @@ function renderSingleEntity(data) {
   // clobbering an in-progress edit.
   var dataEditDepth = _state.path.length;
   var isEditableEntityPage = (dataEditDepth === 0 || dataEditDepth === 2
-    || dataEditDepth === 4 || dataEditDepth >= 6);
+    || dataEditDepth === 4);
   if (isEditableEntityPage) {
     var dataEditKey = svBase + '|' + _state.path.join('/');
     if (_dataLoadedFor !== dataEditKey) {
@@ -4309,32 +4378,19 @@ function renderSingleEntity(data) {
       titleDisplayH = regNameOverrideH
         || titleDisplayH.replace(/\s+Registry$/i, '');
     }
-    var resSingularH = (depthH === 4 || depthH >= 6) && model
-      ? getSingularName(model, _state.path.slice(0, 4)) : null;
-    // Version pages (depth >= 6) show the owning Resource ID before "VERSION"
-    // instead of the resource's singular type name (e.g. "Contoso.ERP.
-    // CancellationData VERSION: 1" rather than "SCHEMA VERSION: 1") —
-    // matches the Resource ID prefix already used on the Versions
-    // collection page title.
-    var titleIdPrefixH = (depthH >= 6)
-      ? '<span class="eg-page-title-id-prefix">' + esc(_state.path[3]) + '</span> '
-      : '';
-    var titleTypeH = (depthH >= 6 && resSingularH) ? 'VERSION' : entityTypeH;
     // Header icon: Registry root page (depth 0) uses its own `icon` if
     // set; Group instance page (depth 2) uses its own `icon` if set, else
-    // the model's Group-type icon; Resource instance page (depth 4) and
-    // Version pages (depth >= 6, no separate Version Type icon concept —
-    // reuses the owning Resource Type's icon) use their own `icon` (depth
-    // 4 only — data at depth >=6 is a Version, not the Resource, so only
-    // the model fallback applies there) else the model's Resource-type
-    // icon. See plan.md "Icon propagation from model + entity data".
+    // the model's Group-type icon; Resource instance page (depth 4) uses
+    // its own `icon` else the model's Resource-type icon. See plan.md
+    // "Icon propagation from model + entity data". (Version pages, depth
+    // >= 6, no longer render through this List-view path at all — the
+    // dedicated Version page was retired; see normalizeVersionDepth().)
     var titleIconUrlH = '';
     if (depthH === 0) titleIconUrlH = (data && typeof data.icon === 'string' && data.icon.trim()) ? data.icon : '';
     else if (depthH === 2) titleIconUrlH = resolveGroupIcon(model, _state.path[0], data);
     else if (depthH === 4) titleIconUrlH = resolveResourceIcon(model, _state.path[0], _state.path[2], data);
-    else if (depthH >= 6) titleIconUrlH = modelResourceIcon(model, _state.path[0], _state.path[2]);
-    html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrlH, 'eg-page-title-icon') + titleIdPrefixH
-      + '<span class="eg-page-title-type">' + esc(titleTypeH) + ':</span>'
+    html += '<div class="eg-page-title">' + iconThumbHtml(titleIconUrlH, 'eg-page-title-icon')
+      + '<span class="eg-page-title-type">' + esc(entityTypeH) + ':</span>'
       + (titleDisplayH ? ' <span class="eg-page-title-id">' + esc(titleDisplayH) + '</span>' : '')
       + '</div>';
     html += serverURLLineHtml();
@@ -4404,16 +4460,16 @@ function renderSingleEntity(data) {
   var depthD = _state.path.length;
   var pendingDocTabActivate = null;
   _resVersionsUrl = ''; // reset each render; only set (truthy) for Resource pages (depth 4)
-  if (depthD === 4 || depthD >= 6) {
+  if (depthD === 4) {
     var entityTypeT = getSingularName(model, _state.path);
     var capTypeT = capitalize(entityTypeT);
     var hasDocD = resourceHasDocument(model, _state.path);
-    var docSingularD = (depthD === 4) ? entityTypeT : getSingularName(model, _state.path.slice(0, 4));
+    var docSingularD = entityTypeT;
 
     // Properties table content — built via the shared buildEntityPropsTableHtml()
     // helper (also used later to redraw this panel when the version-selector
     // dropdown, below, picks a different version).
-    var propHeaderT = depthD === 4 ? versionPropHeaderLabel(true, data && data.versionid) : capTypeT + ' Property';
+    var propHeaderT = versionPropHeaderLabel(true, data && data.versionid);
     var propsTableHtml = buildEntityPropsTableHtml(propsEntityData, propHeaderT, model, _state.path, collKeys, dataEditingNow);
 
     var tabDefs = [];
@@ -4426,7 +4482,7 @@ function renderSingleEntity(data) {
       // Snapshot for refreshVersionDetailsPanel() to redraw the props panel
       // (with the "(compat)" prefix on Compatibility Validated) once that
       // async fetch resolves — see _docPropsPanelInfo above.
-      _docPropsPanelInfo = { panelId: depthD === 4 ? 'eg-doc-panel-defver' : 'eg-doc-panel-version',
+      _docPropsPanelInfo = { panelId: 'eg-doc-panel-defver',
         headerLabel: propHeaderT, model: model, path: _state.path, collKeys: collKeys };
       tabDefs.push({ key: 'doc', label: 'Document',
         content: '<div id="eg-doc-pills">' + buildDocInfoPillsHtml(data) + '</div>'
@@ -4435,35 +4491,46 @@ function renderSingleEntity(data) {
     }
     var versionsUrlD = '';
     var versionsListLinkHtml = '';
-    if (depthD === 4) {
-      // Version property/details panel — a plain tab, same as before this
-      // feature existed. Which version's data it shows is now controlled by
-      // a *separate* standalone "Version:" dropdown rendered above the tab
-      // bar (see plan.md "version-selector dropdown"), not by the tab bar
-      // itself. Defaults to "Default" — the resource's own
-      // flattened-default-version data, already rendered above.
-      var versionsCollD = colls.filter(function(c) { return c.plural === 'versions'; })[0];
-      versionsUrlD = versionsCollD ? versionsCollD.url : '';
-      tabDefs.push({ key: 'defver', label: 'Version Details', content: propsTableHtml });
+    // Version property/details panel — a plain tab, same as before this
+    // feature existed. Which version's data it shows is now controlled by
+    // a *separate* standalone "Version:" dropdown rendered above the tab
+    // bar (see plan.md "version-selector dropdown"), not by the tab bar
+    // itself. Defaults to "Default" — the resource's own
+    // flattened-default-version data, already rendered above.
+    var versionsCollD = colls.filter(function(c) { return c.plural === 'versions'; })[0];
+    versionsUrlD = versionsCollD ? versionsCollD.url : '';
+    tabDefs.push({ key: 'defver', label: 'Version Details', content: propsTableHtml });
+    // Only reset the Meta tab's cached/edit state when this render is for
+    // a genuinely different resource than whatever it currently belongs
+    // to — renderSingleEntity() also re-runs harmlessly for the SAME
+    // resource once ensureModelCached()'s async callback resolves (see
+    // above), and unconditionally nulling this out here previously wiped
+    // an in-progress Meta-tab edit if the user started editing before
+    // that second, model-now-available render fired (loadMetaDetails()
+    // would then re-fetch and stomp _metaEditData/_metaDirty back to
+    // pristine — see loadMetaDetails() for the matching half of this fix).
+    if (_metaLoadedFor !== data.self) {
       _metaData = null;
-      _metaResourceIdField = entityTypeT.toLowerCase() + 'id';
-      _metaEntityType = entityTypeT;
-      tabDefs.push({ key: 'meta', label: capTypeT + ' Metadata',
-        content: '<div id="eg-meta-box"><div class="eg-loading">Loading\u2026</div></div>' });
-      // "Versions List" — a real navigation link (not a tab switch) to the
-      // raw Versions collection page, styled to match the pill tabs. Lets
-      // users get to the full List/Grid/filterable view of all versions
-      // (useful when there are many versions — a flat dropdown doesn't
-      // scale, but the collection page's existing filter support does).
-      // See plan.md "version-selector dropdown" for the design rationale.
-      if (versionsCollD) {
-        var versionsListHref = pageHref(_state.path.concat(['versions']), versionsCollD.url);
-        var versionsListClick = guardedOnclick('navigateTo(\'versions\',' + JSON.stringify(versionsCollD.url) + ')');
-        versionsListLinkHtml = '<a class="eg-doc-tab eg-doc-tab-link" href="' + esc(versionsListHref)
-          + '" onclick="' + esc(versionsListClick) + '">Versions List (' + esc(String(versionsCollD.count)) + ')</a>';
-      }
-    } else { // depthD >= 6, Version entity — no separate meta split
-      tabDefs.push({ key: 'version', label: 'Version Details', content: propsTableHtml });
+      _metaEditSrc = null;
+      _metaEditData = null;
+      _metaDirty = false;
+      _metaLoadedFor = data.self;
+    }
+    _metaResourceIdField = entityTypeT.toLowerCase() + 'id';
+    _metaEntityType = entityTypeT;
+    tabDefs.push({ key: 'meta', label: capTypeT + ' Details',
+      content: '<div id="eg-meta-box"><div class="eg-loading">Loading\u2026</div></div>' });
+    // "Versions List" — a real navigation link (not a tab switch) to the
+    // raw Versions collection page, styled to match the pill tabs. Lets
+    // users get to the full List/Grid/filterable view of all versions
+    // (useful when there are many versions — a flat dropdown doesn't
+    // scale, but the collection page's existing filter support does).
+    // See plan.md "version-selector dropdown" for the design rationale.
+    if (versionsCollD) {
+      var versionsListHref = pageHref(_state.path.concat(['versions']), versionsCollD.url);
+      var versionsListClick = guardedOnclick('navigateTo(\'versions\',' + JSON.stringify(versionsCollD.url) + ')');
+      versionsListLinkHtml = '<a class="eg-doc-tab eg-doc-tab-link" href="' + esc(versionsListHref)
+        + '" onclick="' + esc(versionsListClick) + '">Versions List (' + esc(String(versionsCollD.count)) + ')</a>';
     }
 
     _docSingular = docSingularD;
@@ -4509,19 +4576,6 @@ function renderSingleEntity(data) {
       : '';
 
     if (tabDefs.length || versionSelectorHtml) {
-      // Version page (depth 6+) special case: when there's no Document tab,
-      // "Version Details" is the *only* possible tab — nothing to switch
-      // between, and no other controls (no version-selector, no Versions
-      // List link at that depth) — so skip the tab bar chrome entirely and
-      // just render its content directly, like the plain Properties table
-      // shown for other single-entity pages (depth 0/2).
-      if (depthD >= 6 && tabDefs.length === 1 && !versionSelectorHtml) {
-        // Reuses .eg-doc-tab-panel purely for its overflow-x: auto scoping
-        // (see style.css) — there's no tab bar here to visually pair it
-        // with, but the Property table can still have long values that
-        // need a horizontal scrollbar scoped to just this table.
-        html += dataEditorActionBarHtml + '<div class="eg-doc-tab-panel">' + tabDefs[0].content + '</div>';
-      } else {
       // Restore the previously-active tab (from a Refresh) if it matches
       // one of this render's tabs; otherwise default to the first tab, as
       // before. See plan.md "Remember selected version + active tab".
@@ -4551,15 +4605,20 @@ function renderSingleEntity(data) {
       // content in place (Default version's own bar vs. a differently-
       // selected version's own scoped bar) without moving the action bar
       // down to the bottom of the panel content — see
-      // onVersionSelectChangeReal()/rerenderVersionPanel().
+      // onVersionSelectChangeReal()/rerenderVersionPanel(). The Metadata
+      // tab gets the same slot-swap treatment (see buildMetaActionBarHtml()
+      // / switchDocTabReal()) — if it's the initially-active tab, show its
+      // own Save/Undo bar here from the start instead of the (irrelevant,
+      // permanently-disabled-until-a-Document-tab-edit) page-level bar.
       _dataEditorActionBarHtml = dataEditorActionBarHtml;
-      html += '<div id="dataEditorActionBarSlot">' + dataEditorActionBarHtml + '</div>';
+      var initialActionBarHtml = (tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key === 'meta' && dataEditingNow)
+        ? buildMetaActionBarHtml() : dataEditorActionBarHtml;
+      html += '<div id="dataEditorActionBarSlot">' + initialActionBarHtml + '</div>';
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
           + '"' + (i === initActiveIdx ? '' : ' style="display:none"') + '>' + t.content + '</div>';
       });
       pendingDocTabActivate = tabDefs[initActiveIdx].key;
-      }
     }
   } else if (attrKeys.length || dataEditingNow) {
     // Registry root (depth 0) / Group instance (depth 2) — no tab bar here
@@ -4571,7 +4630,7 @@ function renderSingleEntity(data) {
     // Property table, instead of duplicating the per-row rendering logic.
     var entityTypeP  = getSingularName(model, _state.path);
     var capTypeP = capitalize(entityTypeP);
-    var propHeaderP = capTypeP + ' Property';
+    var propHeaderP = capTypeP + ' Details';
     html += dataEditorActionBarHtml
       + buildEntityPropsTableHtml(propsEntityData, propHeaderP, model, _state.path, collKeys, dataEditingNow);
   }
@@ -4585,7 +4644,7 @@ function renderSingleEntity(data) {
   // real tab bar/active tab is in place, so e.g. a hasDocument resource
   // whose Document tab is the true default doesn't show a stale
   // $details-suffixed URL until the user manually clicks a tab.
-  if (depthD === 4 || depthD >= 6) refreshCopyLinkBtnTooltip();
+  if (depthD === 4) refreshCopyLinkBtnTooltip();
 
   // Kick off the lazy fetch for whichever tab ended up default-selected
   // (Document or Details — the Default/Version Details panels already have
@@ -5579,12 +5638,27 @@ var PROP_CATEGORY_DEFS = [
 // happened to place them. The dynamic <singular>id field (e.g. "fileid")
 // is treated as "id" for ordering purposes even though its literal key
 // differs. Categories without an `order` array keep the incoming order.
-function groupPropsByCategory(keys, specLevel, singular, resourceSingular) {
+// A few "Versioning & State" attributes are useful enough to end-users
+// (not just xReg plumbing) that Domain Focused mode keeps them visible
+// even though the rest of that category is hidden — e.g. the Meta tab's
+// defaultversionid/defaultversionsticky/readonly (which version is
+// active, whether changes are locked out), and the Version Details
+// table's isdefault/ancestorid (whether this is the default version, and
+// which version it descends from).
+var DOMAIN_FOCUSED_KEEP_KEYS = {defaultversionid:1, defaultversionsticky:1, readonly:1,
+  isdefault:1, ancestorid:1};
+
+function groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable, extLabel) {
   if (!specLevel) return null;
+  // Domain Focused mode (View mode only, see optDomainFocused()): drop the
+  // Identity and Versioning & State buckets entirely, and use the
+  // caller-supplied extLabel ("<Singular> Metadata") in place of the
+  // literal "Extensions" label. Edit mode is never affected.
+  var domainFocused = optDomainFocused() && !editable;
   var buckets = PROP_CATEGORY_DEFS.map(function(def) { return { label: def.label, keys: [], order: def.order }; });
   var identityBucket = buckets.filter(function(b) { return b.label === 'Identity'; })[0];
   var contentBucket = buckets.filter(function(b) { return b.label === 'Content'; })[0];
-  var extBucket = { label: 'Extensions', keys: [] };
+  var extBucket = { label: (domainFocused && extLabel) ? extLabel : 'Extensions', keys: [], ext: true };
   keys.forEach(function(k) {
     if (!isSpecAttr(k, specLevel, singular, resourceSingular)) { extBucket.keys.push(k); return; }
     // Dynamic <singular>id pattern (e.g. "fileid") — isSpecAttr() matches it via
@@ -5624,7 +5698,42 @@ function groupPropsByCategory(keys, specLevel, singular, resourceSingular) {
     });
   });
   var all = buckets.concat([extBucket]).filter(function(b) { return b.keys.length > 0; });
+  if (domainFocused) {
+    var totalKeys = all.reduce(function(n, b) { return n + b.keys.length; }, 0);
+    var domainAll = all.map(function(b) {
+      if (b.label === 'Identity') return null;
+      if (b.label === 'Versioning & State') {
+        var kept = b.keys.filter(function(k) { return DOMAIN_FOCUSED_KEEP_KEYS[k]; });
+        return kept.length ? { label: b.label, keys: kept, order: b.order } : null;
+      }
+      return b;
+    }).filter(Boolean);
+    var domainKeys = domainAll.reduce(function(n, b) { return n + b.keys.length; }, 0);
+    // Must not fall back to the caller's raw/unfiltered `keys` list (which
+    // still contains Identity/Versioning & State attrs) just because
+    // hiding those categories collapsed the remaining set to 0 or 1
+    // buckets — always return the (possibly single-bucket) filtered array
+    // whenever anything was actually hidden, even at the cost of showing
+    // one lone category header instead of a flat list.
+    if (domainKeys !== totalKeys) return domainAll;
+  }
   return all.length > 1 ? all : null;
+}
+
+// Builds the category-header <tr> a Property table shows above each
+// group returned by groupPropsByCategory() — shared by
+// buildEntityPropsTableHtml() and renderMetaTable() so both apply Domain
+// Focused mode identically. In Domain Focused mode (view mode only),
+// there's so little left to group that a text heading per category isn't
+// worth it — except the Extensions/"<Singular> Metadata" bucket, which
+// still gets a visual break via a plain divider line (no text) so it
+// reads as a distinct section without looking like more xReg plumbing.
+function buildPropsCatRowHtml(group, domainFocused) {
+  if (domainFocused) {
+    if (group.ext) return '<tr class="xr-props-cat-divider"><td colspan="2"><hr class="xr-props-divider"></td></tr>';
+    return '';
+  }
+  return '<tr class="xr-props-cat"><td colspan="2">' + esc(group.label) + '</td></tr>';
 }
 
 // Global attribute-priority list used to order a Property table's keys
@@ -5648,7 +5757,7 @@ function orderPropKeysFlat(keys, specLevel, singular, resourceSingular) {
     if (ai >= 0) return -1; if (bi >= 0) return 1;
     return a.localeCompare(b);
   });
-  var groups = groupPropsByCategory(sorted, specLevel, singular, resourceSingular);
+  var groups = groupPropsByCategory(sorted, specLevel, singular, resourceSingular, true);
   if (!groups) return sorted;
   var flat = [];
   groups.forEach(function(g) { flat = flat.concat(g.keys); });
@@ -6846,8 +6955,11 @@ function saveDataEntity(verb, cb) {
   if (errDiv) { hideErrorBanner(errDiv); }
 
   var url = buildBaseURL();
-  var depthS = _state.path.length;
-  if (depthS === 4 || depthS >= 6) {
+  // Only Resource pages (depth 4) need the $details suffix here — the
+  // dedicated Version page (depth >= 6) was retired from List view (see
+  // normalizeVersionDepth()); a Version's own edits now go through
+  // saveVersionEntity() instead, which has its own matching check.
+  if (_state.path.length === 4) {
     var svBaseS = (_state.serverURL || window.location.origin).replace(/\/$/, '');
     var modelS = _modelCache[normalizeURL(svBaseS)] || null;
     if (resourceHasDocument(modelS, _state.path)) {
@@ -6936,6 +7048,19 @@ function metaEditFieldChange(k, inputEl) {
     rerenderMetaTab();
     return;
   }
+  // defaultversionsticky gates whether defaultversionid is editable —
+  // toggling it needs a full re-render so that row flips between its
+  // read-only-link/hint form and its editable-input form immediately.
+  // Turning sticky back off also reverts any in-progress defaultversionid
+  // edit back to its original (server) value, since that edit can no
+  // longer be saved/shown as editable once sticky is off.
+  if (k === 'defaultversionsticky') {
+    if (!val && _metaEditSrc && 'defaultversionid' in _metaEditSrc) {
+      _metaEditData.defaultversionid = _metaEditSrc.defaultversionid;
+    }
+    rerenderMetaTab();
+    return;
+  }
   toggleRowDirty(inputEl, _metaEditSrc && JSON.stringify(val) !== JSON.stringify(_metaEditSrc[k]));
 }
 
@@ -6958,12 +7083,40 @@ function rerenderMetaTab() {
   if (!box || !_metaEditData) return;
   var svURL = normalizeURL(_state.serverURL || window.location.origin);
   box.innerHTML = renderMetaBoxContent(_metaEditData, _modelCache[svURL] || null, true);
+  // The Save/Undo action bar now lives in the shared #dataEditorActionBarSlot
+  // (see buildMetaActionBarHtml()), not inside this box's own innerHTML —
+  // refresh it too so Undo/Save-success (both of which reset _metaDirty and
+  // call this function) actually re-disable the buttons instead of leaving
+  // the slot's stale (still-enabled) markup in place.
+  var slot = document.getElementById('dataEditorActionBarSlot');
+  if (slot && _dataEditActiveKind === 'meta') slot.innerHTML = buildMetaActionBarHtml();
 }
 
 function undoMetaEdit() {
   _metaDirty = false;
   _metaEditData = deepClone(_metaEditSrc);
   rerenderMetaTab();
+}
+
+// Meta tab's own Save (full)/Save (delta)/Undo action bar — rendered into
+// the SAME shared #dataEditorActionBarSlot used by the page-level Entity
+// Data Editor bar and the version-selector's per-version bar (see
+// buildVersionActionBarHtml()), never appended inside the Meta panel's own
+// content. Previously this bar was built inline at the bottom of
+// renderMetaTable()'s returned HTML — landing far below the (often long)
+// Meta properties table, while the ALWAYS-VISIBLE page-level entity bar
+// sat right below the tab row showing its own (irrelevant, permanently
+// disabled while only editing Meta) Save/Undo state. That made it look
+// like "the" Save/Undo buttons never enabled, since the real ones were out
+// of view. No Delete button here — a Resource's Meta sub-entity isn't
+// independently deletable (see saveMetaEntity()'s header comment).
+function buildMetaActionBarHtml() {
+  return '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar">'
+    + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (full)</button>'
+    + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (delta)</button>'
+    + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
+    + '</div>';
 }
 
 // Saves the Meta working copy via PUT/PATCH, same shallow top-level diff
@@ -7225,15 +7378,13 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
     var display, valueCellClass = '';
     var attrType = getExplicitAttrType(model, path, k, entityData);
     var isAncestorLink = (k === 'ancestorid' || (k === 'versionid' && depthB === 4));
-    var isParentResLink = resourceSingular && resourceSingular !== singular
-      && k === resourceSingular + 'id' && depthB >= 6;
     var editAttr = editable ? getAttr(model, path, [k], entityData) : null;
     var effAttr = editable ? effectiveEditAttrAtPath([k], editAttr, val) : editAttr;
     var isComplexKind = effAttr
       && (effAttr.type === 'map' || effAttr.type === 'object' || effAttr.type === 'array');
     var isEditableRow = editable
       && !isDataEditReadOnly(k, editAttr, singular, resourceSingular)
-      && !isAncestorLink && !isParentResLink
+      && !isAncestorLink
       && (isComplexKind || (val !== null && typeof val !== 'object'));
     if (isEditableRow && isComplexKind) {
       display = renderEditableComplexValue([k], val, effAttr, model, path, entityData);
@@ -7284,25 +7435,15 @@ function buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 
         display = '<span class="eg-value eg-mono">(' + esc(_docPillsMetaCompat) + ')</span> ' + display;
       }
     } else if (k === 'ancestorid' || (k === 'versionid' && depthB === 4)) {
-      // Link to the dedicated Version page for this version — ancestor on
-      // both the Resource page's "Version Details" tab (depthB === 4) and
-      // the Version page itself (depthB >= 6); versionid only on the
-      // Resource page (depthB === 4), since on the Version page itself
-      // versionid already IS the current page (no useful link to itself).
+      // Link to the Resource page's version-selector dropdown for this
+      // version (versionid only shown on the Resource page's "Version
+      // Details" tab — the dedicated depth>=6 Version page was retired
+      // from List view, see normalizeVersionDepth()).
       var vid = String(val);
       var vHref = pageHref(path.slice(0, 4).concat(['versions', vid]), versionURLById(vid));
       var vClick = 'navigateToVersionById(' + JSON.stringify(vid) + ')';
       display = '<a class="eg-value eg-mono eg-link" href="' + esc(vHref) + '" '
               + 'onclick="' + esc(guardedOnclick(vClick)) + '">' + esc(vid) + '</a>';
-    } else if (resourceSingular && resourceSingular !== singular && k === resourceSingular + 'id' && depthB >= 6) {
-      // Link back to the parent Resource page — this is the Resource's own
-      // id, echoed on the Version entity (e.g. "fileid" shown while viewing
-      // a Version of a "file" Resource). See navigateToParentResource() (no
-      // href-only variant existed yet since it was only ever wired to a
-      // breadcrumb-style onclick before).
-      var rHref = pageHref(path.slice(0, 4), (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + path.slice(0, 4).join('/')));
-      display = '<a class="eg-value eg-mono eg-link" href="' + esc(rHref) + '" '
-              + 'onclick="' + esc(guardedOnclick('navigateToParentResource()')) + '">' + esc(String(val)) + '</a>';
     } else if (k === 'icon' && specLevel && specLevel.icon && typeof val === 'string' && val.trim()) {
       // Spec-defined "icon" attribute (Registry/Group/Resource/Version) is a
       // URL to an image — show a small live preview next to the usual
@@ -7365,9 +7506,19 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // endpoints list, so surfacing them here in edit mode would just show a
   // dead-end "Content" section with nothing actually usable. Suppressed
   // like meta/metaurl above.
+  var domainFocusedT = optDomainFocused() && !editable;
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
+  // Domain Focused mode: a version's own "ancestorid" pointing at itself
+  // (the root/first version of a Resource) isn't meaningful info for an
+  // end-user — hide the row entirely rather than showing an Ancestor
+  // Version ID link to itself. xReg view still shows it (accurate/
+  // technically correct info there).
+  if (domainFocusedT && entityData && entityData.ancestorid !== undefined
+      && entityData.versionid !== undefined && entityData.ancestorid === entityData.versionid) {
+    suppressed.ancestorid = true;
+  }
   var priority = PROPS_PRIORITY;
   function sortKeys(arr) {
     return arr.sort(function(a, b) {
@@ -7399,15 +7550,28 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   var specLevel = specAttrLevel(path);
   var singular  = (getSingularName(model, path) || '').toLowerCase();
   var depth = path ? path.length : 0;
-  var resourceSingular = (depth === 4) ? singular
-    : (depth >= 6 && model) ? (getSingularName(model, path.slice(0, 4)) || '').toLowerCase()
-    : null;
-  var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular);
-  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(headerLabel) + '</th><th>Value</th></tr></thead><tbody>';
+  // Only Resource pages (depth 4) have a distinct resourceSingular != singular
+  // (the dedicated depth>=6 Version page was retired from List view, see
+  // normalizeVersionDepth()).
+  var resourceSingular = (depth === 4) ? singular : null;
+  var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable,
+    depth === 0 ? 'Registry Metadata'
+      : depth === 2 ? capitalize(singular) + ' Metadata'
+      : capitalize(resourceSingular || singular) + ' Metadata');
+  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(headerLabel) + '</th><th></th></tr></thead><tbody>';
   if (groups) {
+    // Domain Focused mode drops most category headers (see
+    // buildPropsCatRowHtml()), so adjacent groups now sit directly next
+    // to each other with no visual break — row banding needs to keep
+    // counting across that boundary (running `bandT`) instead of
+    // resetting to 0 per group, or two same-shaded rows can end up
+    // touching. Normal (non-Domain-Focused) view keeps the original
+    // per-group reset since its header row already breaks the shading.
+    var bandT = 0;
     groups.forEach(function(g) {
-      html += '<tr class="xr-props-cat"><td colspan="2">' + esc(g.label) + '</td></tr>';
-      html += buildPropsRowsHtml(g.keys, entityData, model, path, specLevel, singular, 0, resourceSingular, editable, handlerFn);
+      html += buildPropsCatRowHtml(g, domainFocusedT);
+      html += buildPropsRowsHtml(g.keys, entityData, model, path, specLevel, singular, domainFocusedT ? bandT : 0, resourceSingular, editable, handlerFn);
+      bandT += g.keys.length;
     });
   } else {
     html += buildPropsRowsHtml(keys, entityData, model, path, specLevel, singular, 0, resourceSingular, editable, handlerFn);
@@ -7448,62 +7612,83 @@ function metaEditableNow() {
     && _state.path && _state.path.length === 4;
 }
 
-function toggleMetaBox() {
-  var box    = document.getElementById('eg-meta-box');
-  var twisty = document.getElementById('eg-meta-twisty');
-  if (!box || !twisty) return;
-  var opening = box.style.display === 'none';
-  box.style.display = opening ? '' : 'none';
-  twisty.textContent = opening ? '▼' : '▶';
-  if (!opening) return;
-  if (_metaData) {
-    var svURL = normalizeURL(_state.serverURL || window.location.origin);
-    box.innerHTML = renderMetaBoxContent(_metaData, _modelCache[svURL] || null);
-    return;
-  }
-  box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
-  var metaUrl = _lastData && _lastData.metaurl;
-  if (!metaUrl) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#aaa">No meta URL available</span></div>'; return; }
-  fetch(metaUrl)
-    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(function(d) {
-      _metaData = d;
-      var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
-      box.innerHTML = renderMetaBoxContent(d, _modelCache[svURL2] || null);
-    })
-    .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
-}
-
-// Same fetch/render logic toggleMetaBox() uses, minus the collapse/twisty
-// toggling — used by the Document/Details tab bar's "<Singular> Details"
-// panel, which (unlike Grid view's box) is always visible once selected.
-// When metaEditableNow(), also snapshots _metaEditSrc/_metaEditData (the
-// Meta tab's own pristine/working-copy pair — see saveMetaEntity()/
-// undoMetaEdit()) so edit mode has something to diff/PATCH/undo against.
+// Fetches and renders the Metadata tab's own /meta sub-entity content —
+// used by the Document/Details tab bar's "<Singular> Details" panel, which
+// is always visible once selected. When metaEditableNow(), also snapshots
+// _metaEditSrc/_metaEditData (the Meta tab's own pristine/working-copy
+// pair — see saveMetaEntity()/undoMetaEdit()) so edit mode has something to
+// diff/PATCH/undo against.
 function loadMetaDetails() {
   var box = document.getElementById('eg-meta-box');
   if (!box) return;
   var editableM = metaEditableNow();
+  // Snapshot which entity this call is actually for. `_metaData`/
+  // `_metaLoadedFor` are reset in renderSingleEntity() whenever the
+  // resource changes, but that reset can itself be raced: if a PREVIOUS
+  // resource's meta fetch (or renderJSONViewForCurrentTab()'s own,
+  // completely separate meta fetch — both read/write the same global
+  // `_metaData`) is still in flight when the user navigates to a new
+  // resource, its late-arriving response used to unconditionally stomp
+  // `_metaData` with the WRONG resource's data right after the correct
+  // reset had already happened. That stale, mismatched object then made
+  // the very next `if (_metaData) {...}` check here look like "already
+  // loaded", skipping the real fetch entirely (no new network request —
+  // matching the reported symptom) — and if that mismatched data/model
+  // combination happened to throw inside renderMetaBoxContent(), the box
+  // was left on its "Loading…" placeholder forever. Guarding every
+  // `_metaData` write/read here against `_lastData === requestedFor`
+  // (i.e. "is this response still for the entity currently on screen?")
+  // closes that hole regardless of fetch ordering.
+  var requestedFor = _lastData;
+  function stillCurrent() { return _lastData === requestedFor; }
+  // Re-fetches `#eg-meta-box` right before each DOM write below (rather than
+  // reusing the `box` reference captured above) because renderSingleEntity()
+  // can legitimately re-render the whole page (replacing main.innerHTML,
+  // and with it this exact element) while this function's own fetch is
+  // still in flight — e.g. ensureModelCached()/ensureCapCached() resolving
+  // asynchronously after the user has already switched to the Metadata tab.
+  // Writing to the stale, now-detached `box` in that case is invisible and
+  // silently leaves the *new* (currently-attached) placeholder stuck on
+  // "Loading…" forever, since nothing else would ever refresh it. This was
+  // the source of the "Meta tab hangs on Loading" bug reported after
+  // navigating through several pages quickly.
   function afterLoad(d) {
-    if (editableM) {
+    // Only (re)initialize the edit buffer the first time it's populated for
+    // this resource — loadMetaDetails() can legitimately run again for the
+    // SAME already-loaded resource (e.g. renderSingleEntity()'s harmless
+    // re-render once ensureModelCached() resolves, which can race with an
+    // in-progress edit — see the _metaLoadedFor guard above). Re-cloning
+    // from `d` (the freshly re-fetched pristine server data) every time
+    // would silently discard any not-yet-saved edit the user had already
+    // made, even though the row still shows it as dirty.
+    if (editableM && _metaEditData == null) {
       _metaEditSrc  = deepClone(d);
       _metaEditData = deepClone(_metaEditSrc);
       _metaDirty    = false;
     }
+    var liveBox = document.getElementById('eg-meta-box');
+    if (!liveBox) return;
     var svURL = normalizeURL(_state.serverURL || window.location.origin);
-    box.innerHTML = renderMetaBoxContent(editableM ? _metaEditData : d, _modelCache[svURL] || null, editableM);
+    liveBox.innerHTML = renderMetaBoxContent(editableM ? _metaEditData : d, _modelCache[svURL] || null, editableM);
   }
-  if (_metaData) { afterLoad(_metaData); return; }
+  if (_metaData && stillCurrent() && _metaLoadedFor === (_lastData && _lastData.self)) { afterLoad(_metaData); return; }
   box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
   var metaUrl = _lastData && _lastData.metaurl;
   if (!metaUrl) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#aaa">No meta URL available</span></div>'; return; }
   fetch(metaUrl)
     .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(d) {
+      if (!stillCurrent()) return; // navigated away before this resolved — discard
       _metaData = d;
+      _metaLoadedFor = _lastData && _lastData.self;
       afterLoad(d);
     })
-    .catch(function(e) { box.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>'; });
+    .catch(function(e) {
+      if (!stillCurrent()) return;
+      var liveBox = document.getElementById('eg-meta-box');
+      if (!liveBox) return;
+      liveBox.innerHTML = '<div class="eg-row"><span class="eg-value" style="color:#c00;font-family:monospace">' + esc((e && e.message) ? e.message : String(e)) + '</span></div>';
+    });
 }
 
 // Grows the Document tab's textarea to fill the remaining visible viewport
@@ -7678,13 +7863,23 @@ function onVersionSelectChangeReal(vid) {
 // actually switches — same pattern as pushState()'s edit-mode guards, but
 // scoped to the tab bar since Meta-tab edits are independent of (and don't
 // block) switching to the Document/Version-Details tabs' own content.
+//
+// Bug fix: every "Discard" callback below must not just reset the dirty
+// flag/working-copy variables — it must also re-render the panel being
+// left. Tab panels are only ever built once and then shown/hidden via
+// switchDocTabReal()'s CSS display toggle (not rebuilt on every switch),
+// so without an explicit re-render here the OLD (pre-discard, still
+// showing the discarded edits with Save/Undo left enabled) markup simply
+// sits untouched in the DOM and reappears exactly as it was the next time
+// the user switches back to that tab — even though the underlying data/
+// dirty-flag state was correctly reset. See plan.md.
 function switchDocTab(tabKey) {
   var curActive = document.querySelector('.eg-doc-tab.active');
   var curKey = curActive ? curActive.getAttribute('data-tab') : null;
   if (curKey === 'meta' && tabKey !== 'meta' && _metaDirty) {
     showLeaveEditDialog(
       function() { saveMetaEntity('PUT', function() { switchDocTabReal(tabKey); }); },
-      function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); switchDocTabReal(tabKey); },
+      function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); rerenderMetaTab(); switchDocTabReal(tabKey); },
       null,
       function() { saveMetaEntity('PATCH', function() { switchDocTabReal(tabKey); }); }
     );
@@ -7692,13 +7887,36 @@ function switchDocTab(tabKey) {
   }
   // Meta is a wholly separate object (its own URL/working-copy) from the
   // entity/version data shown by the other tabs, so unsaved edits there
-  // (_dataDirty) must guard a switch INTO Meta too, not just out of it.
-  if (curKey !== 'meta' && tabKey === 'meta' && _dataDirty) {
+  // must guard a switch INTO Meta too, not just out of it. This covers
+  // BOTH the Default-version panel's dirty state (_dataDirty) and a
+  // non-default selected version's own in-progress edit (_verDirty) —
+  // exactly one of the two can be active at a time, depending on which
+  // version the "Version:" dropdown currently has selected (see
+  // onVersionSelectChangeReal()) — previously only _dataDirty was
+  // checked, so leaving a dirty non-default version's edit for the Meta
+  // tab skipped the guard entirely.
+  var enteringVersionDirty = _dataEditActiveKind === 'version' && _verDirty;
+  if (curKey !== 'meta' && tabKey === 'meta' && (_dataDirty || enteringVersionDirty)) {
     showLeaveEditDialog(
-      function() { saveDataEntity('PUT', function() { switchDocTabReal(tabKey); }); },
-      function() { _dataDirty = false; _dataEditData = deepClone(_dataEditSrc); switchDocTabReal(tabKey); },
+      function() {
+        if (enteringVersionDirty) saveVersionEntity('PUT', function() { switchDocTabReal(tabKey); });
+        else saveDataEntity('PUT', function() { switchDocTabReal(tabKey); });
+      },
+      function() {
+        if (enteringVersionDirty) {
+          _verDirty = false; _verEditData = deepClone(_verEditSrc);
+          rerenderVersionPanel();
+        } else {
+          _dataDirty = false; _dataEditData = deepClone(_dataEditSrc);
+          renderSingleEntity(_lastData || _dataEditSrc);
+        }
+        switchDocTabReal(tabKey);
+      },
       null,
-      function() { saveDataEntity('PATCH', function() { switchDocTabReal(tabKey); }); }
+      function() {
+        if (enteringVersionDirty) saveVersionEntity('PATCH', function() { switchDocTabReal(tabKey); });
+        else saveDataEntity('PATCH', function() { switchDocTabReal(tabKey); });
+      }
     );
     return;
   }
@@ -7738,8 +7956,42 @@ function switchDocTabReal(tabKey) {
   var isFirstTab = tabs.length > 0 && tabs[0].getAttribute('data-tab') === tabKey;
   _state.docTab = isFirstTab ? '' : tabKey;
   history.replaceState(null, '', buildURL(_state));
+  // Swap the shared #dataEditorActionBarSlot to whichever bar applies to
+  // the tab we're switching to/away from — see buildMetaActionBarHtml() for
+  // why Metadata needs its own slot content instead of showing the
+  // page-level entity bar (which never reflects Meta's own dirty state).
+  // Switching away from Metadata restores the page-level bar (Version
+  // Details/Document share that one; the version-selector's own swap logic
+  // in onVersionSelectChangeReal() takes over from there if a non-default
+  // version is also selected).
+  var actionBarSlotT = document.getElementById('dataEditorActionBarSlot');
+  if (actionBarSlotT) {
+    if (tabKey === 'meta' && _state.editMode && _state.mutable) {
+      actionBarSlotT.innerHTML = buildMetaActionBarHtml();
+    } else if ((tabKey === 'defver' || tabKey === 'version') && _verEditVid) {
+      // A non-default version's own working copy is in progress (same
+      // condition used above for _dataEditActiveKind) — restore its scoped
+      // bar instead of the page-level one, matching
+      // onVersionSelectChangeReal()'s own slot-swap logic.
+      actionBarSlotT.innerHTML = buildVersionActionBarHtml();
+    } else {
+      actionBarSlotT.innerHTML = _dataEditorActionBarHtml;
+    }
+  }
   if (tabKey === 'doc' && !_docPreviewLoaded) { _docPreviewLoaded = true; loadDocumentPreview(); }
-  if (tabKey === 'meta' && !_metaData) { loadMetaDetails(); }
+  // Always call loadMetaDetails() here (rather than gating on `!_metaData`)
+  // and let IT decide whether `_metaData` is actually still valid for the
+  // CURRENT resource. `_metaData` is a global shared with
+  // renderJSONViewForCurrentTab(), so a stale, non-null leftover from a
+  // previously-viewed resource used to make this gate wrongly skip
+  // loadMetaDetails() entirely — the Metadata panel's placeholder HTML
+  // (never actually populated for THIS resource) was then left showing
+  // "Loading…" forever, and no fetch ever fired (matching the "no network
+  // traffic" symptom exactly). See loadMetaDetails()'s own
+  // `stillCurrent()`/`_metaLoadedFor` guard, which correctly reuses the
+  // cache when it's actually still valid, so calling it unconditionally
+  // here is cheap and safe either way.
+  if (tabKey === 'meta') { loadMetaDetails(); }
   // The panel was just made visible (or already was) — resize the textarea
   // now that layout/geometry is accurate (hidden panels report 0 height).
   if (tabKey === 'doc') sizeDocTextarea();
@@ -8114,7 +8366,7 @@ function renderMetaTable(d, model, editable) {
   var capType = capitalize(_metaEntityType);
   var specLevel = (typeof SPEC_ATTRS !== 'undefined') ? SPEC_ATTRS.meta : null;
   var singular = (_metaEntityType || '').toLowerCase();
-  var groups = groupPropsByCategory(keys, specLevel, singular, null);
+  var groups = groupPropsByCategory(keys, specLevel, singular, null, editable, capType + ' Metadata');
 
   function buildRow(k, banded) {
     var val = d[k];
@@ -8124,9 +8376,13 @@ function renderMetaTable(d, model, editable) {
     var effAttr = editable ? effectiveEditAttrAtPath([k], editAttr, val) : editAttr;
     var isComplexKind = effAttr
       && (effAttr.type === 'map' || effAttr.type === 'object' || effAttr.type === 'array');
-    // defaultversionid always stays a read-only link (changing the
-    // Resource's default version isn't in scope here) even in edit mode.
-    var isEditableRow = editable && k !== 'defaultversionid'
+    // defaultversionid can only be edited while defaultversionsticky is
+    // true (that's what tells the server to honor an explicit default
+    // instead of always tracking the newest version) — otherwise it stays
+    // a read-only link, with a hint on how to unlock it.
+    var isDefaultVerId = k === 'defaultversionid';
+    var stickyOn = !!d.defaultversionsticky;
+    var isEditableRow = editable && (!isDefaultVerId || stickyOn)
       && !isDataEditReadOnly(k, editAttr, singular, null)
       && (isComplexKind || (val !== null && typeof val !== 'object'));
     if (isEditableRow) {
@@ -8137,9 +8393,35 @@ function renderMetaTable(d, model, editable) {
         var metaAnyAddId = 'metaanytype_' + k.replace(/[^a-zA-Z0-9]/g, '') + '_' + Math.random().toString(36).slice(2, 7);
         display = typePillHtml(effAttr)
           + renderComplexAddButtonHtml(effAttr, 'Set Value', metaAnyAddId, 'dataEditSetAnyType', esc(JSON.stringify([k])));
+      } else if (isDefaultVerId) {
+        // Dropdown of actual version IDs rather than a free-text input —
+        // defaultversionid must reference a real version, so let the user
+        // pick from the same versions list backing the Resource page's
+        // "Version:" selector (_resVersionsList) instead of risking a typo.
+        // Falls back to a plain text input if that list hasn't loaded yet.
+        if (_resVersionsList && _resVersionsList.length) {
+          var dvOpts = _resVersionsList.map(function(v) {
+            var vid = itemNavKey(v);
+            return '<option value="' + esc(vid) + '"' + (String(val) === vid ? ' selected' : '') + '>' + esc(vid) + '</option>';
+          }).join('');
+          display = typePillHtml(effAttr)
+            + '<select class="xr-edit-input" data-ftype="string" onchange="metaEditFieldChange(\'' + k + '\', this)">'
+            + dvOpts + '</select>';
+        } else {
+          display = typePillHtml(effAttr) + renderEditableScalarInput(k, val, effAttr || {type: attrType || 'string'}, 'metaEditFieldChange');
+        }
       } else {
         display = typePillHtml(effAttr) + renderEditableScalarInput(k, val, effAttr || {type: attrType || 'string'}, 'metaEditFieldChange');
       }
+    } else if (editable && isDefaultVerId && val != null) {
+      // Sticky is off — keep the read-only link, plus a hint on how to
+      // make this field editable.
+      var dvid2 = String(val);
+      var dvHref2 = pageHref(_state.path.slice(0, 4).concat(['versions', dvid2]), versionURLById(dvid2));
+      var dvClick2 = 'navigateToVersionById(' + JSON.stringify(dvid2) + ')';
+      display = '<a class="eg-value eg-mono eg-link" href="' + esc(dvHref2) + '" '
+              + 'onclick="' + esc(guardedOnclick(dvClick2)) + '">' + esc(dvid2) + '</a>'
+              + ' <span class="xr-hint">To edit, set Sticky to \u201ctrue\u201d.</span>';
     } else if (val == null) {
       display = '<span style="color:#999">null</span>';
     } else if (typeof val === 'boolean') {
@@ -8178,11 +8460,17 @@ function renderMetaTable(d, model, editable) {
          + '</td><td' + valueCellClass + '>' + display + '</td></tr>';
   }
 
-  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Property</th><th>Value</th></tr></thead><tbody>';
+  var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Details</th><th></th></tr></thead><tbody>';
   if (groups) {
+    var domainFocusedM = optDomainFocused() && !editable;
+    // Same running-band fix as buildEntityPropsTableHtml() — Domain
+    // Focused mode drops most category headers, so banding must keep
+    // counting across group boundaries instead of resetting per group.
+    var bandM = 0;
     groups.forEach(function(g) {
-      html += '<tr class="xr-props-cat"><td colspan="2">' + esc(g.label) + '</td></tr>';
-      g.keys.forEach(function(k, i) { html += buildRow(k, i % 2 === 1); });
+      html += buildPropsCatRowHtml(g, domainFocusedM);
+      g.keys.forEach(function(k, i) { html += buildRow(k, (domainFocusedM ? bandM + i : i) % 2 === 1); });
+      bandM += g.keys.length;
     });
   } else {
     keys.forEach(function(k, i) { html += buildRow(k, i % 2 === 1); });
@@ -8204,14 +8492,10 @@ function renderMetaTable(d, model, editable) {
     }
   }
   html += '</tbody></table>';
-  if (editable) {
-    html += '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
-      + '<div class="editorActionBar">'
-      + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (full)</button>'
-      + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (delta)</button>'
-      + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
-      + '</div>';
-  }
+  // Save/Undo action bar moved to the shared #dataEditorActionBarSlot — see
+  // buildMetaActionBarHtml() and its slot-swap wiring in
+  // renderSingleEntity()/switchDocTabReal() — so it's not duplicated far
+  // below the page-level entity action bar and easy to miss.
   return html;
 }
 
@@ -11151,7 +11435,7 @@ function deriveColumns(items, collKeySet) {
 // "Link-driven navigation" notes near buildAPIURL(). `url` is optional only
 // for backward callers; when omitted, buildAPIURL()'s buildBaseURL()
 // fallback silently reconstructs from `path` (accepted only where no real
-// link exists at all — see versionURLById()/navigateToParentResource()).
+// link exists at all — see versionURLById()).
 //
 // Note: an entity's own `self` link never carries filter context on its
 // own — the server only rescopes a `filter=` param onto nested-collection
@@ -11256,16 +11540,6 @@ function navigateToVersion(vId) {
 function navigateToVersionById(vId) {
   var basePath = _state.path.slice(0, 4); // [G, gId, R, rId]
   pushState({path: basePath.concat(['versions', vId]), apiURL: versionURLById(vId)});
-}
-
-// Navigate to the parent resource from a version page. Version entities carry
-// no link back to their parent resource (a discovered spec gap), so this
-// relies on the same-session ancestor cache (crumbURLs) when available, and
-// falls back to plain construction otherwise.
-function navigateToParentResource() {
-  var basePath = _state.path.slice(0, 4);
-  var url = (_state.crumbURLs && _state.crumbURLs[3]) || (serverBase() + '/' + basePath.join('/'));
-  pushState({path: basePath, apiURL: url});
 }
 
 // ---- Model Editor (ported from registry/ui.go's ?html model editor) ------
@@ -13725,7 +13999,7 @@ function formatTimestamp(iso) {
 function versionPropHeaderLabel(isDefault, vid) {
   return (isDefault ? 'Default Version' : 'Version')
     + (vid !== undefined && vid !== null ? ' (' + esc(String(vid)) + ')' : '')
-    + ' Property';
+    + ' Details';
 }
 
 // "Default" option label for the Resource page's standalone "Version:"

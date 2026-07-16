@@ -389,7 +389,6 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 }
 
 .xr-table {
-  width: 100%;
   border-collapse: collapse;
   font-size: 13px;
   background: white;
@@ -491,6 +490,15 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   border-top: 1px solid #e2e2e2;
 }
 .xr-table-props .xr-props-cat:first-child td { border-top: none; }
+/* Domain Focused mode's plain divider row (see buildPropsCatRowHtml()) —
+   used in place of the text category header for the Extensions/"<Singular>
+   Metadata" bucket, since Domain Focused mode drops text headings for
+   every other category but still wants a visual break before that one. */
+.xr-table-props .xr-props-cat-divider td { padding: 6px 0; border: none; }
+.xr-props-divider { border: none; border-top: 1px solid #999; margin: 0; }
+/* Small inline hint text, e.g. next to a read-only defaultversionid link
+   in edit mode explaining how to unlock editing it (set Sticky true). */
+.xr-hint { color: #999; font-size: 12px; font-style: italic; margin-left: 6px; }
 /* Boolean Property-table values — compact pill, neutral palette (false
    isn't a "bad" state for most spec booleans, so no red). */
 .eg-bool-badge {
@@ -548,7 +556,9 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   gap: 8px;
   padding: 2px 6px;
   pointer-events: none;
-  background: transparent;
+  /* Solid (matches #json-output's background) so the sticky header
+     doesn't let scrolled JSON content show/overlap through it. */
+  background: ghostwhite;
   border-bottom: 1px solid #ddd;
 }
 .json-exp-server-url {
@@ -1644,7 +1654,6 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   display: flex;
   align-items: center;
   gap: 10px;
-  text-transform: uppercase;
 }
 .eg-page-title-type {
   letter-spacing: 0.04em;
@@ -2172,6 +2181,18 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   #dataSavePutBtn:hover, #dataSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
   #dataUndoBtn { background: #a06020 ; border-color: #a06020 ; }
   #dataUndoBtn:hover { background: #c4c4c4 ; color: black ; }
+  /* Meta tab / non-default-version action bars (buildMetaActionBarHtml(),
+     buildVersionActionBarHtml()) reuse the exact same Save=blue/Undo=brown
+     scheme as the page-level entity editor above — previously missed here,
+     leaving their Undo buttons the plain blue .editorBtn default. */
+  #metaSavePutBtn, #metaSavePatchBtn { background: #2060a0 ; border-color: #2060a0 ; }
+  #metaSavePutBtn:hover, #metaSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
+  #metaUndoBtn { background: #a06020 ; border-color: #a06020 ; }
+  #metaUndoBtn:hover { background: #c4c4c4 ; color: black ; }
+  #verSavePutBtn, #verSavePatchBtn { background: #2060a0 ; border-color: #2060a0 ; }
+  #verSavePutBtn:hover, #verSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
+  #verUndoBtn { background: #a06020 ; border-color: #a06020 ; }
+  #verUndoBtn:hover { background: #c4c4c4 ; color: black ; }
   /* JSON view's raw-edit action bar (Format/Save/Undo/Delete) reuses the
      exact same Save=blue/Undo=brown scheme as List view's own data-entity
      editor above, instead of staying the plain green .editorBtn default —
