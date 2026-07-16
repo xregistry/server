@@ -10,6 +10,7 @@ require (
 	github.com/jhump/protoreflect v1.18.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.2
+	golang.org/x/tools v0.47.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -20,6 +21,7 @@ require (
 	github.com/jhump/protoreflect/v2 v2.0.0-beta.2 // indirect
 	github.com/petermattis/goid v0.0.0-20260701081913-4f67fd55d3b4 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )

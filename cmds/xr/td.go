@@ -702,7 +702,7 @@ func (td *TD) Set(key string, val any) *TD {
 
 func (td *TD) GetRegistry() *xrlib.Registry {
 	val := td.GetProp("xreg")
-	if val == nil {
+	if IsNil(val) {
 		td.FailNow("Registry isn't set")
 	}
 	return val.(*xrlib.Registry)
@@ -714,7 +714,7 @@ func (td *TD) SetRegistry(r *xrlib.Registry) *TD {
 
 func (td *TD) GetModel() *xrlib.Model {
 	val := td.GetProp("model")
-	if val == nil {
+	if IsNil(val) {
 		td.FailNow("Model isn't set")
 	}
 	return val.(*xrlib.Model)
@@ -726,7 +726,7 @@ func (td *TD) SetModel(m *xrlib.Model) *TD {
 
 func (td *TD) GetCapabilities() *Capabilities {
 	val := td.GetProp("capabilities")
-	if val == nil {
+	if IsNil(val) {
 		td.FailNow("Capabilities isn't set")
 	}
 	return val.(*Capabilities)

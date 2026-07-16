@@ -24,6 +24,7 @@
 /.xrserver-all
 /.sharedfiles
 /.devimage
+/.nilcheck
 
 # Junk
 /hostit

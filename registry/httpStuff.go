@@ -745,7 +745,7 @@ FROM FullTree WHERE RegSID=? AND `
 	}
 
 	buf := version.Get(singular)
-	if buf == nil {
+	if IsNil(buf) {
 		// No data so just return
 		/*
 			if info.StatusCode == 0 {

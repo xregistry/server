@@ -50,9 +50,17 @@ docs: docs/xr_help.md docs/xrserver_help.md
 errors: .errors
 .errors: .cmds misc/checkerrors
 	@echo
-	@echo "# Checking the errors"
+	@echo "# Checking the errors for spec alignment"
 	@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
 	@touch .errors
+
+nilcheck: .nilcheck
+.nilcheck: cmds/nilcheck cmds/xr cmds/xrserver/*  registry/* common/*
+	@echo
+	@echo "# Checking for '== nil'/'!= nil' misuse on 'any'-typed values"
+	@misc/errOutput @go run ./cmds/nilcheck ./registry/... ./common/... \
+		./cmds/...
+	@touch .nilcheck
 
 utest: .utest
 .utest: .cmds */*test.go
@@ -89,7 +97,7 @@ endif
 	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS) $(SED)
 	@touch .fulltest
 
-test: .qtest .fulltest .errors .testimages
+test: .qtest .fulltest .errors .nilcheck .testimages
 
 .sharedfiles: common/shared*
 	@echo
@@ -325,7 +333,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .utest .qtest .fulltest \
+	@rm -f .sharedfiles .errors .nilcheck .utest .qtest .fulltest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache
