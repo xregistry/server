@@ -928,15 +928,18 @@ func (gm *GroupModel) FindXImportResource(gType string, rType string) (*Resource
 			return nil, NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("The ximportresources reference %q is "+
-						"recursive", origXID))
+						"circular", origXID))
 		}
 		seen = append(seen, gType)
 
 		rm := gm.Resources[rType]
 		if rm != nil {
-			// Native Resource definition, so return it
-			return rm, nil
+			// Found it, but it might be ximport'd in so get its origin
+			return rm.GetOriginResourceModel(), nil
 		}
+
+		// Not already there, so if we haven't processed the XImportResources
+		// yet, just scan those for what we're looking for (recursively)
 		for _, xr := range gm.XImportResources {
 			parts := strings.Split(xr, "/")
 			if len(parts) != 3 {
@@ -952,6 +955,8 @@ func (gm *GroupModel) FindXImportResource(gType string, rType string) (*Resource
 				// Someone else will report this as an error
 				continue
 			}
+
+			// Found one with a matching resource.plural, so keep traversing
 			rm, xErr := checkFn(g, parts[1], rType)
 			if rm != nil || xErr != nil {
 				return rm, xErr
@@ -1214,11 +1219,24 @@ func (rm *ResourceModel) GetOriginAbstractModel() string {
 		return rm.XImportOrigin
 	}
 
-	if len(rm.GroupModel.Resources) > 0 && rm.GroupModel.Resources[rm.Plural] != nil {
+	if len(rm.GroupModel.Resources) > 0 &&
+		rm.GroupModel.Resources[rm.Plural] != nil {
+
 		return "/" + rm.GroupModel.Plural + "/" + rm.Plural
 	}
 
-	panic("Can't find myself!")
+	panic(fmt.Sprintf("Can't find myself! %s/%s",
+		rm.GroupModel.Plural, rm.Plural))
+}
+
+func (rm *ResourceModel) GetOriginResourceModel() *ResourceModel {
+	if rm.XImportOrigin != "" {
+
+		parts := strings.Split(rm.XImportOrigin, "/")
+		PanicIf(len(parts) != 3, "%q must be abstract xid", rm.XImportOrigin)
+		rm = rm.GroupModel.Model.Groups[parts[1]].Resources[parts[2]]
+	}
+	return rm
 }
 
 func (rm *ResourceModel) Clone(newGM *GroupModel) *ResourceModel {
@@ -1969,8 +1987,10 @@ func (m *Model) Verify() *XRError {
 	}
 
 	// Check Groups first so that if the Group name isn't valid we'll
-	// flag that instead of an invalid GROUPScount attribute name
-	for gmName, gm := range m.Groups {
+	// flag that instead of an invalid GROUPScount attribute name.
+	// Sort it to ensure consistent errors in testing.
+	for _, gmName := range SortedKeys(m.Groups) {
+		gm := m.Groups[gmName]
 		if gm == nil {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
@@ -2113,21 +2133,24 @@ func (gm *GroupModel) Verify(gmName string) *XRError {
 		// In this func be careful using the *.Plural value because some
 		// may not be filled in yet - like r.Plural.  gm.Plural is done above
 
-		parts := strings.Split(grName, "/")
-		if len(parts) != 3 {
-			return NewXRError("model_error", "/model",
-				"error_detail="+
-					fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
-						"value (%s), must be of the form \"/GROUP/RESOURCE\"",
-						gm.Plural, grName))
-		}
-		if parts[0] != "" {
+		if grName[0] != '/' {
 			return NewXRError("model_error", "/model",
 				"error_detail="+
 					fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
 						"value (%s), must start with \"/\" and be of the form "+
 						"\"/GROUP/RESOURCE\"", gm.Plural, grName))
 		}
+
+		parts := strings.Split(grName, "/")
+		// parts[0] is always ""
+		if len(parts) != 3 || len(parts[1]) == 0 || len(parts[2]) == 0 {
+			return NewXRError("model_error", "/model",
+				"error_detail="+
+					fmt.Sprintf("Group %q has an invalid \"ximportresources\" "+
+						"value (%s), must be of the form \"/GROUP/RESOURCE\"",
+						gm.Plural, grName))
+		}
+
 		if parts[1] == gm.Plural {
 			return NewXRError("model_error", "/model",
 				"error_detail="+

@@ -647,6 +647,32 @@ func TestXrefErrors(t *testing.T) {
 	_, err := d.AddResource("files", "f1", "v1")
 	XNoErr(t, err)
 
+	// bad xrefs
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"xref": "/zoos/d1/files/fx"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
+  "title": "The specified xref value (/zoos/d1/files/fx) is malformed: points to a non-existing Group Type: zoos.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "points to a non-existing Group Type: zoos",
+    "xref": "/zoos/d1/files/fx"
+  },
+  "source": "49a49fc034c5:registry:resource:666"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"xref": "/dirs/d1/zoos/fx"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
+  "title": "The specified xref value (/dirs/d1/zoos/fx) is malformed: points to a non-existing Resource Type: zoos.",
+  "subject": "/dirs/d1/files/f1/meta",
+  "args": {
+    "error_detail": "points to a non-existing Resource Type: zoos",
+    "xref": "/dirs/d1/zoos/fx"
+  },
+  "source": "49a49fc034c5:registry:resource:675"
+}
+`)
+
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
 		`{"xref": "/dirs/d1/files/fx","fileid":"f2"}`, 400,
 		`{
@@ -783,36 +809,28 @@ func TestXrefErrors(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
-		`{"xref":"/bars/b1/files/f1"}`, 400,
+		`{"xref":"/bars/b1/files/f1"}`, 201,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/bars/b1/files/f1) is malformed: must point to a Resource of type \"/dirs/files\" not \"/bars/files\".",
-  "subject": "/bars/b1/files/f1/meta",
-  "args": {
-    "error_detail": "must point to a Resource of type \"/dirs/files\" not \"/bars/files\"",
-    "xref": "/bars/b1/files/f1"
-  },
-  "source": "e4e59b8a76c4:registry:resource:607"
+  "fileid": "f1",
+  "self": "http://localhost:8181/bars/b1/files/f1/meta",
+  "xid": "/bars/b1/files/f1/meta",
+  "xref": "/bars/b1/files/f1"
 }
 `)
 
 	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
-		`{"xref":"/bars/b1/files/f2"}`, 400,
+		`{"xref":"/bars/b1/files/f2"}`, 200,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#malformed_xref",
-  "title": "The specified xref value (/bars/b1/files/f2) is malformed: must point to a Resource of type \"/dirs/files\" not \"/bars/files\".",
-  "subject": "/bars/b1/files/f1/meta",
-  "args": {
-    "error_detail": "must point to a Resource of type \"/dirs/files\" not \"/bars/files\"",
-    "xref": "/bars/b1/files/f2"
-  },
-  "source": "e4e59b8a76c4:registry:resource:607"
+  "fileid": "f1",
+  "self": "http://localhost:8181/bars/b1/files/f1/meta",
+  "xid": "/bars/b1/files/f1/meta",
+  "xref": "/bars/b1/files/f2"
 }
 `)
 
 	// ok even if target is missing
 	XHTTP(t, reg, "PUT", "/bars/b1/files/f1/meta",
-		`{"xref":"/dirs/dx/files/fx"}`, 201, `{
+		`{"xref":"/dirs/dx/files/fx"}`, 200, `{
   "fileid": "f1",
   "self": "http://localhost:8181/bars/b1/files/f1/meta",
   "xid": "/bars/b1/files/f1/meta",
@@ -1903,4 +1921,47 @@ func TestXrefDocs(t *testing.T) {
   "versionscount": 1
 }
 `)
+}
+
+// Test transitive ximportresources and xref's
+func TestXrefXImportTransitive(t *testing.T) {
+	reg := NewRegistry("TestXrefXImportTransitive")
+	defer PassDeleteReg(t, reg)
+
+	// Make sure they're not alphabetically ordered
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "bars":{"singular":"bar","ximportresources":["/foos/files"]},
+        "foos":{"singular":"foo","resources":{"files":{"singular":"file"}}},
+        "zoos":{"singular":"zoo","ximportresources":["/bars/files"]}
+      }
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/foos/f1/files/f1", ``, 201, `*`)
+
+	for _, test := range [][2]string{
+		{"/foos/f1/files/f2", "/foos/f1/files/f1"},
+
+		{"/bars/b1/files/f1", "/foos/f1/files/f1"},
+		{"/bars/b1/files/f2", "/foos/f1/files/f2"},
+		{"/bars/b1/files/f3", "/bars/b1/files/f1"},
+
+		{"/zoos/z1/files/f1", "/foos/f1/files/f1"},
+		{"/zoos/z1/files/f2", "/foos/f1/files/f2"},
+		{"/zoos/z1/files/f3", "/bars/b1/files/f1"},
+		{"/zoos/z1/files/f4", "/bars/b1/files/f2"},
+		{"/zoos/z1/files/f5", "/bars/b1/files/f3"},
+
+		{"/zoos/z1/files/f6", "/zoos/z1/files/f1"},
+		{"/zoos/z1/files/f7", "/zoos/z1/files/f2"},
+		{"/zoos/z1/files/f8", "/zoos/z1/files/f3"},
+		{"/zoos/z1/files/f9", "/zoos/z1/files/f4"},
+		{"/zoos/z1/files/fA", "/zoos/z1/files/f5"},
+	} {
+		XHTTP(t, reg, "PUT", test[0]+"$details", `{
+          "meta": {
+            "xref": "`+test[1]+`"
+          }
+        }`, 201, `*`)
+	}
 }

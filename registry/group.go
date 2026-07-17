@@ -444,6 +444,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// RemoveReadonlyVersionAttributes(r.ResourceModel, ru.Obj)
 		// RemoveReadonlyResourceAttributes(r.ResourceModel, ru.Obj)
 
+		// Error on extra attributes when xref is present
 		delete(ru.Obj, r.Singular+"id")
 		if len(ru.Obj) > 0 {
 			xErr := NewXRError("extra_xref_attribute", r.XID,

@@ -548,8 +548,11 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		if xErr != nil {
 			return nil, false, xErr
 		}
-		targetEpochAny := tgtR.Get("epoch")
-		targetEpoch = NotNilInt(&targetEpochAny)
+		// xref might point to a non-existing resource
+		if tgtR != nil {
+			targetEpochAny := tgtR.Get("epoch")
+			targetEpoch = NotNilInt(&targetEpochAny)
+		}
 	}
 
 	var xrefAny any
@@ -648,13 +651,40 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 						"error_detail=must be of the "+
 							"form: /GROUPS/GID/RESOURCES/RID")
 				}
+
 				xrefAbsModel, err := Xid2Abstract(xref)
 				if err != nil {
 					return nil, false, NewXRError("malformed_xref", meta.XID,
 						"xref="+xref,
 						"error_detail="+err.Error())
 				}
+
+				// Find the RM origin of our target
+				parts := strings.Split(xrefAbsModel, "/")
+				gm := r.ResourceModel.GroupModel.Model.Groups[parts[1]]
+				if gm == nil {
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail="+
+							fmt.Sprintf("points to a non-existing Group "+
+								"Type: %s", parts[1]))
+				}
+
+				rm := gm.Resources[parts[2]]
+				if rm == nil {
+					return nil, false, NewXRError("malformed_xref", meta.XID,
+						"xref="+xref,
+						"error_detail="+
+							fmt.Sprintf("points to a non-existing Resource "+
+								"Type: %s", parts[2]))
+				}
+
+				xrefAbsModel = rm.GetOriginAbstractModel()
+
+				// Find RM origin of _this_ Resource
 				targetAbsModel := r.ResourceModel.GetOriginAbstractModel()
+
+				// They need to match
 				if xrefAbsModel != targetAbsModel {
 					return nil, false, NewXRError("malformed_xref", meta.XID,
 						"xref="+xref,

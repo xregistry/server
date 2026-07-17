@@ -12,6 +12,7 @@ func TestModelXImportErrors(t *testing.T) {
 	reg := NewRegistry("TestModelXImportErrors")
 	defer PassDeleteReg(t, reg)
 
+	// bad syntax - no resource
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -34,6 +35,76 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// bad syntax - empty resource
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": {
+          "singular": "g1s",
+          "resources": { "r1p": { "singular": "r1s" } }
+        },
+        "g2p": {
+          "singular": "g2s",
+          "ximportresources": [ "/g1p/" ]
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/), must be of the form \"/GROUP/RESOURCE\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/), must be of the form \"/GROUP/RESOURCE\""
+  },
+  "source": "49a49fc034c5:registry:shared_model:2127"
+}
+`)
+
+	// bad syntax - need leading /
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": {
+          "singular": "g1s",
+          "resources": { "r1p": { "singular": "r1s" } }
+        },
+        "g2p": {
+          "singular": "g2s",
+          "ximportresources": [ "g1p/r1s" ]
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Group \"g2p\" has an invalid \"ximportresources\" value (g1p/r1s), must start with \"/\" and be of the form \"/GROUP/RESOURCE\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (g1p/r1s), must start with \"/\" and be of the form \"/GROUP/RESOURCE\""
+  },
+  "source": "49a49fc034c5:registry:shared_model:2117"
+}
+`)
+
+	// bad syntax - too many chars
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": {
+          "singular": "g1s",
+          "resources": { "r1p": { "singular": "r1s" } }
+        },
+        "g2p": {
+          "singular": "g2s",
+          "ximportresources": [ "/g1p/r1s/" ]
+        }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/r1s/), must be of the form \"/GROUP/RESOURCE\".",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Group \"g2p\" has an invalid \"ximportresources\" value (/g1p/r1s/), must be of the form \"/GROUP/RESOURCE\""
+  },
+  "source": "49a49fc034c5:registry:shared_model:2127"
+}
+`)
+
+	// unknown group
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -56,6 +127,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// unknown resource
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -78,6 +150,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// Not really an ximport issue
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -99,6 +172,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// Dup singular names
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -123,6 +197,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// dup singular imports
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -145,6 +220,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
+	// Bad singular name
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -169,49 +245,7 @@ func TestModelXImportErrors(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-      "groups": {
-        "g1p": {
-          "singular": "g1s",
-          "resources": {
-            "r1p": { "singular": "r1s" }
-          }
-        },
-        "g2p": {
-          "singular": "g2s",
-          "ximportresources": [ "/g1p/r1p" ]
-        },
-        "g3p": {
-          "singular": "g3s",
-          "ximportresources": [ "/g2p/r1p" ]
-        }
-      }
-    }`, 200, `{
-  "groups": {
-    "g1p": {
-      "singular": "g1s",
-      "resources": {
-        "r1p": {
-          "singular": "r1s"
-        }
-      }
-    },
-    "g2p": {
-      "singular": "g2s",
-      "ximportresources": [
-        "/g1p/r1p"
-      ]
-    },
-    "g3p": {
-      "singular": "g3s",
-      "ximportresources": [
-        "/g2p/r1p"
-      ]
-    }
-  }
-}
-`)
-
+	// Can't import one of its own
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
         "g1p": {
@@ -230,6 +264,59 @@ func TestModelXImportErrors(t *testing.T) {
     "error_detail": "Group \"g1p\" has a bad \"ximportresources\" value (/g1p/r1p), it can't reference its own Group"
   },
   "source": "e4e59b8a76c4:registry:shared_model:1947"
+}
+`)
+
+	// Circular ximports - 2 levels
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": { "singular": "g1s", "ximportresources": [ "/g2p/r1p" ] },
+        "g2p": { "singular": "g2s", "ximportresources": [ "/g1p/r1p" ] }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: The ximportresources reference \"/g2p/r1p\" is circular.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "The ximportresources reference \"/g2p/r1p\" is circular"
+  },
+  "source": "49a49fc034c5:registry:shared_model:928"
+}
+`)
+
+	// Circular ximports - 3 levels
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": { "singular": "g1s", "ximportresources": [ "/g3p/r1p" ] },
+        "g2p": { "singular": "g2s", "ximportresources": [ "/g1p/r1p" ] },
+        "g3p": { "singular": "g2s", "ximportresources": [ "/g2p/r1p" ] }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: The ximportresources reference \"/g3p/r1p\" is circular.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "The ximportresources reference \"/g3p/r1p\" is circular"
+  },
+  "source": "49a49fc034c5:registry:shared_model:928"
+}
+`)
+
+	// Dup import name
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g1p": {"singular":"g1s","resources":{"r1p":{"singular":"r1s"}}},
+        "g2p": {"singular":"g2s","resources":{"r1p":{"singular":"r1s"}}},
+        "g3p": {"singular":"g2s","ximportresources":[ "/g1p/r1p","/g2p/r1p" ] }
+      }
+    }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: Group \"g3p\" is trying to ximport a Resource (/g2p/r1p) but a Resource with that name (r1p) already exists.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "Group \"g3p\" is trying to ximport a Resource (/g2p/r1p) but a Resource with that name (r1p) already exists"
+  },
+  "source": "49a49fc034c5:registry:shared_model:2158"
 }
 `)
 
@@ -295,6 +382,8 @@ func TestModelXImport(t *testing.T) {
 
 	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
 	XHTTP(t, reg, "PUT", "/g1p/g1/r2p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g1p/g1/g2r2p/r1", "{}", 201, "*")
+
 	XHTTP(t, reg, "PUT", "/g2p/g1/r1p/r1", "{}", 201, "*")
 	XHTTP(t, reg, "PUT", "/g2p/g1/r2p/r1", "{}", 201, "*")
 	XHTTP(t, reg, "PUT", "/g2p/g1/g2r2p/r1", "{}", 201, "*")
@@ -311,6 +400,45 @@ func TestModelXImport(t *testing.T) {
   "source": "e4e59b8a76c4:registry:resource:607"
 }
 `)
+
+	// Used to be an error, but now transitive is ok
+	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "{}\n")
+	// non-alphabetical order
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "g3p":{"singular":"g3s","resources":{"r1p":{"singular":"r1s" }}},
+        "g2p":{"singular":"g2s","ximportresources":["/g3p/r1p"]},
+        "g1p":{"singular":"g1s","ximportresources":["/g2p/r1p"]}
+      }
+    }`, 200, `{
+  "groups": {
+    "g3p": {
+      "singular": "g3s",
+      "resources": {
+        "r1p": {
+          "singular": "r1s"
+        }
+      }
+    },
+    "g2p": {
+      "singular": "g2s",
+      "ximportresources": [
+        "/g3p/r1p"
+      ]
+    },
+    "g1p": {
+      "singular": "g1s",
+      "ximportresources": [
+        "/g2p/r1p"
+      ]
+    }
+  }
+}
+`)
+	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r1", "{}", 201, "*")
+	XHTTP(t, reg, "PUT", "/g1p/g1/r1p/r2/meta", `{"xref":"/g1p/g3/r1p/r1"}`,
+		201, `*`)
+
 }
 
 /* not allowed any more
