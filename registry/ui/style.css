@@ -146,7 +146,9 @@ html, body {
 }
 #header-popup.popup-open { display: block; }
 .popup-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 14px;
   font-size: 13px;
   white-space: nowrap;
@@ -158,6 +160,48 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .popup-item-active { font-weight: bold; color: #2060a0; }
 .popup-item-cur { color: #555; cursor: default; }
 .popup-sep { margin: 4px 0; border: none; border-top: 1px solid #eee; }
+
+/* Small icons shown to the left of each menu item's label — roughly half
+   the size of the equivalent toolbar button's icon, reusing the same
+   assets/CSS techniques (clip-path, currentColor glyphs) so they inherit
+   the existing hover/active blue tint automatically. */
+.popup-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.popup-icon-funnel {
+  display: inline-block;
+  width: 9px;
+  height: 8px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 58% 55%, 58% 100%, 42% 100%, 42% 55%);
+}
+.popup-icon-xreg { display: block; width: 10px; height: 12px; }
+.popup-icon-pencil {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  transform: scaleX(-1);
+}
+.popup-icon-gear { font-size: 19.5px; line-height: 1; }
+.popup-icon-grid {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5px;
+  width: 9px;
+  height: 9px;
+}
+.popup-icon-grid span {
+  display: block;
+  background: currentColor;
+  border-radius: 1px;
+}
+.popup-icon-table { display: block; width: 11px; height: 9px; }
+.popup-icon-json { font-size: 11px; font-family: monospace; font-weight: bold; }
 
 /* Header right: view toggle + edit button */
 #header-right {
@@ -173,25 +217,24 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   border-radius: 6px;
   overflow: hidden;
   height: 28px;
+  width: 40px; /* fixed so the button doesn't resize between grid/table/json icons */
 }
 #view-controls .view-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 10px;
-  line-height: 22px;
+  width: 100%;
+  padding: 0;
   cursor: pointer;
-  border-right: 1px solid #aaa;
 }
-#view-controls .view-btn:last-child { border-right: none; }
-.hv-table-sym { font-size: 20px; line-height: 1; align-self: end; }
-.hv-json-sym  { font-size: 14px; font-family: monospace; font-weight: bold; align-self: center; }
+.hv-table-icon { display: block; width: 22px; height: 19px; }
+.hv-json-sym  { font-size: 18px; font-family: monospace; font-weight: bold; align-self: center; }
 .hv-grid-icon {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  width: 13px;
-  height: 13px;
+  gap: 3px;
+  width: 17px;
+  height: 17px;
 }
 .hv-grid-icon span {
   display: block;
@@ -296,12 +339,28 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 .icon-btn:hover { background: #d0d0d0; }
 .icon-btn.active { background: #2060a0; color: white; border-color: #2060a0; }
 .icon-sym { font-size: 24px; line-height: 1; }
+#more-menu-btn { height: 28px; }
+.hv-hamburger-icon {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 20px;
+  height: 15px;
+}
+.hv-hamburger-icon span {
+  display: block;
+  height: 2.5px;
+  background: currentColor;
+  border-radius: 1px;
+}
 
 /* Copy-API-URL button, appended after the last breadcrumb segment */
 .bc-copy-btn { margin-left: 8px; padding: 4px 6px; flex-shrink: 0; }
 .bc-copy-btn svg { display: block; }
 .pencil-sym { font-size: 20px; align-self: center; }
-#edit-btn { height: 28px; }
+#editing-indicator { height: 28px; }
+.xregview-icon { display: block; }
+#xregview-indicator { height: 28px; }
 
 /* Add registry dialog */
 #add-reg-dialog, #server-err-dialog {

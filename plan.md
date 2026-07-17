@@ -3857,41 +3857,48 @@ cleaned up, test modelsource reset to `{}`.
 
 **Status**: Complete.
 
-## Open discussion (not yet decided): should collection `*url`/`*count`
-## mismatches and/or `self` be allowed to carry filter context?
+## Open discussion: collection `*url`/`*count` mismatch (still undecided);
+## `self`-filter-context and `ancestorurl` questions now resolved
 
 Extended `[[PLAN]]`-mode discussion with @duglin (no code changes) about
-two related xRegistry spec questions raised while testing filter/breadcrumb
-behavior:
+three related xRegistry spec questions raised while testing filter/
+breadcrumb behavior and the `ancestor`→`ancestorid` rename:
 
-1. When a root-level filter's dotted `<PATH>` doesn't reference a sibling
-   group type (e.g. `schemagroups.schemas.versions.epoch` applied at root),
-   that sibling's `*count` correctly shows `0` (confirmed this matches a
-   strict reading of the spec's Filter Flag section — not a bug), but its
-   `*url` carries no filter at all, so following it returns the FULL
-   unfiltered collection — a misleading `count:0`/`url-returns-everything`
-   mismatch. Explored synthesizing an always-empty-but-valid filter clause
-   (e.g. `epoch<0`, using `epoch`'s spec-mandated `UINTEGER` type) for such
-   `*url`s instead of inventing new reserved syntax like a literal
-   `filter=none`. **Not decided/implemented.**
-2. Whether `self` should be allowed to carry filter/query context the same
+1. **Collection `*url`/`*count` mismatch — still undecided.** When a
+   root-level filter's dotted `<PATH>` doesn't reference a sibling group
+   type (e.g. `schemagroups.schemas.versions.epoch` applied at root), that
+   sibling's `*count` correctly shows `0` (confirmed this matches a strict
+   reading of the spec's Filter Flag section — not a bug), but its `*url`
+   carries no filter at all, so following it returns the FULL unfiltered
+   collection — a misleading `count:0`/`url-returns-everything` mismatch.
+   Explored synthesizing an always-empty-but-valid filter clause (e.g.
+   `epoch<0`, using `epoch`'s spec-mandated `UINTEGER` type) for such
+   `*url`s instead of inventing new reserved syntax; a bare `filter=null`
+   idea was floated but flagged as risky since `null` already means
+   "attribute absent" in filter grammar, so a distinct token like
+   `filter=none`/`filter=false` was suggested instead. **Still deciding —
+   no code/spec changes yet.**
+2. **`self` carrying filter/query context — decided: NO.** Explored
+   whether `self` should be allowed to carry filter/query context the same
    way `<plural>url` attributes do (immutable base path + optional query
-   suffix). Worked through: relativization would only ever add
-   `<PATH>`-prefixed (descendant-scoping) fragments to `self`, never a bare
-   no-`<PATH>` fragment (confirmed empirically — a bare/no-`<PATH>` filter
-   on a single-entity GET is a spec-mandated existence gate, `404` if it
-   doesn't match, per spec.md ~line 4054), so the "self might later 404 for
-   unrelated reasons" concern doesn't actually materialize under that
-   model. Concluded remaining hesitation is largely `self`'s
-   REST/HATEOAS-inherited "permanent identity" naming connotation, not a
-   structural flaw — `xid` already covers pure identity duties, so a
-   separately-named sibling attribute (candidate names floated:
-   `contexturl`/`sourceurl`, undecided) carrying context wouldn't
-   compromise `self`'s existing contract. **@duglin is taking this to the
-   other spec authors before any decision/implementation.**
+   suffix). Worked through the mechanics (relativization would only ever
+   add `<PATH>`-prefixed descendant-scoping fragments, never a bare
+   no-`<PATH>` fragment, since that's a spec-mandated existence gate —
+   404 if it doesn't match, per spec.md ~line 4054), and floated candidate
+   alternate-attribute names (`contexturl`/`sourceurl`) for carrying that
+   context separately from `self`. **@duglin has since decided against
+   this — `self` will NOT carry any filter info, staying strictly
+   xid-based and immutable per the current spec wording.** No further
+   action needed; this matches the existing implementation
+   (`registry/jsonWriter.go`'s `self` getter has no filter logic today).
+3. **`ancestorurl` spec gap — decided: NOT adding it.** The version
+   `ancestor`/`ancestorid` attribute has no matching `ancestorurl` link
+   attribute, unlike other id/url attribute pairs — @duglin had noted this
+   as a gap to raise with the other spec authors. **Decided: not adding
+   `ancestorurl`.** No further action needed.
 
-No code or spec changes made for either item — purely exploratory. Revisit
-once @duglin has spec-author feedback.
+Item 1 remains open; items 2 and 3 are now closed/decided — no code or
+spec changes required for either.
 
 
 
@@ -6130,5 +6137,392 @@ the same dark color regardless of depth/ordering.
 depths (0,1,2,3,4,5) against a live remote registry (read-only) —
 correct prefix text and uniform `rgb(34,34,34)` color throughout.
 @duglin confirmed live ("yup - thanks").
+
+**Status**: Complete.
+
+---
+
+## Domain Focused option reversed: Domain view is now the unnamed default; opt-in renamed "xRegistry Focused"
+
+**Rationale**: after "Domain Focused" mode shipped (see the "Domain
+Focused" mode section earlier in this file, ~line 5512 onward, which
+describes the ORIGINAL polarity/behavior and is left as historical
+record, not rewritten), @duglin asked to flip which state is the
+unnamed default. Domain view (hiding Identity/Versioning & State
+categories and the Registry root's "Config:" pills row) is now simply
+"how the app looks" with no checkbox needed; a new opt-in checkbox,
+renamed **"xRegistry Focused"**, shows the full xReg attribute set when
+checked. Unchecked (the new default) = Domain view.
+
+**Changes** (`registry/ui/app.js`):
+- `_opts.domainFocused` / `optDomainFocused()` / `cfgSetDomainFocused()`
+  renamed to `_opts.xregFocused` / `optXregFocused()` /
+  `cfgSetXregFocused()`. Default is now a plain falsy check (unset ==
+  Domain view), reversing the old "undefined/true == hide xReg
+  plumbing" polarity.
+- Config-page checkbox id `cfg-domain-focused` → `cfg-xreg-focused`,
+  label "Domain Focused" → "xRegistry Focused", tooltip/description
+  text rewritten to describe *showing* xReg attributes (the new opt-in
+  action) rather than hiding them. Re-alphabetized in the Options list:
+  now "JSON coloring" then "xRegistry Focused" (was "Domain Focused"
+  then "JSON coloring" under the old name).
+- All 4 rendering call sites (`buildRegEndpointPillsHtml()`,
+  `groupPropsByCategory()`, `buildEntityPropsTableHtml()`, the Meta-table
+  renderer) now derive their local `domainFocused`/`domainFocusedT`/
+  `domainFocusedM` boolean as `!optXregFocused() && !editable` instead of
+  `optDomainFocused() && !editable`. These rendering-level variable names
+  (and `DOMAIN_FOCUSED_KEEP_KEYS`) were deliberately KEPT as-is — they
+  describe "is domain-focused rendering active for this render pass", a
+  concept whose meaning hasn't changed, only how it's derived from the
+  (renamed/reversed) option.
+- Updated surrounding comments throughout (`buildPropsCatRowHtml()`,
+  `buildEntityPropsTableHtml()`, the Meta-table renderer, and 2 CSS
+  comments in `style.css`) from "Domain Focused mode" phrasing to
+  "Domain view" for consistency with the new naming.
+
+**Note on existing users' localStorage**: anyone with a previously-saved
+`_opts.domainFocused` key (from explicitly toggling the old checkbox, or
+from an earlier in-session change that defaulted it to `true`) will have
+that key silently ignored now, since the code no longer reads it under
+that name. Their effective behavior resets to the new default
+(`xregFocused` unset → Domain view) on next load — which happens to
+match the intended new default anyway, so not treated as a real
+migration problem.
+
+**Verified** via headless-Chromium CDP against a live remote registry
+(read-only), simulating a fresh user (`localStorage.clear()`):
+- Fresh/default state: `optXregFocused()` is `false`, Property-table
+  category headers (Identity/Versioning & State) are absent, Registry
+  root's "Config:" pills row is absent, Meta tab's table also has no
+  category headers — confirms Domain view is now the true default with
+  no action needed.
+- Config page: checkbox `cfg-xreg-focused` unchecked by default, labeled
+  "xRegistry Focused", options ordered "JSON coloring" then "xRegistry
+  Focused" (alphabetical).
+- Checking the box: `optXregFocused()` becomes `true`, Property-table
+  category headers reappear (General/Identity/Versioning &
+  State/Timestamps).
+- `node --check app.js` passes. Grep sweep confirms no remaining
+  `optDomainFocused`/`_opts.domainFocused`/`cfgSetDomainFocused`/
+  `cfg-domain-focused` references anywhere in `app.js`.
+
+**Status**: Complete.
+
+---
+
+## Header toolbar redesign: single view-toggle button + kebab "more" menu for Edit/Config
+
+**Motivation**: @duglin felt the header's top-right button row (Grid/
+List/JSON/Edit/Config) was getting visually busy — great for power-user
+testing (quick access to every mode), but likely just noise for a
+typical user who won't switch modes often. Two changes, both approved:
+1. Collapse Grid/List/JSON into a single button (every page only ever
+   has 2 of the 3 enabled at once — Home: Grid vs List; everywhere
+   else: List vs JSON — so it's always a boolean choice).
+2. Move Edit + Config into a dropdown "more" menu.
+
+**Design chosen for the view-toggle button ("1b")**: the button always
+shows the icon/title of the *other* (destination) view — clicking
+switches to it, and the icon then updates to show the new "other"
+choice. (The alternative considered, "1a" — fixed default icon,
+highlight to show which of the two is active — was not chosen.)
+
+**Changes** (`registry/ui/index.html`, `app.js`, `style.css`):
+- Replaced the 3 separate `data-dview` view-btn spans with a single
+  `#view-toggle-btn`, whose icon/title `renderHeader()` sets dynamically
+  from the one enabled "other" view (`otherView`/`_headerOtherView`).
+  Hidden entirely when there's no other view to switch to (Config page;
+  Home "types" group, which only ever offers List).
+- New `toggleDataView()` switches to whatever `_headerOtherView`
+  currently is.
+- Removed the standalone `gear-btn` (Config) and `edit-btn` (Edit) from
+  the always-visible header row.
+- Added a pinned `#editing-indicator` (pencil icon) that's visible only
+  while `_state.editMode` is true, so exiting edit mode always stays a
+  single click — @duglin explicitly wanted this exception (starting an
+  edit goes through the menu; leaving mid-edit does not).
+- Generalized the existing narrow-screen "compact menu" system
+  (previously only active below some header width) into a **permanent**
+  kebab ("more") menu: renamed `compact-menu-btn`→`more-menu-btn` (icon
+  changed from a ▾ down-caret to a ⋮ three-dot "kebab", @duglin's
+  choice, used consistently for both the permanent menu and the narrow-
+  screen fallback), `openCompactMenu`→`openMoreMenu`,
+  `buildCompactMenuItems`→`buildMoreMenuItems`. This menu now always
+  contains "Edit" (when applicable) + separator + "Config", regardless
+  of viewport width — not just when compact, as before.
+- `setHeaderCompact()` simplified: it's now the single source of truth
+  for the view-toggle button's `display`, combining both signals
+  (`compact` fold-away OR no "other" view at all) — necessary because
+  `renderHeader()` always ends by calling `renderBreadcrumbs()`, which
+  re-invokes `setHeaderCompact(false)` and would otherwise clobber a
+  "hide, no other view" decision made earlier in the same
+  `renderHeader()` call. Narrow-viewport fallback: when truly out of
+  header width, the view-toggle's one "switch to X" action folds into
+  the same kebab menu (reusing the existing pill/breadcrumb-overflow
+  width detection) so nothing is lost on small screens.
+
+**Bug found and fixed during verification**: initial implementation set
+the view-toggle button's `display` directly inside `renderHeader()`'s
+otherView-computation block — this worked most of the time, but was
+silently overwritten back to visible on the Home "types" page (and any
+other single-view page) because `renderHeader()` always calls
+`renderBreadcrumbs()` at its end, which unconditionally calls
+`setHeaderCompact(false)`, resetting the button's display. Fixed by
+moving the display decision into `setHeaderCompact()` itself (reading
+the already-set `_headerOtherView` global), so it's correct no matter
+which code path last touches it.
+
+**Verified** via headless-Chromium CDP against a live remote registry
+(read-only):
+- Home "registry": toggle correctly offers Grid⇄List, icon/title update
+  after each click.
+- Home "types": toggle correctly hidden entirely (List-only, no other
+  view).
+- Resource page: toggle correctly offers List⇄JSON.
+- Kebab menu on a data page: contains exactly "Edit" and "Config";
+  clicking Edit turns on edit mode and shows the pinned editing-
+  indicator; clicking the indicator exits edit mode and hides it again.
+- Config page: toggle button hidden, kebab menu empty (no Edit/Config
+  entries needed there).
+- Narrow viewport (480px): toggle button hides, `_headerCompact` flips
+  true, and the kebab menu correctly gains a "JSON view" entry (folded-
+  in view-toggle action) alongside Edit + Config.
+- `node --check app.js` passes; full grep sweep confirms no leftover
+  `data-dview`/`gear-btn`/`compact-menu-btn`/`openCompactMenu`/
+  `buildCompactMenuItems` references anywhere.
+
+**Status**: Complete.
+
+---
+
+## Header toolbar icon refinement: hamburger for menu, table-style SVG for List view
+
+**Follow-up to the header toolbar redesign above.** @duglin felt the
+kebab (⋮) menu icon and the "≡" List-view glyph weren't distinct/clear
+enough — supplied a reference image of a table/spreadsheet-style icon
+(rounded rect, shaded header row, column divider, row lines) for List
+view.
+
+**Changes**:
+- `viewIconHtml('table')` (`app.js`) now returns an inline SVG
+  (`.hv-table-icon`) closely matching the reference: rounded-rect
+  border, a shaded header-row band across the top, a vertical divider
+  splitting a narrow first column, and 3 horizontal row divider lines —
+  all drawn with `currentColor` so it recolors correctly with the
+  button's hover/active states, matching the existing icon convention
+  (`hv-grid-icon`, `filter-funnel-icon`).
+- `#more-menu-btn`'s icon (`index.html`) changed from the ⋮ three-dot
+  kebab to a proper 3-bar hamburger (`.hv-hamburger-icon`, 3 CSS-drawn
+  bars) — unambiguous and distinct from the new table icon.
+- `style.css`: removed the now-unused `.hv-table-sym` (old "≡" glyph)
+  and `.more-menu-icon` (old kebab font-size) rules; added
+  `.hv-table-icon` and `.hv-hamburger-icon`/`span` rules.
+
+**Verified**: `node --check app.js` passes; CDP screenshot of the live
+header (both List-view-active and JSON-view-active states, and the
+opened hamburger dropdown) confirms both icons render crisply and are
+visually distinct — table icon clearly reads as "list/table view",
+hamburger clearly reads as "more options".
+
+**Status**: Complete.
+
+---
+
+## Header toolbar polish round 2: sizing, Config-page artifact, Filter
+## folded into the menu (same pattern as Edit Mode)
+
+**Follow-up to the two entries above.** Several small polish items from
+@duglin plus one bigger pattern change (Filter):
+
+1. **Menu button too small** — `#more-menu-btn` had no explicit height
+   (unlike `#editing-indicator`/`#filters-toggle-btn`, which already had
+   `height: 28px`). Added `#more-menu-btn { height: 28px; }` to match.
+2. **"Edit" → "Edit Mode"** — renamed the kebab menu's Edit entry label
+   in `buildMoreMenuItems()` for clarity.
+3. **Stray vertical line on Config page (and Home "types")** — root
+   cause: `#view-controls` is a *bordered wrapper* div around the single
+   `#view-toggle-btn` child. `setHeaderCompact()` was only hiding the
+   inner button (`display:none`) when there's no "other view" for the
+   page (Config; Home "types"), leaving the wrapper's own border/
+   background rendered as an empty sliver — visually a thin vertical
+   line. Fixed by having `setHeaderCompact()` hide the whole
+   `#view-controls` wrapper itself, not just its child button.
+4. **Kebab menu opens to nothing on the Config page** — `#more-menu-btn`
+   is now also hidden entirely on the Config page (`renderHeader()`
+   sets `display:none` when `isConfig`), since `buildMoreMenuItems()`
+   always returns an empty list there (nothing to reach from Config:
+   no Edit, and Config→Config would be a no-op).
+5. **Filter folded into the kebab menu, same pattern as Edit Mode** —
+   `#filters-toggle-btn` (the funnel icon) used to be a standalone
+   toolbar button whenever filter/sort was supported. Changed to mirror
+   the Edit Mode pattern established earlier: the entry point ("Filter")
+   now lives in the kebab menu (`buildMoreMenuItems()`, order is now
+   **Filter, Edit Mode, Config**), and the pinned funnel icon in the
+   toolbar is shown *only* while the filters panel is actually open —
+   the one-click way to close it (title changed to "Close Filters /
+   Sort"). New module-level `_filtersMenuAvailable` (set by
+   `renderHeader()`, mirroring `_headerOtherView`'s pattern) records
+   whether the current page supports filter/sort at all, so
+   `buildMoreMenuItems()` knows whether to show the "Filter" entry.
+6. **View-toggle button changed width when switching Grid⇄List⇄JSON** —
+   `#view-controls` had no fixed width, so its only child button's width
+   varied with icon-intrinsic size (grid icon 13×13 vs table SVG 18×14
+   vs json `{}` glyph). Fixed: `#view-controls` now has an explicit
+   `width: 40px`, and `#view-controls .view-btn` fills it
+   (`width: 100%`, centered) — button box no longer resizes between
+   view states.
+7. **View icons looked smaller than Filter/Edit icons** — bumped icon
+   sizes without changing the button box: `.hv-grid-icon` 13×13→17×17,
+   `.hv-table-icon` 18×14→22×17, `.hv-json-sym` font-size 14px→18px
+   (CSS width/height on the table SVG's class override its own inline
+   `width`/`height` attributes, so no `app.js` SVG-markup change was
+   needed for that one).
+
+**Verified**: `node --check app.js` passes after each change. CDP
+checks confirm: Config page — both `#view-controls` and `#more-menu-btn`
+compute to `display:none` (header-right collapses to 0 width, no stray
+line); Home "types" and Home "registry"/root pages — both still
+`display:flex`, fully functional; view-toggle button width stays fixed
+at 40px (inner button 38px) across Grid/List/JSON states; icon sizes
+confirmed larger via `getBoundingClientRect()` (table 22×17, grid
+17×17) while button box unchanged.
+
+**Status**: Complete.
+
+---
+
+## "Show/Hide xReg Data": session override of the Default View config option
+
+Extends the toggle pattern established for Edit Mode/Filter (see the
+header toolbar polish entries above) to the existing "xRegistry
+Focused" Config-page setting.
+
+**Config page**:
+- Replaced the single `#cfg-xreg-focused` checkbox with a "Default
+  View" `cfg-option-group` radio pair (`cfgXregRadio()`, mirrors
+  `cfgJsonColorRadio()`): **"Hide xReg data"** (today's default,
+  Domain-focused) / **"Show xReg data"** (today's opt-in, full
+  attribute set). Underlying storage unchanged — still the single
+  `_opts.xregFocused` boolean; only the presentation and wording
+  changed (dropped "Domain/Model/xRegistry Focused" jargon). Reordered
+  alphabetically ("Default View" before "JSON coloring").
+
+**Per-session override**:
+- New `_state.xregOverride` (boolean, default `false`), persisted via
+  a new `xrv=1` URL param in `buildURL()`/`loadStateFromURL()` — same
+  mechanism as `_state.editMode`'s `edit=1`, so it survives navigation
+  and a full page refresh, resetting only when explicitly turned off.
+- New `effectiveXregFocused()` helper = `optXregFocused() !==
+  _state.xregOverride` (XOR — override always flips away from the
+  configured default). Replaces the raw `optXregFocused()` at all 4
+  existing call sites: the registry-root "Config:" pills row
+  (`buildRegEndpointPillsHtml()`), and the 3 `domainFocused`/
+  `domainFocusedT`/`domainFocusedM` checks inside
+  `groupPropsByCategory()`/`buildEntityPropsTableHtml()`/
+  `renderMetaTable()` (covers Registry root, Group/Resource/Version
+  instance pages, and the Meta tab, since they all funnel through the
+  same shared builders).
+- `toggleXregOverride()` flips `_state.xregOverride` via `pushState()`
+  (same pattern as `toggleEdit()`), so the URL and the full page
+  content update together in one call.
+
+**Kebab menu entry**: added to `buildMoreMenuItems()`, order is now
+**Filter, Show/Hide xReg Data, Edit Mode, Config**. Label reflects the
+current *effective* state (not the literal configured default) — same
+action-based "1b" convention as the view-toggle button: "Show xReg
+Data" when currently hiding, "Hide xReg Data" when currently showing.
+Gated by a new `_xregDataMenuAvailable` (set in `renderHeader()`,
+mirrors `_filtersMenuAvailable`) — available on any data-section page
+outside edit mode. **Deliberately available on collection pages too**
+(not just single-entity pages that actually have a Property table) —
+@duglin felt having it appear/disappear while traversing between
+collection and single-entity pages was more visually jarring than
+occasionally being a no-op on a collection page.
+
+**Pinned toolbar icon**: new `#xregview-indicator` (standalone
+`.icon-btn`, 28px height, positioned left of `#filters-toggle-btn`),
+shown only while `_state.xregOverride` is `true`; click reverts to the
+configured default. Icon is the official xRegistry "xR" mark (white
+variant, from the CNCF artwork repo's
+`projects/xregistry/icon/white/xregistry-icon-white.svg`), inlined
+directly as SVG paths since the button is always shown in the "active"
+(blue) state.
+
+**Verified** via CDP against the live dev server: Config page radios
+render/toggle correctly; kebab menu shows the correct contextual label
+on both root and (simulated) collection pages; clicking it flips
+`effectiveXregFocused()`, updates the URL (`xrv=1`), and shows/hides
+the "Config:" pills row; pinned icon appears only while overridden and
+reverts to default on click; loading a URL with `xrv=1` directly
+(simulating a refresh) restores the override. `node --check app.js`
+passes throughout.
+
+**Status**: Complete.
+
+### Kebab "more" menu icons
+
+Small icon added to the left of each kebab-menu item's label, roughly
+half the size of the equivalent toolbar button's icon, reusing existing
+assets/techniques rather than new artwork:
+
+- **Filter** → `.popup-icon-funnel`, same `clip-path` shape as the
+  toolbar `.filter-funnel-icon`, just scaled down (9x8px vs 15x14px) —
+  clip-path uses percentage coordinates so it scales cleanly with no
+  separate asset needed.
+- **Show/Hide xReg Data** → small colored (black + `#0066FF`) two-path
+  "xR" SVG, reusing the same paths as the header `#xreg-logo` (NOT the
+  all-white variant used by the pinned `#xregview-indicator`) — new
+  `xregIconSmallHtml()` helper in `app.js`.
+- **Edit Mode** → small pencil glyph (`&#9998;`, `.popup-icon-pencil`),
+  flipped via `transform: scaleX(-1)` to match the pinned
+  `#editing-indicator`'s icon.
+- **Config** → small gear glyph (`&#9881;`, `.popup-icon-gear`), reused
+  from the old pre-menu standalone `#gear-btn`. Sized at 19.5px font
+  (50% larger than the initial 13px pass, per follow-up feedback).
+- **Narrow-screen "switch to Grid/List/JSON view" fallback entry** →
+  small grid/table/json icon, reusing `viewIconHtml()` with a new
+  optional `small` boolean parameter that swaps in
+  `.popup-icon-grid`/`.popup-icon-table`/`.popup-icon-json` classes
+  instead of the toolbar-sized `.hv-*` classes (same SVG/markup
+  otherwise, so both stay perfectly in sync for a given view).
+
+All icons use `currentColor`, so they automatically inherit the
+existing hover/active blue tint (`a.popup-item:hover`,
+`.popup-item-active`) with no extra styling needed for that part.
+
+**Implementation**:
+- `openHeaderPopup()` (`app.js`) now renders an optional
+  `item.icon` (HTML string) inside a fixed-width `.popup-item-icon`
+  slot (16x16px, `flex-shrink: 0`) before the label. This is additive
+  and backward-compatible: `openBcEllipsis()`/`openBcFull()`
+  (breadcrumb popups, which share the same renderer) never set
+  `icon`, so they render with no icon slot at all — unchanged layout.
+- `buildMoreMenuItems()` (`app.js`) passes an `icon:` field for each of
+  the 5 relevant entries (view-switch fallback, Filter, Show/Hide xReg
+  Data, Edit Mode, Config).
+- `style.css`: `.popup-item` changed from `display: block` to a flex
+  row (`align-items: center; gap: 8px`) to lay out icon + label side by
+  side; new `.popup-item-icon` fixed-size slot plus per-icon-type
+  smaller-size modifier classes (`.popup-icon-funnel`,
+  `.popup-icon-xreg`, `.popup-icon-pencil`, `.popup-icon-gear`,
+  `.popup-icon-grid`/`-table`/`-json`).
+
+**Follow-up fix**: the "Show/Hide xReg Data" menu entry and pinned
+`#xregview-indicator` toolbar icon are now also hidden while in JSON
+view (`_state.dataView === 'json' || _state.view === 'json'`) — the
+setting only affects the human-readable table rendering (Property
+tables / "Config:" pills row), so it has no visible effect on raw JSON
+output and showing it there was misleading. Both share the same
+`xregDataAvailable` computation in `renderHeader()`, so menu and
+toolbar stay in sync automatically.
+
+**Verified** via CDP against the live dev server: kebab menu on
+Home/root (Config-only) and on a simulated data page with all four
+toggle entries forced available — icons render correctly sized,
+aligned, and visually balanced (gear bumped from 13px→19.5px after
+initial review); breadcrumb ellipsis/full popups unaffected (no icon
+slot regression, since they never pass `icon`); JSON-view exclusion of
+the xR entry/icon confirmed via direct computation check. `node --check
+app.js` passes throughout.
 
 **Status**: Complete.

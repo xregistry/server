@@ -29,19 +29,20 @@
       <div id="header-spacer"></div>
 
       <div id="header-right">
-      <span id="filters-toggle-btn" class="icon-btn" onclick="toggleFiltersPanel()" title="Filters / Sort" style="display:none">
+      <span id="editing-indicator" class="icon-btn" onclick="toggleEdit()" title="Exit edit mode" style="display:none"><span class="icon-sym pencil-sym" style="display:inline-block;transform:scaleX(-1)">&#9998;</span></span>
+      <span id="xregview-indicator" class="icon-btn" onclick="toggleXregOverride()" title="Back to default view" style="display:none">
+        <svg class="xregview-icon" width="14" height="17" viewBox="0 0 663 800" xmlns="http://www.w3.org/2000/svg">
+          <path d="M490.6 800H662.2L494.2 461.6C562.2 438.2 648.6 380.5 648.6 238.8C648.6 5.3 413.9 0 413.9 0H3.40002L80.39 155.3H391.8C391.8 155.3 492.3 153.8 492.3 238.9C492.3 323.9 391.8 322.5 391.8 322.5H390.6L316.2 449L490.6 800Z" fill="white"/>
+          <path d="M392.7 322.4H281L266.7 346.6L196.4 466.2L111.7 322.4H0L140.5 561.2L0 800H111.7L196.4 656.2L281 800H392.7L252.2 561.2L317.9 449.6L392.7 322.4Z" fill="white"/>
+        </svg>
+      </span>
+      <span id="filters-toggle-btn" class="icon-btn" onclick="toggleFiltersPanel()" title="Close Filters / Sort" style="display:none">
         <span class="filter-funnel-icon"></span><span id="filters-toggle-count"></span><span id="filters-toggle-sort-arrow" class="filters-toggle-sort-arrow"></span>
       </span>
       <div id="view-controls" role="group" aria-label="View controls">
-        <span class="view-btn" data-dview="grid" title="Grid view">
-          <span class="hv-grid-icon"><span></span><span></span><span></span><span></span></span>
-        </span>
-        <span class="view-btn" data-dview="table" title="List view"><span class="hv-table-sym">&#8801;</span></span>
-        <span class="view-btn" data-dview="json"  title="JSON view"><span class="hv-json-sym">{}</span></span>
-        <span class="view-btn" id="edit-btn" onclick="toggleEdit()" title="Edit"><span class="icon-sym pencil-sym" style="display:inline-block;transform:scaleX(-1)">&#9998;</span></span>
+        <span id="view-toggle-btn" class="view-btn" onclick="toggleDataView()" title="View"></span>
       </div>
-      <span id="gear-btn" class="icon-btn" onclick="goToConfig()" title="Config"><span class="icon-sym">&#9881;</span></span>
-      <button id="compact-menu-btn" class="icon-btn" style="display:none" onclick="openCompactMenu(event)" title="Menu"><span class="icon-sym">&#9660;</span></button>
+      <button id="more-menu-btn" class="icon-btn" onclick="openMoreMenu(event)" title="Menu"><span class="hv-hamburger-icon"><span></span><span></span><span></span></span></button>
       </div>
     </header>
 

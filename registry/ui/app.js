@@ -33,6 +33,7 @@ var _state = {
   section:     'data',  // 'data' | 'model' | 'modelsource' | 'capabilities' | 'capabilitiesoffered' | 'xregistry'
   path:        [],      // path segments relative to registry root (data section only)
   editMode:    false,
+  xregOverride: false,  // session-level "Show/Hide xReg Data" override; see effectiveXregFocused()
   mutable:     false,
 
   // JSON-view query options
@@ -139,6 +140,16 @@ function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
 // mode and JSON view always show every attribute regardless of this
 // setting.
 function optXregFocused() { return !!_opts.xregFocused; }
+
+// Per-session override of optXregFocused(), toggled via the kebab menu's
+// "Show/Hide xReg Data" entry (see buildMoreMenuItems()/toggleXregOverride())
+// and the pinned #xregview-indicator toolbar icon. Persisted via the `xrv=1`
+// URL param (see buildURL()/loadStateFromURL()) so it survives navigation
+// and refresh, same as _state.editMode/_filtersPanelOpen — resets only when
+// the user explicitly turns it off (menu entry again, or the pinned icon).
+// Always flips AWAY from the configured default (see effectiveXregFocused()),
+// never a second independent setting of its own.
+function effectiveXregFocused() { return optXregFocused() !== !!_state.xregOverride; }
 
 // Reflects the current JSON color-mode option onto <body> so the CSS
 // rules in style.css (scoped via body[data-json-color=...]) can
@@ -493,14 +504,8 @@ function init() {
   applyJsonColorMode();
   loadStateFromURL();
 
-  // Wire up unified view-controls buttons (data-dview="grid|table|json" + edit-btn)
-  var vc = el('view-controls');
-  if (vc) {
-    vc.addEventListener('click', function(e) {
-      var btn = e.target.closest('[data-dview]');
-      if (btn && !btn.classList.contains('view-btn-disabled')) setDataView(btn.dataset.dview);
-    });
-  }
+  // view-toggle-btn / editing-indicator now use inline onclick handlers
+  // directly (single elements, not delegated data-dview buttons anymore).
 
   // Left-panel drag-resize
   var resizer = el('left-panel-resizer');
@@ -551,6 +556,10 @@ function loadStateFromURL() {
   // section/depth (data pages restore per-depth, model/modelsource restore per-section)
   _state.dataView    = p.get('dview') || defaultDataView(_state.section, _state.path.length, _state.path);
   _state.editMode    = p.get('edit') === '1';
+  // Session-level "Show/Hide xReg Data" override (see effectiveXregFocused()) —
+  // persists across navigation and refresh, same as editMode, until the user
+  // explicitly turns it off via the kebab menu or the pinned toolbar icon.
+  _state.xregOverride = p.get('xrv') === '1';
   var jsonOpts       = parseJSONOptionsFromQuery(p.toString());
   _state.inlines     = jsonOpts.inlines;
   _state.filters     = (p.get('filter') || '').split('\n').filter(Boolean);
@@ -613,6 +622,7 @@ function buildURL(st) {
   if (st.serverURL && st.view !== 'home')  p.set('server',  st.serverURL);
   if (st.section && st.section !== 'data') p.set('section', st.section);
   if (st.editMode)                         p.set('edit', '1');
+  if (st.xregOverride)                     p.set('xrv', '1');
   if (st.path   && st.path.length)         p.set('path',    encodePath(st.path));
   // Real server-provided URL for the current page (data section, non-root only —
   // the registry root's own URL is always trivially serverBase() itself).
@@ -1263,6 +1273,46 @@ function computeEnableEdit() {
   return _state.mutable;
 }
 
+// Icon markup + label for each Grid/List/JSON view — shared by the
+// single view-toggle button (renderHeader()) and the kebab "more" menu's
+// narrow-screen fallback entries (buildMoreMenuItems()), so both always
+// render identical icons for a given view.
+var VIEW_LABELS = {grid: 'Grid view', table: 'List view', json: 'JSON view'};
+var _headerOtherView = null; // the single "other" view the toggle button currently
+                              // offers to switch to; set by renderHeader(), read by
+                              // toggleDataView().
+var _filtersMenuAvailable = false; // whether the current page supports filter/sort
+                                    // at all (set by renderHeader(), read by
+                                    // buildMoreMenuItems() to decide whether to show
+                                    // the "Filter" menu entry).
+var _xregDataMenuAvailable = false; // whether the current page supports the
+                                     // Show/Hide xReg Data override at all (set by
+                                     // renderHeader(), read by buildMoreMenuItems()).
+function viewIconHtml(v, small) {
+  if (v === 'grid')  return '<span class="' + (small ? 'popup-icon-grid' : 'hv-grid-icon') + '"><span></span><span></span><span></span><span></span></span>';
+  if (v === 'table') return '<svg class="' + (small ? 'popup-icon-table' : 'hv-table-icon') + '" width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    + '<rect x="0.75" y="0.75" width="16.5" height="12.5" rx="2" stroke="currentColor" stroke-width="1.3"/>'
+    + '<rect x="0.75" y="0.75" width="16.5" height="3.6" rx="1.4" fill="currentColor" fill-opacity="0.3"/>'
+    + '<path d="M0.75 4.35H17.25" stroke="currentColor" stroke-width="1.1"/>'
+    + '<path d="M5.6 0.75V13.25" stroke="currentColor" stroke-width="1.1"/>'
+    + '<path d="M0.75 7.85H17.25" stroke="currentColor" stroke-width="1"/>'
+    + '<path d="M0.75 11.05H17.25" stroke="currentColor" stroke-width="1"/>'
+    + '</svg>';
+  if (v === 'json')  return '<span class="' + (small ? 'popup-icon-json' : 'hv-json-sym') + '">{}</span>';
+  return '';
+}
+
+// Small colored (black + xRegistry-blue) "xR" icon for the "Show/Hide xReg
+// Data" menu entry — reuses the same two SVG paths as the header #xreg-logo
+// (NOT the all-white variant used by the pinned #xregview-indicator), just
+// at menu-icon size.
+function xregIconSmallHtml() {
+  return '<svg class="popup-icon-xreg" viewBox="0 0 663 800" xmlns="http://www.w3.org/2000/svg">'
+    + '<path d="M490.6 800H662.2L494.2 461.6C562.2 438.2 648.6 380.5 648.6 238.8C648.6 5.3 413.9 0 413.9 0H3.40002L80.39 155.3H391.8C391.8 155.3 492.3 153.8 492.3 238.9C492.3 323.9 391.8 322.5 391.8 322.5H390.6L316.2 449L490.6 800Z" fill="black"/>'
+    + '<path d="M392.7 322.4H281L266.7 346.6L196.4 466.2L111.7 322.4H0L140.5 561.2L0 800H111.7L196.4 656.2L281 800H392.7L252.2 561.2L317.9 449.6L392.7 322.4Z" fill="#0066FF"/>'
+    + '</svg>';
+}
+
 function renderHeader() {
   var isHome   = (_state.view === 'home');
   var isConfig = (_state.view === 'config');
@@ -1280,10 +1330,6 @@ function renderHeader() {
 
   // On home, show buttons reflecting current group's layout without corrupting _state.dataView
   var effectiveView = isHome ? currentHomeLayout() : _state.dataView;
-
-  // Gear: always visible on all pages
-  var gb = el('gear-btn');
-  if (gb) gb.style.display = '';
 
   // Section-specific view rules:
   //   data                        — Grid view has been removed entirely
@@ -1311,50 +1357,76 @@ function renderHeader() {
   var isListOnlySection = isModelSection || isCapSection || isCapOfferedSection
     || isXRegistrySection;
 
-  var enableGrid, enableList, enableJson, enableEdit;
+  var enableGrid, enableList, enableJson;
   if (isConfig) {
-    enableGrid = enableList = enableJson = enableEdit = false;
+    enableGrid = enableList = enableJson = false;
   } else if (isHome) {
     var isHomeTypes = _state.homeGroup === 'types';
-    enableGrid = !isHomeTypes; enableList = true; enableJson = false; enableEdit = false;
+    enableGrid = !isHomeTypes; enableList = true; enableJson = false;
   } else if (isListOnlySection) {
     enableGrid = false; enableList = true; enableJson = true;
-    enableEdit = computeEnableEdit();
   } else {
     enableGrid = false; enableList = enableJson = true;
-    enableEdit = computeEnableEdit();
   }
 
-  qsa('[data-dview]').forEach(function(b) {
-    var v = b.dataset.dview;
-    var active = (v === effectiveView);
-    b.classList.toggle('active', active);
-    var disabled = isConfig
-      || (v === 'grid'  && !enableGrid)
-      || (v === 'table' && !enableList)
-      || (v === 'json'  && !enableJson);
-    b.classList.toggle('view-btn-disabled', disabled);
-    // Grid is now only ever available on the Home "registry" page (list of
-    // known registries) — everywhere else it'd just sit there permanently
-    // greyed out, so hide it entirely rather than disable-and-show. List/
-    // JSON stay visible-but-disabled since their availability varies more
-    // meaningfully page-to-page (e.g. JSON disabled on Home "types").
-    if (v === 'grid') b.style.display = enableGrid ? '' : 'none';
-  });
-  var editBtn = el('edit-btn');
-  if (editBtn) {
-    editBtn.classList.toggle('active', _state.editMode);
-    editBtn.classList.toggle('view-btn-disabled', isConfig || !enableEdit);
+  // Compute the single "other" (non-current) enabled view — Grid/List/
+  // JSON always collapse to at most a boolean choice on every page (see
+  // enableGrid/enableList/enableJson above), so there's ever only zero or
+  // one "other" view to offer. The button always shows the DESTINATION
+  // view's icon/title (design "1b" — click switches to whatever's shown),
+  // not the currently-active one, and hides entirely when there's no
+  // other view to switch to (e.g. Config page; Home "types" group, which
+  // only ever offers List).
+  var enabledViews = [];
+  if (!isConfig) {
+    if (enableGrid) enabledViews.push('grid');
+    if (enableList) enabledViews.push('table');
+    if (enableJson) enabledViews.push('json');
+  }
+  var otherView = enabledViews.filter(function(v) { return v !== effectiveView; })[0] || null;
+  // `_headerOtherView` is set before renderHeader() calls renderBreadcrumbs()
+  // below, and renderBreadcrumbs() re-invokes setHeaderCompact(false) —
+  // whose own display logic (not this block) makes the final display=none/''
+  // decision using this value, so the two stay in sync regardless of call
+  // order. See setHeaderCompact().
+  _headerOtherView = otherView; // consumed by toggleDataView() + setHeaderCompact()
+  var viewToggleBtn = el('view-toggle-btn');
+  if (viewToggleBtn && otherView) {
+    viewToggleBtn.innerHTML = viewIconHtml(otherView);
+    viewToggleBtn.title = 'Switch to ' + VIEW_LABELS[otherView];
   }
 
-  // Filters/Sort toggle button — only for the plain 'data' section
-  // (grid/list/json all already have their own filter+sort UI otherwise;
-  // model/capabilities/etc support neither filter= nor sort=). Only
-  // relevant outside JSON view, since JSON view always shows the full left
-  // panel (which already includes both Filters and Sort). Shown whenever
-  // either filter or sort is supported — Sort's picker now lives in this
-  // same panel too (see renderJSONLeftPanel()), so a server that offers
-  // sort but not filter still needs a way to reach it from List view.
+  // Pinned "editing" indicator — the only Edit-related control left
+  // directly in the header (outside the kebab menu); visible only while
+  // actually editing, so leaving edit mode always stays a single click.
+  // Starting an edit, by contrast, goes through the kebab menu's "Edit"
+  // entry (see buildMoreMenuItems()) since it's used less often.
+  var editingIndicator = el('editing-indicator');
+  if (editingIndicator) {
+    editingIndicator.style.display = (_state.editMode && !isConfig) ? '' : 'none';
+    editingIndicator.classList.add('active'); // always the "on" blue styling while shown
+  }
+
+  // Kebab "more" menu button — buildMoreMenuItems() always returns an
+  // empty list on the Config page itself (nothing to reach from there:
+  // no Edit, and Config navigating to Config would be a no-op), so hide
+  // the button entirely rather than leave a clickable control that opens
+  // nothing.
+  var moreMenuBtn = el('more-menu-btn');
+  if (moreMenuBtn) moreMenuBtn.style.display = isConfig ? 'none' : '';
+
+  // Filters/Sort toggle button — now follows the same pattern as the
+  // pinned editing-indicator: the entry point ("Filter") lives in the
+  // kebab menu (see buildMoreMenuItems()), and this pinned toolbar icon
+  // is shown only while the panel is actually open, as the one-click way
+  // to close it. Only relevant for the plain 'data' section (grid/list/
+  // json all already have their own filter+sort UI otherwise; model/
+  // capabilities/etc support neither filter= nor sort=) and outside JSON
+  // view (which always shows the full left panel already). Available
+  // whenever either filter or sort is supported — Sort's picker lives in
+  // this same panel too (see renderJSONLeftPanel()), so a server that
+  // offers sort but not filter still needs a way to reach it from List
+  // view.
   var filtersBtn = el('filters-toggle-btn');
   if (filtersBtn) {
     var svURL2 = normalizeURL(_state.serverURL || window.location.origin);
@@ -1369,7 +1441,8 @@ function renderHeader() {
     var panelSupported2 = filterSupported2 || sortSupported2;
     var showFiltersBtn = isData && section === 'data' && effectiveView !== 'json'
       && panelSupported2;
-    filtersBtn.style.display = showFiltersBtn ? '' : 'none';
+    _filtersMenuAvailable = showFiltersBtn;
+    filtersBtn.style.display = (showFiltersBtn && _filtersPanelOpen) ? '' : 'none';
     // If we've confirmed (capabilities loaded) that this registry/section
     // genuinely doesn't support filter= or sort=, but the Grid/List
     // filters-only panel was left open from elsewhere (e.g. switching from
@@ -1406,6 +1479,30 @@ function renderHeader() {
       sortArrowEl.textContent = sortDesc === null ? ''
         : (sortDesc ? '\u25bc' : '\u25b2');
     }
+  }
+
+  // "Show/Hide xReg Data" pinned toolbar icon — same pattern as the
+  // filters-toggle-btn above: the entry point lives in the kebab menu
+  // (see buildMoreMenuItems()), and this pinned icon is shown only while
+  // the override is actually active, as the one-click way to revert to
+  // the configured default (see effectiveXregFocused()). Available on any
+  // data-section page, not just single-entity ones — even though
+  // collections have no Property table to actually toggle, keeping the
+  // control available (rather than appearing/disappearing as you
+  // traverse collection vs. single-entity pages) is less visually
+  // jarring, and it's still a valid choice to leave on/off while passing
+  // through a collection page. Edit mode already always shows everything
+  // regardless of this setting, so it's excluded there.
+  var xregViewBtn = el('xregview-indicator');
+  if (xregViewBtn) {
+    // Excluded in JSON view: the setting only affects the human-readable
+    // table rendering (Property tables/Config: pills), not the raw JSON
+    // returned by the API — so it has no visible effect there at all.
+    var inJsonViewForXreg = _state.dataView === 'json' || _state.view === 'json';
+    var xregDataAvailable = isData && section === 'data' && !_state.editMode && !inJsonViewForXreg;
+    _xregDataMenuAvailable = xregDataAvailable;
+    xregViewBtn.style.display = (xregDataAvailable && _state.xregOverride) ? '' : 'none';
+    xregViewBtn.classList.add('active'); // always the "on" blue styling while shown
   }
 
   // For data pages, skip breadcrumb render if label not cached yet —
@@ -1448,6 +1545,15 @@ function toggleFiltersPanel() {
 
 function toggleHomeLayout() {
   setDataView(currentHomeLayout() === 'table' ? 'grid' : 'table');
+}
+
+// Single view-toggle button's click handler — switches to whichever view
+// the button is currently displaying (always the "other"/destination view;
+// see the otherView computation in renderHeader(), cached here so this
+// doesn't need to re-derive enableGrid/enableList/enableJson itself).
+function toggleDataView() {
+  if (!_headerOtherView) return;
+  setDataView(_headerOtherView);
 }
 
 function setDataView(v) {
@@ -1564,13 +1670,10 @@ function setDataView(v) {
     saveOpts();
   }
 
-  qsa('[data-dview]').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.dview === v);
-  });
-  // Refresh header (Filters button visibility/active-state/count in
-  // particular — it depends on effectiveView, which just changed) — the
-  // data-dview active-state toggle above doesn't cover it since it isn't
-  // a [data-dview] button.
+  // Refresh header — this recomputes the view-toggle button's icon/title
+  // (now showing the new "other" view) and Filters button visibility/
+  // active-state/count, all of which depend on effectiveView, which just
+  // changed.
   renderHeader();
 
   if (_state.view === 'home') {
@@ -1712,6 +1815,14 @@ function setView(view) {
 
 function toggleEdit() {
   pushState({editMode: !_state.editMode});
+}
+
+// Flips the per-session "Show/Hide xReg Data" override (see
+// effectiveXregFocused()) — same pushState() pattern as toggleEdit(), so
+// the URL (xrv=1) and the full page content (Identity/Versioning & State
+// sections, Config: pills) both update together.
+function toggleXregOverride() {
+  pushState({xregOverride: !_state.xregOverride});
 }
 
 // ---- Breadcrumbs ---------------------------------------------------------
@@ -2182,11 +2293,15 @@ function openHeaderPopup(anchorEl, items, rightAlign) {
   popup.innerHTML = items.map(function(item) {
     if (item.sep) return '<hr class="popup-sep">';
     var cls = 'popup-item' + (item.active ? ' popup-item-active' : '');
+    // item.icon is optional — only the kebab "more" menu passes it; the
+    // breadcrumb ellipsis/full popups (openBcEllipsis()/openBcFull()) don't
+    // set it, so they render with no icon slot at all (unchanged layout).
+    var iconHtml = item.icon ? '<span class="popup-item-icon">' + item.icon + '</span>' : '';
     if (item.onclick) {
       return '<a class="' + cls + '" href="#" onclick="closeHeaderPopup();' + item.onclick + '">'
-           + esc(item.label) + '</a>';
+           + iconHtml + esc(item.label) + '</a>';
     }
-    return '<span class="' + cls + ' popup-item-cur">' + esc(item.label) + '</span>';
+    return '<span class="' + cls + ' popup-item-cur">' + iconHtml + esc(item.label) + '</span>';
   }).join('');
   var rect = anchorEl.getBoundingClientRect();
   popup.style.top = (rect.bottom + 4) + 'px';
@@ -2226,66 +2341,86 @@ function openBcFull(e) {
   }));
 }
 
-function openCompactMenu(e) {
+function openMoreMenu(e) {
   e.stopPropagation();
-  toggleHeaderPopup(e.currentTarget, buildCompactMenuItems(), true); // right-align
+  toggleHeaderPopup(e.currentTarget, buildMoreMenuItems(), true); // right-align
 }
 
-function buildCompactMenuItems() {
+function buildMoreMenuItems() {
   var items = [];
-  var isHome = (_state.view === 'home');
+  var isHome   = (_state.view === 'home');
   var isConfig = (_state.view === 'config');
   // Note: the "Registries / Group Types" home pill is NOT duplicated here —
-  // it lives in the breadcrumb area, which compact mode never hides (only
-  // view-controls/gear-btn get folded away; see setHeaderCompact()), so it
-  // stays directly clickable in the header itself.
-  // Build the Grid/List/JSON/Edit entries straight from the real header
-  // buttons (renderHeader() already computed their display/disabled state
-  // for the current page) instead of re-deriving the rules here — keeps
-  // this menu from drifting out of sync with which buttons actually exist
-  // (e.g. Grid view being removed entirely on most sections; see plan.md
-  // "Grid view removed").
-  if (!isConfig) {
-    var dv = isHome ? currentHomeLayout() : (_state.dataView || 'table');
-    var labels = {grid: 'Grid view', table: 'List view', json: 'JSON view'};
-    qsa('[data-dview]').forEach(function(b) {
-      if (b.style.display === 'none') return ;      // hidden entirely for this page
-      if (b.classList.contains('view-btn-disabled')) return ; // present but non-clickable
-      var v = b.dataset.dview ;
-      items.push({label: labels[v] || v, onclick: "setDataView('" + v + "')", active: v === dv}) ;
-    }) ;
-    var editBtn = el('edit-btn') ;
-    if (editBtn && editBtn.style.display !== 'none' && !editBtn.classList.contains('view-btn-disabled')) {
-      items.push({label: 'Edit', onclick: 'toggleEdit()', active: _state.editMode}) ;
-    }
+  // it lives in the breadcrumb area, unaffected by any of this.
+
+  // Narrow-screen fallback: the view-toggle button itself is hidden
+  // directly in the header while _headerCompact is true (see
+  // setHeaderCompact()), so fold its one "switch to X" action in here too
+  // — otherwise it'd be unreachable on very narrow viewports. Reuses the
+  // same _headerOtherView renderHeader() already computed, so this can't
+  // drift out of sync with which view is actually available.
+  if (_headerCompact && !isConfig && _headerOtherView) {
+    items.push({label: VIEW_LABELS[_headerOtherView], onclick: "setDataView('" + _headerOtherView + "')", icon: viewIconHtml(_headerOtherView, true)});
   }
-  // The gear/Config button is always hidden in compact mode (see
-  // setHeaderCompact()) regardless of page, so it must always have a
-  // replacement entry here too — not just on Home — otherwise Config
-  // becomes unreachable on narrow screens while browsing registry data.
+  // Filter — always available here (not just narrow screens) now that the
+  // standalone filters-toggle-btn only pins itself while the panel is
+  // open; the pinned button (see renderHeader()) remains the one-click
+  // way to *close* the panel once it's open.
+  if (!isConfig && _filtersMenuAvailable) {
+    items.push({label: 'Filter', onclick: 'toggleFiltersPanel()', active: _filtersPanelOpen, icon: '<span class="popup-icon-funnel"></span>'});
+  }
+  // Show/Hide xReg Data — session override of the Config page's Default
+  // View option (see effectiveXregFocused()). Label always describes what
+  // clicking will do *right now*, based on the current effective state
+  // (config default XOR override), not the literal configured default —
+  // same "1b" convention as the view-toggle button. The pinned
+  // #xregview-indicator (see renderHeader()) remains the one-click way to
+  // revert to the default once overridden.
+  if (!isConfig && _xregDataMenuAvailable) {
+    items.push({
+      label: effectiveXregFocused() ? 'Hide xReg Data' : 'Show xReg Data',
+      onclick: 'toggleXregOverride()',
+      active: _state.xregOverride,
+      icon: xregIconSmallHtml()
+    });
+  }
+  // Edit — always available here (not just narrow screens) now that the
+  // standalone edit-btn has moved into this menu; the pinned
+  // editing-indicator (see renderHeader()) remains the one-click way to
+  // *exit* edit mode once it's on.
+  if (!isConfig && computeEnableEdit()) {
+    items.push({label: 'Edit Mode', onclick: 'toggleEdit()', active: _state.editMode, icon: '<span class="popup-icon-pencil">&#9998;</span>'});
+  }
+  // Config — always available here (not just narrow screens) now that the
+  // standalone gear-btn has moved into this menu.
   if (!isConfig) {
-    items.push({sep: true});
-    items.push({label: 'Config', onclick: 'goToConfig()'});
+    if (items.length) items.push({sep: true});
+    items.push({label: 'Config', onclick: 'goToConfig()', icon: '<span class="popup-icon-gear">&#9881;</span>'});
   }
   return items;
 }
 
 function setHeaderCompact(compact) {
   _headerCompact = compact;
+  // Only the view-toggle button folds away in compact mode — the kebab
+  // "more" menu button is permanently visible at every width (it's always
+  // the home for Edit/Config now, not just a narrow-screen fallback), and
+  // the pinned editing-indicator stays visible too so exiting edit mode
+  // never requires opening a menu. This is the single source of truth for
+  // the toggle button's display: it's hidden when compact (folded into the
+  // kebab menu) OR when there's no "other" view at all for this page (see
+  // renderHeader()'s _headerOtherView) — combining both here, rather than
+  // in renderHeader() itself, since renderHeader() always ends by calling
+  // renderBreadcrumbs(), which re-invokes setHeaderCompact(false) and would
+  // otherwise clobber a renderHeader()-set "no other view" hide.
+  // Hides the whole #view-controls wrapper (not just the button inside)
+  // — the wrapper has its own border/background, so hiding only the
+  // button left a stray empty bordered box (a thin vertical line) behind
+  // on pages with no "other" view (Config; Home "types").
   var viewControls = el('view-controls');
-  var gearBtn      = el('gear-btn');
-  var compactBtn   = el('compact-menu-btn');
-  if (!compactBtn) return;
-  if (compact) {
-    if (viewControls) viewControls.style.display = 'none';
-    if (gearBtn)      gearBtn.style.display      = 'none';
-    compactBtn.style.display = '';
-  } else {
-    if (viewControls) viewControls.style.display = '';
-    if (gearBtn)      gearBtn.style.display      = '';
-    compactBtn.style.display = 'none';
-  }
+  if (viewControls) viewControls.style.display = (compact || !_headerOtherView) ? 'none' : '';
 }
+
 
 // Close header popup and any open error popups on outside click
 document.addEventListener('click', function() {
@@ -2989,6 +3124,19 @@ function cfgJsonColorRadio(mode, label, desc) {
     + '</label>';
 }
 
+// Radio option for the "Default View" setting — mirrors cfgJsonColorRadio()
+// above. mode is 'hide' (optXregFocused() === false, today's default) or
+// 'show' (optXregFocused() === true).
+function cfgXregRadio(mode, label, desc) {
+  var checked = (mode === 'show') === optXregFocused();
+  return '<label class="cfg-radio-row" title="' + esc(desc) + '">'
+    + '<input type="radio" name="opt-xreg-focused" value="' + mode + '"'
+    + (checked ? ' checked' : '')
+    + ' onchange="cfgSetXregFocused(\'' + mode + '\' === \'show\')">'
+    + '<span class="cfg-radio-label">' + esc(label) + '</span>'
+    + '</label>';
+}
+
 // Sort state for the Config page's Registry Servers table — persisted only
 // in-memory (resets to the default Name/ascending on reload), toggled by
 // clicking a sortable column header (see cfgSortBy()/cfgSortHeaderHTML()).
@@ -3176,9 +3324,29 @@ function renderConfig() {
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
-    // Options below are alphabetized by label (JSON coloring, then
-    // xRegistry Focused) — keep new options inserted in alphabetical
+    // Options below are alphabetized by label (Default View, then
+    // JSON coloring) — keep new options inserted in alphabetical
     // order too.
+    + '<div class="cfg-option-row cfg-option-group"'
+    +   ' title="Controls whether xRegistry-specific Property-table sections'
+    +   ' (Identity, Versioning &amp; State) and the Config: links are shown'
+    +   ' by default, in addition to your own data. View mode only \u2014'
+    +   ' edit mode and JSON view always show everything. Can be overridden'
+    +   ' temporarily for the current page via the menu\u2019s Show/Hide xReg'
+    +   ' Data entry.">'
+    +   '<span class="cfg-option-label">Default View</span>'
+    +   '<div class="cfg-radio-set">'
+    +     cfgXregRadio('hide', 'Hide xReg data',
+          'Show only your own data \u2014 today\u2019s default')
+    +     cfgXregRadio('show', 'Show xReg data',
+          'Also show xRegistry-specific details (Identity, Versioning'
+          + ' &amp; State, Config links) \u2014 the full xRegistry attribute set')
+    +   '</div>'
+    +   '<span class="cfg-option-desc">Show xRegistry-specific details'
+    +   ' (Identity, Versioning &amp; State, Config links) in view mode,'
+    +   ' in addition to your own data</span>'
+    + '</div>'
+
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -3192,22 +3360,6 @@ function renderConfig() {
     +   '</div>'
     +   '<span class="cfg-option-desc">Choose how much syntax coloring'
     +   ' the JSON view uses</span>'
-    + '</div>'
-
-    + '<div class="cfg-option-row" onclick="cfgSetXregFocused(!optXregFocused())"'
-    +   ' title="Shows xRegistry-specific Property-table sections (Identity,'
-    +   ' Versioning &amp; State) and the Config: links, in addition to your'
-    +   ' own data. View mode only \u2014 edit mode and JSON view always show'
-    +   ' everything.">'
-    +   '<span class="cfg-option-label">xRegistry Focused</span>'
-    +   '<input type="checkbox" id="cfg-xreg-focused"'
-    +   (optXregFocused() ? ' checked' : '')
-    +   ' onclick="event.stopPropagation()"'
-    +   ' onchange="cfgSetXregFocused(this.checked)">'
-    +   '<span class="cfg-option-desc">Show xRegistry-specific details in'
-    +   ' view mode (Identity, Versioning &amp; State, Config links) in'
-    +   ' addition to your own data \u2014 turn on for the full xRegistry'
-    +   ' attribute set</span>'
     + '</div>'
 
     + '</div>'
@@ -4202,10 +4354,10 @@ function sectionCapKey(s) { return s === 'xregistry' ? '.xregistry' : s; }
 
 function buildRegEndpointPillsHtml() {
   if (_state.path.length !== 0) return '';
-  // Domain view (the default; View mode only, see optXregFocused()): hide
-  // the whole "Config:" pills row — these are xRegistry-specific
+  // Domain view (the default; View mode only, see effectiveXregFocused()):
+  // hide the whole "Config:" pills row — these are xRegistry-specific
   // endpoints (Model/ModelSource/Capabilities/etc), not domain data.
-  if (!optXregFocused() && !_state.editMode) return '';
+  if (!effectiveXregFocused() && !_state.editMode) return '';
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
@@ -5660,11 +5812,11 @@ var DOMAIN_FOCUSED_KEEP_KEYS = {defaultversionid:1, defaultversionsticky:1, read
 
 function groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable, extLabel) {
   if (!specLevel) return null;
-  // Domain view (the default; View mode only, see optXregFocused()):
+  // Domain view (the default; View mode only, see effectiveXregFocused()):
   // drop the Identity and Versioning & State buckets entirely, and use
   // the caller-supplied extLabel ("<Singular> Metadata") in place of the
   // literal "Extensions" label. Edit mode is never affected.
-  var domainFocused = !optXregFocused() && !editable;
+  var domainFocused = !effectiveXregFocused() && !editable;
   var buckets = PROP_CATEGORY_DEFS.map(function(def) { return { label: def.label, keys: [], order: def.order }; });
   var identityBucket = buckets.filter(function(b) { return b.label === 'Identity'; })[0];
   var contentBucket = buckets.filter(function(b) { return b.label === 'Content'; })[0];
@@ -7516,7 +7668,7 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // endpoints list, so surfacing them here in edit mode would just show a
   // dead-end "Content" section with nothing actually usable. Suppressed
   // like meta/metaurl above.
-  var domainFocusedT = !optXregFocused() && !editable;
+  var domainFocusedT = !effectiveXregFocused() && !editable;
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
@@ -8472,7 +8624,7 @@ function renderMetaTable(d, model, editable) {
 
   var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Details</th><th></th></tr></thead><tbody>';
   if (groups) {
-    var domainFocusedM = !optXregFocused() && !editable;
+    var domainFocusedM = !effectiveXregFocused() && !editable;
     // Same running-band fix as buildEntityPropsTableHtml() — Domain
     // view drops most category headers, so banding must keep counting
     // across group boundaries instead of resetting per group.
