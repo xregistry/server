@@ -4731,7 +4731,6 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		ReqBody:    "My cool doc",
 		Code:       201,
 		ResHeaders: []string{
-			"Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: 1",
 			"xRegistry-self: http://localhost:8181/dirs/dir1/files/f1",
@@ -4820,7 +4819,6 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		ReqBody: "My cool doc - new x2",
 		Code:    200,
 		ResHeaders: []string{
-			// "Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: 1",
 			"xRegistry-self: http://localhost:8181/dirs/dir1/files/f1",
@@ -4881,7 +4879,6 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		Code:        201,
 		HeaderMasks: []string{},
 		ResHeaders: []string{
-			"Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f3",
 			"xRegistry-versionid: 1",
 			"xRegistry-self: http://localhost:8181/dirs/dir1/files/f3",
@@ -4916,7 +4913,6 @@ func TestHTTPResourcesHeaders(t *testing.T) {
 		Code:        200,
 		HeaderMasks: []string{},
 		ResHeaders: []string{
-			"Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f3",
 			"xRegistry-versionid: 1",
 			"xRegistry-self: http://localhost:8181/dirs/dir1/files/f3",
@@ -9205,7 +9201,6 @@ func TestHTTPNonStrings(t *testing.T) {
 			"xRegistry-metaurl: http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl: http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount: 1",
-			"Content-Type:text/plain; charset=utf-8",
 			"Content-Location:http://localhost:8181/dirs/d1/files/f1/versions/1",
 			"Content-Disposition:f1",
 			"Content-Length:5",
@@ -9676,7 +9671,6 @@ func TestHTTPDefault(t *testing.T) {
 		Code:        201,
 		HeaderMasks: []string{},
 		ResHeaders: []string{
-			"Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: newone",
 			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1/versions/newone",
@@ -9705,7 +9699,6 @@ func TestHTTPDefault(t *testing.T) {
 		Code:        201,
 		HeaderMasks: []string{},
 		ResHeaders: []string{
-			"Content-Type: text/plain; charset=utf-8",
 			"xRegistry-fileid: f1",
 			"xRegistry-versionid: bogus",
 			"xRegistry-self: http://localhost:8181/dirs/d1/files/f1/versions/bogus",

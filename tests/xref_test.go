@@ -1585,7 +1585,6 @@ func TestXrefDocs(t *testing.T) {
 
 		Code: 200,
 		ResHeaders: []string{
-			"Content-Type:text/plain; charset=utf-8",
 			"xRegistry-fileid: fx",
 			"xRegistry-versionid: 1",
 			"xRegistry-self: http://localhost:8181/dirs/d1/files/fx",

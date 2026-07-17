@@ -1396,6 +1396,15 @@ function renderHeader() {
     viewToggleBtn.title = 'Switch to ' + VIEW_LABELS[otherView];
   }
 
+  // Global "Refresh" button — Home page only (both Grid/Tile and List
+  // layouts), lets the user force a fresh re-probe of every listed
+  // registry on demand, bypassing the in-memory probe cache (see
+  // _registryProbeCache/probeRegistry()) without needing a full page
+  // reload. Positioned as its own pinned icon, left of the view-toggle
+  // button, same slot pattern as Edit Mode/Filter/Show-Hide-xReg-Data.
+  var homeRefreshBtn = el('home-refresh-btn');
+  if (homeRefreshBtn) homeRefreshBtn.style.display = isHome ? '' : 'none';
+
   // Pinned "editing" indicator — the only Edit-related control left
   // directly in the header (outside the kebab menu); visible only while
   // actually editing, so leaving edit mode always stays a single click.
@@ -2723,6 +2732,24 @@ function renderHome() {
   }
 }
 
+// Manual global "Refresh" button (see #home-refresh-btn/renderHeader()) —
+// forces a fresh re-probe of every registry currently listed on Home,
+// bypassing _registryProbeCache entirely. Simplest correct approach: wipe
+// the whole cache (Home already lists every known server, so a per-server
+// selective clear wouldn't save anything meaningful here) and re-render.
+// Briefly spins the icon via a CSS class for visual feedback that the
+// click actually did something, even though the re-probe itself usually
+// completes fast enough that the spin is mostly decorative.
+function doHomeRefresh() {
+  _registryProbeCache = {};
+  var btn = el('home-refresh-btn');
+  if (btn) {
+    btn.classList.add('spinning');
+    setTimeout(function() { btn.classList.remove('spinning'); }, 600);
+  }
+  renderHome();
+}
+
 function renderHomeGrid(main, servers) {
   var sorted = servers.slice().sort(function(a, b) {
     return serverLabel(a).toLowerCase().localeCompare(serverLabel(b).toLowerCase());
@@ -3028,8 +3055,34 @@ function fetchWithTimeout(url, ms) {
     .finally(function() { clearTimeout(timer); });
 }
 
-function probeRegistry(url, cb) {
-  var normUrl  = normalizeURL(url);
+// In-memory cache of probeRegistry() results, keyed by normalizeURL(url) —
+// avoids re-fetching /capabilities + /model + / on every Home-page render
+// (e.g. just navigating back to Home, or switching Grid<->List layout),
+// which previously re-probed every listed registry from scratch every
+// time. Being a plain JS variable (not localStorage), it's naturally
+// cleared by a real browser reload — so "just returning to Home" reuses
+// cached data, while an actual page refresh still re-probes everything,
+// with no special detection logic needed. Invalidated explicitly after
+// in-app mutations (see invalidateRegistryProbe()) and by the manual
+// Home-page refresh button (see doHomeRefresh()).
+var _registryProbeCache = {};
+
+// Deletes the cached probe result (if any) for a server, forcing the next
+// probeRegistry() call for it to re-fetch. Called after any in-app
+// mutation that could change what Home shows for that registry (group/
+// resource create/delete, model save, capabilities save) — see call
+// sites in createEntity's PUT success handler, collDeleteSelected(),
+// deleteDataEntity(), saveModel(), and saveCapabilities().
+function invalidateRegistryProbe(url) {
+  delete _registryProbeCache[normalizeURL(url)];
+}
+
+function probeRegistry(url, cb, force) {
+  var normUrl = normalizeURL(url);
+  if (!force && _registryProbeCache[normUrl]) {
+    cb(_registryProbeCache[normUrl]);
+    return;
+  }
   var fetchUrl = serverFetchBase(url);
   // Fetch capabilities first; use it to decide what else to fetch.
   // Per spec: if /capabilities is 404, default available = {entities:{mutable:true}}
@@ -3081,7 +3134,9 @@ function probeRegistry(url, cb) {
           c.description = (grpDef && grpDef.description) || '';
           c.icon        = (grpDef && grpDef.icon) || '';
         });
-        cb({label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null});
+        var info = {label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null};
+        _registryProbeCache[normUrl] = info; // only cache successes — transient errors (e.g. a momentarily unreachable host) should retry on next visit, not stick around
+        cb(info);
       })
       .catch(function(err) { cb({label: '', colls: [], icon: '', available: available, error: (err && err.message) ? err.message : String(err)}); });
   });
@@ -4022,6 +4077,7 @@ function saveNewEntity(cb) {
       removeOverlay();
       if (resp.ok) {
         _addNewOpen = false; _addNewData = {};
+        invalidateRegistryProbe(_state.serverURL || window.location.origin);
         if (cb) { cb(); } else { refresh(); }
       } else {
         if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
@@ -4092,6 +4148,7 @@ function collDeleteSelected() {
   })).then(function() {
     removeOverlay();
     _collSelectedIds = {};
+    invalidateRegistryProbe(_state.serverURL || window.location.origin);
     if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
     refresh();
   });
@@ -7094,6 +7151,7 @@ function deleteDataEntity() {
   fetch(buildBaseURL(), {method: 'DELETE'}).then(function(resp) {
     if (resp.ok || resp.status === 204) {
       _dataDirty = false; _dataEditData = null; _dataEditSrc = null; _dataLoadedFor = null;
+      invalidateRegistryProbe(_state.serverURL || window.location.origin);
       pushState({path: _state.path.slice(0, -1)});
       return;
     }
@@ -13467,6 +13525,7 @@ function saveModel(onSuccess) {
         // fresh GET /model before continuing.
         var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '') ;
         var mKey = normalizeURL(svBaseSave) ;
+        invalidateRegistryProbe(svBaseSave) ;
         fetch(serverFetchBase(svBaseSave) + '/model')
           .then(function(r) { return r.json() ; })
           .then(function(m) { _modelCache[mKey] = m ; })
@@ -13572,6 +13631,7 @@ function saveCapabilities(onSuccess) {
         _capData = deepClone(_capSrc);
         var svBaseSave = (_state.serverURL || window.location.origin).replace(/\/$/, '');
         _capCache[normalizeURL(svBaseSave)] = deepClone(_capSrc);
+        invalidateRegistryProbe(svBaseSave);
         if (onSuccess) { onSuccess(); } else { window.location.reload(); }
       } else {
         if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }

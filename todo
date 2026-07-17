@@ -37,7 +37,6 @@ TODOs:
 - add tests to make sure changing spec defined attributes are still valid
 - add tests for immutable attributes
 - test filtering on bool attributes where they search for attr=false
-** make sure we don't let go http add "content-type" header for docs w/o a value
 - add model tests for typemap - just that we can set via full model updates
 ** support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic

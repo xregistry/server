@@ -270,6 +270,12 @@ func (dw *DefaultWriter) Write(b []byte) (int, error) {
 		if dw.Info.StatusCode == 0 {
 			dw.Info.StatusCode = http.StatusOK
 		}
+
+		// If the user never set one, don't let golang add one
+		if dw.Info.GetHeader("Content-Type") == "" {
+			dw.Info.OriginalResponse.Header()["Content-Type"] = nil
+		}
+
 		dw.Info.OriginalResponse.WriteHeader(dw.Info.StatusCode)
 	}
 	return dw.Info.OriginalResponse.Write(b)

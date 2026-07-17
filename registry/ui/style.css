@@ -361,6 +361,10 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
 #editing-indicator { height: 28px; }
 .xregview-icon { display: block; }
 #xregview-indicator { height: 28px; }
+#home-refresh-btn { height: 28px; }
+.home-refresh-icon { display: block; width: 17px; height: 17px; }
+#home-refresh-btn.spinning .home-refresh-icon { animation: home-refresh-spin 0.6s linear; }
+@keyframes home-refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* Add registry dialog */
 #add-reg-dialog, #server-err-dialog {

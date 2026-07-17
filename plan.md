@@ -6526,3 +6526,58 @@ the xR entry/icon confirmed via direct computation check. `node --check
 app.js` passes throughout.
 
 **Status**: Complete.
+
+### Reduce redundant Home-page registry probing
+
+@duglin noticed every Home-page visit — even just navigating back to it,
+or switching between Grid/Tile and List layout — re-fetched
+`/capabilities`, `/model`, and `/` for every listed registry via
+`probeRegistry()`, with nothing cached across renders.
+
+**In-memory probe cache**: new `_registryProbeCache` (keyed by
+`normalizeURL(url)`) stores the full `info` object `probeRegistry()`
+delivers. `probeRegistry(url, cb, force)` now checks this cache first —
+on a hit (and no `force`), it calls `cb(cached)` immediately with zero
+fetches; otherwise it does the existing 3-fetch sequence and populates
+the cache before invoking `cb` (only on success — transient errors, e.g.
+a momentarily unreachable host, are intentionally never cached, so
+they're retried on the next visit rather than sticking around). Being a
+plain JS variable (not `localStorage`), a real browser reload naturally
+resets it — giving the "just returning to Home vs. hit refresh"
+distinction @duglin asked about for free, no special detection logic
+needed: in-app navigation/view-switching reuses the cache, an actual
+page reload always re-probes everything, exactly as before.
+
+**Auto-invalidation on mutations** (@duglin opted for this over leaving
+it purely reload-driven, for accuracy): new `invalidateRegistryProbe(url)`
+helper deletes a server's cache entry, called right after each of these
+existing mutation-success paths (using `_state.serverURL ||
+window.location.origin`): create-entity PUT success, bulk "Delete
+Selected" success, single entity DELETE success, `saveModel()` success,
+`saveCapabilities()` success. Version delete is intentionally excluded —
+Home only shows group-type-level pills/counts, which versions never
+affect.
+
+**Manual global "Refresh" button** (@duglin's request — one button for
+the whole page, not per-card/per-row): new pinned `#home-refresh-btn`
+icon in `#header-right`, positioned left of `#view-controls`, shown only
+while `_state.view === 'home'` (both Grid/Tile and List layouts share
+it). Icon is a custom inline SVG (circular arc + arrowhead,
+`.home-refresh-icon`, `currentColor` stroke, 17x17px) — replaced an
+initial Unicode glyph (`&#8635;`) attempt after @duglin found it
+unsatisfying. `doHomeRefresh()` wipes `_registryProbeCache`
+entirely (simplest correct approach, since Home always lists every known
+server anyway) and calls `renderHome()`, forcing a fresh re-probe of
+everything currently shown; briefly adds a `.spinning` class (CSS
+`@keyframes` rotation) for click feedback.
+
+**Verified** via CDP against the live dev server (network-request
+logging, not just visual): initial Home load does the expected 3
+requests; switching Grid⇄List via `setDataView()` does zero further
+requests; navigating away (Config) and back to Home does zero further
+requests; clicking the refresh button (in both Grid and List layouts)
+re-issues all 3 requests; a real `page.reload()` re-issues all 3
+requests, matching pre-existing behavior. `node --check app.js` passes
+throughout.
+
+**Status**: Complete.

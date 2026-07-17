@@ -1971,6 +1971,7 @@ func TestHTTPContent(t *testing.T) {
 `,
 	})
 
+	// Notice no content-type header at all
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f18",
 		Method: "GET",
@@ -2327,7 +2328,6 @@ func TestHTTPContent2(t *testing.T) {
 			"xRegistry-metaurl:http://localhost:8181/dirs/d1/files/f1/meta",
 			"xRegistry-versionsurl:http://localhost:8181/dirs/d1/files/f1/versions",
 			"xRegistry-versionscount:1",
-			"Content-Type:text/plain; charset=utf-8",
 		},
 		ResBody: `hello world`,
 	})
@@ -5449,7 +5449,6 @@ func TestHTTPURLs(t *testing.T) {
 			"xRegistry-ancestorid: 1",
 			"Content-Location:http://localhost:8181/dirs/d2/files/f1/versions/2",
 			"Content-Disposition:f1",
-			"Content-Type:text/plain; charset=utf-8",
 		},
 		ResBody: `this is a new version`,
 	})
@@ -8829,7 +8828,6 @@ func TestHTTPDefVer(t *testing.T) {
 			"Content-Length: 7",
 			"Content-Location: http://localhost:8181/dirs/d1/files/f1/versions/v1",
 			"Content-Disposition:f1",
-			"Content-Type: text/plain; charset=utf-8",
 			"Location: http://localhost:8181/dirs/d1/files/f1",
 		},
 		ResBody: `pick me`,

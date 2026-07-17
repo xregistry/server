@@ -1523,7 +1523,6 @@ func TestMetaLabels(t *testing.T) {
 			"content-disposition: f1",
 			"content-length: 6",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
-			"content-type: text/plain; charset=utf-8",
 
 			"xregistry-fileid: f1",
 			"xregistry-versionid: 1",
@@ -1622,7 +1621,6 @@ func TestMetaXregHeaders(t *testing.T) {
 			"content-disposition: f1",
 			"content-length: 6",
 			"content-location: http://localhost:8181/dirs/d1/files/f1/versions/1",
-			"content-type: text/plain; charset=utf-8",
 
 			"xregistry-fileid: f1",
 			"xregistry-versionid: 1",
