@@ -490,10 +490,10 @@ a.popup-item:hover { background: #f0f4ff; color: #2060a0; }
   border-top: 1px solid #e2e2e2;
 }
 .xr-table-props .xr-props-cat:first-child td { border-top: none; }
-/* Domain Focused mode's plain divider row (see buildPropsCatRowHtml()) —
-   used in place of the text category header for the Extensions/"<Singular>
-   Metadata" bucket, since Domain Focused mode drops text headings for
-   every other category but still wants a visual break before that one. */
+/* Domain view's plain divider row (see buildPropsCatRowHtml()) — used in
+   place of the text category header for the Extensions/"<Singular>
+   Metadata" bucket, since Domain view drops text headings for every
+   other category but still wants a visual break before that one. */
 .xr-table-props .xr-props-cat-divider td { padding: 6px 0; border: none; }
 .xr-props-divider { border: none; border-top: 1px solid #999; margin: 0; }
 /* Small inline hint text, e.g. next to a read-only defaultversionid link

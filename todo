@@ -76,7 +76,6 @@ TODOs:
 - add docs for auth via proxy
 ** add support for setting capabilities.mutable to null and make sure things
   aren't editable - like capabilities, model, entities
-** add all attributes to the model, including model/caps/COLLETIONS/RESOURCE/..
 - test to make sure we either override or error when someone tries to define
   an extension that looks like COLLECTION/url/count or shortself, etc..
 - test to make sure we set ancestorid correctly when server assigns the version
@@ -118,5 +117,4 @@ TODOs:
   check versions, but other updates won't. THey'll validate the constraints
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
-- more ximportresources testing
 - attr.clone should be deep

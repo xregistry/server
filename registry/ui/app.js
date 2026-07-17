@@ -128,16 +128,17 @@ function saveOpts() {
 
 function optJsonColorMode() { return _opts.jsonColorMode || 'full'; }
 
-// "Domain Focused" mode: hides xRegistry-plumbing Property-table
-// categories (Identity, Versioning & State) in View mode, and renames
-// the "Extensions" bucket to "<Singular> Metadata". See plan.md
-// "Domain Focused" mode section. View mode only — edit mode and JSON
-// view are unaffected regardless of this setting. Defaults to ON for
-// anyone who hasn't explicitly chosen a value yet (i.e. `!== false`
-// rather than a plain truthy check) so it's enabled out of the box,
-// while still letting a user who explicitly unchecked it keep that
-// choice persisted across sessions.
-function optDomainFocused() { return _opts.domainFocused !== false; }
+// "Domain view" — hiding xRegistry-plumbing Property-table categories
+// (Identity, Versioning & State) in View mode, and renaming the
+// "Extensions" bucket to "<Singular> Metadata" — is now the DEFAULT
+// behavior (see plan.md "Reversing the Domain/xReg focus default").
+// "xRegistry Focused" is the opt-IN Config-page checkbox that switches
+// to the full xRegistry attribute set instead; it's off by default, so
+// a plain truthy check on the (possibly unset) option correctly means
+// "not xReg-focused, i.e. Domain view is active". View mode only — edit
+// mode and JSON view always show every attribute regardless of this
+// setting.
+function optXregFocused() { return !!_opts.xregFocused; }
 
 // Reflects the current JSON color-mode option onto <body> so the CSS
 // rules in style.css (scoped via body[data-json-color=...]) can
@@ -3175,23 +3176,9 @@ function renderConfig() {
     // ---- Options section ----
     + '<div class="config-section">'
     + '<h3 class="config-section-title">Options</h3>'
-    // Options below are alphabetized by label (Domain Focused, then JSON
-    // coloring) — keep new options inserted in alphabetical order too.
-    + '<div class="cfg-option-row" onclick="cfgSetDomainFocused(!optDomainFocused())"'
-    +   ' title="Hides xRegistry-specific Property-table sections (Identity,'
-    +   ' Versioning &amp; State) and the Config: links, so the UI focuses on'
-    +   ' your own data. View mode only \u2014 edit mode and JSON view are'
-    +   ' unaffected.">'
-    +   '<span class="cfg-option-label">Domain Focused</span>'
-    +   '<input type="checkbox" id="cfg-domain-focused"'
-    +   (optDomainFocused() ? ' checked' : '')
-    +   ' onclick="event.stopPropagation()"'
-    +   ' onchange="cfgSetDomainFocused(this.checked)">'
-    +   '<span class="cfg-option-desc">Hide xRegistry-specific details in'
-    +   ' view mode (Identity, Versioning &amp; State, Config links) so the'
-    +   ' UI reads more like a plain data catalog</span>'
-    + '</div>'
-
+    // Options below are alphabetized by label (JSON coloring, then
+    // xRegistry Focused) — keep new options inserted in alphabetical
+    // order too.
     + '<div class="cfg-option-row cfg-option-group">'
     +   '<span class="cfg-option-label">JSON coloring</span>'
     +   '<div class="cfg-radio-set">'
@@ -3205,6 +3192,22 @@ function renderConfig() {
     +   '</div>'
     +   '<span class="cfg-option-desc">Choose how much syntax coloring'
     +   ' the JSON view uses</span>'
+    + '</div>'
+
+    + '<div class="cfg-option-row" onclick="cfgSetXregFocused(!optXregFocused())"'
+    +   ' title="Shows xRegistry-specific Property-table sections (Identity,'
+    +   ' Versioning &amp; State) and the Config: links, in addition to your'
+    +   ' own data. View mode only \u2014 edit mode and JSON view always show'
+    +   ' everything.">'
+    +   '<span class="cfg-option-label">xRegistry Focused</span>'
+    +   '<input type="checkbox" id="cfg-xreg-focused"'
+    +   (optXregFocused() ? ' checked' : '')
+    +   ' onclick="event.stopPropagation()"'
+    +   ' onchange="cfgSetXregFocused(this.checked)">'
+    +   '<span class="cfg-option-desc">Show xRegistry-specific details in'
+    +   ' view mode (Identity, Versioning &amp; State, Config links) in'
+    +   ' addition to your own data \u2014 turn on for the full xRegistry'
+    +   ' attribute set</span>'
     + '</div>'
 
     + '</div>'
@@ -3548,11 +3551,11 @@ function cfgSetJsonColor(mode) {
   applyJsonColorMode();
 }
 
-// Flips the "Domain Focused" option (see optDomainFocused()) and
+// Flips the "xRegistry Focused" option (see optXregFocused()) and
 // re-renders the current page immediately so the effect is visible
 // without a manual reload, matching cfgSetJsonColor()'s behavior.
-function cfgSetDomainFocused(checked) {
-  _opts.domainFocused = !!checked;
+function cfgSetXregFocused(checked) {
+  _opts.xregFocused = !!checked;
   saveOpts();
   refresh();
 }
@@ -4199,10 +4202,10 @@ function sectionCapKey(s) { return s === 'xregistry' ? '.xregistry' : s; }
 
 function buildRegEndpointPillsHtml() {
   if (_state.path.length !== 0) return '';
-  // Domain Focused mode (View mode only, see optDomainFocused()): hide
+  // Domain view (the default; View mode only, see optXregFocused()): hide
   // the whole "Config:" pills row — these are xRegistry-specific
   // endpoints (Model/ModelSource/Capabilities/etc), not domain data.
-  if (optDomainFocused() && !_state.editMode) return '';
+  if (!optXregFocused() && !_state.editMode) return '';
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
@@ -5646,8 +5649,8 @@ var PROP_CATEGORY_DEFS = [
 // is treated as "id" for ordering purposes even though its literal key
 // differs. Categories without an `order` array keep the incoming order.
 // A few "Versioning & State" attributes are useful enough to end-users
-// (not just xReg plumbing) that Domain Focused mode keeps them visible
-// even though the rest of that category is hidden — e.g. the Meta tab's
+// (not just xReg plumbing) that Domain view keeps them visible even
+// though the rest of that category is hidden — e.g. the Meta tab's
 // defaultversionid/defaultversionsticky/readonly (which version is
 // active, whether changes are locked out), and the Version Details
 // table's isdefault/ancestorid (whether this is the default version, and
@@ -5657,11 +5660,11 @@ var DOMAIN_FOCUSED_KEEP_KEYS = {defaultversionid:1, defaultversionsticky:1, read
 
 function groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable, extLabel) {
   if (!specLevel) return null;
-  // Domain Focused mode (View mode only, see optDomainFocused()): drop the
-  // Identity and Versioning & State buckets entirely, and use the
-  // caller-supplied extLabel ("<Singular> Metadata") in place of the
+  // Domain view (the default; View mode only, see optXregFocused()):
+  // drop the Identity and Versioning & State buckets entirely, and use
+  // the caller-supplied extLabel ("<Singular> Metadata") in place of the
   // literal "Extensions" label. Edit mode is never affected.
-  var domainFocused = optDomainFocused() && !editable;
+  var domainFocused = !optXregFocused() && !editable;
   var buckets = PROP_CATEGORY_DEFS.map(function(def) { return { label: def.label, keys: [], order: def.order }; });
   var identityBucket = buckets.filter(function(b) { return b.label === 'Identity'; })[0];
   var contentBucket = buckets.filter(function(b) { return b.label === 'Content'; })[0];
@@ -5730,11 +5733,11 @@ function groupPropsByCategory(keys, specLevel, singular, resourceSingular, edita
 // Builds the category-header <tr> a Property table shows above each
 // group returned by groupPropsByCategory() — shared by
 // buildEntityPropsTableHtml() and renderMetaTable() so both apply Domain
-// Focused mode identically. In Domain Focused mode (view mode only),
-// there's so little left to group that a text heading per category isn't
-// worth it — except the Extensions/"<Singular> Metadata" bucket, which
-// still gets a visual break via a plain divider line (no text) so it
-// reads as a distinct section without looking like more xReg plumbing.
+// view identically. In Domain view (the default; View mode only), there's
+// so little left to group that a text heading per category isn't worth
+// it — except the Extensions/"<Singular> Metadata" bucket, which still
+// gets a visual break via a plain divider line (no text) so it reads as
+// a distinct section without looking like more xReg plumbing.
 function buildPropsCatRowHtml(group, domainFocused) {
   if (domainFocused) {
     if (group.ext) return '<tr class="xr-props-cat-divider"><td colspan="2"><hr class="xr-props-divider"></td></tr>';
@@ -7513,14 +7516,14 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // endpoints list, so surfacing them here in edit mode would just show a
   // dead-end "Content" section with nothing actually usable. Suppressed
   // like meta/metaurl above.
-  var domainFocusedT = optDomainFocused() && !editable;
+  var domainFocusedT = !optXregFocused() && !editable;
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
-  // Domain Focused mode: a version's own "ancestorid" pointing at itself
+  // Domain view: a version's own "ancestorid" pointing at itself
   // (the root/first version of a Resource) isn't meaningful info for an
   // end-user — hide the row entirely rather than showing an Ancestor
-  // Version ID link to itself. xReg view still shows it (accurate/
+  // Version ID link to itself. xReg-focused view still shows it (accurate/
   // technically correct info there).
   if (domainFocusedT && entityData && entityData.ancestorid !== undefined
       && entityData.versionid !== undefined && entityData.ancestorid === entityData.versionid) {
@@ -7567,13 +7570,13 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
       : capitalize(resourceSingular || singular) + ' Metadata');
   var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(headerLabel) + '</th><th></th></tr></thead><tbody>';
   if (groups) {
-    // Domain Focused mode drops most category headers (see
+    // Domain view drops most category headers (see
     // buildPropsCatRowHtml()), so adjacent groups now sit directly next
     // to each other with no visual break — row banding needs to keep
     // counting across that boundary (running `bandT`) instead of
     // resetting to 0 per group, or two same-shaded rows can end up
-    // touching. Normal (non-Domain-Focused) view keeps the original
-    // per-group reset since its header row already breaks the shading.
+    // touching. xRegistry-focused view keeps the original per-group
+    // reset since its header row already breaks the shading.
     var bandT = 0;
     groups.forEach(function(g) {
       html += buildPropsCatRowHtml(g, domainFocusedT);
@@ -8469,10 +8472,10 @@ function renderMetaTable(d, model, editable) {
 
   var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Details</th><th></th></tr></thead><tbody>';
   if (groups) {
-    var domainFocusedM = optDomainFocused() && !editable;
+    var domainFocusedM = !optXregFocused() && !editable;
     // Same running-band fix as buildEntityPropsTableHtml() — Domain
-    // Focused mode drops most category headers, so banding must keep
-    // counting across group boundaries instead of resetting per group.
+    // view drops most category headers, so banding must keep counting
+    // across group boundaries instead of resetting per group.
     var bandM = 0;
     groups.forEach(function(g) {
       html += buildPropsCatRowHtml(g, domainFocusedM);
