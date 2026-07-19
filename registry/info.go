@@ -30,6 +30,7 @@ type RequestInfo struct {
 	// CORS headers need to reflect the original request path.
 	OriginalRootPath string
 	OriginalParts    []string
+	OriginalBaseURL  string // host+path to root of original request (pre reg-xxx)
 
 	Root          string // GROUPS/gID/..
 	Abstract      string // /GROUPS/RESOUCES (no IDs)
@@ -391,6 +392,21 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 	info.OriginalParts = make([]string, len(info.Parts))
 	copy(info.OriginalParts, info.Parts)
 	info.OriginalRootPath = info.RootPath
+
+	// Get root of the overall server - before any reg-XXX processing
+	root := "http://" + r.Host
+	if r.TLS != nil {
+		root = "https" + info.BaseURL[4:]
+	} else if tmp := r.Header.Get("Referer"); tmp != "" {
+		if strings.HasPrefix(tmp, "https:") {
+			root = "https" + info.BaseURL[4:]
+		}
+	} else if tmp := r.Header.Get("Forwarded"); tmp != "" {
+		if strings.Contains(tmp, "https") {
+			root = "https" + info.BaseURL[4:]
+		}
+	}
+	info.OriginalBaseURL = root
 
 	if log.GetVerbose() > 3 {
 		log.Printf("Info: %s", ToJSON(info))

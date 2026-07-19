@@ -151,6 +151,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if xErr = ProcessShortSelf(tx, r); xErr != nil {
+		HTTPWriteError(info, xErr)
+	}
+
 	info, xErr = ParseRequest(tx, w, r)
 	// tx.RequestInfo = info
 
@@ -2665,4 +2669,37 @@ func HTTPWriteError(info *RequestInfo, errAny any) {
 	}
 
 	info.Write([]byte(xErr.ToJSON(info.BaseURL) + "\n"))
+}
+
+func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
+	path := req.URL.Path
+	if !strings.HasPrefix(path, "/r/") {
+		return nil
+	}
+
+	ss, details, _ := strings.Cut(path[3:], "$")
+
+	query := fmt.Sprintf(`
+        SELECT r.UID, e.Path
+        FROM Entities AS e
+        JOIN Registries AS r ON (r.SID = e.RegSID)
+        WHERE e.eSID = ?`)
+
+	results := Query(tx, query, ss)
+	defer results.Close()
+
+	row := results.NextRow()
+	if row != nil {
+		// found it!
+		regName := string((*(row[0])).([]byte))
+		newPath := "/reg-" + regName + "/" + string((*(row[1])).([]byte))
+		if details != "" {
+			newPath += "$details"
+		}
+		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)
+
+		req.URL.Path = newPath
+	}
+
+	return nil
 }

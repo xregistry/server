@@ -216,7 +216,6 @@ func GetOffered() *Offered {
 		},
 		ShortSelf: OfferedCapability{
 			Type: "boolean",
-			Enum: []any{false},
 		},
 		SpecVersions: OfferedCapability{
 			Type: "array",
@@ -386,13 +385,6 @@ func (c *Capabilities) Validate() *XRError {
 			"list=false")
 	}
 
-	if c.ShortSelf != false {
-		return NewXRError("capability_value", "/capabilities",
-			"value=true",
-			"field=shortself",
-			"list=false")
-	}
-
 	if c.SpecVersions == nil {
 		c.SpecVersions = []string{SPECVERSION}
 	}
@@ -499,7 +491,7 @@ func (c *Capabilities) PaginationEnabled() bool {
 	return c.Pagination
 }
 
-func (c *Capabilities) ShortSelfEnabled(str string) bool {
+func (c *Capabilities) ShortSelfEnabled() bool {
 	return c.ShortSelf
 }
 

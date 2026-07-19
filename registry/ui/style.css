@@ -2222,8 +2222,6 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   .boolSegBtn:not(:last-child) { border-right: 1px solid #ccc ; }
   .boolSegBtn.boolSegActive { background: #2060a0 ; color: #fff ; }
   .boolSegBtn:hover:not(.boolSegActive) { background: #e8e8e8 ; }
-  .boolSegReadOnly .boolSegBtn { cursor: default ; pointer-events: none ; }
-  .boolSegReadOnly .boolSegBtn:not(.boolSegActive) { color: #888 ; }
   .editorBtn {
     border-radius: 8px ;
     border: 1px solid #2060a0 ;
@@ -2477,6 +2475,13 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   #saveBtn:hover { background: #c4c4c4 ; color: black ; }
   #undoBtn { background: #a06020 ; border-color: #a06020 ; }
   #undoBtn:hover { background: #c4c4c4 ; color: black ; }
+  /* Capabilities page action bar — same Save=blue/Undo=brown scheme as
+     the other pages above; previously missed here, leaving both buttons
+     the plain blue .editorBtn default. */
+  #capSaveBtn { background: #2060a0 ; border-color: #2060a0 ; }
+  #capSaveBtn:hover { background: #c4c4c4 ; color: black ; }
+  #capUndoBtn { background: #a06020 ; border-color: #a06020 ; }
+  #capUndoBtn:hover { background: #c4c4c4 ; color: black ; }
   .rmBtn {
     border-radius: 5px ;
     border: 1px solid #a00 ;
@@ -2555,10 +2560,15 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 #capEditor { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 #xregEditor { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .capBody { flex: 1; overflow-y: auto; padding: 16px 20px; }
-.capSection { border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; background: #fafafa; }
+.capSection { border: 1px solid #ddd; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; background: #fafafa; width: fit-content; max-width: 100%; }
 .capSectionTitle { font-size: 13px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
 .capSectionBody { display: flex; flex-direction: column; gap: 10px; }
-.capTable { width: 100%; border-collapse: collapse; }
+/* No explicit width here (matches .xr-table's now-shrink-to-content
+   behavior) — but .capSectionBody is a flex column, whose default
+   align-items:stretch would otherwise force the table to fill its full
+   width anyway, so align-self:flex-start opts it back out of that
+   stretch. */
+.capTable { border-collapse: collapse; align-self: flex-start; }
 .capTable th { text-align: left; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 8px; border-bottom: 1px solid #ddd; }
 .capTable td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: middle; font-size: 13px; }
 .capFieldRow { display: flex; align-items: flex-start; gap: 10px; }

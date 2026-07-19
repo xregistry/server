@@ -6581,3 +6581,99 @@ requests, matching pre-existing behavior. `node --check app.js` passes
 throughout.
 
 **Status**: Complete.
+
+### Spec decision: `shortself` should be omitted from Doc View
+
+@duglin raised a spec ambiguity: in Doc Flag ("document view"), `self`
+becomes a relative `#/JSON-POINTER` (per the Doc Flag section, spec.md
+~3853), but the Doc Flag section's "MUST convert to relative URL" list
+doesn't include `shortself` — its own attribute definition just says it
+"MUST be a non-empty absolute URL" with no doc-view-specific carve-out.
+So today's spec text implicitly leaves `shortself` as a full absolute
+URL even in doc view, but never says so explicitly — a real ambiguity,
+not just unclear wording, since it produces a naming inversion
+(`shortself` ends up *longer* than `self` in the one view where
+output size is the whole point).
+
+**Decided: `shortself` should be omitted entirely from doc-view
+serialization** (not converted to a relative pointer, not left as an
+absolute URL — simply absent), for reasons independently arrived at by
+both @duglin and the agent:
+- `shortself` exists to be a compact, durable, *external* reference
+  (e.g. embeddable in a message, potentially resolved via a redirect/
+  URL-shortener service on a different host) — a fundamentally
+  "outside-this-document" concept.
+- A doc-view relative pointer is fundamentally an "inside-this-document"
+  concept — meaningless once extracted from the response it came from.
+  Some valid `shortself` implementations (e.g. the spec's own
+  `tinyurl.com` example) have no sensible "relative to this JSON
+  document" form at all, so converting isn't even always possible.
+- Once `self` becomes a same-document pointer, it already is the
+  shortest possible reference for consumers of that document —
+  `shortself`'s job is fully subsumed, so keeping it around just adds
+  bytes back in, directly against doc view's own stated purpose.
+- Consistent with what doc view already does elsewhere (dropping
+  default-Version attributes, `formatvalidated`/`compatibilityvalidated`,
+  xref target attributes) — trimming things redundant/out-of-context
+  for a self-contained document.
+
+**Not yet done**: drafting the actual spec.md wording change (Doc Flag
+section's "MUST convert" list + the `shortself` attribute definition's
+Document View Constraints) — @duglin will raise this with the other
+spec authors first.
+
+### Capabilities/CapabilitiesOffered pages: table-width and layout fixes
+
+Two rounds of UI polish on the Capabilities family of pages
+(registry/ui/app.js, style.css):
+
+1. **Undo button color + table-width consistency.** `#capUndoBtn`/
+   `#capSaveBtn` (Capabilities page's Save/Undo action bar) had no CSS
+   rules and fell back to the default blue `.editorBtn`, unlike every
+   other page's brown Undo/blue Save. Added the missing rules. Also
+   found `.capTable` still had an explicit `width: 100%` (like
+   `.xr-table` used to, before an earlier fix removed it) — removed it,
+   plus `align-self: flex-start` since `.capSectionBody` is a flex
+   column whose default `align-items: stretch` would otherwise still
+   force the table full-width regardless of its own width property.
+   Finally, `.capSection` (the bordered card box wrapping each
+   section) was a plain block `<div>` defaulting to full container
+   width — added `width: fit-content; max-width: 100%;` so each card
+   now shrinks to its own content, matching the Group Types box on the
+   registry root page.
+
+2. **Boolean display consistency.** Replaced the always-clickable-
+   looking true/false segmented pill with a compact check(✓)/x(✕)
+   badge (matching `isdefault`/`formatvalidated` elsewhere) whenever a
+   boolean isn't actually editable — i.e. plain read-only viewing, or a
+   field locked to one value even while editing. Applies to
+   `capBoolToggle()` (Capabilities page: Available Entities, Settings,
+   Extensions) and `efBool()` (Model editor's tri-state
+   true/false/unspecified option fields — unspecified now shows an
+   em-dash badge). Added a reusable `boolBadgeEl()` DOM helper (twin of
+   the existing string-returning `renderBoolBadge()`).
+
+3. **Capabilities Offered (/capabilitiesoffered) List view redesign.**
+   Previously one section-per-top-level-key, each rendered as loose
+   label rows (`capObjectBox`/`capSchemaWrap`) rather than tables.
+   Rebuilt into 3 grouped tables matching the data's actual shape:
+   - **Available**: API / "Can be mutable?" columns — answers the
+     yes/no question directly (`true` unless the schema locks
+     `mutable` to `enum:[false]`) instead of showing a redundant
+     "boolean" type badge on every row.
+   - **Compatibilities**: Format / Type / Available Values columns.
+   - **Other Capabilities**: every remaining top-level key (flags,
+     formats, ignores, specversions, versionmodes, pagination,
+     shortself, and any future addition) merged into one Name / Type /
+     Available Values table, one row each, instead of 7 separate
+     one-row section boxes — they all share the identical
+     `{type[, enum][, item]}` leaf shape so a single shared table made
+     more sense than a section per key.
+   New helpers: `capSchemaTypeText()`, `capSchemaValuesEl()`,
+   `capOfferedTableHead()`, `CAP_OFFERED_KEY_LABELS`.
+
+All verified via CDP screenshots against the live dev server
+(read-only and edit mode, all 3 capabilities-family pages);
+`node --check app.js` passed after every edit.
+
+**Status**: Complete.

@@ -1131,35 +1131,43 @@ var PropsFuncs = []*Attribute{
 		},
 	},
 	{
-		Name:      "shortself",
+		Name: "shortself",
 		internals: &AttrInternals{
-			/*
-				getFn: func(e *Entity) any {
-					path := e.Path
-					base := ""
-					info := e.GetRequestInfo()
-					if info != nil {
-						base = info.BaseURL
+			getFn: func(e *Entity) any {
+				// Capabilities.ShortSelf isn't enabled, so stop
+				if e.Registry.Capabilities.ShortSelfEnabled() == false {
+					return nil
+				}
+
+				base := ""
+
+				// ?doc view shouldn't include it
+				info := e.GetRequestInfo()
+				if info != nil {
+					if info.DoDocView() {
+						return nil
+					}
+					base = info.OriginalBaseURL
+				}
+
+				shortself := e.DbSID // MD5(path)
+
+				if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
+					meta := info != nil && (info.ShowDetails ||
+						info.DoDocView() ||
+						info.ResourceUID == "" || len(info.Parts) == 5)
+
+					if e.GetResourceModel().GetHasDocument() == false {
+						meta = false
 					}
 
-					if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
-						meta := info != nil && (info.ShowDetails ||
-							info.DoDocView() ||
-							info.ResourceUID == "" || len(info.Parts) == 5)
-
-						if e.GetResourceModel().GetHasDocument() == false {
-							meta = false
-						}
-
-						if meta {
-							path += "$details"
-						}
+					if meta {
+						shortself += "$d"
 					}
+				}
 
-					shortself := MD5(path)
-					return base + "/r?u=" + shortself
-				},
-			*/
+				return base + "/r/" + shortself
+			},
 		},
 	},
 	{

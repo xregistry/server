@@ -5782,6 +5782,18 @@ function renderBoolBadge(val, falseIcon) {
        + (val ? '\u2713 true' : (falseIcon ? falseIcon : '\u2715 false')) + '</span>';
 }
 
+// DOM-element twin of renderBoolBadge(), for callers building elements via
+// document.createElement() rather than innerHTML strings (e.g. the
+// Capabilities/Model editors' read-only boolean displays). `label` lets
+// callers override the badge text (e.g. an em-dash for "unspecified"),
+// keeping the same neutral pill styling.
+function boolBadgeEl(val, label) {
+  var span = document.createElement('span');
+  span.className = 'eg-bool-badge ' + (val ? 'eg-bool-true' : 'eg-bool-false');
+  span.textContent = label !== undefined ? label : (val ? '\u2713 true' : '\u2715 false');
+  return span;
+}
+
 // Rough human relative-time string ("3 days ago", "in 2 hours", "just now")
 // for a timestamp value's hover tooltip. Deliberately simple/approximate —
 // it's a hint, not a precise duration, and keeps the SPA dependency-free.
@@ -13148,9 +13160,22 @@ function ecb(id, label, checked) {
 function efBool(id, label, value) {
   var cell = document.createElement('div') ; cell.className = 'boolCell' ;
   var lbl = document.createElement('label') ; lbl.textContent = label + ':' ;
-  var seg = document.createElement('div') ;
   var cur = (value === true) ? 'true' : (value === false) ? 'false' : '' ;
-  seg.className = 'boolSeg' + (_modelReadOnly ? ' boolSegReadOnly' : '') ;
+
+  // The segmented true/false/— pill only makes sense while actually
+  // editable; in read-only mode there's nothing to click, so show the same
+  // compact check/x badge used elsewhere for boolean values instead (an
+  // em-dash badge for "unspecified", matching the pill's own '\u2014').
+  if (_modelReadOnly) {
+    var badge = (cur === '')
+      ? boolBadgeEl(false, '\u2014')
+      : boolBadgeEl(cur === 'true') ;
+    badge.id = id ; badge.dataset.val = cur ;
+    cell.appendChild(lbl) ; cell.appendChild(badge) ; return cell ;
+  }
+
+  var seg = document.createElement('div') ;
+  seg.className = 'boolSeg' ;
   seg.id = id ; seg.dataset.val = cur ;
   var btns = [['true','true'],['false','false'],['\u2014','']] ;
   btns.forEach(function(b) {
@@ -13666,11 +13691,22 @@ function capSectionEl(title) {
 }
 
 // Two-state (true/false) toggle, styled like the Model editor's boolSeg
-// control. `locked` forces read-only regardless of _capReadOnly.
+// control. `locked` forces read-only regardless of _capReadOnly (used when
+// the offered-capabilities schema pins this field to a single enum value,
+// so it could never actually be switched even while editing).
+//
+// The segmented true/false pill only makes sense while the value is truly
+// editable — i.e. edit mode is on AND it isn't locked to one value. In every
+// other case (plain read-only viewing, or a locked field) there's nothing
+// to click, so show the same compact check/x badge used for boolean
+// Property-table values elsewhere (isdefault, formatvalidated, etc.)
+// instead of a pill that looks interactive but isn't.
 function capBoolToggle(value, locked, onChange) {
-  var seg = document.createElement('div');
   var readOnly = _capReadOnly || locked;
-  seg.className = 'boolSeg' + (readOnly ? ' boolSegReadOnly' : '');
+  if (readOnly) return boolBadgeEl(!!value);
+
+  var seg = document.createElement('div');
+  seg.className = 'boolSeg';
   var cur = value === true ? 'true' : 'false';
   seg.dataset.val = cur;
   [['true', 'true'], ['false', 'false']].forEach(function(b) {
@@ -13678,7 +13714,6 @@ function capBoolToggle(value, locked, onChange) {
     btn.textContent = b[0];
     btn.className = 'boolSegBtn' + (cur === b[1] ? ' boolSegActive' : '');
     btn.onclick = function() {
-      if (readOnly) return;
       seg.dataset.val = b[1];
       seg.querySelectorAll('.boolSegBtn').forEach(function(x) { x.classList.remove('boolSegActive'); });
       btn.classList.add('boolSegActive');
@@ -14038,6 +14073,74 @@ function renderCapSchemaNode(node) {
   return leaf;
 }
 
+// Display labels for the "Other Capabilities" merged table (see
+// renderCapabilitiesOfferedViewer) — same names used for these keys
+// elsewhere (e.g. the actual /capabilities editor's Capabilities/Settings
+// sections). Any key not listed here (a future/unknown addition) just
+// falls back to its raw key name, so nothing is ever silently dropped.
+var CAP_OFFERED_KEY_LABELS = {
+  flags: 'Flags', formats: 'Formats', ignores: 'Ignores',
+  specversions: 'Spec Versions', versionmodes: 'Version Modes',
+  pagination: 'Pagination', shortself: 'Short Self'
+};
+
+// One row's "Type" text for the offered-capabilities schema tables — e.g.
+// "boolean", or "array of string" for an array/map node with a nested item
+// schema (the item's own type, since the enum of allowed values lives on
+// the array/map node itself, not on node.item).
+function capSchemaTypeText(node) {
+  if (!node || typeof node !== 'object') return 'any';
+  if ((node.type === 'array' || node.type === 'map') && node.item) {
+    return node.type + ' of ' + (node.item.type || '?');
+  }
+  return node.type || 'any';
+}
+
+// One row's "Values" cell — the enum chip list when the schema constrains
+// this field to a fixed set of allowed values, otherwise a muted "any"
+// placeholder (matching capChipList's own "— none —" empty-state style).
+// Booleans are the one exception: an unconstrained boolean's only two
+// possible values are always true/false, so show those explicitly rather
+// than a vague "any".
+function capSchemaValuesEl(node) {
+  if (node && Array.isArray(node.enum) && node.enum.length) {
+    return capChipList(node.enum, null, null);
+  }
+  if (node && node.type === 'boolean') {
+    return capChipList(['true', 'false'], null, null);
+  }
+  var none = document.createElement('span'); none.className = 'capNone'; none.textContent = '\u2014 any \u2014';
+  return none;
+}
+
+function capOfferedTableHead(table, headers) {
+  var tr = document.createElement('tr');
+  headers.forEach(function(h) { var th = document.createElement('th'); th.textContent = h; tr.appendChild(th); });
+  table.appendChild(tr);
+}
+
+// Read-only List view for a registry's /capabilitiesoffered document. This
+// is itself a schema description (each entry looks like {type, attributes}
+// / {type, enum, item} — see common/capabilities.go's OfferedCapability
+// shape) rather than a set of actual values, so instead of reusing
+// renderCapValueGeneric (which pairs a *value* with its offered node) each
+// top-level key gets a small dedicated table, grouped to match how the
+// data is actually shaped:
+//  - "Available": one row per API (available.attributes), API/"Can be
+//    mutable?" columns — answers the yes/no question directly (locked to
+//    enum:[false] means "false", otherwise "true" remains possible) rather
+//    than showing a redundant "boolean" type badge on every row.
+//  - "Compatibilities": one row per format, Format/Type/Available Values
+//    columns.
+//  - "Other Capabilities": every remaining top-level key (flags, formats,
+//    ignores, specversions, versionmodes, pagination, shortself, and any
+//    future addition) merged into one Name/Type/Available Values table
+//    instead of
+//    a separate one-row section per key, since they all share the exact
+//    same {type[, enum][, item]} leaf shape.
+// Always read-only — capabilitiesoffered is a server-declared document,
+// never user-edited (see plan.md "Capabilities/CapabilitiesOffered List
+// view").
 function renderCapabilitiesOfferedViewer(data) {
   var main = el('main-view');
   main.innerHTML = '<div id="capEditor"></div>';
@@ -14045,13 +14148,71 @@ function renderCapabilitiesOfferedViewer(data) {
   wrap.insertAdjacentHTML('beforeend', serverURLLineHtml()) ;
   var body = document.createElement('div'); body.className = 'capBody';
   wrap.appendChild(body);
+  data = data || {};
   var readOnlyPrev = _capReadOnly;
   _capReadOnly = true; // capChipList() consults this — force read-only rendering
-  Object.keys(data || {}).sort().forEach(function(k) {
-    var sec = capSectionEl(k);
-    sec.body.appendChild(renderCapSchemaNode(data[k]));
-    body.appendChild(sec.sec);
-  });
+
+  if (data.available && data.available.attributes) {
+    var availSec = capSectionEl('Available');
+    var availTable = document.createElement('table'); availTable.className = 'capTable';
+    capOfferedTableHead(availTable, ['API', 'Can be mutable?']);
+    Object.keys(data.available.attributes).sort().forEach(function(api) {
+      var apiNode = data.available.attributes[api];
+      var mutNode = apiNode && apiNode.attributes && apiNode.attributes.mutable;
+      var tr = document.createElement('tr');
+      var tdApi = document.createElement('td'); tdApi.textContent = api;
+      // Every entry here is always type "boolean", so skip the redundant
+      // type badge. Answer the column's yes/no question directly: locked
+      // to enum:[false] means "no", otherwise true remains a possible
+      // value (even if not locked to it), so the answer is "yes"/true.
+      var canBeMutable = !(mutNode && Array.isArray(mutNode.enum) && mutNode.enum.length
+        && mutNode.enum.indexOf(true) === -1);
+      var tdMut = document.createElement('td');
+      tdMut.appendChild(capChipList([String(canBeMutable)], null, null));
+      tr.appendChild(tdApi); tr.appendChild(tdMut);
+      availTable.appendChild(tr);
+    });
+    availSec.body.appendChild(availTable);
+    body.appendChild(availSec.sec);
+  }
+
+  if (data.compatibilities && data.compatibilities.attributes) {
+    var compatSec = capSectionEl('Compatibilities');
+    var compatTable = document.createElement('table'); compatTable.className = 'capTable';
+    capOfferedTableHead(compatTable, ['Format', 'Type', 'Available Values']);
+    Object.keys(data.compatibilities.attributes).sort().forEach(function(fmt) {
+      var fmtNode = data.compatibilities.attributes[fmt];
+      var tr = document.createElement('tr');
+      var tdFmt = document.createElement('td'); tdFmt.textContent = fmt;
+      var tdType = document.createElement('td'); tdType.textContent = capSchemaTypeText(fmtNode);
+      var tdVals = document.createElement('td'); tdVals.appendChild(capSchemaValuesEl(fmtNode));
+      tr.appendChild(tdFmt); tr.appendChild(tdType); tr.appendChild(tdVals);
+      compatTable.appendChild(tr);
+    });
+    compatSec.body.appendChild(compatTable);
+    body.appendChild(compatSec.sec);
+  }
+
+  var otherKeys = Object.keys(data).filter(function(k) {
+    return k !== 'available' && k !== 'compatibilities';
+  }).sort();
+  if (otherKeys.length) {
+    var otherSec = capSectionEl('Other Capabilities');
+    var otherTable = document.createElement('table'); otherTable.className = 'capTable';
+    capOfferedTableHead(otherTable, ['Name', 'Type', 'Available Values']);
+    otherKeys.forEach(function(k) {
+      var node = data[k];
+      var tr = document.createElement('tr');
+      var tdName = document.createElement('td'); tdName.textContent = CAP_OFFERED_KEY_LABELS[k] || k;
+      var tdType = document.createElement('td'); tdType.textContent = capSchemaTypeText(node);
+      var tdVals = document.createElement('td'); tdVals.appendChild(capSchemaValuesEl(node));
+      tr.appendChild(tdName); tr.appendChild(tdType); tr.appendChild(tdVals);
+      otherTable.appendChild(tr);
+    });
+    otherSec.body.appendChild(otherTable);
+    body.appendChild(otherSec.sec);
+  }
+
   _capReadOnly = readOnlyPrev;
 }
 

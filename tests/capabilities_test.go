@@ -1046,19 +1046,21 @@ func TestCapabilityPath(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/capabilities", `{"shortself":true}`, 400,
-		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
-  "title": "Invalid value (true) specified for capability \"shortself\". Allowable values include: false.",
-  "subject": "/capabilities",
-  "args": {
-    "field": "shortself",
-    "list": "false",
-    "value": "true"
-  },
-  "source": ":common:capabilities:229"
-}
-`)
+	/*
+			XHTTP(t, reg, "PUT", "/capabilities", `{"shortself":true}`, 400,
+				`{
+		  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#capability_value",
+		  "title": "Invalid value (true) specified for capability \"shortself\". Allowable values include: false.",
+		  "subject": "/capabilities",
+		  "args": {
+		    "field": "shortself",
+		    "list": "false",
+		    "value": "true"
+		  },
+		  "source": ":common:capabilities:229"
+		}
+		`)
+	*/
 
 	// Setting some arrays to [] are an error because we can't do what they
 	// asked - which is different from "null"/absent - which means "default"
@@ -1898,10 +1900,7 @@ func TestCapabilityOffered(t *testing.T) {
     ]
   },
   "shortself": {
-    "type": "boolean",
-    "enum": [
-      false
-    ]
+    "type": "boolean"
   },
   "specversions": {
     "type": "array",
