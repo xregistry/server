@@ -1528,15 +1528,18 @@ function renderHeader() {
   // control available (rather than appearing/disappearing as you
   // traverse collection vs. single-entity pages) is less visually
   // jarring, and it's still a valid choice to leave on/off while passing
-  // through a collection page. Edit mode already always shows everything
-  // regardless of this setting, so it's excluded there.
+  // through a collection page. Now also available in edit mode — the
+  // Property/Meta tables and Config pills respect this setting while
+  // editing too (see groupPropsByCategory()/buildEntityPropsTableHtml()/
+  // buildRegEndpointPillsHtml()), so the toggle needs to stay reachable
+  // there as well.
   var xregViewBtn = el('xregview-indicator');
   if (xregViewBtn) {
     // Excluded in JSON view: the setting only affects the human-readable
     // table rendering (Property tables/Config: pills), not the raw JSON
     // returned by the API — so it has no visible effect there at all.
     var inJsonViewForXreg = _state.dataView === 'json' || _state.view === 'json';
-    var xregDataAvailable = isData && section === 'data' && !_state.editMode && !inJsonViewForXreg;
+    var xregDataAvailable = isData && section === 'data' && !inJsonViewForXreg;
     _xregDataMenuAvailable = xregDataAvailable;
     xregViewBtn.style.display = (xregDataAvailable && _state.xregOverride) ? '' : 'none';
     xregViewBtn.classList.add('active'); // always the "on" blue styling while shown
@@ -4494,10 +4497,13 @@ function sectionCapKey(s) { return s === 'xregistry' ? '.xregistry' : s; }
 
 function buildRegEndpointPillsHtml() {
   if (_state.path.length !== 0) return '';
-  // Domain view (the default; View mode only, see effectiveXregFocused()):
-  // hide the whole "Config:" pills row — these are xRegistry-specific
-  // endpoints (Model/ModelSource/Capabilities/etc), not domain data.
-  if (!effectiveXregFocused() && !_state.editMode) return '';
+  // Domain view (the default when "Show/Hide xReg Data" is off — see
+  // effectiveXregFocused()): hide the whole "Config:" pills row — these
+  // are xRegistry-specific endpoints (Model/ModelSource/Capabilities/etc),
+  // not domain data. Applies in edit mode too now, same as every other
+  // domain-focused filter — toggling "Show/Hide xReg Data" while editing
+  // shows/hides this row exactly like it does in View mode.
+  if (!effectiveXregFocused()) return '';
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
@@ -5997,13 +6003,20 @@ var PROP_CATEGORY_DEFS = [
 var DOMAIN_FOCUSED_KEEP_KEYS = {defaultversionid:1, defaultversionsticky:1, readonly:1,
   isdefault:1, ancestorid:1};
 
-function groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable, extLabel) {
+function groupPropsByCategory(keys, specLevel, singular, resourceSingular, domainFocused, extLabel) {
   if (!specLevel) return null;
-  // Domain view (the default; View mode only, see effectiveXregFocused()):
-  // drop the Identity and Versioning & State buckets entirely, and use
-  // the caller-supplied extLabel ("<Singular> Metadata") in place of the
-  // literal "Extensions" label. Edit mode is never affected.
-  var domainFocused = !effectiveXregFocused() && !editable;
+  // Domain view (the default when the "Show/Hide xReg Data" toggle is off
+  // — see effectiveXregFocused()): drop the Identity and Versioning &
+  // State buckets entirely, and use the caller-supplied extLabel
+  // ("<Singular> Metadata") in place of the literal "Extensions" label.
+  // `domainFocused` is computed by each caller — the same effectiveXregFocused()
+  // check now applies whether or not the page is in edit mode, so toggling
+  // "Show/Hide xReg Data" while editing an existing entity filters the
+  // Property/Meta tables exactly like it does in View mode. The one
+  // exception is orderPropKeysFlat() (the Add-entity form's field
+  // ordering), which always passes `false` here — that form needs every
+  // settable field available regardless of the toggle, purely reusing
+  // this function for View mode's left-to-right ordering.
   var buckets = PROP_CATEGORY_DEFS.map(function(def) { return { label: def.label, keys: [], order: def.order }; });
   var identityBucket = buckets.filter(function(b) { return b.label === 'Identity'; })[0];
   var contentBucket = buckets.filter(function(b) { return b.label === 'Content'; })[0];
@@ -6106,7 +6119,11 @@ function orderPropKeysFlat(keys, specLevel, singular, resourceSingular) {
     if (ai >= 0) return -1; if (bi >= 0) return 1;
     return a.localeCompare(b);
   });
-  var groups = groupPropsByCategory(sorted, specLevel, singular, resourceSingular, true);
+  // Always pass domainFocused=false here — the Add-entity form needs
+  // every settable field available regardless of the "Show/Hide xReg
+  // Data" toggle; this call only wants View mode's left-to-right
+  // ordering, not its filtering. See groupPropsByCategory().
+  var groups = groupPropsByCategory(sorted, specLevel, singular, resourceSingular, false);
   if (!groups) return sorted;
   var flat = [];
   groups.forEach(function(g) { flat = flat.concat(g.keys); });
@@ -7878,7 +7895,10 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // endpoints list, so surfacing them here in edit mode would just show a
   // dead-end "Content" section with nothing actually usable. Suppressed
   // like meta/metaurl above.
-  var domainFocusedT = !effectiveXregFocused() && !editable;
+  // Applies whether or not the page is in edit mode, so toggling
+  // "Show/Hide xReg Data" while editing an existing entity filters this
+  // table exactly like it does in View mode (see groupPropsByCategory()).
+  var domainFocusedT = !effectiveXregFocused();
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
@@ -7926,7 +7946,7 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // (the dedicated depth>=6 Version page was retired from List view, see
   // normalizeVersionDepth()).
   var resourceSingular = (depth === 4) ? singular : null;
-  var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular, editable,
+  var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular, domainFocusedT,
     depth === 0 ? 'Registry Metadata'
       : depth === 2 ? capitalize(singular) + ' Metadata'
       : capitalize(resourceSingular || singular) + ' Metadata');
@@ -9377,7 +9397,11 @@ function renderMetaTable(d, model, editable) {
   var capType = capitalize(_metaEntityType);
   var specLevel = (typeof SPEC_ATTRS !== 'undefined') ? SPEC_ATTRS.meta : null;
   var singular = (_metaEntityType || '').toLowerCase();
-  var groups = groupPropsByCategory(keys, specLevel, singular, null, editable, capType + ' Metadata');
+  // Applies whether or not the page is in edit mode — see
+  // buildEntityPropsTableHtml()'s matching domainFocusedT and
+  // groupPropsByCategory().
+  var domainFocusedM = !effectiveXregFocused();
+  var groups = groupPropsByCategory(keys, specLevel, singular, null, domainFocusedM, capType + ' Metadata');
 
   function buildRow(k, banded) {
     var val = d[k];
@@ -9473,7 +9497,6 @@ function renderMetaTable(d, model, editable) {
 
   var html = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capType) + ' Details</th><th></th></tr></thead><tbody>';
   if (groups) {
-    var domainFocusedM = !effectiveXregFocused() && !editable;
     // Same running-band fix as buildEntityPropsTableHtml() — Domain
     // view drops most category headers, so banding must keep counting
     // across group boundaries instead of resetting per group.

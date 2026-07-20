@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -215,9 +216,9 @@ type HTTPTest struct {
 	ResBody     string
 }
 
-func XHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code int, resBody string, flags ...string) {
+func XHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code int, resBody string, flags ...string) *HTTPResult {
 	t.Helper()
-	XCheckHTTP(t, reg, &HTTPTest{
+	return XCheckHTTP(t, reg, &HTTPTest{
 		URL:        url,
 		Method:     verb,
 		ReqBody:    reqBody,
@@ -230,6 +231,13 @@ func XHTTP(t *testing.T, reg *registry.Registry, verb, url, reqBody string, code
 type HTTPResult struct {
 	http.Response
 	body string
+}
+
+func (res *HTTPResult) ToMap() map[string]any {
+	tmp := map[string]any(nil)
+
+	json.Unmarshal([]byte(res.body), &tmp)
+	return tmp
 }
 
 func XDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
@@ -267,7 +275,7 @@ func XDoHTTP(t *testing.T, reg *registry.Registry, method string, path string,
 	return result
 }
 
-func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...string) {
+func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...string) *HTTPResult {
 	t.Helper()
 	XNoErr(t, reg.SaveModel(true))
 	XNoErr(t, reg.SaveAllAndCommit())
@@ -292,8 +300,12 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 		test.URL = strings.TrimLeft(test.URL, "/")
 	}
 
-	req, err := http.NewRequest(test.Method,
-		"http://localhost:8181/"+test.URL, body)
+	daURL := test.URL
+	if !strings.HasPrefix(daURL, "http") {
+		daURL = "http://localhost:8181/" + daURL
+	}
+
+	req, err := http.NewRequest(test.Method, daURL, body)
 	XNoErr(t, err)
 
 	// Add all request headers to the outbound message
@@ -308,6 +320,11 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 	res, err := client.Do(req)
 	if res != nil {
 		resBody, _ = io.ReadAll(res.Body)
+	}
+
+	httpResult := &HTTPResult{
+		Response: *res,
+		body:     string(resBody),
 	}
 
 	XNoErr(t, err)
@@ -415,6 +432,9 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 			resValue = TSre.ReplaceAllStringFunc(resValue, resReplaceFunc)
 		}
 
+		value = SavedREs[REG_SHORTSELF].ReplaceAllString(value, `"shortself": "xxx"`)
+		resValue = SavedREs[REG_SHORTSELF].ReplaceAllString(resValue, `"shortself": "xxx"`)
+
 		first := true // only mask the expected value once
 		for i, re := range headerMasks {
 			if first {
@@ -479,6 +499,8 @@ func XCheckHTTP(t *testing.T, reg *registry.Registry, test *HTTPTest, flags ...s
 			t.FailNow()
 		}
 	}
+
+	return httpResult
 }
 
 func XCLIServer(serverURL string) {

@@ -116,4 +116,3 @@ TODOs:
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
 - attr.clone should be deep
-** add tests for shortself

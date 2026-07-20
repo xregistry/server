@@ -6892,3 +6892,62 @@ the **Document** tab (`doc`) instead per user request
 **Status**: Implemented; CDP re-verification of the full flow (View
 All → pick version → dropdown/tab state; hard refresh on Versions
 List; jump-to-Document behavior) still pending at end of session.
+
+## Edit mode now respects "Show/Hide xReg Data" (domain-focus) toggle
+
+**Request**: today, Edit mode always shows every xRegistry attribute
+(Identity bucket, epoch, xid/self/shortself, etc.) regardless of the
+"Show/Hide xReg Data" toggle — even when the user has that toggle set
+to hide xReg-only attributes in View mode. @duglin wants Edit mode to
+respect the same filter View mode already does, and wants the toggle
+itself to remain available/togglable while in Edit mode.
+
+**Root cause**: `effectiveXregFocused()` (session override XOR'd with
+the configured default) was checked at each of the real filtering call
+sites as `!effectiveXregFocused() && !editable` (or `&& !_state.editMode`)
+— the `&& !editable` clause specifically exempted Edit mode from the
+filter. Additionally, `renderHeader()`'s xR toolbar-icon/menu-visibility
+flag (`_xregDataMenuAvailable`) was itself computed with a hard-coded
+`!_state.editMode`, hiding the "Show/Hide xReg Data" menu entry entirely
+while editing — so users couldn't even reach the toggle from Edit mode.
+
+**Fix** — dropped the `editable`/`editMode` exception at all real call
+sites, so filtering is now solely a function of `effectiveXregFocused()`:
+- `buildRegEndpointPillsHtml()` ("Config:" pills row)
+- `groupPropsByCategory()` — the core bucket-filtering function; its
+  5th param was refactored from an implicit `editable` to an explicit
+  `domainFocused` boolean, computed by each caller
+- `buildEntityPropsTableHtml()` (main Property table, both view+edit)
+- `renderMetaTable()` (Meta tab table, both view+edit)
+- `renderHeader()`'s xR toolbar-icon block — removed `!_state.editMode`
+  so the toggle/menu entry stays available while editing
+
+**One deliberate exception**: `orderPropKeysFlat()` (used only to order
+fields for the "Add new entity" form) now always passes
+`domainFocused=false` explicitly, regardless of the toggle — the Add
+form must keep showing every settable field (e.g. `deprecated`, `xref`)
+even when xR mode is off, since hiding them there would be a functional
+regression (fields silently disappearing from a create form), not just
+a cosmetic filter.
+
+**Edit-state safety while toggling**: toggling xR mode mid-edit
+(`toggleXregOverride()` → `pushState({xregOverride:...})` →
+`pushStateReal()` → `refresh()`) always re-fetches from the server, but
+does NOT clobber in-progress unsaved edits — `_dataLoadedFor` (a
+`server|path` cache key inside `renderSingleEntity()`) only resets the
+`_dataEditData` working copy when the key changes (i.e. navigating to a
+genuinely different entity); re-rendering the *same* entity (which is
+all a toggle does) reuses the existing edit-in-progress data. Verified
+via CDP: typed an unsaved change into the Name field, toggled xR mode
+on/off twice, the typed value was still present in both the input DOM
+and `_dataEditData` afterward.
+
+**Status**: Implemented and verified via CDP against an isolated test
+server (port 8098, db `xrmodetest1`) — confirmed (a) Edit mode's
+Property table correctly hides Identity/most-of-Versioning&State
+when xR mode is off, matching View mode exactly; (b) toggling shows
+the full categorized view (with category headers) when xR mode is on;
+(c) the same behavior holds on the Meta tab; (d) unsaved edits survive
+toggling xR mode mid-edit; (e) the "Show/Hide xReg Data" toolbar
+icon/menu entry is now available while `_state.editMode` is true.
+Not yet committed — pending @duglin's own manual confirmation.

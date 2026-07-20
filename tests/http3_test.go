@@ -4787,3 +4787,76 @@ func TestHTTPXRegistryDiscovery(t *testing.T) {
 }
 `)
 }
+
+func TestHTTPShortSelf(t *testing.T) {
+	rName := "TestHTTPShortSelf"
+	reg := NewRegistry(rName)
+	defer PassDeleteReg(t, reg)
+
+	XHTTP(t, reg, "PATCH", "/capabilities", `{"shortself":true}`, 200,
+		`^(?s)^.*"shortself": true,`)
+
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+      "groups": {
+        "dirs": {
+          "singular": "dir",
+          "resources": {
+            "files": {
+              "singular": "file"
+            }
+          }
+        }
+      }
+    }`, 200, "*")
+
+	res := XHTTP(t, reg, "PUT", "/reg-"+rName+"/dirs/d1/files/f1/versions/v1$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/reg-`+rName+`/dirs/d1/files/f1/versions/v1$details",
+  "shortself": "http://localhost:8181/r/2835eb5c12$",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-20T14:21:03.640174927Z",
+  "modifiedat": "2026-07-20T14:21:03.640174927Z",
+  "ancestorid": "v1"
+}
+`)
+
+	daMap := res.ToMap()
+	oldBody := res.body
+	ss := daMap["shortself"].(string)
+	XHTTP(t, reg, "GET", ss, ``, 200, oldBody)
+
+	for _, daURL := range []string{
+		"/",
+		"/dirs/d1",
+		"/dirs/d1/files/f1$details",
+		"/dirs/d1/files/f1/versions/v1$details",
+		"/dirs/d1/files/f1/meta",
+	} {
+		res = XHTTP(t, reg, "GET", "/reg-"+rName+daURL, ``, 200, `*`)
+		ss := res.ToMap()["shortself"].(string)
+		t.Logf("%q -> %q", res.ToMap()["self"].(string), ss)
+		XHTTP(t, reg, "GET", ss, ``, 200, res.body)
+
+		// Just make sure URL is accepted in the write case
+		XHTTP(t, reg, "PATCH", ss, `{}`, 200, "*")
+	}
+
+	// check http headers in $details cases
+	for _, daURL := range []string{
+		"/dirs/d1/files/f1",
+		"/dirs/d1/files/f1/versions/v1",
+	} {
+		res = XHTTP(t, reg, "GET", "/reg-"+rName+daURL, ``, 200, `*`)
+		ss := res.Header.Get("xregistry-shortself")
+		t.Logf("ss: %q", ss)
+
+		// Get $details version to check against
+		res = XHTTP(t, reg, "GET", "/reg-"+rName+daURL+"$details", ``, 200, `*`)
+
+		XHTTP(t, reg, "GET", ss+"$", ``, 200, res.body)
+	}
+}
