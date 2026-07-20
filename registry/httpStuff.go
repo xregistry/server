@@ -140,7 +140,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if xErr != nil {
 		log.Printf("Error talking to the DB creating new Tx: %s",
 			xErr.GetTitle())
+	} else {
+		xErr = ProcessShortSelf(tx, r)
+	}
 
+	if xErr != nil {
 		// Special one off - info isn't defined yet
 		if info == nil {
 			info = NewRequestInfo(w, r)
@@ -149,10 +153,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		HTTPWriteError(info, xErr)
 
 		return
-	}
-
-	if xErr = ProcessShortSelf(tx, r); xErr != nil {
-		HTTPWriteError(info, xErr)
 	}
 
 	info, xErr = ParseRequest(tx, w, r)
@@ -2677,7 +2677,13 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		return nil
 	}
 
-	ss, details, _ := strings.Cut(path[3:], "$")
+	hasDetails := false
+	ss := path[3:]
+	l := len(ss)
+	if l > 1 && ss[l-1] == '$' { // must be at least one char + "$"
+		ss = ss[:l-1]
+		hasDetails = true
+	}
 
 	query := fmt.Sprintf(`
         SELECT r.UID, e.Path
@@ -2693,13 +2699,14 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		// found it!
 		regName := string((*(row[0])).([]byte))
 		newPath := "/reg-" + regName + "/" + string((*(row[1])).([]byte))
-		if details != "" {
+		if hasDetails {
 			newPath += "$details"
 		}
 		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)
 
 		req.URL.Path = newPath
+		return nil
 	}
 
-	return nil
+	return NewXRError("not_found", path)
 }

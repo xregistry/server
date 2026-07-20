@@ -15,6 +15,7 @@ var MASK_SERVER = "MaskServer"
 var MASK_LOGS = "MaskLogs"
 var NOMASK_INSTANCE = "NoMaskInstance"
 var MASK_CONFORM_PASS = "MaskConformPass"
+var NOMASK_SHORTSELF = "NoMaskShortSelf"
 
 var REG_LOGDATE = `(?m)^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} `
 var REG_RFC3339 = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[-+]\d{2}:\d{2})`
@@ -23,6 +24,7 @@ var REG_COMMIT = `GitCommit: [0-9a-f]*\n`
 var REG_DBHOST = `DB server: .*`
 var REG_INSTANCE = `"source": "[^"]*"`
 var REG_MASK_CONFORM_PASS = `(?m)^Pass: [0-9]*`
+var REG_SHORTSELF = `"shortself": "[^"]*"`
 
 var SavedREs = map[string]*regexp.Regexp{
 	REG_LOGDATE:           regexp.MustCompile(REG_LOGDATE),
@@ -32,6 +34,7 @@ var SavedREs = map[string]*regexp.Regexp{
 	REG_DBHOST:            regexp.MustCompile(REG_DBHOST),
 	REG_INSTANCE:          regexp.MustCompile(REG_INSTANCE),
 	REG_MASK_CONFORM_PASS: regexp.MustCompile(REG_MASK_CONFORM_PASS),
+	REG_SHORTSELF:         regexp.MustCompile(REG_SHORTSELF),
 }
 
 // Mask timestamps, but if (for the same input) the same TS is used, make sure
@@ -120,6 +123,11 @@ func XEqual(t *testing.T, extra string, gotAny any, expAny any, flags ...string)
 	if !flagsMap[NOMASK_INSTANCE] {
 		got = SavedREs[REG_INSTANCE].ReplaceAllString(got, `"source": "xxx"`)
 		exp = SavedREs[REG_INSTANCE].ReplaceAllString(exp, `"source": "xxx"`)
+	}
+
+	if !flagsMap[NOMASK_SHORTSELF] {
+		got = SavedREs[REG_SHORTSELF].ReplaceAllString(got, `"shortself": "xxx"`)
+		exp = SavedREs[REG_SHORTSELF].ReplaceAllString(exp, `"shortself": "xxx"`)
 	}
 
 	for pos < len(got) && pos < len(exp) && got[pos] == exp[pos] {

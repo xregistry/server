@@ -1162,7 +1162,7 @@ var PropsFuncs = []*Attribute{
 					}
 
 					if meta {
-						shortself += "$d"
+						shortself += "$"
 					}
 				}
 
