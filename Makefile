@@ -124,11 +124,11 @@ xrserver: .sharedfiles registry/ui/specattrs.js cmds/xrserver/* \
 xrserver-all: .xrserver-all
 .xrserver-all: xrserver
 	@echo "# Building xrserver for all platforms"
-	GOOS=windows go build $(STATIC) -o xrserver.windows.exe cmds/xr/*.go
-	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xrserver.linux.amd64 cmds/xr/*.go
-	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xrserver.linux.arm64 cmds/xr/*.go
-	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xrserver.mac.amd64 cmds/xr/*.go
-	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xr/*.go
+	GOOS=windows go build $(STATIC) -o xrserver.windows.exe cmds/xrserver/*.go
+	GOOS=linux GOARCH=amd64 go build $(STATIC) -o xrserver.linux.amd64 cmds/xrserver/*.go
+	GOOS=linux GOARCH=arm64 go build $(STATIC) -o xrserver.linux.arm64 cmds/xrserver/*.go
+	GOOS=darwin GOARCH=amd64 go build $(STATIC) -o xrserver.mac.amd64 cmds/xrserver/*.go
+	GOOS=darwin GOARCH=arm64 go build $(STATIC) -o xrserver.mac.arm64 cmds/xrserver/*.go
 	@touch .xrserver-all
 
 xr: .sharedfiles cmds/xr/* common/*
