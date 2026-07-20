@@ -2609,6 +2609,12 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .eg-doc-tab:hover { background: #dce4f5; border-color: #a8c0e6; }
 .eg-doc-tab.active { background: #2060a0; color: #fff; border-color: #2060a0; }
+/* Document/Version Details tabs while the "Versions List" tab is active —
+   both are per-version views, but "Versions List" has no single version in
+   context (it shows all of them at once), so they're disabled rather than
+   left clickable-but-meaningless. See syncDocButtonsForTab(). */
+.eg-doc-tab:disabled { color: #999; background: #f3f3f3; border-color: #ddd; cursor: not-allowed; }
+.eg-doc-tab:disabled:hover { background: #f3f3f3; border-color: #ddd; }
 /* JSON view's Details/Document toggle AND "expand all" button all reuse
    .eg-doc-tab verbatim (see line ~592) but need a smaller/no-wrap
    footprint to fit the compact sticky header instead of List view's
@@ -2617,12 +2623,6 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
    same size/shape. */
 .json-doc-toggle.eg-doc-tabs { margin-bottom: 0; flex-wrap: nowrap; gap: 6px; }
 .eg-doc-tab.json-doc-toggle-btn, .eg-doc-tab.json-exp-btn { font-size: 11px; padding: 2px 10px; border-radius: 10px; }
-/* "Versions List" link — visually a pill like the other tabs, but it's a
-   real navigation link (to the raw Versions collection page) rather than a
-   panel-switching tab, so it never gets an "active" state; a small arrow
-   hints that it navigates away instead of switching panels in place. */
-.eg-doc-tab-link { text-decoration: none; display: inline-block; }
-.eg-doc-tab-link::after { content: ' \2192'; }
 /* Standalone "Version:" dropdown (Resource page only) — an inline control
    sitting in the same row as the tab buttons (between the Document tab and
    the "Version Details" tab it feeds); picking a version doesn't switch
@@ -2643,6 +2643,27 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 .eg-version-selector select:disabled {
   color: #999; background: #eee; border-color: #ddd; cursor: not-allowed;
 }
+/* Experiment: the "Versions List" tab's own button is hidden (see
+   renderSingleEntity()'s tab-button loop) — its panel/logic are otherwise
+   unchanged, reached instead via the "View All" option in the Version:
+   dropdown (see onVersionSelectChange()). The dropdown itself gets this
+   border/glow highlight whenever it shows any real selection (a version,
+   "Default", or "View All") — i.e. every tab except Metadata, whose blank
+   "\u2014 Select \u2014" placeholder has nothing meaningful selected to
+   highlight. See syncVersionSelectorForTab() (kept in sync on every tab
+   switch) and the initial-render seeding in renderSingleEntity().
+   Kept to a border/glow rather than a solid background+white text fill
+   (as .eg-doc-tab.active uses): a <select>'s own background/color also
+   governs its native options popup, and on Linux that popup is often
+   drawn by the OS/GTK theme rather than Blink's own CSS-aware popup — so
+   giving the closed control a solid color made the open list unreadable
+   (solid dark) on at least one such setup, with no CSS override
+   available. Reverting this experiment entirely: delete this rule + the
+   two toggle sites + the tab-hiding class below. */
+.eg-version-selector.eg-tab-active select {
+  border: 2px solid #2060a0; box-shadow: 0 0 0 2px rgba(32, 96, 160, 0.25);
+}
+.eg-doc-tab-hidden { display: none; }
 /* overflow-x: auto scopes the horizontal scrollbar (needed when a
    Property table's Value column holds long text — see .xr-table-props
    td:last-child above) to just this tab's content, instead of scrolling
@@ -2695,6 +2716,12 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
    here so all three Document-tab pills read as the same height/row. */
 .eg-doc-pills .eg-label-key,
 .eg-doc-pills .eg-label-val { font-size: 12px; padding: 3px 8px; }
+/* Content-Type/Format become plain <input>s while editing (see
+   docEditableKeyValPillHtml()) — browsers default text inputs to ~20ch,
+   which reads noticeably cramped next to the other read-only pills; bump
+   it 50% wider so typed values (e.g. a full "application/json;
+   charset=utf-8") aren't scrolled out of view. */
+.eg-doc-pill-input { width: 30ch; }
 
 /* 3-section pill — label | value | pass/fail badge — used for Format and
    Compatibility (docPill3Html()). A single bordered container with

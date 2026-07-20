@@ -1041,41 +1041,69 @@ function isVersionEntityPath(path) {
   return !!path && path.length >= 6 && path[4] === 'versions';
 }
 
-// Central invariant enforcement for the retired dedicated Version page: a
-// depth >= 6 ("data" section) path is only ever valid when dataView is
-// 'json' — JSON view is the only view left that still addresses a version
-// by its own literal URL (needed for link-driven navigation inside JSON
-// content, and because it has no version-selector dropdown of its own).
-// Any other dataView (List view, the only other data-section view) gets
-// silently rewritten here to the Resource page (depth 4) + resVersion,
-// landing on that page's normal default tab. Called from the two places
-// state is fully resolved just before rendering: loadStateFromURL() (direct/
-// bookmarked loads) and the tail of pushStateReal() (all real navigation,
-// including the Versions List row click and the "Default Version" pill,
-// which intentionally still navigate straight to the depth-6 path — this
-// function is what actually retires the page, not the callers). Returns
-// true if `state` was rewritten.
+// True when `path` points at the versions COLLECTION itself (depth 5,
+// path[4] === 'versions') — e.g. the Resource page's "Versions List" tab,
+// or the "versions (N)" pill on the Resources collection page. Its own
+// standalone List-view page has been retired the same way the individual
+// Version page was (see isVersionEntityPath()) — see plan.md "'Versions'
+// as a real tab on the Resource page". A path like this is only ever
+// meant to be rendered by JSON view now; anywhere else it must be
+// normalized to the owning Resource page (depth 4) + docTab: 'versions',
+// via normalizeVersionDepth() below.
+function isVersionsCollectionPath(path) {
+  return !!path && path.length === 5 && path[4] === 'versions';
+}
+
+// Central invariant enforcement for the retired dedicated Version page (and
+// the retired standalone Versions List collection page): a depth >= 5 path
+// ending in "versions"/"versions/<id>" ("data" section) is only ever valid
+// when dataView is 'json' — JSON view is the only view left that still
+// addresses these by their own literal URL (needed for link-driven
+// navigation inside JSON content, and because List view now shows both
+// through the Resource page's tabs/dropdown instead). Any other dataView
+// (List view, the only other data-section view) gets silently rewritten
+// here to the Resource page (depth 4) + resVersion/docTab, landing on that
+// page's normal default tab or its "Versions List" tab. Called from the two
+// places state is fully resolved just before rendering: loadStateFromURL()
+// (direct/bookmarked loads) and the tail of pushStateReal() (all real
+// navigation, including the "Default Version" pill and the Resources
+// collection's "versions (N)" pill, which intentionally still navigate
+// straight to these depths — this function is what actually retires the
+// pages, not the callers). Returns true if `state` was rewritten.
 function normalizeVersionDepth(state) {
-  if (state.section !== 'data' || state.dataView === 'json'
-      || !isVersionEntityPath(state.path)) {
-    return false;
+  if (state.section !== 'data' || state.dataView === 'json') return false;
+  if (isVersionEntityPath(state.path)) {
+    state.resVersion = state.path[5];
+    state.path = state.path.slice(0, 4);
+    // Any apiURL carried in (a real link) pointed at the VERSION's own
+    // endpoint — leaving it as-is would make buildAPIURL() fetch the wrong
+    // entity now that path points at the Resource instead. Derive the
+    // Resource's own real URL by stripping the trailing "/versions/<vid>"
+    // segment pair (mirrors resolveResourceMetaUrl()'s same technique);
+    // falls back to '' (buildBaseURL() reconstructs it from the now-
+    // truncated path) if there was no apiURL to begin with.
+    if (state.apiURL) {
+      var qIdx = state.apiURL.indexOf('?');
+      var base = qIdx >= 0 ? state.apiURL.slice(0, qIdx) : state.apiURL;
+      var qs   = qIdx >= 0 ? state.apiURL.slice(qIdx) : '';
+      state.apiURL = base.replace(/\/versions\/[^/?]+\/?$/, '') + qs;
+    }
+    return true;
   }
-  state.resVersion = state.path[5];
-  state.path = state.path.slice(0, 4);
-  // Any apiURL carried in (a real link) pointed at the VERSION's own
-  // endpoint — leaving it as-is would make buildAPIURL() fetch the wrong
-  // entity now that path points at the Resource instead. Derive the
-  // Resource's own real URL by stripping the trailing "/versions/<vid>"
-  // segment pair (mirrors resolveResourceMetaUrl()'s same technique);
-  // falls back to '' (buildBaseURL() reconstructs it from the now-
-  // truncated path) if there was no apiURL to begin with.
-  if (state.apiURL) {
-    var qIdx = state.apiURL.indexOf('?');
-    var base = qIdx >= 0 ? state.apiURL.slice(0, qIdx) : state.apiURL;
-    var qs   = qIdx >= 0 ? state.apiURL.slice(qIdx) : '';
-    state.apiURL = base.replace(/\/versions\/[^/?]+\/?$/, '') + qs;
+  if (isVersionsCollectionPath(state.path)) {
+    state.docTab = 'versions';
+    state.path = state.path.slice(0, 4);
+    // Same idea as above, minus the trailing "/<vid>" segment — just the
+    // collection's own "/versions" suffix to strip.
+    if (state.apiURL) {
+      var qIdx2 = state.apiURL.indexOf('?');
+      var base2 = qIdx2 >= 0 ? state.apiURL.slice(0, qIdx2) : state.apiURL;
+      var qs2   = qIdx2 >= 0 ? state.apiURL.slice(qIdx2) : '';
+      state.apiURL = base2.replace(/\/versions\/?$/, '') + qs2;
+    }
+    return true;
   }
-  return true;
+  return false;
 }
 
 function encodePath(parts) { return parts.map(encodeURIComponent).join('/'); }
@@ -1642,13 +1670,37 @@ function setDataView(v) {
     pushState({path: _state.path.slice(0, 4), resVersion: verId, dataView: v});
     return;
   }
+  // Same retirement, but for the versions COLLECTION itself (depth 5,
+  // "Versions List" tab's own JSON view) — switching that to List view
+  // must redirect back to the Resource page's "Versions List" tab instead
+  // of reviving the old standalone collection page's List rendering at
+  // depth 5. See isVersionsCollectionPath()/normalizeVersionDepth().
+  if (_state.section === 'data' && v !== 'json' && isVersionsCollectionPath(_state.path)) {
+    pushState({path: _state.path.slice(0, 4), docTab: 'versions', dataView: v});
+    return;
+  }
   // The reverse: switching a Resource page's List view TO JSON view while
   // the "Version:" dropdown has a non-default version selected takes the
   // user to that VERSION's own JSON view (depth 6, its real URL) — JSON
   // view has no version-selector control of its own, so this is the only
   // way to reach a specific version's raw JSON. Selecting "Default"
   // (resVersion === '') keeps JSON view scoped to the Resource itself, as
-  // today.
+  // today. Checked AFTER the "Versions List" tab case below so that tab
+  // (viewing ALL versions) always wins over whichever single version
+  // happens to be selected in the otherwise-independent dropdown.
+  if (_state.section === 'data' && v === 'json' && _state.path.length === 4
+      && _state.docTab === 'versions' && _resVersionsUrl) {
+    // The reverse of the block above: switching the Resource page's
+    // "Versions List" tab (List view) TO JSON view takes the user to the
+    // versions COLLECTION's own JSON (depth 5, its real versionsurl) —
+    // same idea as the resVersion branch below, just for the whole
+    // collection instead of one version.
+    pushState({
+      path: _state.path.concat(['versions']),
+      dataView: 'json', apiURL: _resVersionsUrl
+    });
+    return;
+  }
   if (_state.section === 'data' && v === 'json' && _state.path.length === 4
       && _state.resVersion) {
     var selVid = _state.resVersion;
@@ -2465,6 +2517,26 @@ var _metaEntityType = '';      // resource's singular type name, used by List vi
 var _docSingular = '';         // resource's singular type name, used by List view's Document tab
 var _docPreviewLoaded = false; // whether the Document tab's inline preview has been fetched yet
 var _docActiveVersionData = null; // entity JSON currently backing the Document tab (Default or a picked version)
+// Document tab's own edit state (List view only — see loadDocumentPreview()/
+// docContentInput()/docContentSave()). A separate working copy from
+// _dataEditData/_verEditData (which only ever cover top-level scalar
+// attributes) since the document body is raw text/bytes, not a JSON
+// object to diff key-by-key.
+var _docEditDirty = false;     // whether the textarea's content differs from _docEditOriginalText
+var _docEditOriginalText = ''; // pristine document text, as last fetched/saved
+var _docEditText = '';         // current (possibly unsaved) textarea content
+var _docEditURL = '';          // PUT target — the entity's own plain URL ($details stripped)
+var _docEditContentType = '';  // Content-Type header to PUT with (falls back to text/plain)
+var _docEditContentTypeOriginal = ''; // pristine Content-Type, as last fetched/saved
+var _docEditFormat = '';       // current (possibly unsaved) "format" attribute value
+var _docEditFormatOriginal = ''; // pristine "format" attribute value, as last fetched/saved
+var _docEditFieldsLoadedFor = null; // target URL _docEditContentType/_docEditFormat belong to —
+                                     // tracked separately from _docEditLoadedFor (below) since the
+                                     // info-pills row (see ensureDocEditFieldsState()) renders
+                                     // synchronously, before the document body's own async fetch
+                                     // (which _docEditLoadedFor guards) necessarily resolves.
+var _docEditLoadedFor = null;  // _docEditURL this working copy belongs to, so switching
+                                // versions/tabs doesn't wrongly reuse a stale in-progress edit
 // Snapshot of what's needed to redraw the "Version Details"/"<Type> Property"
 // panel once ensureDocPillsCompat()'s async Meta fetch resolves — the panel
 // may already have rendered (without the "(compat)" prefix on Compatibility
@@ -3876,15 +3948,25 @@ function modelAttrsMapForPath(model, path) {
   return {};
 }
 
+// Which "Add" panel's redraw to call after adding an extension attribute
+// (addNewEntityAddExtension() below) — defaults to the standalone
+// collection page's own renderTableView(_lastData), but the Versions List
+// tab (verTabToggleAddForm()) points this at renderVersionsTabPanel()
+// instead, since that page never navigates away from the Resource entity
+// (_lastData there is the Resource's own data, not a collection).
+var _addNewRerender = null;
+
 function toggleAddEntityForm() {
   _addNewOpen = !_addNewOpen;
   if (!_addNewOpen) _addNewData = {};
+  _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
 }
 
 function cancelAddEntity() {
   _addNewOpen = false;
   _addNewData = {};
+  _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
 }
 
@@ -3934,7 +4016,8 @@ function addNewEntityAddExtension() {
     return;
   }
   _addNewData[name] = readExtTypeValue('addNewExtType', 'addNewExtVal');
-  if (_lastData) renderTableView(_lastData);
+  if (_addNewRerender) { _addNewRerender(); }
+  else if (_lastData) { renderTableView(_lastData); }
 }
 
 // Builds the blank "Add new <Singular>" panel — shown above the collection
@@ -4443,15 +4526,21 @@ function buildRegEndpointPillsHtml() {
 // switched back to "Default") so both stay in sync. Always targets the
 // Default version's data (_dataEditData); deleteDisabled is only true at
 // depth 0 (Registry root), where deleting the whole registry has no
-// sensible "back to parent" destination in this UI.
+// sensible "back to parent" destination in this UI. The Delete button is
+// labeled with the entity's own singular type name (e.g. "Delete File")
+// rather than a bare "Delete" — same wording deleteDataEntity()'s own
+// confirm() dialog already uses, computed the same way here for
+// consistency (see buildVersionActionBarHtml(), which adds this exact
+// same button alongside its own version-scoped "Delete Version (#)" one).
 function buildDataEditorActionBarHtml(deleteDisabled) {
   var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
   return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
     + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
-    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabledAttr + '>Delete</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()"' + deleteDisabledAttr + '>Delete ' + esc(singularLabel) + '</button>'
     + '</div>';
 }
 
@@ -4704,12 +4793,11 @@ function renderSingleEntity(data) {
       _docPropsPanelInfo = { panelId: 'eg-doc-panel-defver',
         headerLabel: propHeaderT, model: model, path: _state.path, collKeys: collKeys };
       tabDefs.push({ key: 'doc', label: 'Document',
-        content: '<div id="eg-doc-pills">' + buildDocInfoPillsHtml(data) + '</div>'
+        content: '<div id="eg-doc-pills">' + buildDocInfoPillsHtml(data, metaEditableNow()) + '</div>'
                + '<div id="eg-doc-preview-box"><div class="eg-loading">Loading document\u2026</div></div>' });
       ensureDocPillsCompat(data);
     }
     var versionsUrlD = '';
-    var versionsListLinkHtml = '';
     // Version property/details panel — a plain tab, same as before this
     // feature existed. Which version's data it shows is now controlled by
     // a *separate* standalone "Version:" dropdown rendered above the tab
@@ -4739,17 +4827,18 @@ function renderSingleEntity(data) {
     _metaEntityType = entityTypeT;
     tabDefs.push({ key: 'meta', label: capTypeT + ' Details',
       content: '<div id="eg-meta-box"><div class="eg-loading">Loading\u2026</div></div>' });
-    // "Versions List" — a real navigation link (not a tab switch) to the
-    // raw Versions collection page, styled to match the pill tabs. Lets
-    // users get to the full List/Grid/filterable view of all versions
-    // (useful when there are many versions — a flat dropdown doesn't
-    // scale, but the collection page's existing filter support does).
-    // See plan.md "version-selector dropdown" for the design rationale.
+    // "Versions List" — a real tab (not a navigation link to the standalone
+    // Versions collection page) showing the versions table inline, below
+    // the tab bar, with the same Add Version/Delete Selected edit-mode
+    // features the standalone page has. See plan.md "'Versions' as a real
+    // tab on the Resource page". Its content is filled in by
+    // renderVersionsTabPanel() once _resVersionsList is available (same
+    // lazy-population pattern as the version-selector dropdown, both fed
+    // by loadVersionsForSelect()) — that function also keeps this label's
+    // count in sync afterward (see its own trailing bit).
     if (versionsCollD) {
-      var versionsListHref = pageHref(_state.path.concat(['versions']), versionsCollD.url);
-      var versionsListClick = guardedOnclick('navigateTo(\'versions\',' + JSON.stringify(versionsCollD.url) + ')');
-      versionsListLinkHtml = '<a class="eg-doc-tab eg-doc-tab-link" href="' + esc(versionsListHref)
-        + '" onclick="' + esc(versionsListClick) + '">Versions List (' + esc(String(versionsCollD.count)) + ')</a>';
+      tabDefs.push({ key: 'versions', label: 'Versions List (' + esc(String(versionsCollD.count)) + ')',
+        content: '<div id="eg-doc-versions-box"><div class="eg-loading">Loading\u2026</div></div>' });
     }
 
     _docSingular = docSingularD;
@@ -4776,21 +4865,27 @@ function renderSingleEntity(data) {
     // choices; this control never switches tabs itself. Options are
     // populated asynchronously once the versions collection is fetched
     // (loadVersionsForSelect()); until then only "Default" is selectable.
-    // Metadata (metaurl) is a per-Resource concept, not per-version, so the
-    // version-selector has no effect while the Metadata tab is active —
-    // start it disabled (and showing "N/A") if that's the tab being
-    // restored on load (kept in sync afterwards by switchDocTab()). See
-    // plan.md "Metadata tab disables version selector". The real "default"
-    // option is always kept underneath the "N/A" placeholder (just not
-    // selected) so switching away from Metadata later has something valid
-    // to fall back to — see syncVersionSelectorForTab().
-    var verSelDisabledD = (_state.docTab === 'meta');
+    // Neither "Versions List" nor "Metadata" "belongs" to a single version
+    // (Versions List shows every version at once; Metadata is the same
+    // for all versions) — both leave the dropdown enabled but blank,
+    // start it that way if either is the tab being restored on load (kept
+    // in sync afterwards by switchDocTab()/syncVersionSelectorForTab()).
+    // See plan.md. Picking one there jumps straight to Version Details.
+    var verSelUnsetD = (_state.docTab === 'meta');
+    var verSelViewAllD = (_state.docTab === 'versions');
+    // Highlighted (border/glow, see .eg-tab-active in style.css) whenever
+    // the dropdown shows any real selection — everywhere except Metadata's
+    // blank "\u2014 Select \u2014" placeholder, which has nothing
+    // meaningful selected to highlight. See syncVersionSelectorForTab() for
+    // the kept-in-sync version used after the initial render.
     var versionSelectorHtml = versionsUrlD
-      ? '<span class="eg-version-selector"><label for="eg-doc-version-select">Version:</label>'
-        + '<select id="eg-doc-version-select"' + (verSelDisabledD ? ' disabled title="Metadata is the same for all versions"' : '')
-        + ' onchange="onVersionSelectChange(this.value)">'
-        + (verSelDisabledD ? '<option value="__na__" selected>N/A</option>' : '')
-        + '<option value="default"' + (verSelDisabledD ? '' : ' selected') + '>' + esc(defaultOptionLabel(data)) + '</option>'
+      ? '<span class="eg-version-selector' + (!verSelUnsetD ? ' eg-tab-active' : '') + '"><label for="eg-doc-version-select">Version:</label>'
+        + '<select id="eg-doc-version-select"'
+        + ' onchange="onVersionSelectChange(this.value, true)">'
+        + (verSelUnsetD ? '<option value="__unset__" selected>\u2014 Select \u2014</option>' : '')
+        + '<option value="default"' + (verSelUnsetD || verSelViewAllD ? '' : ' selected') + '>' + esc(defaultOptionLabel(data)) + '</option>'
+        // Experimental "View All" shortcut — see onVersionSelectChange().
+        + '<option value="__viewall__"' + (verSelViewAllD ? ' selected' : '') + '>View All</option>'
         + '</select></span>'
       : '';
 
@@ -4805,15 +4900,23 @@ function renderSingleEntity(data) {
       }
       // Build the row's inner pieces in order: version selector first (if
       // present), then the tab buttons in their normal order (Document,
-      // Version Details, Schema/Message/etc. Details), then the "Versions
-      // List" navigation link last.
+      // Version Details, Schema/Message/etc. Details, Versions last).
       var rowParts = [];
       if (versionSelectorHtml) rowParts.push(versionSelectorHtml);
+      var initTabKeyD = tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key;
       tabDefs.forEach(function(t, i) {
-        rowParts.push('<button class="eg-doc-tab' + (i === initActiveIdx ? ' active' : '') + '" data-tab="' + esc(t.key)
-          + '" onclick="switchDocTab(\'' + esc(t.key) + '\')">' + esc(t.label) + '</button>');
+        var btnDisabledD = ((initTabKeyD === 'versions' || initTabKeyD === 'meta') && (t.key === 'doc' || t.key === 'defver'));
+        var btnTitleD = initTabKeyD === 'meta' ? 'Metadata is the same for all versions' : 'Select a version from the list below first';
+        // Versions List's own tab button is hidden — reached instead via
+        // "View All" in the Version: dropdown (see onVersionSelectChange())
+        // — but the button element itself, plus its panel and all the
+        // .eg-doc-tab.active/data-tab="versions" logic elsewhere, are kept
+        // completely intact so this can be trivially reverted.
+        var btnHiddenD = (t.key === 'versions') ? ' eg-doc-tab-hidden' : '';
+        rowParts.push('<button class="eg-doc-tab' + (i === initActiveIdx ? ' active' : '') + btnHiddenD + '" data-tab="' + esc(t.key)
+          + '"' + (btnDisabledD ? ' disabled title="' + esc(btnTitleD) + '"' : '')
+          + ' onclick="switchDocTab(\'' + esc(t.key) + '\')">' + esc(t.label) + '</button>');
       });
-      if (versionsListLinkHtml) rowParts.push(versionsListLinkHtml);
       html += '<div class="eg-doc-tabs">' + rowParts.join('') + '</div>';
       // Entity Data Editor action bar (Save/Undo/Delete) — rendered once
       // here, as a sibling of the tab panels rather than nested inside any
@@ -4830,8 +4933,23 @@ function renderSingleEntity(data) {
       // own Save/Undo bar here from the start instead of the (irrelevant,
       // permanently-disabled-until-a-Document-tab-edit) page-level bar.
       _dataEditorActionBarHtml = dataEditorActionBarHtml;
-      var initialActionBarHtml = (tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key === 'meta' && dataEditingNow)
-        ? buildMetaActionBarHtml() : dataEditorActionBarHtml;
+      var initTabKeyForBarD = tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key;
+      var initialActionBarHtml = (initTabKeyForBarD === 'meta' && dataEditingNow)
+        ? buildMetaActionBarHtml()
+        // Versions List has its own "Delete <Singular>" button merged into
+        // its own header row (see renderVersionsTabPanel()) — leave this
+        // shared slot empty rather than show a second, redundant Delete
+        // (and irrelevant Save/Undo, since Versions List has no single
+        // working copy of its own to save).
+        : (initTabKeyForBarD === 'versions') ? ''
+        // Document tab has its own scoped Save/Undo bar too (see
+        // buildDocActionBarHtml()) — without this branch, landing directly
+        // on the Document tab (it's the first/default tab) seeded the
+        // page-level entity bar instead, whose button ids
+        // (dataSavePutBtn/dataUndoBtn) docContentInput() never looks at,
+        // so editing the document never visibly enabled anything.
+        : (initTabKeyForBarD === 'doc' && dataEditingNow) ? buildDocActionBarHtml()
+        : dataEditorActionBarHtml;
       html += '<div id="dataEditorActionBarSlot">' + initialActionBarHtml + '</div>';
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
@@ -7343,11 +7461,19 @@ function undoMetaEdit() {
 // of view. No Delete button here — a Resource's Meta sub-entity isn't
 // independently deletable (see saveMetaEntity()'s header comment).
 function buildMetaActionBarHtml() {
+  // Metadata is a per-Resource concept (not per-version), so it has no
+  // "Delete Version" button of its own the way buildVersionActionBarHtml()
+  // does — but deleting the whole Resource itself is still a meaningful
+  // action while looking at its Metadata, same as it is from the Document/
+  // Version Details tabs (see buildDataEditorActionBarHtml()). Reuses the
+  // same deleteDataEntity() and singular-name computation those bars use.
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
   return '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar">'
     + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()">Delete ' + esc(singularLabel) + '</button>'
     + '</div>';
 }
 
@@ -7456,14 +7582,22 @@ function markVerDirty() {
 // panel's own content (like the Meta tab's own bar) — the page-level
 // "Entity Data Editor" action bar only ever targets the Default version,
 // so a genuinely different selected version needs its own, scoped to
-// _verEditData/_verSelfUrl.
+// _verEditData/_verSelfUrl. Includes BOTH a "Delete Version (#)" button
+// (deletes just this one version — deleteVersionEntity()) and a
+// "Delete <Singular>" button (deletes the whole Resource, all versions
+// included — the same deleteDataEntity() the page-level bar's own Delete
+// button uses) since a specific non-default version is "in view" of both
+// operations; the page-level bar (Default version only) only ever needs
+// the latter — see buildDataEditorActionBarHtml().
 function buildVersionActionBarHtml() {
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
   return '<div id="verEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar">'
     + '<button class="editorBtn" id="verSavePutBtn" onclick="saveVersionEntity(\'PUT\')"' + (_verDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="verSavePatchBtn" onclick="saveVersionEntity(\'PATCH\')"' + (_verDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="verUndoBtn" onclick="undoVersionEdit()"' + (_verDirty ? '' : ' disabled') + '>Undo</button>'
-    + ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete Version (' + esc(_verEditVid || '') + ')</button>'
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()">Delete ' + esc(singularLabel) + '</button>'
     + '</div>';
 }
 
@@ -7538,10 +7672,16 @@ function saveVersionEntity(verb, cb) {
   if (verb === 'PATCH') {
     body = {};
     Object.keys(_verEditData).forEach(function(k) {
+      if (k === '__mapKey') return; // internal UI bookkeeping, not a real attribute — see onVersionSelectChangeReal()
       if (JSON.stringify(_verEditData[k]) !== JSON.stringify(_verEditSrc[k])) body[k] = _verEditData[k];
     });
   } else {
-    body = _verEditData;
+    // Defense-in-depth: onVersionSelectChangeReal() already strips
+    // __mapKey when snapshotting _verEditSrc/_verEditData, but delete
+    // it again here too rather than trust every future caller to keep
+    // doing that — same internal-field concern as the PATCH branch above.
+    body = Object.assign({}, _verEditData);
+    delete body.__mapKey;
   }
 
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
@@ -7575,7 +7715,7 @@ function saveVersionEntity(verb, cb) {
         } else {
           rerenderVersionPanel();
           var pillsBox = document.getElementById('eg-doc-pills');
-          if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(_verEditSrc);
+          if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(_verEditSrc, metaEditableNow());
           if (document.getElementById('eg-doc-preview-box')) {
             _docActiveVersionData = _verEditSrc;
             _docPreviewLoaded = true;
@@ -7930,8 +8070,13 @@ function loadMetaDetails() {
 function sizeDocTextarea() {
   var ta = document.querySelector('.eg-doc-textarea');
   if (!ta || ta.offsetParent === null) return; // not rendered / panel hidden
-  var actions = ta.nextElementSibling;
-  var reserve = (actions && actions.classList.contains('eg-doc-preview-actions')) ? actions.offsetHeight + 12 : 0;
+  // Reserve space for EVERY sibling below the textarea, not just one —
+  // edit mode adds its own Save/Undo action bar between the textarea and
+  // the "Open in new tab" link (see loadDocumentPreview()'s docEditBarHtml()),
+  // so a fixed single-sibling assumption would let the textarea overlap it.
+  var reserve = 0;
+  var sib = ta.nextElementSibling;
+  while (sib) { reserve += sib.offsetHeight + 12; sib = sib.nextElementSibling; }
   var available = window.innerHeight - ta.getBoundingClientRect().top - reserve - 16; // bottom breathing room
   ta.style.height = Math.max(200, Math.floor(available)) + 'px';
 }
@@ -7956,20 +8101,289 @@ function loadVersionsForSelect() {
       var current = restoredVid || sel.value || 'default';
       var html = '<option value="default"' + (current === 'default' ? ' selected' : '') + '>'
         + esc(defaultOptionLabel(_resDefaultData)) + '</option>';
+      // Experimental "View All" shortcut — see onVersionSelectChange().
+      html += '<option value="__viewall__">View All</option>';
       _resVersionsList.forEach(function(v) {
         var vid = itemNavKey(v);
         html += '<option value="' + esc(vid) + '"' + (current === vid ? ' selected' : '') + '>' + esc(vid) + '</option>';
       });
       sel.innerHTML = html;
       if (restoredVid) onVersionSelectChange(restoredVid);
-      // If the Metadata tab is already active when this async fetch
-      // resolves, re-apply the "N/A" disabled state on top of the
-      // freshly-populated real options (otherwise they'd silently
-      // replace it). See plan.md "Metadata tab disables version selector".
+      // If the Metadata or Versions List tab is already active when this
+      // async fetch resolves, re-apply the blank "\u2014 Select \u2014"
+      // placeholder state on top of the freshly-populated real options
+      // (otherwise they'd silently replace it with the restored/previous
+      // selection). See plan.md "Metadata tab disables version selector".
       var activeTabBtn = document.querySelector('.eg-doc-tab.active[data-tab]');
-      if (activeTabBtn && activeTabBtn.getAttribute('data-tab') === 'meta') syncVersionSelectorForTab('meta');
+      var activeTabKey = activeTabBtn && activeTabBtn.getAttribute('data-tab');
+      if (activeTabKey === 'meta' || activeTabKey === 'versions') syncVersionSelectorForTab(activeTabKey);
+      // Also (re)build the "Versions List" tab's own table now that the
+      // full collection is available — see renderVersionsTabPanel().
+      // Reused as the "refresh" step after Add Version/Delete Selected
+      // mutations in that tab too (see verTabSaveNewVersion()/
+      // verTabDeleteSelected()).
+      renderVersionsTabPanel();
     })
     .catch(function() { /* leave "Default" only — non-critical */ });
+}
+
+// ---- "Versions List" tab (Resource page) -----------------------------------
+//
+// Renders the versions collection inline, below the Resource page's tab
+// bar, instead of navigating to the standalone Versions collection page
+// (see plan.md "'Versions' as a real tab on the Resource page"). Reuses
+// _resVersionsList (already fetched by loadVersionsForSelect() to feed the
+// "Version:" dropdown) rather than fetching a second time. Row clicks pick
+// that version via the same onVersionSelectChange() the dropdown uses, then
+// switch to the "Version Details" tab — there's no standalone single-Version
+// page to navigate to anymore (see normalizeVersionDepth()).
+
+var _verTabAddOpen = false;       // this tab's own "+ Add Version" form open/closed
+var _verTabSelectedIds = {};      // id string -> true, this tab's own row checkboxes
+
+// Builds/rebuilds the #eg-doc-versions-box content. Safe to call even when
+// the Versions List tab isn't the currently-visible panel (its container
+// still exists in the DOM, just display:none) — same idiom loadMetaDetails()
+// uses for the Metadata tab.
+function renderVersionsTabPanel() {
+  var box = document.getElementById('eg-doc-versions-box');
+  if (!box) return;
+  if (_resVersionsList === null) {
+    box.innerHTML = '<div class="eg-loading">Loading\u2026</div>';
+    return;
+  }
+  var model = _resModel;
+  var versionsPath = (_resPath || []).concat(['versions']);
+  var canEdit = _state.mutable && _state.editMode;
+  var items = _resVersionsList;
+
+  var hasName = items.some(function(it) { return it.name != null && it.name !== ''; });
+  var hasDesc = items.some(function(it) { return it.description != null && it.description !== ''; });
+  var showDoc = resourceHasDocument(model, _resPath || []);
+  var docSingular = showDoc ? getSingularName(model, (_resPath || []).slice(0, 4)) : null;
+
+  var html = '';
+  if (canEdit) {
+    var singular = capitalize(getSingularName(model, versionsPath.concat(['__new__'])) || 'Version');
+    var addBtnsHtml = _verTabAddOpen
+      ? '<button class="cfg-btn cfg-btn-primary" onclick="verTabSaveNewVersion()">Create</button>'
+        + ' <button class="cfg-btn cfg-btn-cancel" onclick="verTabCancelAdd()">Cancel</button>'
+      : '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(singular) + '</button>';
+    var checkedCount = Object.keys(_verTabSelectedIds).length;
+    // "Delete <Singular>" (deletes the whole Resource, all versions
+    // included — same deleteDataEntity() the page-level/Version-panel
+    // action bars use) lives in this same row too, rather than in a
+    // separate action-bar row above the tab bar — see
+    // renderSingleEntity()'s dataEditorActionBarHtml, which is left empty
+    // while the "Versions List" tab is active (switchDocTabReal()) so
+    // this is the only Delete-the-whole-Resource button shown here.
+    var resSingularLabel = capitalize(getSingularName(model, _resPath || []) || 'entity');
+    html += '<div class="config-section-header" style="margin-bottom:8px">'
+      + '<div class="config-section-header-btns">'
+      + addBtnsHtml
+      + ' <button class="cfg-btn cfg-btn-danger" id="verTab-delete-selected-btn"' + (checkedCount ? '' : ' disabled')
+      + ' onclick="verTabDeleteSelected()" title="Delete all checked rows below">'
+      + (checkedCount ? 'Delete Selected (' + checkedCount + ')' : 'Delete Selected') + '</button>'
+      + ' <button class="cfg-btn cfg-btn-danger" onclick="deleteDataEntity()">Delete ' + esc(resSingularLabel) + '</button>'
+      + '</div></div>';
+    if (_verTabAddOpen) html += buildAddEntityFormHtml(model, versionsPath);
+  }
+
+  if (!items.length) {
+    box.innerHTML = html + '<div class="state-msg">No items found</div>';
+    verTabSyncTabLabel(items.length);
+    return;
+  }
+
+  html += '<table class="xr-table"><thead><tr>';
+  if (canEdit) {
+    html += '<th class="cfg-select-cell"><input type="checkbox" id="verTab-select-all" '
+      + 'title="Select/deselect all" onchange="verTabToggleSelectAll(this)"></th>';
+  }
+  html += '<th>' + esc(capitalize(getSingularName(model, versionsPath.concat(['__x__'])) || 'Version')) + '</th>';
+  if (hasName) html += '<th>Name</th>';
+  if (hasDesc) html += '<th>Description</th>';
+  if (showDoc) html += '<th>Document</th>';
+  html += '<th>Ancestor</th>';
+  html += '<th class="col-center">Created</th><th class="col-center">Modified</th>';
+  html += '</tr></thead><tbody>';
+
+  items.forEach(function(item, idx) {
+    var vid = itemNavKey(item);
+    var rowIconUrl = modelResourceIcon(model, (_resPath || [])[0], (_resPath || [])[2]);
+    html += '<tr>';
+    if (canEdit) {
+      var checkedNow = _verTabSelectedIds[vid] ? ' checked' : '';
+      html += '<td class="cfg-select-cell"><input type="checkbox" class="verTab-select-input" value="'
+        + esc(vid) + '"' + checkedNow + ' onchange="verTabUpdateSelection()"></td>';
+    }
+    html += '<td class="cell-id">' + iconThumbHtml(rowIconUrl, 'row-icon-thumb')
+      + '<a href="javascript:void(0)" onclick="' + esc('verTabRowClick(' + JSON.stringify(vid) + ')') + '">' + esc(vid) + '</a></td>';
+    if (hasName) html += '<td>' + esc(item.name != null ? String(item.name) : '') + '</td>';
+    if (hasDesc) html += '<td class="cell-desc"><div class="cell-desc-text">' + esc(item.description != null ? String(item.description) : '') + '</div></td>';
+    if (showDoc) {
+      var docClickExprV = 'event.stopPropagation();openDocument(' + JSON.stringify(docSingular) + ', _resVersionsList[' + idx + '])';
+      html += '<td class="cell-children"><button class="cfg-btn" style="font-size:11px;padding:2px 8px" '
+        + 'onclick="' + esc(docClickExprV) + '">View</button></td>';
+    }
+    // A version whose own ancestor is itself (the root of its ancestry
+    // chain — e.g. the very first version created) has nothing useful to
+    // show here; leave the cell blank rather than a redundant self-
+    // reference. See plan.md "ancestorurl" discussion for the related
+    // spec-level ancestor/ancestorid gap (unrelated to this display-only
+    // choice).
+    var ancestorIdV = item.ancestorid != null ? String(item.ancestorid) : '';
+    html += '<td>' + (ancestorIdV && ancestorIdV !== vid ? esc(ancestorIdV) : '') + '</td>';
+    html += '<td class="cell-timestamp col-center">' + esc(formatTimestamp(item.createdat)) + '</td>';
+    html += '<td class="cell-timestamp col-center">' + esc(formatTimestamp(item.modifiedat)) + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  box.innerHTML = html;
+  verTabSyncTabLabel(items.length);
+}
+
+// Keeps the tab button's own "Versions List (N)" label in sync with the
+// live item count, same idea as collUpdateSelection() updating the Delete
+// Selected button's label in place — called every time renderVersionsTabPanel()
+// (re)draws, including right after an Add Version/Delete Selected mutation.
+function verTabSyncTabLabel(count) {
+  var btn = document.querySelector('.eg-doc-tab[data-tab="versions"]');
+  if (btn) btn.textContent = 'Versions List (' + count + ')';
+}
+
+// Row click (Decision 2, plan.md): select that version the same way the
+// "Version:" dropdown would, then jump to the Document tab so the user
+// actually sees it — there's no standalone single-Version page anymore.
+// Syncs the <select>'s displayed value first: onVersionSelectChange()/
+// onVersionSelectChangeReal() normally run as a result of the dropdown's
+// own onchange (the browser already updated its displayed value before
+// that fires), so calling them from here directly — bypassing the actual
+// <select> — needs this one extra step to keep it visually in sync.
+function verTabRowClick(vid) {
+  var sel = document.getElementById('eg-doc-version-select');
+  if (sel) sel.value = vid;
+  onVersionSelectChange(vid);
+  switchDocTab('doc');
+}
+
+function verTabToggleAddForm() {
+  _verTabAddOpen = true; _addNewData = {};
+  _addNewRerender = renderVersionsTabPanel;
+  renderVersionsTabPanel();
+}
+
+function verTabCancelAdd() {
+  _verTabAddOpen = false; _addNewData = {};
+  _addNewRerender = null;
+  renderVersionsTabPanel();
+}
+
+// Same shape as saveNewEntity(), but targets _resVersionsUrl directly (the
+// page-level _state.path stays at the Resource, depth 4, throughout — see
+// plan.md for why this can't just reuse saveNewEntity()/buildBaseURL()).
+// Versions always get the $details suffix, same rule saveNewEntity() uses
+// for any Resource/Version collection (a plain PUT body would otherwise be
+// parsed as literal document content instead of metadata).
+function verTabSaveNewVersion() {
+  var errDiv = document.getElementById('addNewEntityError');
+  if (errDiv) { hideErrorBanner(errDiv); }
+  var idInput = document.getElementById('addNewIdInput');
+  var id = idInput ? idInput.value.trim() : '';
+  if (!id) {
+    if (errDiv) { showErrorBanner(errDiv, 'ID is required.'); }
+    return;
+  }
+  var url = _resVersionsUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id) + '$details';
+  var body = Object.assign({}, _addNewData);
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
+  var msgEl = document.createElement('div'); msgEl.textContent = 'Creating\u2026';
+  box.appendChild(spinnerEl); box.appendChild(msgEl); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  fetch(url, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body, null, 2)
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      removeOverlay();
+      if (resp.ok) {
+        _verTabAddOpen = false; _addNewData = {}; _addNewRerender = null;
+        invalidateRegistryProbe(_state.serverURL || window.location.origin);
+        loadVersionsForSelect();
+      } else {
+        if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
+      }
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
+  });
+}
+
+function verTabToggleSelectAll(cb) {
+  document.querySelectorAll('.verTab-select-input').forEach(function(inp) {
+    inp.checked = cb.checked;
+    if (cb.checked) _verTabSelectedIds[inp.value] = true; else delete _verTabSelectedIds[inp.value];
+  });
+  verTabUpdateSelection();
+}
+
+function verTabUpdateSelection() {
+  var boxes = document.querySelectorAll('.verTab-select-input');
+  _verTabSelectedIds = {};
+  var checked = 0;
+  boxes.forEach(function(inp) {
+    if (inp.checked) { _verTabSelectedIds[inp.value] = true; checked++; }
+  });
+  var btn = document.getElementById('verTab-delete-selected-btn');
+  if (btn) {
+    btn.disabled = checked === 0;
+    btn.textContent = checked > 0 ? 'Delete Selected (' + checked + ')' : 'Delete Selected';
+  }
+  var all = document.getElementById('verTab-select-all');
+  if (all) {
+    all.checked = boxes.length > 0 && checked === boxes.length;
+    all.indeterminate = checked > 0 && checked < boxes.length;
+  }
+}
+
+// Same shape as collDeleteSelected(), but deletes under _resVersionsUrl and
+// refreshes just this tab (via loadVersionsForSelect()) instead of a full
+// page refresh()/navigation.
+function verTabDeleteSelected() {
+  var ids = Object.keys(_verTabSelectedIds);
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' item' + (ids.length > 1 ? 's' : '') + '? This cannot be undone.')) return;
+
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
+  var msgEl = document.createElement('div'); msgEl.textContent = 'Deleting\u2026';
+  box.appendChild(spinnerEl); box.appendChild(msgEl); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+
+  var base = _resVersionsUrl.replace(/\/$/, '');
+  var errors = [];
+  Promise.all(ids.map(function(id) {
+    return fetch(base + '/' + encodeURIComponent(id), {method: 'DELETE'}).then(function(resp) {
+      if (!resp.ok && resp.status !== 204) {
+        return resp.text().then(function(text) { errors.push(id + ': ' + resp.status + ' ' + text); });
+      }
+    }).catch(function(err) { errors.push(id + ': ' + err.message); });
+  })).then(function() {
+    removeOverlay();
+    _verTabSelectedIds = {};
+    invalidateRegistryProbe(_state.serverURL || window.location.origin);
+    if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
+    loadVersionsForSelect();
+  });
 }
 
 // Handles the standalone "Version:" dropdown's change event (Resource page
@@ -7986,22 +8400,40 @@ function loadVersionsForSelect() {
 // Save/Discard/Cancel pattern as switchDocTab()'s Meta-tab guard. Cancel
 // reverts the <select>'s already-changed displayed value back (the native
 // onchange event fires after the browser already updated it).
-function onVersionSelectChange(vid) {
+// fromUserPick distinguishes an actual user interaction with the "Version:"
+// dropdown's own onchange (where jumping to Version Details when Metadata
+// is active makes sense — see the meta-tab check inside
+// onVersionSelectChangeReal()) from every other, non-interactive caller
+// that just needs the panel data refreshed for a given vid: restoring the
+// previously-selected version on a page refresh/reload
+// (loadVersionsForSelect()) and verTabRowClick() (which already does its
+// own explicit switchDocTab('defver') regardless of which tab was active
+// beforehand). Defaults to false so those callers don't need to opt out
+// individually.
+function onVersionSelectChange(vid, fromUserPick) {
+  // "View All" is a pseudo-option, not a real version — it's just a
+  // shortcut for clicking the "Versions List" tab button directly
+  // (experiment: see if the tab button itself can be removed later). No
+  // separate dirty-check needed here: switchDocTab() already guards every
+  // dirty-editor case (doc/meta/version) on its own, and
+  // syncVersionSelectorForTab('versions') resets the dropdown back to its
+  // blank placeholder as soon as the tab switch lands.
+  if (vid === '__viewall__') { switchDocTab('versions'); return; }
   if (_dataEditActiveKind === 'version' && _verDirty && vid !== _verEditVid) {
     var sel = document.getElementById('eg-doc-version-select');
     var prevVid = _resSelectedVersionId;
     showLeaveEditDialog(
-      function() { saveVersionEntity('PUT', function() { onVersionSelectChangeReal(vid); }); },
-      function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); onVersionSelectChangeReal(vid); },
+      function() { saveVersionEntity('PUT', function() { onVersionSelectChangeReal(vid, fromUserPick); }); },
+      function() { _verDirty = false; _verEditData = deepClone(_verEditSrc); onVersionSelectChangeReal(vid, fromUserPick); },
       function() { if (sel) sel.value = prevVid; },
-      function() { saveVersionEntity('PATCH', function() { onVersionSelectChangeReal(vid); }); }
+      function() { saveVersionEntity('PATCH', function() { onVersionSelectChangeReal(vid, fromUserPick); }); }
     );
     return;
   }
-  onVersionSelectChangeReal(vid);
+  onVersionSelectChangeReal(vid, fromUserPick);
 }
 
-function onVersionSelectChangeReal(vid) {
+function onVersionSelectChangeReal(vid, fromUserPick) {
   _resSelectedVersionId = vid;
   // Sync the URL in place (no navigation/refetch) so a later manual Refresh
   // restores this version — same idiom as pushStateReal()'s history.pushState,
@@ -8035,6 +8467,14 @@ function onVersionSelectChangeReal(vid) {
       // (e.g. switching tabs and back) must not clobber unsaved edits.
       if (_verEditVid !== vid) {
         _verEditSrc  = deepClone(rawVerData);
+        // rawVerData came from _resVersionsList, whose items are annotated
+        // with a __mapKey property by collectionItems() (see itemNavKey())
+        // — an internal UI bookkeeping field, not a real server attribute.
+        // Strip it here so it never ends up in the working copy that
+        // saveVersionEntity() later PUTs/PATCHes back to the server (the
+        // server 400s on any attribute name it doesn't recognize, e.g.
+        // "__mapKey" fails the ^[a-z_][a-z_0-9]{0,62}$ name pattern).
+        delete _verEditSrc.__mapKey;
         _verEditData = deepClone(_verEditSrc);
         _verDirty    = false;
         _verEditVid  = vid;
@@ -8066,8 +8506,23 @@ function onVersionSelectChangeReal(vid) {
   // appended inside the panel's own innerHTML, landing it below whatever
   // else happened to be in that panel instead of in the same fixed spot
   // used for every other version/tab).
+  //
+  // BUT: picking a version from the dropdown doesn't just affect Version
+  // Details — it also refreshes the Document tab's content below (see
+  // loadDocumentPreview() call further down), and that tab has its OWN
+  // scoped Save/Undo bar (buildDocActionBarHtml()) when the user is
+  // actively editing a document's text. If the Document tab happens to be
+  // the currently-active one when a version is picked, skip the
+  // Default/Version-Details bar swap above entirely and let
+  // loadDocumentPreview()'s own re-render (via switchDocTabReal()) keep
+  // showing the Document bar instead — otherwise this always stomped it
+  // with the wrong bar (no Save/Undo ids matching docContentInput()'s
+  // lookups), which is why the Document tab's Save/Undo buttons never
+  // enabled after selecting a version there.
+  var curTabElV = document.querySelector('.eg-doc-tab.active');
+  var curTabKeyV = curTabElV && curTabElV.getAttribute('data-tab');
   var actionBarSlot = document.getElementById('dataEditorActionBarSlot');
-  if (actionBarSlot) {
+  if (actionBarSlot && curTabKeyV !== 'doc') {
     if (vid === 'default') {
       actionBarSlot.innerHTML = _dataEditorActionBarHtml;
     } else if (editableNow) {
@@ -8075,6 +8530,8 @@ function onVersionSelectChangeReal(vid) {
     } else {
       actionBarSlot.innerHTML = '';
     }
+  } else if (actionBarSlot && curTabKeyV === 'doc' && editableNow) {
+    actionBarSlot.innerHTML = buildDocActionBarHtml();
   }
 
   // Keep the Document tab showing the selected version's document too —
@@ -8085,8 +8542,22 @@ function onVersionSelectChangeReal(vid) {
     loadDocumentPreview();
   }
   var pillsBox = document.getElementById('eg-doc-pills');
-  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(verData);
+  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(verData, metaEditableNow());
   refreshCopyLinkBtnTooltip();
+  // Picking a version from the dropdown while on the Metadata or Versions
+  // List tab has nothing to show there (Metadata doesn't vary per-version;
+  // Versions List shows every version at once — see syncDocButtonsForTab())
+  // , so jump straight to the Document tab, the panel this selection
+  // actually affects — same "show the version they just picked" idea as
+  // verTabRowClick()'s row-click handler. Gated on fromUserPick so a page
+  // refresh/reload restoring the previously-selected version
+  // (loadVersionsForSelect()) doesn't also yank the user off the tab they
+  // were actually on.
+  if (fromUserPick) {
+    var curActiveTab = document.querySelector('.eg-doc-tab.active');
+    var curActiveKey = curActiveTab && curActiveTab.getAttribute('data-tab');
+    if (curActiveKey === 'meta' || curActiveKey === 'versions') switchDocTab('doc');
+  }
 }
 
 
@@ -8114,6 +8585,19 @@ function switchDocTab(tabKey) {
       function() { _metaDirty = false; _metaEditData = deepClone(_metaEditSrc); rerenderMetaTab(); switchDocTabReal(tabKey); },
       null,
       function() { saveMetaEntity('PATCH', function() { switchDocTabReal(tabKey); }); }
+    );
+    return;
+  }
+  // The Document tab's edited text is its own separate working copy (raw
+  // text PUT straight to the entity/version's plain URL), so an unsaved
+  // edit there needs the same leave-guard as Meta/Version Details before
+  // switching to any other tab.
+  if (curKey === 'doc' && tabKey !== 'doc' && _docEditDirty) {
+    showLeaveEditDialog(
+      function() { docContentSave(); switchDocTabReal(tabKey); },
+      function() { docContentUndo(); switchDocTabReal(tabKey); },
+      null,
+      null
     );
     return;
   }
@@ -8206,6 +8690,15 @@ function switchDocTabReal(tabKey) {
       // bar instead of the page-level one, matching
       // onVersionSelectChangeReal()'s own slot-swap logic.
       actionBarSlotT.innerHTML = buildVersionActionBarHtml();
+    } else if (tabKey === 'versions') {
+      // Versions List has its own "Delete <Singular>" button merged into
+      // its own header row (see renderVersionsTabPanel()) — leave this
+      // shared slot empty instead of showing a second, redundant Delete
+      // (and irrelevant Save/Undo, since Versions List has no single
+      // working copy of its own to save).
+      actionBarSlotT.innerHTML = '';
+    } else if (tabKey === 'doc' && _state.editMode && _state.mutable) {
+      actionBarSlotT.innerHTML = buildDocActionBarHtml();
     } else {
       actionBarSlotT.innerHTML = _dataEditorActionBarHtml;
     }
@@ -8228,43 +8721,100 @@ function switchDocTabReal(tabKey) {
   // now that layout/geometry is accurate (hidden panels report 0 height).
   if (tabKey === 'doc') sizeDocTextarea();
   syncVersionSelectorForTab(tabKey);
+  syncDocButtonsForTab(tabKey);
   refreshCopyLinkBtnTooltip();
 }
 
-// Metadata (metaurl) is a per-Resource concept, not per-version, so the
-// version-selector dropdown has no effect while the Metadata tab is
-// active. Swap it to a disabled "N/A" state in that case (both visually
-// greyed and unclickable), remembering/restoring the previously-selected
-// version so switching back to another tab picks up right where the user
-// left off. See plan.md "Metadata tab disables version selector".
+// Document/Version Details are both per-VERSION views; Metadata (metaurl)
+// is a per-RESOURCE concept instead. Neither "Versions List" (shows every
+// version at once — see verTabRowClick(), which switches to Version
+// Details itself once a row is picked) nor "Metadata" (not scoped to any
+// one version) has a single version in context for Document/Version
+// Details to display — even though the "Version:" dropdown itself stays
+// enabled on both (see syncVersionSelectorForTab()), picking from it just
+// jumps straight to Version Details rather than updating either tab in
+// place. Disable (grey out, unclickable) both buttons while either tab is
+// active, and restore them otherwise.
+function syncDocButtonsForTab(tabKey) {
+  var disable = (tabKey === 'versions' || tabKey === 'meta');
+  ['doc', 'defver'].forEach(function(key) {
+    var btn = document.querySelector('.eg-doc-tab[data-tab="' + key + '"]');
+    if (!btn) return;
+    btn.disabled = disable;
+    btn.title = disable
+      ? (tabKey === 'meta' ? 'Metadata is the same for all versions' : 'Select a version from the list below first')
+      : '';
+  });
+}
+
+// Metadata (metaurl) is a per-Resource concept, not per-version, but the
+// "Version:" dropdown stays enabled while on the Metadata tab anyway —
+// picking a version there is still a useful shortcut to jump straight to
+// that version's own Document/Version Details afterward, even though
+// Metadata itself doesn't change. "Versions List" (shows every version at
+// once, so there's no "currently selected" version either) gets the same
+// treatment — enabled with the same blank placeholder — since picking one
+// there is just as useful a shortcut into Document/Version Details.
 function syncVersionSelectorForTab(tabKey) {
   var sel = document.getElementById('eg-doc-version-select');
   if (!sel) return;
-  if (tabKey === 'meta') {
-    // Never stash "__na__" itself as the value to restore later — that
-    // would happen if this runs more than once while already on the
-    // Metadata tab (e.g. loadVersionsForSelect()'s async options-refresh
-    // re-invoking this) and would permanently lose the real selection.
-    if (sel.dataset.prevValue === undefined && sel.value !== '__na__') sel.dataset.prevValue = sel.value;
-    var naOpt = sel.querySelector('option[value="__na__"]');
-    if (!naOpt) {
-      naOpt = document.createElement('option');
-      naOpt.value = '__na__';
-      naOpt.textContent = 'N/A';
-      sel.insertBefore(naOpt, sel.firstChild);
+  var wrap = sel.closest('.eg-version-selector');
+  if (tabKey === 'versions' || tabKey === 'meta') {
+    // Neither Versions List nor Metadata "belongs" to any one version, so
+    // there's no "currently selected" version to show here — unlike every
+    // other tab, where the selector reflects whatever version that tab is
+    // actually displaying.
+    var naOpt2b = sel.querySelector('option[value="__na__"]');
+    if (naOpt2b) naOpt2b.remove();
+    if (tabKey === 'versions') {
+      // Versions List IS what "View All" means, so show that option
+      // selected (it already exists in the list — see loadVersionsForSelect()
+      // / the initial-render option-building) rather than a blank
+      // placeholder — unlike Metadata, this tab has a real, named option
+      // to point at.
+      var unsetOptVL = sel.querySelector('option[value="__unset__"]');
+      if (unsetOptVL) unsetOptVL.remove();
+      sel.value = '__viewall__';
+    } else {
+      var unsetOpt = sel.querySelector('option[value="__unset__"]');
+      if (!unsetOpt) {
+        unsetOpt = document.createElement('option');
+        unsetOpt.value = '__unset__';
+        unsetOpt.textContent = '\u2014 Select \u2014'; // em dash
+        sel.insertBefore(unsetOpt, sel.firstChild);
+      }
+      sel.value = '__unset__';
     }
-    sel.value = '__na__';
-    sel.disabled = true;
-    sel.title = 'Metadata is the same for all versions';
+    sel.disabled = false;
+    sel.title = '';
+    // The dropdown is highlighted (border/glow, see .eg-tab-active in
+    // style.css) whenever it shows any real selection — "View All" here,
+    // or any actual version everywhere else — and only UNhighlighted for
+    // the blank "\u2014 Select \u2014" placeholder (Metadata), since that
+    // one has nothing meaningful selected to highlight.
+    if (wrap) wrap.classList.toggle('eg-tab-active', tabKey !== 'meta');
   } else {
     sel.disabled = false;
     sel.title = '';
-    var naOpt2 = sel.querySelector('option[value="__na__"]');
-    if (naOpt2) naOpt2.remove();
-    if (sel.dataset.prevValue !== undefined) {
-      sel.value = sel.dataset.prevValue;
-      delete sel.dataset.prevValue;
-    }
+    if (wrap) wrap.classList.add('eg-tab-active');
+    var naOpt3 = sel.querySelector('option[value="__na__"]');
+    if (naOpt3) naOpt3.remove();
+    var unsetOpt2 = sel.querySelector('option[value="__unset__"]');
+    if (unsetOpt2) unsetOpt2.remove();
+    // Reflect whatever version is actually currently selected
+    // (_resSelectedVersionId — a plain JS var, only ever updated by
+    // onVersionSelectChangeReal()) rather than trying to "restore" a
+    // previously-stashed DOM value: stashing sel.value at the moment the
+    // Metadata/Versions-List tab was entered went stale the instant the
+    // user picked a *different* real version while still on that tab
+    // (e.g. Meta tab -> pick version "1" -> auto-jumps to Version Details,
+    // see onVersionSelectChangeReal()) — the stash still held whatever was
+    // selected *before* that pick, so leaving would wrongly snap the
+    // dropdown back to the old value even though the picked version's data
+    // was already showing. _resSelectedVersionId is always kept accurate
+    // by every real selection, pseudo-options like "__viewall__" included,
+    // so just reading it here avoids the whole stash/restore dance.
+    sel.value = _resSelectedVersionId;
   }
 }
 
@@ -8311,19 +8861,67 @@ function decodeUTF8Bytes(buf) {
 // ensureDocPillsCompat() separately and this function just reads whatever
 // is currently cached in _docPillsMetaCompat (null until fetched), same
 // pattern as _docActiveVersionData for the version-selector.
-function buildDocInfoPillsHtml(data) {
+//
+// `editable` (default false) switches Content-Type/Format to plain text
+// inputs the user can change while editing the document (see
+// docPillFieldChange()/docContentSave()) — gated by the SAME
+// metaEditableNow() condition used everywhere else on this page. Their
+// validation badges (the checkmark/"?" from docPill3Html()) are dropped
+// while editable: a stale pass/fail result for a value the user hasn't
+// saved yet would be misleading. Compatibility is never itself editable
+// (it's a read-only validation outcome derived from the Meta object's
+// "compatibility" rule, not a settable attribute) — the whole pill is
+// hidden while editing rather than shown disabled, for the same reason.
+function buildDocInfoPillsHtml(data, editable) {
   if (!data) return '';
   var pills = [];
-  if (data.contenttype) {
-    pills.push('<span class="eg-doc-pill-item">' + docKeyValPillHtml('Content-Type', data.contenttype) + '</span>');
-  }
-  if (data.format) {
-    pills.push(docPill3Html('Format', data.format, data.formatvalidated, data.formatvalidatedreason));
-  }
-  if (data.compatibilityvalidated === true || data.compatibilityvalidated === false) {
-    pills.push(docPill3Html('Compatibility', _docPillsMetaCompat, data.compatibilityvalidated, data.compatibilityvalidatedreason));
+  if (editable) {
+    ensureDocEditFieldsState(data);
+    pills.push('<span class="eg-doc-pill-item">' + docEditableKeyValPillHtml('Content-Type', 'docCtInput', _docEditContentType) + '</span>');
+    pills.push('<span class="eg-doc-pill-item">' + docEditableKeyValPillHtml('Format', 'docFormatInput', _docEditFormat) + '</span>');
+    // Compatibility intentionally omitted while editable — see comment above.
+  } else {
+    if (data.contenttype) {
+      pills.push('<span class="eg-doc-pill-item">' + docKeyValPillHtml('Content-Type', data.contenttype) + '</span>');
+    }
+    if (data.format) {
+      pills.push(docPill3Html('Format', data.format, data.formatvalidated, data.formatvalidatedreason));
+    }
+    if (data.compatibilityvalidated === true || data.compatibilityvalidated === false) {
+      pills.push(docPill3Html('Compatibility', _docPillsMetaCompat, data.compatibilityvalidated, data.compatibilityvalidatedreason));
+    }
   }
   return pills.length ? '<div class="eg-doc-pills">' + pills.join('') + '</div>' : '';
+}
+
+// Same two-tone key/value pill idiom as docKeyValPillHtml(), but with the
+// value rendered as a small inline text input instead of plain text — used
+// by buildDocInfoPillsHtml() for the Content-Type/Format pills while the
+// document is being edited. oninput wires straight to docPillFieldChange()
+// (see there for dirty-tracking/Save-Undo button sync).
+function docEditableKeyValPillHtml(key, inputId, val) {
+  return '<span class="eg-label-pair"><span class="eg-label-key">' + esc(key) + '</span>'
+       + '<input type="text" class="eg-label-val eg-mono eg-doc-pill-input" id="' + esc(inputId) + '" value="' + esc(val)
+       + '" oninput="docPillFieldChange(\'' + inputId + '\', this.value)"></span>';
+}
+
+// Lazily (re)initializes the Document tab's Content-Type/Format working
+// copies + pristine originals from `data` — mirrors loadDocumentPreview()'s
+// showText()'s own _docEditLoadedFor guard for the text body, but keyed by
+// its own _docEditFieldsLoadedFor rather than reusing that same variable:
+// the info pills render (and so need this state) BEFORE the document
+// body's own async fetch (which _docEditLoadedFor guards) necessarily
+// resolves. loadDocumentPreview() also calls this (it needs
+// _docEditContentType for the PUT header) — the guard makes that a no-op
+// once the pills have already initialized it for the same target.
+function ensureDocEditFieldsState(data) {
+  var targetURL = data && data.self ? data.self.replace(/\$details$/, '') : '';
+  if (_docEditFieldsLoadedFor === targetURL) return;
+  _docEditFieldsLoadedFor = targetURL;
+  _docEditContentType = data.contenttype || 'text/plain; charset=utf-8';
+  _docEditContentTypeOriginal = _docEditContentType;
+  _docEditFormat = data.format || '';
+  _docEditFormatOriginal = _docEditFormat;
 }
 
 // Two-tone key/value pill — same markup/classes as the Labels map's pills
@@ -8371,7 +8969,7 @@ function ensureDocPillsCompat(data) {
 // pill's value.
 function refreshDocPills(data) {
   var pillsBox = document.getElementById('eg-doc-pills');
-  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(data);
+  if (pillsBox) pillsBox.innerHTML = buildDocInfoPillsHtml(data, metaEditableNow());
 }
 
 // Re-renders the "Version Details"/"<Type> Property" panel in place once
@@ -8491,10 +9089,17 @@ function showValidationReasonPopup(label, reason) {
 
 // Inline preview for the Document tab. Reuses openDocument()'s source-
 // resolution priority (<key>url -> <key>base64 -> inline JSON value ->
-// self with $details stripped) but fetches/decodes and renders inline
-// (read-only textarea for text, "Binary file" message for binary) instead
-// of always opening a new tab. A small "Open in new tab" link/button is
-// always shown alongside the result (and as the sole fallback on error).
+// self with $details stripped) but fetches/decodes and renders inline —
+// an editable textarea (+ Save/Undo) in edit mode for text content,
+// otherwise a plain read-only textarea, or a "Binary file" message for
+// binary — instead of always opening a new tab. A small "Open in new tab"
+// link/button is always shown alongside the result (and as the sole
+// fallback on error). Editing always PUTs to the entity's own plain URL
+// (self with $details stripped — the document endpoint per spec),
+// regardless of how the content was originally sourced/stored (external
+// <key>url, base64, or inline JSON) — a PUT there sets the document
+// content directly and supersedes whatever storage mode was previously in
+// use, same as editing a document from scratch would.
 function loadDocumentPreview() {
   var box = document.getElementById('eg-doc-preview-box');
   if (!box) return;
@@ -8502,12 +9107,46 @@ function loadDocumentPreview() {
   var data = _docActiveVersionData || _lastData;
   if (!singular || !data) { box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>'; return; }
   var key = singular.toLowerCase();
+  var docTargetURL = data.self ? data.self.replace(/\$details$/, '') : '';
+  // metaEditableNow() is depth-4-only (Resource page), same scope the
+  // "Version:" dropdown itself only ever exists at — true regardless of
+  // which version is currently selected there (selecting a version never
+  // changes _state.path), so this also correctly covers editing a
+  // specific version's own document, not just the Default's.
+  var canEditDoc = metaEditableNow() && !!docTargetURL;
 
   function openTabBtn(url) {
     return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="eg-link-btn">Open in new tab</a></div>' : '';
   }
   function showText(text, url) {
-    box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + openTabBtn(url);
+    if (canEditDoc) {
+      // Reuse an in-progress edit if this is just a re-render of the SAME
+      // document (e.g. sizeDocTextarea()'s window-resize handler or a
+      // tab-switch back) — only reset to the freshly-fetched pristine
+      // text when the target URL actually changed (a different version
+      // picked, or a genuinely different resource). Mirrors
+      // _metaLoadedFor/_dataLoadedFor's same re-render-vs-navigate
+      // distinction elsewhere.
+      if (_docEditLoadedFor !== docTargetURL) {
+        _docEditOriginalText = text;
+        _docEditText = text;
+        _docEditDirty = false;
+        _docEditURL = docTargetURL;
+        _docEditLoadedFor = docTargetURL;
+      }
+      // Content-Type/Format working copies are shared with the info-pills
+      // row above (see ensureDocEditFieldsState()) — this call is a no-op
+      // once the pills have already initialized them for this same target.
+      ensureDocEditFieldsState(data);
+      // Save/Undo for the Document tab live in the shared, always-visible
+      // #dataEditorActionBarSlot above (see buildDocActionBarHtml()), same
+      // as Meta/Version Details — no separate bar needed under the
+      // textarea itself.
+      box.innerHTML = '<textarea class="eg-doc-textarea" id="eg-doc-edit-textarea" oninput="docContentInput(this.value)">'
+        + esc(_docEditText) + '</textarea>' + openTabBtn(url);
+    } else {
+      box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + openTabBtn(url);
+    }
     sizeDocTextarea();
   }
   function showBinary(url) {
@@ -8546,6 +9185,146 @@ function loadDocumentPreview() {
   if (data.self) { fetchAndRender(data.self.replace(/\$details$/, '')); return; }
 
   box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>';
+}
+
+// Textarea oninput handler for the Document tab's edit mode (see
+// loadDocumentPreview()'s showText()) — tracks the working copy and
+// dirty state, then flips the Save/Undo buttons' disabled attribute
+// in place (no full re-render needed on every keystroke).
+// Document tab's own Save/Undo action bar — rendered into the SAME shared
+// #dataEditorActionBarSlot as the page-level Entity Data Editor bar, the
+// Meta tab's bar, and the version-selector's per-version bar. Only a
+// single Save (no full/delta split — a document body is raw text/bytes,
+// not a JSON object to diff) plus Undo, since that's all editing a
+// document's content needs. No Delete button here — deleting the whole
+// entity is already available from the Document/Version Details tabs'
+// shared bar in the non-doc-editing case; simplest to leave that action
+// off this bar and let the user switch to another tab for it.
+function buildDocActionBarHtml() {
+  return '<div id="docEditorError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar">'
+    + '<button class="editorBtn" id="docSaveBtn" onclick="docContentSave()"' + (_docEditDirty ? '' : ' disabled') + '>Save</button>'
+    + ' <button class="editorBtn" id="docUndoBtn" onclick="docContentUndo()"' + (_docEditDirty ? '' : ' disabled') + '>Undo</button>'
+    + '</div>';
+}
+
+function docContentInput(text) {
+  _docEditText = text;
+  recomputeDocDirty();
+}
+
+// Content-Type/Format pill inputs (see docEditableKeyValPillHtml()) share
+// this one handler — inputId tells us which working-copy var to update.
+function docPillFieldChange(inputId, val) {
+  if (inputId === 'docCtInput') _docEditContentType = val;
+  else if (inputId === 'docFormatInput') _docEditFormat = val;
+  recomputeDocDirty();
+}
+
+// Recomputes _docEditDirty from ALL THREE of the Document tab's working
+// copies (text, Content-Type, Format) — any one of them differing from its
+// pristine original counts as dirty, since Save writes all three together
+// (see docContentSave()). Then syncs the shared action bar's Save/Undo
+// buttons in place, same as before this covered more than just the text.
+function recomputeDocDirty() {
+  _docEditDirty = (_docEditText !== _docEditOriginalText)
+    || (_docEditContentType !== _docEditContentTypeOriginal)
+    || (_docEditFormat !== _docEditFormatOriginal);
+  var saveBtn = document.getElementById('docSaveBtn');
+  var undoBtn = document.getElementById('docUndoBtn');
+  if (saveBtn) saveBtn.disabled = !_docEditDirty;
+  if (undoBtn) undoBtn.disabled = !_docEditDirty;
+}
+
+// Reverts the Document tab's textarea AND its Content-Type/Format pill
+// inputs to their last-fetched/saved pristine values, discarding any
+// unsaved edits — same idea as undoDataEdit()/undoMetaEdit()/
+// undoVersionEdit(), just for raw text (+ its two sidecar attributes)
+// instead of a JSON working copy.
+function docContentUndo() {
+  _docEditText = _docEditOriginalText;
+  _docEditContentType = _docEditContentTypeOriginal;
+  _docEditFormat = _docEditFormatOriginal;
+  _docEditDirty = false;
+  var ta = document.getElementById('eg-doc-edit-textarea');
+  if (ta) ta.value = _docEditText;
+  var ctInput = document.getElementById('docCtInput');
+  if (ctInput) ctInput.value = _docEditContentType;
+  var formatInput = document.getElementById('docFormatInput');
+  if (formatInput) formatInput.value = _docEditFormat;
+  var saveBtn = document.getElementById('docSaveBtn');
+  var undoBtn = document.getElementById('docUndoBtn');
+  if (saveBtn) saveBtn.disabled = true;
+  if (undoBtn) undoBtn.disabled = true;
+}
+
+// PUTs the Document tab's edited text straight to the entity's own plain
+// URL (_docEditURL — self with $details stripped, computed once in
+// loadDocumentPreview()), with whatever Content-Type the user has set
+// (falling back to text/plain) — this is also how the entity's own
+// "contenttype" attribute gets updated, per spec (the header on a direct
+// document PUT sets it). No PATCH/delta option here for the document body
+// itself (unlike Save (full)/Save (delta) elsewhere) — it's raw text/
+// bytes, not a JSON object with individual attributes to diff.
+//
+// "format" is a genuine entity attribute (not derived from an HTTP
+// header), so if it changed it needs its own follow-up PATCH to the
+// entity's $details URL — fired only when actually dirty, right after the
+// document PUT succeeds.
+function docContentSave(onSuccess) {
+  if (!_docEditDirty || !_docEditURL) { if (onSuccess) onSuccess(); return; }
+  var errDiv = document.getElementById('docEditorError');
+  if (errDiv) { hideErrorBanner(errDiv); }
+  var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
+  var box = document.createElement('div'); box.className = 'savingBox';
+  var spinner = document.createElement('div'); spinner.className = 'savingSpinner';
+  var msg = document.createElement('div'); msg.textContent = 'Saving\u2026';
+  box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+  function finish() {
+    _docEditOriginalText = _docEditText;
+    _docEditContentTypeOriginal = _docEditContentType;
+    _docEditFormatOriginal = _docEditFormat;
+    _docEditDirty = false;
+    var saveBtn = document.getElementById('docSaveBtn');
+    var undoBtn = document.getElementById('docUndoBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    if (undoBtn) undoBtn.disabled = true;
+    if (onSuccess) onSuccess();
+  }
+  var formatChanged = (_docEditFormat !== _docEditFormatOriginal);
+
+  fetch(_docEditURL, {
+    method: 'PUT',
+    headers: {'Content-Type': _docEditContentType || 'text/plain'},
+    body: _docEditText
+  }).then(function(resp) {
+    return resp.text().then(function(text) {
+      if (!resp.ok) { removeOverlay(); if (errDiv) showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); return; }
+      if (!formatChanged) { removeOverlay(); finish(); return; }
+      // "format" only ever needs a follow-up PATCH when it actually
+      // changed — the entity's $details URL is _docEditURL's self, since
+      // _docEditURL is that same self with the "$details" suffix removed.
+      fetch(_docEditURL + '$details', {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({format: _docEditFormat})
+      }).then(function(resp2) {
+        return resp2.text().then(function(text2) {
+          removeOverlay();
+          if (resp2.ok) { finish(); }
+          else if (errDiv) { showErrorBanner(errDiv, 'Document saved, but updating Format failed (' + resp2.status + '):\n' + text2); }
+        });
+      }).catch(function(err2) {
+        removeOverlay();
+        if (errDiv) { showErrorBanner(errDiv, 'Document saved, but updating Format failed: ' + err2.message); }
+      });
+    });
+  }).catch(function(err) {
+    removeOverlay();
+    if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
+  });
 }
 
 // Dispatch the meta box body to the format matching the current data view:
@@ -13230,7 +14009,7 @@ function makeLabelRow(k, v) {
   var vi = document.createElement('input') ; vi.type = 'text' ; vi.placeholder = 'value' ;
   vi.value = v ; vi.className = 'editorInput labelVal' ;
   var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-  rb.onclick = function() { confirmDel('this label', function() { row.remove() ; }) ; } ;
+  rb.onclick = function() { confirmDel('this label', function() { row.remove() ; markDirty() ; }) ; } ;
   row.appendChild(ki) ; row.appendChild(vi) ; row.appendChild(rb) ; return row ;
 }
 
@@ -13273,7 +14052,7 @@ function makeEnumRow(val) {
   var inp = document.createElement('input') ; inp.type = 'text' ; inp.placeholder = 'value' ;
   inp.value = val ; inp.className = 'editorInput' ; inp.style.flex = '1' ;
   var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-  rb.onclick = function() { confirmDel('this enum value', function() { row.remove() ; }) ; } ;
+  rb.onclick = function() { confirmDel('this enum value', function() { row.remove() ; markDirty() ; }) ; } ;
   row.appendChild(inp) ; row.appendChild(rb) ; return row ;
 }
 
@@ -13355,7 +14134,7 @@ function makeConstraintRow(key, constraint, gk) {
   titleSpan.textContent = key || 'New Constraint' ; blockHdr.appendChild(titleSpan) ;
   if (!_modelReadOnly) {
     var rb = document.createElement('button') ; rb.className = 'rmBtn' ; rb.textContent = 'Remove' ;
-    rb.onclick = function() { confirmDel('"' + (titleSpan.textContent || 'this constraint') + '"', function() { block.remove() ; }) ; } ;
+    rb.onclick = function() { confirmDel('"' + (titleSpan.textContent || 'this constraint') + '"', function() { block.remove() ; markDirty() ; }) ; } ;
     blockHdr.appendChild(rb) ;
   }
   block.appendChild(blockHdr) ;

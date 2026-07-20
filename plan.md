@@ -6677,3 +6677,218 @@ All verified via CDP screenshots against the live dev server
 `node --check app.js` passed after every edit.
 
 **Status**: Complete.
+
+## Versions List tab: JSON/List toggle fix + small follow-ups (2026-07-19)
+
+1. **JSON/List view-toggle desync fix.** While on the Resource page's
+   "Versions List" tab, switching to JSON view incorrectly showed the
+   Resource's own JSON (not the versions collection's), and switching
+   back from JSON to List landed on the old retired standalone Versions
+   collection page instead of back on the Resource page's "Versions
+   List" tab. Root cause: `setDataView()` mutates `_state` directly
+   (never routes through `pushStateReal()`/`normalizeVersionDepth()`),
+   so it needs its own explicit duplicate checks — same pattern already
+   used there for the single-Version-entity retirement. Added
+   `isVersionsCollectionPath(path)` helper (depth 5, `path[4]===
+   'versions'`), extended `normalizeVersionDepth()` for bookmarked/
+   direct loads, and added two new explicit blocks in `setDataView()`
+   itself (JSON→List redirects to Resource+`docTab:'versions'`; List→
+   JSON while `docTab==='versions'` redirects to the versions
+   collection's own JSON, checked BEFORE the existing `resVersion`-based
+   single-version JSON routing so the active tab always wins over
+   whatever version happens to be selected in the dropdown). Verified
+   via CDP: List→JSON now shows the versions collection JSON; JSON→List
+   returns to the Versions List tab; single-version JSON routing via the
+   dropdown still works unaffected.
+
+2. **Disable Document/Version Details while on Versions List tab.**
+   Both are per-version views but Versions List has no single version in
+   context (shows all at once) — disabled (greyed, unclickable) via
+   `disabled` attribute on both tab buttons and the "Version:" dropdown
+   whenever `docTab==='versions'`, mirroring the existing Metadata-tab
+   pattern (`syncVersionSelectorForTab()`, extended; new
+   `syncDocButtonsForTab()`). Handled both on initial render (bookmarked
+   URL landing directly on Versions List) and via `switchDocTabReal()`
+   for in-page tab switches. New CSS: `.eg-doc-tab:disabled`.
+
+3. **Ancestor column in Versions List table.** Added an "Ancestor"
+   column after "Document", showing `ancestorid` — blank when a
+   version's ancestor is itself (the root of its ancestry chain), since
+   that's a redundant self-reference.
+
+Per user request, skipped full CDP verification for #2/#3 (rapid
+small-fixes mode — user testing manually); only `node --check app.js`
+run. Resume full verification when asked to go back to normal testing.
+
+**Status**: #1 verified. #2/#3 implemented, not yet independently verified (awaiting user testing).
+
+## Document tab editing bugfixes + editable Content-Type/Format pills (2026-07-19/20)
+
+1. **Save/Undo buttons never enabling on the Document tab's inline text
+   editor.** Two related root causes, found via a deliberate scoped CDP
+   investigation (isolated test server, `--db`/`-p` per the safety
+   rule) after two guess-and-check fixes failed:
+   - `renderSingleEntity()`'s initial-render seeding never had a `doc`
+     branch, so landing directly on the Document tab seeded the wrong
+     action-bar (page-level `dataSavePutBtn`/`dataUndoBtn` instead of
+     `buildDocActionBarHtml()`'s `docSaveBtn`/`docUndoBtn`). Fixed by
+     adding a `doc` branch to the initial `initialActionBarHtml` ternary,
+     mirroring `switchDocTabReal()`.
+   - `onVersionSelectChangeReal()` unconditionally overwrote the shared
+     `#dataEditorActionBarSlot` with the Default/Version-Details bar
+     whenever a version was picked — even while the Document tab was
+     active — clobbering `docSaveBtn`/`docUndoBtn`. Fixed by checking
+     `.eg-doc-tab.active`'s `data-tab` first; renders
+     `buildDocActionBarHtml()` instead when `doc` is active.
+   Verified via CDP (fresh load + type; pick version + type).
+
+2. **Editable Content-Type/Format pills while editing the document.**
+   `buildDocInfoPillsHtml(data, editable)` now takes an `editable` param:
+   when true, Content-Type/Format render as `<input>`s
+   (`docEditableKeyValPillHtml()`) instead of read-only pills, Format's
+   pass/fail badge is omitted, and Compatibility is omitted entirely
+   (not editable, would be misleading mid-edit) — all per explicit user
+   request. New state: `_docEditContentTypeOriginal`, `_docEditFormat`,
+   `_docEditFormatOriginal`, `_docEditFieldsLoadedFor` (separate guard
+   from `_docEditLoadedFor` since pills render synchronously before the
+   document body's async fetch resolves — sharing one flag would race).
+   `docPillFieldChange()` + shared `recomputeDocDirty()` now consider
+   text+Content-Type+Format together for Save/Undo state.
+   `docContentUndo()` resets all three. `docContentSave()` PUTs the
+   document body (with edited Content-Type header), then — only if
+   Format changed — PATCHes `$details` with `{"format": ...}`.
+   Widened the pill `<input>`s 50% (`~20ch → 30ch`) per user request.
+
+   **Bug found + fixed during testing**: the input's `oninput` handler
+   was built with `JSON.stringify(inputId)`, which produces
+   double-quoted strings — embedded inside the double-quoted
+   `oninput="..."` HTML attribute, this silently broke the attribute
+   parse and the handler never fired (Save/Undo never enabled when
+   editing Content-Type/Format). Fixed by using a plain single-quoted
+   literal instead (safe since `inputId` is always one of two hardcoded
+   values).
+
+   Verified via CDP: text-only edit, Content-Type-only edit,
+   Format-only edit, and combined edits all correctly enable/disable
+   Save/Undo and persist correctly (PUT body+header, conditional PATCH
+   format) on Save; Undo correctly reverts all three.
+
+**Status**: Complete, fully CDP-verified (full testing mode resumed
+per user request).
+
+## Modelsource editor: "Remove" buttons not marking model dirty (2026-07-20)
+
+User reported the "Remove" button on a Group Type's constraint did
+nothing. Root cause (found via CDP, confirmed against 3 similar call
+sites): the model editor has ONE delegated `input`/`change` listener on
+the whole editor (`div.addEventListener('input'/'change', markDirty)`)
+that automatically marks the model dirty for typing/selecting — but
+`.remove()` on a DOM node fires neither event, so any Remove button
+that *only* called `.remove()` without an explicit `markDirty()` call
+silently removed the row/block from the DOM while leaving Save/Undo
+disabled and the underlying `_modelData` object un-flagged — the
+removal was **never actually saved**, and any re-render (e.g.
+navigating away and back) would have silently restored the "removed"
+item.
+
+Found and fixed 3 instances, all missing `markDirty()`:
+- Group Type **Constraints** "Remove" button (`makeConstraintRow()`)
+  — the originally-reported bug.
+- **Labels** "Remove" button (`makeLabelRow()`, shared by
+  Registry/Group/Resource-level labels editors).
+- Attribute **enum value** "Remove" button (`makeEnumRow()`, shared by
+  scalar-attribute and array-item enum editors).
+
+Audited every other delete/remove path in the model editor
+(`confirmDel()` call sites, `navItemDel` → `deleteGroup`/
+`deleteResource`/`deleteAttr`, `deleteIfValue`) — all others already
+called `markDirty()` correctly; these 3 were the only gaps.
+
+Verified via CDP (isolated test server, unique `--db`/`-p`): for each
+of the 3 fixes, confirmed Save/Undo enable immediately after Remove,
+and that Save actually persists the removal server-side (re-fetched
+`/modelsource` and confirmed the removed constraint/label/enum-value is
+gone). Also swept Add-Group-Type, Add-Resource-Attribute, and
+delete-Group-via-nav-✕ flows — all already worked correctly (no similar
+gaps found there).
+
+**Status**: Complete, fully CDP-verified.
+
+## Version dropdown on "Versions List" tab + "View All" experiment (2026-07-20)
+
+Enabled the "Version:" dropdown (Resource page) while on the "Versions
+List" tab, matching how the Metadata tab already behaved — previously
+it was disabled/greyed out showing "N/A" there. `syncVersionSelectorForTab()`
+now treats `tabKey === 'versions'` the same as `'meta'`: enabled,
+blank/placeholder-ish, picking a real version jumps straight to the
+tab that actually shows a single version's data (see below — this
+target changed twice during the session). Also fixed a hard-refresh
+bug: `loadVersionsForSelect()` only re-applied the placeholder state
+for `'meta'` after its async fetch resolved, not `'versions'`, so a
+hard refresh while on Versions List showed the last-selected version
+instead of the placeholder.
+
+**Experiment**: added a `"View All"` pseudo-option
+(`value="__viewall__"`) to the dropdown, right after "Default" —
+picking it does the same thing the "Versions List" tab button does
+(`onVersionSelectChange()` intercepts it early: `switchDocTab('versions')`).//
+This was explicitly requested as a low-risk, easily-revertible
+experiment to see whether the "Versions List" tab button itself could
+be removed to reduce UI noise.
+
+**Then implemented**: removed the "Versions List" tab **button**
+itself from view (all its underlying panel/logic/data are completely
+unchanged) — done via a CSS class (`.eg-doc-tab-hidden { display: none; }`)
+applied only to that one button in `renderSingleEntity()`'s tab-button
+loop, rather than omitting the button/tabDef entirely. This was
+deliberate: ~8 places in app.js query `.eg-doc-tab.active` directly via
+the DOM (dirty-guards in `switchDocTab()`, the version-jump logic,
+`syncDocButtonsForTab()`, etc.) — keeping the (now-invisible) button
+element in the DOM means all of that logic keeps working untouched,
+and the whole experiment is trivially revertible (delete a handful of
+lines) if it doesn't work out. "Versions List" is now reachable only
+via "View All" in the dropdown (or a bookmarked/restored URL with
+`docTab=versions`).
+
+Since there's no longer a visible tab button to show an "active"
+state, the dropdown's own `<select>` gets a **border/glow highlight**
+(new class `.eg-tab-active`, toggled in `syncVersionSelectorForTab()`
+only when `tabKey === 'versions'`) instead — deliberately NOT a solid
+background+white-text fill matching `.eg-doc-tab.active` verbatim: a
+`<select>`'s own background/color also governs its native open-options
+popup, and on at least one Linux/Chrome setup that popup is drawn by
+the OS/GTK theme rather than Blink's own CSS-aware popup — giving the
+closed control a solid color made the open popup unreadable (solid
+dark, regardless of an explicit `color-scheme: light` override, which
+didn't help either). Border/box-shadow don't have this problem since
+browsers don't carry border styling into the native popup. When "View
+All" is selected, the dropdown shows "View All" itself selected (not a
+blank placeholder) — unlike Metadata, Versions List has a real, named
+option to point at.
+
+**Bug found + fixed**: picking a real version from the dropdown while
+on Metadata or Versions List sometimes showed the *previous* selection
+in the dropdown instead of the one just picked, even though the panel
+below correctly showed the newly-picked version's data. Root cause:
+`syncVersionSelectorForTab()` used to stash `sel.value` (the DOM's
+current value) when entering Metadata/Versions List, then restore it
+when leaving. But leaving back to a real per-version tab happens
+*because* the user just picked a version from the dropdown (the
+jump-to-that-tab is the very result of the pick) — so "restoring the
+stashed pre-entry value" was wrong in that exact case; it should show
+the fresh pick, not the stale one from before entry. Fixed by dropping
+the whole stash/restore mechanism entirely and just reading
+`_resSelectedVersionId` (a plain JS var, updated only by
+`onVersionSelectChangeReal()`, always accurate regardless of any
+pseudo-option shenanigans) whenever leaving Metadata/Versions List —
+no DOM value to race against.
+
+**Also changed**: picking a version from the dropdown while on
+Metadata/Versions List, and clicking a row in the Versions List table,
+both used to jump to "Version Details" (`defver`) — changed to jump to
+the **Document** tab (`doc`) instead per user request
+(`onVersionSelectChangeReal()`'s jump logic, `verTabRowClick()`).
+
+**Status**: Implemented; CDP re-verification of the full flow (View
+All → pick version → dropdown/tab state; hard refresh on Versions
+List; jump-to-Document behavior) still pending at end of session.

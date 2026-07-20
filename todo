@@ -40,7 +40,6 @@ TODOs:
 - add model tests for typemap - just that we can set via full model updates
 ** support the DB vanishing for a while
 - create an UpdateDefaultVersion func in resource.go to move it from http logic
-** add support for shortself
 - see if we can create a $RESOURCEid SpecProp for Version&Meta level and then
   use "$SINGULRid" for everything including Versions, but not Meta
 - add more tests around defaultversionid/sticky to cover all the variants.
@@ -117,3 +116,4 @@ TODOs:
   at the group/resource level, but there's nothing at the version level to check
 - test attribute definitions with enums with strict=true / false
 - attr.clone should be deep
+** add tests for shortself
