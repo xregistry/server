@@ -1604,8 +1604,8 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .gt-row {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 8px;
   background: white;
   border: 1px solid #ddd;
   border-radius: 10px;
@@ -1615,6 +1615,7 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .gt-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-color: #ccc; }
 .gt-row-loading { color: #888; font-style: italic; font-size: 13px; }
+.gt-row-top { display: flex; align-items: center; gap: 14px; }
 .gt-row-icon { flex-shrink: 0; }
 .gt-row-main { flex: 1; min-width: 0; }
 .gt-row-title { display: flex; align-items: center; gap: 8px; }
@@ -1635,13 +1636,17 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
 }
 .gt-row-side {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: flex-start;
   flex-shrink: 0;
   max-width: 280px;
 }
 .gt-row-resources { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.gt-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .gt-row-registry {
   display: flex;
   align-items: center;
@@ -1650,13 +1655,26 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   color: #888;
   text-decoration: none;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .gt-row-registry:hover { color: #2255cc; text-decoration: underline; }
 .gt-row-reg-name { white-space: nowrap; }
+.gt-row-url {
+  font-size: 11px;
+  color: #888;
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 @media (max-width: 768px) {
-  .gt-row { flex-wrap: wrap; }
-  .gt-row-side { max-width: 100%; align-items: flex-start; }
-  .gt-row-resources, .gt-row-registry { justify-content: flex-start; }
+  .gt-row-top { flex-wrap: wrap; }
+  .gt-row-side { max-width: 100%; }
+  .gt-row-resources { justify-content: flex-start; }
+  .gt-row-bottom { flex-wrap: wrap; }
+  .gt-row-url { text-align: left; }
 }
 
 /* ============================================================
@@ -2254,6 +2272,11 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   #verSavePutBtn:hover, #verSavePatchBtn:hover { background: #c4c4c4 ; color: black ; }
   #verUndoBtn { background: #a06020 ; border-color: #a06020 ; }
   #verUndoBtn:hover { background: #c4c4c4 ; color: black ; }
+  /* Add-Version create form's Cancel button — same brown "discard in-
+     progress" color as Undo above, for consistency (see plan.md "Add
+     Version reuses the Resource page's own tabs"). */
+  #addVerCancelBtn { background: #a06020 ; border-color: #a06020 ; }
+  #addVerCancelBtn:hover { background: #c4c4c4 ; color: black ; }
   /* JSON view's raw-edit action bar (Format/Save/Undo/Delete) reuses the
      exact same Save=blue/Undo=brown scheme as List view's own data-entity
      editor above, instead of staying the plain green .editorBtn default —
@@ -2669,7 +2692,12 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
    td:last-child above) to just this tab's content, instead of scrolling
    the whole page sideways (which #main-view's own overflow: auto would
    otherwise do). */
-.eg-doc-tab-panel { margin-bottom: 16px; overflow-x: auto; }
+/* padding-top leaves room for focus outlines/box-shadows on content
+   sitting flush against the top edge (e.g. the Content-Type/Format
+   pill inputs) — overflow-x: auto implicitly makes overflow-y: auto
+   too (per CSS spec, since it can't stay "visible" on one axis only),
+   which otherwise clips anything overflowing above the box's top. */
+.eg-doc-tab-panel { margin-bottom: 16px; overflow-x: auto; padding-top: 4px; }
 .eg-doc-textarea {
   width: 100%; min-height: 200px; overflow: auto;
   font-family: monospace; font-size: 12px; line-height: 1.4; color: #333;

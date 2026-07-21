@@ -738,6 +738,26 @@ function pushState(patch) {
       return;
     }
   }
+  // Guard: leaving a Resource page while the tabbed "Add Version" create
+  // form (see verTabToggleAddForm()) is open and non-empty — same pattern
+  // as the collection-page Add-new guard above, just scoped to
+  // _verAddingNew instead of _addNewOpen (isAddNewFormDirty() covers both).
+  // "Save" here doesn't chain into pushStateReal(patch) afterward the way
+  // the other guards do (verTabSaveNewVersion() has no completion
+  // callback) — an acceptable trade-off since the user can simply retry
+  // the navigation once the Create finishes.
+  if (_state.section === 'data' && _verAddingNew && isAddNewFormDirty()) {
+    var leavingVerAddNew = patch.section !== undefined || patch.path !== undefined
+      || patch.serverURL !== undefined || patch.view !== undefined
+      || (patch.dataView !== undefined && patch.dataView !== _state.dataView);
+    if (leavingVerAddNew) {
+      showLeaveEditDialog(
+        function() { verTabSaveNewVersion(); },
+        function() { verTabCancelAddNew(); pushStateReal(patch); }
+      );
+      return;
+    }
+  }
   // Guard: leaving an in-progress entity data edit (List view) with unsaved
   // changes — same pattern as modelsource/capabilities above.
   if (_state.section === 'data' && _state.editMode && _dataDirty) {
@@ -2991,28 +3011,33 @@ function renderHomeFlatList(main, servers) {
       var regHref = buildURL(Object.assign({}, _state, {view: 'table', serverURL: sv, section: 'data', path: []}));
       var regOnclick = guardedOnclick('doBrowse(' + JSON.stringify(r.serverUrl) + ')');
       return '<div class="gt-row">'
-        + '<img src="' + esc(r.icon || r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'favicon.svg\'">'
-        + '<div class="gt-row-main">'
-        +   '<div class="gt-row-title">'
-        +     '<a class="gt-row-name" href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a>'
-        +     '<span class="gt-row-count">' + r.count + (r.count === 1 ? ' item' : ' items') + '</span>'
+        + '<div class="gt-row-top">'
+        +   '<img src="' + esc(r.icon || r.regIcon || 'favicon.svg') + '" class="gt-row-icon" alt="" width="20" height="20" onerror="this.onerror=null;this.src=\'favicon.svg\'">'
+        +   '<div class="gt-row-main">'
+        +     '<div class="gt-row-title">'
+        +       '<a class="gt-row-name" href="' + esc(href) + '" onclick="' + esc(onclick) + '">' + esc(r.plural) + '</a>'
+        +       '<span class="gt-row-count">' + r.count + (r.count === 1 ? ' item' : ' items') + '</span>'
+        +     '</div>'
+        +     (r.description
+                ? '<div class="gt-row-sub">' + esc(r.description) + '</div>'
+                : '')
         +   '</div>'
-        +   (r.description
-              ? '<div class="gt-row-sub">' + esc(r.description) + '</div>'
-              : '')
+        +   '<div class="gt-row-side">'
+        +     '<div class="gt-row-resources">'
+        +       (r.resources.length
+                    ? r.resources.map(function(res) {
+                        var titleAttr = res.description ? ' title="' + esc(res.description) + '"' : '';
+                        return '<span class="group-type-item"' + titleAttr + '>' + iconThumbHtml(res.icon, 'row-icon-thumb') + esc(res.plural) + '</span>';
+                      }).join('')
+                    : '<span class="group-type-none">none</span>')
+        +     '</div>'
+        +   '</div>'
         + '</div>'
-        + '<div class="gt-row-side">'
-        +   '<div class="gt-row-resources">'
-        +     (r.resources.length
-                  ? r.resources.map(function(res) {
-                      var titleAttr = res.description ? ' title="' + esc(res.description) + '"' : '';
-                      return '<span class="group-type-item"' + titleAttr + '>' + iconThumbHtml(res.icon, 'row-icon-thumb') + esc(res.plural) + '</span>';
-                    }).join('')
-                  : '<span class="group-type-none">none</span>')
-        +   '</div>'
-        +   '<a class="gt-row-registry" href="' + esc(regHref) + '" onclick="' + esc(regOnclick) + '" title="' + esc(r.serverUrl) + '">'
+        + '<div class="gt-row-bottom">'
+        +   '<a class="gt-row-registry" href="' + esc(regHref) + '" onclick="' + esc(regOnclick) + '" title="Browse this registry">'
         +     '<span class="gt-row-reg-name">' + esc(r.regLabel) + '</span>'
         +   '</a>'
+        +   '<span class="gt-row-url" title="' + esc(r.serverUrl) + '">' + esc(r.serverUrl) + '</span>'
         + '</div>'
         + '</div>';
     }).join('');
@@ -4045,6 +4070,11 @@ function docWidgetModeChange(idPrefix, mode) {
   st.mode = mode;
   var body = document.getElementById(idPrefix + '-docwidget-body');
   if (body) body.innerHTML = buildDocWidgetBodyHtml(idPrefix);
+  // Text/Base64 modes swap in a fresh .eg-doc-textarea — resize it now that
+  // it's actually in the DOM (mirrors the same fix in verTabToggleAddForm()
+  // for the initial render; other modes have no textarea, so this is a
+  // harmless no-op then).
+  sizeDocTextarea();
   if (st.onChange) st.onChange(st);
 }
 function docWidgetTextInput(idPrefix, val) {
@@ -4152,12 +4182,35 @@ function clearDocWidgetState(idPrefix) {
 var _addNewResourceSingular = null;
 var _addNewDocWidgetId = null;
 var _addNewActiveTab = 'details';
+// The required ID field's live value — kept in sync via oninput (see
+// buildAddEntityDetailsTableHtml()) rather than only ever read from the
+// DOM at save time, so a full panel re-render (e.g. Add Extension,
+// "Copy from" — see verAddCopyFromChange()) can restore it instead of
+// silently wiping whatever the user already typed.
+var _addNewIdValue = '';
+
+// Holds the "<Type> Details" (Meta) tab's in-progress field values while
+// adding a new Resource — a parallel, independent bag to _addNewData
+// (which only covers the Resource/Version-level fields), merged into the
+// single create PUT's body.meta at save time (see mergeAddNewMetaIntoBody())
+// so Resource + Version + Meta are still created in ONE transaction, per
+// @duglin's request. Only ever populated for Add Resource (isResourceAdd
+// in buildAddEntityFormHtml()) — Add Group/Add Version have no Meta tab.
+var _addNewMetaData = {};
 
 function toggleAddEntityForm() {
   _addNewOpen = !_addNewOpen;
   if (!_addNewOpen) {
     _addNewData = {};
+    _addNewIdValue = '';
+    _addNewMetaData = {};
     if (_addNewDocWidgetId) clearDocWidgetState(_addNewDocWidgetId);
+  } else {
+    // Fresh open — default to the "<Type> Details" (Meta) tab for a new
+    // Resource, since that's where the required ID field now lives (see
+    // buildAddEntityMetaTableHtml()); Groups have no Meta tab, so they
+    // still start on the (only real) Details tab.
+    _addNewActiveTab = (_state.path.length === 3) ? 'meta' : 'details';
   }
   _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
@@ -4166,6 +4219,8 @@ function toggleAddEntityForm() {
 function cancelAddEntity() {
   _addNewOpen = false;
   _addNewData = {};
+  _addNewIdValue = '';
+  _addNewMetaData = {};
   if (_addNewDocWidgetId) clearDocWidgetState(_addNewDocWidgetId);
   _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
@@ -4181,9 +4236,14 @@ function cancelAddEntity() {
 // save time (see saveNewEntity()), so it must be checked separately here.
 // The Document tab's widget (see buildAddEntityFormHtml()) is a third,
 // independent source of in-progress content that also needs checking.
+// Also covers the tabbed "Add Version" flow (_verAddingNew) — same
+// underlying _addNewData/_addNewDocWidgetId/addNewIdInput state, just not
+// gated by _addNewOpen (that flag is specific to the plain collection-page
+// Add form).
 function isAddNewFormDirty() {
-  if (!_addNewOpen) return false;
+  if (!_addNewOpen && !_verAddingNew) return false;
   if (Object.keys(_addNewData).length > 0) return true;
+  if (Object.keys(_addNewMetaData).length > 0) return true;
   if (_addNewDocWidgetId && docWidgetHasContent(_addNewDocWidgetId)) return true;
   var idInput = document.getElementById('addNewIdInput');
   return !!(idInput && idInput.value && idInput.value.trim());
@@ -4204,6 +4264,13 @@ function addNewSwitchTab(tabKey) {
     p.style.display = (p.getAttribute('data-tab') === tabKey) ? '' : 'none';
   });
   _addNewActiveTab = tabKey;
+  // The Document tab's textarea is sized off its own visible bounding box
+  // (see sizeDocTextarea()) — it's a no-op while the panel is display:none,
+  // so it must be re-run now that switching TO this tab just made it
+  // visible (mirrors the same fix already applied for the tabbed Add
+  // Version flow's own tab-switching — see verTabToggleAddForm()/
+  // docWidgetModeChange()).
+  if (tabKey === 'document') sizeDocTextarea();
 }
 
 // onchange handler for every input in the Add form — mirrors
@@ -4241,6 +4308,43 @@ function addNewEntityAddExtension() {
   else if (_lastData) { renderTableView(_lastData); }
 }
 
+// onchange handler for every input in the Add-Resource form's "<Type>
+// Details" (Meta) tab — same idiom as addNewFieldChange(), but writes
+// into the separate _addNewMetaData bag instead (merged into body.meta at
+// save time by mergeAddNewMetaIntoBody(), keeping the Resource's own
+// fields and its Meta sub-resource's fields as two independent objects,
+// matching the shape the server itself expects).
+function addNewMetaFieldChange(k, inputEl) {
+  var type = inputEl.dataset.ftype || 'string';
+  var val;
+  if (type === 'boolean') {
+    val = inputEl.checked;
+  } else if (type === 'integer' || type === 'uinteger') {
+    val = inputEl.value === '' ? null : parseInt(inputEl.value, 10);
+  } else if (type === 'decimal') {
+    val = inputEl.value === '' ? null : parseFloat(inputEl.value);
+  } else {
+    val = inputEl.value;
+  }
+  if (val === '' || val == null) { delete _addNewMetaData[k]; }
+  else { _addNewMetaData[k] = val; }
+}
+
+function addNewMetaAddExtension() {
+  var nameEl = document.getElementById('addNewMetaExtName');
+  var valEl  = document.getElementById('addNewMetaExtVal');
+  if (!nameEl || !valEl) return;
+  var name = (nameEl.value || '').trim();
+  if (!name) return;
+  if (Object.prototype.hasOwnProperty.call(_addNewMetaData, name)) {
+    alert('Attribute "' + name + '" already exists.');
+    return;
+  }
+  _addNewMetaData[name] = readExtTypeValue('addNewMetaExtType', 'addNewMetaExtVal');
+  if (_addNewRerender) { _addNewRerender(); }
+  else if (_lastData) { renderTableView(_lastData); }
+}
+
 // Builds the blank "Add new <Singular>" panel — shown above the collection
 // table when _addNewOpen is true.
 // Toolbar row above the collection table: "+ Add <Singular>" (toggles the
@@ -4257,25 +4361,26 @@ function buildAddEntityToolbarHtml(model) {
     ? '<button class="cfg-btn cfg-btn-primary" id="coll-add-new-create-btn" onclick="saveNewEntity()">Create</button>'
       + ' <button class="cfg-btn cfg-btn-cancel" id="coll-add-new-btn" onclick="cancelAddEntity()">Cancel</button>'
     : '<button class="cfg-btn cfg-btn-primary" id="coll-add-new-btn" onclick="toggleAddEntityForm()">+ Add ' + esc(singular) + '</button>';
+  // "Delete Selected" only makes sense against the collection table below,
+  // which is hidden entirely while adding (see renderTableView()) — no
+  // rows to select, so drop the button rather than leave a permanently-
+  // disabled one with nothing to act on.
+  var deleteSelectedHtml = _addNewOpen ? '' : ' <button class="cfg-btn cfg-btn-danger" id="coll-delete-selected-btn" disabled '
+    + 'onclick="collDeleteSelected()" title="Delete all checked rows below">Delete Selected</button>';
   return '<div class="config-section-header" style="margin-bottom:8px">'
     + '<div class="config-section-header-btns">'
     + addBtnsHtml
-    + ' <button class="cfg-btn cfg-btn-danger" id="coll-delete-selected-btn" disabled '
-    + 'onclick="collDeleteSelected()" title="Delete all checked rows below">Delete Selected</button>'
+    + deleteSelectedHtml
     + '</div></div>';
 }
 
-// Builds the blank "Add new <Singular>" panel's content — reuses the same
-// Document/Details tab layout edit mode shows for an existing Resource/
-// Version (see renderSingleEntity()'s tabDefs), for visual consistency
-// between "create" and "edit", but simplified for the fact that nothing
-// exists yet: no Version dropdown (nothing to pick), and the Meta tab (a
-// Resource-level sub-resource that doesn't exist until this entity is
-// created) is shown disabled/grayed rather than omitted, so the tab row's
-// shape doesn't shift once the entity actually exists and Meta becomes
-// real. Defaults to the Details tab (not Document) so the required ID
-// field is front-and-center — see addNewSwitchTab().
-function buildAddEntityFormHtml(model, collPath) {
+// Builds just the "<Type> Details" property table's HTML — extracted out
+// of buildAddEntityFormHtml() so the SAME builder can be reused by the
+// tabbed "Add Version" flow (see renderAddVersionTabbedPanels()), which
+// hijacks the Resource page's own top-level tab panels instead of showing
+// its own nested tab bar. Also sets the shared _addNewResourceSingular/
+// _addNewDocWidgetId globals both callers need for their Document tab.
+function buildAddEntityDetailsTableHtml(model, collPath) {
   var entityPath = collPath.concat(['__new__']);
   var singular   = (getSingularName(model, entityPath) || 'entity').toLowerCase();
   var idKey      = singular + 'id';
@@ -4286,6 +4391,23 @@ function buildAddEntityFormHtml(model, collPath) {
     : (depth >= 6 && model) ? (getSingularName(model, entityPath.slice(0, 4)) || '').toLowerCase()
     : null;
   var hasDoc = resourceHasDocument(model, collPath);
+  // Add Resource only (depth === 4, i.e. collPath is a Resources
+  // collection) — versionid gets its own dedicated row right after the ID
+  // row (below) instead of falling wherever the generic scalarKeys loop's
+  // spec order would otherwise place it, and ancestorid is hidden
+  // entirely since a brand-new Resource has no existing versions yet to
+  // link to (mirrors why Add Version doesn't need either special-case:
+  // there, versionid already IS the dedicated ID row itself, and
+  // ancestorid legitimately has real prior versions to reference).
+  var isResourceAdd = depth === 4;
+  // Add Version (depth 6+, i.e. collPath is a Versions collection) — the
+  // versionid is OPTIONAL: per spec, POSTing to the owning Resource
+  // entity (no versionid in the path) with the same body shape lets the
+  // server assign one (see "POST /<GROUPS>/<GID>/<RESOURCES>/<RID>",
+  // spec.md's SetDefaultVersionID "request" value/http.md). So its ID
+  // field isn't marked required the way Group/Resource ID fields are —
+  // see verTabSaveNewVersion() for the matching PUT-vs-POST branch.
+  var isVersionAdd = depth >= 6;
 
   function propRow(label, inputHtml) {
     return '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(label) + '</td><td>' + inputHtml + '</td></tr>';
@@ -4313,10 +4435,14 @@ function buildAddEntityFormHtml(model, collPath) {
   // (see buildDocContentWidgetHtml()/saveNewEntity()), and
   // <resourceSingular>id specifically is implied by the URL path and never
   // independently settable, matching isDataEditReadOnly()'s existing
-  // exclusion of that same key in the view/edit property table. Ordered
-  // the same way View mode's Property table orders its rows (see
-  // orderPropKeysFlat()), instead of a flat alphabetical sort, so this
-  // form reads in the same familiar order.
+  // exclusion of that same key in the view/edit property table.
+  // contenttype/format are excluded too, whenever this type has a document
+  // concept — they're edited via the Document tab's own pills instead (see
+  // buildAddDocInfoPillsHtml()), mirroring the same suppression
+  // buildEntityPropsTableHtml() applies in edit mode. Ordered the same way
+  // View mode's Property table orders its rows (see orderPropKeysFlat()),
+  // instead of a flat alphabetical sort, so this form reads in the same
+  // familiar order.
   var alreadyShown = {name: true, description: true, documentation: true, icon: true};
   var resourceFieldNames = {};
   if (resourceSingular) {
@@ -4325,6 +4451,13 @@ function buildAddEntityFormHtml(model, collPath) {
     resourceFieldNames[resourceSingular + 'base64'] = true;
     resourceFieldNames[resourceSingular + 'proxyurl'] = true;
     if (resourceSingular !== singular) resourceFieldNames[resourceSingular + 'id'] = true;
+  }
+  if (hasDoc) { resourceFieldNames.contenttype = true; resourceFieldNames.format = true; }
+  if (isResourceAdd) {
+    // versionid gets its own row right after the ID row instead — see
+    // above. ancestorid is hidden entirely — see above.
+    resourceFieldNames.versionid = true;
+    resourceFieldNames.ancestorid = true;
   }
   var scalarKeys = Object.keys(attrsMap).filter(function(k) {
     if (k === '*' || k === idKey || alreadyShown[k] || resourceFieldNames[k]) return false;
@@ -4340,8 +4473,32 @@ function buildAddEntityFormHtml(model, collPath) {
       renderEditableScalarInput(k, val, attr, 'addNewFieldChange'));
   });
 
+  // The required ID field lives here for Groups (no Meta tab exists for
+  // them), but for a Resource Add it now lives at the top of the "<Type>
+  // Details" (Meta) tab instead (see buildAddEntityMetaTableHtml()) — that
+  // tab is the default-opened one, so the ID field is the first thing a
+  // user sees. versionid still gets its own row here, now the very first
+  // row on this tab since the ID row itself no longer appears here.
+  // For Add Version, the ID (versionid) field is OPTIONAL — see
+  // isVersionAdd above — so it's neither marked "*"/required, nor does
+  // its label suggest it must be filled in; leaving it blank makes
+  // verTabSaveNewVersion() POST to the Resource itself instead of PUTting
+  // a specific versionid, letting the server assign one.
+  var idRowHtml = '';
+  if (!isResourceAdd) {
+    var idLabel = capitalize(singular) + ' ID' + (isVersionAdd ? '' : ' *');
+    var idRequiredAttr = isVersionAdd ? '' : ' required';
+    var idPlaceholderAttr = isVersionAdd ? ' placeholder="(auto-assigned if left blank)"' : '';
+    idRowHtml = propRow(idLabel, '<input type="text" id="addNewIdInput" class="xr-edit-input" value="' + esc(_addNewIdValue || '') + '" oninput="_addNewIdValue=this.value"' + idRequiredAttr + idPlaceholderAttr + '>');
+  }
+  if (isResourceAdd && attrsMap.versionid) {
+    var vidVal = _addNewData.versionid != null ? _addNewData.versionid : '';
+    idRowHtml += propRow(labelFor('versionid', specLevel, singular),
+      renderEditableScalarInput('versionid', vidVal, attrsMap.versionid, 'addNewFieldChange'));
+  }
+
   var detailsTableHtml = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Details') + '</th><th></th></tr></thead><tbody>'
-    + propRow(capitalize(singular) + ' ID *', '<input type="text" id="addNewIdInput" class="xr-edit-input" required>')
+    + idRowHtml
     + rowsHtml;
   if (attrsMap['*']) {
     detailsTableHtml += propRow('+ Add Extension',
@@ -4353,24 +4510,60 @@ function buildAddEntityFormHtml(model, collPath) {
 
   _addNewResourceSingular = resourceSingular;
   _addNewDocWidgetId = hasDoc ? 'addNewDoc' : null;
-  _addNewActiveTab = 'details';
+  return detailsTableHtml;
+}
+
+// Builds the blank "Add new <Singular>" panel's content — reuses the same
+// Document/Details tab layout edit mode shows for an existing Resource/
+// Version (see renderSingleEntity()'s tabDefs), for visual consistency
+// between "create" and "edit", but simplified for the fact that nothing
+// exists yet: no Version dropdown (nothing to pick). The Meta ("<Type>
+// Details") tab IS enabled here (unlike the Document tab's dependent
+// sub-resource concepts) since the server accepts an embedded "meta"
+// object in the very same create PUT (see mergeAddNewMetaIntoBody()) — so
+// Resource + Meta can be set up together in ONE transaction. When there's
+// only a single tab to show (Add Group — no Document, no Meta concept),
+// the tab bar itself is omitted entirely (see isResourceAdd/hasDoc below)
+// since a lone, always-active tab button conveys nothing. Defaults to the
+// Details tab (not Document) so the required ID field is front-and-center
+// — see addNewSwitchTab(). (Used for "Add Resource"/"Add Group" on a
+// plain collection page, which has no pre-existing single-entity tab bar
+// to hijack the way "Add Version" now does — see
+// renderAddVersionTabbedPanels()/verTabToggleAddForm().)
+function buildAddEntityFormHtml(model, collPath) {
+  var detailsTableHtml = buildAddEntityDetailsTableHtml(model, collPath);
+  var hasDoc = !!_addNewDocWidgetId;
+  var resourceSingular = _addNewResourceSingular;
+  var singular = (getSingularName(model, collPath.concat(['__new__'])) || 'entity').toLowerCase();
+  // Only Resources (collPath depth 3, e.g. .../<group>/<gid>/<restype>)
+  // have a "Version"/Meta sub-resource concept — Groups (depth 1) don't,
+  // so the "Version Details" wording and the "<Type> Details" (Meta) tab
+  // only make sense, and are only shown, here.
+  var isResourceAdd = collPath.length === 3;
+  var detailsLabel = isResourceAdd ? 'Version Details' : 'Details';
+  var showTabs = hasDoc || isResourceAdd; // more than just the one Details tab
+  if (!showTabs) _addNewActiveTab = 'details';
+  var activeTab = _addNewActiveTab || 'details';
+
+  function tabBtn(key, label) {
+    return '<button class="eg-doc-tab' + (activeTab === key ? ' active' : '') + '" data-tab="' + key + '" onclick="addNewSwitchTab(\'' + key + '\')">' + esc(label) + '</button>';
+  }
+  function tabPanel(key, html) {
+    return '<div class="eg-doc-tab-panel" data-tab="' + key + '"' + (activeTab === key ? '' : ' style="display:none"') + '>' + html + '</div>';
+  }
 
   var tabBtns = '';
   var panels = '';
   if (hasDoc) {
-    tabBtns += '<button class="eg-doc-tab" data-tab="document" onclick="addNewSwitchTab(\'document\')">Document</button>';
-    panels += '<div class="eg-doc-tab-panel" data-tab="document" style="display:none">'
-      + buildDocContentWidgetHtml('addNewDoc', {})
-      + '</div>';
+    tabBtns += tabBtn('document', 'Document');
+    panels += tabPanel('document', buildAddDocInfoPillsHtml() + buildDocContentWidgetHtml('addNewDoc', {}));
   }
-  tabBtns += '<button class="eg-doc-tab active" data-tab="details" onclick="addNewSwitchTab(\'details\')">Version Details</button>';
-  panels += '<div class="eg-doc-tab-panel" data-tab="details">' + detailsTableHtml + '</div>';
-  // Disabled placeholder for the Meta tab — mirrors renderSingleEntity()'s
-  // capType + ' Details' label for the same concept in edit mode, but this
-  // one is never clickable since the Resource's meta sub-resource doesn't
-  // exist until the entity itself is created.
-  tabBtns += '<button class="eg-doc-tab" disabled title="Not available until created">'
-    + esc(capitalize(resourceSingular || singular)) + ' Details</button>';
+  tabBtns += tabBtn('details', detailsLabel);
+  panels += tabPanel('details', detailsTableHtml);
+  if (isResourceAdd) {
+    tabBtns += tabBtn('meta', capitalize(resourceSingular || singular) + ' Details');
+    panels += tabPanel('meta', buildAddEntityMetaTableHtml(model, collPath));
+  }
 
   // Error banner sits at the top of the panel (right below the Create/
   // Cancel buttons in buildAddEntityToolbarHtml(), which is rendered just
@@ -4378,9 +4571,88 @@ function buildAddEntityFormHtml(model, collPath) {
   // error is immediately visible without scrolling past the whole form.
   return '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
     + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
-    + '<div class="eg-doc-tabs">' + tabBtns + '</div>'
+    + (showTabs ? '<div class="eg-doc-tabs">' + tabBtns + '</div>' : '')
     + panels
     + '</div>';
+}
+
+// Builds the "<Type> Details" (Meta) tab's property table for the Add
+// Resource form — parallel to buildAddEntityDetailsTableHtml() but scoped
+// to the Resource's Meta sub-resource's own spec-fixed attributes
+// (SPEC_ATTRS.meta), writing into the separate _addNewMetaData bag (see
+// addNewMetaFieldChange()/mergeAddNewMetaIntoBody()). Only the fields that
+// make sense to set before any Version exists are shown — defaultversionid
+// (dropdown of real version ids), defaultversionurl (server-computed), and
+// defaultversionsticky (only meaningful paired with defaultversionid) are
+// all skipped, mirroring how buildAddEntityDetailsTableHtml() itself hides
+// ancestorid for the same reason (see its isResourceAdd handling). Complex
+// types (deprecated/labels) are skipped too, matching the same convention
+// buildAddEntityDetailsTableHtml() already applies to the Resource/Version
+// level's own scalarKeys loop.
+function buildAddEntityMetaTableHtml(model, collPath) {
+  var entityPath = collPath.concat(['__new__', 'meta']);
+  var metaAttrsMap = topLevelAttrsMapFor(model, entityPath, {});
+  var specLevel = SPEC_ATTRS.meta;
+  var resourceSingular = (getSingularName(model, collPath.concat(['__new__'])) || 'entity').toLowerCase();
+  var skip = {
+    id: 1, self: 1, shortself: 1, xid: 1, epoch: 1, createdat: 1, modifiedat: 1,
+    defaultversionid: 1, defaultversionurl: 1, defaultversionsticky: 1,
+    // The meta sub-resource's own copy of the owning Resource's identity
+    // field (e.g. "fileid") always mirrors whatever was entered in the ID
+    // field above — it's implied, never independently settable, matching
+    // buildAddEntityDetailsTableHtml()'s same exclusion of this key.
+    [resourceSingular + 'id']: 1
+  };
+  // Fixed spec-level meta fields safe to set at create time — not
+  // model-declared (they're always present per spec, not per resource
+  // type), so hardcoded here the same way SPEC_ATTRS.meta itself hardcodes
+  // the full set (see specattrs.js).
+  var fixedFields = [
+    {key: 'compatibility', type: 'string'},
+    {key: 'readonly', type: 'boolean'},
+    {key: 'xref', type: 'string'}
+  ];
+
+  function propRow(label, inputHtml) {
+    return '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(label) + '</td><td>' + inputHtml + '</td></tr>';
+  }
+
+  // The Resource's own required ID field lives here (top of the "<Type>
+  // Details" tab) rather than on the Version Details tab, so it's the
+  // very first thing a user sees and lands on when they open the
+  // Add-Resource form (see toggleAddEntityForm() defaulting here).
+  var idRowHtml = propRow(capitalize(resourceSingular) + ' ID *',
+    '<input type="text" id="addNewIdInput" class="xr-edit-input" value="' + esc(_addNewIdValue || '') + '" oninput="_addNewIdValue=this.value" required>');
+
+  var rowsHtml = '';
+  fixedFields.forEach(function(f) {
+    if (skip[f.key]) return;
+    var val = _addNewMetaData[f.key] != null ? _addNewMetaData[f.key] : (f.type === 'boolean' ? false : '');
+    rowsHtml += propRow(labelFor(f.key, specLevel, 'meta'),
+      renderEditableScalarInput(f.key, val, {type: f.type}, 'addNewMetaFieldChange'));
+  });
+  // Any model-declared meta-level extension attributes (rare, but the
+  // model CAN declare its own metaattributes — see topLevelAttrsMapFor()).
+  Object.keys(metaAttrsMap).forEach(function(k) {
+    if (k === '*' || skip[k] || fixedFields.some(function(f) { return f.key === k; })) return;
+    var attr = metaAttrsMap[k];
+    if (!attr || attr.type === 'object' || attr.type === 'array' || attr.type === 'map' || attr.readonly) return;
+    var val = _addNewMetaData[k] != null ? _addNewMetaData[k] : (attr.type === 'boolean' ? false : '');
+    rowsHtml += propRow(labelFor(k, specLevel, 'meta'),
+      renderEditableScalarInput(k, val, attr, 'addNewMetaFieldChange'));
+  });
+
+  var html = '<table class="xr-table xr-table-props"><thead><tr><th>Metadata</th><th></th></tr></thead><tbody>'
+    + idRowHtml
+    + rowsHtml;
+  if (metaAttrsMap['*']) {
+    html += propRow('+ Add Extension',
+      '<input type="text" id="addNewMetaExtName" class="xr-edit-input" placeholder="name" style="width:140px">'
+      + ' ' + renderExtTypeValueWidgetHtml('addNewMetaExtType', 'addNewMetaExtVal')
+      + ' <button class="editorBtn editorBtnSmall" onclick="addNewMetaAddExtension()">Add</button>');
+  }
+  html += '</tbody></table>';
+  return html;
 }
 
 // Creates the new entity via PUT to <collection URL>/<id>, then refreshes
@@ -4390,6 +4662,50 @@ function buildAddEntityFormHtml(model, collPath) {
 // content from the Document tab's widget (see buildAddEntityFormHtml()),
 // if any, is merged directly into this same body so metadata + document
 // are created together in ONE call — no separate follow-up PUT needed.
+// Merges the create-form's Document tab widget's current content (if this
+// entity type has one — see buildAddEntityDetailsTableHtml()) into `body`
+// as <resource>base64 or <resource>url/proxyurl, so create always issues
+// ONE PUT with metadata + document together. Shared by saveNewEntity()
+// (Add Resource/Add Group) and verTabSaveNewVersion() (the tabbed Add
+// Version flow) — see plan.md "Add Version reuses the Resource page's own
+// tabs".
+//
+// Document content: Text/Base64/Upload File modes are base64-encoded
+// client-side into <resource>base64 (the widget already holds the exact
+// bytes in memory, so there's no need for a second raw-body PUT the way
+// editing an EXISTING entity's Document tab needs); External URL mode
+// just sets <resource>url or <resource>proxyurl (depending on the
+// "Proxy" checkbox) as a normal field in this same body.
+function mergeAddNewDocIntoBody(body) {
+  if (!_addNewDocWidgetId || !_addNewResourceSingular) return;
+  var docMode = docWidgetGetMode(_addNewDocWidgetId);
+  if (docMode === 'url') {
+    var docUrl = docWidgetGetUrl(_addNewDocWidgetId);
+    if (docUrl) {
+      if (docWidgetGetProxy(_addNewDocWidgetId)) body[_addNewResourceSingular + 'proxyurl'] = docUrl;
+      else body[_addNewResourceSingular + 'url'] = docUrl;
+    }
+  } else {
+    var docB64 = docWidgetGetBase64(_addNewDocWidgetId);
+    if (docB64 != null) body[_addNewResourceSingular + 'base64'] = docB64;
+  }
+}
+
+// Merges the Add-Resource form's "<Type> Details" (Meta) tab's
+// in-progress field values (_addNewMetaData — see
+// buildAddEntityMetaTableHtml()/addNewMetaFieldChange()) into `body.meta`,
+// so Resource + Meta are created together in the SAME create PUT — the
+// server accepts (and strips out) an embedded "meta" object on a
+// non-version-scoped Resource $details PUT and applies it as the Meta
+// sub-resource update in the same transaction (see registry/group.go).
+// Only called for Add Resource (path length 3) — Add Group has no Meta
+// concept, and Add Version's tabbed flow has its own (currently
+// disabled) Meta tab placeholder, unrelated to this bag.
+function mergeAddNewMetaIntoBody(body) {
+  if (!Object.keys(_addNewMetaData).length) return;
+  body.meta = Object.assign({}, _addNewMetaData);
+}
+
 function saveNewEntity(cb) {
   var errDiv = document.getElementById('addNewEntityError');
   if (errDiv) { hideErrorBanner(errDiv); }
@@ -4401,26 +4717,8 @@ function saveNewEntity(cb) {
   }
   var url = buildBaseURL() + '/' + encodeURIComponent(id);
   var body = Object.assign({}, _addNewData);
-
-  // Document content: Text/Base64/Upload File modes are base64-encoded
-  // client-side into <resource>base64 (the widget already holds the exact
-  // bytes in memory, so there's no need for a second raw-body PUT the way
-  // editing an EXISTING entity's Document tab needs); External URL mode
-  // just sets <resource>url or <resource>proxyurl (depending on the
-  // "Proxy" checkbox) as a normal field in this same body.
-  if (_addNewDocWidgetId && _addNewResourceSingular) {
-    var docMode = docWidgetGetMode(_addNewDocWidgetId);
-    if (docMode === 'url') {
-      var docUrl = docWidgetGetUrl(_addNewDocWidgetId);
-      if (docUrl) {
-        if (docWidgetGetProxy(_addNewDocWidgetId)) body[_addNewResourceSingular + 'proxyurl'] = docUrl;
-        else body[_addNewResourceSingular + 'url'] = docUrl;
-      }
-    } else {
-      var docB64 = docWidgetGetBase64(_addNewDocWidgetId);
-      if (docB64 != null) body[_addNewResourceSingular + 'base64'] = docB64;
-    }
-  }
+  mergeAddNewDocIntoBody(body);
+  if (_state.path.length === 3) mergeAddNewMetaIntoBody(body);
 
   // Resources/Versions treat a plain (non-$details) PUT body as the
   // literal document content when the entity has a document (or as soon
@@ -4453,7 +4751,7 @@ function saveNewEntity(cb) {
     return resp.text().then(function(text) {
       removeOverlay();
       if (resp.ok) {
-        _addNewOpen = false; _addNewData = {};
+        _addNewOpen = false; _addNewData = {}; _addNewIdValue = ''; _addNewMetaData = {};
         if (_addNewDocWidgetId) { clearDocWidgetState(_addNewDocWidgetId); _addNewDocWidgetId = null; }
         invalidateRegistryProbe(_state.serverURL || window.location.origin);
         if (cb) { cb(); } else { refresh(); }
@@ -4507,6 +4805,17 @@ function collDeleteSelected() {
   if (!ids.length) return;
   if (!confirm('Delete ' + ids.length + ' item' + (ids.length > 1 ? 's' : '') + '? This cannot be undone.')) return;
 
+  // Deleting EVERY version on the standalone Versions collection page
+  // (depth 5) also deletes the owning Resource itself (server-side
+  // cascade — same reasoning as deleteVersionEntity()/
+  // verTabDeleteSelected()'s equivalent checks) — that also takes this
+  // very collection down with it, so navigate back up to the Resources
+  // collection afterward instead of trying to refresh() a now-nonexistent
+  // page.
+  var isVersionsColl = _state.path.length === 5 && _state.path[4] === 'versions';
+  var totalRows = document.querySelectorAll('.coll-select-input').length;
+  var isDeletingAll = isVersionsColl && totalRows > 0 && ids.length >= totalRows;
+
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
   var box = document.createElement('div'); box.className = 'savingBox';
   var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
@@ -4528,6 +4837,13 @@ function collDeleteSelected() {
     _collSelectedIds = {};
     invalidateRegistryProbe(_state.serverURL || window.location.origin);
     if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
+    // A partial failure means at least one version (and therefore the
+    // Resource, and this Versions collection) still exists, so refresh as
+    // normal instead of navigating away.
+    if (isDeletingAll && !errors.length) {
+      pushState({path: _state.path.slice(0, -2)});
+      return;
+    }
     refresh();
   });
 }
@@ -4565,7 +4881,7 @@ function renderTableView(data) {
   var canAddDelete = _state.mutable && _state.editMode
     && (depth === 1 || depth === 3 || depth === 5);
   var collKeyNow = svBase + '|' + _state.path.join('/');
-  if (_addNewKey !== collKeyNow) { _addNewOpen = false; _addNewData = {}; _addNewKey = collKeyNow; }
+  if (_addNewKey !== collKeyNow) { _addNewOpen = false; _addNewData = {}; _addNewIdValue = ''; _addNewKey = collKeyNow; }
   if (_collSelectedKey !== collKeyNow) { _collSelectedIds = {}; _collSelectedKey = collKeyNow; }
 
   if (items.length === 0) {
@@ -4644,6 +4960,15 @@ function renderTableView(data) {
   if (canAddDelete) html += buildAddEntityToolbarHtml(model);
   if (canAddDelete && _addNewOpen) html += buildAddEntityFormHtml(model, _state.path);
 
+  // Hide the collection table entirely while the Add form is open — with
+  // Create/Cancel now living in the toolbar above (see
+  // buildAddEntityToolbarHtml()), there's no need to keep the existing
+  // rows/"Delete Selected" visible (and no layout space to reserve for
+  // them) while adding; the user can just Cancel first if they want to
+  // switch to an existing row instead. Applies to every collection type
+  // (Groups/Resources/Versions) this page renders.
+  var hidingTableForAdd = canAddDelete && _addNewOpen;
+  if (!hidingTableForAdd) {
   html += '<table class="xr-table"><thead><tr>';
   if (canAddDelete) {
     html += '<th class="cfg-select-cell"><input type="checkbox" id="coll-select-all" '
@@ -4734,9 +5059,11 @@ function renderTableView(data) {
     html += '</tr>';
   });
 
-  html += '</tbody></table></div>';
+  html += '</tbody></table>';
+  }
+  html += '</div>';
   main.innerHTML = html;
-  if (canAddDelete) collUpdateSelection();
+  if (canAddDelete && !hidingTableForAdd) collUpdateSelection();
 }
 
 function sortBy(col) {
@@ -4830,11 +5157,22 @@ function buildRegEndpointPillsHtml() {
 // confirm() dialog already uses, computed the same way here for
 // consistency (see buildVersionActionBarHtml(), which adds this exact
 // same button alongside its own version-scoped "Delete Version (#)" one).
-function buildDataEditorActionBarHtml(deleteDisabled) {
+function buildDataEditorActionBarHtml(deleteDisabled, showAddVersion) {
   var deleteDisabledAttr = deleteDisabled ? ' disabled title="Deleting the registry itself is not supported here"' : '';
   var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  // "+ Add Version" is duplicated here (Resource pages only, depth 4 — see
+  // showAddVersion) so users can add a version without first switching to
+  // the Versions List tab — same entry point (verTabToggleAddForm()) as
+  // the button on that tab (see renderVersionsTabPanel()'s addBtnsHtml).
+  var addVersionHtml = '';
+  if (showAddVersion) {
+    var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+    var verSingular = capitalize(getSingularName(verModel, _state.path.concat(['versions', '__new__'])) || 'Version');
+    addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
+  }
   return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
+    + addVersionHtml
     + '<button class="editorBtn" id="dataSavePutBtn" onclick="saveDataEntity(\'PUT\')"' + (_dataDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="saveDataEntity(\'PATCH\')"' + (_dataDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="dataUndoBtn" onclick="undoDataEdit()"' + (_dataDirty ? '' : ' disabled') + '>Undo</button>'
@@ -5055,7 +5393,7 @@ function renderSingleEntity(data) {
   // below the tab bar buttons — see further down — so it stays visible no
   // matter which tab is active instead of being tucked inside one panel's
   // content (and hidden along with it via display:none when inactive).
-  var dataEditorActionBarHtml = dataEditingNow ? buildDataEditorActionBarHtml(dataEditDepth === 0) : '';
+  var dataEditorActionBarHtml = dataEditingNow ? buildDataEditorActionBarHtml(dataEditDepth === 0, dataEditDepth === 4) : '';
 
   // Document / Details tab bar (depth 4 = Resource entity, depth 6+ =
   // Version entity) — replaces the old always-stacked meta-box +
@@ -6599,7 +6937,7 @@ function isDataEditReadOnly(k, attr, singular, resourceSingular) {
 // never clipped and flips to open upward automatically when there isn't
 // enough room below.
 var _enumInputSeq = 0;
-function renderEnumInputHtml(enumVals, val, type, isStrict, onchg) {
+function renderEnumInputHtml(enumVals, val, type, isStrict, onchg, oninp) {
   if (isStrict === false) {
     var seq = ++_enumInputSeq;
     var inputId = 'enuminput_' + seq;
@@ -6607,7 +6945,7 @@ function renderEnumInputHtml(enumVals, val, type, isStrict, onchg) {
     var itemsJson = JSON.stringify(enumVals.map(function(ev) { return String(ev); }));
     return '<span class="xr-enum-combo">'
       + '<input type="text" id="' + esc(inputId) + '" class="xr-edit-input" autocomplete="off" data-ftype="' + esc(type) + '"'
-      + ' value="' + esc(curStr) + '"' + onchg + '>'
+      + ' value="' + esc(curStr) + '"' + (oninp || onchg) + '>'
       + '<button type="button" class="editorBtn editorBtnSmall xr-enum-caret-btn" '
       + 'title="Show suggested values" data-input-id="' + esc(inputId) + '" data-items="' + esc(itemsJson) + '" '
       + 'onclick="toggleEnumDropdown(this)">\u25BC</button>'
@@ -6743,9 +7081,15 @@ function renderEditableScalarInput(k, val, attr, handlerFn) {
     || (typeof val === 'boolean' ? 'boolean' : typeof val === 'number' ? 'decimal' : 'string');
   var enumVals = attr && attr.enum;
   var handler = handlerFn || 'dataEditFieldChange';
+  // Boolean/enum-select changes already register the instant they're
+  // picked (no typing delay), so they stay on "change". Text/number/
+  // timestamp inputs use "input" instead so the dirty flag (and the
+  // Save/Undo buttons it enables) reacts on every keystroke, not just
+  // once the field loses focus. See plan.md "live dirty tracking".
   var onchg = ' onchange="' + esc(handler) + '(' + esc(JSON.stringify(k)) + ', this)"';
+  var oninp = ' oninput="' + esc(handler) + '(' + esc(JSON.stringify(k)) + ', this)"';
   if (enumVals && enumVals.length) {
-    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg);
+    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg, oninp);
   }
   if (type === 'boolean') {
     return '<label class="xr-bool-edit"><input type="checkbox" class="xr-edit-input" data-ftype="boolean"'
@@ -6757,10 +7101,10 @@ function renderEditableScalarInput(k, val, attr, handlerFn) {
   if (type === 'integer' || type === 'uinteger' || type === 'decimal') {
     return '<input type="number" class="xr-edit-input" data-ftype="' + esc(type) + '"'
       + (type === 'decimal' ? ' step="any"' : ' step="1"')
-      + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+      + ' value="' + esc(val == null ? '' : String(val)) + '"' + oninp + '>';
   }
   return '<input type="text" class="xr-edit-input" data-ftype="string"'
-    + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+    + ' value="' + esc(val == null ? '' : String(val)) + '"' + oninp + '>';
 }
 
 // Renders an editable text input for a timestamp-typed attribute (RFC3339
@@ -6770,19 +7114,23 @@ function renderEditableScalarInput(k, val, attr, handlerFn) {
 // date/time" behavior for createdat, and modifiedat's similar "absent ⇒
 // current time" default, as an explicit one-click option rather than
 // requiring the value be hand-typed. `onchgJs` is the raw (unescaped) JS
-// call to invoke on change (e.g. `dataEditFieldChange("createdat", this)`),
+// call to invoke on input (e.g. `dataEditFieldChange("createdat", this)`),
 // matching the calling convention renderEditableScalarInput()/
 // renderEditableScalarInputAtPath() already use for their other types.
 var _tsInputSeq = 0;
 function renderTimestampInputHtml(onchgJs, val) {
   var id = 'tsinput_' + (++_tsInputSeq);
+  // Dispatches "input" (not "change") to match the input's own oninput
+  // wiring below — typing in this field already registers live (see
+  // renderEditableScalarInput()'s comment), so the "Now" button needs to
+  // trigger the exact same event type to be picked up identically.
   var nowJs = 'var e=document.getElementById(' + JSON.stringify(id) + ');'
     + "e.value=new Date().toISOString();"
-    + "e.dispatchEvent(new Event('change',{bubbles:true}));";
+    + "e.dispatchEvent(new Event('input',{bubbles:true}));";
   return '<span class="xr-ts-edit">'
     + '<input type="text" id="' + esc(id) + '" class="xr-edit-input eg-mono" data-ftype="timestamp" '
     + 'placeholder="RFC3339, e.g. 2030-12-19T06:00:00Z" value="' + esc(val == null ? '' : String(val)) + '" '
-    + 'onchange="' + esc(onchgJs) + '">'
+    + 'oninput="' + esc(onchgJs) + '">'
     + ' <button type="button" class="editorBtn editorBtnSmall" onclick="' + esc(nowJs) + '">Now</button>'
     + '</span>';
 }
@@ -6800,8 +7148,9 @@ function renderEditableScalarInputAtPath(keyPath, val, attr) {
     || (typeof val === 'boolean' ? 'boolean' : typeof val === 'number' ? 'decimal' : 'string');
   var enumVals = attr && attr.enum;
   var onchg = ' onchange="dataEditNestedFieldChange(' + esc(JSON.stringify(keyPath)) + ', this)"';
+  var oninp = ' oninput="dataEditNestedFieldChange(' + esc(JSON.stringify(keyPath)) + ', this)"';
   if (enumVals && enumVals.length) {
-    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg);
+    return renderEnumInputHtml(enumVals, val, type, attr && attr.strict, onchg, oninp);
   }
   if (type === 'boolean') {
     return '<label class="xr-bool-edit"><input type="checkbox" class="xr-edit-input" data-ftype="boolean"'
@@ -6813,10 +7162,10 @@ function renderEditableScalarInputAtPath(keyPath, val, attr) {
   if (type === 'integer' || type === 'uinteger' || type === 'decimal') {
     return '<input type="number" class="xr-edit-input" data-ftype="' + esc(type) + '"'
       + (type === 'decimal' ? ' step="any"' : ' step="1"')
-      + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+      + ' value="' + esc(val == null ? '' : String(val)) + '"' + oninp + '>';
   }
   return '<input type="text" class="xr-edit-input" data-ftype="string"'
-    + ' value="' + esc(val == null ? '' : String(val)) + '"' + onchg + '>';
+    + ' value="' + esc(val == null ? '' : String(val)) + '"' + oninp + '>';
 }
 
 // Renders an editable UI for a map/object/array-typed attribute value, at
@@ -7762,8 +8111,16 @@ function buildMetaActionBarHtml() {
   // Version Details tabs (see buildDataEditorActionBarHtml()). Reuses the
   // same deleteDataEntity() and singular-name computation those bars use.
   var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  // "+ Add Version" is duplicated here too (same entry point as the
+  // Document/Version Details tabs' own copy — see
+  // buildDataEditorActionBarHtml()) so it's available no matter which tab
+  // happens to be active, Metadata included.
+  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verSingular = capitalize(getSingularName(verModel, _state.path.concat(['versions', '__new__'])) || 'Version');
+  var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="metaEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar">'
+    + addVersionHtml
     + '<button class="editorBtn" id="metaSavePutBtn" onclick="saveMetaEntity(\'PUT\')"' + (_metaDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="metaSavePatchBtn" onclick="saveMetaEntity(\'PATCH\')"' + (_metaDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="metaUndoBtn" onclick="undoMetaEdit()"' + (_metaDirty ? '' : ' disabled') + '>Undo</button>'
@@ -7885,8 +8242,16 @@ function markVerDirty() {
 // the latter — see buildDataEditorActionBarHtml().
 function buildVersionActionBarHtml() {
   var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  // "+ Add Version" duplicated here too (see buildDataEditorActionBarHtml()'s
+  // matching comment) — a specific non-default version being viewed is
+  // still a Resource page, so adding a new version makes just as much
+  // sense here as on the Default-version bar.
+  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verSingular = capitalize(getSingularName(verModel, (_resPath || _state.path).concat(['versions', '__new__'])) || 'Version');
+  var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="verEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar">'
+    + addVersionHtml
     + '<button class="editorBtn" id="verSavePutBtn" onclick="saveVersionEntity(\'PUT\')"' + (_verDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="verSavePatchBtn" onclick="saveVersionEntity(\'PATCH\')"' + (_verDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="verUndoBtn" onclick="undoVersionEdit()"' + (_verDirty ? '' : ' disabled') + '>Undo</button>'
@@ -7932,10 +8297,24 @@ function deleteVersionEntity() {
   if (!confirm('Delete this version? This cannot be undone.')) return;
   var errDiv = document.getElementById('verEditorError');
   if (errDiv) { hideErrorBanner(errDiv); }
+  // Deleting the LAST remaining version also deletes the whole Resource
+  // itself (server-side cascade — a Resource can't exist with zero
+  // versions), so detect that case *before* issuing the DELETE (using
+  // whichever version count is already cached) — afterward there's
+  // nothing left to reload here, so navigate back up to the Resources
+  // collection instead of trying to re-select "Default" on a
+  // now-nonexistent resource.
+  var versionCount = _resVersionsList ? _resVersionsList.length
+    : (_resDefaultData && _resDefaultData.versionscount != null ? _resDefaultData.versionscount : null);
+  var isLastVersion = versionCount === 1;
   fetch(_verSelfUrl, {method: 'DELETE'}).then(function(resp) {
     if (resp.ok || resp.status === 204) {
       _verDirty = false; _verEditData = null; _verEditSrc = null; _verEditVid = null; _verSelfUrl = '';
       _resVersionsList = null;
+      if (isLastVersion) {
+        pushState({path: _state.path.slice(0, -1)});
+        return;
+      }
       var sel = document.getElementById('eg-doc-version-select');
       if (sel) sel.value = 'default';
       onVersionSelectChangeReal('default');
@@ -8185,6 +8564,24 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   var suppressed = Object.assign({}, collKeys || {}, {meta: true, metaurl: true,
     formatvalidatedreason: true, compatibilityvalidatedreason: true,
     capabilities: true, model: true, modelsource: true});
+  // A resource with a document concept (hasdocument: true) shows/edits its
+  // raw content (<singular>, <singular>base64, <singular>url,
+  // <singular>proxyurl) AND its Content-Type/Format exclusively via the
+  // Document tab's widget/pills now — suppress those 6 keys here so they
+  // don't also appear (duplicated) in the Version Details Property table.
+  // See plan.md "Document-content widget". Content-Type/Format are kept
+  // in sync between the two tabs' underlying state even though only the
+  // Document tab displays them now — see syncDocPillToMetaField()/
+  // syncMetaFieldToDocPill().
+  var docSingularForSuppress = (getSingularName(model, path) || '').toLowerCase();
+  if (docSingularForSuppress && resourceHasDocument(model, path)) {
+    suppressed[docSingularForSuppress] = true;
+    suppressed[docSingularForSuppress + 'base64'] = true;
+    suppressed[docSingularForSuppress + 'url'] = true;
+    suppressed[docSingularForSuppress + 'proxyurl'] = true;
+    suppressed.contenttype = true;
+    suppressed.format = true;
+  }
   // Domain view: a version's own "ancestorid" pointing at itself
   // (the root/first version of a Resource) isn't meaningful info for an
   // end-user — hide the row entirely rather than showing an Ancestor
@@ -8229,6 +8626,27 @@ function buildEntityPropsTableHtml(entityData, headerLabel, model, path, collKey
   // (the dedicated depth>=6 Version page was retired from List view, see
   // normalizeVersionDepth()).
   var resourceSingular = (depth === 4) ? singular : null;
+  // Edit mode: a row the user can't actually edit (self, xid, epoch,
+  // ancestorid, formatvalidated, etc.) just takes up space with nothing
+  // actionable — drop those keys entirely rather than showing them
+  // greyed-out/inert. View mode is unaffected (still shows everything).
+  // Mirrors the exact same editable-row test buildPropsRowsHtml() uses
+  // per-row, just applied here (before grouping) so a category left with
+  // zero remaining keys is dropped too, instead of showing an empty
+  // header.
+  if (editable) {
+    keys = keys.filter(function(k) {
+      var val = entityData[k];
+      var editAttr = getAttr(model, path, [k], entityData);
+      var effAttr = effectiveEditAttrAtPath([k], editAttr, val);
+      var isComplexKind = effAttr && (effAttr.type === 'map' || effAttr.type === 'object' || effAttr.type === 'array');
+      var isAncestorLink = (k === 'ancestorid' || (k === 'versionid' && depth === 4));
+      return !isDataEditReadOnly(k, editAttr, singular, resourceSingular)
+        && !isAncestorLink
+        && (isComplexKind || (val !== null && typeof val !== 'object'));
+    });
+  }
+  if (!keys.length) return '<div class="eg-row"><span class="eg-value" style="color:#aaa">No properties</span></div>';
   var groups = groupPropsByCategory(keys, specLevel, singular, resourceSingular, domainFocusedT,
     depth === 0 ? 'Registry Metadata'
       : depth === 2 ? capitalize(singular) + ' Metadata'
@@ -8468,10 +8886,14 @@ function renderVersionsTabPanel() {
   var html = '';
   if (canEdit) {
     var singular = capitalize(getSingularName(model, versionsPath.concat(['__new__'])) || 'Version');
-    var addBtnsHtml = _verTabAddOpen
-      ? '<button class="cfg-btn cfg-btn-primary" onclick="verTabSaveNewVersion()">Create</button>'
-        + ' <button class="cfg-btn cfg-btn-cancel" onclick="verTabCancelAdd()">Cancel</button>'
-      : '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(singular) + '</button>';
+    // Create/Cancel while adding now live in the shared action-bar slot at
+    // the top of the page (see buildAddVersionActionBarHtml()) — this row
+    // just keeps its plain "+ Add Version" entry point, which itself
+    // switches the page over to the Document/Version Details tabs (see
+    // verTabToggleAddForm()), hiding this whole Versions List panel (and
+    // this row along with it) for the duration, so there's no risk of
+    // showing a second, redundant Create/Cancel pair here.
+    var addBtnsHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(singular) + '</button>';
     var checkedCount = Object.keys(_verTabSelectedIds).length;
     // "Delete <Singular>" (deletes the whole Resource, all versions
     // included — same deleteDataEntity() the page-level/Version-panel
@@ -8489,7 +8911,6 @@ function renderVersionsTabPanel() {
       + (checkedCount ? 'Delete Selected (' + checkedCount + ')' : 'Delete Selected') + '</button>'
       + ' <button class="cfg-btn cfg-btn-danger" onclick="deleteDataEntity()">Delete ' + esc(resSingularLabel) + '</button>'
       + '</div></div>';
-    if (_verTabAddOpen) html += buildAddEntityFormHtml(model, versionsPath);
   }
 
   if (!items.length) {
@@ -8555,6 +8976,275 @@ function verTabSyncTabLabel(count) {
   if (btn) btn.textContent = 'Versions List (' + count + ')';
 }
 
+// True while the Resource page's own top-level Document/Version Details/
+// <Type> Details tabs are hijacked to show the "Add Version" create form
+// (see verTabToggleAddForm()) instead of the currently-selected version's
+// real content — read by buildActionBarForActiveTab() (swaps in
+// buildAddVersionActionBarHtml() instead of the normal Save/Undo/Delete
+// bar) and isAddNewFormDirty() (leave-page guard).
+var _verAddingNew = false;
+
+// "+ Add Version" no longer opens its own nested tab bar inline in the
+// Versions List panel (see plan.md "Add Version reuses the Resource
+// page's own tabs") — instead it takes over the SAME Document/Version
+// Details/<Type> Details tabs already used to edit an existing version,
+// for full UI/code reuse: switches to the Version Details tab (the
+// required ID field lives there, so it's the first thing the user sees),
+// disables the Version: dropdown and <Type> Details tab (nothing to show
+// there until the version actually exists), and fills the Document/
+// Version-Details panels with the create-form's own widget/table (see
+// renderAddVersionTabbedPanels()).
+function verTabToggleAddForm() {
+  _verTabAddOpen = true;
+  _verAddingNew = true;
+  _addNewData = {};
+  _addNewIdValue = '';
+  _addNewRerender = renderAddVersionDetailsPanel;
+  setVersionTabsEnabledForAdd(false);
+  switchDocTab('defver');
+  renderAddVersionTabbedPanels();
+  // switchDocTab()'s own sizeDocTextarea() call ran before the widget's
+  // textarea actually existed in the DOM (the panel only had its default
+  // skeleton at that point) — resize now that the real content (built
+  // just above) is in place, in case the Document tab is switched to.
+  sizeDocTextarea();
+}
+
+// Disables (while adding) or restores (on Cancel/Create) the <Type>
+// Details tab button and the Version: dropdown — neither has anything
+// meaningful to show for a version that doesn't exist yet.
+function setVersionTabsEnabledForAdd(enabled) {
+  var metaBtn = document.querySelector('.eg-doc-tab[data-tab="meta"]');
+  if (metaBtn) {
+    metaBtn.disabled = !enabled;
+    metaBtn.title = enabled ? '' : 'Not available until the version is created';
+  }
+  var sel = document.getElementById('eg-doc-version-select');
+  if (sel) sel.disabled = !enabled;
+}
+
+// Fills the Document/Version-Details/<Type>-Details tab panels with the
+// "Add new Version" create form's content, reusing the exact same
+// builders (buildAddDocInfoPillsHtml()/buildDocContentWidgetHtml()/
+// buildAddEntityDetailsTableHtml()) as every other "Add new <Type>" form.
+// Called once when entering add mode (verTabToggleAddForm()).
+function renderAddVersionTabbedPanels() {
+  var docPanel = document.getElementById('eg-doc-panel-doc');
+  var metaPanel = document.getElementById('eg-doc-panel-meta');
+  // buildAddEntityDetailsTableHtml() sets _addNewDocWidgetId/
+  // _addNewResourceSingular as a side effect, so build the Details table
+  // FIRST and use those globals for the Document panel right after.
+  var versionsPath = (_resPath || []).concat(['versions']);
+  var detailsHtml = buildAddEntityDetailsTableHtml(_resModel, versionsPath);
+  if (docPanel && _addNewDocWidgetId) {
+    docPanel.innerHTML = buildCopyFromRowHtml('Doc') + buildAddDocInfoPillsHtml() + buildDocContentWidgetHtml(_addNewDocWidgetId, {});
+  }
+  var defverPanel = document.getElementById('eg-doc-panel-defver');
+  if (defverPanel) defverPanel.innerHTML = buildCopyFromRowHtml('Details') + detailsHtml;
+  if (metaPanel) {
+    metaPanel.innerHTML = '<div class="eg-doc-binary-msg">Not available until the version is created.</div>';
+  }
+}
+
+// "Copy from:" dropdown shown above the Details table while adding a new
+// Version — lets the user pick an existing version (or the Default) to
+// copy ALL of its data (metadata + document content) from, to make
+// migrating from an old version easier. Only meaningful for Add Version
+// (not Add Resource/Add Group — there's no prior version to copy from),
+// so this is only ever prepended by renderAddVersionTabbedPanels()/
+// renderAddVersionDetailsPanel(), never buildAddEntityFormHtml().
+// idSuffix distinguishes the Document tab's copy of this row from the
+// Details tab's copy (both are rendered simultaneously — one per tab
+// panel, just hidden via display:none while inactive — so they need
+// distinct element ids; sharing one id between two simultaneously-present
+// DOM nodes is invalid and would only let the first ever be found by
+// getElementById()). Both instances share the "ver-add-copy-from-select"
+// class so verAddCopyFromChange() can keep them in sync with each other.
+function buildCopyFromRowHtml(idSuffix) {
+  var options = '<option value="">\u2014 Copy from existing version \u2014</option>';
+  options += '<option value="default">' + esc(defaultOptionLabel(_resDefaultData)) + '</option>';
+  (_resVersionsList || []).forEach(function(v) {
+    var vid = itemNavKey(v);
+    options += '<option value="' + esc(vid) + '">' + esc(vid) + '</option>';
+  });
+  return '<div style="margin-bottom:10px">'
+    + '<label style="font-weight:bold;color:#444;margin-right:6px">Copy from:</label>'
+    + '<select id="verAddCopyFromSelect' + esc(idSuffix || '') + '" class="xr-edit-input ver-add-copy-from-select" style="width:auto;display:inline-block" onchange="verAddCopyFromChange(this)">'
+    + options + '</select>'
+    + '</div>';
+}
+
+// Copies ALL of the selected existing version's data (metadata fields +
+// document content) into the in-progress Add-Version form, discarding
+// anything the user already typed — per @duglin's request, to make
+// migrating from an old version easier. Metadata is copied synchronously
+// (already available in _resVersionsList/_resDefaultData); the document
+// body is fetched async when not already inline (see
+// copyVersionDocumentIntoAddNewWidget()).
+function verAddCopyFromChange(selEl) {
+  if (!_verAddingNew) return;
+  var vid = selEl.value;
+  if (!vid) return; // placeholder option — nothing to do
+  var srcData = (vid === 'default')
+    ? ((_dataEditActiveKind === 'entity' && _dataEditData) ? _dataEditData : _resDefaultData)
+    : (_resVersionsList || []).filter(function(v) { return itemNavKey(v) === vid; })[0];
+  if (!srcData) return;
+  copyVersionMetadataIntoAddNewData(srcData);
+  renderAddVersionDetailsPanel();
+  // renderAddVersionDetailsPanel()/copyVersionDocumentIntoAddNewWidget()
+  // below both just rebuilt their own "Copy from" select (there's one per
+  // tab now — see buildCopyFromRowHtml()) — sync EVERY instance to the
+  // just-made choice instead of leaving them reset to the placeholder.
+  // copyVersionDocumentIntoAddNewWidget() itself re-syncs the Document
+  // tab's select again once its (possibly async, fetch-based) rebuild
+  // actually finishes — see its own vid parameter/renderWith() below —
+  // since that can resolve well after this synchronous sweep runs.
+  document.querySelectorAll('.ver-add-copy-from-select').forEach(function(s) { s.value = vid; });
+  copyVersionDocumentIntoAddNewWidget(srcData, vid);
+}
+
+// Overwrites _addNewData with the source version's own settable fields —
+// same exclusion rules buildAddEntityDetailsTableHtml() itself uses (skip
+// readonly/server-computed fields, the ID field, and the resource-content
+// fields handled by the Document tab widget instead) — so "Copy from"
+// only ever copies things the user could otherwise have typed here
+// themselves. The ID field is deliberately left alone (not copied) —
+// still whatever the user already typed into addNewIdInput, since the new
+// version needs its own id.
+function copyVersionMetadataIntoAddNewData(srcData) {
+  _addNewData = {};
+  var versionsPath = (_resPath || []).concat(['versions']);
+  var entityPath = versionsPath.concat(['__new__']);
+  var singular = (getSingularName(_resModel, entityPath) || 'entity').toLowerCase();
+  var idKey = singular + 'id';
+  var attrsMap = modelAttrsMapForPath(_resModel, entityPath);
+  var resourceSingular = _addNewResourceSingular;
+  var skip = {
+    self: true, xid: true, shortself: true, epoch: true, ancestor: true,
+    ancestorid: true, createdat: true, modifiedat: true, __mapKey: true
+  };
+  skip[idKey] = true;
+  if (resourceSingular) {
+    skip[resourceSingular] = true;
+    skip[resourceSingular + 'url'] = true;
+    skip[resourceSingular + 'base64'] = true;
+    skip[resourceSingular + 'proxyurl'] = true;
+    if (resourceSingular !== singular) skip[resourceSingular + 'id'] = true;
+  }
+  Object.keys(srcData).forEach(function(k) {
+    if (skip[k]) return;
+    var attr = attrsMap[k];
+    if (attr && (attr.type === 'object' || attr.type === 'array' || attr.type === 'map')) return;
+    if (attr && attr.readonly) return;
+    if (srcData[k] === undefined || srcData[k] === null) return;
+    _addNewData[k] = srcData[k];
+  });
+}
+
+// Copies the source version's document content into the Add-Version
+// form's Document tab widget — mirrors loadDocumentPreview()'s own
+// priority order (external url/proxyurl > inline base64 > fetch the raw
+// body) since srcData here is the same shape that function already
+// handles for an existing entity's Document tab.
+// Copies the source version's document content into the Add-Version
+// form's Document tab widget — mirrors loadDocumentPreview()'s own
+// priority order (external url/proxyurl > inline base64 > fetch the raw
+// body) since srcData here is the same shape that function already
+// handles for an existing entity's Document tab. `vid` (the just-chosen
+// "Copy from" value) is threaded through purely so every rebuild of this
+// tab's own "Copy from" select (including the async fetch path, which can
+// resolve well after verAddCopyFromChange()'s own synchronous sync sweep
+// already ran) reflects the actual choice instead of resetting to the
+// placeholder.
+function copyVersionDocumentIntoAddNewWidget(srcData, vid) {
+  if (!_addNewDocWidgetId || !_addNewResourceSingular) return;
+  var key = _addNewResourceSingular;
+  var docPanel = document.getElementById('eg-doc-panel-doc');
+  if (!docPanel) return;
+  function syncSelect() {
+    var s = document.getElementById('verAddCopyFromSelectDoc');
+    if (s && vid) s.value = vid;
+  }
+  function renderWith(opts) {
+    if (!_verAddingNew) return; // cancelled/created while a fetch below was in flight
+    var panel = document.getElementById('eg-doc-panel-doc');
+    if (!panel) return;
+    panel.innerHTML = buildCopyFromRowHtml('Doc') + buildAddDocInfoPillsHtml() + buildDocContentWidgetHtml(_addNewDocWidgetId, opts);
+    sizeDocTextarea();
+    syncSelect();
+  }
+  if (srcData[key + 'url'] || srcData[key + 'proxyurl']) {
+    var isProxy = !!srcData[key + 'proxyurl'];
+    renderWith({mode: 'url', url: srcData[key + (isProxy ? 'proxyurl' : 'url')], proxy: isProxy});
+    return;
+  }
+  if (srcData[key + 'base64'] != null) {
+    renderWith({mode: 'base64', base64Text: srcData[key + 'base64']});
+    return;
+  }
+  var fetchUrl = srcData.self ? srcData.self.replace(/\$details$/, '') : '';
+  if (!fetchUrl) { renderWith({mode: 'text', text: ''}); return; }
+  docPanel.innerHTML = buildCopyFromRowHtml('Doc') + '<div class="eg-loading">Loading document\u2026</div>';
+  syncSelect();
+  fetch(fetchUrl)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(function(buf) {
+      if (!isBinaryContent(buf)) { renderWith({mode: 'text', text: decodeUTF8Bytes(buf)}); return; }
+      renderWith({mode: 'base64', base64Text: bytesToBase64(new Uint8Array(buf))});
+    })
+    .catch(function(e) {
+      if (!_verAddingNew) return;
+      var panel = document.getElementById('eg-doc-panel-doc');
+      if (panel) { panel.innerHTML = buildCopyFromRowHtml('Doc') + '<div class="eg-doc-error-msg">Could not load document: ' + esc((e && e.message) || String(e)) + '</div>'; syncSelect(); }
+    });
+}
+
+// Rebuilds just the Version-Details panel's Details table — used as
+// _addNewRerender (called after adding/removing an extension row) instead
+// of the full renderAddVersionTabbedPanels(), so the Document tab's
+// widget (which may already have in-progress content) isn't reset.
+function renderAddVersionDetailsPanel() {
+  var defverPanel = document.getElementById('eg-doc-panel-defver');
+  if (!defverPanel) return;
+  var versionsPath = (_resPath || []).concat(['versions']);
+  defverPanel.innerHTML = buildCopyFromRowHtml('Details') + buildAddEntityDetailsTableHtml(_resModel, versionsPath);
+}
+
+// Restores the Document/Version Details/<Type> Details tabs to whatever
+// they were actually showing before "+ Add Version" hijacked them — used
+// by both Cancel and a successful Create. Rebuilds the Document tab's
+// normal pills+preview-box skeleton (destroyed by renderAddVersionTabbed
+// Panels()'s widget content) and then reuses onVersionSelectChangeReal()'s
+// existing refresh logic (keyed off the still-unchanged
+// _resSelectedVersionId) to repopulate everything correctly, including the
+// action bar.
+function restoreVersionTabsAfterAdd() {
+  var docPanel = document.getElementById('eg-doc-panel-doc');
+  if (docPanel) {
+    docPanel.innerHTML = '<div id="eg-doc-pills"></div>'
+      + '<div id="eg-doc-preview-box"><div class="eg-loading">Loading document\u2026</div></div>';
+  }
+  var metaPanel = document.getElementById('eg-doc-panel-meta');
+  if (metaPanel) metaPanel.innerHTML = '<div id="eg-meta-box"><div class="eg-loading">Loading\u2026</div></div>';
+  _docPreviewLoaded = false;
+  onVersionSelectChangeReal(_resSelectedVersionId, false);
+  loadMetaDetails();
+  switchDocTab('versions');
+}
+
+function verTabCancelAddNew() {
+  _verTabAddOpen = false;
+  _verAddingNew = false;
+  _addNewData = {};
+  _addNewIdValue = '';
+  if (_addNewDocWidgetId) { clearDocWidgetState(_addNewDocWidgetId); }
+  _addNewDocWidgetId = null;
+  _addNewResourceSingular = null;
+  _addNewRerender = null;
+  setVersionTabsEnabledForAdd(true);
+  restoreVersionTabsAfterAdd();
+}
+
 // Row click (Decision 2, plan.md): select that version the same way the
 // "Version:" dropdown would, then jump to the Document tab so the user
 // actually sees it — there's no standalone single-Version page anymore.
@@ -8570,35 +9260,36 @@ function verTabRowClick(vid) {
   switchDocTab('doc');
 }
 
-function verTabToggleAddForm() {
-  _verTabAddOpen = true; _addNewData = {};
-  _addNewRerender = renderVersionsTabPanel;
-  renderVersionsTabPanel();
-}
-
-function verTabCancelAdd() {
-  _verTabAddOpen = false; _addNewData = {};
-  _addNewRerender = null;
-  renderVersionsTabPanel();
-}
-
 // Same shape as saveNewEntity(), but targets _resVersionsUrl directly (the
 // page-level _state.path stays at the Resource, depth 4, throughout — see
 // plan.md for why this can't just reuse saveNewEntity()/buildBaseURL()).
 // Versions always get the $details suffix, same rule saveNewEntity() uses
 // for any Resource/Version collection (a plain PUT body would otherwise be
-// parsed as literal document content instead of metadata).
+// parsed as literal document content instead of metadata). Merges the
+// Document tab widget's content into the body via the same
+// mergeAddNewDocIntoBody() helper saveNewEntity() uses, so a Version's
+// document can now actually be set at creation time (previously silently
+// dropped — see plan.md).
+//
+// versionid is OPTIONAL (see buildAddEntityDetailsTableHtml()'s
+// isVersionAdd handling) — when left blank, per spec a POST directed at
+// the Resource entity itself (no versionid in the path, same body shape
+// otherwise) creates a new Version and lets the server assign its id
+// ("POST /<GROUPS>/<GID>/<RESOURCES>/<RID>[$details]" in http.md).
+// _state.path still points at the Resource throughout this whole flow
+// (see comment above), so buildBaseURL() is exactly that Resource's own
+// URL — no separate "Resource base URL" tracking needed.
 function verTabSaveNewVersion() {
   var errDiv = document.getElementById('addNewEntityError');
   if (errDiv) { hideErrorBanner(errDiv); }
   var idInput = document.getElementById('addNewIdInput');
   var id = idInput ? idInput.value.trim() : '';
-  if (!id) {
-    if (errDiv) { showErrorBanner(errDiv, 'ID is required.'); }
-    return;
-  }
-  var url = _resVersionsUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id) + '$details';
+  var method = id ? 'PUT' : 'POST';
+  var url = id
+    ? _resVersionsUrl.replace(/\/$/, '') + '/' + encodeURIComponent(id) + '$details'
+    : buildBaseURL() + '$details';
   var body = Object.assign({}, _addNewData);
+  mergeAddNewDocIntoBody(body);
 
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
   var box = document.createElement('div'); box.className = 'savingBox';
@@ -8609,16 +9300,22 @@ function verTabSaveNewVersion() {
   function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
 
   fetch(url, {
-    method: 'PUT',
+    method: method,
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body, null, 2)
   }).then(function(resp) {
     return resp.text().then(function(text) {
       removeOverlay();
       if (resp.ok) {
-        _verTabAddOpen = false; _addNewData = {}; _addNewRerender = null;
+        _verTabAddOpen = false; _verAddingNew = false; _addNewData = {}; _addNewIdValue = '';
+        if (_addNewDocWidgetId) { clearDocWidgetState(_addNewDocWidgetId); }
+        _addNewDocWidgetId = null;
+        _addNewResourceSingular = null;
+        _addNewRerender = null;
+        setVersionTabsEnabledForAdd(true);
         invalidateRegistryProbe(_state.serverURL || window.location.origin);
         loadVersionsForSelect();
+        restoreVersionTabsAfterAdd();
       } else {
         if (errDiv) { showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); }
       }
@@ -8664,6 +9361,13 @@ function verTabDeleteSelected() {
   if (!ids.length) return;
   if (!confirm('Delete ' + ids.length + ' item' + (ids.length > 1 ? 's' : '') + '? This cannot be undone.')) return;
 
+  // Deleting EVERY remaining version also deletes the whole Resource
+  // itself (server-side cascade — same reasoning as deleteVersionEntity()'s
+  // single-version delete) — detect that case up front so we can navigate
+  // back up to the Resources collection afterward instead of trying to
+  // reload a now-nonexistent resource's Versions List.
+  var isDeletingAll = !!(_resVersionsList && ids.length >= _resVersionsList.length);
+
   var overlay = document.createElement('div'); overlay.className = 'savingOverlay';
   var box = document.createElement('div'); box.className = 'savingBox';
   var spinnerEl = document.createElement('div'); spinnerEl.className = 'savingSpinner';
@@ -8685,6 +9389,13 @@ function verTabDeleteSelected() {
     _verTabSelectedIds = {};
     invalidateRegistryProbe(_state.serverURL || window.location.origin);
     if (errors.length) alert('Some deletes failed:\n' + errors.join('\n'));
+    // A partial failure means at least one version (and therefore the
+    // Resource itself) still exists, so refresh the Versions List as
+    // normal instead of navigating away.
+    if (isDeletingAll && !errors.length) {
+      pushState({path: _state.path.slice(0, -1)});
+      return;
+    }
     loadVersionsForSelect();
   });
 }
@@ -9055,6 +9766,29 @@ function syncDocButtonsForTab(tabKey) {
 function syncVersionSelectorForTab(tabKey) {
   var sel = document.getElementById('eg-doc-version-select');
   if (!sel) return;
+  // While the tabbed "Add Version" create form (verTabToggleAddForm()) has
+  // taken over the Document/Version Details tabs, the dropdown must stay
+  // disabled no matter which tab is active — there's no version to pick
+  // yet — overriding the per-tab enable/disable logic below.
+  if (_verAddingNew) {
+    sel.disabled = true;
+    sel.title = 'Not available until the version is created';
+    // Show a dedicated "--creating--" placeholder rather than leaving
+    // whatever version was previously selected showing (misleading — that
+    // version isn't what's actually displayed while the Add-Version form
+    // has hijacked these tabs). Added/removed here rather than baked into
+    // loadVersionsForSelect()'s normal option list since it only ever
+    // applies during this transient state.
+    var creatingOpt = sel.querySelector('option[value="__creating__"]');
+    if (!creatingOpt) {
+      creatingOpt = document.createElement('option');
+      creatingOpt.value = '__creating__';
+      creatingOpt.textContent = '--creating--';
+      sel.insertBefore(creatingOpt, sel.firstChild);
+    }
+    sel.value = '__creating__';
+    return;
+  }
   var wrap = sel.closest('.eg-version-selector');
   if (tabKey === 'versions' || tabKey === 'meta') {
     // Neither Versions List nor Metadata "belongs" to any one version, so
@@ -9063,6 +9797,8 @@ function syncVersionSelectorForTab(tabKey) {
     // actually displaying.
     var naOpt2b = sel.querySelector('option[value="__na__"]');
     if (naOpt2b) naOpt2b.remove();
+    var creatingOpt2b = sel.querySelector('option[value="__creating__"]');
+    if (creatingOpt2b) creatingOpt2b.remove();
     if (tabKey === 'versions') {
       // Versions List IS what "View All" means, so show that option
       // selected (it already exists in the list — see loadVersionsForSelect()
@@ -9098,6 +9834,8 @@ function syncVersionSelectorForTab(tabKey) {
     if (naOpt3) naOpt3.remove();
     var unsetOpt2 = sel.querySelector('option[value="__unset__"]');
     if (unsetOpt2) unsetOpt2.remove();
+    var creatingOpt3 = sel.querySelector('option[value="__creating__"]');
+    if (creatingOpt3) creatingOpt3.remove();
     // Reflect whatever version is actually currently selected
     // (_resSelectedVersionId — a plain JS var, only ever updated by
     // onVersionSelectChangeReal()) rather than trying to "restore" a
@@ -9193,13 +9931,32 @@ function buildDocInfoPillsHtml(data, editable) {
 
 // Same two-tone key/value pill idiom as docKeyValPillHtml(), but with the
 // value rendered as a small inline text input instead of plain text — used
-// by buildDocInfoPillsHtml() for the Content-Type/Format pills while the
-// document is being edited. oninput wires straight to docPillFieldChange()
-// (see there for dirty-tracking/Save-Undo button sync).
-function docEditableKeyValPillHtml(key, inputId, val) {
+// by buildDocInfoPillsHtml() for the Content-Type/Format pills while an
+// EXISTING document is being edited (oninput wires to docPillFieldChange()
+// by default — see there for dirty-tracking/Save-Undo button sync), and by
+// buildAddDocInfoPillsHtml() for the create-form's own Content-Type/Format
+// pills (oninputJs overridden to call addNewFieldChange() instead, since
+// create has no separate dirty-tracking session — see plan.md "Add Version
+// reuses the Resource page's own tabs").
+function docEditableKeyValPillHtml(key, inputId, val, oninputJs) {
+  var handler = oninputJs || ('docPillFieldChange(\'' + inputId + '\', this.value)');
   return '<span class="eg-label-pair"><span class="eg-label-key">' + esc(key) + '</span>'
        + '<input type="text" class="eg-label-val eg-mono eg-doc-pill-input" id="' + esc(inputId) + '" value="' + esc(val)
-       + '" oninput="docPillFieldChange(\'' + inputId + '\', this.value)"></span>';
+       + '" oninput="' + esc(handler) + '"></span>';
+}
+
+// The create-form's own Content-Type/Format pills (Document tab) — same
+// visual idiom as an existing document's editable pills, but backed by
+// _addNewData (via addNewFieldChange()) instead of the edit-mode
+// _docEditContentType/_docEditFormat globals, since create has its own
+// separate working-copy object with no "dirty" concept of its own (see
+// isAddNewFormDirty()). Shared by buildAddEntityFormHtml() (Add Resource/
+// Add Group) and renderAddVersionTabbedPanels() (Add Version).
+function buildAddDocInfoPillsHtml() {
+  var pills = [];
+  pills.push('<span class="eg-doc-pill-item">' + docEditableKeyValPillHtml('Content-Type', 'addNewCtInput', _addNewData.contenttype || '', "addNewFieldChange('contenttype', this)") + '</span>');
+  pills.push('<span class="eg-doc-pill-item">' + docEditableKeyValPillHtml('Format', 'addNewFormatInput', _addNewData.format || '', "addNewFieldChange('format', this)") + '</span>');
+  return '<div class="eg-doc-pills">' + pills.join('') + '</div>';
 }
 
 // Lazily (re)initializes the Document tab's Content-Type/Format working
@@ -9413,6 +10170,10 @@ function loadDocumentPreview() {
   var canEditDoc = metaEditableNow() && !!docTargetURL;
 
   function openTabBtn(url) {
+    // Not shown while editing (canEditDoc) — opening the raw document in a
+    // new tab doesn't make sense once there's an in-progress edit session
+    // for it here.
+    if (canEditDoc) return '';
     return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="eg-link-btn">Open in new tab</a></div>' : '';
   }
   // Initializes/refreshes the shared Document-content widget (see
@@ -9529,14 +10290,38 @@ function buildCombinedDocDataActionBarHtml() {
   var deleteVersionBtnHtml = isVersionScoped
     ? ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete Version (' + esc(_verEditVid || '') + ')</button>'
     : '';
+  // "+ Add Version" duplicated here too — this combined bar is what's
+  // actually shown (instead of buildDataEditorActionBarHtml()/
+  // buildVersionActionBarHtml()) whenever this resource type has a
+  // document concept (_docSingular set), which is the common case, so the
+  // button needs to live here as well for it to actually show up in
+  // practice — see the matching comment on buildDataEditorActionBarHtml().
+  var verModel = _modelCache[normalizeURL(_state.serverURL || window.location.origin)];
+  var verSingular = capitalize(getSingularName(verModel, (_resPath || _state.path).concat(['versions', '__new__'])) || 'Version');
+  var addVersionHtml = '<button class="cfg-btn cfg-btn-primary" onclick="verTabToggleAddForm()">+ Add ' + esc(verSingular) + '</button> ';
   return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
     + '<div id="docEditorError" class="error-banner" style="display:none"></div>'
     + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
+    + addVersionHtml
     + '<button class="editorBtn" id="dataSavePutBtn" onclick="combinedDocDataSave(\'PUT\')"' + (anyDirty ? '' : ' disabled') + '>Save (full)</button>'
     + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="combinedDocDataSave(\'PATCH\')"' + (anyDirty ? '' : ' disabled') + '>Save (delta)</button>'
     + ' <button class="editorBtn" id="dataUndoBtn" onclick="combinedDocDataUndo()"' + (anyDirty ? '' : ' disabled') + '>Undo</button>'
     + deleteVersionBtnHtml
     + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()">Delete ' + esc(singularLabel) + '</button>'
+    + '</div>';
+}
+
+// Action bar shown in the shared #dataEditorActionBarSlot while the
+// tabbed "Add Version" create form (see verTabToggleAddForm()) has taken
+// over the Document/Version Details/<Type> Details tabs — replaces the
+// normal Save/Undo/Delete bar with Create/Cancel, reusing the exact same
+// slot an existing version's edit session uses (see plan.md "Add Version
+// reuses the Resource page's own tabs").
+function buildAddVersionActionBarHtml() {
+  return '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
+    + '<button class="editorBtn" onclick="verTabSaveNewVersion()">Create</button>'
+    + ' <button class="editorBtn" id="addVerCancelBtn" onclick="verTabCancelAddNew()">Cancel</button>'
     + '</div>';
 }
 
@@ -9552,6 +10337,7 @@ function buildCombinedDocDataActionBarHtml() {
 function buildActionBarForActiveTab(tabKey) {
   var editingNow = _state.editMode && _state.mutable;
   if (!editingNow) return '';
+  if (_verAddingNew) return buildAddVersionActionBarHtml();
   if (tabKey === 'meta') return buildMetaActionBarHtml();
   if (tabKey === 'versions') return '';
   if (tabKey === 'doc' || tabKey === 'defver' || tabKey === 'version') {
@@ -9608,8 +10394,33 @@ function combinedDocDataUndo() {
 }
 
 function docPillFieldChange(inputId, val) {
-  if (inputId === 'docCtInput') _docEditContentType = val;
-  else if (inputId === 'docFormatInput') _docEditFormat = val;
+  if (inputId === 'docCtInput') { _docEditContentType = val; syncDocPillToMetaField('contenttype', val); }
+  else if (inputId === 'docFormatInput') { _docEditFormat = val; syncDocPillToMetaField('format', val); }
+  recomputeDocDirty();
+}
+
+// Content-Type/Format are edited redundantly in two places — the Document
+// tab's info-pills (docCtInput/docFormatInput, this file's
+// _docEditContentType/_docEditFormat) AND as ordinary rows in the Version
+// Details Property table (_dataEditData/_verEditData, via
+// dataEditFieldChange()/verEditFieldChange()) — since both tabs are really
+// editing the same Version entity's attributes. Keep them in sync in both
+// directions so switching tabs always shows the latest edit, regardless of
+// which tab it was made on. No-op when this resource type has no document
+// concept (_docSingular unset) — these two globals aren't meaningful then.
+function syncDocPillToMetaField(k, val) {
+  if (!_docSingular) return;
+  var target = (_dataEditActiveKind === 'version' && _verEditData) ? _verEditData : _dataEditData;
+  if (target) target[k] = val;
+}
+function syncMetaFieldToDocPill(k, val) {
+  if (!_docSingular || (k !== 'contenttype' && k !== 'format')) return;
+  if (k === 'contenttype') _docEditContentType = val; else _docEditFormat = val;
+  // If the Document tab's pill inputs happen to be in the DOM right now
+  // (shouldn't normally be, since only one tab panel is visible at a time,
+  // but cheap to guard for), reflect the new value immediately.
+  var inputEl = document.getElementById(k === 'contenttype' ? 'docCtInput' : 'docFormatInput');
+  if (inputEl) inputEl.value = val;
   recomputeDocDirty();
 }
 
@@ -9637,6 +10448,11 @@ function recomputeDocDirty() {
   // buildCombinedDocDataActionBarHtml()) — simplest to just rebuild the
   // whole slot in place rather than juggle individual button ids here.
   refreshCombinedBarSlot();
+  // Switching modes (e.g. Text -> Base64) replaces the textarea with a
+  // fresh DOM element that has no inline height set, so it falls back to
+  // .eg-doc-textarea's CSS min-height instead of filling the viewport —
+  // re-run the sizing pass so it keeps stretching to the bottom.
+  sizeDocTextarea();
 }
 
 // Reverts the Document tab's widget AND its Content-Type/Format pill
