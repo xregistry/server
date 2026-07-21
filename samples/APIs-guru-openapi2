@@ -4,7 +4,7 @@ set -e
 
 # This will upload all openapi docs in github.com/APIs-guru/openapi-directory
 # 
-# Start xReg:      docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
+# Start xRegistry: docker run -ti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 # Point to it:     set XR_SERVER=localhost:8080
 # Run this script: ./APIs-guru-openapi
 

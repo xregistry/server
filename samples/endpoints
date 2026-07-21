@@ -5,7 +5,7 @@
 # https://github.com/xregistry/server/releases/tag/dev
 
 # Start a new xRegistry server, if you don't have one already running
-docker run --name xreg -dti -p 8080:8080 ghcr.io/xregistry/xrserver-all
+docker run --name xrserver -dti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 
 # Point to this server
 XR_SERVER=localhost:8080
@@ -21,4 +21,4 @@ xr model update -d @https://raw.githubusercontent.com/xregistry/spec/refs/heads/
 xr import -d @https://raw.githubusercontent.com/xregistry/spec/refs/heads/main/cloudevents/samples/scenarios/contoso-erp-jsons07.xreg.json
 
 # Then go to: http://localhost:8080?ui to explore
-# Or stop and delete the server: docker rm -f xreg
+# Or stop and delete the server: docker rm -f xrserver
