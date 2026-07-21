@@ -2,6 +2,7 @@ package tests
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -4809,12 +4810,12 @@ func TestHTTPShortSelf(t *testing.T) {
       }
     }`, 200, "*")
 
-	res := XHTTP(t, reg, "PUT", "/reg-"+rName+"/dirs/d1/files/f1/versions/v1$details", `{}`,
+	res := XHTTP(t, reg, "PUT", "/reg-"+rName+"/dirs/d1/files/f1/versions/v1$details", `{"file":"hello world","contenttype":null}`,
 		201, `{
   "fileid": "f1",
   "versionid": "v1",
   "self": "http://localhost:8181/reg-`+rName+`/dirs/d1/files/f1/versions/v1$details",
-  "shortself": "http://localhost:8181/r/2835eb5c12$",
+  "shortself": "http://localhost:8181/r/2835eb5c12",
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
   "isdefault": true,
@@ -4827,7 +4828,8 @@ func TestHTTPShortSelf(t *testing.T) {
 	daMap := res.ToMap()
 	oldBody := res.body
 	ss := daMap["shortself"].(string)
-	XHTTP(t, reg, "GET", ss, ``, 200, oldBody)
+	XHTTP(t, reg, "GET", ss+"$details", ``, 200, oldBody)
+	XHTTP(t, reg, "GET", ss, ``, 200, "hello world")
 
 	for _, daURL := range []string{
 		"/",
@@ -4838,6 +4840,9 @@ func TestHTTPShortSelf(t *testing.T) {
 	} {
 		res = XHTTP(t, reg, "GET", "/reg-"+rName+daURL, ``, 200, `*`)
 		ss := res.ToMap()["shortself"].(string)
+		if strings.Contains(daURL, "$details") {
+			ss += "$details"
+		}
 		t.Logf("%q -> %q", res.ToMap()["self"].(string), ss)
 		XHTTP(t, reg, "GET", ss, ``, 200, res.body)
 
@@ -4857,6 +4862,42 @@ func TestHTTPShortSelf(t *testing.T) {
 		// Get $details version to check against
 		res = XHTTP(t, reg, "GET", "/reg-"+rName+daURL+"$details", ``, 200, `*`)
 
-		XHTTP(t, reg, "GET", ss+"$", ``, 200, res.body)
+		XHTTP(t, reg, "GET", ss+"$details", ``, 200, res.body)
 	}
+
+	// Make sure query params still work
+	res = XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", "", 200, "*")
+	ss = res.ToMap()["shortself"].(string)
+	XHTTP(t, reg, "GET", ss+"$details?inline=meta", "", 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/reg-TestHTTPShortSelf/dirs/d1/files/f1$details",
+  "shortself": "http://localhost:8181/r/843008bf10",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2026-07-21T18:20:58.654241468Z",
+  "modifiedat": "2026-07-21T18:20:58.868468663Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/reg-TestHTTPShortSelf/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/reg-TestHTTPShortSelf/dirs/d1/files/f1/meta",
+    "shortself": "http://localhost:8181/r/88a9e32f11",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2026-07-21T18:20:58.654241468Z",
+    "modifiedat": "2026-07-21T18:20:58.911011162Z",
+    "readonly": false,
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/reg-TestHTTPShortSelf/dirs/d1/files/f1/versions/v1$details",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/reg-TestHTTPShortSelf/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
 }
