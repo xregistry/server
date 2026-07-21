@@ -489,7 +489,7 @@ CREATE TABLE FullTreeTable (
   PropValue  MEDIUMTEXT NULL, # VARCHAR($MAX_VARCHAR),
   PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
-  DocView    BIGINT NOT NULL,
+  DocView    BOOL NOT NULL,
 
   PRIMARY KEY(RegSID, Path, PropName)
   # UNIQUE INDEX(RegSID, eSID, PropName)
