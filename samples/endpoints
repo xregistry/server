@@ -5,7 +5,7 @@
 # https://github.com/xregistry/server/releases/tag/dev
 
 # Start a new xRegistry server, if you don't have one already running
-docker run --name xreg -dti -p 8080:8080 ghcr.io/xregistry/xreg-server-all
+docker run --name xreg -dti -p 8080:8080 ghcr.io/xregistry/xrserver-all
 
 # Point to this server
 XR_SERVER=localhost:8080
