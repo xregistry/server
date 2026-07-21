@@ -2677,12 +2677,9 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 		return nil
 	}
 
-	hasDetails := false
-	ss := path[3:]
-	l := len(ss)
-	if l > 1 && ss[l-1] == '$' { // must be at least one char + "$"
-		ss = ss[:l-1]
-		hasDetails = true
+	ss, suffix, ok := strings.Cut(path[3:], "$")
+	if ok {
+		suffix = "$" + suffix
 	}
 
 	query := fmt.Sprintf(`
@@ -2698,10 +2695,9 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 	if row != nil {
 		// found it!
 		regName := string((*(row[0])).([]byte))
-		newPath := "/reg-" + regName + "/" + string((*(row[1])).([]byte))
-		if hasDetails {
-			newPath += "$details"
-		}
+		newPath := "/reg-" + regName + "/" +
+			string((*(row[1])).([]byte)) + suffix
+
 		log.KPrintf("ShortSelf", "Redirect: %q -> %q", path, newPath)
 
 		req.URL.Path = newPath

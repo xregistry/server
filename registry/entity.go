@@ -1150,23 +1150,7 @@ var PropsFuncs = []*Attribute{
 					base = info.OriginalBaseURL
 				}
 
-				shortself := e.DbSID // MD5(path)
-
-				if e.Type == ENTITY_RESOURCE || e.Type == ENTITY_VERSION {
-					meta := info != nil && (info.ShowDetails ||
-						info.DoDocView() ||
-						info.ResourceUID == "" || len(info.Parts) == 5)
-
-					if e.GetResourceModel().GetHasDocument() == false {
-						meta = false
-					}
-
-					if meta {
-						shortself += "$"
-					}
-				}
-
-				return base + "/r/" + shortself
+				return base + "/r/" + e.DbSID
 			},
 		},
 	},
