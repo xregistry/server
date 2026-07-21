@@ -6951,3 +6951,61 @@ the full categorized view (with category headers) when xR mode is on;
 toggling xR mode mid-edit; (e) the "Show/Hide xReg Data" toolbar
 icon/menu entry is now available while `_state.editMode` is true.
 Not yet committed — pending @duglin's own manual confirmation.
+
+---
+
+## Document-content widget + Add-Resource/Version tab layout + Doc/Details edit merge
+
+**Problem**: The "Add Version"/"Add Resource" create forms exposed the
+document content as plain generic text inputs (`<resource>`,
+`<resource>base64`, `<resource>url`, `<resource>proxyurl` — e.g.
+`file`/`filebase64`/`fileurl`/`fileproxyurl`) and incorrectly offered
+`<resourceSingular>id` (e.g. `fileid`) as an editable field even though
+it's implied by the URL path. Separately, editing an existing Version's
+Document tab and Version Details tab were two independent edit sessions
+(own dirty flag, own Save/Undo bar each) — switching between them
+triggered an unnecessary "unsaved changes" warning even though they're
+just two views of the same Version entity.
+
+**Fix — three parts**:
+1. **Shared Document-content widget** (`buildDocContentWidgetHtml()`,
+   `_docWidgets` state module in app.js ~3966-4140): one control with a
+   mode selector — Text / Base64 / Upload File / External URL — swapping
+   the input below between a textarea, a base64-textarea, a file picker
+   (auto-reads+encodes via `FileReader`), and a URL text box + "Proxy
+   this URL through the server" checkbox. Used in both the create-form
+   Document tab and the edit-mode Document tab.
+2. **Create flow reuses the edit-mode tab layout**: Add Resource/Add
+   Version now render the same Document/Version-Details/`<Type>` Details
+   tab bar as editing does, with the Version selector omitted and the
+   `<Type>` Details tab (Meta) disabled ("Not available until created").
+   Defaults to the Details tab (ID field first). `<resourceSingular>id`
+   and the raw `<resource>*` scalar rows are removed from the Details
+   table — content is exclusively entered via the Document tab's widget.
+   A single "Create" action merges the Details tab's working data with
+   the widget's content (`<resource>base64` for Text/Base64/Upload
+   modes, `<resource>url`/`<resource>proxyurl` for External URL mode)
+   into ONE `PUT .../<id>$details` call — no more two-step
+   create-then-PUT-document.
+3. **Doc/Version-Details editing merge**: for resource types with
+   `hasdocument === true`, the Document and Version-Details/Details tabs
+   now share one combined Save(full)/Save(delta)/Undo/Delete action bar
+   (`buildCombinedDocDataActionBarHtml()`, dispatched via
+   `buildActionBarForActiveTab()`). Save fires the metadata call then
+   the document call (only if each half is actually dirty); Undo reverts
+   both. Switching between Document and Version-Details/Details no
+   longer shows the "unsaved changes" dialog — that warning still fires
+   correctly when leaving for Meta, Versions List, a different version,
+   or the page itself (unchanged). Resource types without a document
+   concept are unaffected (still use the old separate bars).
+
+**Status**: Implemented and CDP-verified against an isolated test
+server (port 8099, db `docwidgettest1`): confirmed the create-form's
+tabbed layout (no `fileid`, no raw resource-content rows, Details tab
+first, Meta disabled, Version selector absent), a single PUT correctly
+creating both metadata (including required fields like `format`) and
+document content together, and the edit-mode merge (no warning
+doc↔defver, warning still shown doc→meta, Undo/Save both correctly
+reverting/persisting both halves). CSS added for the new
+`.eg-docwidget*` classes. Not yet committed — pending @duglin's own
+manual confirmation.

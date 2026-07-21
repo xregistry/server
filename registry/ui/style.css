@@ -2679,6 +2679,25 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
      vertical space down to the "Open in new tab" link, without pushing
      that link below the visible viewport. */
 }
+/* Shared Document-content widget (buildDocContentWidgetHtml()) — mode
+   selector (Text/Base64/Upload File/External URL) + the input matching
+   the current mode. Used on: create-form Document tab, edit-mode
+   Document tab. */
+.eg-docwidget { margin-top: 4px; }
+.eg-docwidget-modes {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px;
+}
+.eg-docwidget-mode-label {
+  font-size: 13px; font-weight: normal; color: #333; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.eg-docwidget-body { }
+.eg-docwidget-file-info { font-size: 12px; color: #666; margin-top: 6px; }
+.eg-docwidget-file-info-empty { font-style: italic; }
+.eg-docwidget-proxy-label {
+  display: block; font-size: 12px; color: #444; margin-top: 8px;
+  cursor: pointer;
+}
 .eg-doc-preview-actions { margin-top: 8px; }
 .eg-doc-binary-msg { color: #666; font-style: italic; padding: 10px 0; }
 .eg-doc-error-msg { color: #c00; font-family: monospace; font-size: 12px; padding: 10px 0; }

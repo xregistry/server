@@ -2525,9 +2525,16 @@ var _docActiveVersionData = null; // entity JSON currently backing the Document 
 // _dataEditData/_verEditData (which only ever cover top-level scalar
 // attributes) since the document body is raw text/bytes, not a JSON
 // object to diff key-by-key.
-var _docEditDirty = false;     // whether the textarea's content differs from _docEditOriginalText
-var _docEditOriginalText = ''; // pristine document text, as last fetched/saved
-var _docEditText = '';         // current (possibly unsaved) textarea content
+// Document tab now uses the shared Document-content widget (id
+// 'egDocEdit', see buildDocContentWidgetHtml()) for its editable body, so
+// the working copy itself lives in _docWidgets['egDocEdit'] — these track
+// just the widget's PRISTINE snapshot (as last fetched/saved) so
+// recomputeDocDirty() can detect changes across all 4 modes.
+var _docEditDirty = false;        // whether the widget's content/mode differs from pristine
+var _docEditOriginalMode = 'text'; // pristine widget mode ('text'|'base64'|'upload'|'url')
+var _docEditOriginalB64 = '';     // pristine content, base64-encoded (text/base64/upload modes)
+var _docEditOriginalUrl = '';     // pristine URL (url mode only)
+var _docEditOriginalProxy = false; // pristine "proxy" checkbox state (url mode only)
 var _docEditURL = '';          // PUT target — the entity's own plain URL ($details stripped)
 var _docEditContentType = '';  // Content-Type header to PUT with (falls back to text/plain)
 var _docEditContentTypeOriginal = ''; // pristine Content-Type, as last fetched/saved
@@ -3959,9 +3966,199 @@ function modelAttrsMapForPath(model, path) {
 // (_lastData there is the Resource's own data, not a collection).
 var _addNewRerender = null;
 
+// ---- Shared "Document content" widget --------------------------------------
+//
+// Replaces the old plain-text rows for <resource>/<resource>base64/
+// <resource>url/<resource>proxyurl (a poor way to enter a document body)
+// with one control offering four entry modes: Text (raw textarea), Base64
+// (textarea interpreted as already-base64-encoded), Upload File (reads a
+// local file's bytes), and External URL (+ a "Proxy" checkbox choosing
+// between <resource>url and <resource>proxyurl). Used by the "Add
+// Resource"/"Add Version" create form (see buildAddEntityFormHtml()) and,
+// in edit mode, the Document tab (see loadDocumentPreview()) — one shared
+// implementation, different save-wiring underneath (merged into the single
+// create PUT as base64 vs. edit's own raw-body PUT).
+//
+// State lives in _docWidgets[idPrefix], keyed by a caller-chosen unique DOM
+// id prefix (so multiple instances — e.g. a future split view — could
+// coexist, though today only one is ever on screen at a time).
+var _docWidgets = {};
+
+function initDocWidgetState(idPrefix, opts) {
+  _docWidgets[idPrefix] = {
+    mode: (opts && opts.mode) || 'text',
+    text: (opts && opts.text) || '',
+    base64Text: (opts && opts.base64Text) || '',
+    url: (opts && opts.url) || '',
+    proxy: !!(opts && opts.proxy),
+    fileBytes: null, fileName: '', fileType: '',
+    onChange: (opts && opts.onChange) || null
+  };
+}
+
+function buildDocWidgetModesHtml(idPrefix, st) {
+  var modes = [['text', 'Text'], ['base64', 'Base64'], ['upload', 'Upload File'], ['url', 'External URL']];
+  return '<div class="eg-docwidget-modes">' + modes.map(function(m) {
+    return '<label class="eg-docwidget-mode-label"><input type="radio" name="' + esc(idPrefix) + '-mode" value="' + m[0] + '"'
+      + (st.mode === m[0] ? ' checked' : '') + ' onchange="docWidgetModeChange(\'' + esc(idPrefix) + '\',\'' + m[0] + '\')"> ' + esc(m[1]) + '</label>';
+  }).join('') + '</div>';
+}
+
+function buildDocWidgetBodyHtml(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  if (!st) return '';
+  if (st.mode === 'text') {
+    return '<textarea class="eg-doc-textarea eg-docwidget-textarea" placeholder="Type or paste document content\u2026" '
+      + 'oninput="docWidgetTextInput(\'' + esc(idPrefix) + '\', this.value)">' + esc(st.text) + '</textarea>';
+  }
+  if (st.mode === 'base64') {
+    return '<textarea class="eg-doc-textarea eg-docwidget-textarea" placeholder="Paste base64-encoded content\u2026" '
+      + 'oninput="docWidgetBase64Input(\'' + esc(idPrefix) + '\', this.value)">' + esc(st.base64Text) + '</textarea>';
+  }
+  if (st.mode === 'upload') {
+    var infoHtml = st.fileName
+      ? '<div class="eg-docwidget-file-info">Selected: ' + esc(st.fileName) + ' (' + esc(String(st.fileBytes ? st.fileBytes.length : 0)) + ' bytes)</div>'
+      : '<div class="eg-docwidget-file-info eg-docwidget-file-info-empty">No file selected.</div>';
+    return '<input type="file" onchange="docWidgetFileChange(\'' + esc(idPrefix) + '\', this)">' + infoHtml;
+  }
+  // 'url' mode
+  return '<input type="text" class="xr-edit-input" value="' + esc(st.url) + '" placeholder="https://\u2026" '
+    + 'oninput="docWidgetUrlInput(\'' + esc(idPrefix) + '\', this.value)">'
+    + '<label class="eg-docwidget-proxy-label"><input type="checkbox"' + (st.proxy ? ' checked' : '')
+    + ' onchange="docWidgetProxyToggle(\'' + esc(idPrefix) + '\', this.checked)"> Proxy this URL through the server</label>';
+}
+
+// Builds the full widget (mode selector + current mode's input). `opts`:
+//   mode, text, base64Text, url, proxy — initial values (see
+//   initDocWidgetState()); onChange(state) — fired after any edit.
+function buildDocContentWidgetHtml(idPrefix, opts) {
+  initDocWidgetState(idPrefix, opts);
+  return '<div class="eg-docwidget" id="' + esc(idPrefix) + '-docwidget">'
+    + buildDocWidgetModesHtml(idPrefix, _docWidgets[idPrefix])
+    + '<div class="eg-docwidget-body" id="' + esc(idPrefix) + '-docwidget-body">' + buildDocWidgetBodyHtml(idPrefix) + '</div>'
+    + '</div>';
+}
+
+function docWidgetModeChange(idPrefix, mode) {
+  var st = _docWidgets[idPrefix];
+  if (!st) return;
+  st.mode = mode;
+  var body = document.getElementById(idPrefix + '-docwidget-body');
+  if (body) body.innerHTML = buildDocWidgetBodyHtml(idPrefix);
+  if (st.onChange) st.onChange(st);
+}
+function docWidgetTextInput(idPrefix, val) {
+  var st = _docWidgets[idPrefix]; if (!st) return;
+  st.text = val;
+  if (st.onChange) st.onChange(st);
+}
+function docWidgetBase64Input(idPrefix, val) {
+  var st = _docWidgets[idPrefix]; if (!st) return;
+  st.base64Text = val;
+  if (st.onChange) st.onChange(st);
+}
+function docWidgetUrlInput(idPrefix, val) {
+  var st = _docWidgets[idPrefix]; if (!st) return;
+  st.url = val;
+  if (st.onChange) st.onChange(st);
+}
+function docWidgetProxyToggle(idPrefix, checked) {
+  var st = _docWidgets[idPrefix]; if (!st) return;
+  st.proxy = checked;
+  if (st.onChange) st.onChange(st);
+}
+function docWidgetFileChange(idPrefix, inputEl) {
+  var st = _docWidgets[idPrefix]; if (!st) return;
+  var file = inputEl.files && inputEl.files[0];
+  if (!file) { st.fileBytes = null; st.fileName = ''; st.fileType = ''; return; }
+  var reader = new FileReader();
+  reader.onload = function() {
+    st.fileBytes = new Uint8Array(reader.result);
+    st.fileName = file.name;
+    st.fileType = file.type || '';
+    var body = document.getElementById(idPrefix + '-docwidget-body');
+    if (body) body.innerHTML = buildDocWidgetBodyHtml(idPrefix);
+    if (st.onChange) st.onChange(st);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ---- Byte-level helpers shared by create's single-PUT base64 merge and
+// edit's raw-body PUT save paths.
+function bytesToBase64(bytes) {
+  var binary = '', chunk = 0x8000;
+  for (var i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+  }
+  return btoa(binary);
+}
+function base64ToBytes(b64) {
+  var binary = atob(b64);
+  var bytes = new Uint8Array(binary.length);
+  for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+function utf8ToBytes(str) {
+  return new TextEncoder().encode(str);
+}
+
+// Returns the widget's current content as raw bytes (Uint8Array), or null
+// if it's in 'url' mode (no inline content) or nothing's been typed/
+// uploaded yet.
+function docWidgetGetBytes(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  if (!st) return null;
+  if (st.mode === 'text') return st.text ? utf8ToBytes(st.text) : null;
+  if (st.mode === 'base64') {
+    if (!st.base64Text || !st.base64Text.trim()) return null;
+    try { return base64ToBytes(st.base64Text.replace(/\s+/g, '')); }
+    catch (e) { return null; }
+  }
+  if (st.mode === 'upload') return st.fileBytes || null;
+  return null; // 'url' mode has no inline bytes
+}
+function docWidgetGetBase64(idPrefix) {
+  var bytes = docWidgetGetBytes(idPrefix);
+  return bytes ? bytesToBase64(bytes) : null;
+}
+function docWidgetHasContent(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  if (!st) return false;
+  if (st.mode === 'url') return !!(st.url && st.url.trim());
+  return docWidgetGetBytes(idPrefix) !== null;
+}
+function docWidgetGetMode(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  return st ? st.mode : null;
+}
+function docWidgetGetUrl(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  return st ? (st.url || '') : '';
+}
+function docWidgetGetProxy(idPrefix) {
+  var st = _docWidgets[idPrefix];
+  return st ? !!st.proxy : false;
+}
+function clearDocWidgetState(idPrefix) {
+  delete _docWidgets[idPrefix];
+}
+
+// Which entity-type's create form is currently open (see
+// buildAddEntityFormHtml()): resourceSingular (for the Document tab's
+// widget field names), the Document widget's DOM id (null when this
+// entity type has no document concept), and the currently-active tab —
+// mirror the equivalent per-page globals edit mode uses (_docSingular,
+// _dataEditActiveKind, _state.docTab).
+var _addNewResourceSingular = null;
+var _addNewDocWidgetId = null;
+var _addNewActiveTab = 'details';
+
 function toggleAddEntityForm() {
   _addNewOpen = !_addNewOpen;
-  if (!_addNewOpen) _addNewData = {};
+  if (!_addNewOpen) {
+    _addNewData = {};
+    if (_addNewDocWidgetId) clearDocWidgetState(_addNewDocWidgetId);
+  }
   _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
 }
@@ -3969,6 +4166,7 @@ function toggleAddEntityForm() {
 function cancelAddEntity() {
   _addNewOpen = false;
   _addNewData = {};
+  if (_addNewDocWidgetId) clearDocWidgetState(_addNewDocWidgetId);
   _addNewRerender = null;
   if (_lastData) renderTableView(_lastData);
 }
@@ -3981,11 +4179,31 @@ function cancelAddEntity() {
 // extension attribute inputs (see addNewFieldChange()) — the required ID
 // input has no onchange handler and is only read live from the DOM at
 // save time (see saveNewEntity()), so it must be checked separately here.
+// The Document tab's widget (see buildAddEntityFormHtml()) is a third,
+// independent source of in-progress content that also needs checking.
 function isAddNewFormDirty() {
   if (!_addNewOpen) return false;
   if (Object.keys(_addNewData).length > 0) return true;
+  if (_addNewDocWidgetId && docWidgetHasContent(_addNewDocWidgetId)) return true;
   var idInput = document.getElementById('addNewIdInput');
   return !!(idInput && idInput.value && idInput.value.trim());
+}
+
+// Toggle the create form's own Document/Details tab (see
+// buildAddEntityFormHtml()) — a small scoped version of switchDocTab()/
+// switchDocTabReal() since the create form has no per-tab dirty-guard
+// concerns (nothing has been saved yet either way) and no Meta/Versions-
+// List tabs to coordinate with.
+function addNewSwitchTab(tabKey) {
+  var panel = document.querySelector('.xr-add-entity-panel');
+  if (!panel) return;
+  panel.querySelectorAll('.eg-doc-tab').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tabKey);
+  });
+  panel.querySelectorAll('.eg-doc-tab-panel').forEach(function(p) {
+    p.style.display = (p.getAttribute('data-tab') === tabKey) ? '' : 'none';
+  });
+  _addNewActiveTab = tabKey;
 }
 
 // onchange handler for every input in the Add form — mirrors
@@ -4047,6 +4265,16 @@ function buildAddEntityToolbarHtml(model) {
     + '</div></div>';
 }
 
+// Builds the blank "Add new <Singular>" panel's content — reuses the same
+// Document/Details tab layout edit mode shows for an existing Resource/
+// Version (see renderSingleEntity()'s tabDefs), for visual consistency
+// between "create" and "edit", but simplified for the fact that nothing
+// exists yet: no Version dropdown (nothing to pick), and the Meta tab (a
+// Resource-level sub-resource that doesn't exist until this entity is
+// created) is shown disabled/grayed rather than omitted, so the tab row's
+// shape doesn't shift once the entity actually exists and Meta becomes
+// real. Defaults to the Details tab (not Document) so the required ID
+// field is front-and-center — see addNewSwitchTab().
 function buildAddEntityFormHtml(model, collPath) {
   var entityPath = collPath.concat(['__new__']);
   var singular   = (getSingularName(model, entityPath) || 'entity').toLowerCase();
@@ -4057,6 +4285,7 @@ function buildAddEntityFormHtml(model, collPath) {
   var resourceSingular = (depth === 4) ? singular
     : (depth >= 6 && model) ? (getSingularName(model, entityPath.slice(0, 4)) || '').toLowerCase()
     : null;
+  var hasDoc = resourceHasDocument(model, collPath);
 
   function propRow(label, inputHtml) {
     return '<tr><td style="font-weight:bold;color:#444;width:200px">' + esc(label) + '</td><td>' + inputHtml + '</td></tr>';
@@ -4074,15 +4303,31 @@ function buildAddEntityFormHtml(model, collPath) {
   // spec attrs like createdat/modifiedat that are legitimately settable at
   // creation time) — exclude the dedicated ID field, name/description/
   // documentation/icon (already rendered above, would otherwise duplicate),
-  // complex types (object/array/map, not editable here), and anything the
+  // complex types (object/array/map, not editable here), anything the
   // model marks readonly (server-computed: self/shortself/xid/epoch/etc, or
-  // a <plural>url/<plural>count sub-collection pair) since those can never
-  // be set by the client. Ordered the same way View mode's Property table
-  // orders its rows (see orderPropKeysFlat()), instead of a flat
-  // alphabetical sort, so this form reads in the same familiar order.
+  // a <plural>url/<plural>count sub-collection pair), and the resource-
+  // content fields (<resource>/<resource>base64/<resource>url/
+  // <resource>proxyurl, plus the owning Resource's own identity field
+  // <resourceSingular>id e.g. "fileid" on a Version) — those are handled
+  // by the dedicated Document tab's widget instead of a generic row here
+  // (see buildDocContentWidgetHtml()/saveNewEntity()), and
+  // <resourceSingular>id specifically is implied by the URL path and never
+  // independently settable, matching isDataEditReadOnly()'s existing
+  // exclusion of that same key in the view/edit property table. Ordered
+  // the same way View mode's Property table orders its rows (see
+  // orderPropKeysFlat()), instead of a flat alphabetical sort, so this
+  // form reads in the same familiar order.
   var alreadyShown = {name: true, description: true, documentation: true, icon: true};
+  var resourceFieldNames = {};
+  if (resourceSingular) {
+    resourceFieldNames[resourceSingular] = true;
+    resourceFieldNames[resourceSingular + 'url'] = true;
+    resourceFieldNames[resourceSingular + 'base64'] = true;
+    resourceFieldNames[resourceSingular + 'proxyurl'] = true;
+    if (resourceSingular !== singular) resourceFieldNames[resourceSingular + 'id'] = true;
+  }
   var scalarKeys = Object.keys(attrsMap).filter(function(k) {
-    if (k === '*' || k === idKey || alreadyShown[k]) return false;
+    if (k === '*' || k === idKey || alreadyShown[k] || resourceFieldNames[k]) return false;
     var attr = attrsMap[k];
     if (!attr || attr.type === 'object' || attr.type === 'array' || attr.type === 'map') return false;
     if (attr.readonly) return false;
@@ -4095,30 +4340,56 @@ function buildAddEntityFormHtml(model, collPath) {
       renderEditableScalarInput(k, val, attr, 'addNewFieldChange'));
   });
 
-  // Error banner sits at the top of the panel (right below the Create/
-  // Cancel buttons in buildAddEntityToolbarHtml(), which is rendered just
-  // before this) rather than below the property table, so a Create-time
-  // error is immediately visible without scrolling past the whole form.
-  var html = '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
-    + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
-    + '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Details') + '</th><th></th></tr></thead><tbody>'
+  var detailsTableHtml = '<table class="xr-table xr-table-props"><thead><tr><th>' + esc(capitalize(singular) + ' Details') + '</th><th></th></tr></thead><tbody>'
     + propRow(capitalize(singular) + ' ID *', '<input type="text" id="addNewIdInput" class="xr-edit-input" required>')
     + rowsHtml;
   if (attrsMap['*']) {
-    html += propRow('+ Add Extension',
+    detailsTableHtml += propRow('+ Add Extension',
       '<input type="text" id="addNewExtName" class="xr-edit-input" placeholder="name" style="width:140px">'
       + ' ' + renderExtTypeValueWidgetHtml('addNewExtType', 'addNewExtVal')
       + ' <button class="editorBtn editorBtnSmall" onclick="addNewEntityAddExtension()">Add</button>');
   }
-  html += '</tbody></table>'
+  detailsTableHtml += '</tbody></table>';
+
+  _addNewResourceSingular = resourceSingular;
+  _addNewDocWidgetId = hasDoc ? 'addNewDoc' : null;
+  _addNewActiveTab = 'details';
+
+  var tabBtns = '';
+  var panels = '';
+  if (hasDoc) {
+    tabBtns += '<button class="eg-doc-tab" data-tab="document" onclick="addNewSwitchTab(\'document\')">Document</button>';
+    panels += '<div class="eg-doc-tab-panel" data-tab="document" style="display:none">'
+      + buildDocContentWidgetHtml('addNewDoc', {})
+      + '</div>';
+  }
+  tabBtns += '<button class="eg-doc-tab active" data-tab="details" onclick="addNewSwitchTab(\'details\')">Version Details</button>';
+  panels += '<div class="eg-doc-tab-panel" data-tab="details">' + detailsTableHtml + '</div>';
+  // Disabled placeholder for the Meta tab — mirrors renderSingleEntity()'s
+  // capType + ' Details' label for the same concept in edit mode, but this
+  // one is never clickable since the Resource's meta sub-resource doesn't
+  // exist until the entity itself is created.
+  tabBtns += '<button class="eg-doc-tab" disabled title="Not available until created">'
+    + esc(capitalize(resourceSingular || singular)) + ' Details</button>';
+
+  // Error banner sits at the top of the panel (right below the Create/
+  // Cancel buttons in buildAddEntityToolbarHtml(), which is rendered just
+  // before this) rather than below the property table, so a Create-time
+  // error is immediately visible without scrolling past the whole form.
+  return '<div class="xr-add-entity-panel" style="margin-bottom:16px">'
+    + '<div id="addNewEntityError" class="error-banner" style="display:none"></div>'
+    + '<div class="eg-doc-tabs">' + tabBtns + '</div>'
+    + panels
     + '</div>';
-  return html;
 }
 
 // Creates the new entity via PUT to <collection URL>/<id>, then refreshes
 // the collection page (a plain refresh() re-fetch — simplest way to pick
 // up the new row with correctly server-computed fields like self/xid/
-// createdat, same approach used elsewhere after a mutation).
+// createdat, same approach used elsewhere after a mutation). Document
+// content from the Document tab's widget (see buildAddEntityFormHtml()),
+// if any, is merged directly into this same body so metadata + document
+// are created together in ONE call — no separate follow-up PUT needed.
 function saveNewEntity(cb) {
   var errDiv = document.getElementById('addNewEntityError');
   if (errDiv) { hideErrorBanner(errDiv); }
@@ -4130,6 +4401,26 @@ function saveNewEntity(cb) {
   }
   var url = buildBaseURL() + '/' + encodeURIComponent(id);
   var body = Object.assign({}, _addNewData);
+
+  // Document content: Text/Base64/Upload File modes are base64-encoded
+  // client-side into <resource>base64 (the widget already holds the exact
+  // bytes in memory, so there's no need for a second raw-body PUT the way
+  // editing an EXISTING entity's Document tab needs); External URL mode
+  // just sets <resource>url or <resource>proxyurl (depending on the
+  // "Proxy" checkbox) as a normal field in this same body.
+  if (_addNewDocWidgetId && _addNewResourceSingular) {
+    var docMode = docWidgetGetMode(_addNewDocWidgetId);
+    if (docMode === 'url') {
+      var docUrl = docWidgetGetUrl(_addNewDocWidgetId);
+      if (docUrl) {
+        if (docWidgetGetProxy(_addNewDocWidgetId)) body[_addNewResourceSingular + 'proxyurl'] = docUrl;
+        else body[_addNewResourceSingular + 'url'] = docUrl;
+      }
+    } else {
+      var docB64 = docWidgetGetBase64(_addNewDocWidgetId);
+      if (docB64 != null) body[_addNewResourceSingular + 'base64'] = docB64;
+    }
+  }
 
   // Resources/Versions treat a plain (non-$details) PUT body as the
   // literal document content when the entity has a document (or as soon
@@ -4163,6 +4454,7 @@ function saveNewEntity(cb) {
       removeOverlay();
       if (resp.ok) {
         _addNewOpen = false; _addNewData = {};
+        if (_addNewDocWidgetId) { clearDocWidgetState(_addNewDocWidgetId); _addNewDocWidgetId = null; }
         invalidateRegistryProbe(_state.serverURL || window.location.origin);
         if (cb) { cb(); } else { refresh(); }
       } else {
@@ -4940,22 +5232,7 @@ function renderSingleEntity(data) {
       // permanently-disabled-until-a-Document-tab-edit) page-level bar.
       _dataEditorActionBarHtml = dataEditorActionBarHtml;
       var initTabKeyForBarD = tabDefs[initActiveIdx] && tabDefs[initActiveIdx].key;
-      var initialActionBarHtml = (initTabKeyForBarD === 'meta' && dataEditingNow)
-        ? buildMetaActionBarHtml()
-        // Versions List has its own "Delete <Singular>" button merged into
-        // its own header row (see renderVersionsTabPanel()) — leave this
-        // shared slot empty rather than show a second, redundant Delete
-        // (and irrelevant Save/Undo, since Versions List has no single
-        // working copy of its own to save).
-        : (initTabKeyForBarD === 'versions') ? ''
-        // Document tab has its own scoped Save/Undo bar too (see
-        // buildDocActionBarHtml()) — without this branch, landing directly
-        // on the Document tab (it's the first/default tab) seeded the
-        // page-level entity bar instead, whose button ids
-        // (dataSavePutBtn/dataUndoBtn) docContentInput() never looks at,
-        // so editing the document never visibly enabled anything.
-        : (initTabKeyForBarD === 'doc' && dataEditingNow) ? buildDocActionBarHtml()
-        : dataEditorActionBarHtml;
+      var initialActionBarHtml = buildActionBarForActiveTab(initTabKeyForBarD);
       html += '<div id="dataEditorActionBarSlot">' + initialActionBarHtml + '</div>';
       tabDefs.forEach(function(t, i) {
         html += '<div class="eg-doc-tab-panel" id="eg-doc-panel-' + esc(t.key) + '" data-tab="' + esc(t.key)
@@ -7630,9 +7907,15 @@ function rerenderVersionPanel() {
   // Refresh the shared action-bar slot too (its Save/Undo buttons' disabled
   // state depends on _verDirty, which just changed) — see
   // onVersionSelectChangeReal()'s matching comment for why this lives in
-  // the slot rather than appended to the panel itself.
+  // the slot rather than appended to the panel itself. Uses
+  // buildActionBarForActiveTab() (not buildVersionActionBarHtml()
+  // directly) so a document-bearing resource correctly gets the combined
+  // Document+Version-Details bar instead of the version-only one.
   var actionBarSlot = document.getElementById('dataEditorActionBarSlot');
-  if (actionBarSlot) actionBarSlot.innerHTML = buildVersionActionBarHtml();
+  if (actionBarSlot) {
+    var curActiveElV = document.querySelector('.eg-doc-tab.active');
+    actionBarSlot.innerHTML = buildActionBarForActiveTab(curActiveElV ? curActiveElV.getAttribute('data-tab') : 'defver');
+  }
 }
 
 function undoVersionEdit() {
@@ -8541,18 +8824,13 @@ function onVersionSelectChangeReal(vid, fromUserPick) {
   // enabled after selecting a version there.
   var curTabElV = document.querySelector('.eg-doc-tab.active');
   var curTabKeyV = curTabElV && curTabElV.getAttribute('data-tab');
+  // Uses buildActionBarForActiveTab() for the current tab so a document-
+  // bearing resource always shows the combined Document+Version-Details
+  // bar (reflecting the NEWLY selected version's own dirty state) instead
+  // of the old three-way per-tab split — regardless of whether Document
+  // or Version Details happens to be the currently active tab.
   var actionBarSlot = document.getElementById('dataEditorActionBarSlot');
-  if (actionBarSlot && curTabKeyV !== 'doc') {
-    if (vid === 'default') {
-      actionBarSlot.innerHTML = _dataEditorActionBarHtml;
-    } else if (editableNow) {
-      actionBarSlot.innerHTML = buildVersionActionBarHtml();
-    } else {
-      actionBarSlot.innerHTML = '';
-    }
-  } else if (actionBarSlot && curTabKeyV === 'doc' && editableNow) {
-    actionBarSlot.innerHTML = buildDocActionBarHtml();
-  }
+  if (actionBarSlot) { actionBarSlot.innerHTML = buildActionBarForActiveTab(curTabKeyV); }
 
   // Keep the Document tab showing the selected version's document too —
   // refresh it eagerly even if it's not the currently-visible tab.
@@ -8611,8 +8889,13 @@ function switchDocTab(tabKey) {
   // The Document tab's edited text is its own separate working copy (raw
   // text PUT straight to the entity/version's plain URL), so an unsaved
   // edit there needs the same leave-guard as Meta/Version Details before
-  // switching to any other tab.
-  if (curKey === 'doc' && tabKey !== 'doc' && _docEditDirty) {
+  // switching to any other tab — EXCEPT Version Details itself: Document
+  // and Version Details are two views of the SAME Version entity now
+  // sharing one combined edit session (see plan.md "merge-doc-defver-
+  // dirty"/buildCombinedDocDataActionBarHtml()), so switching between them
+  // never needs to warn — any unsaved doc edit simply carries over,
+  // exactly like switching between different fields of the same form.
+  if (curKey === 'doc' && tabKey !== 'doc' && tabKey !== 'defver' && tabKey !== 'version' && _docEditDirty) {
     showLeaveEditDialog(
       function() { docContentSave(); switchDocTabReal(tabKey); },
       function() { docContentUndo(); switchDocTabReal(tabKey); },
@@ -8630,28 +8913,43 @@ function switchDocTab(tabKey) {
   // version the "Version:" dropdown currently has selected (see
   // onVersionSelectChangeReal()) — previously only _dataDirty was
   // checked, so leaving a dirty non-default version's edit for the Meta
-  // tab skipped the guard entirely.
+  // tab skipped the guard entirely. Also covers an unsaved Document edit
+  // (_docEditDirty) — Document is merged with Version Details, but NOT
+  // with Meta, so entering Meta from a dirty Document tab still needs
+  // its own guard (mirroring the "curKey === 'doc'" guard above, just for
+  // the reverse direction).
   var enteringVersionDirty = _dataEditActiveKind === 'version' && _verDirty;
-  if (curKey !== 'meta' && tabKey === 'meta' && (_dataDirty || enteringVersionDirty)) {
+  if (curKey !== 'meta' && tabKey === 'meta' && (_dataDirty || enteringVersionDirty || _docEditDirty)) {
     showLeaveEditDialog(
       function() {
-        if (enteringVersionDirty) saveVersionEntity('PUT', function() { switchDocTabReal(tabKey); });
-        else saveDataEntity('PUT', function() { switchDocTabReal(tabKey); });
+        function proceed() { switchDocTabReal(tabKey); }
+        function saveMetaHalf() {
+          if (enteringVersionDirty) saveVersionEntity('PUT', proceed);
+          else if (_dataDirty) saveDataEntity('PUT', proceed);
+          else proceed();
+        }
+        if (_docEditDirty) docContentSave(saveMetaHalf); else saveMetaHalf();
       },
       function() {
         if (enteringVersionDirty) {
           _verDirty = false; _verEditData = deepClone(_verEditSrc);
           rerenderVersionPanel();
-        } else {
+        } else if (_dataDirty) {
           _dataDirty = false; _dataEditData = deepClone(_dataEditSrc);
           renderSingleEntity(_lastData || _dataEditSrc);
         }
+        if (_docEditDirty) docContentUndo();
         switchDocTabReal(tabKey);
       },
       null,
       function() {
-        if (enteringVersionDirty) saveVersionEntity('PATCH', function() { switchDocTabReal(tabKey); });
-        else saveDataEntity('PATCH', function() { switchDocTabReal(tabKey); });
+        function proceed() { switchDocTabReal(tabKey); }
+        function patchMetaHalf() {
+          if (enteringVersionDirty) saveVersionEntity('PATCH', proceed);
+          else if (_dataDirty) saveDataEntity('PATCH', proceed);
+          else proceed();
+        }
+        if (_docEditDirty) docContentSave(patchMetaHalf); else patchMetaHalf();
       }
     );
     return;
@@ -8701,28 +8999,7 @@ function switchDocTabReal(tabKey) {
   // in onVersionSelectChangeReal() takes over from there if a non-default
   // version is also selected).
   var actionBarSlotT = document.getElementById('dataEditorActionBarSlot');
-  if (actionBarSlotT) {
-    if (tabKey === 'meta' && _state.editMode && _state.mutable) {
-      actionBarSlotT.innerHTML = buildMetaActionBarHtml();
-    } else if ((tabKey === 'defver' || tabKey === 'version') && _verEditVid) {
-      // A non-default version's own working copy is in progress (same
-      // condition used above for _dataEditActiveKind) — restore its scoped
-      // bar instead of the page-level one, matching
-      // onVersionSelectChangeReal()'s own slot-swap logic.
-      actionBarSlotT.innerHTML = buildVersionActionBarHtml();
-    } else if (tabKey === 'versions') {
-      // Versions List has its own "Delete <Singular>" button merged into
-      // its own header row (see renderVersionsTabPanel()) — leave this
-      // shared slot empty instead of showing a second, redundant Delete
-      // (and irrelevant Save/Undo, since Versions List has no single
-      // working copy of its own to save).
-      actionBarSlotT.innerHTML = '';
-    } else if (tabKey === 'doc' && _state.editMode && _state.mutable) {
-      actionBarSlotT.innerHTML = buildDocActionBarHtml();
-    } else {
-      actionBarSlotT.innerHTML = _dataEditorActionBarHtml;
-    }
-  }
+  if (actionBarSlotT) { actionBarSlotT.innerHTML = buildActionBarForActiveTab(tabKey); }
   if (tabKey === 'doc' && !_docPreviewLoaded) { _docPreviewLoaded = true; loadDocumentPreview(); }
   // Always call loadMetaDetails() here (rather than gating on `!_metaData`)
   // and let IT decide whether `_metaData` is actually still valid for the
@@ -9138,36 +9415,42 @@ function loadDocumentPreview() {
   function openTabBtn(url) {
     return url ? '<div class="eg-doc-preview-actions"><a href="' + esc(url) + '" target="_blank" rel="noopener" class="eg-link-btn">Open in new tab</a></div>' : '';
   }
-  function showText(text, url) {
-    if (canEditDoc) {
-      // Reuse an in-progress edit if this is just a re-render of the SAME
-      // document (e.g. sizeDocTextarea()'s window-resize handler or a
-      // tab-switch back) — only reset to the freshly-fetched pristine
-      // text when the target URL actually changed (a different version
-      // picked, or a genuinely different resource). Mirrors
-      // _metaLoadedFor/_dataLoadedFor's same re-render-vs-navigate
-      // distinction elsewhere.
-      if (_docEditLoadedFor !== docTargetURL) {
-        _docEditOriginalText = text;
-        _docEditText = text;
-        _docEditDirty = false;
-        _docEditURL = docTargetURL;
-        _docEditLoadedFor = docTargetURL;
-      }
-      // Content-Type/Format working copies are shared with the info-pills
-      // row above (see ensureDocEditFieldsState()) — this call is a no-op
-      // once the pills have already initialized them for this same target.
-      ensureDocEditFieldsState(data);
-      // Save/Undo for the Document tab live in the shared, always-visible
-      // #dataEditorActionBarSlot above (see buildDocActionBarHtml()), same
-      // as Meta/Version Details — no separate bar needed under the
-      // textarea itself.
-      box.innerHTML = '<textarea class="eg-doc-textarea" id="eg-doc-edit-textarea" oninput="docContentInput(this.value)">'
-        + esc(_docEditText) + '</textarea>' + openTabBtn(url);
-    } else {
-      box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + openTabBtn(url);
+  // Initializes/refreshes the shared Document-content widget (see
+  // buildDocContentWidgetHtml()) as the editable body, in the given mode.
+  // Only resets its working copy to the freshly-fetched/inferred pristine
+  // values when the target URL actually changed (mirrors the old
+  // _docEditLoadedFor guard) — otherwise re-renders in place so an
+  // in-progress edit (e.g. from a tab-switch back, or sizeDocTextarea()'s
+  // resize handler re-running loadDocumentPreview) isn't clobbered.
+  function showWidget(opts, url) {
+    if (_docEditLoadedFor !== docTargetURL) {
+      _docEditOriginalMode = opts.mode;
+      _docEditOriginalB64 = (opts.mode === 'url') ? null : (opts.mode === 'base64' ? (opts.base64Text || '') : (opts.text != null ? bytesToBase64(utf8ToBytes(opts.text)) : ''));
+      _docEditOriginalUrl = opts.url || '';
+      _docEditOriginalProxy = !!opts.proxy;
+      _docEditURL = docTargetURL;
+      _docEditLoadedFor = docTargetURL;
+      _docEditDirty = false;
     }
+    ensureDocEditFieldsState(data);
+    // Save/Undo for the Document tab live in the shared, always-visible
+    // #dataEditorActionBarSlot above (see buildDocActionBarHtml()), same
+    // as Meta/Version Details — no separate bar needed under the widget
+    // itself.
+    box.innerHTML = buildDocContentWidgetHtml('egDocEdit', Object.assign({}, opts, {onChange: recomputeDocDirty}))
+      + openTabBtn(url);
     sizeDocTextarea();
+  }
+  function showText(text, url) {
+    if (canEditDoc) { showWidget({mode: 'text', text: text}, url); return; }
+    box.innerHTML = '<textarea class="eg-doc-textarea" readonly>' + esc(text) + '</textarea>' + openTabBtn(url);
+    sizeDocTextarea();
+  }
+  function showBinaryEditable(base64Text, url) {
+    // Binary content isn't editable as Text, but Base64 mode handles it
+    // directly — pre-fill the widget's Base64 textarea with the content's
+    // current base64 form instead of falling back to a read-only message.
+    showWidget({mode: 'base64', base64Text: base64Text}, url);
   }
   function showBinary(url) {
     box.innerHTML = '<div class="eg-doc-binary-msg">Binary file \u2014 preview not available.</div>' + openTabBtn(url);
@@ -9178,8 +9461,22 @@ function loadDocumentPreview() {
   function fetchAndRender(url) {
     fetch(url)
       .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
-      .then(function(buf) { isBinaryContent(buf) ? showBinary(url) : showText(decodeUTF8Bytes(buf), url); })
+      .then(function(buf) {
+        if (!isBinaryContent(buf)) { showText(decodeUTF8Bytes(buf), url); return; }
+        if (canEditDoc) { showBinaryEditable(bytesToBase64(new Uint8Array(buf)), url); return; }
+        showBinary(url);
+      })
       .catch(function(e) { showError('Could not load document: ' + ((e && e.message) || String(e)), url); });
+  }
+
+  // An external <key>url/<key>proxyurl document is edited as a URL
+  // (mode 'url'), not by fetching+rendering its fetched content — the
+  // whole point of editing here is to change WHICH url is referenced (or
+  // toggle proxying), not its remote content.
+  if (canEditDoc && (data[key + 'url'] || data[key + 'proxyurl'])) {
+    var isProxy = !!data[key + 'proxyurl'];
+    showWidget({mode: 'url', url: data[key + (isProxy ? 'proxyurl' : 'url')], proxy: isProxy}, data[key + 'url'] || data[key + 'proxyurl']);
+    return;
   }
 
   if (data[key + 'url']) { fetchAndRender(data[key + 'url']); return; }
@@ -9190,7 +9487,9 @@ function loadDocumentPreview() {
       var bytes = new Uint8Array(binary.length);
       for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       var blobUrl = URL.createObjectURL(new Blob([bytes], { type: data.contenttype || 'application/octet-stream' }));
-      if (isBinaryContent(bytes.buffer)) showBinary(blobUrl); else showText(decodeUTF8Bytes(bytes.buffer), blobUrl);
+      if (!isBinaryContent(bytes.buffer)) { showText(decodeUTF8Bytes(bytes.buffer), blobUrl); return; }
+      if (canEditDoc) { showBinaryEditable(data[key + 'base64'], blobUrl); return; }
+      showBinary(blobUrl);
     } catch (e) { showError('Error decoding document: ' + ((e && e.message) || String(e))); }
     return;
   }
@@ -9207,10 +9506,6 @@ function loadDocumentPreview() {
   box.innerHTML = '<div class="eg-doc-binary-msg">Document not available.</div>';
 }
 
-// Textarea oninput handler for the Document tab's edit mode (see
-// loadDocumentPreview()'s showText()) — tracks the working copy and
-// dirty state, then flips the Save/Undo buttons' disabled attribute
-// in place (no full re-render needed on every keystroke).
 // Document tab's own Save/Undo action bar — rendered into the SAME shared
 // #dataEditorActionBarSlot as the page-level Entity Data Editor bar, the
 // Meta tab's bar, and the version-selector's per-version bar. Only a
@@ -9219,78 +9514,179 @@ function loadDocumentPreview() {
 // document's content needs. No Delete button here — deleting the whole
 // entity is already available from the Document/Version Details tabs'
 // shared bar in the non-doc-editing case; simplest to leave that action
-// off this bar and let the user switch to another tab for it.
-function buildDocActionBarHtml() {
-  return '<div id="docEditorError" class="error-banner" style="display:none"></div>'
-    + '<div class="editorActionBar">'
-    + '<button class="editorBtn" id="docSaveBtn" onclick="docContentSave()"' + (_docEditDirty ? '' : ' disabled') + '>Save</button>'
-    + ' <button class="editorBtn" id="docUndoBtn" onclick="docContentUndo()"' + (_docEditDirty ? '' : ' disabled') + '>Undo</button>'
+// Combined Document + Version-Details editing (see plan.md): once a
+// resource type has a document concept (_docSingular set — Document tab
+// exists), the Document tab and Version Details tab are two views of the
+// SAME Version entity (its body vs. its own attributes) and share ONE
+// edit session — one dirty flag, one Save(full)/Save(delta)/Undo/Delete
+// bar, shown whenever either tab is active. (Meta and Versions List stay
+// their own separate sessions — see buildActionBarForActiveTab().)
+function buildCombinedDocDataActionBarHtml() {
+  var isVersionScoped = (_dataEditActiveKind === 'version' && _verEditVid);
+  var metaDirty = isVersionScoped ? _verDirty : _dataDirty;
+  var anyDirty = metaDirty || _docEditDirty;
+  var singularLabel = capitalize(getSingularName(_modelCache[normalizeURL(_state.serverURL || window.location.origin)], _state.path) || 'entity');
+  var deleteVersionBtnHtml = isVersionScoped
+    ? ' <button class="editorBtn editorBtnDanger" onclick="deleteVersionEntity()">Delete Version (' + esc(_verEditVid || '') + ')</button>'
+    : '';
+  return '<div id="dataEditorError" class="error-banner" style="display:none"></div>'
+    + '<div id="docEditorError" class="error-banner" style="display:none"></div>'
+    + '<div class="editorActionBar" id="dataEditorActionBar" style="margin-bottom:8px">'
+    + '<button class="editorBtn" id="dataSavePutBtn" onclick="combinedDocDataSave(\'PUT\')"' + (anyDirty ? '' : ' disabled') + '>Save (full)</button>'
+    + ' <button class="editorBtn" id="dataSavePatchBtn" onclick="combinedDocDataSave(\'PATCH\')"' + (anyDirty ? '' : ' disabled') + '>Save (delta)</button>'
+    + ' <button class="editorBtn" id="dataUndoBtn" onclick="combinedDocDataUndo()"' + (anyDirty ? '' : ' disabled') + '>Undo</button>'
+    + deleteVersionBtnHtml
+    + ' <button class="editorBtn editorBtnDanger" onclick="deleteDataEntity()">Delete ' + esc(singularLabel) + '</button>'
     + '</div>';
 }
 
-function docContentInput(text) {
-  _docEditText = text;
-  recomputeDocDirty();
+// Central place every call site (initial render, tab switch, version-
+// selector change, undo/save re-renders) asks for "what action bar goes
+// in the shared #dataEditorActionBarSlot for THIS tab, given current
+// state" — replaces the previously-duplicated per-callsite if/else chains
+// (see plan.md "merge-doc-defver-actionbar"). Meta and Versions List keep
+// their own separate sessions/bars; Document + Version Details share the
+// combined bar above whenever this resource type has a document concept
+// (_docSingular set) — otherwise (no document concept) they fall back to
+// the original separate Version/Entity bars, unchanged.
+function buildActionBarForActiveTab(tabKey) {
+  var editingNow = _state.editMode && _state.mutable;
+  if (!editingNow) return '';
+  if (tabKey === 'meta') return buildMetaActionBarHtml();
+  if (tabKey === 'versions') return '';
+  if (tabKey === 'doc' || tabKey === 'defver' || tabKey === 'version') {
+    if (_docSingular) return buildCombinedDocDataActionBarHtml();
+    var isVersionScoped = (_dataEditActiveKind === 'version' && _verEditVid);
+    return isVersionScoped ? buildVersionActionBarHtml() : _dataEditorActionBarHtml;
+  }
+  return '';
 }
 
-// Content-Type/Format pill inputs (see docEditableKeyValPillHtml()) share
-// this one handler — inputId tells us which working-copy var to update.
+// Re-renders just the shared action-bar slot in place (no full panel
+// re-render) — used after a combined Save/Undo step that only changed
+// dirty-state/button-enablement, not the underlying data.
+function refreshCombinedBarSlot() {
+  var slot = document.getElementById('dataEditorActionBarSlot');
+  if (slot) {
+    var curActiveEl = document.querySelector('.eg-doc-tab.active');
+    slot.innerHTML = buildActionBarForActiveTab(curActiveEl ? curActiveEl.getAttribute('data-tab') : 'defver');
+  }
+}
+
+// Saves BOTH halves of the combined Document/Version-Details edit session
+// with one click: the metadata call (PUT/PATCH, targeting the Default
+// version's own saveDataEntity() or a specific version's saveVersionEntity(),
+// whichever is currently scoped) first (only if its own dirty flag is
+// set), then the document PUT (docContentSave(), only if _docEditDirty)
+// once that succeeds. A metadata failure stops here (its own error banner
+// shows why) — the document call never fires on top of a failed metadata
+// save.
+function combinedDocDataSave(verb) {
+  var isVersionScoped = (_dataEditActiveKind === 'version' && _verEditVid);
+  function finalRefresh() {
+    if (isVersionScoped) { rerenderVersionPanel(); } else { renderSingleEntity(_lastData || _dataEditSrc); }
+  }
+  function afterMeta() {
+    if (_docEditDirty) { docContentSave(finalRefresh); } else { finalRefresh(); }
+  }
+  var metaDirty = isVersionScoped ? _verDirty : _dataDirty;
+  if (metaDirty) {
+    if (isVersionScoped) { saveVersionEntity(verb, afterMeta); } else { saveDataEntity(verb, afterMeta); }
+  } else {
+    afterMeta();
+  }
+}
+
+// Reverts BOTH halves of the combined edit session — the document widget
+// first (so the metadata-side re-render below picks up its already-reset
+// _docEditDirty when it rebuilds the combined bar), then the metadata
+// working copy (undoVersionEdit()/undoDataEdit(), which re-render the
+// property table + action bar via buildActionBarForActiveTab()).
+function combinedDocDataUndo() {
+  if (_docEditDirty) docContentUndo();
+  if (_dataEditActiveKind === 'version' && _verEditVid) { undoVersionEdit(); } else { undoDataEdit(); }
+}
+
 function docPillFieldChange(inputId, val) {
   if (inputId === 'docCtInput') _docEditContentType = val;
   else if (inputId === 'docFormatInput') _docEditFormat = val;
   recomputeDocDirty();
 }
 
-// Recomputes _docEditDirty from ALL THREE of the Document tab's working
-// copies (text, Content-Type, Format) — any one of them differing from its
-// pristine original counts as dirty, since Save writes all three together
-// (see docContentSave()). Then syncs the shared action bar's Save/Undo
-// buttons in place, same as before this covered more than just the text.
+// Recomputes _docEditDirty from the widget's current mode/content
+// (compared against the pristine snapshot taken when it was loaded — see
+// loadDocumentPreview()'s showWidget()) PLUS the Content-Type/Format
+// pills, since Save writes all of it together (see docContentSave()).
+// Then syncs the shared action bar's Save/Undo buttons in place.
 function recomputeDocDirty() {
-  _docEditDirty = (_docEditText !== _docEditOriginalText)
+  var mode = docWidgetGetMode('egDocEdit');
+  var contentDirty;
+  if (mode === 'url') {
+    contentDirty = (mode !== _docEditOriginalMode)
+      || (docWidgetGetUrl('egDocEdit') !== _docEditOriginalUrl)
+      || (docWidgetGetProxy('egDocEdit') !== _docEditOriginalProxy);
+  } else {
+    contentDirty = (mode !== _docEditOriginalMode)
+      || ((docWidgetGetBase64('egDocEdit') || '') !== (_docEditOriginalB64 || ''));
+  }
+  _docEditDirty = contentDirty
     || (_docEditContentType !== _docEditContentTypeOriginal)
     || (_docEditFormat !== _docEditFormatOriginal);
-  var saveBtn = document.getElementById('docSaveBtn');
-  var undoBtn = document.getElementById('docUndoBtn');
-  if (saveBtn) saveBtn.disabled = !_docEditDirty;
-  if (undoBtn) undoBtn.disabled = !_docEditDirty;
+  // The shared action bar's enabled state depends on _docEditDirty
+  // combined with the metadata side's own dirty flag (see
+  // buildCombinedDocDataActionBarHtml()) — simplest to just rebuild the
+  // whole slot in place rather than juggle individual button ids here.
+  refreshCombinedBarSlot();
 }
 
-// Reverts the Document tab's textarea AND its Content-Type/Format pill
+// Reverts the Document tab's widget AND its Content-Type/Format pill
 // inputs to their last-fetched/saved pristine values, discarding any
 // unsaved edits — same idea as undoDataEdit()/undoMetaEdit()/
-// undoVersionEdit(), just for raw text (+ its two sidecar attributes)
-// instead of a JSON working copy.
+// undoVersionEdit(), just for the document widget (+ its two sidecar
+// attributes) instead of a JSON working copy. Re-renders the widget from
+// scratch (mode included) since Undo can also need to revert a mode
+// switch (e.g. Text -> Base64 back to the original Text content).
 function docContentUndo() {
-  _docEditText = _docEditOriginalText;
+  var box = document.getElementById('eg-doc-preview-box');
+  var widgetOpts = (_docEditOriginalMode === 'url')
+    ? {mode: 'url', url: _docEditOriginalUrl, proxy: _docEditOriginalProxy}
+    : {mode: _docEditOriginalMode, text: _docEditOriginalMode === 'text' ? bytesFromBase64ToText(_docEditOriginalB64) : '', base64Text: _docEditOriginalMode !== 'text' ? (_docEditOriginalB64 || '') : ''};
+  if (box) {
+    var widgetEl = document.getElementById('egDocEdit-docwidget');
+    var openBtnHtml = box.querySelector('.eg-doc-preview-actions') ? box.querySelector('.eg-doc-preview-actions').outerHTML : '';
+    box.innerHTML = buildDocContentWidgetHtml('egDocEdit', Object.assign({}, widgetOpts, {onChange: recomputeDocDirty})) + openBtnHtml;
+    sizeDocTextarea();
+  }
   _docEditContentType = _docEditContentTypeOriginal;
   _docEditFormat = _docEditFormatOriginal;
   _docEditDirty = false;
-  var ta = document.getElementById('eg-doc-edit-textarea');
-  if (ta) ta.value = _docEditText;
   var ctInput = document.getElementById('docCtInput');
   if (ctInput) ctInput.value = _docEditContentType;
   var formatInput = document.getElementById('docFormatInput');
   if (formatInput) formatInput.value = _docEditFormat;
-  var saveBtn = document.getElementById('docSaveBtn');
-  var undoBtn = document.getElementById('docUndoBtn');
-  if (saveBtn) saveBtn.disabled = true;
-  if (undoBtn) undoBtn.disabled = true;
 }
 
-// PUTs the Document tab's edited text straight to the entity's own plain
-// URL (_docEditURL — self with $details stripped, computed once in
-// loadDocumentPreview()), with whatever Content-Type the user has set
-// (falling back to text/plain) — this is also how the entity's own
-// "contenttype" attribute gets updated, per spec (the header on a direct
-// document PUT sets it). No PATCH/delta option here for the document body
-// itself (unlike Save (full)/Save (delta) elsewhere) — it's raw text/
-// bytes, not a JSON object with individual attributes to diff.
+// Small helper for docContentUndo()'s Text-mode revert — the pristine
+// snapshot is always kept as base64 (see showWidget()) regardless of
+// which mode it was captured in, so Undo-ing back into Text mode needs
+// to decode it back to a UTF-8 string for the textarea.
+function bytesFromBase64ToText(b64) {
+  if (!b64) return '';
+  try { return decodeUTF8Bytes(base64ToBytes(b64).buffer); } catch (e) { return ''; }
+}
+
+// PUTs the Document tab's edited content straight to the entity's own
+// plain URL (_docEditURL — self with $details stripped, computed once in
+// loadDocumentPreview()) when in Text/Base64/Upload File mode, or PATCHes
+// the entity's own <key>url/<key>proxyurl attribute(s) (via $details)
+// when in External URL mode — mirroring how the widget's content maps to
+// the wire format for create (see saveNewEntity()), but as an edit-time
+// PUT/PATCH instead of a create PUT.
 //
 // "format" is a genuine entity attribute (not derived from an HTTP
 // header), so if it changed it needs its own follow-up PATCH to the
 // entity's $details URL — fired only when actually dirty, right after the
-// document PUT succeeds.
+// document PUT/PATCH succeeds.
 function docContentSave(onSuccess) {
   if (!_docEditDirty || !_docEditURL) { if (onSuccess) onSuccess(); return; }
   var errDiv = document.getElementById('docEditorError');
@@ -9302,44 +9698,78 @@ function docContentSave(onSuccess) {
   box.appendChild(spinner); box.appendChild(msg); overlay.appendChild(box);
   document.body.appendChild(overlay);
   function removeOverlay() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+  var mode = docWidgetGetMode('egDocEdit');
   function finish() {
-    _docEditOriginalText = _docEditText;
+    _docEditOriginalMode = mode;
+    _docEditOriginalUrl = docWidgetGetUrl('egDocEdit');
+    _docEditOriginalProxy = docWidgetGetProxy('egDocEdit');
+    _docEditOriginalB64 = (mode === 'url') ? '' : (docWidgetGetBase64('egDocEdit') || '');
     _docEditContentTypeOriginal = _docEditContentType;
     _docEditFormatOriginal = _docEditFormat;
     _docEditDirty = false;
-    var saveBtn = document.getElementById('docSaveBtn');
-    var undoBtn = document.getElementById('docUndoBtn');
-    if (saveBtn) saveBtn.disabled = true;
-    if (undoBtn) undoBtn.disabled = true;
     if (onSuccess) onSuccess();
   }
   var formatChanged = (_docEditFormat !== _docEditFormatOriginal);
+  function saveFormatThen(cb) {
+    if (!formatChanged) { cb(); return; }
+    // The entity's $details URL is _docEditURL's self, since _docEditURL
+    // is that same self with the "$details" suffix removed.
+    fetch(_docEditURL + '$details', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({format: _docEditFormat})
+    }).then(function(resp2) {
+      return resp2.text().then(function(text2) {
+        if (resp2.ok) { cb(); }
+        else if (errDiv) { removeOverlay(); showErrorBanner(errDiv, 'Document saved, but updating Format failed (' + resp2.status + '):\n' + text2); }
+      });
+    }).catch(function(err2) {
+      removeOverlay();
+      if (errDiv) { showErrorBanner(errDiv, 'Document saved, but updating Format failed: ' + err2.message); }
+    });
+  }
 
+  if (mode === 'url') {
+    // External URL mode: this is a metadata attribute (<key>url or
+    // <key>proxyurl>), not a document body — PATCH it via $details rather
+    // than a raw-body PUT to the plain document URL.
+    var singular = _docSingular ? _docSingular.toLowerCase() : '';
+    var proxy = docWidgetGetProxy('egDocEdit');
+    var urlVal = docWidgetGetUrl('egDocEdit');
+    var patchBody = {};
+    patchBody[singular + (proxy ? 'proxyurl' : 'url')] = urlVal;
+    // Clear out the other one of the pair so switching Proxy on/off (or
+    // switching away from the previously-stored mode) doesn't leave a
+    // stale sibling attribute behind.
+    patchBody[singular + (proxy ? 'url' : 'proxyurl')] = null;
+    fetch(_docEditURL + '$details', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(patchBody)
+    }).then(function(resp) {
+      return resp.text().then(function(text) {
+        if (!resp.ok) { removeOverlay(); if (errDiv) showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); return; }
+        saveFormatThen(function() { removeOverlay(); finish(); });
+      });
+    }).catch(function(err) {
+      removeOverlay();
+      if (errDiv) { showErrorBanner(errDiv, 'Network error: ' + err.message); }
+    });
+    return;
+  }
+
+  // Text/Base64/Upload File modes: raw-body PUT straight to the document
+  // URL, same as before this widget swap — bytes come from the widget
+  // regardless of which of these 3 modes is active.
+  var bytes = docWidgetGetBytes('egDocEdit') || new Uint8Array(0);
   fetch(_docEditURL, {
     method: 'PUT',
     headers: {'Content-Type': _docEditContentType || 'text/plain'},
-    body: _docEditText
+    body: bytes
   }).then(function(resp) {
     return resp.text().then(function(text) {
       if (!resp.ok) { removeOverlay(); if (errDiv) showErrorBanner(errDiv, 'Error (' + resp.status + '):\n' + text); return; }
-      if (!formatChanged) { removeOverlay(); finish(); return; }
-      // "format" only ever needs a follow-up PATCH when it actually
-      // changed — the entity's $details URL is _docEditURL's self, since
-      // _docEditURL is that same self with the "$details" suffix removed.
-      fetch(_docEditURL + '$details', {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({format: _docEditFormat})
-      }).then(function(resp2) {
-        return resp2.text().then(function(text2) {
-          removeOverlay();
-          if (resp2.ok) { finish(); }
-          else if (errDiv) { showErrorBanner(errDiv, 'Document saved, but updating Format failed (' + resp2.status + '):\n' + text2); }
-        });
-      }).catch(function(err2) {
-        removeOverlay();
-        if (errDiv) { showErrorBanner(errDiv, 'Document saved, but updating Format failed: ' + err2.message); }
-      });
+      saveFormatThen(function() { removeOverlay(); finish(); });
     });
   }).catch(function(err) {
     removeOverlay();
