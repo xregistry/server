@@ -7177,3 +7177,44 @@ server (not just `node --check`):
 Test artifacts (temp npm project, screenshots, isolated DB/server
 process) all cleaned up after verification; live server confirmed still
 running and responsive afterward.
+
+## JSON view: copy-URL button now respects the Details/Document toggle
+## (2026-07-21)
+
+Bug: on a Resource/Version page's JSON view, the breadcrumb copy-URL
+button (`copyLinkBtnHTML()`/`buildTabAwareAPIURL()`) always guessed the
+active "tab" via the List-view DOM tab bar (`.eg-doc-tab.active[data-tab]`)
+or, failing that, a hasDocument-based fallback — neither of which knows
+about JSON view's own separate "Details | Document" toggle
+(`_jsonDocMode`/`jsonDocToggleApplies()`, see `renderJSONView()`). Result:
+while looking at the (default) Details JSON of a Resource whose type also
+has a document, the copied/previewed URL could wrongly omit `$details`.
+
+Fixed in `buildTabAwareAPIURL()`: when in JSON view
+(`_state.dataView === 'json' || _state.view === 'json'`), read
+`_jsonDocMode` directly instead of the (non-existent, in JSON view)
+List-view tab bar — `$details` is included whenever `_jsonDocMode` is
+its default `''` ("Details"), and omitted only when the user has
+explicitly switched to `'doc'` ("Document"). The existing Metadata-tab
+special case (`_state.docTab === 'meta'`) still takes priority over both.
+
+Also fixed `jsonSetDocMode()`: it previously only re-rendered `#main-view`
+(`renderJSONView(_lastData)`) and left the breadcrumb copy button's
+tooltip stale, since that button lives in the breadcrumb bar, not
+`#main-view`. Added a `refreshCopyLinkBtnTooltip()` call, matching the
+same pattern already used by `switchDocTab()`/`onVersionSelectChange()`.
+
+Verified end-to-end (isolated test server, port 9193/`testdb_qa2`; live
+server on 8080 untouched) via `puppeteer-core`:
+- Resource JSON view, Details mode → URL ends in `$details`.
+- Same Resource, switched to Document mode → plain URL (no `$details`),
+  and switching back to Details restores it — confirming the tooltip now
+  updates live rather than staying stale from first render.
+- Resource with `hasdocument=false` → Details mode still correctly shows
+  `$details` (toggle is still offered per-depth regardless of
+  `hasdocument`, but the default Details view is unaffected either way).
+- Version entity (depth 6, reached via real navigation from the Versions
+  collection, not a synthetic direct path push) → same Details/Document
+  distinction confirmed (`.../versions/v1$details` vs `.../versions/v1`).
+
+**Status**: Implemented, `node --check` passed, CDP-verified.

@@ -218,67 +218,6 @@ func (tx *Tx) NewTx() *XRError {
 	return nil
 }
 
-func (tx *Tx) RefreshFullTree() {
-	return
-	if tx.ClearFullTree {
-		inDo = true
-		tx.ClearFullTree = false
-
-		Do(tx, `DELETE FROM FullTreeTable`)
-		// Do(tx, `ALTER TABLE FullTreeTable DISABLE KEYS`)
-		Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`)
-		// Do(tx, `ALTER TABLE FullTreeTable ENABLE KEYS`)
-		/*
-					Do(tx, `TRUNCATE TABLE FullTreeTable ;
-			            ALTER TABLE FullTreeTable DISABLE KEYS ;
-			            INSERT INTO FullTreeTable SELECT * FROM FullTree ;
-			            ALTER TABLE FullTreeTable ENABLE KEYS `)
-		*/
-
-		/*
-			log.Printf("IsCacheDirty: %v", tx.IsCacheDirty())
-
-			log.Printf("\n=================")
-			res, _ := tx.Registry.Query("SELECT EntitySID,PropName from Props order by EntitySID")
-			for _, r := range res {
-				s := *(r[0].(*any))
-				p := *(r[1].(*any))
-				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
-			}
-
-			log.Printf("\n")
-			res, _ = tx.Registry.Query("SELECT Path,PropName from FullTree order by Path")
-			for _, r := range res {
-				s := *(r[0].(*any))
-				p := *(r[1].(*any))
-				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
-			}
-		*/
-
-		/*
-			Do(tx, `DELETE FROM FullTreeTable`)
-
-			// log.Printf("Table after delete")
-			res := tx.Registry.Query("SELECT Path,PropName from FullTree")
-			log.Printf("len(res): %d", len(res))
-			for _, r := range res {
-				s := *(r[0].(*any))
-				p := *(r[1].(*any))
-				log.Printf("%v %v", string(s.([]byte)), string(p.([]byte)))
-			}
-		*/
-		/*
-				res = tx.Registry.Query("SELECT count(*) FROM FullTreeTable")
-				for _, r := range res {
-					s := *(r[0].(*any))
-					log.Printf("count: %v", s.(int64))
-				}
-			Do(tx, `INSERT INTO FullTreeTable SELECT * FROM FullTree`)
-		*/
-		inDo = false
-	}
-}
-
 func (tx *Tx) DumpCache() {
 	log.Printf("==== CACHE =====")
 	for path, _ := range tx.Cache {
@@ -751,12 +690,6 @@ func DumpTimings() string {
 }
 
 func Query(tx *Tx, cmd string, args ...interface{}) *Result {
-	/*
-		if strings.Index(cmd, "FullTree") >= 0 {
-			tx.RefreshFullTree()
-		}
-	*/
-
 	startTime := time.Time{}
 	pTime := time.Time{}
 	qTime := time.Time{}
@@ -841,14 +774,6 @@ func doCount(tx *Tx, cmd string, args ...interface{}) int {
 			strings.Index(cmd, "REPLACE") >= 0 {
 			tx.ClearFullTree = true
 		}
-
-		/*
-			if tx.ClearFullTree && strings.Index(cmd, "FullTree") >= 0 {
-				inDo = true
-				tx.RefreshFullTree()
-				inDo = false
-			}
-		*/
 	}
 
 	ps, xErr := tx.Prepare(cmd)

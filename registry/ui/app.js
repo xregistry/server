@@ -2265,9 +2265,23 @@ function buildTabAwareAPIURL() {
   // uses, otherwise a Document-tab resource's tooltip would wrongly show
   // the $details-suffixed "Version Details" URL instead of the plain
   // document URL until the user manually switches tabs.
-  var activeTabEl = document.querySelector('.eg-doc-tab.active[data-tab]');
+  //
+  // JSON view has its OWN independent "Details | Document" toggle
+  // (_jsonDocMode/jsonDocToggleApplies() — see renderJSONView()), separate
+  // from List view's .eg-doc-tab bar (which isn't even in the DOM while in
+  // JSON view). So when in JSON view, read that toggle instead of the DOM
+  // tab bar — otherwise the copy button always guessed via the
+  // hasDocument-first fallback below, wrongly omitting $details while
+  // looking at the (default) Details JSON for any resource type that also
+  // has a document.
+  var inJsonView = _state.dataView === 'json' || _state.view === 'json';
+  var activeTabEl = inJsonView ? null : document.querySelector('.eg-doc-tab.active[data-tab]');
   var tab;
-  if (activeTabEl) {
+  if (_state.docTab === 'meta' && isResource) {
+    tab = 'meta';
+  } else if (inJsonView) {
+    tab = (jsonDocToggleApplies() && _jsonDocMode === 'doc') ? 'doc' : 'defver';
+  } else if (activeTabEl) {
     tab = activeTabEl.getAttribute('data-tab');
   } else {
     var modelFallback = _modelCache[normalizeURL(_state.serverURL || window.location.origin)] || null;
@@ -10961,6 +10975,11 @@ function jsonSetDocMode(mode) {
   if (_jsonDocMode === mode) return;
   _jsonDocMode = mode;
   if (_lastData) renderJSONView(_lastData);
+  // Copy-URL button lives in the breadcrumb bar, not #main-view, so it
+  // isn't refreshed by the renderJSONView() call above — keep its tooltip
+  // (and the URL buildTabAwareAPIURL() will copy) in sync with the
+  // Details/Document toggle, same as switchDocTab()/onVersionSelectChange().
+  refreshCopyLinkBtnTooltip();
 }
 
 // "Expand all" button markup — kept identical (same id, same position in
