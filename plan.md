@@ -6951,3 +6951,229 @@ the full categorized view (with category headers) when xR mode is on;
 toggling xR mode mid-edit; (e) the "Show/Hide xReg Data" toolbar
 icon/menu entry is now available while `_state.editMode` is true.
 Not yet committed — pending @duglin's own manual confirmation.
+
+---
+
+## Document-content widget + Add-Resource/Version tab layout + Doc/Details edit merge
+
+**Problem**: The "Add Version"/"Add Resource" create forms exposed the
+document content as plain generic text inputs (`<resource>`,
+`<resource>base64`, `<resource>url`, `<resource>proxyurl` — e.g.
+`file`/`filebase64`/`fileurl`/`fileproxyurl`) and incorrectly offered
+`<resourceSingular>id` (e.g. `fileid`) as an editable field even though
+it's implied by the URL path. Separately, editing an existing Version's
+Document tab and Version Details tab were two independent edit sessions
+(own dirty flag, own Save/Undo bar each) — switching between them
+triggered an unnecessary "unsaved changes" warning even though they're
+just two views of the same Version entity.
+
+**Fix — three parts**:
+1. **Shared Document-content widget** (`buildDocContentWidgetHtml()`,
+   `_docWidgets` state module in app.js ~3966-4140): one control with a
+   mode selector — Text / Base64 / Upload File / External URL — swapping
+   the input below between a textarea, a base64-textarea, a file picker
+   (auto-reads+encodes via `FileReader`), and a URL text box + "Proxy
+   this URL through the server" checkbox. Used in both the create-form
+   Document tab and the edit-mode Document tab.
+2. **Create flow reuses the edit-mode tab layout**: Add Resource/Add
+   Version now render the same Document/Version-Details/`<Type>` Details
+   tab bar as editing does, with the Version selector omitted and the
+   `<Type>` Details tab (Meta) disabled ("Not available until created").
+   Defaults to the Details tab (ID field first). `<resourceSingular>id`
+   and the raw `<resource>*` scalar rows are removed from the Details
+   table — content is exclusively entered via the Document tab's widget.
+   A single "Create" action merges the Details tab's working data with
+   the widget's content (`<resource>base64` for Text/Base64/Upload
+   modes, `<resource>url`/`<resource>proxyurl` for External URL mode)
+   into ONE `PUT .../<id>$details` call — no more two-step
+   create-then-PUT-document.
+3. **Doc/Version-Details editing merge**: for resource types with
+   `hasdocument === true`, the Document and Version-Details/Details tabs
+   now share one combined Save(full)/Save(delta)/Undo/Delete action bar
+   (`buildCombinedDocDataActionBarHtml()`, dispatched via
+   `buildActionBarForActiveTab()`). Save fires the metadata call then
+   the document call (only if each half is actually dirty); Undo reverts
+   both. Switching between Document and Version-Details/Details no
+   longer shows the "unsaved changes" dialog — that warning still fires
+   correctly when leaving for Meta, Versions List, a different version,
+   or the page itself (unchanged). Resource types without a document
+   concept are unaffected (still use the old separate bars).
+
+**Status**: Implemented and CDP-verified against an isolated test
+server (port 8099, db `docwidgettest1`): confirmed the create-form's
+tabbed layout (no `fileid`, no raw resource-content rows, Details tab
+first, Meta disabled, Version selector absent), a single PUT correctly
+creating both metadata (including required fields like `format`) and
+document content together, and the edit-mode merge (no warning
+doc↔defver, warning still shown doc→meta, Undo/Save both correctly
+reverting/persisting both halves). CSS added for the new
+`.eg-docwidget*` classes. Not yet committed — pending @duglin's own
+manual confirmation.
+
+## Add-Resource create form: Meta tab as default landing tab, ID field
+## relocation, Meta-tab id-mirror label bug, "+ Add Version" on Meta tab
+## (2026-07-21)
+
+Follow-ups to the Add-Resource Meta-tab-at-create feature (previous
+section):
+
+1. **Default tab on open**: `toggleAddEntityForm()` now defaults
+   `_addNewActiveTab` to `'meta'` (the "`<Type>` Details" tab) instead of
+   `'details'` ("Version Details") when adding a Resource (`_state.path.length
+   === 3`) — that's where the required ID field now lives (see next item),
+   so it's the first thing the user sees. Add Group (no Meta tab) still
+   defaults to `'details'`.
+2. **ID field moved to the Meta tab**: `buildAddEntityMetaTableHtml()` now
+   renders the `addNewIdInput` field (same id/handler as before) as its own
+   first row, ahead of Compatibility/Read Only/xref/extensions.
+   `buildAddEntityDetailsTableHtml()` no longer renders the ID row for a
+   Resource Add (`isResourceAdd` — only Group Add still shows it there,
+   since Groups have no Meta tab); `versionid` is now the first row on
+   that tab. `ancestorid` remains hidden there (already the case).
+3. **Bug fix — meta id-mirror field mislabeled as "fileid"**: the Meta
+   sub-resource's own copy of the owning Resource's identity field (e.g.
+   `fileid`, declared in the model's `metaattributes` and NOT marked
+   `readonly`) was falling through the generic model-declared-extensions
+   loop and rendering as a raw, editable "fileid" row (no proper label,
+   since it isn't in `SPEC_ATTRS.meta`). It's implied by/always mirrors the
+   Resource's own ID, never independently settable. Fixed by adding
+   `resourceSingular + 'id'` to `buildAddEntityMetaTableHtml()`'s `skip` map.
+4. **"+ Add Version" button on the Meta tab**: `buildMetaActionBarHtml()`
+   (existing-Resource Metadata tab's action bar) now also renders the same
+   "+ Add `<Version>`" button (`verTabToggleAddForm()`) the Document/Version
+   Details tabs' `buildDataEditorActionBarHtml()` already has, so it's
+   available regardless of which tab is active.
+
+**Status**: Implemented, `node --check` passed. Per @duglin, currently in
+"quick iteration" mode — no CDP/browser verification performed this round;
+he'll test manually.
+
+## Add Version defaults to Version Details tab; last-version delete
+## navigates back to Resources collection (2026-07-21)
+
+1. **Add Version default tab**: `verTabToggleAddForm()` now calls
+   `switchDocTab('defver')` instead of `switchDocTab('doc')` — the "Add
+   Version" create form now opens on the Version Details tab (where the
+   required Version ID field lives), matching the same "land on the tab
+   with the required ID field" convention just applied to Add Resource.
+2. **Last-version delete now navigates up**: deleting a Resource's only
+   remaining version also deletes the Resource itself (server-side
+   cascade — a Resource can't exist with zero versions). Previously the
+   UI just tried to re-select/reload the "Default" version afterward,
+   which would 404 against a resource that no longer exists. Fixed in
+   three places, all detecting "was this the last version?" from the
+   already-cached version count *before* issuing the DELETE, and — only
+   on a fully successful delete with no per-item errors — navigating back
+   up via `pushState({path: _state.path.slice(0, -N)})` instead of
+   refreshing/reloading:
+   - `deleteVersionEntity()` (single "Delete Version (#)" button, Version
+     Details/Document tabs) — `_resVersionsList.length === 1` (or
+     `_resDefaultData.versionscount` as a fallback if the list isn't
+     cached yet) → `path.slice(0, -1)` from the Resource's own path (the
+     Resource itself is gone too), landing on the Resources collection.
+   - `verTabDeleteSelected()` (Resource page's "Versions List" tab, bulk
+     "Delete Selected") — `ids.length >= _resVersionsList.length` (every
+     currently-known version selected) → same navigation.
+   - `collDeleteSelected()` (standalone Versions collection page, depth 5,
+     bulk "Delete Selected") — `ids.length >= ` the number of currently
+     rendered `.coll-select-input` rows → `path.slice(0, -2)` (up two
+     levels, past both the now-gone Versions collection AND the
+     now-gone Resource, to the Resources collection).
+   A partial failure (some deletes error out) always falls back to the
+   normal refresh path instead, since at least one version — and
+   therefore the Resource and, for the standalone page, the Versions
+   collection itself — still exists in that case.
+
+**Status**: Implemented, `node --check` passed. Per @duglin, still in
+"quick iteration" mode — no CDP/browser verification performed this
+round; he'll test manually.
+
+## Add Version: versionid is now optional — POST lets the server assign
+## one (2026-07-21)
+
+Per the xRegistry spec (`POST /<GROUPS>/<GID>/<RESOURCES>/<RID>[$details]`,
+http.md — the same body shape as a normal Version create, just without a
+`versionid` in the path, letting the server pick one; see also
+`SetDefaultVersionID`'s `request` value in spec.md, which exists
+specifically for this "server assigns the id" POST-to-Resource case):
+
+- `buildAddEntityDetailsTableHtml()`: added an `isVersionAdd` flag (depth
+  >= 6, i.e. a Versions collection). The ID row it renders for Add
+  Version no longer has `required`/a "*" suffix, and gets a
+  `placeholder="(auto-assigned if left blank)"` hint. Add Group's ID
+  field (the other user of this same row-building code, `!isResourceAdd`)
+  is unaffected — still required.
+- `verTabSaveNewVersion()`: not requiring a non-empty id anymore. If the
+  user left the ID field blank, it now does `POST buildBaseURL() +
+  '$details'` (i.e. POST directly to the owning Resource entity, no id in
+  the path — `_state.path` stays at the Resource throughout this flow, so
+  `buildBaseURL()` is exactly right) instead of `PUT
+  .../versions/<id>$details`. Same body either way (merges
+  `_addNewData` + the Document tab's content via `mergeAddNewDocIntoBody()`).
+
+**Status**: Implemented, `node --check` passed. Per @duglin, still in
+"quick iteration" mode — no CDP/browser verification performed this
+round; he'll test manually.
+
+## Home "Group Types" row: visible server URL + registry name repositioned
+## (2026-07-21)
+
+Per @duglin: the Group Types list row's right-hand side previously showed
+only a registry-name link (`.gt-row-registry`), with the server URL
+tucked away in a `title` tooltip (not visibly displayed). Changed to a
+two-row card layout so both are visible at a glance, matching the
+Registries List page's existing visible-URL convention:
+
+- `renderHomeFlatList()` (app.js): each `.gt-row` is now `flex-direction:
+  column` with two child rows:
+  - `.gt-row-top` — unchanged content (icon, name+count, description,
+    resource-type pills), just wrapped in a new div (was previously the
+    direct children of `.gt-row` itself).
+  - `.gt-row-bottom` — new full-width row, `justify-content:
+    space-between`: registry-name link (`.gt-row-registry`, unchanged
+    markup/behavior — still navigates to that registry) on the left,
+    new `.gt-row-url` span (visible server URL text, ellipsis-truncated,
+    `title` tooltip for the full value) on the right.
+- Both `.gt-row-registry` and the new `.gt-row-url` use `color: #888`
+  (the established darker-than-#bbb convention — see `.reg-row-url` on
+  the Registries List page, same color).
+- No divider line between `.gt-row-top` and `.gt-row-bottom` — @duglin
+  asked for it to match the Registries List page's rows, which also have
+  no divider between their sections.
+
+**Status**: Implemented and CDP-verified today (isolated test server,
+port 9192/`testdb_qa` — live server on 8080 untouched). Confirmed via
+screenshot + computed-style + pixel sampling: two-row layout renders,
+registry name left / URL right, text color is exactly `rgb(136,136,136)`
+(`#888`), no border between the rows.
+
+## Today's (2026-07-21) full CDP verification pass
+
+@duglin asked to switch out of "quick iteration" mode and run full
+testing on today's batch of changes. Used an isolated `xrserver` instance
+(`--db testdb_qa -p 9192`, `--recreatedb --samples`) so the live
+server/DB (port 8080, default `registry` DB) was never touched, driven
+via `puppeteer-core` (Chrome for Testing binary already cached at
+`/root/.cache/puppeteer/chrome/...`) since no browser-automation tooling
+was pre-installed in the repo. Verified, end-to-end against the real
+server (not just `node --check`):
+
+1. **Add Resource**: opens with the "<Singular> Details" (Meta) tab
+   active by default; the ID field renders first in that tab; no stray
+   mislabeled `<singular>id` extension row; a Resource created via this
+   form persists its meta data correctly (single transaction).
+2. **Add Version**: opens with "Version Details" tab active by default;
+   Version ID field is optional (placeholder hint, no required marker);
+   leaving it blank issues `POST .../<resource>$details` (confirmed via
+   captured network requests) and the server auto-assigns the next
+   versionid, as opposed to `PUT .../versions/<id>$details` when an id is
+   given.
+3. **Last-version delete cascade**: deleting a Resource's sole remaining
+   version correctly navigates the UI up to the Resources collection
+   (confirmed both the URL change and that the Resource was actually
+   gone server-side afterward).
+4. **Group Types row layout** — see section above.
+
+Test artifacts (temp npm project, screenshots, isolated DB/server
+process) all cleaned up after verification; live server confirmed still
+running and responsive afterward.
