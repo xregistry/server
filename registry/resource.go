@@ -728,6 +728,10 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
+		FullEntityInsert(r.tx, r.Registry.DbSID, ENTITY_META, meta.Plural,
+			meta.Singular, r.DbSID, meta.DbSID, meta.UID, meta.Abstract,
+			meta.Path)
+
 		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
 		}
@@ -1032,6 +1036,9 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			v.DbSID, vu.Id, r.Registry.DbSID, r.DbSID,
 			r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+v.UID,
 			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
+
+		FullEntityInsert(r.tx, r.Registry.DbSID, ENTITY_VERSION, v.Plural,
+			v.Singular, r.DbSID, v.DbSID, v.UID, v.Abstract, v.Path)
 
 		v.tx.AddVersion(v)
 
@@ -2086,8 +2093,8 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 		}
 
 		query := fmt.Sprintf(`
-            SELECT count(*),p.PropName,p.PropValue FROM Entities e
-            LEFT JOIN FullTree AS p ON ( p.eSID=e.eSID AND p.PropName=?)
+            SELECT count(*),p.PropName,p.PropValue FROM FullEntities e
+            LEFT JOIN FullTreeTable AS p ON ( p.eSID=e.eSID AND p.PropName=?)
             WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
             GROUP BY %s PropValue`, binary)
 

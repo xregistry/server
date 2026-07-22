@@ -46,6 +46,8 @@ BEGIN
     DELETE FROM Props    WHERE RegistrySID=OLD.SID $$
     DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
     DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
+    DELETE FROM FullTreeTable WHERE RegSID=OLD.SID $$
+    DELETE FROM FullEntities  WHERE RegSID=OLD.SID $$
 END ;
 
 CREATE TABLE Models (
@@ -119,6 +121,8 @@ FOR EACH ROW
 BEGIN
     DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM Resources WHERE GroupSID=OLD.SID $$
+    DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
+    DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
 END ;
 
 CREATE TABLE Resources (
@@ -146,6 +150,8 @@ BEGIN
     DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
+    DELETE FROM FullTreeTable WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM FullEntities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
 END ;
 
 CREATE TABLE Metas (
@@ -275,6 +281,8 @@ FOR EACH ROW
 BEGIN
     DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
+    DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
+    DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
 END ;
 
 CREATE VIEW Entities AS
@@ -491,9 +499,48 @@ CREATE TABLE FullTreeTable (
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   DocView    BOOL NOT NULL,
 
-  PRIMARY KEY(RegSID, Path, PropName)
-  # UNIQUE INDEX(RegSID, eSID, PropName)
+  # These flag WHY this row exists when it's not a direct copy of a
+  # Props row for this eSID (multiple booleans, one per cascade
+  # reason, so each can be independently identified/refreshed without
+  # disturbing the others). All false means this row is either a
+  # direct copy of a real Props row, or a cheaply-recomputed
+  # calculated singleton (xid, isdefault, RESOURCEid) - those don't
+  # need their own marker since they're always freely recomputed
+  # alongside an entity's own base props.
+  IsDefaultVerCopy BOOL NOT NULL DEFAULT false, # Copied from default Version
+  IsXrefPropCopy   BOOL NOT NULL DEFAULT false, # meta.* copied from xref target
+  IsXrefVerCopy    BOOL NOT NULL DEFAULT false, # Synthetic Version copied via xref
+
+  PRIMARY KEY(RegSID, Path, PropName),
+  UNIQUE INDEX(RegSID, eSID, PropName),
+  INDEX(eSID)
   # INDEX(RegSID, Abstract)
+);
+
+# This will eventually replace the Entities view. For now (while
+# FullTreeTable/FullEntities are being incrementally populated in
+# parallel, gated behind an env var - see FullSave() in entity.go)
+# it's only written to, never read from.
+CREATE TABLE FullEntities (
+  RegSID     VARCHAR(64) NOT NULL,
+  Type       BIGINT NOT NULL,
+  Plural     VARCHAR(64) NOT NULL,
+  Singular   VARCHAR(64) NOT NULL,
+  ParentSID  VARCHAR(64) NULL,
+  eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID (or
+                                          # synthetic "-<srcRSID>-<verSID>")
+  UID        VARCHAR(255) NOT NULL,
+  Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+  Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+
+  # True for the synthetic Version rows added because a Resource
+  # xref's another Resource (mirrors the "-" eSID prefix convention
+  # Entities view already uses, but as an explicit flag for clarity).
+  IsXrefVerCopy BOOL NOT NULL DEFAULT false,
+
+  PRIMARY KEY(RegSID, eSID),
+  UNIQUE INDEX (RegSID, ParentSID, eSID),
+  UNIQUE INDEX (RegSID, Path)
 );
 
 CREATE VIEW FullTree AS

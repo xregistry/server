@@ -30,7 +30,7 @@ func (g *Group) Delete() *XRError {
 
 	// Make sure we don't have any readonly Resources
 	results := Query(g.tx, `
-	    SELECT EXISTS(SELECT 1 FROM FullTree
+	    SELECT EXISTS(SELECT 1 FROM FullTreeTable
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
 		  Path LIKE '`+g.Path+`/%' AND
 		  PropName='readonly`+string(DB_IN)+`' AND
@@ -317,6 +317,9 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
 
+		FullEntityInsert(r.tx, g.Registry.DbSID, ENTITY_RESOURCE, r.Plural,
+			r.Singular, g.DbSID, r.DbSID, r.UID, r.Abstract, r.Path)
+
 		isNew = true
 		r.tx.AddResource(r)
 		g.Touch()
@@ -359,6 +362,10 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
                 SELECT ?,?,?,?,?,?,?`,
 			meta.DbSID, g.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
+
+		FullEntityInsert(r.tx, g.Registry.DbSID, ENTITY_META, meta.Plural,
+			meta.Singular, r.DbSID, meta.DbSID, meta.UID, meta.Abstract,
+			meta.Path)
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {
@@ -812,11 +819,11 @@ func (g *Group) Validate() *XRError {
 
 		query := fmt.Sprintf(`
             # I'm hoping generating the view once will speed things up
-            WITH tmpFullTree AS ( SELECT * FROM FullTree )
+            WITH tmpFullTree AS ( SELECT * FROM FullTreeTable)
             SELECT
                 r.Path, v.UID, vp.PropValue
             FROM Resources r
-            JOIN Entities AS v ON (
+            JOIN FullEntities AS v ON (
                 v.RegSID=r.RegistrySID AND
                 v.ParentSID=r.SID AND
                 v.Type=?

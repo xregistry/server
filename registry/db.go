@@ -128,7 +128,6 @@ type Tx struct {
 	CreateTime    string // use for entity timestamps too
 	User          string
 	RequestInfo   *RequestInfo
-	ClearFullTree bool
 	Locked        bool // no more writes allowed!
 	Validated     bool // just to make sure it's not called more than once
 
@@ -758,22 +757,12 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	return result
 }
 
-var inDo = false
-
 func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
 		panic("Tx is locked!!")
-	}
-
-	if !inDo {
-		if strings.Index(cmd, "INSERT") >= 0 ||
-			strings.Index(cmd, "DELETE") >= 0 ||
-			strings.Index(cmd, "REPLACE") >= 0 {
-			tx.ClearFullTree = true
-		}
 	}
 
 	ps, xErr := tx.Prepare(cmd)

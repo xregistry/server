@@ -143,6 +143,9 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 		INSERT INTO Registries(SID, UID)
 		VALUES(?,?)`, dbSID, id)
 
+	FullEntityInsert(tx, dbSID, ENTITY_REGISTRY, "registries", "registry",
+		"", dbSID, id, "", "")
+
 	reg := &Registry{
 		Entity: Entity{
 			EntityExtensions: EntityExtensions{
@@ -750,6 +753,9 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			gm.SID, g.Path, g.Abstract,
 			g.Plural, g.Singular)
 
+		FullEntityInsert(reg.tx, g.Registry.DbSID, ENTITY_GROUP, g.Plural,
+			g.Singular, g.Registry.DbSID, g.DbSID, g.UID, g.Abstract, g.Path)
+
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
 		if xErr = g.JustSet(g.Singular+"id", g.UID); xErr != nil {
@@ -951,7 +957,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 `
 
 		sortJoin = `
-  LEFT JOIN FullTree AS sj ON (
+  LEFT JOIN FullTreeTable AS sj ON (
     sj.RegSID = ft.RegSID AND
     sj.Path = substring_index(ft.Path, '/', ` + slashCount + `) AND
     sj.PropName = '` + sortKey + `')
@@ -962,7 +968,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	query = `
 SELECT
   ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract
-  FROM FullTree AS ft` + sortJoin + `
+  FROM FullTreeTable AS ft` + sortJoin + `
   WHERE ft.RegSID=?
 `
 
@@ -997,7 +1003,7 @@ ft.eSID IN ( -- eSID from query
   -- This "RECURSIVE" stuff finds all parents
   WITH RECURSIVE cte(eSID,Type,ParentSID,Path) AS (
     -- This defines the init set of rows of the query. We'll recurse later on
-    SELECT eSID,Type,ParentSID,Path FROM Entities
+    SELECT eSID,Type,ParentSID,Path FROM FullEntities
     WHERE eSID in ( -- start of the OR Filter groupings`
 		// This section will find all matching entities
 		firstOr := true
@@ -1011,7 +1017,7 @@ ft.eSID IN ( -- eSID from query
       -- start of one Filter AND grouping (expr1 AND expr2).
       -- Find all SIDs for the leaves for entities (SIDs) of interest.
       SELECT list.eSID FROM (
-        SELECT count(*) as cnt,e2.eSID,e2.Path FROM Entities AS e1
+        SELECT count(*) as cnt,e2.eSID,e2.Path FROM FullEntities AS e1
         RIGHT JOIN (
           -- start of expr1 - below finds SearchNodes/SIDs of interest`
 			firstAnd := true
@@ -1075,7 +1081,7 @@ ft.eSID IN ( -- eSID from query
 					// 2+ rows at matching more than one filter expression
 					check += " GROUP BY eSID" // " LIMIT 1"
 					query += `
-          (SELECT eSID,Type,Path FROM FullTree  -- FILTER_PRESENT
+          (SELECT eSID,Type,Path FROM FullTreeTable  -- FILTER_PRESENT
            WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
 
 				} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
@@ -1086,9 +1092,9 @@ ft.eSID IN ( -- eSID from query
 					// BINARY means case-sensitive for that operand
 					query += `
           -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.Path FROM Entities AS e
+          SELECT e.eSID,e.Type,e.Path FROM FullEntities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM FullTree WHERE
+            NOT EXISTS (SELECT 1 FROM FullTreeTable WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
 						propNameSearch + `))`
 
@@ -1115,7 +1121,7 @@ ft.eSID IN ( -- eSID from query
 					}
 					check += ")"
 					query += `
-          SELECT eSID,Type,Path FROM FullTree
+          SELECT eSID,Type,Path FROM FullTreeTable
             WHERE RegSID=? AND ` + check
 
 				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
@@ -1124,9 +1130,9 @@ ft.eSID IN ( -- eSID from query
 					// BINARY means case-sensitive for that operand
 					query += `
           -- Entities that don't have the specified prop
-          SELECT e.eSID,e.Type,e.Path FROM Entities AS e
+          SELECT e.eSID,e.Type,e.Path FROM FullEntities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM FullTree WHERE
+            NOT EXISTS (SELECT 1 FROM FullTreeTable WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
 						propNameSearch + ` AND `
 
@@ -1174,7 +1180,7 @@ ft.eSID IN ( -- eSID from query
 						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
 						" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
 					query += `
-          SELECT eSID,Type,Path FROM FullTree
+          SELECT eSID,Type,Path FROM FullTreeTable
             WHERE RegSID=? AND ` + check
 
 				} else {
@@ -1189,7 +1195,7 @@ ft.eSID IN ( -- eSID from query
         -- expressions in each filter (the ANDs), are branches to return.
         -- Note we return the Path of each Leaf, not the path of the matching
         -- entity. The entity that matches isn't important.
-        JOIN Entities AS e2 ON (
+        JOIN FullEntities AS e2 ON (
           (
             (
               -- Non-meta objects, just compare the Path
@@ -1224,7 +1230,7 @@ ft.eSID IN ( -- eSID from query
     -- entities, up to root of Reg.
     UNION DISTINCT SELECT
       e.eSID,e.Type,e.ParentSID,e.Path
-    FROM Entities AS e
+    FROM FullEntities AS e
     INNER JOIN cte ON
       (
         -- Find its parent

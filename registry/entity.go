@@ -290,7 +290,7 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             p.PropType as PropType,
             e.Path as Path,
             e.Abstract as Abstract
-        FROM Entities AS e
+        FROM FullEntities AS e
         LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
         WHERE e.RegSID=? AND e.Path`+caseExpr+`=?
         ORDER BY Path`,
@@ -366,7 +366,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             p.PropType as PropType,
             e.Path as Path,
             e.Abstract as Abstract
-        FROM Entities AS e
+        FROM FullEntities AS e
         LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
         WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
 	defer results.Close()
@@ -739,6 +739,39 @@ func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) {
                   WHERE v.RegistrySID=p.RegistrySID AND v.ResourceSID=?
               ) AND p.PropName=? AND p.SystemProp=true`,
 		e.Registry.DbSID, r.DbSID, pp.DB())
+
+	// Query the real Versions table directly (not r.GetVersions(),
+	// which reads from FullEntities and would also pick up synthetic
+	// xref-copied version rows sharing this Resource's ParentSID).
+	// Build lightweight in-memory *Version objects from the result so
+	// FullTreeResyncOwnProps can derive everything (including
+	// ParentSID via GetParent()) without another DB round-trip per
+	// version.
+	results := Query(e.tx, `SELECT SID, UID FROM Versions WHERE ResourceSID=?`,
+		r.DbSID)
+	defer results.Close()
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		verSID := NotNilString(row[0])
+		verUID := NotNilString(row[1])
+		v := &Version{
+			Entity: Entity{
+				EntityExtensions: EntityExtensions{tx: e.tx},
+				Registry:         e.Registry,
+				DbSID:            verSID,
+				Type:             ENTITY_VERSION,
+				Plural:           "versions",
+				Singular:         "version",
+				UID:              verUID,
+				Abstract:         r.Abstract + string(DB_IN) + "versions",
+				Path:             r.Path + "/versions/" + verUID,
+			},
+			Resource: r,
+		}
+		v.Self = v
+		// Also refreshes the Resource's IsDefaultVerCopy set, in
+		// case the version being resynced is the current default.
+		FullTreeResyncOwnProps(&v.Entity)
+	}
 }
 
 func (e *Entity) ClearEntitySystemDBProperties() *XRError {
@@ -748,6 +781,8 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
 	Do(e.tx, `DELETE FROM Props
               WHERE RegistrySID=? AND EntitySID=? AND SystemProp=true`,
 		e.Registry.DbSID, e.DbSID)
+
+	FullTreeResyncOwnProps(e)
 
 	return nil
 }
@@ -781,6 +816,7 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 		Do(e.tx, `DELETE FROM Props
                   WHERE EntitySID=? AND PropName=? AND SystemProp=true`,
 			e.DbSID, name)
+		e.FullTreeSyncProp(name, nil, "", docView)
 	} else {
 		propType := GoToOurType(val)
 
@@ -814,6 +850,9 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
               RegistrySID,EntitySID,PropName,PropValue,PropType,DocView,SystemProp)
             VALUES( ?,?,?,?,?,?,true )`,
 			e.Registry.DbSID, e.DbSID, name, dbVal, propType, docView)
+
+		dbValStr := fmt.Sprintf("%v", dbVal)
+		e.FullTreeSyncProp(name, &dbValStr, propType, docView)
 	}
 }
 
@@ -2110,6 +2149,8 @@ func (e *Entity) Save() *XRError {
 		}
 	}
 	e.NewObject = nil
+
+	e.FullSave()
 
 	return nil
 }
