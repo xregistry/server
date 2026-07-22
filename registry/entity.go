@@ -269,8 +269,10 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
 	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
 
-	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
-	//   0     1     2      3       4     5    6       7         8       9    10
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
 
 	caseExpr := ""
 	if anyCase {
@@ -283,13 +285,14 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             e.Type as Type,
             e.Plural as Plural,
             e.Singular as Singular,
+            e.ParentSID as ParentSID,
             e.eSID as eSID,
             e.UID as UID,
+            e.Abstract as Abstract,
+            e.Path as Path,
             p.PropName as PropName,
             p.PropValue as PropValue,
             p.PropType as PropType,
-            e.Path as Path,
-            e.Abstract as Abstract,
             p.IsSystemProp as IsSystemProp
         FROM FullEntities AS e
         LEFT JOIN FullTreeTable AS p ON (
@@ -349,8 +352,10 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 	log.VPrintf(3, ">Enter: RawEntititiesFromQuery(%s)", query)
 	defer log.VPrintf(3, "<Exit: RawEntitiesFromQuery")
 
-	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
-	//   0     1     2     3        4    5     6         7        8     9     10
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
 
 	if query != "" {
 		query = "AND (" + query + ") "
@@ -362,13 +367,14 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             e.Type as Type,
             e.Plural as Plural,
             e.Singular as Singular,
+            e.ParentSID as ParentSID,
             e.eSID as eSID,
             e.UID as UID,
+            e.Abstract as Abstract,
+            e.Path as Path,
             p.PropName as PropName,
             p.PropValue as PropValue,
             p.PropType as PropType,
-            e.Path as Path,
-            e.Abstract as Abstract,
             p.IsSystemProp as IsSystemProp
         FROM FullEntities AS e
         LEFT JOIN FullTreeTable AS p ON (
@@ -946,10 +952,10 @@ func (e *Entity) setFromDBNameInto(dest *map[string]any, name string, val *strin
 func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
 	entity := (*Entity)(nil)
 
-	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,
-	// Path,Abstract,IsSystemProp
-	//   0     1     2     3        4     5   6         7        8
-	//   9    10       11
+	// RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,
+	// PropName,PropValue,PropType,IsSystemProp
+	//   0     1     2       3         4      5   6     7      8
+	//     9        10         11         12
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		// log.Printf("Row(%d): %#v", len(row), row)
 		if log.GetVerbose() >= 4 {
@@ -965,7 +971,7 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 		}
 		eType := int((*row[1]).(int64))
 		plural := NotNilString(row[2])
-		uid := NotNilString(row[5])
+		uid := NotNilString(row[6])
 
 		if entity == nil {
 			entity = &Entity{
@@ -974,16 +980,17 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 					AccessMode: accessMode,
 				},
 
-				Registry: tx.Registry,
-				DbSID:    NotNilString(row[4]),
-				Plural:   plural,
-				Singular: NotNilString(row[3]),
-				UID:      uid,
+				Registry:  tx.Registry,
+				DbSID:     NotNilString(row[5]),
+				ParentSID: NotNilString(row[4]),
+				Plural:    plural,
+				Singular:  NotNilString(row[3]),
+				UID:       uid,
 
 				Type:     eType,
-				Path:     NotNilString(row[9]),
-				XID:      "/" + NotNilString(row[9]),
-				Abstract: NotNilString(row[10]),
+				Path:     NotNilString(row[8]),
+				XID:      "/" + NotNilString(row[8]),
+				Abstract: NotNilString(row[7]),
 			}
 
 			entity.GroupModel, entity.ResourceModel =
@@ -998,10 +1005,10 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 			}
 		}
 
-		propName := NotNilString(row[6])
-		propVal := NotNilString(row[7])
-		propType := NotNilString(row[8])
-		isSystemProp := NotNilBoolDef(row[11], false)
+		propName := NotNilString(row[9])
+		propVal := NotNilString(row[10])
+		propType := NotNilString(row[11])
+		isSystemProp := NotNilBoolDef(row[12], false)
 
 		// Edge case - no props but entity is there
 		if propName == "" && propVal == "" && propType == "" {

@@ -7379,3 +7379,141 @@ cross-session record.
   the change actually helps before committing to it (this is a fairly
   invasive, many-table/many-query change, so worth confirming the win
   is real first).
+
+- [ ] **Xref fan-out: replace the per-source Go loop with a single
+  set-based SQL statement.** `fullSaveXrefFanOutForTargetMeta` and
+  `fullSaveXrefFanOutForTargetVersion` (registry/fulltree.go ~792-851)
+  both do `SELECT ResourceSID FROM Metas WHERE xRefSID=?` and then loop
+  in Go over every source Resource that xrefs the target, calling
+  `Registry.FindResourceBySID()`/`FindMeta()` (cache-checked, so cheap
+  if already loaded) plus `sourceMeta.fullSaveXrefCascade()` /
+  `fullSaveXrefVersionCopies()` + `fullSaveDefaultVerCascade()` once per
+  source — i.e. N+1 round-trips/cascades when a popular xref target
+  changes and has many sources. The idea floated (not yet attempted) is
+  whether these could instead be done as one big set-based SQL
+  statement (e.g. a single `INSERT ... SELECT` joining `Metas` (on
+  `xRefSID`) against `FullTreeTable`/`Versions` directly, the same
+  style already used by `fullSaveXrefVersionCopies()`/
+  `fullSaveXrefCascadeInsert()` for the single-source case) instead of
+  looping per source in Go. Worth prototyping and comparing against the
+  current loop, especially for registries where one Resource is xref'd
+  by many others.
+
+- [x] **`ParentSID` added to `Entity`; `GetParent()` eliminated
+  (2026-07-22).** Per user request, `Entity` (`common/shared_entity`)
+  now has a `ParentSID string` field, populated at every in-memory
+  construction site (Registry root gets `""`; Group/Resource/Meta/
+  Version each get their parent's `DbSID`) and by both DB-loading paths
+  (`RawEntityFromPath`/`RawEntitiesFromQuery` in `registry/entity.go`,
+  reading a new `e.ParentSID as ParentSID` column, ordered to match
+  `FullEntities`' real column order: RegSID,Type,Plural,Singular,
+  ParentSID,eSID,UID,Abstract,Path). `FullEntityInsert()` became a
+  zero-arg `(e *Entity)` method reading fields directly off `e`. All 8
+  `GetParent()` call sites in `registry/fulltree.go` were replaced with
+  direct `e.ParentSID`/`r.ParentSID` reads (or, for
+  `fullSaveXrefCascadeInsert`, `e.Self.(*Meta).Resource` directly, since
+  `e` there is always the real Meta). `GetParent()` itself was then
+  confirmed dead code repo-wide and removed from `common/shared_entity`
+  (regenerated via `make .sharedfiles`).
+  Follow-up simplification (also user-requested): in the handful of
+  `fulltree.go` funcs that only ever run for entity types guaranteed to
+  have a parent (Version/Resource/Meta — `fullSaveVersionCalc`,
+  `fullSaveResourceIsDefault`, `fullSaveXrefCascadeDelete`,
+  `fullSaveXrefCascadeInsert`), the `var parentArg any` nil-guard
+  pattern was dropped in favor of passing `e.ParentSID` directly as the
+  SQL arg. **This nil-guard must stay** in the 3 funcs that also run for
+  the parentless Registry root (`FullEntityInsert`, `fullTreeWriteProp`,
+  `fullSaveOwnPropsInsert`) — passing `""` instead of a real `nil` there
+  would insert an empty string into a nullable `ParentSID` column
+  instead of `NULL`.
+  **Also fixed as a byproduct**: two other pre-existing raw-SQL query
+  sites that feed the shared `readNextEntity()` row parser —
+  `GenerateQuery` (`registry/registry.go`, the main per-request
+  serialization query) and `HTTPGETContent` (`registry/httpStuff.go`,
+  the `?doc`/content-serving query) — were missing the `ParentSID`
+  column entirely (a latent bug, unrelated to this task, that
+  `readNextEntity`'s new column-index expectations exposed as an
+  immediate `TestAncestorBasic` panic: `Can't find Group "1"`, from
+  columns shifting one over). Both were fixed to select
+  `ParentSID` in the same column position as `RawEntityFromPath`/
+  `RawEntitiesFromQuery` so `readNextEntity` parses all four query
+  sources consistently.
+  Verified via `make xrserver`, `make cmds`, and `make qtest` (all
+  packages pass, ~78s for `tests`).
+
+- [x] **`fullSaveDefaultVerCascade`'s stale-default-version bug fixed
+  by the user directly (2026-07-22).** The previously-queued "v1 is
+  only coincidentally correct" issue (cascade was reading
+  `meta.Object["defaultversionid"]`, which happened to already hold the
+  right answer in the one failing test, not because it was actually
+  correct) was root-caused and fixed properly: (1) the earlier
+  suggestion to use `meta.GetAsString("defaultversionid")` was based on
+  misreading a local var named `defVerSID` as `defVerUID`; (2) reading
+  `meta.Object` instead of `meta.NewObject` was wrong in general — it
+  only avoided a crash because `EnsureLatest()` runs later and
+  overwrites/fixes up the default version regardless of what cascade
+  used in the meantime; (3) the real fix: `fullSaveDefaultVerCascade`
+  (registry/fulltree.go ~473) now calls `r.GetDefault(FOR_READ)`, and if
+  that's `nil` and the Resource isn't an xref, calls `r.EnsureLatest()`
+  and re-fetches — so the cascade always sees a real, validated default
+  Version, not a stale/placeholder value; (4) switched from passing a
+  version SID around to using the real `*Version` (`ver`) directly; (5)
+  `registry/resource.go` (~880, in the Meta upsert path) now explicitly
+  clears `defaultversionid` to `""` via `meta.JustSet(...)` whenever
+  `defaultversionsticky` isn't `true`, since that value is going to be
+  ignored/recomputed anyway — clearing it proactively both matches the
+  "always known-good" invariant needed by the cascade fix above, and
+  helps surface latent bugs elsewhere that might otherwise coast on a
+  stale value. This also incidentally fixes the earlier `GetPP()`/
+  `Get()`/`GetAsString()` "NewObject staged but missing key" staging bug
+  for this specific attribute, since `JustSet()` (via `EnsureNewObject()`)
+  guarantees `NewObject` has a real, fully-populated clone of `Object`
+  before the key is set — no more relying on `Object` as a fallback.
+  Verified via `make qtest` (all packages pass).
+
+- [ ] **3 remaining live call sites still read from the OLD
+  `Entities`/`FullTree` views, not `FullEntities`/`FullTreeTable`.**
+  User's stated goal (2026-07-22, turn ~850): "if the diff of the sql
+  tables yields zero diffs, go ahead and make the switch to use the new
+  tables exclusively - to the point where we never touch Props,
+  FullTree or Entities at all." Found while re-scanning the chat: this
+  wasn't fully completed. `registry/httpStuff.go` still has 3 raw
+  queries against the legacy `Entities` view (both `CREATE VIEW
+  Entities`/`CREATE VIEW FullTree`, registry/init.sql ~288/602, are
+  still present in the schema specifically to support these):
+  - `HTTPDeleteGroups` (~2017): `SELECT UID FROM Entities WHERE
+    RegSID=? AND Abstract=?` — building the bulk-delete-all-Groups list
+    when no epoch list was provided in the request body.
+  - `HTTPDeleteResources` (~2082): same pattern, for bulk-delete-all-
+    Resources.
+  - `ProcessShortSelf` (~2688): `SELECT r.UID, e.Path FROM Entities AS
+    e JOIN Registries AS r ON (r.SID=e.RegSID) WHERE e.eSID=?` — used to
+    resolve `/r/<shortself-id>` redirects.
+  These should be migrated to query `FullEntities` instead (same
+  columns needed - UID/Path/Abstract/eSID/RegSID - all present on
+  `FullEntities`), after which the `Entities`/`FullTree` views
+  themselves could likely be dropped from `registry/init.sql` entirely
+  (the `db.go` mentions of `FullTree`/`Entities` are just historical
+  design-note comments, not live code, so aren't blockers). Not yet
+  attempted.
+
+- [ ] **Re-confirm the Phase 2 SQL re-architecture actually delivered a
+  real performance win (or at least didn't regress), and re-baseline
+  test-suite timing.** Partway through Phase 2 (2026-07-22, turn ~855)
+  the user observed `make qtest`'s overall test time was running about
+  **2x slower** than before the `sql.md` migration started, which
+  contradicted the original premise that the old `FullTree`/`Entities`/
+  `Props` views were the bottleneck. This was never conclusively
+  resolved one way or the other in this session — work moved on to
+  finishing the Phase 2 cutover and correctness fixes (SIDs→real
+  entities, ParentSID, defaultversionid bug) rather than root-causing
+  the timing regression itself. Worth: (1) getting a clean before/after
+  timing comparison (e.g. against the last commit before `sql.md` work
+  began), (2) if still slower, profiling to find out why (candidates:
+  the new `FullTreeAncestor`/`FullTreeXref` triggers firing + evaluating
+  their full `IF` chain on every row inserted into `FullTreeTable`
+  regardless of entity/prop type — flagged separately above — or the
+  xref fan-out Go-loop item above), (3) checking whether `FullTreeTable`/
+  `FullEntities`'s current indexes are sufficient for the query patterns
+  now in use (also raised by the user at turn ~858, not yet
+  systematically evaluated).

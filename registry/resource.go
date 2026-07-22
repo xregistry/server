@@ -706,11 +706,12 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 					tx: r.tx,
 				},
 
-				Registry: r.Registry,
-				DbSID:    NewUUID(),
-				Plural:   "metas",
-				Singular: "meta",
-				UID:      r.UID,
+				Registry:  r.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: r.DbSID,
+				Plural:    "metas",
+				Singular:  "meta",
+				UID:       r.UID,
 
 				Type:     ENTITY_META,
 				Path:     r.Path + "/meta",
@@ -728,9 +729,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
-		FullEntityInsert(r.tx, r.Registry.DbSID, ENTITY_META, meta.Plural,
-			meta.Singular, r.DbSID, meta.DbSID, meta.UID, meta.Abstract,
-			meta.Path)
+		meta.FullEntityInsert()
 
 		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
@@ -859,6 +858,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 	}
 
+	/* DUG FT - old stuff
 	oldSticky := meta.Object["defaultversionsticky"]
 	newDefID := meta.NewObject["defaultversionid"]
 	if IsNil(newDefID) {
@@ -868,8 +868,29 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	if oldSticky != true && newDefID == "" {
 		meta.JustSet("defaultversionid", "")
 	}
+	*/
 
 	if !mu.more {
+		// If there's no more processing, go ahead and verify everything
+
+		// Clear the defautversionid if we're not sticky
+
+		newSticky := meta.NewObject["defaultversionsticky"]
+		// If it's not set then we need to find out what it's default
+		// value is (per the model). And if its not "true" then we should
+		// erase any "defaultversionid" value since it's not going to be
+		// used anyway
+		if IsNil(newSticky) {
+			stickyAttr := r.ResourceModel.MetaAttributes["defaultversionsticky"]
+			if stickyAttr != nil && !IsNil(stickyAttr.Default) {
+				newSticky = (stickyAttr.Default == true)
+			}
+		}
+
+		if newSticky != true {
+			meta.JustSet("defaultversionid", "")
+		}
+
 		if xErr := r.ValidateResource(true, false); xErr != nil {
 			return nil, false, xErr
 		}
@@ -1012,11 +1033,12 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: r.Registry,
-				DbSID:    NewUUID(),
-				Plural:   "versions",
-				Singular: "version",
-				UID:      vu.Id,
+				Registry:  r.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: r.DbSID,
+				Plural:    "versions",
+				Singular:  "version",
+				UID:       vu.Id,
 
 				Type:     ENTITY_VERSION,
 				Path:     r.Path + "/versions/" + vu.Id,
@@ -1037,8 +1059,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+v.UID,
 			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
 
-		FullEntityInsert(r.tx, r.Registry.DbSID, ENTITY_VERSION, v.Plural,
-			v.Singular, r.DbSID, v.DbSID, v.UID, v.Abstract, v.Path)
+		v.FullEntityInsert()
 
 		v.tx.AddVersion(v)
 

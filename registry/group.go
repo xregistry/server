@@ -272,11 +272,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: g.Registry,
-				DbSID:    NewUUID(),
-				Plural:   ru.RType,
-				Singular: rModel.Singular,
-				UID:      ru.Id,
+				Registry:  g.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: g.DbSID,
+				Plural:    ru.RType,
+				Singular:  rModel.Singular,
+				UID:       ru.Id,
 
 				Type:     ENTITY_RESOURCE,
 				Path:     g.Path + "/" + ru.RType + "/" + ru.Id,
@@ -317,8 +318,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
 
-		FullEntityInsert(r.tx, g.Registry.DbSID, ENTITY_RESOURCE, r.Plural,
-			r.Singular, g.DbSID, r.DbSID, r.UID, r.Abstract, r.Path)
+		r.FullEntityInsert()
 
 		isNew = true
 		r.tx.AddResource(r)
@@ -338,11 +338,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: g.Registry,
-				DbSID:    NewUUID(),
-				Plural:   "metas",
-				Singular: "meta",
-				UID:      r.UID,
+				Registry:  g.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: r.DbSID,
+				Plural:    "metas",
+				Singular:  "meta",
+				UID:       r.UID,
 
 				Type:     ENTITY_META,
 				Path:     r.Path + "/meta",
@@ -363,9 +364,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			meta.DbSID, g.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
-		FullEntityInsert(r.tx, g.Registry.DbSID, ENTITY_META, meta.Plural,
-			meta.Singular, r.DbSID, meta.DbSID, meta.UID, meta.Abstract,
-			meta.Path)
+		meta.FullEntityInsert()
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {

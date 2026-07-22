@@ -143,9 +143,6 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 		INSERT INTO Registries(SID, UID)
 		VALUES(?,?)`, dbSID, id)
 
-	FullEntityInsert(tx, dbSID, ENTITY_REGISTRY, "registries", "registry",
-		"", dbSID, id, "", "")
-
 	reg := &Registry{
 		Entity: Entity{
 			EntityExtensions: EntityExtensions{
@@ -167,6 +164,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 
 	reg.Self = reg
 	reg.Entity.Registry = reg
+	reg.FullEntityInsert()
 	reg.Capabilities = DefaultCapabilities.Clone()
 	reg.Model = &Model{
 		Registry: reg,
@@ -726,11 +724,12 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: reg,
-				DbSID:    NewUUID(),
-				Plural:   gType,
-				Singular: gm.Singular,
-				UID:      id,
+				Registry:  reg,
+				DbSID:     NewUUID(),
+				ParentSID: reg.DbSID,
+				Plural:    gType,
+				Singular:  gm.Singular,
+				UID:       id,
 
 				Type:     ENTITY_GROUP,
 				Path:     gType + "/" + id,
@@ -753,8 +752,7 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			gm.SID, g.Path, g.Abstract,
 			g.Plural, g.Singular)
 
-		FullEntityInsert(reg.tx, g.Registry.DbSID, ENTITY_GROUP, g.Plural,
-			g.Singular, g.Registry.DbSID, g.DbSID, g.UID, g.Abstract, g.Path)
+		g.FullEntityInsert()
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
@@ -967,7 +965,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	args = []interface{}{reg.DbSID}
 	query = `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract,ft.IsSystemProp
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.Path,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp
   FROM FullTreeTable AS ft` + sortJoin + `
   WHERE ft.RegSID=?
 `
@@ -1349,6 +1347,44 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	}
 
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+}
+
+// FindResourceBySID resolves a Resource's SID to its real, in-memory
+// *Resource - going through the normal FindGroup()/FindResource() path
+// (cache-checked first, DB-read-and-cached on a miss) rather than
+// building a partial/synthetic shell from raw row data. Used by code
+// (e.g. xref fan-out) that only discovers a Resource's SID via a query
+// (Metas.xRefSID, etc.) and has no path/XID string on hand - a small
+// join against Resources/Groups gets us the type names+UIDs needed to
+// go through the real finder functions, so callers get a fully-wired
+// Resource (correct Group/Registry pointers) instead of a fragile
+// hand-built stand-in.
+func (r *Registry) FindResourceBySID(sid string, accessMode int) (*Resource, *XRError) {
+	if sid == "" {
+		return nil, nil
+	}
+
+	results := Query(r.tx, `
+        SELECT g.Plural, g.UID, res.Plural, res.UID
+        FROM Resources AS res
+        JOIN "Groups" AS g ON (g.SID=res.GroupSID)
+        WHERE res.SID=?`, sid)
+	row := results.NextRow()
+	results.Close()
+	if row == nil {
+		return nil, nil
+	}
+
+	groupPlural := NotNilString(row[0])
+	groupUID := NotNilString(row[1])
+	resPlural := NotNilString(row[2])
+	resUID := NotNilString(row[3])
+
+	g, xErr := r.FindGroup(groupPlural, groupUID, false, accessMode)
+	if xErr != nil || g == nil {
+		return nil, xErr
+	}
+	return g.FindResource(resPlural, resUID, false, accessMode)
 }
 
 func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XRError) {

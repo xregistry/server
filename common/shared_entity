@@ -15,6 +15,7 @@ type Entity struct {
 
 	Registry     *Registry `json:"-"`
 	DbSID        string    // Entity's SID
+	ParentSID    string    // Parent entity's SID ("" for the Registry root)
 	Plural       string
 	Singular     string
 	UID          string         // Entity's UID
@@ -710,38 +711,6 @@ func StrTypes(types ...int) string {
 		res.WriteByte('0' + byte(eType))
 	}
 	return res.String()
-}
-
-// GetParent returns e's parent entity, using whatever typed Go object
-// e.Self already points to (Registry.Group, Group.Resource, etc) - no
-// DB round-trip. Returns nil for a Registry (no parent) or if e.Self
-// isn't one of the recognized typed wrappers.
-func (e *Entity) GetParent() *Entity {
-	switch v := e.Self.(type) {
-	case *Registry:
-		return nil
-	case *Group:
-		if v.Registry == nil {
-			return nil
-		}
-		return &v.Registry.Entity
-	case *Resource:
-		if v.Group == nil {
-			return nil
-		}
-		return &v.Group.Entity
-	case *Meta:
-		if v.Resource == nil {
-			return nil
-		}
-		return &v.Resource.Entity
-	case *Version:
-		if v.Resource == nil {
-			return nil
-		}
-		return &v.Resource.Entity
-	}
-	return nil
 }
 
 func (e *Entity) GetModels() (*GroupModel, *ResourceModel) {

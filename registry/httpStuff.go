@@ -565,8 +565,8 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 
 	query := `
 SELECT
-  RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract,
-  IsSystemProp
+  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,PropName,
+  PropValue,PropType,IsSystemProp
 FROM FullTreeTable WHERE RegSID=? AND `
 	args := []any{info.Registry.DbSID}
 
