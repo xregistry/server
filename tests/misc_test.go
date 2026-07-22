@@ -54,9 +54,9 @@ func TestMiscDBRows(t *testing.T) {
 		return NotNilString(vp)
 	}
 
-	rows := reg.Query("SELECT e.Path,p.PropName,p.PropValue "+
-		"FROM Props AS p "+
-		"JOIN Entities AS e ON (p.EntitySID=e.eSID) WHERE p.RegistrySID=? "+
+	rows := reg.Query("SELECT Path,PropName,PropValue "+
+		"FROM FullTreeTable WHERE RegSID=? AND IsDefaultVerCopy=false AND "+
+		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND IsCalculated=false "+
 		"ORDER BY Path, PropName ",
 		reg.DbSID)
 

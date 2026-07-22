@@ -499,28 +499,27 @@ CREATE TABLE FullTreeTable (
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   DocView    BOOL NOT NULL,
 
-  # These flag WHY this row exists when it's not a direct copy of a
-  # Props row for this eSID (multiple booleans, one per cascade
-  # reason, so each can be independently identified/refreshed without
-  # disturbing the others). All false means this row is either a
-  # direct copy of a real Props row, or a cheaply-recomputed
-  # calculated singleton (xid, isdefault, RESOURCEid) - those don't
-  # need their own marker since they're always freely recomputed
-  # alongside an entity's own base props.
+  # These flag WHY this row exists when it's not a direct write of the
+  # entity's own user-set value (multiple booleans, one per reason, so
+  # each can be independently identified/refreshed without disturbing
+  # the others). All false means this row is a direct, currently-live
+  # user-set property (written by SetDBProperty()).
   IsDefaultVerCopy BOOL NOT NULL DEFAULT false, # Copied from default Version
   IsXrefPropCopy   BOOL NOT NULL DEFAULT false, # meta.* copied from xref target
   IsXrefVerCopy    BOOL NOT NULL DEFAULT false, # Synthetic Version copied via xref
+  IsSystemProp     BOOL NOT NULL DEFAULT false, # Set via SetSystemDBProperty()
+  IsCalculated     BOOL NOT NULL DEFAULT false, # xid/isdefault/RESOURCEid singleton
 
   PRIMARY KEY(RegSID, Path, PropName),
   UNIQUE INDEX(RegSID, eSID, PropName),
-  INDEX(eSID)
+  INDEX(eSID),
+  INDEX(RegSID, ParentSID) # for cascade-copy cleanup (e.g.
+                           # fullSaveXrefCascadeDelete's ParentSID scan)
   # INDEX(RegSID, Abstract)
 );
 
-# This will eventually replace the Entities view. For now (while
-# FullTreeTable/FullEntities are being incrementally populated in
-# parallel, gated behind an env var - see FullSave() in entity.go)
-# it's only written to, never read from.
+# This is the authoritative store for all entity properties (own,
+# system, calculated, and cascaded/copied) - see fulltree.go.
 CREATE TABLE FullEntities (
   RegSID     VARCHAR(64) NOT NULL,
   Type       BIGINT NOT NULL,
@@ -542,6 +541,63 @@ CREATE TABLE FullEntities (
   UNIQUE INDEX (RegSID, ParentSID, eSID),
   UNIQUE INDEX (RegSID, Path)
 );
+
+# These mirror PropsAncestor/PropsXref (defined above for the now-
+# unused Props table) but fire on FullTreeTable, which is the sole
+# authoritative store for entity properties now (see fulltree.go).
+# They keep Versions.AncestorID/CreatedAt and Metas.xRefSID/defaultVID
+# in sync whenever the corresponding OWN (non-cascaded, non-calculated)
+# property row is written/removed - those DB columns are relied on
+# throughout the codebase (ancestor-chain resolution, xref detection,
+# default-version lookups) and are otherwise never set anywhere else.
+CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON FullTreeTable
+FOR EACH ROW
+BEGIN
+    IF (NEW.Type=$ENTITY_VERSION AND NEW.IsDefaultVerCopy=false AND
+        NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
+        IF (NEW.PropName='ancestorid$DB_IN') THEN
+          UPDATE Versions SET AncestorID=NEW.PropValue
+              WHERE SID=NEW.eSID $$
+        END IF $$
+        IF (NEW.PropName='createdat$DB_IN') THEN
+          UPDATE Versions SET CreatedAt=NEW.PropValue
+              WHERE SID=NEW.eSID $$
+        END IF $$
+    END IF $$
+
+    IF (NEW.Type=$ENTITY_META AND NEW.IsDefaultVerCopy=false AND
+        NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
+        IF (NEW.PropName='xref$DB_IN') THEN
+          # Remove leading /
+          SET @rSID := (SELECT SID FROM Resources WHERE
+                        RegistrySID=NEW.RegSID AND
+                        Path=SUBSTRING(NEW.PropValue,2)) $$
+
+          UPDATE Metas AS m SET xRefSID=@rSID
+            WHERE m.SID=NEW.eSID $$
+        END IF $$
+        IF (NEW.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NEW.PropValue
+            WHERE m.SID=NEW.eSID $$
+        END IF $$
+    END IF $$
+END ;
+
+CREATE TRIGGER FullTreeXref BEFORE DELETE ON FullTreeTable
+FOR EACH ROW
+BEGIN
+    IF (OLD.Type=$ENTITY_META AND OLD.IsDefaultVerCopy=false AND
+        OLD.IsXrefPropCopy=false AND OLD.IsXrefVerCopy=false) THEN
+        IF (OLD.PropName='xref$DB_IN') THEN
+          UPDATE Metas SET xRefSID=NULL
+          WHERE SID=OLD.eSID $$
+        END IF $$
+        IF (OLD.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NULL
+            WHERE m.SID=OLD.eSID $$
+        END IF $$
+    END IF $$
+END ;
 
 CREATE VIEW FullTree AS
 SELECT

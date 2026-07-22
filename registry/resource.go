@@ -1224,8 +1224,9 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 	singular := r.ResourceModel.Singular
 
 	// Query for any versions with document content in ResourceContents table
-	// or with singular/singularurl/singularproxyurl attributes in Props.
-	// Note: PropName includes DB_IN delimiter at the end (e.g., "fileurl,")
+	// or with singular/singularurl/singularproxyurl attributes in
+	// FullTreeTable. Note: PropName includes DB_IN delimiter at the end
+	// (e.g., "fileurl,")
 	query := fmt.Sprintf(`
 		SELECT v.Path FROM Versions v
 		WHERE v.ResourceSID = ?
@@ -1235,8 +1236,10 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 				WHERE rc.VersionSID = v.SID
 			)
 			OR EXISTS (
-				SELECT 1 FROM Props p
-				WHERE p.EntitySID = v.SID
+				SELECT 1 FROM FullTreeTable p
+				WHERE p.eSID = v.SID
+				AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+				AND p.IsXrefVerCopy=false
 				AND p.PropName IN ('%s%s', '%surl%s', '%sproxyurl%s')
 			)
 		)
@@ -1309,6 +1312,11 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	if xErr := r.EnsureCompat(force); xErr != nil {
 		return xErr
 	}
+	// Flush any system props EnsureCompat() buffered (on this or other
+	// Versions of this Resource) so they're visible to the response
+	// that's about to be serialized, well before this Tx actually
+	// commits (see Tx.FlushSystemProps()).
+	r.tx.FlushSystemProps()
 
 	// Make sure all attribtues with matchversions=true are the same for
 	// all versions
@@ -1613,8 +1621,9 @@ func (m *Meta) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Meta.Delete(%s)", m.UID)
 	defer log.VPrintf(3, "<Exit: Meta.Delete")
 
-	// Can't use a trigger to do this because we get recusive triggers
-	Do(m.tx, `DELETE FROM Props WHERE EntitySID=?`, m.DbSID)
+	// FullTreeTable/FullEntities rows for this Meta are cleaned up by
+	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
+	// deleted right after this.
 	DoOne(m.tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
 
 	// Delete any pending changes so dirty check doesn't fail
@@ -1628,7 +1637,7 @@ func (r *Resource) GetVersions() ([]*Version, *XRError) {
 	list := []*Version{}
 
 	entities, xErr := RawEntitiesFromQuery(r.tx, r.Registry.DbSID,
-		FOR_WRITE, `ParentSID=? AND Type=?`, r.DbSID, ENTITY_VERSION)
+		FOR_WRITE, `e.ParentSID=? AND e.Type=?`, r.DbSID, ENTITY_VERSION)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1755,10 +1764,11 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 
 	// Doing neither so just return
 	if !validateCompat && !validateFormat {
-		r.ClearResourceSystemDBProperty(NewPPP("formatvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("formatvalidatedreason"))
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidatedreason"))
+		r.ClearResourceSystemDBProperty(
+			NewPPP("formatvalidated"),
+			NewPPP("formatvalidatedreason"),
+			NewPPP("compatibilityvalidated"),
+			NewPPP("compatibilityvalidatedreason"))
 		return nil
 	}
 
@@ -1947,8 +1957,9 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 	// If compat isn't enabled, skip compat checking
 	if IsNil(newCompat) || !validateCompat {
 		// clear compatvalidated attr for all versions
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidated"))
-		r.ClearResourceSystemDBProperty(NewPPP("compatibilityvalidatedreason"))
+		r.ClearResourceSystemDBProperty(
+			NewPPP("compatibilityvalidated"),
+			NewPPP("compatibilityvalidatedreason"))
 		return nil
 	}
 

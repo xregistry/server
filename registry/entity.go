@@ -289,9 +289,12 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             p.PropValue as PropValue,
             p.PropType as PropType,
             e.Path as Path,
-            e.Abstract as Abstract
+            e.Abstract as Abstract,
+            p.IsSystemProp as IsSystemProp
         FROM FullEntities AS e
-        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
+        LEFT JOIN FullTreeTable AS p ON (
+            e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            AND p.IsXrefVerCopy=false AND p.IsCalculated=false)
         WHERE e.RegSID=? AND e.Path`+caseExpr+`=?
         ORDER BY Path`,
 		regID, path)
@@ -365,9 +368,12 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             p.PropValue as PropValue,
             p.PropType as PropType,
             e.Path as Path,
-            e.Abstract as Abstract
+            e.Abstract as Abstract,
+            p.IsSystemProp as IsSystemProp
         FROM FullEntities AS e
-        LEFT JOIN Props AS p ON (e.eSID=p.EntitySID AND p.SystemProp=false)
+        LEFT JOIN FullTreeTable AS p ON (
+            e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
+            AND p.IsXrefVerCopy=false AND p.IsCalculated=false)
         WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
 	defer results.Close()
 
@@ -398,20 +404,31 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	}
 
 	results := Query(e.tx, `
-        SELECT PropName, PropValue, PropType
-        FROM Props WHERE EntitySID=? AND SystemProp=false`+mode, e.DbSID)
+        SELECT PropName, PropValue, PropType, IsSystemProp
+        FROM FullTreeTable
+        WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+              AND IsXrefVerCopy=false AND IsCalculated=false`+mode, e.DbSID)
 	defer results.Close()
 
 	// Erase all old props first
 	e.Object = map[string]any{}
 	e.NewObject = nil
+	e.System = map[string]any{}
+	e.NewSystem = nil
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		name := NotNilString(row[0])
 		val := NotNilString(row[1])
 		propType := NotNilString(row[2])
+		isSystemProp := NotNilBoolDef(row[3], false)
 
-		if xErr := e.SetFromDBName(name, &val, propType); xErr != nil {
+		var xErr *XRError
+		if isSystemProp {
+			xErr = e.SetSystemFromDBName(name, &val, propType)
+		} else {
+			xErr = e.SetFromDBName(name, &val, propType)
+		}
+		if xErr != nil {
 			return xErr
 		}
 	}
@@ -665,9 +682,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 
 	if IsNil(val) {
 		// Should never need this but keeping it just in case
-		Do(e.tx, `DELETE FROM Props
-                  WHERE EntitySID=? AND PropName=? AND SystemProp=false`,
-			e.DbSID, name)
+		e.FullTreeWriteOwnProp(name, nil, "", docView)
 	} else {
 		propType := GoToOurType(val)
 
@@ -714,63 +729,54 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 			dbVal = ""
 		}
 
-		DoOneTwo(e.tx, `
-            REPLACE INTO Props(
-              RegistrySID, EntitySID, eType, PropName, PropValue, PropType,
-              DocView, SystemProp)
-            VALUES( ?,?,?,?,?,?,?,false )`,
-			e.Registry.DbSID, e.DbSID, e.Type, name, dbVal, propType, docView)
+		dbValStr := fmt.Sprintf("%v", dbVal)
+		e.FullTreeWriteOwnProp(name, &dbValStr, propType, docView)
 	}
 
 	return nil
 }
 
-// Clears system prop for all versions of this resource
-func (e *Entity) ClearResourceSystemDBProperty(pp *PropPath) {
-	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%s)", pp.UI())
+// Clears system prop(s) for all versions of this resource. Accepts
+// multiple PropPaths so callers that need to clear several system
+// props at once (e.g. EnsureCompat's format/compat validated+reason
+// attrs) can do so in one pass, instead of looping over all Versions
+// once per prop. Goes through the same buffered SetSystemDBProperty()
+// mechanism as everything else (see Entity.System's doc comment) -
+// using r.FindVersion() (not a throwaway shell object) so a clear
+// issued after some other system-prop write on the same Version within
+// this same request correctly composes with (and can override) that
+// earlier buffered value, rather than racing an immediate DB DELETE
+// against a later flush.
+func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
+	log.VPrintf(3, ">Enter: ClearResourceSystemDBProperties(%d props)",
+		len(pps))
 	defer log.VPrintf(3, "<Exit ClearResourceSystemDBProperties")
+
+	if len(pps) == 0 {
+		return
+	}
 
 	r, ok := e.Self.(*Resource)
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
 
-	Do(e.tx, `DELETE FROM Props AS p
-              WHERE p.RegistrySID=? AND p.EntitySID IN (
-                  SELECT v.SID FROM Versions AS v
-                  WHERE v.RegistrySID=p.RegistrySID AND v.ResourceSID=?
-              ) AND p.PropName=? AND p.SystemProp=true`,
-		e.Registry.DbSID, r.DbSID, pp.DB())
-
 	// Query the real Versions table directly (not r.GetVersions(),
 	// which reads from FullEntities and would also pick up synthetic
 	// xref-copied version rows sharing this Resource's ParentSID).
-	// Build lightweight in-memory *Version objects from the result so
-	// FullTreeResyncOwnProps can derive everything (including
-	// ParentSID via GetParent()) without another DB round-trip per
-	// version.
-	results := Query(e.tx, `SELECT SID, UID FROM Versions WHERE ResourceSID=?`,
+	results := Query(e.tx, `SELECT UID FROM Versions WHERE ResourceSID=?`,
 		r.DbSID)
 	defer results.Close()
+
+	uids := []string{}
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		verSID := NotNilString(row[0])
-		verUID := NotNilString(row[1])
-		v := &Version{
-			Entity: Entity{
-				EntityExtensions: EntityExtensions{tx: e.tx},
-				Registry:         e.Registry,
-				DbSID:            verSID,
-				Type:             ENTITY_VERSION,
-				Plural:           "versions",
-				Singular:         "version",
-				UID:              verUID,
-				Abstract:         r.Abstract + string(DB_IN) + "versions",
-				Path:             r.Path + "/versions/" + verUID,
-			},
-			Resource: r,
+		uids = append(uids, NotNilString(row[0]))
+	}
+
+	for _, uid := range uids {
+		v, xErr := r.FindVersion(uid, false, FOR_WRITE)
+		PanicIf(xErr != nil || v == nil, "%s/versions/%s: %s", r.XID, uid, xErr)
+		for _, pp := range pps {
+			v.SetSystemDBProperty(pp, nil)
 		}
-		v.Self = v
-		// Also refreshes the Resource's IsDefaultVerCopy set, in
-		// case the version being resynced is the current default.
-		FullTreeResyncOwnProps(&v.Entity)
 	}
 }
 
@@ -778,8 +784,8 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
 	log.VPrintf(3, ">Enter: ClearEntitySystemDBProperties")
 	defer log.VPrintf(3, "<Exit ClearEntitySystemDBProperties")
 
-	Do(e.tx, `DELETE FROM Props
-              WHERE RegistrySID=? AND EntitySID=? AND SystemProp=true`,
+	Do(e.tx, `DELETE FROM FullTreeTable
+              WHERE RegSID=? AND eSID=? AND IsSystemProp=true`,
 		e.Registry.DbSID, e.DbSID)
 
 	FullTreeResyncOwnProps(e)
@@ -787,14 +793,25 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
 	return nil
 }
 
+// SetSystemDBProperty buffers a system-prop change into e.NewSystem -
+// it does NOT write to the DB immediately. The actual write (and, if
+// e is a Version, at most one re-run of the default-version cascade)
+// happens later, via SaveSystemProps() - either at Tx-commit time
+// (called from tx.WriteCache()), or earlier if a caller explicitly
+// calls tx.FlushSystemProps() (e.g. EnsureCompat()'s callers do this
+// right away, so the buffered values are visible in the same request's
+// HTTP response, before the Tx actually commits). This lets callers
+// like EnsureCompat() set several system props on the same entity
+// back-to-back without each one independently re-triggering the whole
+// cascade - see SaveSystemProps().
 func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 	log.VPrintf(3, ">Enter: SetSystemDBProperty(%s=%v)", pp, val)
 	defer log.VPrintf(3, "<Exit SetSystemDBProperty")
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
+	/* DUG FT
 	name := pp.DB()
-	docView := true
 
 	_, propsMap := e.GetPropsOrdered()
 	specProp, ok := propsMap[pp.Top()]
@@ -803,108 +820,117 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 		if specProp.internals.dontStore {
 			return
 		}
-		if specProp.internals.noDocView {
-			docView = false
-		}
 	}
 
 	PanicIf(len(name) > MAX_PROPNAME, "SysProp name is too long: %s", name)
 	PanicIf(e.DbSID == "", "DbSID should not be empty")
 	PanicIf(e.Registry == nil, "Registry should not be nil")
 
-	if IsNil(val) {
-		Do(e.tx, `DELETE FROM Props
-                  WHERE EntitySID=? AND PropName=? AND SystemProp=true`,
-			e.DbSID, name)
-		e.FullTreeSyncProp(name, nil, "", docView)
-	} else {
-		propType := GoToOurType(val)
-
-		// Convert booleans to true/false instead of 1/0 so filter works
-		// ...=true and not ...=1
-		dbVal := val
-		if propType == BOOLEAN {
-			if val == true {
-				dbVal = "true"
-			} else {
-				dbVal = "false"
-			}
-		}
-
+	if !IsNil(val) {
 		switch reflect.ValueOf(val).Kind() {
 		case reflect.String:
 			PanicIf(reflect.ValueOf(val).Len() > MAX_VARCHAR, "%s:too long", name)
 		case reflect.Slice:
 			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-			dbVal = ""
 		case reflect.Map:
 			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-			dbVal = ""
 		case reflect.Struct:
 			PanicIf(reflect.ValueOf(val).Len() > 0, "%s:non-empty", name)
-			dbVal = ""
 		}
+	}
+	*/
 
-		DoOneTwo(e.tx, `
-            REPLACE INTO Props(
-              RegistrySID,EntitySID,PropName,PropValue,PropType,DocView,SystemProp)
-            VALUES( ?,?,?,?,?,?,true )`,
-			e.Registry.DbSID, e.DbSID, name, dbVal, propType, docView)
+	// Key by pp.Top() (the plain attribute name), NOT pp.DB() (which
+	// has a trailing DB_IN separator) - this must match the key scheme
+	// setFromDBNameInto() uses to populate e.System from the DB (via
+	// ObjectSetProp(), keyed by the plain name), so a value loaded from
+	// the DB and a value buffered here land under the SAME key and can
+	// be diffed/overridden correctly in SaveSystemProps().
+	e.EnsureNewSystem()
+	e.NewSystem[pp.Top()] = val
 
-		dbValStr := fmt.Sprintf("%v", dbVal)
-		e.FullTreeSyncProp(name, &dbValStr, propType, docView)
+	e.tx.AddToCache(e)
+}
+
+// EnsureNewSystem lazily initializes e.NewSystem (buffered, uncommitted
+// system-prop changes) as a clone of e.System - mirrors
+// EnsureNewObject(), but must NEVER touch epoch/modifiedat/EpochSet/
+// ModSet/NewObject, since system props are, by design, invisible to
+// the entity's own change-tracking (see Entity.System's doc comment).
+func (e *Entity) EnsureNewSystem() {
+	if e.NewSystem != nil {
+		return
+	}
+	e.NewSystem = map[string]any{}
+	for k, v := range e.System {
+		e.NewSystem[k] = v
 	}
 }
 
 // This is used to take a DB entry and update the current Entity's Object
+// SetFromDBName parses one FullTreeTable row's PropValue/PropType and
+// applies it into e.Object (own/calculated/cascaded props) or e.System
+// (system props, isSystem=true) - the row-processing loop is otherwise
+// identical for both, but system props go into their own bucket (see
+// Entity.System's doc comment) since they must never touch Object,
+// epoch, or modifiedat.
 func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRError {
+	return e.setFromDBNameInto(&e.Object, name, val, propType)
+}
+
+func (e *Entity) SetSystemFromDBName(name string, val *string, propType string) *XRError {
+	return e.setFromDBNameInto(&e.System, name, val, propType)
+}
+
+func (e *Entity) setFromDBNameInto(dest *map[string]any, name string, val *string, propType string) *XRError {
 	var err error
 	pp := MustPropPathFromDB(name)
 
 	if val == nil {
-		err := ObjectSetProp(e.Object, pp, val)
+		err := ObjectSetProp(*dest, pp, val)
 		if err != nil {
 			return NewXRError("bad_request", e.XID,
 				"error_detail=Error setting attribute: "+err.Error())
 		}
 		return nil
 	}
-	if e.Object == nil {
-		e.Object = map[string]any{}
+	if *dest == nil {
+		*dest = map[string]any{}
 	}
+	obj := *dest
 
 	if IsString(propType) {
-		err = ObjectSetProp(e.Object, pp, *val)
+		err = ObjectSetProp(obj, pp, *val)
 	} else if propType == BOOLEAN {
 		// Technically the "1" check shouldn't be needed, but just in case
-		err = ObjectSetProp(e.Object, pp, (*val == "1" || (*val == "true")))
+		err = ObjectSetProp(obj, pp, (*val == "1" || (*val == "true")))
 	} else if propType == INTEGER || propType == UINTEGER {
 		tmpInt, err := strconv.Atoi(*val)
 		if err != nil {
 			panic(fmt.Sprintf("error parsing int: %s: %s", *val, err))
 		}
-		err = ObjectSetProp(e.Object, pp, tmpInt)
+		err = ObjectSetProp(obj, pp, tmpInt)
 	} else if propType == DECIMAL {
 		tmpFloat, err := strconv.ParseFloat(*val, 64)
 		if err != nil {
 			panic(fmt.Sprintf("error parsing float: %s: %s", *val, err))
 		}
-		err = ObjectSetProp(e.Object, pp, tmpFloat)
+		err = ObjectSetProp(obj, pp, tmpFloat)
 	} else if propType == MAP {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		err = ObjectSetProp(e.Object, pp, map[string]any{})
+		err = ObjectSetProp(obj, pp, map[string]any{})
 	} else if propType == ARRAY {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		err = ObjectSetProp(e.Object, pp, []any{})
+		err = ObjectSetProp(obj, pp, []any{})
 	} else if propType == OBJECT {
 		if *val != "" {
 			panic(fmt.Sprintf("MAP value should be empty string"))
 		}
-		err = ObjectSetProp(e.Object, pp, map[string]any{})
+		err = ObjectSetProp(obj, pp, map[string]any{})
 	} else {
 		panic(fmt.Sprintf("bad type(%s): %v", propType, name))
 	}
@@ -920,8 +946,10 @@ func (e *Entity) SetFromDBName(name string, val *string, propType string) *XRErr
 func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError) {
 	entity := (*Entity)(nil)
 
-	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
-	//   0     1     2     3        4     5   6         7        8       9    10
+	// RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,
+	// Path,Abstract,IsSystemProp
+	//   0     1     2     3        4     5   6         7        8
+	//   9    10       11
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		// log.Printf("Row(%d): %#v", len(row), row)
 		if log.GetVerbose() >= 4 {
@@ -973,13 +1001,19 @@ func readNextEntity(tx *Tx, results *Result, accessMode int) (*Entity, *XRError)
 		propName := NotNilString(row[6])
 		propVal := NotNilString(row[7])
 		propType := NotNilString(row[8])
+		isSystemProp := NotNilBoolDef(row[11], false)
 
 		// Edge case - no props but entity is there
 		if propName == "" && propVal == "" && propType == "" {
 			continue
 		}
 
-		xErr := entity.SetFromDBName(propName, &propVal, propType)
+		var xErr *XRError
+		if isSystemProp {
+			xErr = entity.SetSystemFromDBName(propName, &propVal, propType)
+		} else {
+			xErr = entity.SetFromDBName(propName, &propVal, propType)
+		}
 		if xErr != nil {
 			return nil, xErr
 		}
@@ -2037,12 +2071,30 @@ func (e *Entity) Save() *XRError {
 		e.tx.AddGroupToValidate(e.Self.(*Group))
 	}
 
+	// If this is a Meta, figure out whether defaultversionid/xref
+	// (root-level attrs, so direct map access is fine) actually
+	// changed - those are the only two Meta attrs whose change can
+	// affect the owning Resource's IsDefaultVerCopy set, so there's
+	// no need to re-run that cascade on every unrelated Meta Save().
+	// NewObject already holds the full pending value (it starts as a
+	// clone of Object, then gets mutated by Set() calls) and Object
+	// still holds the pre-this-Save() value at this point (it's only
+	// overwritten below), so we can compare them directly here - no
+	// need for e.OriginObject/GetOrigin(), which only reflects the
+	// value before this object's very FIRST Save(), not this one.
+	metaDefaultChanged := e.Type == ENTITY_META &&
+		(e.NewObject["defaultversionid"] != e.Object["defaultversionid"] ||
+			e.NewObject["xref"] != e.Object["xref"])
+
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
 
 	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	Do(e.tx, "DELETE FROM Props WHERE EntitySID=? AND SystemProp=false",
+	Do(e.tx, `DELETE FROM FullTreeTable
+              WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+                    AND IsXrefVerCopy=false AND IsSystemProp=false
+                    AND IsCalculated=false`,
 		e.DbSID)
 
 	resSingular := ""
@@ -2150,7 +2202,7 @@ func (e *Entity) Save() *XRError {
 	}
 	e.NewObject = nil
 
-	e.FullSave()
+	e.FullSave(metaDefaultChanged)
 
 	return nil
 }
@@ -2162,7 +2214,18 @@ func (e *Entity) Save() *XRError {
 // Note that we make a copy and don't touch the entity itself. Serializing
 // an entity shouldn't have side-effects.
 func (e *Entity) AddCalcProps(info *RequestInfo) map[string]any {
-	mat := maps.Clone(e.Object)
+	mat := map[string]any{}
+	// System props (formatvalidated, compatibilityvalidated, ...) live in
+	// their own bucket (see Entity.System's doc comment) so their writes
+	// don't touch epoch/modifiedat - but they're still real, serializable
+	// top-level attributes, so merge them in here (Object wins on any
+	// overlap, though the two buckets should never share a key).
+	for k, v := range e.System {
+		mat[k] = v
+	}
+	for k, v := range e.Object {
+		mat[k] = v
+	}
 
 	// Regardless of the type of entity, set the generated properties
 	propsOrdered, _ := e.GetPropsOrdered()

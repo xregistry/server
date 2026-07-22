@@ -392,6 +392,7 @@ func showAllHelp(cmd *cobra.Command, indent string) string {
 
 func main() {
 	log.SetVerbose(0)
+	log.SetAutoIndent(true)
 
 	if tmp := os.Getenv("XR_VERBOSE"); tmp != "" {
 		log.AddVerboseString(tmp)

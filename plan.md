@@ -7218,3 +7218,164 @@ server on 8080 untouched) via `puppeteer-core`:
   distinction confirmed (`.../versions/v1$details` vs `.../versions/v1`).
 
 **Status**: Implemented, `node --check` passed, CDP-verified.
+
+## Backend / SQL re-architecture (fulltree.go) — deferred follow-ups (2026-07-22)
+
+These are backend items from the `sql.md` Phase 2 migration work
+(`registry/fulltree.go`, `registry/entity.go` — System/NewSystem prop
+buffering, default-version cascade gating), unrelated to the SPA UI
+above but logged here per user request since this is the durable
+cross-session record.
+
+- [ ] **(b) Double `Version.FullSave()` on resource creation.**
+  Confirmed live (via `curl ...?verbose=FullTree` against a freshly
+  created resource) that a brand-new Version gets `FullSave()` called
+  twice in the same request:
+  ```
+  FullSave type=4 sid=360595c3 ...   (1st save)
+  FullSave type=4 sid=360595c3 ...   (2nd save, same sid)
+  ```
+  Root cause: the version is first saved with `ancestorid=$TBD`
+  (placeholder, see `ANCESTORID_TBD` in `registry/resource.go` ~line
+  1167/1175), then `Resource.CheckAncestors()` →
+  `ManualVersionMode.CheckAncestors()` (registry/versionmodes.go ~line
+  28-83) does a second `v.SetSave("ancestorid", newestVerID)` to resolve
+  it to the real value. This second save is legitimate (not a bug) but
+  wasteful: each pass re-runs `fullSaveOwnProps`, `fullSaveVersionCalc`,
+  `fullVersionIsCurrentDefault`, and a full
+  `fullSaveXrefFanOutForTargetVersion` DB-query scan — even when the
+  resource has no xref'd sources at all.
+  Possible fixes to consider later: special-case "this is the only/
+  first version, so ancestorid can just be set directly instead of via
+  the $TBD-then-resolve placeholder dance" to avoid the second save
+  entirely for the common single-version-creation case; and/or make
+  `fullSaveXrefFanOutForTargetVersion` cheaply short-circuit (e.g. via a
+  cached "does anything xref this Resource" flag) instead of always
+  querying.
+
+- [ ] **Better understand why `metaDefaultChanged` is needed at all.**
+  Currently `Entity.Save()` (registry/entity.go ~line 2083) computes:
+  ```go
+  metaDefaultChanged := e.Type == ENTITY_META &&
+      (e.NewObject["defaultversionid"] != e.Object["defaultversionid"] ||
+          e.NewObject["xref"] != e.Object["xref"])
+  ```
+  and passes it into `FullSave()` (registry/fulltree.go ~line 324) to
+  gate whether the default-version-copy cascade re-runs on a Meta save.
+  This replaced an earlier, buggier `e.OriginObject[...]`-based check
+  (which was found to go stale across multiple auto-committed
+  transactions reusing the same in-memory Entity — see checkpoint
+  115/116 for the full incident). The replacement works and all tests
+  pass, but it was implemented reactively to fix that regression rather
+  than from first principles — worth revisiting later to confirm this
+  is really the minimal/correct condition (e.g. are there other Meta
+  attribute changes besides `defaultversionid`/`xref` that should also
+  trigger the cascade? Is comparing `NewObject` vs `Object` at exactly
+  this point in `Save()` guaranteed correct for every call path into
+  `Save()`, including patch/partial-update flows?).
+
+- [ ] **Investigate whether `Versions.AncestorID`/`Metas.xRefSID`/
+  `Metas.defaultVID` mirror columns (and the `FullTreeAncestor`/
+  `FullTreeXref` triggers that keep them in sync — see item above) can
+  be eliminated entirely now that `FullTreeTable` exists**, rather than
+  just moving the trigger's sync logic into Go. These columns were
+  originally added directly on `Versions`/`Metas` because querying the
+  old `FullTree`/`Props` view for them was too slow — but now that
+  `FullTreeTable` is the single authoritative store (Phase 2 of
+  `sql.md`), it's worth checking whether reading straight from
+  `FullTreeTable` (no mirror column, no trigger) would be fast enough.
+  **If yes**: delete the mirror columns/triggers entirely (bigger win
+  than just moving trigger logic to Go). **If no** (performance
+  regresses): fall back to the earlier idea of doing the sync in Go
+  application code instead of a MySQL trigger (still worth it either
+  way, since MySQL triggers have no `WHEN` clause and currently fire +
+  evaluate their `IF` chain on literally every row inserted into
+  `FullTreeTable`, for every entity/prop type, even though the real
+  work only applies to 4 specific PropNames on Version/Meta own rows).
+  Key existing usages to account for when evaluating this (all in
+  `registry/fulltree.go`/`resource.go`/`versionmodes.go`, non-test):
+  - `Versions.AncestorID`: `resource.go` `GetProblematicVersions()`
+    (~1428, a JOIN/self-join query for ancestor-chain validation),
+    `resource.go` ~1860-1868 (building ancestor/children maps in Go
+    after a query), `versionmodes.go` ~43-177 (ancestor-chain
+    resolution/validation, including a `LAG() OVER (...)` window-
+    function query comparing `AncestorID` to an expected value).
+  - `Metas.defaultVID`: heavily used as a simple equality/JOIN
+    condition throughout `fulltree.go` (default-version cascade calc
+    ~367-383, ~478-549, ~629, ~868) — e.g. `SELECT 1 FROM Metas WHERE
+    ResourceSID=? AND defaultVID=?` and `JOIN ... ON v.UID=m.defaultVID`.
+  - `Metas.xRefSID`: used for the reverse xref-fan-out lookup (`SELECT
+    SID FROM Metas WHERE xRefSID=?`, `fulltree.go` ~889/915) and to find
+    a Resource's own xref target (`SELECT xRefSID FROM Metas WHERE
+    SID=?`/`ResourceSID=?`, ~572/708).
+  **Key technical question to resolve**: `FullTreeTable`'s current
+  indexes (`PRIMARY KEY(RegSID,Path,PropName)`,
+  `UNIQUE INDEX(RegSID,eSID,PropName)`, `INDEX(eSID)`,
+  `INDEX(RegSID,ParentSID)`) do **not** support an efficient point-
+  lookup/JOIN on `PropValue` (e.g. "find the Resource whose `xref`
+  PropValue equals this path" or "find all Metas whose `defaultversionid`
+  PropValue equals this Version's UID") — such a query would need a full
+  scan filtered only by `PropName` (no index on `PropValue`) unless a
+  new index (e.g. `INDEX(RegSID, PropName, PropValue(N))`) is added.
+  Evaluate whether adding such an index is cheap/safe enough, or whether
+  it's simpler to just keep the mirror columns and move the sync logic
+  to Go as originally proposed.
+- [ ] **Investigate dropping `RegistrySID`/`RegSID` from composite
+  keys/indexes/queries on tables where `SID`/`eSID` is already present**
+  (Groups, Resources, Metas, Versions, `FullTreeTable`, `FullEntities`),
+  since `SID`/`eSID` values are already globally unique (`NewUUID()` in
+  `common/utils.go:31-34`, not scoped per-Registry) — so
+  `RegistrySID`/`RegSID` is redundant for correctness in any lookup that
+  already includes `eSID`/`SID`.
+  Potential upside (MySQL/InnoDB-specific): InnoDB clusters data by
+  `PRIMARY KEY`, and **every secondary index entry embeds a copy of the
+  primary key** as its row pointer — so a smaller PK (e.g. dropping
+  `RegSID` from `FullTreeTable`'s `PRIMARY KEY(RegSID,Path,PropName)`,
+  registry/init.sql ~513) shrinks *every* secondary index on that table
+  too, not just the PK itself — could meaningfully improve cache
+  locality/seek speed on large tables like `FullTreeTable`/`Versions`/
+  `Metas`.
+  Tables/keys currently including `RegistrySID`/`RegSID` redundantly
+  alongside an already-unique `SID`/`eSID` (registry/init.sql): Groups
+  (~92-93, `UNIQUE INDEX(RegistrySID,ParentSID,Plural)` /
+  `UNIQUE INDEX(RegistrySID,Abstract)` — these aren't purely redundant,
+  they enforce per-registry uniqueness of Plural/Abstract, so may need
+  to stay), Resources (~140-144), Metas (~170-174), Versions (~196-197),
+  `FullTreeTable` (~513-518, `PRIMARY KEY(RegSID,Path,PropName)`,
+  `UNIQUE INDEX(RegSID,eSID,PropName)`, `INDEX(RegSID,ParentSID)`),
+  `FullEntities` (~540-542, `PRIMARY KEY(RegSID,eSID)`,
+  `UNIQUE INDEX(RegSID,ParentSID,eSID)`, `UNIQUE INDEX(RegSID,Path)`).
+  Note: some of these (e.g. `Path`, `Plural`, `Abstract` uniqueness
+  constraints) are legitimately scoped *per-registry* by design (the
+  same Path/Plural can validly repeat across different Registries), so
+  not every `RegistrySID` occurrence is removable — only ones that
+  exist purely alongside an already-globally-unique `SID`/`eSID` column
+  as a redundant extra qualifier.
+  **Important caveat/prerequisite found while looking into this**:
+  `NewUUID()` (common/utils.go:31-34) is NOT a full UUID — it's only
+  the first 8 hex chars of a UUIDv4 (32 bits of randomness) plus a
+  **process-lifetime counter that resets to 0 on every server
+  restart**:
+  ```go
+  func NewUUID() string {
+      count++
+      return fmt.Sprintf("%s%d", uuid.NewString()[:8], count)
+  }
+  ```
+  This gives a real, if currently low, SID collision risk — especially
+  across server restarts (since `count` resets) or multiple concurrent
+  server instances writing to the same DB. Today, `RegistrySID` being
+  included everywhere acts as a silent safety net: even if two
+  different Registries somehow produced the same `eSID`, every query
+  is still scoped by `RegistrySID` too, so it would never surface as a
+  bug. **Before removing `RegistrySID`/`RegSID` from keys/queries,
+  should first harden `NewUUID()` to true global-collision-resistance**
+  (e.g. don't truncate the UUID, or otherwise increase entropy/add a
+  DB-backed sequence) — otherwise a collision would mean real
+  cross-registry data corruption instead of a harmless duplicate ID.
+  **Suggested approach when picked up**: (1) harden `NewUUID()` first,
+  (2) then evaluate/implement the smaller-key change per table, (3)
+  benchmark before/after on a representative dataset size to confirm
+  the change actually helps before committing to it (this is a fairly
+  invasive, many-table/many-query change, so worth confirming the win
+  is real first).

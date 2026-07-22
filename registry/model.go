@@ -304,7 +304,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 	gAbs := NewPPP(rm.GroupModel.Plural).Abstract()
 	rAbs := NewPPP(rm.GroupModel.Plural).P(rm.Plural).Abstract()
 	entities, xErr := RawEntitiesFromQuery(reg.tx, reg.DbSID, FOR_WRITE,
-		`Abstract=? OR Abstract=?`, gAbs, rAbs)
+		`e.Abstract=? OR e.Abstract=?`, gAbs, rAbs)
 	if xErr != nil {
 		return xErr
 	}
@@ -334,6 +334,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 			if xErr = resource.EnsureCompat(true); xErr != nil {
 				return xErr
 			}
+			resource.tx.FlushSystemProps()
 
 			resource.tx.AddResource(resource)
 		}

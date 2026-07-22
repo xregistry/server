@@ -967,7 +967,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	args = []interface{}{reg.DbSID}
 	query = `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract,ft.IsSystemProp
   FROM FullTreeTable AS ft` + sortJoin + `
   WHERE ft.RegSID=?
 `
@@ -1539,7 +1539,7 @@ func (r *Registry) VerifyData() *XRError {
 
 	// Now do all Groups
 	entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-		fmt.Sprintf(`Type=%d`, ENTITY_GROUP))
+		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return xErr
 	}
@@ -1553,7 +1553,7 @@ func (r *Registry) VerifyData() *XRError {
 
 		// Now do all Resource in this Group and implicitly it's owning Meta
 		entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-			`ParentSID=?`, group.DbSID)
+			`e.ParentSID=?`, group.DbSID)
 		if xErr != nil {
 			return xErr
 		}
@@ -1580,7 +1580,7 @@ func (r *Registry) VerifyData() *XRError {
 
 			// Now do Versions
 			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-				`ParentSID=?`, resource.DbSID)
+				`e.ParentSID=?`, resource.DbSID)
 			if xErr != nil {
 				return xErr
 			}

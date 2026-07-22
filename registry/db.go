@@ -343,8 +343,31 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
+
+		// Flush any buffered system-prop changes (SetSystemDBProperty())
+		// now, at commit time - a no-op if nothing was buffered. This is
+		// what lets several system props on the same entity (e.g.
+		// EnsureCompat()'s format/compat validated+reason attrs) get
+		// written - and, if relevant, the default-version cascade
+		// re-run - at most ONCE per entity per Tx, instead of once per
+		// individual SetSystemDBProperty() call.
+		e.SaveSystemProps()
 	}
 	return nil
+}
+
+// FlushSystemProps flushes any system-prop changes buffered on any
+// entity currently in this Tx's cache (see Entity.SetSystemDBProperty()/
+// SaveSystemProps()). Unlike WriteCache()'s own flush (which only
+// happens at Commit() time), this can be called earlier - e.g. right
+// after EnsureCompat() finishes setting several system props across
+// possibly-multiple Versions - so the buffered values are visible to
+// the response that gets serialized later in the same request, well
+// before the Tx actually commits.
+func (tx *Tx) FlushSystemProps() {
+	for _, e := range tx.Cache {
+		e.SaveSystemProps()
+	}
 }
 
 func (tx *Tx) AddGroupToValidate(g *Group) {
