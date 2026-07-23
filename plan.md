@@ -7579,28 +7579,52 @@ cross-session record.
   list (not a new separate item - the read-side question this item was
   tracking is now answered).
 
-- [ ] **Write certain calculated/static attributes ONCE at entity
+- [x] **Write certain calculated/static attributes ONCE at entity
   creation instead of recomputing on every `FullSave()`.** (User
-  request, 2026-07-22.) Some `FullTreeTable` rows never change for the
-  lifetime of the entity once set, but are currently deleted and
-  reinserted on every single `FullSave()` call via dedicated funcs:
-  - `xid` (`fullSaveOwnPropsDelete`/`fullSaveOwnPropsInsert`,
-    registry/fulltree.go) — derived purely from `e.Path`, which is
-    immutable once the entity is created, so `xid` never actually
-    changes after creation.
-  - `Resource.isdefault` (`fullSaveResourceIsDefault`,
-    registry/fulltree.go) — always hardcoded `'true'` (a Resource
-    always shows its default Version's props), so it's a true
-    constant, not just a per-entity-immutable value.
-  Idea: write these once (e.g. folded into `FullEntityInsert()` at
-  creation time) as plain read-only rows, and remove the
-  delete+reinsert calls for them from the `FullSave()` per-save path
-  entirely (`fullSaveOwnPropsDelete`/`Insert` for `xid`,
-  `fullSaveResourceIsDefault` outright) — should shave a bit of work off
-  every single `FullSave()` call. Needs care around: (1) confirming
-  `Path`/`xid` really is immutable for every entity type (renames?),
-  (2) `FullTreeResyncOwnProps()` (used for out-of-band system-prop
-  writes) also currently calls `e.fullSaveOwnProps()` unconditionally —
-  would need to skip/adjust once this is one-time-only. Not yet
-  attempted; needs a design pass before implementation given the
-  ripple through `FullSave()`/`FullTreeResyncOwnProps()`.
+  request, 2026-07-22.) **DONE (2026-07-23).** `xid` (all entity
+  types), `Resource.isdefault`, and `Version.RESOURCEid` are now
+  written exactly once, at entity-creation time, instead of being
+  deleted+reinserted on every `FullSave()` call.
+  - Design: replaced the single `IsCalculated BOOL` column
+    (`registry/init.sql`) with two booleans — `IsCalcStatic` (xid,
+    Resource.isdefault, Version.RESOURCEid — write-once) and
+    `IsCalcDynamic` (Version.isdefault only — must still be recomputed
+    on every relevant Save(), since the default-version pointer can
+    move). Chosen over (a) a single flag with `PropName<>'xid'`-style
+    SQL exclusion (rejected — inconsistent with the codebase's
+    established "one boolean per reason" convention, e.g.
+    `IsDefaultVerCopy`/`IsXrefPropCopy`/`IsXrefVerCopy`), and (b)
+    making `xid`/`isdefault` fully "normal" attributes with
+    `dontStore` removed (rejected — `Save()` deliberately never diffs,
+    so normal-attribute treatment would recreate exactly the per-Save
+    churn this optimization eliminates).
+  - Implementation (`registry/fulltree.go`): new
+    `fullSaveCalcStaticInsert()` runs once, right after the
+    `FullEntities` insert in `FullEntityInsert()`, writing the static
+    rows. Removed `fullSaveOwnProps()`/`fullSaveOwnPropsDelete()`/
+    `fullSaveOwnPropsInsert()`/`fullSaveResourceIsDefault()` entirely
+    and their unconditional per-`FullSave()` calls.
+    `fullSaveVersionCalc()` keeps its own scoped
+    `IsCalcDynamic=true` delete+reinsert for Version-level `isdefault`
+    only. `FullTreeResyncOwnProps()` simplified to only call
+    `fullSaveVersionCalc()` (the one thing that can still change
+    post-creation).
+  - Bug found & fixed during verification: one synthetic xref-version-
+    copy INSERT (`fullSaveXrefVersionCopies`, the Version-level
+    `isdefault` row copied in for a resource that xrefs another) was
+    missing a value in its column list, and once padded out
+    incorrectly set `IsXrefVerCopy=false` instead of `true` on that
+    row — this left a stale synthetic Version row behind after
+    clearing an xref (`TestXrefBasic` regression: cleared-xref
+    Resource retained both its new real Version and a leftover
+    docView-collapsed synthetic Version, `versionscount` off by one).
+    Root-caused via direct DB inspection (`misc/sql testreg "SELECT
+    ... FROM FullTreeTable WHERE ..."` — h/t @duglin for the `misc/sql
+    <db> "<query>"` helper). Fixed by setting `IsXrefVerCopy=true` on
+    that row, matching its sibling static rows (xid, RESOURCEid) for
+    the same synthetic version.
+  - Verified: full `make qtest` green (all packages) after also
+    running `xrserver --recreatedb` once to bring the local dev
+    `registry` DB schema up to date with the new
+    `IsCalcStatic`/`IsCalcDynamic` columns (confirmed with @duglin
+    before running, since `--recreatedb` wipes that DB).

@@ -249,7 +249,19 @@ CREATE TABLE FullTreeTable (
   IsXrefPropCopy   BOOL NOT NULL DEFAULT false, # meta.* copied from xref target
   IsXrefVerCopy    BOOL NOT NULL DEFAULT false, # Synthetic Version copied via xref
   IsSystemProp     BOOL NOT NULL DEFAULT false, # Set via SetSystemDBProperty()
-  IsCalculated     BOOL NOT NULL DEFAULT false, # xid/isdefault/RESOURCEid singleton
+
+  # Calculated singleton attrs are split into two flags rather than one,
+  # since they behave very differently: "static" ones (xid, Resource's
+  # isdefault, a Version's RESOURCEid, e.g. "fileid") are provably
+  # immutable after entity creation (no rename API, a Version's owning
+  # Resource never changes) so they're written ONCE by
+  # FullEntityInsert()/fullSaveCalcStaticInsert() and never touched
+  # again. "dynamic" ones (a Version's own isdefault) genuinely change
+  # over time (as the Resource's default version pointer moves) so
+  # they're recomputed on every relevant Save() by fullSaveVersionCalc().
+  IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Resource.isdefault,
+                                                 # Version.RESOURCEid
+  IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
   PRIMARY KEY(RegSID, Path, PropName),
   UNIQUE INDEX(eSID, PropName),

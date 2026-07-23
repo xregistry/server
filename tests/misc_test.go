@@ -56,7 +56,8 @@ func TestMiscDBRows(t *testing.T) {
 
 	rows := reg.Query("SELECT Path,PropName,PropValue "+
 		"FROM FullTreeTable WHERE RegSID=? AND IsDefaultVerCopy=false AND "+
-		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND IsCalculated=false "+
+		"IsXrefPropCopy=false AND IsXrefVerCopy=false AND "+
+		"IsCalcStatic=false AND IsCalcDynamic=false "+
 		"ORDER BY Path, PropName ",
 		reg.DbSID)
 

@@ -297,7 +297,8 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
         FROM FullEntities AS e
         LEFT JOIN FullTreeTable AS p ON (
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-            AND p.IsXrefVerCopy=false AND p.IsCalculated=false)
+            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+            AND p.IsCalcDynamic=false)
         WHERE e.RegSID=? AND e.Path`+caseExpr+`=?
         ORDER BY Path`,
 		regID, path)
@@ -379,7 +380,8 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
         FROM FullEntities AS e
         LEFT JOIN FullTreeTable AS p ON (
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-            AND p.IsXrefVerCopy=false AND p.IsCalculated=false)
+            AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
+            AND p.IsCalcDynamic=false)
         WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
 	defer results.Close()
 
@@ -413,7 +415,8 @@ func (e *Entity) Refresh(accessMode int) *XRError {
         SELECT PropName, PropValue, PropType, IsSystemProp
         FROM FullTreeTable
         WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-              AND IsXrefVerCopy=false AND IsCalculated=false`+mode, e.DbSID)
+              AND IsXrefVerCopy=false AND IsCalcStatic=false
+              AND IsCalcDynamic=false`+mode, e.DbSID)
 	defer results.Close()
 
 	// Erase all old props first
@@ -2101,7 +2104,7 @@ func (e *Entity) Save() *XRError {
 	Do(e.tx, `DELETE FROM FullTreeTable
               WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
                     AND IsXrefVerCopy=false AND IsSystemProp=false
-                    AND IsCalculated=false`,
+                    AND IsCalcStatic=false AND IsCalcDynamic=false`,
 		e.DbSID)
 
 	resSingular := ""
