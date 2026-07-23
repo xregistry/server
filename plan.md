@@ -7320,7 +7320,7 @@ cross-session record.
   Evaluate whether adding such an index is cheap/safe enough, or whether
   it's simpler to just keep the mirror columns and move the sync logic
   to Go as originally proposed.
-- [ ] **Investigate dropping `RegistrySID`/`RegSID` from composite
+- [x] **Dropped redundant `RegistrySID`/`RegSID` from composite
   keys/indexes/queries on tables where `SID`/`eSID` is already present**
   (Groups, Resources, Metas, Versions, `FullTreeTable`, `FullEntities`),
   since `SID`/`eSID` values are already globally unique (`NewUUID()` in
@@ -7379,6 +7379,57 @@ cross-session record.
   the change actually helps before committing to it (this is a fairly
   invasive, many-table/many-query change, so worth confirming the win
   is real first).
+
+  **Done (2026-07-23).** Implemented in two parts:
+  1. **Hardened `NewUUID()`** (`common/utils.go`): replaced the
+     8-hex-chars + process-lifetime-counter scheme with 16 hex chars
+     (64 bits of randomness) stripped from a fresh UUIDv4, no counter.
+     Rejected a full 36-char UUID (per user feedback) because synthetic
+     xref `eSID`s are `"-"+ResourceSID+"-"+VersionSID` (two SIDs
+     concatenated) and `eSID` columns are `VARCHAR(64)` - two 36-char
+     SIDs plus dashes would overflow that. 16 hex chars keeps a
+     synthetic xref `eSID` at 34 chars (comfortable headroom under 64)
+     while giving far better collision resistance than the old scheme
+     and, crucially, no more cross-restart collision risk from the
+     counter resetting to 0.
+  2. **Narrowed/dropped redundant indexes** in `registry/init.sql`
+     (schema-only change, no Go code changes needed - existing queries
+     are unaffected since indexes are transparent to query semantics):
+     - `Resources`/`Metas`/`Versions`: dropped `UNIQUE INDEX
+       (RegistrySID,SID)` entirely (100% redundant - `SID` is already
+       the `PRIMARY KEY`).
+     - `Metas`: `INDEX(RegistrySID,ResourceSID)`→`INDEX(ResourceSID)`;
+       `INDEX(RegistrySID,xRefSID)`→`INDEX(xRefSID)` (`ResourceSID`/
+       `xRefSID` are themselves globally-unique SIDs). Kept
+       `INDEX(RegistrySID,Path)` and standalone `INDEX(RegistrySID)`
+       unchanged (`Path` isn't globally unique; the standalone index is
+       needed for full per-registry scans).
+     - `Versions`: `INDEX(RegistrySID,ResourceSID,AncestorID)`→
+       `INDEX(ResourceSID,AncestorID)`; also dropped the now-fully-
+       redundant standalone `INDEX(ResourceSID)` (subsumed by the
+       existing `UNIQUE INDEX(ResourceSID,UID)`'s leftmost prefix).
+     - `FullTreeTable`: `UNIQUE INDEX(RegSID,eSID,PropName)`→`UNIQUE
+       INDEX(eSID,PropName)`; `INDEX(RegSID,ParentSID)`→
+       `INDEX(ParentSID)`; dropped the now-redundant standalone
+       `INDEX(eSID)`. **Kept** `PRIMARY KEY(RegSID,Path,PropName)`
+       unchanged - `Path` isn't globally unique (only per-Registry),
+       and this PK's physical clustering backs the `Path LIKE
+       '...%'` prefix-match queries used throughout
+       `registry.go`/`httpStuff.go`/`group.go`.
+     - `FullEntities`: `PRIMARY KEY(RegSID,eSID)`→`PRIMARY KEY(eSID)`
+       (the one real PK simplification - shrinks every secondary index
+       on the table per the InnoDB clustering note above); added an
+       explicit `INDEX(RegSID)` to keep `RegistryTrigger`'s bulk
+       `DELETE FROM FullEntities WHERE RegSID=...` fast now that
+       `RegSID` is no longer the PK's leading column; dropped `UNIQUE
+       INDEX(RegSID,ParentSID,eSID)` (redundant with the new PK) in
+       favor of a plain `INDEX(ParentSID)`. Kept `UNIQUE
+       INDEX(RegSID,Path)` unchanged (`Path` not globally unique).
+     - **Not touched**: `Groups`' `Plural`/`Abstract`/`Singular` unique
+       indexes and any `Path`-based indexes - these enforce genuine
+       per-registry uniqueness, not redundant with `SID`.
+  `make xrserver`/`make cmds`/`make qtest` all green (~77s) after the
+  full change.
 
 - [ ] **Xref fan-out: replace the per-source Go loop with a single
   set-based SQL statement.** `fullSaveXrefFanOutForTargetMeta` and

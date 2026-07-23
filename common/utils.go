@@ -26,11 +26,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var count = 0 // UUID counter
-
+// 16 hex chars (64 bits of randomness) from a fresh UUIDv4, dashes
+// stripped. No counter is used - a counter-based suffix would reset on
+// every server restart, creating real cross-restart collision risk now
+// that callers trust SID/eSID to be globally unique (e.g. dropped from
+// composite DB keys/indexes). 64 bits is enough randomness to make
+// collisions negligible (birthday bound ~4 billion IDs for a 50% chance)
+// while staying short enough that a synthetic xref eSID
+// ("-"+ResourceSID+"-"+VersionSID) still comfortably fits in a
+// VARCHAR(64) column.
 func NewUUID() string {
-	count++ // Help keep it unique w/o using the entire UUID string
-	return fmt.Sprintf("%s%d", uuid.NewString()[:8], count)
+	return strings.ReplaceAll(uuid.NewString(), "-", "")[:16]
 }
 
 func IsURL(str string) bool {

@@ -136,7 +136,6 @@ CREATE TABLE Resources (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    UNIQUE INDEX(RegistrySID,SID),
     INDEX(GroupSID, UID),
     INDEX(Path),
     INDEX(RegistrySID),
@@ -165,11 +164,10 @@ CREATE TABLE Metas (
     defaultVID      VARCHAR(64),           # Generated
 
     PRIMARY KEY (SID),
-    UNIQUE INDEX(RegistrySID,SID),
-    INDEX(RegistrySID, ResourceSID),
+    INDEX(ResourceSID),
     INDEX(RegistrySID, Path),
     INDEX(RegistrySID),
-    INDEX(RegistrySID,xRefSID)
+    INDEX(xRefSID)
 );
 
 # Can't use this because we get recursive triggers on meta.delete()
@@ -192,9 +190,7 @@ CREATE TABLE Versions (
 
     PRIMARY KEY (SID),
     UNIQUE INDEX (ResourceSID, UID),
-    UNIQUE INDEX (RegistrySID, SID),
-    INDEX (ResourceSID),
-    INDEX (RegistrySID, ResourceSID, AncestorID)
+    INDEX (ResourceSID, AncestorID)
 );
 
 CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
@@ -256,10 +252,9 @@ CREATE TABLE FullTreeTable (
   IsCalculated     BOOL NOT NULL DEFAULT false, # xid/isdefault/RESOURCEid singleton
 
   PRIMARY KEY(RegSID, Path, PropName),
-  UNIQUE INDEX(RegSID, eSID, PropName),
-  INDEX(eSID),
-  INDEX(RegSID, ParentSID) # for cascade-copy cleanup (e.g.
-                           # fullSaveXrefCascadeDelete's ParentSID scan)
+  UNIQUE INDEX(eSID, PropName),
+  INDEX(ParentSID) # for cascade-copy cleanup (e.g.
+                   # fullSaveXrefCascadeDelete's ParentSID scan)
   # INDEX(RegSID, Abstract)
 );
 
@@ -282,8 +277,16 @@ CREATE TABLE FullEntities (
   # this table already uses, but as an explicit flag for clarity).
   IsXrefVerCopy BOOL NOT NULL DEFAULT false,
 
-  PRIMARY KEY(RegSID, eSID),
-  UNIQUE INDEX (RegSID, ParentSID, eSID),
+  # eSID is already globally unique (NewUUID()), so it alone can be the
+  # PK - RegSID would be redundant there. RegSID is kept as its own
+  # index so RegistryTrigger's bulk "DELETE FROM FullEntities WHERE
+  # RegSID=..." stays fast. ParentSID is also a real (globally unique)
+  # SID, so it needs no RegSID qualifier either. Path is NOT globally
+  # unique (only unique per-Registry), so RegSID must stay paired with
+  # it.
+  PRIMARY KEY(eSID),
+  INDEX(RegSID),
+  INDEX(ParentSID),
   UNIQUE INDEX (RegSID, Path)
 );
 
