@@ -2014,7 +2014,7 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 		list = EpochEntryMap{}
 		results := Query(info.tx, `
 			SELECT UID
-			FROM Entities
+			FROM FullEntities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID, info.GroupType)
 
@@ -2079,7 +2079,7 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		list = EpochEntryMap{}
 		results := Query(info.tx, `
 			SELECT UID
-			FROM Entities
+			FROM FullEntities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID,
 			NewPPP(info.GroupType).P(info.ResourceType).Abstract())
@@ -2685,7 +2685,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 
 	query := fmt.Sprintf(`
         SELECT r.UID, e.Path
-        FROM Entities AS e
+        FROM FullEntities AS e
         JOIN Registries AS r ON (r.SID = e.RegSID)
         WHERE e.eSID = ?`)
 

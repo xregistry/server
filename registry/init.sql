@@ -20,12 +20,13 @@ whichever resource was asked to be deleted and then the DB triggers
 will delete all necessarily (related) rows/resources as needed. So,
 deleting a row from the "Registry" table should delete ALL other resources
 in all other tables automatically.
-The "Props" table holds all properties for all entities rather than
-having property specific columns in the appropriate tables. No idea which
-is easier/faster but having it all in one table made things a lot easier
-for filtering/searching. But we can switch it if needed at some point. This
-also means that all properties (including extensions) are processed the
-same way... via the generic Get/Set methods.
+The "FullEntities"/"FullTreeTable" tables hold all properties for all
+entities rather than having property specific columns in the appropriate
+tables. No idea which is easier/faster but having it all in one table
+made things a lot easier for filtering/searching. But we can switch it
+if needed at some point. This also means that all properties (including
+extensions) are processed the same way... via the generic Get/Set
+methods.
 */
 
 
@@ -43,7 +44,6 @@ CREATE TABLE Registries (
 CREATE TRIGGER RegistryTrigger BEFORE DELETE ON Registries
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props    WHERE RegistrySID=OLD.SID $$
     DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
     DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
     DELETE FROM FullTreeTable WHERE RegSID=OLD.SID $$
@@ -119,7 +119,6 @@ CREATE TABLE "Groups" (
 CREATE TRIGGER GroupTrigger BEFORE DELETE ON "Groups"
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM Resources WHERE GroupSID=OLD.SID $$
     DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
     DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
@@ -147,7 +146,6 @@ CREATE TABLE Resources (
 CREATE TRIGGER ResourcesTrigger BEFORE DELETE ON Resources
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
     DELETE FROM FullTreeTable WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
@@ -199,167 +197,13 @@ CREATE TABLE Versions (
     INDEX (RegistrySID, ResourceSID, AncestorID)
 );
 
-CREATE TABLE Props (
-    RegistrySID VARCHAR(64) NOT NULL,
-    EntitySID   VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
-    eType       INT NOT NULL,
-    PropName    VARCHAR($MAX_PROPNAME) NOT NULL,
-    PropValue   VARCHAR($MAX_VARCHAR),
-    PropType    CHAR(64) NOT NULL,          # string, boolean, int, ...
-    DocView     BOOL NOT NULL,              # Should include during doc view?
-    SystemProp  BOOL NOT NULL,              # System property
-
-    # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which is ',')
-    # For example: "fileurl," not "fileurl"
-    # This is used throughout the codebase to simplify attribute name parsing and
-    # prevent ambiguity (e.g., distinguishing "file" from "fileurl").
-    # When querying Props by name, always append DB_IN to the attribute name:
-    #   WHERE PropName = 'fileurl' || string(DB_IN)  -- CORRECT
-    #   WHERE PropName = 'fileurl'                    -- WRONG (will never match)
-
-    # non-doc-view-able attributes are ones that are generated at runtime
-    # due to things like showing the Default Version props in the Resource
-    # or entities/props that materialize due to an xref. Normally a GET
-    # will show all props, but during /export or ?doc we want to exclude
-    # these non-doc-view ones. In case where all of the props for an entity
-    # are generated, the entire entity should vanish from the serialization.
-    # e.g. Versions of an xref'd Resource.
-
-    PRIMARY KEY (EntitySID, PropName),
-    INDEX (EntitySID),
-    INDEX (RegistrySID, PropName)
-);
-
-CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
-FOR EACH ROW
-BEGIN
-    IF (NEW.eType=$ENTITY_VERSION) THEN
-        IF (NEW.PropName='ancestorid$DB_IN') THEN
-          UPDATE Versions SET AncestorID=NEW.PropValue
-              WHERE SID=NEW.EntitySID $$
-        END IF $$
-        IF (NEW.PropName='createdat$DB_IN') THEN
-          UPDATE Versions SET CreatedAt=NEW.PropValue
-              WHERE SID=NEW.EntitySID $$
-        END IF $$
-    END IF $$
-
-    IF (NEW.eType=$ENTITY_META) THEN
-        IF (NEW.PropName='xref$DB_IN') THEN
-          # Remove leading /
-          SET @rSID := (SELECT SID FROM Resources WHERE
-                        RegistrySID=NEW.RegistrySID AND
-                        Path=SUBSTRING(NEW.PropValue,2)) $$
-
-          UPDATE Metas AS m SET xRefSID=@rSID
-            WHERE m.SID=NEW.EntitySID $$
-        END IF $$
-        IF (NEW.PropName='defaultversionid$DB_IN') THEN
-          UPDATE Metas AS m SET defaultVID=NEW.PropValue
-            WHERE m.SID=NEW.EntitySID $$
-        END IF $$
-    END IF $$
-END ;
-
-CREATE TRIGGER PropsXref BEFORE DELETE ON Props
-FOR EACH ROW
-BEGIN
-    IF (OLD.eType=$ENTITY_META) THEN
-        IF (OLD.PropName='xref$DB_IN') THEN
-          UPDATE Metas SET xRefSID=NULL
-          WHERE SID=OLD.EntitySID $$
-        END IF $$
-        IF (OLD.PropName='defaultversionid$DB_IN') THEN
-          UPDATE Metas AS m SET defaultVID=NULL
-            WHERE m.SID=OLD.EntitySID $$
-        END IF $$
-    END IF $$
-END ;
-
 CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
     DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
     DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
 END ;
-
-CREATE VIEW Entities AS
-SELECT                          # Gather Registries
-    r.SID AS RegSID,
-    $ENTITY_REGISTRY AS Type,
-    'registries' AS Plural,
-    'registry' AS Singular,
-    NULL AS ParentSID,
-    r.SID AS eSID,
-    r.UID AS UID,
-    '' AS Abstract,
-    '' AS Path
-FROM Registries AS r
-
-UNION ALL SELECT                # Gather Groups
-    g.RegistrySID AS RegSID,
-    $ENTITY_GROUP AS Type,
-    g.Plural AS Plural,
-    g.Singular AS Singular,
-    g.RegistrySID AS ParentSID,
-    g.SID AS eSID,
-    g.UID AS UID,
-    g.Abstract,
-    g.Path
-FROM "Groups" AS g
-
-UNION ALL SELECT                # Add Resources
-    r.RegistrySID AS RegSID,
-    $ENTITY_RESOURCE AS Type,
-    r.Plural AS Plural,
-    r.Singular AS Singular,
-    r.GroupSID AS ParentSID,
-    r.SID AS eSID,
-    r.UID AS UID,
-    r.Abstract,
-    r.Path
-FROM Resources AS r
-
-UNION ALL SELECT                # Add Metas
-    metas.RegistrySID AS RegSID,
-    $ENTITY_META AS Type,
-    'metas' AS Plural,
-    'meta' AS Singular,
-    metas.ResourceSID AS ParentSID,
-    metas.SID AS eSID,
-    'meta',
-    metas.Abstract,
-    metas.Path
-FROM Metas AS metas
-
-UNION ALL SELECT                # Add Versions for non-xref Resources
-    v.RegistrySID AS RegSID,
-    $ENTITY_VERSION AS Type,
-    'versions' AS Plural,
-    'version' AS Singular,
-    v.ResourceSID AS ParentSID,
-    v.SID AS eSID,
-    v.UID AS UID,
-    v.Abstract,
-    v.Path
-FROM Versions AS v
-
-UNION ALL SELECT                # Add Versions for xref Resources
-    v.RegistrySID AS RegSID,
-    $ENTITY_VERSION AS Type,
-    'versions' AS Plural,
-    'version' AS Singular,
-    m.ResourceSID AS ParentSID,
-    CONCAT('-', m.ResourceSID, '-', v.SID) AS eSID,
-    v.UID AS UID,
-    CONCAT(sR.Abstract, ',versions') AS Abstract,
-    CONCAT(sR.Path, '/versions/', v.UID) AS Path
-FROM Metas AS m
-JOIN Versions AS v ON (v.ResourceSID=m.xRefSID)
-JOIN Resources AS sR ON (sR.SID=m.ResourceSID)
-WHERE m.xRefSID IS NOT NULL ;
 
 CREATE TABLE ResourceContents (
     VersionSID      VARCHAR(255),
@@ -367,122 +211,6 @@ CREATE TABLE ResourceContents (
 
     PRIMARY KEY (VersionSID)
 );
-
-# This pulls-in or creates all props in Resources due to default Ver processing
-CREATE VIEW DefaultProps AS
-SELECT                             # Get default prop for non-xref resources
-    p.RegistrySID,
-    m.ResourceSID AS EntitySID,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    false                          # DocView
-FROM Metas AS m
-JOIN Versions AS v
-  ON (m.ResourceSID=v.ResourceSID AND v.UID=m.defaultVID)
-JOIN Props AS p ON (p.EntitySID=v.SID)
-WHERE m.xRefSID IS NULL
-
-UNION ALL SELECT                   # Get default prop for xref resources
-    p.RegistrySID,
-    m.ResourceSID AS EntitySID,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    false                          # DocView
-FROM Metas AS m
-JOIN Versions AS v
-  ON (
-    m.xRefSID=v.ResourceSID AND
-        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
-  )
-JOIN Props AS p ON (p.EntitySID=v.SID)
-WHERE m.xRefSID IS NOT NULL
-
-UNION ALL SELECT                # Add Resource.isdefault, always 'true'
-    m.RegistrySID,
-    m.ResourceSID,
-    'isdefault$DB_IN',
-    'true',
-    'boolean',
-    false                       # DocView
-FROM Metas AS m ;
-
-CREATE VIEW AllProps AS
-SELECT                          # Base props
-    RegistrySID,
-    EntitySID,
-    PropName,
-    PropValue,
-    PropType,
-    DocView
-FROM Props
-
-UNION ALL SELECT                # Add Props for xRef resources
-    mS.RegistrySID AS RegistrySID,
-    mS.SID AS EntitySID,
-    p.PropName AS PropName,
-    p.PropValue AS PropValue,
-    p.PropType AS PropType,
-    false AS DocView
-FROM Metas AS mS
-JOIN Metas AS mT ON (mT.ResourceSID=mS.xRefSID)
-JOIN Props AS p ON (p.EntitySID=mT.SID AND
-       p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')) AND
-       LEFT(p.PropName,1) <> '#' )
-WHERE mS.xRefSID IS NOT NULL
-
-UNION ALL SELECT               # Add Version props for xRef resources
-    mS.RegistrySID AS RegistrySID,
-    CONCAT('-', mS.ResourceSID, '-', p.EntitySID) AS EntitySID,
-    p.PropName AS PropName,
-    p.PropValue AS PropValue,
-    p.PropType AS PropType,
-    false AS DocView
-FROM Metas as mS
-JOIN Props as p ON (p.EntitySID IN (
-       SELECT eSID FROM Entities WHERE ParentSID=mS.xRefSID AND
-                                       Type=$ENTITY_VERSION
-     ) AND p.PropName<>'xref$DB_IN')
-WHERE mS.xRefSID IS NOT NULL
-
-UNION ALL SELECT * FROM DefaultProps
-
-UNION ALL SELECT                # Add Version.isdefault, which is calculated
-  v.RegSID,
-  v.eSID,
-  'isdefault$DB_IN',
-  IF(
-      (m.defaultVID IS NOT NULL AND v.UID=m.defaultVID) OR
-      (m.defaultVID IS NULL AND m.xRefSID IS NOT NULL AND
-        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
-      ),
-      'true', 'false'
-    ),
-  'boolean',                    # Type
-  IF(LEFT(v.eSID,1)='-',false,true)  # DocView,Lie if it's not xref'd prop/ver
-FROM Entities AS v
-JOIN Metas AS m ON (m.ResourceSID=v.ParentSID AND v.Type='$ENTITY_VERSION')
-
-UNION ALL SELECT               # Add *.xid, which is calculated
-  e.RegSID,
-  e.eSID,
-  'xid$DB_IN',
-  CONCAT('/', e.Path),
-  'string',
-  IF(LEFT(e.eSID,1)='-',false,true)   # A bit of a lie for DocView mode
-FROM Entities AS e
-
-UNION ALL SELECT               # Add in Version.RESOURCEid, which is calculated
-  v.RegSID,
-  v.eSID,
-  CONCAT(r.Singular, 'id$DB_IN'),
-  r.UID,
-  'string',
-  IF(LEFT(v.eSID,1)='-',false,true)  # Lie if it's not an xref'd prop/ver
-FROM Entities AS v
-JOIN Resources AS r ON (r.SID=v.ParentSID)
-WHERE v.Type=$ENTITY_VERSION;
 
 CREATE TABLE FullTreeTable (
   RegSID     VARCHAR(64) NOT NULL,
@@ -498,6 +226,23 @@ CREATE TABLE FullTreeTable (
   PropType   CHAR(64) NOT NULL,          # string, boolean, int, ...
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   DocView    BOOL NOT NULL,
+
+  # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which
+  # is ','). For example: "fileurl," not "fileurl"
+  # This is used throughout the codebase to simplify attribute name parsing and
+  # prevent ambiguity (e.g., distinguishing "file" from "fileurl").
+  # When querying Props by name, always append DB_IN to the attribute name:
+  #   WHERE PropName = 'fileurl' || string(DB_IN)  -- CORRECT
+  #   WHERE PropName = 'fileurl'                   -- WRONG (will never match)
+
+  # non-doc-view-able attributes are ones that are generated at runtime
+  # due to things like showing the Default Version props in the Resource
+  # or entities/props that materialize due to an xref. Normally a GET
+  # will show all props, but during /export or ?doc we want to exclude
+  # these non-doc-view ones. In case where all of the props for an entity
+  # are generated, the entire entity should vanish from the serialization.
+  # e.g. Versions of an xref'd Resource.
+
 
   # These flag WHY this row exists when it's not a direct write of the
   # entity's own user-set value (multiple booleans, one per reason, so
@@ -534,7 +279,7 @@ CREATE TABLE FullEntities (
 
   # True for the synthetic Version rows added because a Resource
   # xref's another Resource (mirrors the "-" eSID prefix convention
-  # Entities view already uses, but as an explicit flag for clarity).
+  # this table already uses, but as an explicit flag for clarity).
   IsXrefVerCopy BOOL NOT NULL DEFAULT false,
 
   PRIMARY KEY(RegSID, eSID),
@@ -542,14 +287,13 @@ CREATE TABLE FullEntities (
   UNIQUE INDEX (RegSID, Path)
 );
 
-# These mirror PropsAncestor/PropsXref (defined above for the now-
-# unused Props table) but fire on FullTreeTable, which is the sole
-# authoritative store for entity properties now (see fulltree.go).
-# They keep Versions.AncestorID/CreatedAt and Metas.xRefSID/defaultVID
-# in sync whenever the corresponding OWN (non-cascaded, non-calculated)
-# property row is written/removed - those DB columns are relied on
-# throughout the codebase (ancestor-chain resolution, xref detection,
-# default-version lookups) and are otherwise never set anywhere else.
+# These maintain Versions.AncestorID/CreatedAt and Metas.xRefSID/
+# defaultVID whenever the corresponding OWN (non-cascaded, non-
+# calculated) property row is written/removed on FullTreeTable, which
+# is the sole authoritative store for entity properties now (see
+# fulltree.go) - those DB columns are relied on throughout the codebase
+# (ancestor-chain resolution, xref detection, default-version lookups)
+# and are otherwise never set anywhere else.
 CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON FullTreeTable
 FOR EACH ROW
 BEGIN
@@ -599,44 +343,11 @@ BEGIN
     END IF $$
 END ;
 
-CREATE VIEW FullTree AS
-SELECT
-    e.RegSID,
-    e.Type,
-    e.Plural,
-    e.Singular,
-    e.ParentSID,
-    e.eSID,
-    e.UID,
-    e.Path,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    e.Abstract,
-    p.DocView
-FROM Entities AS e
-JOIN AllProps AS p ON (p.EntitySID=e.eSID)
-ORDER by Path, PropName;
-
 CREATE VIEW Leaves AS
-SELECT eSID FROM Entities
+SELECT eSID FROM FullEntities
 WHERE eSID NOT IN (
-    SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
+    SELECT DISTINCT ParentSID FROM FullEntities WHERE ParentSID IS NOT NULL
 );
-
-# Just for debugging purposes
-CREATE VIEW VerboseProps AS
-SELECT
-    p.RegistrySID,
-    p.EntitySID,
-    e.Abstract,
-    e.Path,
-    p.PropName,
-    p.PropValue,
-    p.PropType
-FROM Props as p
-JOIN Entities as e ON (e.eSID=p.EntitySID)
-ORDER by Path ;
 
 # Find all of the versions of a resource. Users of this should order
 # the results: ORDER BY Pos ASC, Time ASC, VersionUID ASC
@@ -687,3 +398,17 @@ WHERE NOT EXISTS(SELECT 1 FROM cte
                  WHERE cte.RegistrySID=v.RegistrySID AND
                        cte.ResourceSID=v.ResourceSID AND
                        cte.UID=v.UID);
+
+# Just for debugging purposes
+CREATE VIEW VerboseProps AS
+SELECT
+    p.RegSID,
+    p.eSID,
+    e.Abstract,
+    e.Path,
+    p.PropName,
+    p.PropValue,
+    p.PropType
+FROM FullTreeTable as p
+JOIN FullEntities as e ON (e.eSID=p.eSID)
+ORDER by Path ;

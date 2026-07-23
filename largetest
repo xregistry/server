@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+ 
+export XR_SERVER=http://localhost:8080/reg-Large
+
+touch server.out
+(XR_LOAD_LARGE=1 ./xrserver --recreatedb --samples -v 2>&1 ) | tee server.out &
+
+search="Done loading"
+# search="Listening"
+
+while ! grep "$search" server.out > /dev/null ; do 
+  sleep 10
+done
+
+time -f "%E real" (
+for d in `seq 0 9` ; do
+  curl -s $XR_SERVER/dirs/dir$d > /dev/null
+  for f in `seq 0 149` ; do
+    curl -s $XR_SERVER/dirs/dir$d/files/file$f$details?inline > /dev/null
+    for v in `seq 0 4` ; do
+      curl -s $XR_SERVER/dirs/dir$d/files/file$f/versions/v$v\$details > /dev/null
+    done
+  done
+  echo "Done with /dirs/dir$d"
+done
+)
+
+grep "$search" server.out
+rm -f server.out
+pkill xrserver

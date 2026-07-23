@@ -7471,49 +7471,85 @@ cross-session record.
   before the key is set — no more relying on `Object` as a fallback.
   Verified via `make qtest` (all packages pass).
 
-- [ ] **3 remaining live call sites still read from the OLD
+- [x] **3 remaining live call sites still read from the OLD
   `Entities`/`FullTree` views, not `FullEntities`/`FullTreeTable`.**
   User's stated goal (2026-07-22, turn ~850): "if the diff of the sql
   tables yields zero diffs, go ahead and make the switch to use the new
   tables exclusively - to the point where we never touch Props,
-  FullTree or Entities at all." Found while re-scanning the chat: this
-  wasn't fully completed. `registry/httpStuff.go` still has 3 raw
-  queries against the legacy `Entities` view (both `CREATE VIEW
-  Entities`/`CREATE VIEW FullTree`, registry/init.sql ~288/602, are
-  still present in the schema specifically to support these):
-  - `HTTPDeleteGroups` (~2017): `SELECT UID FROM Entities WHERE
-    RegSID=? AND Abstract=?` — building the bulk-delete-all-Groups list
-    when no epoch list was provided in the request body.
-  - `HTTPDeleteResources` (~2082): same pattern, for bulk-delete-all-
-    Resources.
-  - `ProcessShortSelf` (~2688): `SELECT r.UID, e.Path FROM Entities AS
-    e JOIN Registries AS r ON (r.SID=e.RegSID) WHERE e.eSID=?` — used to
-    resolve `/r/<shortself-id>` redirects.
-  These should be migrated to query `FullEntities` instead (same
-  columns needed - UID/Path/Abstract/eSID/RegSID - all present on
-  `FullEntities`), after which the `Entities`/`FullTree` views
-  themselves could likely be dropped from `registry/init.sql` entirely
-  (the `db.go` mentions of `FullTree`/`Entities` are just historical
-  design-note comments, not live code, so aren't blockers). Not yet
-  attempted.
+  FullTree or Entities at all." **Done.** Migrated `HTTPDeleteGroups`,
+  `HTTPDeleteResources`, and `ProcessShortSelf` (registry/httpStuff.go)
+  from querying the legacy `Entities` view to `FullEntities` (same
+  columns needed - UID/Path/Abstract/eSID/RegSID - all present).
+  Then, per the user's explicit "go ahead and do #6" follow-up
+  instruction, dropped the entire now-dead legacy view/table stack
+  from `registry/init.sql`: the `Entities`, `AllProps`, `DefaultProps`,
+  and `FullTree` views, the `Props` table itself, and its
+  `PropsAncestor`/`PropsXref` triggers - confirmed dead first via
+  `grep` showing nothing in live Go code still does `INSERT INTO
+  Props` (writes to `Props` stopped once `FullSave()`/`FullTreeTable`
+  became the authoritative write path; the removed `PropsAncestor`/
+  `PropsXref` triggers had already been functionally superseded by
+  `FullTreeAncestor`/`FullTreeXref` on `FullTreeTable`, per an existing
+  code comment in init.sql). Removed the now-dead `DELETE FROM Props
+  WHERE ...` lines from `RegistryTrigger`/`GroupTrigger`/
+  `ResourcesTrigger`/`VersionsTrigger`. Redefined the `Leaves` view
+  (still actively used by `GenerateQuery`'s filter logic in
+  registry.go) to query `FullEntities` instead of `Entities` (direct
+  column-compatible swap). Also dropped `VerboseProps` (a
+  debug-only view built on `Props`+`Entities`, confirmed unused by any
+  live Go code). Verified `VersionAncestors`/`VersionCircles` (also
+  still live-used, in versionmodes.go/resource.go) depend only on the
+  real `Versions` table, not on `Entities`/`Props`/`AllProps`, so they
+  needed no changes. `make xrserver`/`make cmds`/`make qtest` all
+  green after the full cleanup (`db.go`'s historical `FullTree`/
+  `Entities` SQL mentions are just doc-comment examples, not live
+  code, so weren't blockers).
 
-- [ ] **Re-confirm the Phase 2 SQL re-architecture actually delivered a
-  real performance win (or at least didn't regress), and re-baseline
-  test-suite timing.** Partway through Phase 2 (2026-07-22, turn ~855)
-  the user observed `make qtest`'s overall test time was running about
-  **2x slower** than before the `sql.md` migration started, which
-  contradicted the original premise that the old `FullTree`/`Entities`/
-  `Props` views were the bottleneck. This was never conclusively
-  resolved one way or the other in this session — work moved on to
-  finishing the Phase 2 cutover and correctness fixes (SIDs→real
-  entities, ParentSID, defaultversionid bug) rather than root-causing
-  the timing regression itself. Worth: (1) getting a clean before/after
-  timing comparison (e.g. against the last commit before `sql.md` work
-  began), (2) if still slower, profiling to find out why (candidates:
-  the new `FullTreeAncestor`/`FullTreeXref` triggers firing + evaluating
-  their full `IF` chain on every row inserted into `FullTreeTable`
-  regardless of entity/prop type — flagged separately above — or the
-  xref fan-out Go-loop item above), (3) checking whether `FullTreeTable`/
-  `FullEntities`'s current indexes are sufficient for the query patterns
-  now in use (also raised by the user at turn ~858, not yet
-  systematically evaluated).
+- [x] **Re-confirm the Phase 2 SQL re-architecture actually delivered a
+  real performance win (or at least didn't regress).** Partway through
+  Phase 2 (2026-07-22, turn ~855) the user observed `make qtest`'s
+  overall test time was running about **2x slower** than before the
+  `sql.md` migration started, which contradicted the original premise
+  that the old `FullTree`/`Entities`/`Props` views were the bottleneck.
+  **User ran a real-world benchmark (2026-07-23) and reported the
+  results**: loading 10 dirs / 1500 files / 7500 versions — writes:
+  old 12m vs new 21m (regression, confirms the earlier `qtest` slowdown
+  observation was real and write-side); GET on each entity: old 46m vs
+  new 3m (**huge win** — ~15x faster reads). So the new
+  `FullEntities`/`FullTreeTable` architecture delivers a large net win
+  for the read-heavy path it was designed for, at the cost of slower
+  writes that still need optimization. Per the user: "We still have
+  more work to do on the 'writes'. But luckily I'm trying to optimize
+  for reads." Remaining write-side perf work (candidates: the
+  `FullTreeAncestor`/`FullTreeXref` trigger `IF` chains firing on every
+  row inserted into `FullTreeTable` regardless of entity/prop type, the
+  xref fan-out Go-loop item above, index tuning on `FullTreeTable`/
+  `FullEntities`) is still open and tracked in the other items in this
+  list (not a new separate item - the read-side question this item was
+  tracking is now answered).
+
+- [ ] **Write certain calculated/static attributes ONCE at entity
+  creation instead of recomputing on every `FullSave()`.** (User
+  request, 2026-07-22.) Some `FullTreeTable` rows never change for the
+  lifetime of the entity once set, but are currently deleted and
+  reinserted on every single `FullSave()` call via dedicated funcs:
+  - `xid` (`fullSaveOwnPropsDelete`/`fullSaveOwnPropsInsert`,
+    registry/fulltree.go) — derived purely from `e.Path`, which is
+    immutable once the entity is created, so `xid` never actually
+    changes after creation.
+  - `Resource.isdefault` (`fullSaveResourceIsDefault`,
+    registry/fulltree.go) — always hardcoded `'true'` (a Resource
+    always shows its default Version's props), so it's a true
+    constant, not just a per-entity-immutable value.
+  Idea: write these once (e.g. folded into `FullEntityInsert()` at
+  creation time) as plain read-only rows, and remove the
+  delete+reinsert calls for them from the `FullSave()` per-save path
+  entirely (`fullSaveOwnPropsDelete`/`Insert` for `xid`,
+  `fullSaveResourceIsDefault` outright) — should shave a bit of work off
+  every single `FullSave()` call. Needs care around: (1) confirming
+  `Path`/`xid` really is immutable for every entity type (renames?),
+  (2) `FullTreeResyncOwnProps()` (used for out-of-band system-prop
+  writes) also currently calls `e.fullSaveOwnProps()` unconditionally —
+  would need to skip/adjust once this is one-time-only. Not yet
+  attempted; needs a design pass before implementation given the
+  ripple through `FullSave()`/`FullTreeResyncOwnProps()`.
