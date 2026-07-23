@@ -109,6 +109,95 @@ func (e *Entity) fullTreeWriteProp(name string, propValue *string,
 		isSystem)
 }
 
+// fullTreeWritePropsBatch writes multiple own/system FullTreeTable rows
+// for e in as few REPLACE INTO statements as possible, chunked at
+// dbPropBatchChunkSize rows/statement as a max_allowed_packet safety
+// net. isSystem marks whether these rows are system-managed
+// (SaveSystemProps) or plain user-set (SetDBPropertyBatch/
+// DoDBPropertyBatch) - same meaning as fullTreeWriteProp's isSystem
+// param, just batched across multiple rows in one statement instead of
+// one statement per row.
+func (e *Entity) fullTreeWritePropsBatch(rows []dbPropRow, isSystem bool) {
+	if len(rows) == 0 {
+		return
+	}
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	isSystemStr := "false"
+	if isSystem {
+		isSystemStr = "true"
+	}
+	rowPlaceholder := "(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, " +
+		isSystemStr + ",false,false)"
+
+	for len(rows) > 0 {
+		n := len(rows)
+		if n > dbPropBatchChunkSize {
+			n = dbPropBatchChunkSize
+		}
+		chunk := rows[:n]
+		rows = rows[n:]
+
+		placeholders := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)*13)
+		for i, row := range chunk {
+			placeholders[i] = rowPlaceholder
+			args = append(args,
+				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+				e.DbSID, e.UID, e.Path,
+				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
+		}
+
+		Do(e.tx, `
+            REPLACE INTO FullTreeTable(
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                PropName, PropValue, PropType, Abstract, DocView,
+                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+                IsSystemProp, IsCalcStatic, IsCalcDynamic)
+            VALUES `+strings.Join(placeholders, ","), args...)
+	}
+}
+
+// fullTreeDeletePropsBatch deletes multiple own/system FullTreeTable
+// rows for e (identified by DB PropName) in as few
+// "DELETE ... WHERE PropName IN (...)" statements as possible, chunked
+// the same way as fullTreeWritePropsBatch. Matches fullTreeWriteProp's
+// single-row delete filter (own rows only - never cascaded/copied
+// ones), regardless of isSystem, since own vs. system PropNames never
+// collide.
+func (e *Entity) fullTreeDeletePropsBatch(names []string) {
+	if len(names) == 0 {
+		return
+	}
+
+	for len(names) > 0 {
+		n := len(names)
+		if n > dbPropBatchChunkSize {
+			n = dbPropBatchChunkSize
+		}
+		chunk := names[:n]
+		names = names[n:]
+
+		placeholders := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)+1)
+		args = append(args, e.DbSID)
+		for i, name := range chunk {
+			placeholders[i] = "?"
+			args = append(args, name)
+		}
+
+		Do(e.tx, `
+            DELETE FROM FullTreeTable
+            WHERE eSID=? AND PropName IN (`+strings.Join(placeholders, ",")+`)
+                  AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+                  AND IsXrefVerCopy=false`, args...)
+	}
+}
+
 // FullTreeWriteOwnProp writes (or deletes, if propValue is nil) a
 // plain user-set own property row for e - called by
 // Entity.SetDBProperty() as part of Save()'s per-property traversal.
@@ -159,7 +248,10 @@ func (e *Entity) FullTreeSyncProp(name string, propValue *string,
 // written to the DB, and - unlike FullTreeSyncProp()'s old behavior of
 // re-running the default-version cascade on every single system-prop
 // write - runs that cascade AT MOST ONCE per flush, no matter how many
-// system props changed on this entity since the last flush.
+// system props changed on this entity since the last flush. Deletes
+// and inserts are each batched into (at most, if chunked) one
+// statement via fullTreeDeletePropsBatch()/fullTreeWritePropsBatch(),
+// instead of one round trip per changed prop.
 func (e *Entity) SaveSystemProps() {
 	if e.NewSystem == nil {
 		return
@@ -197,6 +289,9 @@ func (e *Entity) SaveSystemProps() {
 	// "name" here is the plain top-level attribute name (matching the
 	// key scheme used in e.System/e.NewSystem) - convert to the
 	// trailing-DB_IN-terminated DB PropName via pp.DB() before writing.
+	insertRows := make([]dbPropRow, 0, len(changed))
+	deleteNames := make([]string, 0, len(changed))
+
 	for name, val := range changed {
 		docView := true
 		if specProp, ok := propsMap[name]; ok && specProp.internals != nil &&
@@ -206,7 +301,7 @@ func (e *Entity) SaveSystemProps() {
 		dbName := NewPPP(name).DB()
 
 		if IsNil(val) {
-			e.fullTreeWriteProp(dbName, nil, "", docView, true)
+			deleteNames = append(deleteNames, dbName)
 			continue
 		}
 
@@ -226,8 +321,13 @@ func (e *Entity) SaveSystemProps() {
 		}
 
 		dbValStr := fmt.Sprintf("%v", dbVal)
-		e.fullTreeWriteProp(dbName, &dbValStr, propType, docView, true)
+		insertRows = append(insertRows, dbPropRow{
+			Name: dbName, Value: &dbValStr, Type: propType, DocView: docView,
+		})
 	}
+
+	e.fullTreeDeletePropsBatch(deleteNames)
+	e.fullTreeWritePropsBatch(insertRows, true)
 
 	// Same idea as FullTreeSyncProp(): if e is a Version and happens to
 	// be the Resource's current default, re-run the default-version-

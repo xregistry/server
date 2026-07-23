@@ -90,6 +90,7 @@ ifndef TEST
 	@touch .qtest
 endif
 
+ftest: .fulltest
 .fulltest: .sharedfiles .cmds */*test.go .qtest
 	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache

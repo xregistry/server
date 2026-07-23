@@ -12,9 +12,28 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
+// dbPropRow holds the per-property info needed to write (or delete) an
+// own-property FullTreeTable row - see prepDBProperty()/
+// SetDBProperty()/SetDBPropertyBatch()/DoDBPropertyBatch() below. Kept
+// as a struct (rather than individual values) so it's easy to add more
+// per-row info later without reshuffling every call site. Value==nil
+// means "delete this row".
+type dbPropRow struct {
+	Name    string  // DB PropName (includes trailing DB_IN)
+	Value   *string // nil = delete
+	Type    string  // PropType (string, boolean, int, ...)
+	DocView bool
+}
+
 type EntityExtensions struct {
 	tx         *Tx
 	AccessMode int // FOR_READ, FOR_WRITE
+
+	// dbPropBatch buffers own-property FullTreeTable row info during
+	// Save()'s traversal (see SetDBPropertyBatch()/DoDBPropertyBatch()
+	// below) so they can be written as a single multi-row REPLACE INTO
+	// instead of one round trip per property.
+	dbPropBatch []dbPropRow
 }
 
 func (e *Entity) GetRequestInfo() *RequestInfo {
@@ -627,18 +646,25 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 
 // This will save a single property/value in the DB. This assumes
 // the caller is traversing the Object and splitting it into individual props
-func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
-	log.VPrintf(3, ">Enter: SetDBProperty(%s=%v)", pp, val)
-	defer log.VPrintf(3, "<Exit SetDBProperty")
+// prepDBProperty validates and converts val into the form needed to
+// write (or delete) an own-property FullTreeTable row for pp, shared by
+// SetDBProperty() (immediate single-row write) and
+// SetDBPropertyBatch() (buffered, for Save()'s traversal loop - see
+// DoDBPropertyBatch()). Returns skip=true if nothing further needs to
+// be written (e.g. dontStore props, or the RESOURCE-content special
+// case, which is written directly to ResourceContents here and never
+// touches FullTreeTable).
+func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
+	skip bool, xErr *XRError) {
 
 	PanicIf(pp.UI() == "", "pp is empty")
 
-	name := pp.DB()
-	docView := true
+	row.Name = pp.DB()
+	row.DocView = true
 
-	if len(name) > MAX_PROPNAME {
-		return NewXRError("invalid_attribute", e.XID,
-			"name="+name,
+	if len(row.Name) > MAX_PROPNAME {
+		return dbPropRow{}, false, NewXRError("invalid_attribute",
+			e.XID, "name="+row.Name,
 			"error_detail="+
 				fmt.Sprintf("attribute names must not exceed %d chars",
 					MAX_PROPNAME))
@@ -649,10 +675,10 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	if ok && specProp.internals != nil {
 		// Any prop with "dontStore"=true we skip
 		if specProp.internals.dontStore {
-			return nil
+			return dbPropRow{}, true, nil
 		}
 		if specProp.internals.noDocView {
-			docView = false
+			row.DocView = false
 		}
 	}
 
@@ -677,7 +703,7 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 				PanicIf(IsNil(e.NewObject["#contentid"]), "Missing cid")
 
 				// Don't save "RESOURCE" in the DB, #contentid is good enough
-				return nil
+				return dbPropRow{}, true, nil
 			}
 		}
 	}
@@ -691,58 +717,119 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 
 	if IsNil(val) {
 		// Should never need this but keeping it just in case
-		e.FullTreeWriteOwnProp(name, nil, "", docView)
-	} else {
-		propType := GoToOurType(val)
-
-		// Convert booleans to true/false instead of 1/0 so filter works
-		// ...=true and not ...=1
-		dbVal := val
-		if propType == BOOLEAN {
-			if val == true {
-				dbVal = "true"
-			} else {
-				dbVal = "false"
-			}
-		}
-
-		switch reflect.ValueOf(val).Kind() {
-		case reflect.String:
-			if reflect.ValueOf(val).Len() > MAX_VARCHAR {
-				return NewXRError("invalid_attribute", e.XID,
-					"name="+pp.UI(),
-					"error_detail="+
-						fmt.Sprintf("must be less than %d chars",
-							MAX_VARCHAR+1))
-			}
-		case reflect.Slice:
-			if reflect.ValueOf(val).Len() > 0 {
-				return NewXRError("invalid_attribute", e.XID,
-					"name="+pp.UI(),
-					"error_detail=can't set non-empty arrays")
-			}
-			dbVal = ""
-		case reflect.Map:
-			if reflect.ValueOf(val).Len() > 0 {
-				return NewXRError("invalid_attribute", e.XID,
-					"name= "+pp.UI(),
-					"error_detail=can't set non-empty maps")
-			}
-			dbVal = ""
-		case reflect.Struct:
-			if reflect.ValueOf(val).NumField() > 0 {
-				return NewXRError("invalid_attribute", e.XID,
-					"name="+pp.UI(),
-					"error_detail=can't set non-empty objects")
-			}
-			dbVal = ""
-		}
-
-		dbValStr := fmt.Sprintf("%v", dbVal)
-		e.FullTreeWriteOwnProp(name, &dbValStr, propType, docView)
+		return row, false, nil
 	}
 
+	row.Type = GoToOurType(val)
+
+	// Convert booleans to true/false instead of 1/0 so filter works
+	// ...=true and not ...=1
+	dbVal := val
+	if row.Type == BOOLEAN {
+		if val == true {
+			dbVal = "true"
+		} else {
+			dbVal = "false"
+		}
+	}
+
+	switch reflect.ValueOf(val).Kind() {
+	case reflect.String:
+		if reflect.ValueOf(val).Len() > MAX_VARCHAR {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name="+pp.UI(),
+				"error_detail="+
+					fmt.Sprintf("must be less than %d chars",
+						MAX_VARCHAR+1))
+		}
+	case reflect.Slice:
+		if reflect.ValueOf(val).Len() > 0 {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name="+pp.UI(),
+				"error_detail=can't set non-empty arrays")
+		}
+		dbVal = ""
+	case reflect.Map:
+		if reflect.ValueOf(val).Len() > 0 {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name= "+pp.UI(),
+				"error_detail=can't set non-empty maps")
+		}
+		dbVal = ""
+	case reflect.Struct:
+		if reflect.ValueOf(val).NumField() > 0 {
+			return dbPropRow{}, false, NewXRError("invalid_attribute",
+				e.XID, "name="+pp.UI(),
+				"error_detail=can't set non-empty objects")
+		}
+		dbVal = ""
+	}
+
+	dbValStr := fmt.Sprintf("%v", dbVal)
+	row.Value = &dbValStr
+	return row, false, nil
+}
+
+func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
+	log.VPrintf(3, ">Enter: SetDBProperty(%s=%v)", pp, val)
+	defer log.VPrintf(3, "<Exit SetDBProperty")
+
+	row, skip, xErr := e.prepDBProperty(pp, val)
+	if xErr != nil {
+		return xErr
+	}
+	if skip {
+		return nil
+	}
+
+	e.FullTreeWriteOwnProp(row.Name, row.Value, row.Type, row.DocView)
 	return nil
+}
+
+// SetDBPropertyBatch is like SetDBProperty() but, instead of writing
+// the property's FullTreeTable row immediately, buffers it into
+// e.dbPropBatch for a later single multi-row REPLACE INTO via
+// DoDBPropertyBatch() - see Save()'s traversal loop, the only caller.
+// The nil/delete case is a no-op here: Save() already issues one
+// blanket DELETE for all of this entity's own-prop rows before
+// traversal starts, so there's never a per-prop delete to buffer.
+func (e *Entity) SetDBPropertyBatch(pp *PropPath, val any) *XRError {
+	log.VPrintf(3, ">Enter: SetDBPropertyBatch(%s=%v)", pp, val)
+	defer log.VPrintf(3, "<Exit SetDBPropertyBatch")
+
+	row, skip, xErr := e.prepDBProperty(pp, val)
+	if xErr != nil {
+		return xErr
+	}
+	if skip || row.Value == nil {
+		return nil
+	}
+
+	e.dbPropBatch = append(e.dbPropBatch, row)
+
+	return nil
+}
+
+// dbPropBatchChunkSize caps how many rows go into a single REPLACE
+// INTO statement in DoDBPropertyBatch(), purely as a max_allowed_packet
+// safety net - not expected to matter for realistic per-entity
+// attribute counts.
+const dbPropBatchChunkSize = 200
+
+// DoDBPropertyBatch flushes whatever SetDBPropertyBatch() has buffered
+// into e.dbPropBatch (if anything) as one or more multi-row
+// REPLACE INTO FullTreeTable statements (see fullTreeWritePropsBatch()
+// in fulltree.go), then clears the buffer. Called once by Save(),
+// right after its traversal loop finishes.
+func (e *Entity) DoDBPropertyBatch() {
+	if len(e.dbPropBatch) == 0 {
+		return
+	}
+
+	rows := e.dbPropBatch
+	e.dbPropBatch = nil
+
+	e.fullTreeWritePropsBatch(rows, false)
 }
 
 // Clears system prop(s) for all versions of this resource. Accepts
@@ -2139,11 +2226,11 @@ func (e *Entity) Save() *XRError {
 				v := valValue.MapIndex(keyValue).Interface()
 				// "RESOURCE" is special - call SetDBProp if it's present
 				if resHasDoc && pp.Len() == 0 && k == resSingular {
-					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
+					if xErr := e.SetDBPropertyBatch(pp.P(k), v); xErr != nil {
 						return xErr
 					}
 				} else if k[0] == '#' {
-					if xErr := e.SetDBProperty(pp.P(k), v); xErr != nil {
+					if xErr := e.SetDBPropertyBatch(pp.P(k), v); xErr != nil {
 						return xErr
 					}
 				} else {
@@ -2157,13 +2244,13 @@ func (e *Entity) Save() *XRError {
 				count++
 			}
 			if count == 0 && pp.Len() != 0 {
-				return e.SetDBProperty(pp, map[string]any{})
+				return e.SetDBPropertyBatch(pp, map[string]any{})
 			}
 
 		case reflect.Slice:
 			if valValue.Len() == 0 {
 				valValue = reflect.MakeSlice(reflect.TypeOf(val), 0, 0)
-				return e.SetDBProperty(pp, valValue.Interface())
+				return e.SetDBPropertyBatch(pp, valValue.Interface())
 			}
 			for i := 0; i < valValue.Len(); i++ {
 				v := valValue.Index(i).Interface()
@@ -2188,12 +2275,12 @@ func (e *Entity) Save() *XRError {
 				count++
 			}
 			if count == 0 {
-				return e.SetDBProperty(pp, struct{}{})
+				return e.SetDBPropertyBatch(pp, struct{}{})
 			}
 
 		default:
 			// must be scalar so add it
-			return e.SetDBProperty(pp, val)
+			return e.SetDBPropertyBatch(pp, val)
 		}
 		return nil
 	}
@@ -2202,6 +2289,11 @@ func (e *Entity) Save() *XRError {
 	if xErr != nil {
 		return xErr
 	}
+
+	// Flush all buffered own-property rows from the traversal above as
+	// one (or a few, if chunked) multi-row REPLACE INTO, instead of the
+	// one-row-per-property writes SetDBProperty() would have done.
+	e.DoDBPropertyBatch()
 
 	// Copy 'newObj', removing all 'nil' attributes
 	e.Object = map[string]any{}

@@ -7628,3 +7628,65 @@ cross-session record.
     `registry` DB schema up to date with the new
     `IsCalcStatic`/`IsCalcDynamic` columns (confirmed with @duglin
     before running, since `--recreatedb` wipes that DB).
+
+- [x] **Batch Save()'s per-property FullTreeTable writes into one
+  multi-row INSERT/REPLACE instead of N individual ones.** (User idea,
+  2026-07-23.) **DONE.** Confirmed the premise first: `registry/db.go`'s
+  `doCount()` (backing `Do()`/`DoOne()`/etc.) does a fresh
+  `tx.Prepare()`+`Exec()`+`Close()` for every call — no statement
+  caching — so `Save()`'s traversal loop, which called
+  `SetDBProperty()` once per own attribute, cost one full DB round trip
+  per attribute (Save()'s own-prop DELETE was already a single batched
+  statement; only the reinsert side was unbatched).
+  - Implementation (`registry/entity.go`): extracted the shared
+    validation/conversion logic that used to be inline in
+    `SetDBProperty()` (name-length check, `dontStore`/`noDocView`
+    lookup, the RESOURCE-content special case which writes directly to
+    `ResourceContents` and is unaffected by batching, bool/slice/map/
+    struct → `dbVal` conversion) into a new private helper,
+    `prepDBProperty()`. `SetDBProperty()` now just calls it and writes
+    immediately (unchanged behavior, kept for any future non-Save()
+    caller). New `SetDBPropertyBatch()` calls the same helper but
+    appends the resulting row tuple to a new `e.dbPropBatch` buffer
+    (`common/shared_entity`) instead of writing immediately; the
+    nil/delete case is a no-op there since Save()'s existing blanket
+    per-entity DELETE already removes every own-prop row before
+    traversal starts. New `DoDBPropertyBatch()` builds one
+    `REPLACE INTO FullTreeTable(...) VALUES (...),(...),...` covering
+    all buffered rows (chunked at 200 rows/statement as a
+    `max_allowed_packet` safety net) and runs it in a single `Do()`
+    call. All 6 `SetDBProperty()` call sites inside `Save()`'s
+    `traverse()` closure now call `SetDBPropertyBatch()`, and
+    `Save()` calls `e.DoDBPropertyBatch()` once right after `traverse()`
+    completes, before `FullSave()`'s cascades run.
+  - Verified: full `make qtest` green. Measured real wall-clock win:
+    the `tests` package's full suite (lots of small `Save()` calls)
+    dropped from ~73s to a consistent ~59s (~19% faster) across
+    repeated `-count=1` runs — larger real-world entities with more
+    custom attributes per Save() should see proportionally bigger
+    gains since round trips scale with attribute count.
+  - Follow-on: **DONE (2026-07-23)** - see next item below for the
+    `SaveSystemProps()` batching that closes this out.
+
+- [x] **Batch `SaveSystemProps()`'s per-changed-prop FullTreeTable
+  writes/deletes too** (follow-on to the item above, same session).
+  Extracted the shared batch-writer logic out of
+  `Entity.DoDBPropertyBatch()` into two new `Entity` methods in
+  `registry/fulltree.go`: `fullTreeWritePropsBatch(rows []dbPropRow,
+  isSystem bool)` (multi-row `REPLACE INTO`, chunked at
+  `dbPropBatchChunkSize`, parametrized by `isSystem` so it serves both
+  own-prop and system-prop callers) and `fullTreeDeletePropsBatch(names
+  []string)` (single `DELETE ... WHERE PropName IN (...)`, same
+  chunking). `DoDBPropertyBatch()` now just calls
+  `fullTreeWritePropsBatch(rows, false)`. `SaveSystemProps()`'s loop
+  now splits `changed` into an `insertRows []dbPropRow` slice and a
+  `deleteNames []string` slice instead of calling
+  `fullTreeWriteProp()` once per changed prop, then flushes each via
+  one `fullTreeDeletePropsBatch()`/`fullTreeWritePropsBatch()` call
+  (each possibly chunked, but normally a single round trip apiece)
+  after the loop. Verified: full `make qtest` green, timing unchanged
+  (~59-61s, as expected - `SaveSystemProps()` affects far fewer/smaller
+  writes per Tx than `Save()`'s main traversal, so no large additional
+  win expected here, but it closes the same round-trip-per-prop gap for
+  format/compat-validation flows).
+
