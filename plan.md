@@ -7274,7 +7274,7 @@ cross-session record.
   this point in `Save()` guaranteed correct for every call path into
   `Save()`, including patch/partial-update flows?).
 
-- [ ] **Investigate whether `Versions.AncestorID`/`Metas.xRefSID`/
+- [x] **Investigated whether `Versions.AncestorID`/`Metas.xRefSID`/
   `Metas.defaultVID` mirror columns (and the `FullTreeAncestor`/
   `FullTreeXref` triggers that keep them in sync — see item above) can
   be eliminated entirely now that `FullTreeTable` exists**, rather than
@@ -7320,6 +7320,29 @@ cross-session record.
   Evaluate whether adding such an index is cheap/safe enough, or whether
   it's simpler to just keep the mirror columns and move the sync logic
   to Go as originally proposed.
+  **Conclusion (measured, not pursued)**: benchmarked the triggers'
+  actual runtime cost directly (isolated `xrserver --db perfbench -p
+  8288` instance, curl-loop creating 500 Versions of one Resource) —
+  with `FullTreeAncestor`/`FullTreeXref` active (current code): **7.44s**
+  for 500 versions. Rebuilt with both trigger bodies stubbed out
+  (`registry/init.sql` temporarily replaced with a no-op comment,
+  backed up first to `/tmp/init.sql.bak`, restored immediately after):
+  **7.48s** for 500 versions — i.e. no measurable difference, within
+  normal run-to-run noise. This confirms the triggers themselves are
+  not a meaningful bottleneck (each trigger invocation is a handful of
+  cheap indexed `UPDATE`s guarded by simple `IF`s, not the source of
+  any real overhead). Given that eliminating the mirror
+  columns/triggers would require rewriting `GetRootVersionIDs`/
+  `GetProblematicVersions`/`GetChildVersionIDs`/`HasCircularAncestors`
+  (`resource.go`), the `VersionAncestors`/`VersionCircles` view/CTE
+  (`init.sql`), and every `Metas.xRefSID`/`defaultVID` read in
+  `fulltree.go` to instead query `FullTreeTable` filtered by `PropName`
+  (plus adding a new `PropValue`-prefix index to make those queries
+  efficient) — a large, high-risk change — **decided not to pursue
+  this rewrite**: the triggers/mirror columns stay as-is. No code
+  changes were made; `registry/init.sql` is confirmed unchanged
+  (verified via `git status`/`diff` against `/tmp/init.sql.bak`) and
+  `xrserver`/`xr` were rebuilt from the restored, unmodified source.
 - [x] **Dropped redundant `RegistrySID`/`RegSID` from composite
   keys/indexes/queries on tables where `SID`/`eSID` is already present**
   (Groups, Resources, Metas, Versions, `FullTreeTable`, `FullEntities`),

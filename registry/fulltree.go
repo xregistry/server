@@ -43,9 +43,7 @@ func fullTreeDebug(start time.Time, name string, extra string) {
 // FullSave(), which runs on every Save(), this only ever runs once,
 // at creation.
 func (e *Entity) FullEntityInsert() {
-	log.KPrintf("FullTree", ">Enter: FullEntityInsert(%s)", e.Path)
-	defer log.KPrintf("FullTree", "<Exit: FullEntityInsert")
-	defer fullTreeDebug(time.Now(), "FullEntityInsert", "")
+	defer log.Trace("FullTree", e.XID)()
 
 	var parentArg any
 	if e.ParentSID != "" {
@@ -79,9 +77,7 @@ func (e *Entity) FullEntityInsert() {
 func (e *Entity) fullTreeWriteProp(name string, propValue *string,
 	propType string, docView bool, isSystem bool) {
 
-	// log.KPrintf("FullTree", ">Enter: fullTreeWriteProp(%s/%s)", e.Path,name)
-	// defer log.KPrintf("FullTree", "<Exit: fullTreeWriteProp")
-	// defer fullTreeDebug(time.Now(), "fullTreeWriteProp","")
+	// defer log.Trace("FullTree", "%s/%s", e.Path, name)()
 
 	if propValue == nil {
 		Do(e.tx, `
@@ -221,9 +217,7 @@ func (e *Entity) FullTreeWriteOwnProp(name string, propValue *string,
 func (e *Entity) FullTreeSyncProp(name string, propValue *string,
 	propType string, docView bool) {
 
-	log.KPrintf("FullTree", ">Enter: FullTreeSyncProp(%s,%s)", e.XID, name)
-	defer log.KPrintf("FullTree", "<Exit: FullTreeSyncProp")
-	defer fullTreeDebug(time.Now(), "FullTreeSyncProp", "")
+	defer log.Trace("FullTree", "%s/%s", e.XID, name)()
 
 	e.fullTreeWriteProp(name, propValue, propType, docView, true)
 
@@ -257,9 +251,7 @@ func (e *Entity) SaveSystemProps() {
 		return
 	}
 
-	log.KPrintf("FullTree", ">Enter: SaveSystemProps(%s)", e.XID)
-	defer log.KPrintf("FullTree", "<Exit: SaveSystemProps")
-	defer fullTreeDebug(time.Now(), "SaveSystemProps", "")
+	defer log.Trace("FullTree", e.XID)()
 
 	newSystem := e.NewSystem
 	e.NewSystem = nil
@@ -363,9 +355,7 @@ func (e *Entity) SaveSystemProps() {
 // table INSERT - see FullEntityInsert's doc comment), so there's no
 // need to re-verify the FullEntities row exists here.
 func (e *Entity) FullSave(metaDefaultChanged bool) {
-	log.KPrintf("FullTree", ">Enter: FullSave(%s,%v)", e.XID, metaDefaultChanged)
-	defer log.KPrintf("FullTree", "<Exit: FullSave")
-	defer fullTreeDebug(time.Now(), "FullSave", "")
+	defer log.Trace("FullTree", "%s, %v", e.XID, metaDefaultChanged)()
 
 	switch e.Type {
 	case ENTITY_VERSION:
@@ -406,9 +396,7 @@ func (e *Entity) FullSave(metaDefaultChanged bool) {
 // path-parsing). Otherwise it falls back to a lightweight existence
 // check (far cheaper than running the full cascade unconditionally).
 func fullVersionIsCurrentDefault(v *Version) bool {
-	log.KPrintf("FullTree", ">Enter: fullVersionIsCurrentDefault(%s)", v.XID)
-	defer log.KPrintf("FullTree", "<Exit: fullVersionIsCurrentDefault")
-	defer fullTreeDebug(time.Now(), "fullVersionIsCurrentDefault", "")
+	defer log.Trace("FullTree", v.XID)()
 
 	meta := v.Resource.MustFindMeta(false, FOR_READ)
 	// DUG FT
@@ -440,9 +428,7 @@ func fullVersionIsCurrentDefault(v *Version) bool {
 // IsCalcStatic=true so later reads/cascades can identify them and,
 // e.g., exclude them when copying an entity's "real" props elsewhere.
 func (e *Entity) fullSaveCalcStaticInsert() {
-	log.KPrintf("FullTree", ">Enter: fullSaveCalcStaticInsert(%s)", e.Path)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveCalcStaticInsert")
-	defer fullTreeDebug(time.Now(), "fullSaveCalcStaticInsert", "")
+	defer log.Trace("FullTree", e.Path)()
 
 	var parentArg any
 	if e.ParentSID != "" {
@@ -506,9 +492,7 @@ func (e *Entity) fullSaveCalcStaticInsert() {
 // default (Save()'s own cascade already ran before this out-of-band
 // write happened, so it won't run again).
 func FullTreeResyncOwnProps(e *Entity) {
-	log.KPrintf("FullTree", ">Enter: FullTreeResyncOwnProps(%s)", e.XID)
-	defer log.KPrintf("FullTree", "<Exit: FullTreeResyncOwnProps")
-	defer fullTreeDebug(time.Now(), "FullTreeResyncOwnProps", "")
+	defer log.Trace("FullTree", e.XID)()
 
 	if e.Type == ENTITY_VERSION {
 		e.fullSaveVersionCalc()
@@ -528,9 +512,7 @@ func FullTreeResyncOwnProps(e *Entity) {
 // is currently running for, or the one FullTreeResyncOwnProps() is
 // resyncing out-of-band.
 func (e *Entity) fullSaveVersionCalc() {
-	log.KPrintf("FullTree", ">Enter: fullSaveVersionCalc(%s)", e.Path)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveVersionCalc")
-	defer fullTreeDebug(time.Now(), "fullSaveVersionCalc", "")
+	defer log.Trace("FullTree", e.Path)()
 
 	// Own scoped delete (rather than relying on some shared blanket
 	// delete having already run) since this is the only calculated
@@ -573,9 +555,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 		return
 	}
 
-	log.KPrintf("FullTree", ">Enter: fullSaveDefaultVerCascade(%s)", r.XID)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveDefaultVerCascade")
-	defer fullTreeDebug(time.Now(), "fullSaveDefaultVerCascade", "")
+	defer log.Trace("FullTree", r.XID)()
 
 	resourceSID := r.DbSID
 
@@ -673,9 +653,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 // resolved through Registry.FindResourceBySID()+FindMeta() rather than
 // a raw row.
 func (e *Entity) fullSaveXrefCascade() {
-	log.KPrintf("FullTree", ">Enter: fullSaveXrefCascade(%s)", e.Path)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveXrefCascade")
-	defer fullTreeDebug(time.Now(), "fullSaveXrefCascade", "")
+	defer log.Trace("FullTree", e.Path)()
 
 	e.fullSaveXrefCascadeDelete()
 	e.fullSaveXrefCascadeInsert()
@@ -776,10 +754,7 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 		return
 	}
 
-	log.KPrintf("FullTree", ">Enter: fullSaveXrefVersionCopies(%s,%s)",
-		srcResource.Path, targetResourceSID)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveXrefVersionCopies")
-	defer fullTreeDebug(time.Now(), "fullSaveXrefVersionCopies", "")
+	defer log.Trace("FullTree", "%s,%s", srcResource.Path, targetResourceSID)()
 
 	sourceResourceSID := srcResource.DbSID
 	synthAbstract := srcResource.Abstract + string(DB_IN) + "versions"
@@ -907,9 +882,7 @@ func (e *Entity) fullSaveXrefFanOutForTargetMeta(r *Resource) {
 		return
 	}
 
-	log.KPrintf("FullTree", ">Enter: fullSaveXrefFanOutForTargetMeta(%s)", r.XID)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveXrefFanOutForTargetMeta")
-	defer fullTreeDebug(time.Now(), "fullSaveXrefFanOutForTargetMeta", "")
+	defer log.Trace("FullTree", r.XID)()
 
 	results := Query(e.tx, `
         SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)
@@ -943,9 +916,7 @@ func (e *Entity) fullSaveXrefFanOutForTargetVersion(r *Resource) {
 		return
 	}
 
-	log.KPrintf("FullTree", ">Enter: fullSaveXrefFanOutForTargetVersion(%s)", r.XID)
-	defer log.KPrintf("FullTree", "<Exit: fullSaveXrefFanOutForTargetVersion")
-	defer fullTreeDebug(time.Now(), "fullSaveXrefFanOutForTargetVersion", "")
+	defer log.Trace("FullTree", r.XID)()
 
 	results := Query(e.tx, `
         SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)

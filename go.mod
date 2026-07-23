@@ -3,7 +3,7 @@ module github.com/xregistry/server
 go 1.25.0
 
 require (
-	github.com/duglin/dlog v0.0.0-20260722143141-0d88046843a7
+	github.com/duglin/dlog v0.0.0-20260723180251-bd29e2d0e45e
 	github.com/duglin/goldmark v0.0.0-20260721182742-02ca224a569e
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
