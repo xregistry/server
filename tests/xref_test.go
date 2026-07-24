@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -1963,4 +1964,320 @@ func TestXrefXImportTransitive(t *testing.T) {
           }
         }`, 201, `*`)
 	}
+}
+
+// TestXrefClearAfterMultipleTouches covers a real repro :
+// create a Resource, touch its Meta several times (bumping
+// its epoch), set an xref on it, then clear the xref again via a
+// full-replace update that simply omits "xref" (as opposed to
+// explicitly setting it to null). This used to:
+//   - corrupt FullTreeTable with a PRIMARY KEY collision (Duplicate
+//     entry ... "ancestorid") when fullSaveXrefCascade() ran eagerly
+//     before the Resource's own real Version rows were deleted - fixed
+//     by deferring it into Tx.runResourceCascade().
+//   - then, once that was fixed, panic with "No versions" in
+//     Resource.EnsureLatest() because clearing an xref via a
+//     full-replace body that omits "xref" wasn't recognized as
+//     "clearing" (only an explicit "xref":null/false was) - fixed in
+//     Resource.UpsertMeta() ("hasXref || !IsNil(meta.Object["xref"])")
+//     and, for the Resource-level ("?inline=meta") path, in
+//     Group.UpsertResource() (the "hasMeta && !okObj && metaAddType
+//     != ADD_PATCH" clause).
+//
+// It also locks in the epoch math: when xref is set, epoch mirrors the
+// target's epoch (dropping down, even if lower than our own last
+// value); when xref is cleared, epoch must become greater than
+// max(our own last real epoch, the target's epoch) - not just greater
+// than one of them - per spec.
+func TestXrefClearAfterMultipleTouches(t *testing.T) {
+	reg := NewRegistry("TestXrefClearAfterMultipleTouches")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+	d, err := reg.AddGroup("dirs", "d1")
+	XNoErr(t, err)
+
+	// ----------------------------------------------------------------
+	// Scenario A: drive it all through the Meta endpoint directly
+	// ("/dirs/d1/files/fx/meta") - this is the path fixed in
+	// Resource.UpsertMeta().
+	// ----------------------------------------------------------------
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "{}", 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx", "{}", 201, `{
+  "fileid": "fx",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/fx",
+  "xid": "/dirs/d1/files/fx",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "versionscount": 1
+}
+`)
+
+	// Touch fx's Meta 4 times (no xref yet) - epoch just increments:
+	// 1 (from create) -> 2 -> 3 -> 4 -> 5.
+	for epoch := 2; epoch <= 5; epoch++ {
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta", "{}", 200,
+			fmt.Sprintf(`{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "xid": "/dirs/d1/files/fx/meta",
+  "epoch": %d,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:01:00Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "defaultversionsticky": false
+}
+`, epoch))
+	}
+
+	// Set xref -> f1. fx's Meta.epoch mirrors f1's (1), even though
+	// fx's own epoch was already at 5 - it's a full mirror of the
+	// target, not a max().
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+		`{"xref":"/dirs/d1/files/f1"}`, 200, `{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "xid": "/dirs/d1/files/fx/meta",
+  "xref": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/1",
+  "defaultversionsticky": false
+}
+`)
+
+	// Clear xref via a full-replace Meta PUT that simply omits "xref"
+	// (as opposed to explicitly "xref":null). New epoch must be
+	// greater than max(previous real epoch [5], xref target's epoch
+	// [1]) i.e. 6, and a new real Version must get created since fx
+	// had none of its own left.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta", "{}", 200, `{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "xid": "/dirs/d1/files/fx/meta",
+  "epoch": 6,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:01:00Z",
+  "readonly": false,
+
+  "defaultversionid": "2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/2",
+  "defaultversionsticky": false
+}
+`)
+
+	fx, err := d.FindResource("files", "fx", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	numVers, xErr := fx.GetNumberOfVersions()
+	XNoErr(t, xErr)
+	XCheck(t, numVers == 1, "Expected 1 Version for fx, got %d", numVers)
+
+	fxMeta, xErr := fx.FindMeta(false, registry.FOR_WRITE)
+	XNoErr(t, xErr)
+	XCheck(t, IsNil(fxMeta.Get("xref")), "fx.xref should be cleared: %v",
+		fxMeta.Get("xref"))
+	epochAny := fxMeta.Get("epoch")
+	XCheck(t, NotNilInt(&epochAny) == 6,
+		"Expected fx epoch 6, got %v", epochAny)
+
+	// ----------------------------------------------------------------
+	// Scenario B: same dance, but this time driven through the
+	// Resource-level endpoint ("/dirs/d1/files/fy?inline=meta") -
+	// exercising Group.UpsertResource()'s own (separate) xref-clear
+	// detection logic, which had the same gap and needed its own fix.
+	// ----------------------------------------------------------------
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2", "{}", 201, `{
+  "fileid": "f2",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f2",
+  "xid": "/dirs/d1/files/f2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+  "versionscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy?inline=meta", "{}", 201, `{
+  "fileid": "fy",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/fy",
+  "xid": "/dirs/d1/files/fy",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fy/meta",
+  "meta": {
+    "fileid": "fy",
+    "self": "http://localhost:8181/dirs/d1/files/fy/meta",
+    "xid": "/dirs/d1/files/fy/meta",
+    "epoch": 1,
+    "createdat": "2025-01-01T00:00:00Z",
+    "modifiedat": "2025-01-01T00:00:00Z",
+    "readonly": false,
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
+  "versionscount": 1
+}
+`)
+
+	// Touch fy (via the Resource endpoint, "meta":{}) 4 times -
+	// epoch: 1 (from create) -> 2 -> 3 -> 4 -> 5.
+	for epoch := 2; epoch <= 5; epoch++ {
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/fy?inline=meta",
+			`{"meta":{}}`, 200, fmt.Sprintf(`{
+  "fileid": "fy",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/fy",
+  "xid": "/dirs/d1/files/fy",
+  "epoch": %d,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:01:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fy/meta",
+  "meta": {
+    "fileid": "fy",
+    "self": "http://localhost:8181/dirs/d1/files/fy/meta",
+    "xid": "/dirs/d1/files/fy/meta",
+    "epoch": %d,
+    "createdat": "2025-01-01T00:00:00Z",
+    "modifiedat": "2025-01-01T00:01:00Z",
+    "readonly": false,
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
+  "versionscount": 1
+}
+`, epoch, epoch))
+	}
+
+	// Set xref -> f2 (Resource-level). fy's Meta.epoch mirrors f2's
+	// (1), same as scenario A.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy?inline=meta",
+		`{"meta":{"xref":"/dirs/d1/files/f2"}}`, 200, `{
+  "fileid": "fy",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/fy",
+  "xid": "/dirs/d1/files/fy",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fy/meta",
+  "meta": {
+    "fileid": "fy",
+    "self": "http://localhost:8181/dirs/d1/files/fy/meta",
+    "xid": "/dirs/d1/files/fy/meta",
+    "xref": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "createdat": "2025-01-01T00:00:00Z",
+    "modifiedat": "2025-01-01T00:00:00Z",
+    "readonly": false,
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
+  "versionscount": 1
+}
+`)
+
+	// Clear xref via a full-replace Resource-level PUT whose "meta"
+	// sub-object simply omits "xref". New epoch must be 6 (same math
+	// as scenario A) and a new real Version must get created.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy?inline=meta", `{"meta":{}}`,
+		200, `{
+  "fileid": "fy",
+  "versionid": "2",
+  "self": "http://localhost:8181/dirs/d1/files/fy",
+  "xid": "/dirs/d1/files/fy",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T00:00:00Z",
+  "modifiedat": "2025-01-01T00:00:00Z",
+  "ancestorid": "2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fy/meta",
+  "meta": {
+    "fileid": "fy",
+    "self": "http://localhost:8181/dirs/d1/files/fy/meta",
+    "xid": "/dirs/d1/files/fy/meta",
+    "epoch": 6,
+    "createdat": "2025-01-01T00:00:01Z",
+    "modifiedat": "2025-01-01T00:00:00Z",
+    "readonly": false,
+
+    "defaultversionid": "2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fy/versions/2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fy/versions",
+  "versionscount": 1
+}
+`)
+
+	fy, err := d.FindResource("files", "fy", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	numVers, xErr = fy.GetNumberOfVersions()
+	XNoErr(t, xErr)
+	XCheck(t, numVers == 1, "Expected 1 Version for fy, got %d", numVers)
+
+	fyMeta, xErr := fy.FindMeta(false, registry.FOR_WRITE)
+	XNoErr(t, xErr)
+	XCheck(t, IsNil(fyMeta.Get("xref")), "fy.xref should be cleared: %v",
+		fyMeta.Get("xref"))
+	epochAny = fyMeta.Get("epoch")
+	XCheck(t, NotNilInt(&epochAny) == 6,
+		"Expected fy epoch 6, got %v", epochAny)
 }
