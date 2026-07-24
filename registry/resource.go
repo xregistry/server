@@ -370,6 +370,12 @@ func (r *Resource) FindVersion(id string, anyCase bool, accessMode int) (*Versio
 func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
 	meta, xErr := r.FindMeta(false, accessMode)
 	PanicIf(xErr != nil, "No meta %q: %s", r.UID, xErr)
+	if meta == nil {
+		// Resource (and its Meta) no longer exists - e.g. it was
+		// deleted earlier in this same Tx after being marked for a
+		// cascade run. Nothing to do.
+		return nil, nil
+	}
 
 	val := meta.GetAsString("defaultversionid")
 	return r.FindVersion(val, false, accessMode)
@@ -742,8 +748,9 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		}
 	}
 
-	// Process any xref
-	if hasXref {
+	// Process any xref if there, or if it used to have it but now doesn't.
+	// Basically if xref changed, or is set then do this...
+	if hasXref || !IsNil(meta.Object["xref"]) {
 		if IsNil(xrefAny) || xref == "" {
 			newEpochAny := meta.Object["#epoch"]
 			newEpoch := NotNilInt(&newEpochAny)
@@ -1299,8 +1306,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 
 	meta := r.MustFindMeta(false, FOR_WRITE)
 
-	// If xref is set then we don't need to check anything
+	// If xref is set then we don't need to check anything, but this
+	// Resource (as an xref source) may still have been marked for a
+	// cascade run (e.g. its own Meta.xref was just set/changed) - run
+	// it before returning so its mirrored data isn't left stale.
 	if meta.GetAsString("xref") != "" {
+		r.tx.RunResourceCascade(r)
 		return nil
 	}
 
@@ -1367,7 +1378,20 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 		return xErr
 	}
 
-	return r.ValidateAndSave(force)
+	if xErr := r.ValidateAndSave(force); xErr != nil {
+		return xErr
+	}
+
+	// All of this Resource's own Version/Meta processing for the
+	// current request is done - run whatever default-version-copy
+	// cascade/xref fan-out got deferred (possibly marked several times
+	// above, e.g. once for the $TBD ancestorid placeholder save via
+	// CheckAncestors() and again when it's resolved) exactly once,
+	// against the final state. See Tx.MarkResourceForCascade()'s doc
+	// comment.
+	r.tx.RunResourceCascade(r)
+
+	return nil
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {

@@ -7227,7 +7227,34 @@ buffering, default-version cascade gating), unrelated to the SPA UI
 above but logged here per user request since this is the durable
 cross-session record.
 
-- [ ] **(b) Double `Version.FullSave()` on resource creation.**
+**Status snapshot (2026-07-24)**: The core `sql.md` goal — "all read
+operations to the Registry only ever used tables, never views" — is
+**done**: the legacy `Entities`/`FullTree`/`AllProps`/`DefaultProps`/
+`VerboseProps` views and the `Props` table (plus its
+`PropsAncestor`/`PropsXref` triggers) were dropped entirely from
+`registry/init.sql`; `FullEntities`/`FullTreeTable` are now the sole
+authoritative store for both reads and writes (see the "3 remaining
+live call sites..." item below for the migration, and git history
+`phase1`..`phase7`/"new logging stuff" for the full build-out). Real
+remaining open items in this section: **(1)** `cascade-skip-when-unchanged`
+— investigate a safe way to skip a Resource's cascade when nothing
+relevant actually changed (currently always runs once per marked
+Resource per Tx); **(2)** xref fan-out N+1 Go-loop → single set-based
+SQL statement (not yet prototyped); **(3)** write-side perf is still
+slower than the old view-based code for bulk loads (reads are ~15x
+faster; see the "Re-confirm..." item below) - no concrete plan yet,
+just tracked. Everything else in this section is closed `[x]`,
+including two real bugs found via user repros this session (2026-07-23/24):
+the `FullTreeTable` PK collision when setting `xref` on a Resource with
+pre-existing real Versions, and the "clearing xref via a full-replace
+body that omits the key" panic (fixed in both `Resource.UpsertMeta()`
+and `Group.UpsertResource()` - see `tests/xref_test.go`'s
+`TestXrefClearAfterMultipleTouches` for regression coverage). None of
+this session's uncommitted changes (`registry/db.go`, `entity.go`,
+`fulltree.go`, `group.go`, `resource.go`, `tests/xref_test.go`) have
+been committed yet - awaiting explicit go-ahead.
+
+- [x] **(b) Double `Version.FullSave()` on resource creation.**
   Confirmed live (via `curl ...?verbose=FullTree` against a freshly
   created resource) that a brand-new Version gets `FullSave()` called
   twice in the same request:
@@ -7253,26 +7280,222 @@ cross-session record.
   cached "does anything xref this Resource" flag) instead of always
   querying.
 
-- [ ] **Better understand why `metaDefaultChanged` is needed at all.**
-  Currently `Entity.Save()` (registry/entity.go ~line 2083) computes:
-  ```go
-  metaDefaultChanged := e.Type == ENTITY_META &&
-      (e.NewObject["defaultversionid"] != e.Object["defaultversionid"] ||
-          e.NewObject["xref"] != e.Object["xref"])
-  ```
-  and passes it into `FullSave()` (registry/fulltree.go ~line 324) to
-  gate whether the default-version-copy cascade re-runs on a Meta save.
-  This replaced an earlier, buggier `e.OriginObject[...]`-based check
-  (which was found to go stale across multiple auto-committed
-  transactions reusing the same in-memory Entity — see checkpoint
-  115/116 for the full incident). The replacement works and all tests
-  pass, but it was implemented reactively to fix that regression rather
-  than from first principles — worth revisiting later to confirm this
-  is really the minimal/correct condition (e.g. are there other Meta
-  attribute changes besides `defaultversionid`/`xref` that should also
-  trigger the cascade? Is comparing `NewObject` vs `Object` at exactly
-  this point in `Save()` guaranteed correct for every call path into
-  `Save()`, including patch/partial-update flows?).
+  **Update (2026-07-23)**: prototyped the "$TBD-then-resolve" special
+  case via a `VersionUpsert.Single` flag (resolve `ancestorid`
+  immediately instead of via the placeholder, for genuinely
+  single-version creates). This worked but was fragile — required a
+  precise "no other pending versions in this Tx" signal (`vu.More` was
+  NOT a reliable proxy for this: it's only `false` on the
+  last-iterated entry of a Go map in the batch `/versions` POST
+  handler, `registry/httpStuff.go` ~1604-1620, not "this is the only
+  version"), and needed an extra self-reference-exclusion fix (the new
+  Version's own not-yet-resolved row, with `AncestorID=""`, was
+  visible to the naive "find current newest version" query and could
+  self-select). After discussion, **rejected this approach** in favor
+  of a more architecturally sound fix, matching the existing
+  `Group.Validate()`/`tx.GroupsToValidate` "mark dirty, drain once per
+  Tx" pattern (registry/db.go ~145/284/373-378):
+  - Add `tx.ResourcesToCascade map[string]*Resource` +
+    `tx.MarkResourceForCascade()`.
+  - Keep `fullSaveVersionCalc()` eager in `FullSave()` (cheap,
+    single-row, own-entity `isdefault` recompute).
+  - Defer `fullSaveDefaultVerCascade()` /
+    `fullSaveXrefFanOutForTargetVersion()` /
+    `fullSaveXrefFanOutForTargetMeta()` (and possibly
+    `fullSaveXrefCascade()`, TBD by measurement) to a new
+    `tx.RunPendingCascades()`, drained once from `tx.Validate()`
+    (worklist pattern, loop-until-empty with a safety cap) alongside
+    the existing `GroupsToValidate` loop — confirmed via
+    `ServeHTTP`/`tx.Conditional()` (registry/httpStuff.go ~62-210,
+    registry/db.go ~474-479) that `tx.Validate()` runs, and response
+    serialization happens, before `tx.Commit()`, so this is a safe,
+    visible-to-the-response hook point. Confirmed every Version/Meta
+    save path eventually reaches `r.ValidateResource()` before the
+    request finishes.
+  - The `Single`-flag prototype was fully reverted (`git checkout --
+    registry/resource.go registry/httpStuff.go`); `make qtest` is
+    green again (~65s) confirming a clean baseline.
+  - Plan going forward: (1) write new xref/version-ordering/
+    default-version-cascade test cases first, expressed purely via
+    HTTP API assertions with **no dependency on `FullTree*`
+    internals** (so they're portable to the pre-`FullTree` codebase to
+    distinguish pre-existing bugs from new regressions) — including
+    the `defaultversionsticky=true`-by-default edge case
+    (`tests/http1_test.go` ~10142-10158) combined with `xref`; (2)
+    prototype the `tx.ResourcesToCascade`/`RunPendingCascades()`
+    design; (3) validate via full `make qtest` + a
+    `/tmp/benchtrigger.sh`-style throughput benchmark.
+
+  **Update (2026-07-23, step 1 complete)**: added
+  `tests/xref_order_test.go` covering the gap identified by reviewing
+  existing xref coverage (`tests/xref_test.go`,
+  `tests/ancestor_test.go`, `tests/constraints_test.go` never mutate
+  the xref TARGET *after* an xref SOURCE already points at it, and
+  never have multiple sources pointing at the same target):
+  - `TestXrefOrderMultiVersionAfterXref`: batch-adds 2 new versions to
+    a target that already has 2 xref sources pointing at it in one
+    request; confirms both sources correctly mirror the target's final
+    state (not a stale intermediate one).
+  - `TestXrefOrderMultipleSourcesSameTarget`: batch-creates 3 xref
+    sources pointing at the same target in one request
+    (order-independence within a Tx); deletes one source (must not
+    affect target or remaining sources); re-points one source's xref
+    to a different target (must stop being fanned out to by the old
+    target while the other source keeps mirroring the original target
+    correctly - no cross-contamination).
+  - `TestXrefOrderTargetDefaultChangeAfterXref`: sticks the target's
+    default version (via `setdefaultversionid`) after a source already
+    exists; confirms the source mirrors the new sticky default
+    (including `defaultversionsticky` itself, which is also mirrored
+    from the target); confirms a further new version on the target
+    does not move the sticky default and the source keeps mirroring it.
+  - `TestXrefOrderRevertWithStickyDefault`: combines the
+    `defaultversionsticky=true`-by-default edge case
+    (`TestHTTPSticky`, `tests/http1_test.go` ~10142-10158) with
+    reverting an xref back to owned versions.
+  All 5 new tests pass individually and as part of the full
+  `make qtest` (~66s, unchanged from baseline) against the current
+  (already-reverted) codebase - this is the clean baseline step 2
+  (the `tx.ResourcesToCascade` prototype) will be validated against.
+
+  **Update (2026-07-23, steps 2-4 complete, DONE)**: implemented and
+  validated the deferred-cascade design:
+  - `registry/db.go`: added `Tx.ResourcesToCascade map[string]*Resource`,
+    `MarkResourceForCascade(r)` (O(1), safe to call many times per
+    Resource per Tx), `runResourceCascade(r)` (private, unconditionally
+    runs `fullSaveDefaultVerCascade` + `fullSaveXrefFanOutForTargetVersion`
+    + `fullSaveXrefFanOutForTargetMeta`), `RunResourceCascade(r)` (public,
+    check-delete-run for one Resource, no-op if unmarked), and
+    `RunPendingCascades()` (safety-net drain of the whole map, loop-
+    until-empty with a cap of 20, for any path that marks a Resource
+    without going through `ValidateResource()`). `RunPendingCascades()`
+    is called from `tx.Validate()` **before** `tx.Lock()` (cascades still
+    need to write) and before the `GroupsToValidate` loop (constraint
+    checks may depend on cascade-derived mirrored data like `isdefault`).
+  - `registry/fulltree.go`: converted `fullSaveXrefFanOutForTargetVersion`/
+    `fullSaveXrefFanOutForTargetMeta` from `*Entity` methods to free
+    `(tx *Tx, r *Resource)` functions (they only ever used `e.tx`);
+    replaced all 4 eager-cascade call sites (`FullSave()`'s switch,
+    `FullTreeSyncProp()`, `SaveSystemProps()`,
+    `FullTreeResyncOwnProps()`) with `MarkResourceForCascade()` calls,
+    dropping the old `fullVersionIsCurrentDefault(v)`/`metaDefaultChanged`
+    gating (no longer needed for correctness - the cascade is now
+    deduped-per-Tx and always recomputes from final DB state regardless
+    of what triggered the mark); deleted the now-dead
+    `fullVersionIsCurrentDefault()`. Also hardened
+    `fullSaveDefaultVerCascade()` to no-op cleanly if the Resource's
+    Meta no longer exists (e.g. all its Versions were deleted earlier in
+    the same Tx, which deletes the Resource itself, but it was already
+    marked for cascade beforehand) instead of panicking on a nil Meta;
+    likewise hardened `Resource.GetDefault()` to return `(nil, nil)` if
+    `FindMeta()` returns nil instead of dereferencing it.
+  - `registry/resource.go`: wired `r.tx.RunResourceCascade(r)` into the
+    end of `ValidateResource()` (the "this Resource's processing is
+    fully done" hook, confirmed called exactly once per Resource per
+    request from all 4 known call sites) - including its early-return
+    path for xref-source Resources (`meta.GetAsString("xref") != ""`),
+    which was found to be a real gap: an xref source's own Meta save
+    (setting `xref`) routes through `FullSave()`'s `ENTITY_META` case and
+    DOES mark the Resource for cascade, so that branch needed the same
+    `RunResourceCascade()` call before its `return nil`.
+  - **Validation**: `go build ./registry/... ./tests/...` clean;
+    `TEST=TestXrefOrder make qtest` green; full `make qtest` green
+    (64.6s, actually a hair faster than the ~66s baseline); a throughput
+    micro-benchmark (Go HTTP client, keep-alive, no per-request curl
+    subprocess overhead, creating 1000 brand-new single-version
+    Resources against a fresh `perfbench` DB on port 8288) showed
+    **291/sec (old eager-cascade code, git-stashed for the A/B
+    comparison) vs 311/sec (new deferred-cascade code) - about a 7%
+    throughput improvement** on exactly the scenario the double-
+    `FullSave()` bug affected. Modest rather than dramatic, since a
+    single-version resource create with no xrefs pointing at it was
+    already a cheap case for the fan-out queries (they return zero
+    rows); the win is concentrated in the `fullSaveDefaultVerCascade`
+    work (default-version prop copy) that used to run twice and now
+    runs once. Marked `cascade-defer-prototype`/`cascade-defer-validate`
+    todos done.
+
+- [x] **Better understand why `metaDefaultChanged` is needed at all.**
+  **Resolved (2026-07-23) by removing it entirely.** Once the
+  deferred-cascade design (item (b) above) landed, `metaDefaultChanged`
+  had already become a dead parameter — the cascade is always
+  deferred/deduped via `tx.MarkResourceForCascade()` regardless of
+  whether `defaultversionid`/`xref` actually changed, so the gate it
+  used to provide was no longer read by anything. Deleted the
+  computation in `Entity.Save()` (registry/entity.go, was ~line 2182)
+  and the now-zero-arg `FullSave()` signature (registry/fulltree.go,
+  was ~line 359) accordingly; only call site (`entity.go:2292`)
+  updated to `e.FullSave()`. `make xrserver`/`make qtest` green after
+  the removal (full suite, `tests` package ~60s). The original
+  "minimal/correct condition" question this item was tracking is now
+  moot — see the new "Better understand how to skip the cascade when
+  nothing changed" item below for the follow-up if/when we revisit
+  gating for performance reasons.
+
+- [ ] **Investigate how to better skip the cascade when nothing
+  changed.** Today `tx.RunResourceCascade()`/`runResourceCascade()`
+  (registry/db.go ~423-447) always re-runs
+  `fullSaveDefaultVerCascade()`/`fullSaveXrefFanOutForTargetVersion()`/
+  `fullSaveXrefFanOutForTargetMeta()` unconditionally for any Resource
+  marked via `tx.MarkResourceForCascade()`, even if nothing about that
+  Resource's default-version/xref state actually changed this Tx. This
+  traded "skip when unnecessary" for "run at most once" (a deliberate,
+  measured-net-positive tradeoff per the 291→311/sec benchmark), but
+  there may be a cheap, hard-to-get-wrong way to skip entirely when
+  truly nothing relevant changed. Any reintroduced gating needs to
+  avoid the fragility of the old `metaDefaultChanged`/`OriginObject`
+  approach (see item above and checkpoint 115/116) — prefer a coarse,
+  structural signal (e.g. "was any Version/Meta belonging to this
+  Resource actually written to FullTreeTable this Tx at all") over
+  trying to re-derive semantic diffs of specific attributes.
+
+- [x] **Fixed: setting `xref` on a Resource with pre-existing real
+  Versions could panic with a `FullTreeTable` PRIMARY KEY collision.**
+  (Found by @duglin via a live `xr` repro, 2026-07-23.) Repro: create
+  `fx` with its own real Version (any UID, e.g. "1"), then `PUT
+  /.../fx/meta` with `xref` pointing at a target (`f1`) that has a
+  Version with the SAME UID. Root cause:
+  `Resource.UpsertMeta()`'s xref-setting branch (registry/resource.go
+  ~803-864) does `meta.JustSet("xref", xref)`, then loops calling
+  `ver.JustDelete()` (registry/version.go ~31-49) for each of `fx`'s own
+  real Versions to remove them - but `JustDelete()` itself has a
+  `Resource.Touch()`-gated `meta.ValidateAndSave(false)` call that fires
+  *before* its own `DELETE FROM Versions`, i.e. on the very first loop
+  iteration, `fullSaveXrefCascade()` ran (via the old eager `FullSave()`
+  call) while `fx`'s own real Version row(s) still existed in
+  `FullTreeTable`. The synthetic xref-version-copy row it built for
+  `fx` (from `f1`'s Version) used a `Path` based only on
+  `sourcePath+"/versions/"+targetVersionUID` - if `fx`'s own
+  (not-yet-deleted) real Version shared that same UID, the new
+  synthetic INSERT collided with the still-present real row on
+  `FullTreeTable`'s `(RegSID, Path, PropName)` primary key. Confirmed
+  via live tracing this is a pre-existing bug in the `FullTreeTable`
+  architecture (registry/fulltree.go), NOT caused by this session's
+  cascade-deferral work for item (b) above - it reproduces the same way
+  against any build with the `FullTreeTable`/`FullEntities` schema,
+  before or after the deferred-cascade change; the old view-based
+  (`FullTree`/`AllProps`) implementation has no such collision since it
+  never persists synthetic rows.
+  - Fix: deferred `fullSaveXrefCascade()` too, mirroring
+    `fullSaveDefaultVerCascade()`/the xref fan-out functions - removed
+    the eager call from `FullSave()`'s `ENTITY_META` case
+    (registry/fulltree.go), and added it to `tx.runResourceCascade()`
+    (registry/db.go), resolving `r`'s Meta and calling
+    `meta.fullSaveXrefCascade()` there instead - **before**
+    `fullSaveDefaultVerCascade()` in the same function, since that
+    function's "no real default Version" (xref source) branch reads
+    the `IsXrefVerCopy=true` synthetic rows `fullSaveXrefCascade()`
+    creates. Since `tx.Validate()`/`RunPendingCascades()` (drained at
+    the top of `SerializeQuery()`, registry/httpStuff.go:855) always
+    runs after `UpsertMeta()`'s entire xref-setting loop (all real
+    Version deletes included) has completed, the cascade now only ever
+    builds synthetic rows once all of the source's own real Version
+    rows are actually gone - no more collision window. Verified via the
+    exact `xr` repro (no error, correct mirrored `epoch`/
+    `defaultversionid` on the source) and a full `make qtest` run
+    (registry `registry` DB needed a `--recreatedb` first - unrelated
+    schema drift from an older DB predating the `IsCalcStatic`/
+    `IsCalcDynamic` migration, not caused by this fix).
 
 - [x] **Investigated whether `Versions.AncestorID`/`Metas.xRefSID`/
   `Metas.defaultVID` mirror columns (and the `FullTreeAncestor`/

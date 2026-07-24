@@ -144,6 +144,19 @@ type Tx struct {
 	// since it's possible only a Resource change could break a constraint.
 	GroupsToValidate map[string]*Group
 
+	// Resources (keyed by DbSID) that need their default-version-copy
+	// cascade and xref fan-out re-run before this Tx's results are
+	// visible. Entity.FullSave()/FullTreeSyncProp()/SaveSystemProps()
+	// mark a Resource here (see MarkResourceForCascade()) instead of
+	// running the (potentially expensive) cascade immediately every
+	// time a Version/Meta belonging to it is saved - which used to
+	// happen redundantly, e.g. once for the $TBD ancestorid placeholder
+	// save and again when it's resolved (see plan.md "Backend / SQL
+	// re-architecture" item (b)). RunResourceCascade()/
+	// RunPendingCascades() drain this, running the cascade AT MOST ONCE
+	// per Resource per Tx, using the final state.
+	ResourcesToCascade map[string]*Resource
+
 	// For debugging
 	uuid  string   // just a unique ID for the TXs map key
 	stack []string // Stack at time NewTX
@@ -262,9 +275,6 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 
 	tx.Validated = true
 
-	// If not already locked, lock it
-	tx.Lock()
-
 	/*
 		if info != nil {
 			log.Printf("--- %s %s", info.OriginalRequest.Method, info.OriginalPath)
@@ -280,6 +290,20 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 	if tx.Registry != nil {
 		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
 	}
+
+	// Safety-net: drain any Resource cascade work that wasn't already
+	// handled by Resource.ValidateResource()'s own
+	// tx.RunResourceCascade() call - see RunPendingCascades()'s doc
+	// comment. Must run before we lock the Tx below since the cascade
+	// itself still needs to write, and must run before GroupsToValidate
+	// since constraint checks may depend on cascade-derived mirrored
+	// data (e.g. isdefault).
+	if xErr := tx.RunPendingCascades(); xErr != nil {
+		return xErr
+	}
+
+	// If not already locked, lock it
+	tx.Lock()
 
 	for _, g := range tx.GroupsToValidate {
 		if xErr := g.Validate(); xErr != nil {
@@ -377,6 +401,85 @@ func (tx *Tx) AddGroupToValidate(g *Group) {
 	tx.GroupsToValidate[g.XID] = g
 }
 
+// MarkResourceForCascade records that r's default-version-copy cascade
+// and xref fan-out (fullSaveDefaultVerCascade/
+// fullSaveXrefFanOutForTargetVersion/fullSaveXrefFanOutForTargetMeta)
+// need to run before this Tx's results are used, without running them
+// immediately. It's safe/cheap to call this many times for the same
+// Resource within one Tx (e.g. once per Version save, once per
+// buffered-system-prop flush) - RunResourceCascade()/
+// RunPendingCascades() collapse all of them into a single cascade run
+// using the final state. A no-op if r is nil.
+func (tx *Tx) MarkResourceForCascade(r *Resource) {
+	if r == nil {
+		return
+	}
+	if tx.ResourcesToCascade == nil {
+		tx.ResourcesToCascade = map[string]*Resource{}
+	}
+	tx.ResourcesToCascade[r.DbSID] = r
+}
+
+// runResourceCascade actually (re)runs the cascade for r. Idempotent -
+// safe to call even if nothing about r changed since the last run.
+func (tx *Tx) runResourceCascade(r *Resource) {
+	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
+	// case r's own Meta.xref was just set/changed/cleared -
+	// fullSaveDefaultVerCascade (next) reads those synthetic Version
+	// rows when r has no real Versions of its own (r is an xref
+	// source - see its "No real default Version" branch), so this
+	// must run before it. meta may be nil if r's Meta no longer exists
+	// (e.g. deleted earlier in this same Tx) - fullSaveXrefCascade()
+	// requires a real Meta, so skip it in that case.
+	if meta, xErr := r.FindMeta(false, FOR_WRITE); xErr == nil && meta != nil {
+		meta.fullSaveXrefCascade()
+	}
+	fullSaveDefaultVerCascade(tx, r)
+	fullSaveXrefFanOutForTargetVersion(tx, r)
+	fullSaveXrefFanOutForTargetMeta(tx, r)
+}
+
+// RunResourceCascade runs (and clears) any cascade work pending for
+// this one Resource - a no-op if nothing is currently marked for it.
+// Meant to be called once, right after all of a single Resource's own
+// Version/Meta processing for the current request is done (i.e. at the
+// end of Resource.ValidateResource()), so whatever got marked along
+// the way (possibly several times) collapses into a single cascade run
+// against r's final state.
+func (tx *Tx) RunResourceCascade(r *Resource) {
+	if r == nil || tx.ResourcesToCascade == nil {
+		return
+	}
+	if _, ok := tx.ResourcesToCascade[r.DbSID]; !ok {
+		return
+	}
+	delete(tx.ResourcesToCascade, r.DbSID)
+	tx.runResourceCascade(r)
+}
+
+// RunPendingCascades is a safety-net drain, called from tx.Validate(),
+// for any Resources that got marked (MarkResourceForCascade) but never
+// had RunResourceCascade() called for them directly - e.g. some future
+// code path that saves a Version/Meta without going through
+// Resource.ValidateResource(). Loops until the map is empty since
+// running a cascade can, in theory, cause further marks (e.g.
+// Resource.EnsureLatest() saving a Meta), with a safety cap to avoid an
+// infinite loop should that ever cycle unexpectedly.
+func (tx *Tx) RunPendingCascades() *XRError {
+	for i := 0; len(tx.ResourcesToCascade) > 0; i++ {
+		if i >= 20 {
+			return NewXRError("server_error", "/").SetDetail(
+				"Resource cascade worklist did not converge.")
+		}
+		batch := tx.ResourcesToCascade
+		tx.ResourcesToCascade = map[string]*Resource{}
+		for _, r := range batch {
+			tx.runResourceCascade(r)
+		}
+	}
+	return nil
+}
+
 // Only call from tests
 func (tx *Tx) SaveCommitRefresh() *XRError {
 	// savedCache := maps.Clone(tx.Cache)
@@ -448,6 +551,7 @@ func (tx *Tx) Commit() *XRError {
 	tx.CreateTime = ""
 	tx.Cache = nil
 	tx.GroupsToValidate = nil
+	tx.ResourcesToCascade = nil
 	tx.uuid = ""
 
 	return nil

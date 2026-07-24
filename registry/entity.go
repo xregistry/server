@@ -2168,21 +2168,6 @@ func (e *Entity) Save() *XRError {
 		e.tx.AddGroupToValidate(e.Self.(*Group))
 	}
 
-	// If this is a Meta, figure out whether defaultversionid/xref
-	// (root-level attrs, so direct map access is fine) actually
-	// changed - those are the only two Meta attrs whose change can
-	// affect the owning Resource's IsDefaultVerCopy set, so there's
-	// no need to re-run that cascade on every unrelated Meta Save().
-	// NewObject already holds the full pending value (it starts as a
-	// clone of Object, then gets mutated by Set() calls) and Object
-	// still holds the pre-this-Save() value at this point (it's only
-	// overwritten below), so we can compare them directly here - no
-	// need for e.OriginObject/GetOrigin(), which only reflects the
-	// value before this object's very FIRST Save(), not this one.
-	metaDefaultChanged := e.Type == ENTITY_META &&
-		(e.NewObject["defaultversionid"] != e.Object["defaultversionid"] ||
-			e.NewObject["xref"] != e.Object["xref"])
-
 	// make a dup so we can delete some attributes
 	newObj := maps.Clone(e.NewObject)
 
@@ -2304,7 +2289,7 @@ func (e *Entity) Save() *XRError {
 	}
 	e.NewObject = nil
 
-	e.FullSave(metaDefaultChanged)
+	e.FullSave()
 
 	return nil
 }

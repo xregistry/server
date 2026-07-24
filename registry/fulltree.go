@@ -223,14 +223,14 @@ func (e *Entity) FullTreeSyncProp(name string, propValue *string,
 
 	// If this is a Version, this prop change may also need to be
 	// reflected in the owning Resource's IsDefaultVerCopy set (if this
-	// Version happens to be the current default) - re-run that cascade
-	// since Save()'s own fullSaveDefaultVerCascade already ran (and
-	// won't run again) before this out-of-band write happened.
+	// Version happens to be the current default) - mark it for the
+	// deferred cascade (see Tx.MarkResourceForCascade()) rather than
+	// running it immediately, since Save()'s own FullSave() already
+	// marked it once and this out-of-band write can just piggyback on
+	// that same deferred run.
 	if e.Type == ENTITY_VERSION {
 		v := e.Self.(*Version)
-		if v.Resource != nil && fullVersionIsCurrentDefault(v) {
-			fullSaveDefaultVerCascade(e.tx, v.Resource)
-		}
+		e.tx.MarkResourceForCascade(v.Resource)
 	}
 }
 
@@ -321,14 +321,13 @@ func (e *Entity) SaveSystemProps() {
 	e.fullTreeDeletePropsBatch(deleteNames)
 	e.fullTreeWritePropsBatch(insertRows, true)
 
-	// Same idea as FullTreeSyncProp(): if e is a Version and happens to
-	// be the Resource's current default, re-run the default-version-
-	// copy cascade once so the Resource's mirrored props reflect the
-	// change(s) above - but only ONCE per flush, not once per prop.
+	// Same idea as FullTreeSyncProp(): if e is a Version, mark the
+	// owning Resource for the deferred cascade (Tx.MarkResourceForCascade())
+	// so the Resource's mirrored props get refreshed once, no matter how
+	// many system props changed on this entity since the last flush.
 	if e.Type == ENTITY_VERSION {
-		if v, ok := e.Self.(*Version); ok && v.Resource != nil &&
-			fullVersionIsCurrentDefault(v) {
-			fullSaveDefaultVerCascade(e.tx, v.Resource)
+		if v, ok := e.Self.(*Version); ok {
+			e.tx.MarkResourceForCascade(v.Resource)
 		}
 	}
 }
@@ -341,76 +340,45 @@ func (e *Entity) SaveSystemProps() {
 // singleton attributes can actually change post-creation (just a
 // Version's own isdefault - see fullSaveVersionCalc()'s doc comment;
 // xid/Resource.isdefault/Version.RESOURCEid are write-once, handled by
-// FullEntityInsert()/fullSaveCalcStaticInsert() instead) and kick off
-// whichever cascades are relevant given the entity's type (default-
-// version-copy, xref prop/version-copy).
+// FullEntityInsert()/fullSaveCalcStaticInsert() instead) and mark the
+// owning Resource for whichever cascades are relevant given the
+// entity's type (default-version-copy, xref prop/version-copy) - see
+// Tx.MarkResourceForCascade()'s doc comment for why this is deferred
+// rather than run immediately here.
 //
-// metaDefaultChanged is only meaningful when e.Type==ENTITY_META: it's
-// true if this specific Save() call actually changed defaultversionid
-// or xref (computed by Save() itself from a local pre-Save snapshot,
-// since e.OriginObject isn't reliable for this - see Save()'s comment).
+// fullSaveXrefCascade() (ENTITY_META) used to run eagerly right here,
+// but that's wrong: Resource.UpsertMeta()'s xref-setting path (registry/
+// resource.go) calls Version.JustDelete() in a loop to remove this
+// Resource's own real Versions BEFORE it's done processing, and
+// JustDelete() itself can trigger a Meta save (via Resource.Touch())
+// partway through that loop - i.e. while some of this Resource's own
+// real Version rows still exist in FullTreeTable. Running the xref
+// cascade eagerly at that point built synthetic xref-version-copy rows
+// whose Path collided with those still-present real rows (same
+// PropName, same Path, different eSID - a FullTreeTable PRIMARY KEY
+// violation). Deferring it via MarkResourceForCascade()/
+// runResourceCascade() instead means it only actually runs once, at
+// tx.Validate() time (via RunResourceCascade()/RunPendingCascades()),
+// which is always after all of this Resource's own Version deletes for
+// the current request have completed.
 //
 // This relies on FullEntityInsert() having already been called (every
 // entity-creation site does so unconditionally alongside its "real"
 // table INSERT - see FullEntityInsert's doc comment), so there's no
 // need to re-verify the FullEntities row exists here.
-func (e *Entity) FullSave(metaDefaultChanged bool) {
-	defer log.Trace("FullTree", "%s, %v", e.XID, metaDefaultChanged)()
+func (e *Entity) FullSave() {
+	defer log.Trace("FullTree", "%s", e.XID)()
 
 	switch e.Type {
 	case ENTITY_VERSION:
 		e.fullSaveVersionCalc()
-		// Only refresh the Resource's IsDefaultVerCopy set if this
-		// Version is actually the one currently marked as the
-		// Resource's default - a Save() of any other (non-default)
-		// Version can't possibly change what's mirrored there, so
-		// there's no need to pay for the cascade's DELETE/REPLACE/
-		// UPDATE every time any Version is touched.
 		v := e.Self.(*Version)
-		if v.Resource != nil && fullVersionIsCurrentDefault(v) {
-			fullSaveDefaultVerCascade(e.tx, v.Resource)
-		}
-		e.fullSaveXrefFanOutForTargetVersion(v.Resource)
+		e.tx.MarkResourceForCascade(v.Resource)
 
 	case ENTITY_META:
-		e.fullSaveXrefCascade()
-		// Only refresh the Resource's IsDefaultVerCopy set if this
-		// Save() actually changed defaultversionid or xref - those
-		// are the only two Meta attrs that can affect it, so any
-		// other Meta prop change (readonly, compatibility, etc.)
-		// doesn't need to re-run the cascade.
 		meta := e.Self.(*Meta)
-		if metaDefaultChanged {
-			fullSaveDefaultVerCascade(e.tx, meta.Resource)
-		}
-		e.fullSaveXrefFanOutForTargetMeta(meta.Resource)
+		e.tx.MarkResourceForCascade(meta.Resource)
 	}
-}
-
-// fullVersionIsCurrentDefault reports whether v is currently its
-// Resource's default Version (i.e. Metas.defaultVID == v.UID). It
-// first checks whether this transaction already has the owning
-// Resource's Meta loaded in-memory (tx.GetMeta) - if so, this is a
-// zero-DB-query check, reading defaultversionid straight out of
-// meta.Object (a root-level attr, so no need for Get()/GetAsString()'s
-// path-parsing). Otherwise it falls back to a lightweight existence
-// check (far cheaper than running the full cascade unconditionally).
-func fullVersionIsCurrentDefault(v *Version) bool {
-	defer log.Trace("FullTree", v.XID)()
-
-	meta := v.Resource.MustFindMeta(false, FOR_READ)
-	// DUG FT
-	// if meta := v.tx.GetMeta(v.Resource); meta != nil {
-	defVID, _ := meta.Object["defaultversionid"].(string)
-	return defVID == v.UID
-	// }
-	/*
-			results := Query(v.tx, `
-		        SELECT 1 FROM Metas WHERE ResourceSID=? AND defaultVID=?`,
-				v.Resource.DbSID, v.UID)
-			defer results.Close()
-			return results.NextRow() != nil
-	*/
 }
 
 // fullSaveCalcStaticInsert writes e's write-once calculated attributes:
@@ -497,9 +465,7 @@ func FullTreeResyncOwnProps(e *Entity) {
 	if e.Type == ENTITY_VERSION {
 		e.fullSaveVersionCalc()
 		v := e.Self.(*Version)
-		if v.Resource != nil && fullVersionIsCurrentDefault(v) {
-			fullSaveDefaultVerCascade(e.tx, v.Resource)
-		}
+		e.tx.MarkResourceForCascade(v.Resource)
 	}
 }
 
@@ -562,6 +528,16 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 	Do(tx, `
         DELETE FROM FullTreeTable WHERE eSID=? AND IsDefaultVerCopy=true`,
 		resourceSID)
+
+	// The Resource (and its Meta) may have been deleted earlier in this
+	// same Tx after being marked for a cascade run (e.g. all of its
+	// Versions were deleted, which per business rules deletes the
+	// Resource itself). If so there's nothing left to cascade.
+	meta, xErr := r.FindMeta(false, FOR_READ)
+	Must(xErr)
+	if meta == nil {
+		return
+	}
 
 	// Grab the default version. If there is none defined yet then
 	// call EnsureLatest (if no xref) just so the processing continues.
@@ -877,20 +853,20 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 // Registry.FindResourceBySID()/FindMeta() (cache-checked, so repeat
 // fan-out hits for the same source within one Tx are free) rather than
 // a raw fullEntityLookup() row.
-func (e *Entity) fullSaveXrefFanOutForTargetMeta(r *Resource) {
+func fullSaveXrefFanOutForTargetMeta(tx *Tx, r *Resource) {
 	if r == nil {
 		return
 	}
 
 	defer log.Trace("FullTree", r.XID)()
 
-	results := Query(e.tx, `
+	results := Query(tx, `
         SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)
 	defer results.Close()
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		sourceResourceSID := NotNilString(row[0])
-		sourceResource, xErr := e.tx.Registry.FindResourceBySID(
+		sourceResource, xErr := tx.Registry.FindResourceBySID(
 			sourceResourceSID, FOR_WRITE)
 		if xErr != nil || sourceResource == nil {
 			continue
@@ -900,7 +876,7 @@ func (e *Entity) fullSaveXrefFanOutForTargetMeta(r *Resource) {
 			continue
 		}
 		sourceMeta.fullSaveXrefCascade()
-		fullSaveDefaultVerCascade(e.tx, sourceResource)
+		fullSaveDefaultVerCascade(tx, sourceResource)
 	}
 }
 
@@ -911,26 +887,26 @@ func (e *Entity) fullSaveXrefFanOutForTargetMeta(r *Resource) {
 // saved Version (always available at the FullSave() call site as
 // v.Resource). As with fullSaveXrefFanOutForTargetMeta, each source is
 // resolved to its real *Resource via Registry.FindResourceBySID().
-func (e *Entity) fullSaveXrefFanOutForTargetVersion(r *Resource) {
+func fullSaveXrefFanOutForTargetVersion(tx *Tx, r *Resource) {
 	if r == nil {
 		return
 	}
 
 	defer log.Trace("FullTree", r.XID)()
 
-	results := Query(e.tx, `
+	results := Query(tx, `
         SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)
 	defer results.Close()
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		sourceResourceSID := NotNilString(row[0])
-		sourceResource, xErr := e.tx.Registry.FindResourceBySID(
+		sourceResource, xErr := tx.Registry.FindResourceBySID(
 			sourceResourceSID, FOR_WRITE)
 		if xErr != nil || sourceResource == nil {
 			continue
 		}
-		fullSaveXrefVersionCopies(e.tx, sourceResource, r.DbSID)
-		fullSaveDefaultVerCascade(e.tx, sourceResource)
+		fullSaveXrefVersionCopies(tx, sourceResource, r.DbSID)
+		fullSaveDefaultVerCascade(tx, sourceResource)
 	}
 }
 

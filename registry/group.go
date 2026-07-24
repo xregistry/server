@@ -416,7 +416,13 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// Need to set meta.xref early because some processing depends on it
 	// being set to the final value before we actually process "meta"
 	if hasXref {
-		if objXref == false || (okObj && IsNil(objXref)) {
+		// xref is being explicitly nulled/falsed out, or "meta" was
+		// provided as a full-replace (non-PATCH) sub-object that
+		// simply omits "xref" entirely - which means it's being
+		// cleared too. See the parallel check/comment in
+		// Resource.UpsertMeta() for why the !okObj case matters.
+		if objXref == false || (okObj && IsNil(objXref)) ||
+			(hasMeta && !okObj && metaAddType != ADD_PATCH) {
 			hasXref = false
 			meta.JustSet("xref", nil)
 			// This is also done in the upsertMeta call but we need it
