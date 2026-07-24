@@ -223,14 +223,14 @@ func (e *Entity) FullTreeSyncProp(name string, propValue *string,
 
 	// If this is a Version, this prop change may also need to be
 	// reflected in the owning Resource's IsDefaultVerCopy set (if this
-	// Version happens to be the current default) - mark it for the
-	// deferred cascade (see Tx.MarkResourceForCascade()) rather than
-	// running it immediately, since Save()'s own FullSave() already
+	// Version happens to be the current default) - mark it for
+	// deferred (re-)validation (see Tx.AddResourceToValidate()) rather
+	// than running it immediately, since Save()'s own FullSave() already
 	// marked it once and this out-of-band write can just piggyback on
 	// that same deferred run.
 	if e.Type == ENTITY_VERSION {
 		v := e.Self.(*Version)
-		e.tx.MarkResourceForCascade(v.Resource)
+		e.tx.AddResourceToValidate(v.Resource, true, false)
 	}
 }
 
@@ -322,12 +322,13 @@ func (e *Entity) SaveSystemProps() {
 	e.fullTreeWritePropsBatch(insertRows, true)
 
 	// Same idea as FullTreeSyncProp(): if e is a Version, mark the
-	// owning Resource for the deferred cascade (Tx.MarkResourceForCascade())
-	// so the Resource's mirrored props get refreshed once, no matter how
-	// many system props changed on this entity since the last flush.
+	// owning Resource for deferred (re-)validation
+	// (Tx.AddResourceToValidate()) so the Resource's mirrored props get
+	// refreshed once, no matter how many system props changed on this
+	// entity since the last flush.
 	if e.Type == ENTITY_VERSION {
 		if v, ok := e.Self.(*Version); ok {
-			e.tx.MarkResourceForCascade(v.Resource)
+			e.tx.AddResourceToValidate(v.Resource, true, false)
 		}
 	}
 }
@@ -341,9 +342,8 @@ func (e *Entity) SaveSystemProps() {
 // Version's own isdefault - see fullSaveVersionCalc()'s doc comment;
 // xid/Resource.isdefault/Version.RESOURCEid are write-once, handled by
 // FullEntityInsert()/fullSaveCalcStaticInsert() instead) and mark the
-// owning Resource for whichever cascades are relevant given the
-// entity's type (default-version-copy, xref prop/version-copy) - see
-// Tx.MarkResourceForCascade()'s doc comment for why this is deferred
+// owning Resource for deferred (re-)validation - see
+// Tx.AddResourceToValidate()'s doc comment for why this is deferred
 // rather than run immediately here.
 //
 // fullSaveXrefCascade() (ENTITY_META) used to run eagerly right here,
@@ -356,11 +356,11 @@ func (e *Entity) SaveSystemProps() {
 // cascade eagerly at that point built synthetic xref-version-copy rows
 // whose Path collided with those still-present real rows (same
 // PropName, same Path, different eSID - a FullTreeTable PRIMARY KEY
-// violation). Deferring it via MarkResourceForCascade()/
-// runResourceCascade() instead means it only actually runs once, at
-// tx.Validate() time (via RunResourceCascade()/RunPendingCascades()),
-// which is always after all of this Resource's own Version deletes for
-// the current request have completed.
+// violation). Deferring it via AddResourceToValidate()/
+// Resource.ValidateResource() instead means it only actually runs once,
+// at Registry.Validate() time (called from Tx.Validate()), which is
+// always after all of this Resource's own Version deletes for the
+// current request have completed.
 //
 // This relies on FullEntityInsert() having already been called (every
 // entity-creation site does so unconditionally alongside its "real"
@@ -373,11 +373,17 @@ func (e *Entity) FullSave() {
 	case ENTITY_VERSION:
 		e.fullSaveVersionCalc()
 		v := e.Self.(*Version)
-		e.tx.MarkResourceForCascade(v.Resource)
+		// onlyMetaChanged=false: this fires for ANY Version save,
+		// including real content/ancestor changes (e.g. WillDelete()'s
+		// ancestorid relinking), which need the full CheckAncestors()/
+		// EnsureMaxVersions()/etc. checks - not just the meta-only
+		// subset - before EnsureLatest() can correctly determine the
+		// new "newest" Version.
+		e.tx.AddResourceToValidate(v.Resource, false, false)
 
 	case ENTITY_META:
 		meta := e.Self.(*Meta)
-		e.tx.MarkResourceForCascade(meta.Resource)
+		e.tx.AddResourceToValidate(meta.Resource, true, false)
 	}
 }
 
@@ -465,7 +471,7 @@ func FullTreeResyncOwnProps(e *Entity) {
 	if e.Type == ENTITY_VERSION {
 		e.fullSaveVersionCalc()
 		v := e.Self.(*Version)
-		e.tx.MarkResourceForCascade(v.Resource)
+		e.tx.AddResourceToValidate(v.Resource, true, false)
 	}
 }
 

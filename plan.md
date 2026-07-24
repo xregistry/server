@@ -7936,3 +7936,70 @@ been committed yet - awaiting explicit go-ahead.
   win expected here, but it closes the same round-trip-per-prop gap for
   format/compat-validation flows).
 
+
+- [x] **Fixed manual-versionmode "newest version" bug: deleting a
+  Version's ancestor could make the wrong Version become default.**
+  (User-reported via `tests/tt_test.go` repro, 2026-07-24.) Root cause:
+  `ManualVersionMode.NewestVersionID()` derived "newest" from
+  `GetOrderedVersionIDs()`'s root/middle/leaf `Pos` ordering (from
+  `VersionAncestors` SQL view in `init.sql`), which classifies
+  self-referencing roots first, *before* checking whether anything else
+  still references them as an ancestor. Per spec (`model.md`), "newest"
+  should simply be: among Versions **not referenced as ancestor of any
+  other Version**, pick newest `createdat` (tie-break: highest
+  versionid, case-insensitive) - root-ness is irrelevant to that rule
+  (only relevant to "oldest"). When `WillDelete()` correctly turns an
+  orphaned child into a self-referencing root per spec's "Deleted
+  Ancestor" rule, that Version could be simultaneously root AND
+  unreferenced-by-anything-else, but the Pos-based ordering buried it in
+  the root bucket (sorted to the front) so it was skipped in favor of
+  whatever else was classified as a leaf - explaining both the bug and
+  why it "self-corrected" once no competing leaf existed.
+  - Fix (`registry/versionmodes.go`): `ManualVersionMode.NewestVersionID()`
+    and `CheckAncestors()`'s orphan-anchor lookup now share a new private
+    `newestVersionID(r, excludeTBD)` helper that queries `Versions`
+    directly for "not referenced as ancestor of any other Version",
+    ordered by `CreatedAt DESC, UID COLLATE ... DESC`, bypassing the
+    Pos/root-leaf categorization entirely. This also fixed an unrelated
+    dead-loop indexing bug in the old `CheckAncestors()` code (it always
+    re-read `VIDs[len(VIDs)-1]` regardless of loop index `i`).
+  - Edge case handled: if this stricter query finds *no* candidate (only
+    possible when every Version's ancestorid chain forms a full circle),
+    it falls back to picking an arbitrary candidate from all Versions
+    (same leniency the old Pos-based code had) rather than erroring
+    immediately - verified via `TestAncestorMaxVersions` that an
+    immediate hard error here is wrong: `EnsureLatest()` runs *before*
+    `EnsureMaxVersions()` in `ValidateResource()`, and that test
+    intentionally creates a temporary 2-Version cycle that
+    `EnsureMaxVersions()` legitimately resolves (by evicting the oldest)
+    before the real `EnsureCircularReferences()` check runs later in the
+    same call - so the authoritative circular-reference judgment must
+    stay deferred to that later check, not short-circuited here.
+  - `GetOrderedVersionIDs()` itself is untouched - still correct for
+    "oldest" and `EnsureCompat()`'s ancestor/children-map building (which
+    only uses each Version's own `AncestorID` edge directly, never the
+    positional Pos ordering, so it was unaffected by this bug).
+  - Test coverage (`tests/http3_test.go`'s `TestHTTPIgnore`): added a GET
+    assertion right after the `DELETE .../versions/v3` call confirming
+    `defaultversionid` stays `v4` immediately after the delete (not
+    `v2`), and corrected one later assertion that had baked in the old
+    buggy `v2`-becomes-default behavior. Deleted the temporary
+    `tests/tt_test.go` repro (its coverage is now captured directly in
+    `TestHTTPIgnore`).
+  - Verified: full `make qtest` green.
+
+- [x] **Checked whether `createdat` versionmode has the same "newest
+  version" bug as `manual` mode - it does not.** Per spec (`model.md`
+  872-888), `createdat` mode's "Newest Version" rule is just "the
+  Version with the newest `createdat`" (a flat timestamp-based total
+  order, no "not referenced as ancestor" clause like manual mode has).
+  Structurally, `CreatedatVersionMode.CheckAncestors()` always forces
+  the `ancestorid` chain to mirror strict createdat order (via a `lag()`
+  window-function query), and `WillDelete()` bridges a deleted version's
+  children to its own ancestor (not to a new root) - so the ancestor
+  graph in this mode is always a single linear chain, never branching,
+  meaning there's always exactly one root (oldest) and one leaf
+  (newest) and `GetOrderedVersionIDs()`'s Pos-based ordering always
+  agrees with true createdat order. The precondition for the manual-mode
+  bug (a Version that's simultaneously self-referencing-root AND
+  unreferenced-by-anyone-else) can't arise here. No code change made.

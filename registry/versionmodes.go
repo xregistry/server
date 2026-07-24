@@ -49,23 +49,12 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 
 		// If AncestorID is ANCESTORID_TBD then assign it to the newest Ver
 		if newestVerID == "" {
-			// First time thru, grab the Resource's newest versionID.
-			// Didn't need to get all attributes, just its ID
-			VIDs, xErr := r.GetVersionMode().GetOrderedVersionIDs(r)
+			// First time thru, grab the Resource's newest (already
+			// resolved, i.e. non-TBD) versionID to anchor this orphan to.
+			var xErr *XRError
+			newestVerID, xErr = vm.newestVersionID(r, true)
 			if xErr != nil {
 				return xErr
-			}
-
-			if len(VIDs) > 0 {
-				// Grab newest non-TBD version
-				for i := len(VIDs) - 1; i >= 0; i-- {
-					av := VIDs[len(VIDs)-1]
-					if av.AncestorID == ANCESTORID_TBD {
-						continue
-					}
-					newestVerID = av.VID // grab its versionID
-					break
-				}
 			}
 
 			if newestVerID == "" {
@@ -88,18 +77,77 @@ func (vm *ManualVersionMode) CheckAncestors(r *Resource) *XRError {
 }
 
 func (vm *ManualVersionMode) NewestVersionID(r *Resource) (string, *XRError) {
-	vers, xErr := r.GetVersionMode().GetOrderedVersionIDs(r)
-	Must(xErr)
+	return vm.newestVersionID(r, false)
+}
 
-	if len(vers) > 0 {
-		return vers[len(vers)-1].VID, nil
+// newestVersionID implements the spec's manual-versionmode "Newest
+// Version" rule directly: among all Versions that are NOT referenced as
+// the ancestorid of any OTHER Version, pick the one with the newest
+// createdat (ties broken by highest versionid, case-insensitive). This
+// is intentionally independent of root status - GetOrderedVersionIDs()'s
+// Pos ('0-root'/'1-middle'/'2-leaf') classification checks root-ness
+// first, so a Version that just became a self-referencing root (e.g. via
+// WillDelete()'s "Deleted Ancestor" handling) but is otherwise still
+// unreferenced by anything else would be wrongly excluded from newest-
+// candidacy if we derived the answer from that ordering instead.
+//
+// If excludeTBD is true, Versions whose own ancestorid is still
+// ANCESTORID_TBD are left out of consideration (used by CheckAncestors()
+// while it's still resolving pending orphans, so it doesn't anchor a new
+// orphan to another not-yet-resolved one).
+func (vm *ManualVersionMode) newestVersionID(r *Resource, excludeTBD bool) (string, *XRError) {
+	base := `
+                SELECT v.UID FROM Versions AS v
+                WHERE v.RegistrySID=? AND v.ResourceSID=?`
+	if excludeTBD {
+		base += ` AND v.AncestorID<>'` + ANCESTORID_TBD + `'`
 	}
-	return "", nil
+
+	notReferenced := `
+                  AND NOT EXISTS (
+                    SELECT 1 FROM Versions AS v2
+                    WHERE v2.ResourceSID=v.ResourceSID AND
+                          v2.AncestorID=v.UID AND v2.SID<>v.SID)`
+	order := `
+                ORDER BY v.CreatedAt DESC, v.UID ` + FILTER_CI_COLLATE + ` DESC
+                LIMIT 1`
+
+	results := Query(r.tx, base+notReferenced+order, r.Registry.DbSID, r.DbSID)
+	row := results.NextRow()
+	results.Close()
+
+	if row != nil {
+		return NotNilString(row[0]), nil
+	}
+
+	// No Version qualifies as "not referenced by another" - this only
+	// happens when every Version's ancestorid chain forms a full circle.
+	// That's NOT necessarily a final error state yet though: e.g.
+	// EnsureMaxVersions() (which runs later in ValidateResource(), after
+	// EnsureLatest()) may still delete enough of the offending Versions
+	// to break the cycle before EnsureCircularReferences() actually
+	// checks for real (see TestAncestorMaxVersions, which intentionally
+	// creates a temporary 2-Version cycle that's resolved once
+	// maxversions=1 evicts the oldest one). So don't hard-error here -
+	// just fall back to picking an arbitrary candidate amongst all of
+	// them (same leniency the old Pos-based logic had, since every
+	// Version always gets a Pos bucket even when circular) and let the
+	// later EnsureCircularReferences() call be the one to authoritatively
+	// decide if this is actually a problem once the rest of validation
+	// (including any max-versions eviction) has run.
+	results = Query(r.tx, base+order, r.Registry.DbSID, r.DbSID)
+	defer results.Close()
+
+	row = results.NextRow()
+	if row == nil {
+		return "", nil
+	}
+	return NotNilString(row[0]), nil
 }
 
 func (vm *ManualVersionMode) WillDelete(r *Resource, vID string) *XRError {
 	// Before we delete a version, make all versions that point to this
-	// one "roots"
+	// one become "roots"
 
 	vers, xErr := r.GetChildVersionIDs(vID)
 	if xErr != nil {

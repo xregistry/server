@@ -1299,6 +1299,16 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	log.VPrintf(3, ">Enter: ValidateResource(r:%s only:%v, force:%v)", r.UID, onlyMetaChanged, force)
 	defer log.VPrintf(3, "<Exit: ValiateResource")
 
+	// We're about to fully (re-)validate r ourselves right now, so drop
+	// any pending AddResourceToValidate() mark for it - otherwise
+	// Registry.Validate() would redundantly run ValidateResource() for
+	// r again later in this same Tx (e.g. a Version/Meta save that
+	// happened as part of this very call already marked r via
+	// Entity.FullSave()).
+	if r.tx.ResourcesToValidate != nil {
+		delete(r.tx.ResourcesToValidate, r.DbSID)
+	}
+
 	// If anything changed in the Resource, causing us to validate it, then
 	// assume we need to run its Group's Validate() func as well to ensure
 	// the constraints are still valid
@@ -1307,11 +1317,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	meta := r.MustFindMeta(false, FOR_WRITE)
 
 	// If xref is set then we don't need to check anything, but this
-	// Resource (as an xref source) may still have been marked for a
-	// cascade run (e.g. its own Meta.xref was just set/changed) - run
-	// it before returning so its mirrored data isn't left stale.
+	// Resource (as an xref source) may still need its default-version-
+	// copy cascade/xref fan-out (re-)run (e.g. its own Meta.xref was
+	// just set/changed) - run it before returning so its mirrored data
+	// isn't left stale.
 	if meta.GetAsString("xref") != "" {
-		r.tx.RunResourceCascade(r)
+		r.runCascade()
 		return nil
 	}
 
@@ -1383,15 +1394,36 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	}
 
 	// All of this Resource's own Version/Meta processing for the
-	// current request is done - run whatever default-version-copy
-	// cascade/xref fan-out got deferred (possibly marked several times
-	// above, e.g. once for the $TBD ancestorid placeholder save via
-	// CheckAncestors() and again when it's resolved) exactly once,
-	// against the final state. See Tx.MarkResourceForCascade()'s doc
-	// comment.
-	r.tx.RunResourceCascade(r)
+	// current request is done - (re-)run its default-version-copy
+	// cascade/xref fan-out exactly once, against the final state.
+	r.runCascade()
 
 	return nil
+}
+
+// runCascade (re)builds r's default-version-copy cascade and xref
+// fan-out (IsXrefPropCopy/IsXrefVerCopy synthetic rows, plus mirrored
+// data on any xref target). Idempotent - safe to call even if nothing
+// about r changed since the last run. Called once per Resource per Tx
+// as the final step of ValidateResource() - see
+// Tx.AddResourceToValidate()'s doc comment for why this is deferred
+// until then rather than run immediately every time a Version/Meta
+// belonging to r is saved.
+func (r *Resource) runCascade() {
+	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
+	// case r's own Meta.xref was just set/changed/cleared -
+	// fullSaveDefaultVerCascade (next) reads those synthetic Version
+	// rows when r has no real Versions of its own (r is an xref
+	// source - see its "No real default Version" branch), so this
+	// must run before it. meta may be nil if r's Meta no longer exists
+	// (e.g. deleted earlier in this same Tx) - fullSaveXrefCascade()
+	// requires a real Meta, so skip it in that case.
+	if meta, xErr := r.FindMeta(false, FOR_WRITE); xErr == nil && meta != nil {
+		meta.fullSaveXrefCascade()
+	}
+	fullSaveDefaultVerCascade(r.tx, r)
+	fullSaveXrefFanOutForTargetVersion(r.tx, r)
+	fullSaveXrefFanOutForTargetMeta(r.tx, r)
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {
@@ -1654,6 +1686,13 @@ func (r *Resource) Delete() *XRError {
 	}
 
 	DoOne(r.tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
+
+	// No longer anything to validate - drop any pending mark so
+	// Registry.Validate() doesn't try to (re-)validate a Resource whose
+	// Meta (and now Resource row) no longer exist.
+	if r.tx.ResourcesToValidate != nil {
+		delete(r.tx.ResourcesToValidate, r.DbSID)
+	}
 
 	// Delete any pending changes so dirty check doesn't fail
 	r.NewObject = nil

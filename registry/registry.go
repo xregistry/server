@@ -100,6 +100,52 @@ func (r *Registry) Commit() *XRError {
 	return nil
 }
 
+// Validate drains this Registry's Tx of any deferred Resource/Group
+// validation work (Tx.ResourcesToValidate/GroupsToValidate) - this is
+// registry-wide constraint/cascade checking, so it belongs here rather
+// than in the Tx layer, even though the pending-work lists themselves
+// are Tx-scoped bookkeeping (see those fields' doc comments in db.go).
+// Called from Tx.Validate() once the Tx's own bookkeeping/sanity-checks
+// are done.
+func (r *Registry) Validate(info *RequestInfo) *XRError {
+	tx := r.tx
+
+	// Drain any Resources marked for (re-)validation - possibly marked
+	// several times each (see AddResourceToValidate()'s doc comment).
+	// Loops until the map is empty since running ValidateResource() can,
+	// in theory, cause further marks (e.g. Resource.EnsureLatest() saving
+	// a Meta), with a safety cap to avoid an infinite loop should that
+	// ever cycle unexpectedly. Must run before we lock the Tx below
+	// since validation itself still needs to write, and must run before
+	// GroupsToValidate since constraint checks may depend on
+	// cascade-derived mirrored data (e.g. isdefault).
+	for i := 0; len(tx.ResourcesToValidate) > 0; i++ {
+		if i >= 20 {
+			return NewXRError("server_error", "/").SetDetail(
+				"Resource validation worklist did not converge.")
+		}
+		batch := tx.ResourcesToValidate
+		tx.ResourcesToValidate = map[string]*resourceValidation{}
+		for _, entry := range batch {
+			if xErr := entry.r.ValidateResource(entry.onlyMetaChanged,
+				entry.force); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	// If not already locked, lock it
+	tx.Lock()
+
+	for _, g := range tx.GroupsToValidate {
+		if xErr := g.Validate(); xErr != nil {
+			return xErr
+		}
+	}
+
+	return nil
+}
+
 type RegOpt string
 
 func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
@@ -1598,6 +1644,13 @@ func (r *Registry) VerifyData() *XRError {
 			resource := &Resource{Entity: *e, Group: group}
 			resource.Self = resource
 			// onlyMetaChanged, forceVerify
+			//
+			// Unlike the other ValidateResource() call sites, this one
+			// is called directly (VerifyData() has callers - including
+			// tests - that invoke it via the Go API without ever going
+			// through an HTTP request/Tx.Validate()), so it must run
+			// synchronously here rather than being deferred via
+			// AddResourceToValidate().
 			if xErr = resource.ValidateResource(false, true); xErr != nil {
 				return xErr
 			}

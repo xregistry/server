@@ -1,26 +1,27 @@
 package tests
 
-// These tests target the deferred, once-per-Tx cascade design added for
-// plan.md "Backend / SQL re-architecture" item (b) (Double
+// These tests target the deferred, once-per-Tx validation design added
+// for plan.md "Backend / SQL re-architecture" item (b) (Double
 // Version.FullSave() on resource creation): registry/db.go's
-// Tx.ResourcesToCascade/MarkResourceForCascade/RunResourceCascade/
-// RunPendingCascades, wired into Resource.ValidateResource() (registry/
-// resource.go) and registry/fulltree.go's fullSaveDefaultVerCascade().
+// Tx.ResourcesToValidate/AddResourceToValidate, drained by
+// Registry.Validate() (registry/registry.go), wired into
+// Resource.ValidateResource() (registry/resource.go) and
+// registry/fulltree.go's fullSaveDefaultVerCascade().
 //
 // Specifically, they cover Resource.SetDefault() (registry/resource.go)
 // - used by Version.DeleteSetNextVersion() when the current default
 // Version is deleted - as a THIRD path (besides Resource.EnsureLatest())
-// that can set "defaultversionid" and therefore mark a Resource for a
-// cascade run. Live tracing (added temporarily during development)
+// that can set "defaultversionid" and therefore mark a Resource for
+// (re-)validation. Live tracing (added temporarily during development)
 // confirmed that in all of these scenarios the cascade runs exactly once
 // per request and never needs to fall back to the defensive "ver == nil"
 // re-entrant EnsureLatest() call inside fullSaveDefaultVerCascade(),
 // because SetDefault()/EnsureLatest() always resolve "defaultversionid"
 // to a real, existing Version before Resource.ValidateResource() reaches
-// its final Tx.RunResourceCascade() call. These tests lock in that
-// black-box behavior (correct final default-version state) so a future
-// change to the cascade-deferral or delete-time default-fixup logic
-// can't silently regress it.
+// its final cascade step. These tests lock in that black-box behavior
+// (correct final default-version state) so a future change to the
+// validation-deferral or delete-time default-fixup logic can't silently
+// regress it.
 //
 // IMPORTANT: These intentionally only use the public HTTP API (XHTTP),
 // same convention as xref_order_test.go, so they're portable and don't

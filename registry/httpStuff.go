@@ -1291,6 +1291,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	resourceUID := info.ResourceUID
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
+	locationVersionUID := ""
 
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
@@ -1361,8 +1362,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// PUT|PATCH GROUPs/gID/RESOURCEs/rID [$details]
 
 		if resource != nil {
-			// version, xErr = resource.GetDefault(FOR_WRITE)
-
 			// ID needs to be the version's ID, not the Resources
 			// IncomingObj["id"] = version.UID
 
@@ -1383,8 +1382,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-
-			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
 
@@ -1404,8 +1401,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-
-			version, xErr = resource.GetDefault(FOR_WRITE)
 		}
 		if xErr != nil {
 			return xErr
@@ -1435,7 +1430,11 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-			version, xErr = resource.GetDefault(FOR_WRITE)
+
+			// Grab the one and only version UID, we need it for the "location"
+			// header in the response
+			meta := resource.MustFindMeta(false, FOR_READ)
+			locationVersionUID = meta.GetAsString("defaultversionid")
 		} else {
 			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
 				Id:               propsID,
@@ -1444,6 +1443,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				More:             false,
 				DefaultVersionID: setDefVerID,
 			})
+			if xErr == nil {
+				locationVersionUID = version.UID
+			}
 		}
 		if xErr != nil {
 			return xErr
@@ -1676,6 +1678,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
+		locationVersionUID = version.UID
 	}
 
 	PanicIf(xErr != nil, "err should be nil")
@@ -1696,9 +1699,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	location := info.BaseURL + "/" + resource.Path
 	if originalLen > 4 || (originalLen == 4 && method == "POST") {
-		info.Parts = append(info.Parts, "versions", version.UID)
-		info.VersionUID = version.UID
-		location += "/versions/" + version.UID
+		info.VersionUID = locationVersionUID
+		info.Parts = append(info.Parts, "versions", info.VersionUID)
+		location += "/versions/" + info.VersionUID
 	}
 
 	if info.ShowDetails { // not 100% sure this the right way/spot

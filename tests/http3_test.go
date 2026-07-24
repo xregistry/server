@@ -3837,6 +3837,40 @@ func TestHTTPIgnore(t *testing.T) {
 	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v3?epoch=99&ignore=epoch", ``,
 		204, ``)
 
+	// v3 (v4's ancestor) was just deleted, so v4 becomes a root, but it's
+	// still the newest (createdat-wise) Version not referenced as anyone
+	// else's ancestor, so it MUST remain the default version - not v2.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=meta", ``,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "v4",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 5,
+    "createdat": "YYYY-MM-DDTHH:MM:03Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "readonly": false,
+
+    "defaultversionid": "v4",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 3
+}
+`)
+
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
        "v1": { "epoch": 97 },
        "v2": { "epoch": 99 }
@@ -3891,7 +3925,7 @@ func TestHTTPIgnore(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
     "xid": "/dirs/d1/files/f1/versions/v2",
     "epoch": 2,
-    "isdefault": true,
+    "isdefault": false,
     "createdat": "2025-12-08T20:22:59.538173885Z",
     "modifiedat": "2025-12-08T20:22:59.702769064Z",
     "ancestorid": "1"
@@ -3926,11 +3960,11 @@ func TestHTTPIgnore(t *testing.T) {
     }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/v2\" does not match its current value (3).",
-  "subject": "/dirs/d1/files/f1/versions/v2",
+  "title": "The specified epoch value (5) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (2).",
+  "subject": "/dirs/d1/files/f1/versions/v4",
   "args": {
     "bad_epoch": "5",
-    "epoch": "3"
+    "epoch": "2"
   },
   "source": ":registry:entity:1005"
 }
@@ -3944,7 +3978,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "v4",
   "self": "http://localhost:8181/dirs/d1/files/f1",
   "xid": "/dirs/d1/files/f1",
-  "epoch": 2,
+  "epoch": 3,
   "isdefault": true,
   "createdat": "2025-12-08T22:18:22.918241199Z",
   "modifiedat": "2025-12-08T22:18:22.990276877Z",
@@ -3978,11 +4012,11 @@ func TestHTTPIgnore(t *testing.T) {
     }`,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (2).",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (3).",
   "subject": "/dirs/d1/files/f1/versions/v4",
   "args": {
     "bad_epoch": "99",
-    "epoch": "2"
+    "epoch": "3"
   },
   "source": ":registry:entity:1005"
 }
@@ -3998,7 +4032,7 @@ func TestHTTPIgnore(t *testing.T) {
     "versionid": "v4",
     "self": "http://localhost:8181/dirs/d1/files/f1",
     "xid": "/dirs/d1/files/f1",
-    "epoch": 3,
+    "epoch": 4,
     "isdefault": true,
     "createdat": "2025-12-08T22:20:35.236037978Z",
     "modifiedat": "2025-12-08T22:20:35.469669475Z",
@@ -4071,11 +4105,11 @@ func TestHTTPIgnore(t *testing.T) {
     `,
 		400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (3).",
+  "title": "The specified epoch value (99) for \"/dirs/d1/files/f1/versions/v4\" does not match its current value (4).",
   "subject": "/dirs/d1/files/f1/versions/v4",
   "args": {
     "bad_epoch": "99",
-    "epoch": "3"
+    "epoch": "4"
   },
   "source": ":registry:entity:1005"
 }
@@ -4092,7 +4126,7 @@ func TestHTTPIgnore(t *testing.T) {
       "versionid": "v4",
       "self": "http://localhost:8181/dirs/d1/files/f1",
       "xid": "/dirs/d1/files/f1",
-      "epoch": 4,
+      "epoch": 5,
       "isdefault": true,
       "createdat": "2025-12-08T22:21:30.042516157Z",
       "modifiedat": "2025-12-08T22:21:30.331699755Z",
@@ -4363,7 +4397,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "v4",
   "self": "http://localhost:8181/dirs/d1/files/f1",
   "xid": "/dirs/d1/files/f1",
-  "epoch": 5,
+  "epoch": 6,
   "isdefault": true,
   "createdat": "2026-03-31T17:06:21.790240035Z",
   "modifiedat": "2026-03-31T17:06:22.44021924Z",
@@ -4399,7 +4433,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "v4",
   "self": "http://localhost:8181/dirs/d1/files/f1",
   "xid": "/dirs/d1/files/f1",
-  "epoch": 6,
+  "epoch": 7,
   "isdefault": true,
   "createdat": "2026-03-31T17:06:21.790240035Z",
   "modifiedat": "2026-03-31T17:06:22.44021924Z",
@@ -4443,7 +4477,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "v4",
   "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
   "xid": "/dirs/d1/files/f1/versions/v4",
-  "epoch": 7,
+  "epoch": 8,
   "isdefault": true,
   "createdat": "2026-03-31T17:14:20.660162882Z",
   "modifiedat": "2026-03-31T17:14:21.361552856Z",
@@ -4456,7 +4490,7 @@ func TestHTTPIgnore(t *testing.T) {
   "versionid": "v4",
   "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
   "xid": "/dirs/d1/files/f1/versions/v4",
-  "epoch": 8,
+  "epoch": 9,
   "isdefault": true,
   "createdat": "2026-03-31T17:14:20.660162882Z",
   "modifiedat": "2026-03-31T17:14:21.361552856Z",
@@ -4554,7 +4588,7 @@ func TestHTTPIgnore(t *testing.T) {
   "fileid": "f1",
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
-  "epoch": 9,
+  "epoch": 7,
   "createdat": "2026-03-31T18:35:56.386761865Z",
   "modifiedat": "2026-03-31T18:35:57.487348295Z",
   "readonly": false,
