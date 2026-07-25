@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#              Load    GETs   QUERY
+# ee74f5538113 12m27s  46m5s  55s     old,w/views
+# old :        12m     46m (w/views)
+# new1:        21m     2m58s
+# new2:        14m     2m48s
+# ecec1a45f506 14m30s  2m
+# 93415365de07 14m22s  2m47s  0m43s
+# new3:        21m     2m45s          remove last inline Valdate calls
+# new4:        12m     2m52s          removed recursive validate calls
+# new4:        12m     2m46s  43s
+# 94aea449d9ce 12m0s   2m46s  43s     rm more validate calls
+
+set -e
+ 
+XR_SERVER=http://localhost:8080/reg-Large
+CMD="curl -s "
+SEARCH="Done loading"
+# SEARCH="Listening" ; CMD="echo $CMD"
+
+pkill xrserver || echo -n
+(XR_LOAD_LARGE=1 ./xrserver --recreatedb --samples -v 2>&1 ) | tee server.out &
+trap "pkill xrserver ; rm -f server.out" EXIT
+
+while ! grep "$SEARCH" server.out > /dev/null ; do 
+  sleep 10
+done
+
+TIMEFORMAT="GETs: %0lR" ; time (
+for d in `seq 0 9` ; do
+  $CMD $XR_SERVER/dirs/dir$d > /dev/null
+  for f in `seq 0 149` ; do
+    $CMD $XR_SERVER/dirs/dir$d/files/file$f$details?inline > /dev/null
+    for v in `seq 0 4` ; do
+      $CMD $XR_SERVER/dirs/dir$d/files/file$f/versions/v$v\$details > /dev/null
+    done
+  done
+  echo "Done GETting /dirs/dir$d"
+done
+)
+
+query="$CMD $XR_SERVER/?filter=dirs.files.versions.epoch,dirs.files.fileid&filter=dirs.files.versions.versionid"
+
+TIMEFORMAT=" / QUERY: %0lR"; time echo -n $($query | grep dirscount)
+
+# grep "$SEARCH" server.out

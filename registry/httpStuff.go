@@ -1292,6 +1292,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
 	locationVersionUID := ""
+	needLocationVersionIDFromMeta := false
 
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
@@ -1431,10 +1432,12 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				return xErr
 			}
 
-			// Grab the one and only version UID, we need it for the "location"
-			// header in the response
-			meta := resource.MustFindMeta(false, FOR_READ)
-			locationVersionUID = meta.GetAsString("defaultversionid")
+			// Grab the one and only version UID, we need it for the
+			// "location" header in the response. Resource.ValidateResource()
+			// (which computes/sets meta's "defaultversionid") is now
+			// deferred (see Tx.AddResourceToValidate()), so we can't read
+			// it yet - do it after info.tx.Validate() runs below instead.
+			needLocationVersionIDFromMeta = true
 		} else {
 			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
 				Id:               propsID,
@@ -1686,6 +1689,14 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// Make sure everything is ok before we send back the results
 	if xErr := info.tx.Validate(info); xErr != nil {
 		return xErr
+	}
+
+	if needLocationVersionIDFromMeta {
+		// Now that validation has run (deferred via
+		// Tx.AddResourceToValidate()), meta's "defaultversionid" is
+		// guaranteed to be resolved - safe to read it now.
+		meta := resource.MustFindMeta(false, FOR_READ)
+		locationVersionUID = meta.GetAsString("defaultversionid")
 	}
 
 	originalLen := numParts

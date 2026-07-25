@@ -16,44 +16,49 @@ func TestResourceContents(t *testing.T) {
 	reg := NewRegistry("TestResourceContents")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
-	rm.AddAttr("str1", STRING)
-	rm.AddAttr("str2", STRING)
-	rm.AddAttr("int1", INTEGER)
-	rm.AddAttr("int2", INTEGER)
-	rm.AddAttr("int3", INTEGER)
-	rm.AddAttr("bool1", BOOLEAN)
-	rm.AddAttr("bool2", BOOLEAN)
-	rm.AddAttr("dec1", DECIMAL)
-	rm.AddAttr("dec2", DECIMAL)
-	rm.AddAttr("dec3", DECIMAL)
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": {
+        "groups": {
+          "dirs": {
+            "singular": "dir",
+            "resources": {
+              "files": {
+                "singular": "file",
+                "attributes": {
+                  "str1": { "type": "string" },
+                  "str2": { "type": "string" },
+                  "int1": { "type": "integer" },
+                  "int2": { "type": "integer" },
+                  "int3": { "type": "integer" },
+                  "bool1": { "type": "boolean" },
+                  "bool2": { "type": "boolean" },
+                  "dec1": { "type": "decimal" },
+                  "dec2": { "type": "decimal" },
+                  "dec3": { "type": "decimal" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "dirs": { "d1": { "files": { "f1": { "versions": { "v1": {
+        "name": "file1",
+        "labels": { "str1": "foo", "str2": "" },
+        "str1": "foo",
+        "str2": "",
+        "int1": 6,
+        "int2": -5,
+        "int3": 0,
+        "bool1": true,
+        "bool2": false,
+        "dec1": 123.456,
+        "dec2": -456.876,
+        "dec3": 0.0,
+        "file": "Hello there"
+      } } } } } }
+    }`, 200, "*")
 
-	d1, err := reg.AddGroup("dirs", "d1")
-	XNoErr(t, err)
-	f1, err := d1.AddResource("files", "f1", "v1")
-	XNoErr(t, err)
-
-	f1.SetSaveDefault("name", "file1")
-	f1.SetSaveDefault("labels.str1", "foo")
-	f1.SetSaveDefault("labels.str2", "")
-	// f1.SetSaveDefault("labels.int", 6)
-	// f1.SetSaveDefault("labels.bool", true)
-	// f1.SetSaveDefault("labels.decimal", 123.456)
-	f1.SetSaveDefault("str1", "foo")
-	f1.SetSaveDefault("str2", "")
-	f1.SetSaveDefault("int1", 6)
-	f1.SetSaveDefault("int2", -5)
-	f1.SetSaveDefault("int3", 0)
-	f1.SetSaveDefault("bool1", true)
-	f1.SetSaveDefault("bool2", false)
-	f1.SetSaveDefault("dec1", 123.456)
-	f1.SetSaveDefault("dec2", -456.876)
-	f1.SetSaveDefault("dec3", 0.0)
-
-	f1.SetSaveDefault("file", "Hello there")
-
-	XEqual(t, "", Any2String(f1.Get("file")), "Hello there")
+	// XEqual(t, "", Any2String(f1.Get("file")), "Hello there")
 
 	CompareContentMeta(t, reg, &Test{
 		Code:    200,
@@ -69,9 +74,8 @@ func TestResourceContents(t *testing.T) {
 		Headers: nil,
 	})
 
-	v2, err := f1.AddVersion("v2")
-	XNoErr(t, err)
-	v2.SetSave("file", "This is version 2")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2", "This is version 2",
+		201, "This is version 2")
 
 	CompareContentMeta(t, reg, &Test{
 		Code:    200,
@@ -87,8 +91,9 @@ func TestResourceContents(t *testing.T) {
 		Headers: nil,
 	})
 
-	v3, _ := f1.AddVersion("v3")
-	v3.SetSave("fileproxyurl", "http://example.com")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3$details", `{
+      "fileproxyurl": "http://example.com"
+    }`, 201, "*")
 
 	CompareContentMeta(t, reg, &Test{
 		Code:    200,
@@ -104,8 +109,9 @@ func TestResourceContents(t *testing.T) {
 		Headers: []string{"Content-Type: text/html"},
 	})
 
-	v4, _ := f1.AddVersion("v4")
-	v4.SetSave("fileurl", "http://example.com")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4$details", `{
+      "fileurl": "http://example.com"
+    }`, 201, "*")
 
 	CompareContentMeta(t, reg, &Test{
 		Code: 303,

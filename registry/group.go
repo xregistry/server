@@ -628,9 +628,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	if xErr = r.ValidateResource(false, false); xErr != nil {
-		return nil, false, xErr
-	}
+	r.tx.AddResourceToValidate(r, false, false)
 
 	return r, isNew, xErr
 }

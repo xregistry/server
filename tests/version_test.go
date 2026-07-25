@@ -813,16 +813,135 @@ func TestVersionOrdering(t *testing.T) {
 	reg := NewRegistry("TestVersionOrdering")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
-	d1, _ := reg.AddGroup("dirs", "d1")
-	f1, _ := d1.AddResource("files", "f1", "z5")
-	f1.AddVersionWithObject("v2", Object{"ancestorid": "v2"})
-	f1.AddVersionWithObject("v9", Object{"ancestorid": "v9"})
-	f1.AddVersionWithObject("V3", Object{"ancestorid": "V3"})
-	f1.AddVersionWithObject("V1", Object{"ancestorid": "V1"})
-	f1.AddVersionWithObject("Z1", Object{"ancestorid": "Z1"})
-	f1.AddVersionWithObject("v5", Object{"ancestorid": "v5"})
+	XHTTP(t, reg, "PUT", "/", `{
+      "modelsource": `+MODEL_DIRS_NODOC+`,
+      "dirs": {
+        "d1": {
+          "files": {
+            "f1": {
+              "versionid": "z5",
+              "versions": {
+                "z5": { "ancestorid": "z5" },
+                "v2": { "ancestorid": "v2" },
+                "v9": { "ancestorid": "v9" },
+                "V3": { "ancestorid": "V3" },
+                "V1": { "ancestorid": "V1" },
+                "Z1": { "ancestorid": "Z1" },
+                "v5": { "ancestorid": "v5" }
+              }
+            }
+          }
+        }
+      }
+    }`, 200, "*")
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline", "", 200, `{
+  "fileid": "f1",
+  "versionid": "z5",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-24T19:25:08.643450018Z",
+  "modifiedat": "2026-07-24T19:25:08.643450018Z",
+  "ancestorid": "z5",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-07-24T19:25:08.643450018Z",
+    "modifiedat": "2026-07-24T19:25:08.643450018Z",
+    "readonly": false,
+
+    "defaultversionid": "z5",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/z5",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "V1": {
+      "fileid": "f1",
+      "versionid": "V1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/V1",
+      "xid": "/dirs/d1/files/f1/versions/V1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "V1"
+    },
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "v2"
+    },
+    "V3": {
+      "fileid": "f1",
+      "versionid": "V3",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/V3",
+      "xid": "/dirs/d1/files/f1/versions/V3",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "V3"
+    },
+    "v5": {
+      "fileid": "f1",
+      "versionid": "v5",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+      "xid": "/dirs/d1/files/f1/versions/v5",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "v5"
+    },
+    "v9": {
+      "fileid": "f1",
+      "versionid": "v9",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
+      "xid": "/dirs/d1/files/f1/versions/v9",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "v9"
+    },
+    "Z1": {
+      "fileid": "f1",
+      "versionid": "Z1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/Z1",
+      "xid": "/dirs/d1/files/f1/versions/Z1",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "Z1"
+    },
+    "z5": {
+      "fileid": "f1",
+      "versionid": "z5",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/z5",
+      "xid": "/dirs/d1/files/f1/versions/z5",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2026-07-24T19:25:08.643450018Z",
+      "modifiedat": "2026-07-24T19:25:08.643450018Z",
+      "ancestorid": "z5"
+    }
+  },
+  "versionscount": 7
+}
+`)
 
 	t0 := "2020-01-02T12:00:00Z"
 	t1 := "2024-01-02T12:00:00Z"

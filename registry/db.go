@@ -179,6 +179,25 @@ type Tx struct {
 	// Registry.Validate().
 	ResourcesToValidate map[string]*resourceValidation
 
+	// Resources (keyed by DbSID) that currently have a
+	// Resource.ValidateResource() call in progress somewhere on this
+	// Tx's call stack. Saves made DURING that call (e.g.
+	// EnsureLatest()'s meta.SetSave("defaultversionid", ...)) can
+	// re-add the same Resource to ResourcesToValidate above via the
+	// normal Entity.FullSave() path, even though the in-progress call
+	// will itself account for that change before it returns (via its
+	// own end-of-call runCascade()). Without this guard, a lazy-resolve
+	// call site (e.g. GetDefault()'s ResolvePendingValidation(), called
+	// from deep inside that same in-progress ValidateResource() via
+	// runCascade()->fullSaveDefaultVerCascade()) would see that fresh
+	// mark and recursively re-run ValidateResource() (and its own
+	// runCascade()) a second time before the outer call even finishes -
+	// pure duplicated work, not a correctness fix (the in-memory state
+	// is already current). ResolvePendingValidation() checks this set
+	// and no-ops instead of recursing when r is already being
+	// validated.
+	ResourcesValidating map[string]bool
+
 	// For debugging
 	uuid  string   // just a unique ID for the TXs map key
 	stack []string // Stack at time NewTX
@@ -440,7 +459,7 @@ func (tx *Tx) AddResourceToValidate(r *Resource, onlyMetaChanged bool, force boo
 func (tx *Tx) SaveCommitRefresh() *XRError {
 	// savedCache := maps.Clone(tx.Cache)
 
-	if xErr := tx.WriteCache(true); xErr != nil {
+	if xErr := tx.SaveAll(); xErr != nil {
 		return xErr
 	}
 	tx.Validate(nil)
@@ -462,6 +481,20 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 }
 
 func (tx *Tx) SaveAll() *XRError {
+	// Drain any deferred Resource/Group validation (see
+	// Tx.AddResourceToValidate()) BEFORE flushing the cache below -
+	// otherwise a Resource/Meta/Version this drain still needs to
+	// update (e.g. resolving "defaultversionid" via EnsureLatest())
+	// would still show up dirty and trip WriteCache()'s "not saved"
+	// sanity check. tx.Validate() (called later, by callers like
+	// SaveAllAndCommit()) re-runs this drain too, but it's a cheap
+	// no-op the second time since everything's already drained.
+	if tx.Registry != nil {
+		if xErr := tx.Registry.Validate(nil); xErr != nil {
+			return xErr
+		}
+	}
+
 	if xErr := tx.WriteCache(true); xErr != nil {
 		return xErr
 	}

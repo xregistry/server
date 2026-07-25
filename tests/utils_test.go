@@ -23,6 +23,33 @@ import (
 const TestDBName = "registry"
 const TestRegName = "testreg"
 
+const MODEL_DIRS = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`
+
+const MODEL_DIRS_NODOC = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+
 func TestMain(m *testing.M) {
 	if tmp := os.Getenv("RX_VERBOSE"); tmp != "" {
 		if tmpInt, err := strconv.Atoi(tmp); err == nil {
@@ -119,6 +146,19 @@ func PassDeleteReg(t *testing.T, reg *registry.Registry) {
 	tx := reg.GetTx()
 
 	if !t.Failed() {
+		// Drain any still-pending deferred Resource/Group validation
+		// (see Tx.AddResourceToValidate()) before checking whether the
+		// Tx/cache is "dirty" below - tests that create Resources via
+		// the raw Go API (rather than an HTTP request, which always
+		// drains this via info.tx.Validate()) can otherwise leave a
+		// Resource/Meta legitimately pending (by design) at this
+		// point, which isn't actually a bug.
+		if tx != nil && tx.IsOpen() {
+			if xErr := reg.Validate(nil); xErr != nil {
+				panic(xErr.String())
+			}
+		}
+
 		if tx != nil && tx.IsOpen() {
 			if reg.Model.GetChanged() || tx.IsCacheDirty() {
 				log.Printf("Tx still open")
