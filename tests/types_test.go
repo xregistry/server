@@ -848,6 +848,111 @@ func TestTypesBasic(t *testing.T) {
 }
 `)
 
+	// Clear everything in group
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 1
+}
+`)
+
+	dir.Refresh(registry.FOR_WRITE)
+
+	// Make sure deleting an array item from missing array is a no-op
+	err = dir.SetSave("dirarrayint[0]", nil)
+	XCheck(t, err == nil, "set dirarrayint[0]=nil: %s", err)
+	XHTTP(t, reg, "GET", "/dirs/d1", "", 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 4,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 1
+}
+`)
+
+	// Make sure deleting a map item from missing map is a no-op
+	err = dir.SetSave("dirmapint.key", nil)
+	XCheck(t, err == nil, "set dirmapint.key=nil: %s", err)
+	XHTTP(t, reg, "GET", "/dirs/d1", "", 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 4,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 1
+}
+`)
+
+	// Clear everything in resource
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 6,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	file.Refresh(registry.FOR_WRITE)
+
+	// Make sure deleting a string field from a missing/cleared resource is a no-op
+	err = file.SetSave("filestring1", nil)
+	XCheck(t, err == nil, "set filestring1=nil: %s", err)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", "", 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 7,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	ver.Refresh(registry.FOR_WRITE)
+
+	// Make sure deleting an integer field from a missing/cleared version is a no-op
+	err = ver.SetSave("fileint1", nil)
+	XCheck(t, err == nil, "set versionid=nil: %s", err)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1$details", "", 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 8,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "ancestorid": "v1"
+}
+`)
 }
 
 func TestTypesWildcardBool(t *testing.T) {
