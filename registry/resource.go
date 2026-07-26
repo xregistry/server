@@ -1367,10 +1367,15 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// Registry.Validate() would redundantly run ValidateResource() for
 	// r again later in this same Tx (e.g. a Version/Meta save that
 	// happened as part of this very call already marked r via
-	// Entity.FullSave()).
+	// Entity.FullSave()). Also drop it from ResourcesValidatingBatch
+	// (if present) - see that field's doc comment - so any other
+	// xref source's runCascade() checking "is my target still pending
+	// in this batch" correctly sees that r's own validation (and its
+	// unconditional xref fan-out) has now started/is about to run.
 	if r.tx.ResourcesToValidate != nil {
 		delete(r.tx.ResourcesToValidate, r.DbSID)
 	}
+	delete(r.tx.ResourcesValidatingBatch, r.DbSID)
 
 	// Mark r as "currently being validated" for the duration of this
 	// call (see Tx.ResourcesValidating's doc comment) so that any
@@ -1494,21 +1499,107 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 // Tx.AddResourceToValidate()'s doc comment for why this is deferred
 // until then rather than run immediately every time a Version/Meta
 // belonging to r is saved.
+//
+// Both the xref-cascade and default-version-cascade steps below are
+// skipped whenever nothing relevant to them changed this Tx, to avoid
+// unnecessary DB round trips - see plan/design notes for the "cascade-
+// skip-when-unchanged" optimization. r's Meta is guaranteed non-nil
+// here: ValidateResource() (runCascade()'s only caller) already calls
+// r.MustFindMeta() before ever reaching this point.
 func (r *Resource) runCascade() {
+	meta := r.MustFindMeta(false, FOR_READ)
+
 	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
 	// case r's own Meta.xref was just set/changed/cleared -
 	// fullSaveDefaultVerCascade (next) reads those synthetic Version
 	// rows when r has no real Versions of its own (r is an xref
 	// source - see its "No real default Version" branch), so this
-	// must run before it. meta may be nil if r's Meta no longer exists
-	// (e.g. deleted earlier in this same Tx) - fullSaveXrefCascade()
-	// requires a real Meta, so skip it in that case.
-	if meta, xErr := r.FindMeta(false, FOR_WRITE); xErr == nil && meta != nil {
-		meta.fullSaveXrefCascade()
+	// must run before it. Only run the Delete/Insert halves that could
+	// actually find/produce rows: if xref was unset, there are no
+	// stale rows to delete; if it's now unset, the insert would just
+	// re-check and no-op.
+	oldXref := meta.GetOriginAsString("xref")
+	newXref := meta.GetAsString("xref")
+	if oldXref != newXref {
+		if oldXref != "" {
+			meta.fullSaveXrefCascadeDelete()
+		}
+		if newXref != "" {
+			// This Registry now has at least one xref - flip the
+			// fast-path flag immediately (DB + in-memory) if it isn't
+			// already set, so later cascades THIS SAME Tx (e.g. a
+			// batch-created sibling that's this xref's own target)
+			// correctly see UsesXref=true rather than a stale false
+			// from before this Tx started. Safe/cheap: only runs the
+			// one time this flips from false to true, ever, per
+			// Registry (see init.sql's Registries.UsesXref comment for
+			// the full design, including why clearing it back to false
+			// is instead handled lazily via DB triggers).
+			if !r.tx.Registry.UsesXref {
+				DoZeroOne(r.tx,
+					`UPDATE Registries SET UsesXref=true WHERE SID=? AND UsesXref=false`,
+					r.tx.Registry.DbSID)
+				r.tx.Registry.UsesXref = true
+			}
+
+			// If the xref target is itself still pending validation in
+			// the SAME drain-loop batch as r (i.e. its ValidateResource()
+			// hasn't started yet - see Tx.ResourcesValidatingBatch's doc
+			// comment), skip our own insert: the target's own
+			// runCascade(), whenever it runs (later in this same
+			// batch), unconditionally fans out to every current xref
+			// source via fullSaveXrefFanOutForTarget (which re-queries
+			// Metas.xRefPath fresh, so it'll pick us up), making our own
+			// insert here redundant work that would just get
+			// immediately rebuilt anyway.
+			skipInsert := false
+			if _, target, xErr := r.GetXref(); xErr == nil && target != nil {
+				if r.tx.ResourcesValidatingBatch[target.DbSID] {
+					skipInsert = true
+				}
+			}
+			if !skipInsert {
+				meta.fullSaveXrefCascadeInsert()
+			}
+		}
 	}
-	fullSaveDefaultVerCascade(r.tx, r)
-	fullSaveXrefFanOutForTargetVersion(r.tx, r)
-	fullSaveXrefFanOutForTargetMeta(r.tx, r)
+
+	// The default-version cascade needs to (re)run if: xref changed
+	// (flips r between having a real default Version and mirroring the
+	// xref target's synthetic one), defaultversionid itself changed, or
+	// the final default Version's content actually changed this Tx
+	// (EpochSet - bumped by Save() whenever a real content change
+	// happens), or a system prop on it actually changed value
+	// (OriginSystem != System - OriginSystem is the pre-Tx snapshot,
+	// captured once by EnsureNewSystem(); comparing it against the
+	// current System catches a real diff even across multiple
+	// SetSystemDBProperty()/SaveSystemProps() flush cycles this Tx,
+	// and - unlike a "changed" flag - survives a mid-Tx Refresh() since
+	// Refresh() never resets OriginSystem, same as OriginObject).
+	defaultVerCascadeNeeded := oldXref != newXref ||
+		meta.GetOriginAsString("defaultversionid") != meta.GetAsString("defaultversionid")
+	if !defaultVerCascadeNeeded {
+		finalDefVer, _ := r.GetDefault(FOR_READ)
+		// finalDefVer can be nil for an xref source with no real
+		// Versions of its own (its "default version" is really the
+		// xref target's synthetic copy) - nothing of r's OWN to have
+		// changed in that case, so nothing extra needed here (any
+		// change to the target itself is handled independently by the
+		// target's own unconditional fan-out).
+		defaultVerCascadeNeeded = finalDefVer != nil &&
+			(finalDefVer.EpochSet ||
+				(finalDefVer.OriginSystem != nil &&
+					!reflect.DeepEqual(finalDefVer.OriginSystem, finalDefVer.System)))
+	}
+	if defaultVerCascadeNeeded {
+		fullSaveDefaultVerCascade(r)
+	}
+
+	// Skip entirely if this Registry has never used xref - see
+	// init.sql's Registries.UsesXref comment for the full design.
+	if r.tx.Registry.UsesXref {
+		fullSaveXrefFanOutForTarget(r)
+	}
 }
 
 func (r *Resource) AddVersion(id string) (*Version, *XRError) {
@@ -1770,6 +1861,9 @@ func (r *Resource) Delete() *XRError {
 		}
 	}
 
+	// Any xref source's stale mirror is cleared by ResourcesTrigger
+	// (init.sql), which fires for every deletion path (this, whole-
+	// Group delete, whole-Registry delete) uniformly.
 	DoOne(r.tx, `DELETE FROM Resources WHERE SID=?`, r.DbSID)
 
 	// No longer anything to validate - drop any pending mark so

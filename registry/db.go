@@ -198,6 +198,22 @@ type Tx struct {
 	// validated.
 	ResourcesValidating map[string]bool
 
+	// Snapshot of the batch Registry.Validate()'s drain loop is
+	// CURRENTLY iterating over (keyed by DbSID), exposed so
+	// Resource.runCascade() can tell whether an xref TARGET it's about
+	// to fan out to is itself still pending in the very same batch
+	// (i.e. hasn't started its own ValidateResource() yet) - see
+	// runCascade()'s "skip our own insert if the target is still
+	// pending" optimization. Deliberately separate from
+	// ResourcesToValidate above: Registry.Validate() swaps that field
+	// to a fresh empty map before draining a batch (so any NEW marks
+	// added mid-batch, e.g. via EnsureLatest(), safely land in the next
+	// iteration instead of racing the in-progress range over the old
+	// map) - so ResourcesToValidate itself is never a reliable way to
+	// ask "is X still pending in the batch currently being drained".
+	// Set for the duration of one drain-loop batch only; nil otherwise.
+	ResourcesValidatingBatch map[string]bool
+
 	// For debugging
 	uuid  string   // just a unique ID for the TXs map key
 	stack []string // Stack at time NewTX

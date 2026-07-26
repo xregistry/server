@@ -173,7 +173,7 @@ func TestCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
 // Deleting a xref TARGET's current default Version must fan out
 // correctly to any xref SOURCE(s) pointing at it - this ties
 // Resource.SetDefault()'s cascade mark together with
-// fullSaveXrefFanOutForTargetVersion/Meta in the same deferred drain.
+// fullSaveXrefFanOutForTarget in the same deferred drain.
 func TestCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
 	reg := NewRegistry("TestCascadeDeferDeleteDefaultWithXrefFanOut")
 	defer PassDeleteReg(t, reg)

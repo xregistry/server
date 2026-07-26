@@ -309,6 +309,128 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
 `)
 }
 
+// Batch-create an xref TARGET and two xref SOURCES pointing at it, all
+// in a single request/Tx (rather than the target pre-existing before
+// the sources, as in TestXrefOrderMultipleSourcesSameTarget). This
+// means the target and both sources start out simultaneously "pending
+// validation" in the same Tx, so - depending on the randomized order
+// Registry.Validate()'s drain loop happens to process them in - one or
+// both sources' own runCascade() may run before the target's, letting
+// the target's own (still-pending) fan-out cover them instead of each
+// source doing its own redundant xref-cascade-insert (see runCascade()'s
+// "skip our own insert if the target is still pending" optimization).
+// Named f1/f2/f3 (target f2 alphabetically between the two sources) to
+// maximize the odds of that ordering actually being exercised across
+// runs, since Go's map iteration order is randomized per-run - but the
+// end result asserted below must be correct regardless of which order
+// actually happened.
+func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
+	reg := NewRegistry("TestXrefOrderBatchCreateTargetAndSourcesTogether")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/?inline=meta", `{
+      "f1": {"meta": {"xref": "/dirs/d1/files/f2"}},
+      "f2": {"versions": {"v1": {}, "v2": {}}},
+      "f3": {"meta": {"xref": "/dirs/d1/files/f2"}}
+    }`, 200, `*`)
+
+	// Target itself: 2 versions, v2 as default (newest)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f2?inline=meta", "", 200, `{
+  "fileid": "f2",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f2",
+  "xid": "/dirs/d1/files/f2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+  "meta": {
+    "fileid": "f2",
+    "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+    "xid": "/dirs/d1/files/f2/meta",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+  "versionscount": 2
+}
+`)
+
+	// Both sources must mirror the target's final state (v2, 2 versions),
+	// no matter which order the batch's 3 entries happened to be
+	// processed/validated in.
+	for _, rid := range []string{"f1", "f3"} {
+		XHTTP(t, reg, "GET", "/dirs/d1/files/"+rid+"?inline=meta", "", 200, `{
+  "fileid": "`+rid+`",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/`+rid+`",
+  "xid": "/dirs/d1/files/`+rid+`",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/`+rid+`/meta",
+  "meta": {
+    "fileid": "`+rid+`",
+    "self": "http://localhost:8181/dirs/d1/files/`+rid+`/meta",
+    "xid": "/dirs/d1/files/`+rid+`/meta",
+    "xref": "/dirs/d1/files/f2",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/`+rid+`/versions",
+  "versionscount": 2
+}
+`)
+
+		XHTTP(t, reg, "GET", "/dirs/d1/files/"+rid+"/versions", "", 200, `{
+  "v1": {
+    "fileid": "`+rid+`",
+    "versionid": "v1",
+    "self": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v1",
+    "xid": "/dirs/d1/files/`+rid+`/versions/v1",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestorid": "v1"
+  },
+  "v2": {
+    "fileid": "`+rid+`",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/`+rid+`/versions/v2",
+    "xid": "/dirs/d1/files/`+rid+`/versions/v2",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "ancestorid": "v1"
+  }
+}
+`)
+	}
+}
+
 // Explicitly changing the xref TARGET's default version (via
 // setdefaultversionid, making it sticky) after xref SOURCES already
 // exist must fan-out correctly to all sources.
@@ -492,6 +614,221 @@ func TestXrefOrderRevertWithStickyDefault(t *testing.T) {
   "defaultversionid": "a1",
   "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/a1",
   "defaultversionsticky": true
+}
+`)
+}
+
+// A dangling xref (pointing at a target Resource that doesn't exist yet)
+// must self-resolve once the target is later created - even in a
+// completely separate request/Tx from the one that set the xref. This
+// used to silently never populate the source's mirror, because
+// Metas.xRefSID was a point-in-time-resolved SID with no retry
+// mechanism; it's now Metas.xRefPath (a plain path string), resolved
+// live via a join against Resources on every read/cascade, so there's
+// nothing to go stale or need re-resolving.
+func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
+	reg := NewRegistry("TestXrefOrderDanglingTargetCreatedLater")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	// Dangling xref: target "f1" doesn't exist yet.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
+
+	// Now create the target for real, in a completely separate request.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
+
+	// The source should now mirror the target.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?inline=meta", "", 200, `{
+  "fileid": "fx",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/fx",
+  "xid": "/dirs/d1/files/fx",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+    "xid": "/dirs/d1/files/fx/meta",
+    "xref": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "versionscount": 1
+}
+`)
+}
+
+// If an xref target Resource is deleted and a brand-new Resource is
+// later created at that exact same Path (reusing the same UID, but a
+// fresh SID under the hood), any existing xref source pointing at that
+// Path must pick up the NEW target - not be permanently orphaned, and
+// not accidentally still reflect the deleted target's stale data. This
+// exercises the same "resolve xref by Path at query time, never cache
+// a SID" fix as TestXrefOrderDanglingTargetCreatedLater, but via
+// delete+recreate instead of dangling-then-created.
+func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
+	reg := NewRegistry("TestXrefOrderTargetDeletedThenRecreatedAtSamePath")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	// Original target, and a source xref'ing it.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
+		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
+
+	// Delete the target entirely.
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", ``, 204, ``)
+
+	// The source is now dangling (target gone) - its mirror should be
+	// empty (no versions of its own, no defaultversionid). Note: like
+	// any dangling xref (even one that never had a target - see
+	// TestXrefOrderDanglingTargetCreatedLater before its target is
+	// created), the mirrored meta.* attrs (epoch/createdat/modifiedat/
+	// readonly) are simply absent, not reverted to some "own" value -
+	// setting xref replaces (not shadows) those own rows.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?inline=meta", "", 200, `{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d1/files/fx",
+  "xid": "/dirs/d1/files/fx",
+  "isdefault": true,
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+    "xid": "/dirs/d1/files/fx/meta",
+    "xref": "/dirs/d1/files/f1"
+  }
+}
+`)
+
+	// Recreate a brand-new "f1" (same Path, new underlying SID) with a
+	// different version.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2", `{}`, 201, `*`)
+
+	// The source should now mirror the NEW target, not remain
+	// orphaned or show any trace of the deleted one.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/fx?inline=meta", "", 200, `{
+  "fileid": "fx",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/fx",
+  "xid": "/dirs/d1/files/fx",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+    "xid": "/dirs/d1/files/fx/meta",
+    "xref": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/fx/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "versionscount": 1
+}
+`)
+}
+
+// Bulk-delete path: deleting an entire Group (which cascades to
+// deleting its Resources at the DB layer via GroupTrigger, bypassing
+// Go-level Resource.Delete() entirely) must still clean up any xref
+// source's stale mirror - even when that source lives in a DIFFERENT
+// Group. This exercises ResourcesTrigger's own DELETE...JOIN cleanup
+// (init.sql), not any Go-level call site, since Group deletion never
+// calls Resource.Delete() per-row.
+func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
+	reg := NewRegistry("TestXrefOrderTargetDeletedViaGroupBulkDelete")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	// Target "f1" lives in group "d1".
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
+
+	// Source "fx" lives in a DIFFERENT group ("d2") and xrefs "f1".
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/fx/meta",
+		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
+
+	// Sanity check: source currently mirrors the target.
+	XHTTP(t, reg, "GET", "/dirs/d2/files/fx?inline=meta", "", 200, `{
+  "fileid": "fx",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d2/files/fx",
+  "xid": "/dirs/d2/files/fx",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d2/files/fx/meta",
+    "xid": "/dirs/d2/files/fx/meta",
+    "xref": "/dirs/d1/files/f1",
+    "epoch": 1,
+    "createdat": "YYYY-MM-DDTHH:MM:01Z",
+    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "readonly": false,
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d2/files/fx/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
+  "versionscount": 1
+}
+`)
+
+	// Delete the ENTIRE "d1" group - this cascades f1's deletion at
+	// the DB layer, bypassing Go-level Resource.Delete() entirely.
+	XHTTP(t, reg, "DELETE", "/dirs/d1", ``, 204, ``)
+
+	// The source (in the other group) must correctly go dangling -
+	// same shape as a direct single-Resource delete.
+	XHTTP(t, reg, "GET", "/dirs/d2/files/fx?inline=meta", "", 200, `{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d2/files/fx",
+  "xid": "/dirs/d2/files/fx",
+  "isdefault": true,
+
+  "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d2/files/fx/meta",
+    "xid": "/dirs/d2/files/fx/meta",
+    "xref": "/dirs/d1/files/f1"
+  }
 }
 `)
 }

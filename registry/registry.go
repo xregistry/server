@@ -126,12 +126,20 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 		}
 		batch := tx.ResourcesToValidate
 		tx.ResourcesToValidate = map[string]*resourceValidation{}
+
+		tx.ResourcesValidatingBatch = map[string]bool{}
+		for sid := range batch {
+			tx.ResourcesValidatingBatch[sid] = true
+		}
+
 		for _, entry := range batch {
 			if xErr := entry.r.ValidateResource(entry.onlyMetaChanged,
 				entry.force); xErr != nil {
+				tx.ResourcesValidatingBatch = nil
 				return xErr
 			}
 		}
+		tx.ResourcesValidatingBatch = nil
 	}
 
 	// If not already locked, lock it
@@ -341,6 +349,16 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 
 	tx.Registry = reg
 	tx.AddRegistry(reg)
+
+	// UsesXref lives on the raw Registries table (not FullEntities/
+	// FullTreeTable, since it's a plain internal flag, not a real
+	// attribute), so it needs its own tiny supplemental lookup here -
+	// a single indexed PK read, once per Tx.
+	results := Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`, sid)
+	if row := results.NextRow(); row != nil {
+		reg.UsesXref = NotNilBoolDef(row[0], false)
+	}
+	results.Close()
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -1400,7 +1418,7 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 // (cache-checked first, DB-read-and-cached on a miss) rather than
 // building a partial/synthetic shell from raw row data. Used by code
 // (e.g. xref fan-out) that only discovers a Resource's SID via a query
-// (Metas.xRefSID, etc.) and has no path/XID string on hand - a small
+// (Metas.xRefPath, etc.) and has no path/XID string on hand - a small
 // join against Resources/Groups gets us the type names+UIDs needed to
 // go through the real finder functions, so callers get a fully-wired
 // Resource (correct Group/Registry pointers) instead of a fragile

@@ -153,9 +153,17 @@ func (e *Entity) Touch() bool {
 func (e *Entity) EnsureNewObject() bool {
 	// Save pre-Tx values in case we need to diff. NewObject will be erased
 	// and Object will be updated during a Save() so we can't diff NewObject
-	// vs Object
+	// vs Object. Use an empty (non-nil) map, not nil, when e.Object is
+	// nil (brand-new entity) - maps.Clone(nil) returns nil, which would
+	// otherwise be indistinguishable from "not captured this Tx yet"
+	// (see the OriginObject != nil check in GetOrigin()).
 	if e.OriginObject == nil {
-		e.OriginObject = maps.Clone(e.Object)
+		// e.OriginObject = maps.Clone(e.Object)
+		if e.Object == nil {
+			e.OriginObject = map[string]any{}
+		} else {
+			e.OriginObject = maps.Clone(e.Object)
+		}
 	}
 
 	if e.NewObject == nil {
@@ -424,6 +432,23 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 func (e *Entity) Refresh(accessMode int) *XRError {
 	log.VPrintf(3, ">Enter: Refresh(%s)", e.DbSID)
 	defer log.VPrintf(3, "<Exit: Refresh")
+
+	// If there's a buffered, not-yet-persisted system-prop change on
+	// this entity (see SetSystemDBProperty()'s doc comment), flush it
+	// to the DB now, BEFORE reloading fresh state from the DB below -
+	// otherwise this Refresh() would silently discard it. Concretely:
+	// ClearResourceSystemDBProperty() calls FindVersion(uid, false,
+	// FOR_WRITE) on every Version of a Resource, which upgrades and
+	// Lock()s/Refresh()es any Version that's already cached at a lower
+	// access mode - including one that EnsureCompat()'s earlier
+	// format-validation loop may have JUST buffered a
+	// formatvalidated/formatvalidatedreason change on (via
+	// SetSystemDBProperty(), itself still unflushed at that point).
+	// Without this, that buffered write would be wiped out here before
+	// ever reaching the DB, right before EnsureCompat() returns.
+	if e.NewSystem != nil {
+		e.SaveSystemProps()
+	}
 
 	mode := ""
 	if accessMode == FOR_WRITE {
@@ -942,6 +967,16 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 	// ObjectSetProp(), keyed by the plain name), so a value loaded from
 	// the DB and a value buffered here land under the SAME key and can
 	// be diffed/overridden correctly in SaveSystemProps().
+	if e.NewSystem != nil {
+		if reflect.DeepEqual(e.NewSystem[pp.Top()], val) {
+			return
+		}
+	} else if e.System != nil {
+		if reflect.DeepEqual(e.System[pp.Top()], val) {
+			return
+		}
+	}
+
 	e.EnsureNewSystem()
 	e.NewSystem[pp.Top()] = val
 
@@ -954,6 +989,17 @@ func (e *Entity) SetSystemDBProperty(pp *PropPath, val any) {
 // ModSet/NewObject, since system props are, by design, invisible to
 // the entity's own change-tracking (see Entity.System's doc comment).
 func (e *Entity) EnsureNewSystem() {
+	// Save pre-Tx values the first time we're about to genuinely
+	// buffer a change - mirrors EnsureNewObject()'s OriginObject
+	// capture. See OriginSystem's doc comment.
+	if e.OriginSystem == nil {
+		if e.System == nil {
+			e.OriginSystem = map[string]any{}
+		} else {
+			e.OriginSystem = maps.Clone(e.System)
+		}
+	}
+
 	if e.NewSystem != nil {
 		return
 	}

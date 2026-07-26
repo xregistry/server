@@ -37,6 +37,22 @@ CREATE TABLE Registries (
     SID     VARCHAR(255) NOT NULL,  # System ID
     UID     VARCHAR(255) NOT NULL,  # User defined
 
+    # Internal fast-path flag: true if this Registry currently has AT
+    # LEAST ONE xref set anywhere in it (Metas.xRefPath IS NOT NULL for
+    # some row). NOT a model/user-visible attribute - it's a plain
+    # column, never surfaced via Object/System/FullTreeTable, so it's
+    # never serialized in any response and never bumps the Registry's
+    # own epoch/modifiedAt. Lets Resource.runCascade() skip the "am I
+    # an xref target?" fan-out check entirely for Registries that never
+    # use xref. Set to true synchronously in Go (runCascade()) the
+    # moment a first xref is created, so it's correct even within the
+    # same Tx that creates it. Cleared back to false lazily by the
+    # triggers below whenever an xref is removed/its source Resource is
+    # deleted and a rescan finds no xrefs remain - safe to be "stuck
+    # true" a little longer than strictly needed (just a missed
+    # optimization), never a correctness issue.
+    UsesXref BOOL NOT NULL DEFAULT false,
+
     PRIMARY KEY (SID),
     UNIQUE INDEX (UID)
 );
@@ -139,16 +155,75 @@ CREATE TABLE Resources (
     INDEX(GroupSID, UID),
     INDEX(Path),
     INDEX(RegistrySID),
+    INDEX(RegistrySID, Path),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
 );
 
 CREATE TRIGGER ResourcesTrigger BEFORE DELETE ON Resources
 FOR EACH ROW
 BEGIN
+    # Swallow error 1442 ("Can't update table 'Registries' in stored
+    # function/trigger because it is already used by statement which
+    # invoked this stored function/trigger") from the Registries UPDATE
+    # below. This fires when this Resource is being deleted as part of
+    # a cascading whole-Registry delete (DELETE FROM Registries ->
+    # RegistryTrigger -> ... -> this trigger) - MySQL forbids modifying
+    # a table that's already being modified higher up the same trigger
+    # chain. That's fine here: if the whole Registry is being deleted,
+    # its UsesXref value is moot anyway (the row is going away too).
+    DECLARE CONTINUE HANDLER FOR 1442 BEGIN END $$
+
+    # Clear the stale xref mirror on every source Meta that points at
+    # this Resource's Path, since Metas.xRefPath is a plain path string
+    # (not a SID) that ISN'T touched by the eSID/ParentSID=OLD.SID
+    # deletes below - a source's synthetic mirror rows live under ITS
+    # OWN ParentSID (its own owning Resource's SID), not the target's.
+    # This single trigger fires for every deletion path (direct
+    # Resource delete, whole-Group delete via GroupTrigger, whole-
+    # Registry delete), so it's the one place this needs to be handled
+    # - no Go-level call site needs to remember to do it. Each source's
+    # own xRefPath is left untouched, so if a new Resource is later
+    # created at this same Path, its own creation-time Go-level fan-out
+    # (fullSaveXrefFanOutForTargetMeta/Version) naturally re-populates
+    # these sources again.
+    DELETE ft FROM FullTreeTable AS ft
+    JOIN Metas AS srcM ON (ft.eSID=srcM.SID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsXrefPropCopy=true $$
+
+    DELETE ft FROM FullTreeTable AS ft
+    JOIN Metas AS srcM ON (ft.RegSID=srcM.RegistrySID AND
+                            ft.ParentSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsXrefVerCopy=true $$
+
+    DELETE fe FROM FullEntities AS fe
+    JOIN Metas AS srcM ON (fe.RegSID=srcM.RegistrySID AND
+                            fe.ParentSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND fe.IsXrefVerCopy=true $$
+
+    DELETE ft FROM FullTreeTable AS ft
+    JOIN Metas AS srcM ON (ft.eSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsDefaultVerCopy=true $$
+
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
     DELETE FROM FullTreeTable WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
     DELETE FROM FullEntities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+
+    # Lazily clear Registries.UsesXref if this deletion may have
+    # removed the last remaining xref in the Registry (e.g. OLD itself
+    # was an xref source). Guarded by "AND UsesXref=true" so this is a
+    # cheap single-row PK no-match in the common case where the
+    # Registry doesn't use xref at all - safe to run unconditionally on
+    # every Resource delete since the EXISTS rescan only actually
+    # executes when there's something to potentially clear.
+    UPDATE Registries SET UsesXref = EXISTS(
+        SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegistrySID
+                             AND xRefPath IS NOT NULL)
+    WHERE SID=OLD.RegistrySID AND UsesXref=true $$
 END ;
 
 CREATE TABLE Metas (
@@ -160,14 +235,19 @@ CREATE TABLE Metas (
     Plural          VARCHAR(64) NOT NULL,
     Singular        VARCHAR(64) NOT NULL,
 
-    xRefSID         VARCHAR(64),           # Generated
+    xRefPath        VARCHAR(255) COLLATE utf8mb4_bin, # Generated
     defaultVID      VARCHAR(64),           # Generated
 
     PRIMARY KEY (SID),
     INDEX(ResourceSID),
     INDEX(RegistrySID, Path),
     INDEX(RegistrySID),
-    INDEX(xRefSID)
+    INDEX(xRefPath),
+    # Speeds up the "who currently xrefs me" fan-out query
+    # (fullSaveXrefFanOutForTarget: SELECT ResourceSID FROM Metas WHERE
+    # RegistrySID=? AND xRefPath=?) with a single composite lookup
+    # instead of relying on the single-column xRefPath index above.
+    INDEX(RegistrySID, xRefPath)
 );
 
 # Can't use this because we get recursive triggers on meta.delete()
@@ -302,13 +382,18 @@ CREATE TABLE FullEntities (
   UNIQUE INDEX (RegSID, Path)
 );
 
-# These maintain Versions.AncestorID/CreatedAt and Metas.xRefSID/
+# These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/
 # defaultVID whenever the corresponding OWN (non-cascaded, non-
 # calculated) property row is written/removed on FullTreeTable, which
 # is the sole authoritative store for entity properties now (see
 # fulltree.go) - those DB columns are relied on throughout the codebase
 # (ancestor-chain resolution, xref detection, default-version lookups)
-# and are otherwise never set anywhere else.
+# and are otherwise never set anywhere else. xRefPath stores the raw
+# xref target path text (not a resolved SID) so it never needs to be
+# re-resolved/self-healed: it stays correct even if the target
+# Resource doesn't exist yet (or existed, was deleted, and later gets
+# recreated) - every consumer joins against Resources.Path live, at
+# query time, instead of relying on a point-in-time-resolved SID.
 CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON FullTreeTable
 FOR EACH ROW
 BEGIN
@@ -327,12 +412,8 @@ BEGIN
     IF (NEW.Type=$ENTITY_META AND NEW.IsDefaultVerCopy=false AND
         NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
         IF (NEW.PropName='xref$DB_IN') THEN
-          # Remove leading /
-          SET @rSID := (SELECT SID FROM Resources WHERE
-                        RegistrySID=NEW.RegSID AND
-                        Path=SUBSTRING(NEW.PropValue,2)) $$
-
-          UPDATE Metas AS m SET xRefSID=@rSID
+          # Remove leading / - store the path text as-is, no lookup.
+          UPDATE Metas AS m SET xRefPath=SUBSTRING(NEW.PropValue,2)
             WHERE m.SID=NEW.eSID $$
         END IF $$
         IF (NEW.PropName='defaultversionid$DB_IN') THEN
@@ -345,11 +426,26 @@ END ;
 CREATE TRIGGER FullTreeXref BEFORE DELETE ON FullTreeTable
 FOR EACH ROW
 BEGIN
+    # See ResourcesTrigger's comment: swallow error 1442 from the
+    # Registries UPDATE below when this fires as part of a cascading
+    # whole-Registry delete (Registries is already in use higher up
+    # that same trigger chain) - harmless since the Registry row itself
+    # is being removed too in that case.
+    DECLARE CONTINUE HANDLER FOR 1442 BEGIN END $$
+
     IF (OLD.Type=$ENTITY_META AND OLD.IsDefaultVerCopy=false AND
         OLD.IsXrefPropCopy=false AND OLD.IsXrefVerCopy=false) THEN
         IF (OLD.PropName='xref$DB_IN') THEN
-          UPDATE Metas SET xRefSID=NULL
+          UPDATE Metas SET xRefPath=NULL
           WHERE SID=OLD.eSID $$
+
+          # Lazily clear Registries.UsesXref if this was the last
+          # remaining xref in the Registry - see ResourcesTrigger's
+          # comment for why this is safe/cheap to run unconditionally.
+          UPDATE Registries SET UsesXref = EXISTS(
+              SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegSID
+                                   AND xRefPath IS NOT NULL)
+          WHERE SID=OLD.RegSID AND UsesXref=true $$
         END IF $$
         IF (OLD.PropName='defaultversionid$DB_IN') THEN
           UPDATE Metas AS m SET defaultVID=NULL

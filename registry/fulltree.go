@@ -50,7 +50,9 @@ func (e *Entity) FullEntityInsert() {
 		parentArg = e.ParentSID
 	}
 
-	Do(e.tx, `
+	// e.DbSID is always freshly generated for a brand-new entity, so
+	// this REPLACE always inserts (never replaces) exactly 1 row.
+	DoOne(e.tx, `
         REPLACE INTO FullEntities(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
             Abstract, Path, IsXrefVerCopy)
@@ -70,7 +72,7 @@ func (e *Entity) FullEntityInsert() {
 // IsXrefVerCopy) or calculated (IsCalcStatic/IsCalcDynamic - see
 // fullSaveCalcStaticInsert()/fullSaveVersionCalc()) rows - those are
 // always written by their own dedicated code paths, never through
-// here. Versions.AncestorID/CreatedAt and Metas.xRefSID/defaultVID are
+// here. Versions.AncestorID/CreatedAt and Metas.xRefPath/defaultVID are
 // kept in sync by the FullTreeAncestor/FullTreeXref DB triggers
 // (init.sql) whenever the corresponding own row is written/removed
 // here.
@@ -80,7 +82,9 @@ func (e *Entity) fullTreeWriteProp(name string, propValue *string,
 	// defer log.Trace("FullTree", "%s/%s", e.Path, name)()
 
 	if propValue == nil {
-		Do(e.tx, `
+		// The prop row may or may not exist yet (e.g. deleting a prop
+		// that was never set), so 0 or 1 rows is valid.
+		DoZeroOne(e.tx, `
             DELETE FROM FullTreeTable
             WHERE eSID=? AND PropName=? AND IsDefaultVerCopy=false
                   AND IsXrefPropCopy=false AND IsXrefVerCopy=false`,
@@ -93,7 +97,9 @@ func (e *Entity) fullTreeWriteProp(name string, propValue *string,
 		parentArg = e.ParentSID
 	}
 
-	Do(e.tx, `
+	// REPLACE reports 1 row if this (eSID,PropName) is new, 2 if it
+	// replaced an existing row.
+	DoOneTwo(e.tx, `
         REPLACE INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -409,8 +415,9 @@ func (e *Entity) fullSaveCalcStaticInsert() {
 		parentArg = e.ParentSID
 	}
 
-	// xid - every entity type.
-	Do(e.tx, `
+	// xid - every entity type. Plain single-row INSERT, always exactly
+	// 1 (this is called once, at creation, on a brand-new eSID).
+	DoOne(e.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -425,7 +432,7 @@ func (e *Entity) fullSaveCalcStaticInsert() {
 	case ENTITY_RESOURCE:
 		// e is always a real, in-memory Resource, which always has a
 		// parent Group, so e.ParentSID is never empty here.
-		Do(e.tx, `
+		DoOne(e.tx, `
             INSERT INTO FullTreeTable(
                 RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
                 PropName, PropValue, PropType, Abstract, DocView,
@@ -438,8 +445,11 @@ func (e *Entity) fullSaveCalcStaticInsert() {
 
 	case ENTITY_VERSION:
 		// e is always a real, in-memory Version, which always has a
-		// parent Resource, so e.ParentSID is never empty here.
-		Do(e.tx, `
+		// parent Resource, so e.ParentSID is never empty here. The
+		// owning Resource is guaranteed to already exist (e was just
+		// created as one of its Versions), so this always inserts
+		// exactly 1 row.
+		DoOne(e.tx, `
             INSERT INTO FullTreeTable(
                 RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
                 PropName, PropValue, PropType, Abstract, DocView,
@@ -488,16 +498,20 @@ func (e *Entity) fullSaveVersionCalc() {
 
 	// Own scoped delete (rather than relying on some shared blanket
 	// delete having already run) since this is the only calculated
-	// value left that needs recomputing on every relevant Save().
-	Do(e.tx, `DELETE FROM FullTreeTable WHERE eSID=? AND IsCalcDynamic=true`,
+	// value left that needs recomputing on every relevant Save(). At
+	// most 1 IsCalcDynamic row ever exists per Version (the isdefault
+	// row inserted below); 0 if this is the first time this func runs
+	// for this Version.
+	DoZeroOne(e.tx, `DELETE FROM FullTreeTable WHERE eSID=? AND IsCalcDynamic=true`,
 		e.DbSID)
 
 	// isdefault - true only if this Version is the owning Resource's
 	// current default (via its Meta.defaultVID), or - for a Resource
 	// with no defaultVID set but which is itself an xref source - if
 	// it matches the xref target's default. In the common non-xref
-	// case this just checks m.defaultVID.
-	Do(e.tx, `
+	// case this just checks m.defaultVID. The owning Resource's Meta
+	// is guaranteed to exist, so this always inserts exactly 1 row.
+	DoOne(e.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -522,7 +536,7 @@ func (e *Entity) fullSaveVersionCalc() {
 // can follow its own in-memory fields plus tx.GetMeta(r)/tx.GetVersion(
 // r,...) to find the current default Version's SID without any DB
 // round-trip whenever this transaction already has them loaded.
-func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
+func fullSaveDefaultVerCascade(r *Resource) {
 	if r == nil {
 		return
 	}
@@ -531,7 +545,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 
 	resourceSID := r.DbSID
 
-	Do(tx, `
+	Do(r.tx, `
         DELETE FROM FullTreeTable WHERE eSID=? AND IsDefaultVerCopy=true`,
 		resourceSID)
 
@@ -567,9 +581,11 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 		// default, copied in as a synthetic Version by
 		// fullSaveXrefVersionCopies(). Copy from THAT synthetic
 		// FullTreeTable eSID instead of Props.
-		tResults := Query(tx, `
+		tResults := Query(r.tx, `
             SELECT v.SID FROM Metas AS srcM
-            JOIN Metas AS m ON (m.ResourceSID=srcM.xRefSID)
+            JOIN Resources AS tr ON (tr.RegistrySID=srcM.RegistrySID AND
+                                      tr.Path=srcM.xRefPath)
+            JOIN Metas AS m ON (m.ResourceSID=tr.SID)
             JOIN Versions AS v ON (v.ResourceSID=m.ResourceSID AND
                                     v.UID=m.defaultVID)
             WHERE srcM.ResourceSID=?`, resourceSID)
@@ -581,7 +597,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 		targetDefVerSID := NotNilString(tRow[0])
 		synthESID := fmt.Sprintf("-%s-%s", resourceSID, targetDefVerSID)
 
-		Do(tx, `
+		Do(r.tx, `
             REPLACE INTO FullTreeTable(
                 RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
                 PropName, PropValue, PropType, Abstract, DocView,
@@ -595,7 +611,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 		return
 	}
 
-	Do(tx, `
+	Do(r.tx, `
         REPLACE INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -614,7 +630,7 @@ func fullSaveDefaultVerCascade(tx *Tx, r *Resource) {
 	// Save(), so if the default just moved to a different Version, the
 	// old default's row (and the new one's, if it wasn't the one that
 	// triggered this call) would otherwise go stale.
-	Do(tx, `
+	Do(r.tx, `
         UPDATE FullTreeTable AS ft
         JOIN Versions AS v ON (v.SID=ft.eSID)
         JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
@@ -667,25 +683,31 @@ func (e *Entity) fullSaveXrefCascadeDelete() {
 // correctly, fullSaveOwnPropsDelete) have already run.
 func (e *Entity) fullSaveXrefCascadeInsert() {
 	results := Query(e.tx, `
-        SELECT xRefSID FROM Metas WHERE SID=?`, e.DbSID)
+        SELECT xRefPath FROM Metas WHERE SID=?`, e.DbSID)
 	row := results.NextRow()
 	results.Close()
 	if row == nil || NotNilString(row[0]) == "" {
 		return
 	}
-	targetResourceSID := NotNilString(row[0])
+	xRefPath := NotNilString(row[0])
 
+	// Resolve the target live, by RegistrySID+Path (Path alone isn't
+	// unique across the whole DB, only within one Registry) - never by
+	// a cached SID, so this always reflects reality even if the
+	// target didn't exist (or existed under a different SID) the last
+	// time this ran.
 	tResults := Query(e.tx, `
-        SELECT m.SID, r.Singular FROM Metas AS m
-        JOIN Resources AS r ON (r.SID=m.ResourceSID)
-        WHERE m.ResourceSID=?`, targetResourceSID)
+        SELECT m.SID, m.ResourceSID, r.Singular FROM Resources AS r
+        JOIN Metas AS m ON (m.ResourceSID=r.SID)
+        WHERE r.RegistrySID=? AND r.Path=?`, e.Registry.DbSID, xRefPath)
 	tRow := tResults.NextRow()
 	tResults.Close()
 	if tRow == nil {
 		return
 	}
 	targetMetaSID := NotNilString(tRow[0])
-	targetSingular := NotNilString(tRow[1])
+	targetResourceSID := NotNilString(tRow[1])
+	targetSingular := NotNilString(tRow[2])
 
 	// e is always the real Meta entity, so its owning Resource is
 	// directly accessible via e.Self.(*Meta).Resource - no need to
@@ -712,7 +734,7 @@ func (e *Entity) fullSaveXrefCascadeInsert() {
 		"xref"+string(DB_IN), targetSingular+"id"+string(DB_IN))
 
 	if resource != nil {
-		fullSaveXrefVersionCopies(e.tx, resource, targetResourceSID)
+		fullSaveXrefVersionCopies(resource, targetResourceSID)
 	}
 }
 
@@ -731,7 +753,7 @@ func (e *Entity) fullSaveXrefCascadeInsert() {
 // The synthetic eSID for each target Version is deterministically
 // CONCAT('-', sourceResourceSID, '-', v.SID), matching the
 // "-<srcRSID>-<verSID>" convention.
-func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID string) {
+func fullSaveXrefVersionCopies(srcResource *Resource, targetResourceSID string) {
 	if srcResource == nil {
 		return
 	}
@@ -743,22 +765,22 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 
 	// Idempotent: this is called both from fullSaveXrefCascadeInsert
 	// (which already cleared out ALL of this source's xref-version
-	// rows first) and directly from fullSaveXrefFanOutForTargetVersion
+	// rows first) and directly from fullSaveXrefFanOutForTarget
 	// (which does not) - so clear out just the synthetic versions that
 	// correspond to the target's CURRENT version set before
 	// recreating them, or a second Save() of the same target Version
 	// would hit a duplicate-key error here.
-	Do(tx, `
+	Do(srcResource.tx, `
         DELETE ft FROM FullTreeTable AS ft
         JOIN Versions AS v ON (ft.eSID=CONCAT('-', ?, '-', v.SID))
         WHERE v.ResourceSID=?`, sourceResourceSID, targetResourceSID)
-	Do(tx, `
+	Do(srcResource.tx, `
         DELETE fe FROM FullEntities AS fe
         JOIN Versions AS v ON (fe.eSID=CONCAT('-', ?, '-', v.SID))
         WHERE v.ResourceSID=?`, sourceResourceSID, targetResourceSID)
 
 	// One FullEntities row per target Version, all at once.
-	Do(tx, `
+	Do(srcResource.tx, `
         REPLACE INTO FullEntities(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
             Abstract, Path, IsXrefVerCopy)
@@ -773,7 +795,7 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 	// synthetic eSID, for every current Version at once (excluding the
 	// target's own "xref" - Versions never have one, but kept for
 	// parity with the old per-row exclusion).
-	Do(tx, `
+	Do(srcResource.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -799,7 +821,7 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 	// version set itself is being recreated (the xref pointer moved),
 	// not because they individually change; isdefault is genuinely
 	// dynamic (mirrors the target's own per-Version isdefault).
-	Do(tx, `
+	Do(srcResource.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -814,7 +836,7 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 		sourceResourceSID, sourceResourceSID, srcResource.Path,
 		"xid"+string(DB_IN), srcResource.Path, synthAbstract, targetResourceSID)
 
-	Do(tx, `
+	Do(srcResource.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -832,7 +854,7 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 		"id"+string(DB_IN), synthAbstract, sourceResourceSID,
 		targetResourceSID)
 
-	Do(tx, `
+	Do(srcResource.tx, `
         INSERT INTO FullTreeTable(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
             PropName, PropValue, PropType, Abstract, DocView,
@@ -850,29 +872,38 @@ func fullSaveXrefVersionCopies(tx *Tx, srcResource *Resource, targetResourceSID 
 		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)
 }
 
-// fullSaveXrefFanOutForTargetMeta re-runs fullSaveXrefCascade for every
-// OTHER source Meta that xrefs r - used when a Meta that happens to be
-// someone else's xref target changes. r is the real, in-memory
-// *Resource whose Meta was just saved (always available at the
-// FullSave() call site as meta.Resource). Each source discovered here
+// fullSaveXrefFanOutForTarget re-runs fullSaveXrefCascade and the
+// synthetic-version-copy refresh for every OTHER source Resource that
+// xrefs r - used whenever either r's Meta or one of r's Versions
+// (something that makes r someone else's xref target) is saved. r is
+// the real, in-memory *Resource whose Meta/Version was just saved
+// (always available at the FullSave() call site as meta.Resource or
+// v.Resource). This combines what used to be two separate functions
+// (fullSaveXrefFanOutForTargetMeta/fullSaveXrefFanOutForTargetVersion)
+// - they were always called back-to-back from the same runCascade()
+// call site, each running its own copy of the identical "who xrefs me"
+// query and its own fullSaveDefaultVerCascade(sourceResource) call, so
+// merging them halves both the query count and the redundant
+// per-source default-version cascade work. Each source discovered here
 // is resolved to its own real *Resource/*Meta via
 // Registry.FindResourceBySID()/FindMeta() (cache-checked, so repeat
 // fan-out hits for the same source within one Tx are free) rather than
 // a raw fullEntityLookup() row.
-func fullSaveXrefFanOutForTargetMeta(tx *Tx, r *Resource) {
+func fullSaveXrefFanOutForTarget(r *Resource) {
 	if r == nil {
 		return
 	}
 
 	defer log.Trace("FullTree", r.XID)()
 
-	results := Query(tx, `
-        SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)
+	results := Query(r.tx, `
+        SELECT ResourceSID FROM Metas WHERE RegistrySID=? AND xRefPath=?`,
+		r.Registry.DbSID, r.Path)
 	defer results.Close()
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
 		sourceResourceSID := NotNilString(row[0])
-		sourceResource, xErr := tx.Registry.FindResourceBySID(
+		sourceResource, xErr := r.tx.Registry.FindResourceBySID(
 			sourceResourceSID, FOR_WRITE)
 		if xErr != nil || sourceResource == nil {
 			continue
@@ -882,39 +913,16 @@ func fullSaveXrefFanOutForTargetMeta(tx *Tx, r *Resource) {
 			continue
 		}
 		sourceMeta.fullSaveXrefCascade()
-		fullSaveDefaultVerCascade(tx, sourceResource)
+		fullSaveXrefVersionCopies(sourceResource, r.DbSID)
+		fullSaveDefaultVerCascade(sourceResource)
 	}
 }
 
-// fullSaveXrefFanOutForTargetVersion re-runs the synthetic-version-copy
-// refresh for every source Resource that xrefs r - used when a Version
-// belonging to a Resource that's someone else's xref target is saved
-// (added/changed). r is the real, in-memory *Resource that owns the
-// saved Version (always available at the FullSave() call site as
-// v.Resource). As with fullSaveXrefFanOutForTargetMeta, each source is
-// resolved to its real *Resource via Registry.FindResourceBySID().
-func fullSaveXrefFanOutForTargetVersion(tx *Tx, r *Resource) {
-	if r == nil {
-		return
-	}
-
-	defer log.Trace("FullTree", r.XID)()
-
-	results := Query(tx, `
-        SELECT ResourceSID FROM Metas WHERE xRefSID=?`, r.DbSID)
-	defer results.Close()
-
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		sourceResourceSID := NotNilString(row[0])
-		sourceResource, xErr := tx.Registry.FindResourceBySID(
-			sourceResourceSID, FOR_WRITE)
-		if xErr != nil || sourceResource == nil {
-			continue
-		}
-		fullSaveXrefVersionCopies(tx, sourceResource, r.DbSID)
-		fullSaveDefaultVerCascade(tx, sourceResource)
-	}
-}
+// NOTE: cleaning up stale xref-source mirror rows when a target
+// Resource is deleted is handled entirely by ResourcesTrigger (see
+// init.sql) now, not here - that trigger fires uniformly for every
+// deletion path (direct Resource delete, whole-Group delete, whole-
+// Registry delete), so there's no Go-level call site to remember.
 
 // DiffFullTree is a basic diff-check (step 4, partial, per sql.md/plan
 // scope): it compares FullTreeTable's contents against what the FullTree
