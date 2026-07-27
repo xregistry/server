@@ -20,18 +20,10 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 
 	log "github.com/duglin/dlog"
 	. "github.com/xregistry/server/common"
 )
-
-// TEMP DEBUG: fullTreeDebug logs how long each fulltree.go func took, to
-// help spot excessive/duplicate calls during a single logical operation.
-// Remove once we're done profiling.
-func fullTreeDebug(start time.Time, name string, extra string) {
-	log.KPrintf("FullTree", "%s: %v  %s", name, time.Since(start), extra)
-}
 
 // FullEntityInsert adds a row to FullEntities for a newly-created
 // Registry/Group/Resource/Meta/Version - called from the same places
@@ -475,7 +467,7 @@ func (e *Entity) fullSaveCalcStaticInsert() {
 // Resource's IsDefaultVerCopy set in case this Version is the current
 // default (Save()'s own cascade already ran before this out-of-band
 // write happened, so it won't run again).
-func FullTreeResyncOwnProps(e *Entity) {
+func (e *Entity) FullTreeResyncOwnProps() {
 	defer log.Trace("FullTree", e.XID)()
 
 	if e.Type == ENTITY_VERSION {
@@ -536,7 +528,7 @@ func (e *Entity) fullSaveVersionCalc() {
 // can follow its own in-memory fields plus tx.GetMeta(r)/tx.GetVersion(
 // r,...) to find the current default Version's SID without any DB
 // round-trip whenever this transaction already has them loaded.
-func fullSaveDefaultVerCascade(r *Resource) {
+func (r *Resource) fullSaveDefaultVerCascade() {
 	if r == nil {
 		return
 	}
@@ -734,7 +726,7 @@ func (e *Entity) fullSaveXrefCascadeInsert() {
 		"xref"+string(DB_IN), targetSingular+"id"+string(DB_IN))
 
 	if resource != nil {
-		fullSaveXrefVersionCopies(resource, targetResourceSID)
+		resource.fullSaveXrefVersionCopies(targetResourceSID)
 	}
 }
 
@@ -753,7 +745,7 @@ func (e *Entity) fullSaveXrefCascadeInsert() {
 // The synthetic eSID for each target Version is deterministically
 // CONCAT('-', sourceResourceSID, '-', v.SID), matching the
 // "-<srcRSID>-<verSID>" convention.
-func fullSaveXrefVersionCopies(srcResource *Resource, targetResourceSID string) {
+func (srcResource *Resource) fullSaveXrefVersionCopies(targetResourceSID string) {
 	if srcResource == nil {
 		return
 	}
@@ -889,7 +881,7 @@ func fullSaveXrefVersionCopies(srcResource *Resource, targetResourceSID string) 
 // Registry.FindResourceBySID()/FindMeta() (cache-checked, so repeat
 // fan-out hits for the same source within one Tx are free) rather than
 // a raw fullEntityLookup() row.
-func fullSaveXrefFanOutForTarget(r *Resource) {
+func (r *Resource) fullSaveXrefFanOutForTarget() {
 	if r == nil {
 		return
 	}
@@ -913,8 +905,8 @@ func fullSaveXrefFanOutForTarget(r *Resource) {
 			continue
 		}
 		sourceMeta.fullSaveXrefCascade()
-		fullSaveXrefVersionCopies(sourceResource, r.DbSID)
-		fullSaveDefaultVerCascade(sourceResource)
+		sourceResource.fullSaveXrefVersionCopies(r.DbSID)
+		sourceResource.fullSaveDefaultVerCascade()
 	}
 }
 
@@ -923,47 +915,3 @@ func fullSaveXrefFanOutForTarget(r *Resource) {
 // init.sql) now, not here - that trigger fires uniformly for every
 // deletion path (direct Resource delete, whole-Group delete, whole-
 // Registry delete), so there's no Go-level call site to remember.
-
-// DiffFullTree is a basic diff-check (step 4, partial, per sql.md/plan
-// scope): it compares FullTreeTable's contents against what the FullTree
-// view produces for the given registry and returns a human-readable
-// summary of any mismatches. It does NOT modify anything and is not on
-// any read path - it's meant to be called ad hoc (e.g. from a test or a
-// debug tool) while validating FullSave()'s incremental logic.
-func DiffFullTree(tx *Tx, regSID string) string {
-	viewRows := fullTreeRowsFrom(tx, "FullTree", regSID)
-	tableRows := fullTreeRowsFrom(tx, "FullTreeTable", regSID)
-
-	missing := []string{}
-	for k, v := range viewRows {
-		if tv, ok := tableRows[k]; !ok {
-			missing = append(missing, fmt.Sprintf("missing in table: %s=%s", k, v))
-		} else if tv != v {
-			missing = append(missing, fmt.Sprintf(
-				"value mismatch: %s view=%q table=%q", k, v, tv))
-		}
-	}
-	for k, v := range tableRows {
-		if _, ok := viewRows[k]; !ok {
-			missing = append(missing, fmt.Sprintf("extra in table: %s=%s", k, v))
-		}
-	}
-
-	if len(missing) == 0 {
-		return ""
-	}
-	return strings.Join(missing, "\n")
-}
-
-func fullTreeRowsFrom(tx *Tx, table string, regSID string) map[string]string {
-	out := map[string]string{}
-	results := Query(tx, `
-        SELECT Path, PropName, PropValue FROM `+table+` WHERE RegSID=?`, regSID)
-	defer results.Close()
-
-	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		key := NotNilString(row[0]) + "|" + NotNilString(row[1])
-		out[key] = NotNilString(row[2])
-	}
-	return out
-}

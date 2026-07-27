@@ -229,8 +229,8 @@ func TestCheckCompat_BooleanSchemas(t *testing.T) {
 			dir:  "backward", old: false, new: true,
 		},
 		{
-			name:    "true backward false – incompatible",
-			dir:     "backward", old: true, new: false,
+			name: "true backward false – incompatible",
+			dir:  "backward", old: true, new: false,
 			wantErr: true,
 		},
 		{

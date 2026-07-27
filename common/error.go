@@ -154,7 +154,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"constraint_failure": &XRError{
 		Code:  400,
-		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "equals" constraint for attribute "<path>".`,
+		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "<kind>" constraint for attribute "<path>".`,
 	},
 	"data_retrieval_error": &XRError{
 		Code:  500,

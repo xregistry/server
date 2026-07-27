@@ -1592,13 +1592,13 @@ func (r *Resource) runCascade() {
 					!reflect.DeepEqual(finalDefVer.OriginSystem, finalDefVer.System)))
 	}
 	if defaultVerCascadeNeeded {
-		fullSaveDefaultVerCascade(r)
+		r.fullSaveDefaultVerCascade()
 	}
 
 	// Skip entirely if this Registry has never used xref - see
 	// init.sql's Registries.UsesXref comment for the full design.
 	if r.tx.Registry.UsesXref {
-		fullSaveXrefFanOutForTarget(r)
+		r.fullSaveXrefFanOutForTarget()
 	}
 }
 

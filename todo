@@ -103,7 +103,6 @@ TODOs:
 - more format/compat tests!!
 ** removing a supported format plugin should do some checking on server startup
 - add tests for "xr download" to make sure capabilities is correct
-** Replace FullTree view with updates to a huge props table in real-time
 - more testing around changing capabilities and model at the same time as using
   query parameters and uploading data (import). Make sure we use the right
   capability values (pre or post tx) for each capability & model
@@ -117,3 +116,4 @@ TODOs:
 - test attribute definitions with enums with strict=true / false
 - attr.clone should be deep
 - I think getorderedversions is wrong when there are multiple trees
+- add checks for constraints.enum during group.validate

@@ -795,6 +795,22 @@ func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
 	return row, false, nil
 }
 
+// EnumValueToDBString encodes a single constraint "enum" value the
+// same way prepDBProperty() (above) encodes a real attribute value
+// before writing it to FullTreeTable.PropValue (booleans as
+// "true"/"false", everything else via fmt.Sprintf("%v", v)) - used by
+// Group.validateEnum() to build a SQL-comparable string for each enum
+// entry.
+func EnumValueToDBString(v any) string {
+	if b, ok := v.(bool); ok {
+		if b {
+			return "true"
+		}
+		return "false"
+	}
+	return fmt.Sprintf("%v", v)
+}
+
 func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetDBProperty(%s=%v)", pp, val)
 	defer log.VPrintf(3, "<Exit SetDBProperty")
@@ -909,7 +925,7 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
               WHERE RegSID=? AND eSID=? AND IsSystemProp=true`,
 		e.Registry.DbSID, e.DbSID)
 
-	FullTreeResyncOwnProps(e)
+	e.FullTreeResyncOwnProps()
 
 	return nil
 }

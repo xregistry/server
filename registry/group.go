@@ -683,14 +683,6 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 	return resources, nil
 }
 
-func (g *Group) CheckConstraints() *XRError {
-	constraints := g.Object["constraints"]
-	if !IsNil(constraints) {
-		return NewXRError("constraint_failure", g.XID, "path=...")
-	}
-	return nil
-}
-
 func (g *Group) GetConstraints() (map[string]*Constraint, *XRError) {
 	if g.constraints == nil {
 		// Do NOT use maps.Clone(), we need a zero-size map instead
@@ -789,16 +781,7 @@ func (g *Group) Validate() *XRError {
 	}
 
 	for key, constraint := range constraints {
-		if constraint.Equals == "" {
-			continue
-		}
-
-		// groupAttr parsed into a PP
-		gPP, _ := PropPathFromUI(constraint.Equals)
-
-		// If the attr is missing at the group level then don't bother
-		// to check it
-		if IsNil(g.GetPP(gPP)) {
+		if constraint.Equals == "" && len(constraint.Enum) == 0 {
 			continue
 		}
 
@@ -820,9 +803,41 @@ func (g *Group) Validate() *XRError {
 			binary = "BINARY"
 		}
 
-		query := fmt.Sprintf(`
-            # I'm hoping generating the view once will speed things up
-            WITH tmpFullTree AS ( SELECT * FROM FullTreeTable)
+		if constraint.Equals != "" {
+			if xErr := g.validateEquals(constraint, resPlural, pp,
+				binary); xErr != nil {
+				return xErr
+			}
+		}
+
+		if len(constraint.Enum) > 0 {
+			if xErr := g.validateEnum(constraint, resPlural, pp,
+				binary); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateEquals checks the "equals" half of a constraint: every
+// Version (real or xref-mirrored, since this scans FullEntities/
+// FullTreeTable broadly) of resPlural, under this Group, must have
+// pp's value equal to this Group's own value of constraint.Equals.
+func (g *Group) validateEquals(constraint *Constraint, resPlural string,
+	pp *PropPath, binary string) *XRError {
+
+	// groupAttr parsed into a PP
+	gPP, _ := PropPathFromUI(constraint.Equals)
+
+	// If the attr is missing at the group level then don't bother
+	// to check it
+	if IsNil(g.GetPP(gPP)) {
+		return nil
+	}
+
+	query := fmt.Sprintf(`
             SELECT
                 r.Path, v.UID, vp.PropValue
             FROM Resources r
@@ -831,12 +846,12 @@ func (g *Group) Validate() *XRError {
                 v.ParentSID=r.SID AND
                 v.Type=?
             )
-            JOIN tmpFullTree AS gp ON (
+            JOIN FullTreeTable AS gp ON (
                 gp.RegSID=r.RegistrySID AND
                 gp.eSID=r.GroupSID AND
                 gp.PropName=?
             )
-            LEFT JOIN tmpFullTree AS vp ON (
+            LEFT JOIN FullTreeTable AS vp ON (
                 vp.RegSID=v.RegSID AND
                 vp.eSID=v.eSID AND
                 vp.PropName=?
@@ -848,39 +863,113 @@ func (g *Group) Validate() *XRError {
                 (vp.PropValue IS NULL OR %s vp.PropValue<>gp.PropValue)
             `, binary)
 
-		// log.Printf("%q vs %q", gPP.DB(), pp.DB())
-		results := Query(g.tx, query,
-			ENTITY_VERSION, gPP.DB(), pp.DB(),
-			g.Registry.DbSID, g.DbSID, resPlural)
-		defer results.Close()
+	// log.Printf("%q vs %q", gPP.DB(), pp.DB())
+	results := Query(g.tx, query,
+		ENTITY_VERSION, gPP.DB(), pp.DB(),
+		g.Registry.DbSID, g.DbSID, resPlural)
+	defer results.Close()
 
-		rID := ""
-		failures := []string{}
+	rID := ""
+	failures := []string{}
 
-		for {
-			row := results.NextRow()
-			if row == nil {
-				break
-			}
-
-			// log.Printf("%q %q %q",
-			// NotNilString(row[0]), NotNilString(row[1]),
-			// NotNilString(row[2]))
-
-			// Stop on 2nd Resource
-			if rID != "" && rID != NotNilString(row[0]) {
-				break
-			}
-			rID = NotNilString(row[0])
-			failures = append(failures, NotNilString(row[1]))
-
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
 		}
 
-		if len(failures) > 0 {
-			return NewXRError("constraint_failure", "/"+rID,
-				"path="+pp.UI()).SetDetailf("Versions: %s.",
-				strings.Join(failures, ","))
+		// log.Printf("%q %q %q",
+		// NotNilString(row[0]), NotNilString(row[1]),
+		// NotNilString(row[2]))
+
+		// Stop on 2nd Resource
+		if rID != "" && rID != NotNilString(row[0]) {
+			break
 		}
+		rID = NotNilString(row[0])
+		failures = append(failures, NotNilString(row[1]))
+
+	}
+
+	if len(failures) > 0 {
+		return NewXRError("constraint_failure", "/"+rID,
+			"path="+pp.UI(), "kind=equals").SetDetailf("Versions: %s.",
+			strings.Join(failures, ","))
+	}
+
+	return nil
+}
+
+// validateEnum checks the "enum" half of a constraint: every Version
+// (real or xref-mirrored, since this scans FullEntities/FullTreeTable
+// broadly - so a xref whose mirrored value violates the hosting
+// group's "enum" constraint is caught here too) of resPlural, under
+// this Group, must have pp's value (when set) be one of
+// constraint.Enum's values.
+func (g *Group) validateEnum(constraint *Constraint, resPlural string,
+	pp *PropPath, binary string) *XRError {
+
+	// Encode each enum value the same way prepDBProperty() encodes a
+	// real attribute value before it's written to PropValue (booleans
+	// as "true"/"false", everything else via fmt.Sprintf("%v", v)) so
+	// the SQL string comparison lines up with what's actually stored.
+	placeholders := make([]string, 0, len(constraint.Enum))
+	args := []any{ENTITY_VERSION, pp.DB(), g.Registry.DbSID, g.DbSID,
+		resPlural}
+	enumArgs := make([]any, 0, len(constraint.Enum))
+	for _, v := range constraint.Enum {
+		enumArgs = append(enumArgs, EnumValueToDBString(v))
+		placeholders = append(placeholders, "?")
+	}
+	args = append(args, enumArgs...)
+
+	query := fmt.Sprintf(`
+            SELECT
+                r.Path, v.UID, vp.PropValue
+            FROM Resources r
+            JOIN FullEntities AS v ON (
+                v.RegSID=r.RegistrySID AND
+                v.ParentSID=r.SID AND
+                v.Type=?
+            )
+            LEFT JOIN FullTreeTable AS vp ON (
+                vp.RegSID=v.RegSID AND
+                vp.eSID=v.eSID AND
+                vp.PropName=?
+            )
+            WHERE
+                r.RegistrySID=? AND
+                r.GroupSID=? AND
+                r.Plural=? AND
+                vp.PropValue IS NOT NULL AND
+                %s vp.PropValue NOT IN (%s)
+            `, binary, strings.Join(placeholders, ","))
+
+	results := Query(g.tx, query, args...)
+	defer results.Close()
+
+	rID := ""
+	failures := []string{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		// Stop on 2nd Resource
+		if rID != "" && rID != NotNilString(row[0]) {
+			break
+		}
+		rID = NotNilString(row[0])
+		failures = append(failures, NotNilString(row[1]))
+	}
+
+	if len(failures) > 0 {
+		return NewXRError("constraint_failure", "/"+rID,
+			"path="+pp.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
+			"be one of: %s.", strings.Join(failures, ","),
+			EnumAsString(constraint.Enum))
 	}
 
 	return nil

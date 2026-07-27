@@ -54,13 +54,13 @@ errors: .errors
 	@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
 	@touch .errors
 
-nilcheck: .nilcheck
-.nilcheck: cmds/nilcheck cmds/xr cmds/xrserver/*  registry/* common/*
+xrlint: .xrlint
+.xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/*
 	@echo
-	@echo "# Checking for '== nil'/'!= nil' misuse on 'any'-typed values"
-	@misc/errOutput @go run ./cmds/nilcheck ./registry/... ./common/... \
+	@echo "# Running xrlink looking for source issues"
+	@misc/errOutput @go run ./cmds/xrlint ./registry/... ./common/... \
 		./cmds/...
-	@touch .nilcheck
+	@touch .xrlint
 
 utest: .utest
 .utest: .cmds */*test.go
@@ -98,7 +98,12 @@ ftest: .fulltest
 	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS) $(SED)
 	@touch .fulltest
 
-test: .qtest .fulltest .errors .nilcheck .testimages
+test: .qtest .fulltest .errors .xrlint .testimages
+
+benchmark:
+	@rm -f .ftest
+	@make ftest
+	@misc/largetest
 
 .sharedfiles: common/shared*
 	@echo
@@ -334,7 +339,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .nilcheck .utest .qtest .fulltest \
+	@rm -f .sharedfiles .errors .xrlint .utest .qtest .fulltest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache

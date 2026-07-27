@@ -1,6 +1,9 @@
-// nilcheck finds callers that compare the result of a function/method
-// whose return type is the empty interface ("any"/"interface{}") directly
-// against nil using "== nil"/"!= nil", instead of using common.IsNil().
+// xrlint is a small suite of repo-specific static checks. It currently
+// implements one check ("nilcheck"): finding callers that compare the
+// result of a function/method whose return type is the empty interface
+// ("any"/"interface{}") directly against nil using "== nil"/"!= nil",
+// instead of using common.IsNil(). More checks (e.g. finding unused
+// funcs) are expected to be added here over time.
 //
 // Comparing a typed nil (e.g. a nil *SomeStruct) stored in an "any" using
 // "== nil" is a classic Go footgun: the interface value itself is non-nil
@@ -21,14 +24,14 @@
 //
 // Usage:
 //
-//	go run ./cmds/nilcheck [packages...]
+//	go run ./cmds/xrlint [packages...]
 //
 // With no arguments it checks ./registry/... ./common/... ./cmds/...
 // (the tmp/ directory is intentionally excluded — it's a stale/scratch
 // package that doesn't currently build).
 //
 // Exits with a non-zero status if any suspicious usage is found, so it
-// can be wired into CI (see "make nilcheck").
+// can be wired into CI (see "make xrlint").
 package main
 
 import (

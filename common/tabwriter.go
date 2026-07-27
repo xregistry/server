@@ -55,10 +55,10 @@ type cell struct {
 // forms a cell but that cell is not part of an aligned column.
 // For instance, in this example (where | stands for a horizontal tab):
 //
-//  aaaa|bbb|d
-//  aa  |b  |dd
-//  a   |
-//  aa  |cccc|eee
+//	aaaa|bbb|d
+//	aa  |b  |dd
+//	a   |
+//	aa  |cccc|eee
 //
 // the b and c are in distinct columns (the b column is not contiguous
 // all the way). The d and e are not in a column at all (there's no
@@ -209,17 +209,17 @@ const (
 // A [TabWriter] must be initialized with a call to Init. The first parameter (output)
 // specifies the filter output. The remaining parameters control the formatting:
 //
-//  lineindent  chars to add to the front of each line  (custom/new)
-//  minwidth    minimal cell width including any padding
-//  tabwidth    width of tab characters (equivalent number of spaces)
-//  padding     padding added to a cell before computing its width
-//  padchar     ASCII char used for padding
-//          if padchar == '\t', the TabWriter will assume that the
-//          width of a '\t' in the formatted output is tabwidth,
-//          and cells are left-aligned independent of align_left
-//          (for correct-looking results, tabwidth must correspond
-//          to the tab width in the viewer displaying the result)
-//  flags       formatting control
+//	lineindent  chars to add to the front of each line  (custom/new)
+//	minwidth    minimal cell width including any padding
+//	tabwidth    width of tab characters (equivalent number of spaces)
+//	padding     padding added to a cell before computing its width
+//	padchar     ASCII char used for padding
+//	        if padchar == '\t', the TabWriter will assume that the
+//	        width of a '\t' in the formatted output is tabwidth,
+//	        and cells are left-aligned independent of align_left
+//	        (for correct-looking results, tabwidth must correspond
+//	        to the tab width in the viewer displaying the result)
+//	flags       formatting control
 func (b *TabWriter) Init(output io.Writer, lineindent []byte, minwidth, tabwidth, padding int, padchar byte, flags uint) *TabWriter {
 	if minwidth < 0 || tabwidth < 0 || padding < 0 {
 		panic("negative minwidth, tabwidth, or padding")

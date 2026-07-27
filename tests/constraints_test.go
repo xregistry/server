@@ -1926,6 +1926,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
   "detail": "Versions: 1.",
   "subject": "/dirs/d1/files/f1",
   "args": {
+    "kind": "equals",
     "path": "name"
   },
   "source": "3ba414aa22c1:registry:group:850"
@@ -1955,6 +1956,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
   "detail": "Versions: 1.",
   "subject": "/dirs/d1/files/f1",
   "args": {
+    "kind": "equals",
     "path": "name"
   },
   "source": "3ba414aa22c1:registry:group:850"
@@ -1974,6 +1976,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
   "detail": "Versions: 1.",
   "subject": "/dirs/d1/files/f1",
   "args": {
+    "kind": "equals",
     "path": "name"
   },
   "source": "3ba414aa22c1:registry:group:850"
@@ -1993,6 +1996,7 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
   "detail": "Versions: 1.",
   "subject": "/dirs/d1/files/f1",
   "args": {
+    "kind": "equals",
     "path": "name"
   },
   "source": "3ba414aa22c1:registry:group:850"
@@ -3129,8 +3133,11 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 }
 
 // TestConstraintsXref tests that constraint defaults are NOT applied to xref'd
-// resources (per spec). Note: per-spec, enum and equals SHOULD be enforced for
-// xref'd resources, but that enforcement is not yet implemented.
+// resources (per spec). Note: per-spec, "equals" and "enum" ARE enforced for
+// xref'd resources (a xref's mirrored value is checked exactly like any other
+// Version's, since Group.Validate() scans FullEntities/FullTreeTable broadly -
+// see TestXrefEqualsEnforcedOnXref/TestXrefEnumEnforcedOnXref in
+// xref_gaps_test.go).
 //
 // The source resource lives in a group instance with NO constraint so its
 // "name" attribute is genuinely absent. The xref resource lives in a group
