@@ -30,7 +30,7 @@ func (g *Group) Delete() *XRError {
 
 	// Make sure we don't have any readonly Resources
 	results := Query(g.tx, `
-	    SELECT EXISTS(SELECT 1 FROM FullTreeTable
+	    SELECT EXISTS(SELECT 1 FROM Props
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
 		  Path LIKE '`+g.Path+`/%' AND
 		  PropName='readonly`+string(DB_IN)+`' AND
@@ -318,7 +318,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
 
-		r.FullEntityInsert()
+		r.EntityInsert()
 
 		isNew = true
 		r.tx.AddResource(r)
@@ -364,7 +364,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 			meta.DbSID, g.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
-		meta.FullEntityInsert()
+		meta.EntityInsert()
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {
@@ -822,8 +822,8 @@ func (g *Group) Validate() *XRError {
 }
 
 // validateEquals checks the "equals" half of a constraint: every
-// Version (real or xref-mirrored, since this scans FullEntities/
-// FullTreeTable broadly) of resPlural, under this Group, must have
+// Version (real or xref-mirrored, since this scans Entities/
+// Props broadly) of resPlural, under this Group, must have
 // pp's value equal to this Group's own value of constraint.Equals.
 func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 	pp *PropPath, binary string) *XRError {
@@ -841,17 +841,17 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
             SELECT
                 r.Path, v.UID, vp.PropValue
             FROM Resources r
-            JOIN FullEntities AS v ON (
+            JOIN Entities AS v ON (
                 v.RegSID=r.RegistrySID AND
                 v.ParentSID=r.SID AND
                 v.Type=?
             )
-            JOIN FullTreeTable AS gp ON (
+            JOIN Props AS gp ON (
                 gp.RegSID=r.RegistrySID AND
                 gp.eSID=r.GroupSID AND
                 gp.PropName=?
             )
-            LEFT JOIN FullTreeTable AS vp ON (
+            LEFT JOIN Props AS vp ON (
                 vp.RegSID=v.RegSID AND
                 vp.eSID=v.eSID AND
                 vp.PropName=?
@@ -901,7 +901,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 }
 
 // validateEnum checks the "enum" half of a constraint: every Version
-// (real or xref-mirrored, since this scans FullEntities/FullTreeTable
+// (real or xref-mirrored, since this scans Entities/Props
 // broadly - so a xref whose mirrored value violates the hosting
 // group's "enum" constraint is caught here too) of resPlural, under
 // this Group, must have pp's value (when set) be one of
@@ -927,12 +927,12 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
             SELECT
                 r.Path, v.UID, vp.PropValue
             FROM Resources r
-            JOIN FullEntities AS v ON (
+            JOIN Entities AS v ON (
                 v.RegSID=r.RegistrySID AND
                 v.ParentSID=r.SID AND
                 v.Type=?
             )
-            LEFT JOIN FullTreeTable AS vp ON (
+            LEFT JOIN Props AS vp ON (
                 vp.RegSID=v.RegSID AND
                 vp.eSID=v.eSID AND
                 vp.PropName=?

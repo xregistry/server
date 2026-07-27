@@ -20,7 +20,7 @@ whichever resource was asked to be deleted and then the DB triggers
 will delete all necessarily (related) rows/resources as needed. So,
 deleting a row from the "Registry" table should delete ALL other resources
 in all other tables automatically.
-The "FullEntities"/"FullTreeTable" tables hold all properties for all
+The "Entities"/"Props" tables hold all properties for all
 entities rather than having property specific columns in the appropriate
 tables. No idea which is easier/faster but having it all in one table
 made things a lot easier for filtering/searching. But we can switch it
@@ -40,7 +40,7 @@ CREATE TABLE Registries (
     # Internal fast-path flag: true if this Registry currently has AT
     # LEAST ONE xref set anywhere in it (Metas.xRefPath IS NOT NULL for
     # some row). NOT a model/user-visible attribute - it's a plain
-    # column, never surfaced via Object/System/FullTreeTable, so it's
+    # column, never surfaced via Object/System/Props, so it's
     # never serialized in any response and never bumps the Registry's
     # own epoch/modifiedAt. Lets Resource.runCascade() skip the "am I
     # an xref target?" fan-out check entirely for Registries that never
@@ -62,8 +62,8 @@ FOR EACH ROW
 BEGIN
     DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
     DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
-    DELETE FROM FullTreeTable WHERE RegSID=OLD.SID $$
-    DELETE FROM FullEntities  WHERE RegSID=OLD.SID $$
+    DELETE FROM Props WHERE RegSID=OLD.SID $$
+    DELETE FROM Entities  WHERE RegSID=OLD.SID $$
 END ;
 
 CREATE TABLE Models (
@@ -136,8 +136,8 @@ CREATE TRIGGER GroupTrigger BEFORE DELETE ON "Groups"
 FOR EACH ROW
 BEGIN
     DELETE FROM Resources WHERE GroupSID=OLD.SID $$
-    DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
-    DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID $$
 END ;
 
 CREATE TABLE Resources (
@@ -186,32 +186,32 @@ BEGIN
     # created at this same Path, its own creation-time Go-level fan-out
     # (fullSaveXrefFanOutForTargetMeta/Version) naturally re-populates
     # these sources again.
-    DELETE ft FROM FullTreeTable AS ft
+    DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.eSID=srcM.SID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
           AND ft.IsXrefPropCopy=true $$
 
-    DELETE ft FROM FullTreeTable AS ft
+    DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.RegSID=srcM.RegistrySID AND
                             ft.ParentSID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
           AND ft.IsXrefVerCopy=true $$
 
-    DELETE fe FROM FullEntities AS fe
+    DELETE fe FROM Entities AS fe
     JOIN Metas AS srcM ON (fe.RegSID=srcM.RegistrySID AND
                             fe.ParentSID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
           AND fe.IsXrefVerCopy=true $$
 
-    DELETE ft FROM FullTreeTable AS ft
+    DELETE ft FROM Props AS ft
     JOIN Metas AS srcM ON (ft.eSID=srcM.ResourceSID)
     WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
           AND ft.IsDefaultVerCopy=true $$
 
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
-    DELETE FROM FullTreeTable WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
-    DELETE FROM FullEntities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
 
     # Lazily clear Registries.UsesXref if this deletion may have
     # removed the last remaining xref in the Registry (e.g. OLD itself
@@ -277,8 +277,8 @@ CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
 BEGIN
     DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
-    DELETE FROM FullTreeTable WHERE eSID=OLD.SID $$
-    DELETE FROM FullEntities  WHERE eSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID $$
 END ;
 
 CREATE TABLE ResourceContents (
@@ -288,7 +288,7 @@ CREATE TABLE ResourceContents (
     PRIMARY KEY (VersionSID)
 );
 
-CREATE TABLE FullTreeTable (
+CREATE TABLE Props (
   RegSID     VARCHAR(64) NOT NULL,
   Type       BIGINT NOT NUll,
   Plural     VARCHAR(64) NOT NULL,
@@ -352,7 +352,7 @@ CREATE TABLE FullTreeTable (
 
 # This is the authoritative store for all entity properties (own,
 # system, calculated, and cascaded/copied) - see fulltree.go.
-CREATE TABLE FullEntities (
+CREATE TABLE Entities (
   RegSID     VARCHAR(64) NOT NULL,
   Type       BIGINT NOT NULL,
   Plural     VARCHAR(64) NOT NULL,
@@ -371,7 +371,7 @@ CREATE TABLE FullEntities (
 
   # eSID is already globally unique (NewUUID()), so it alone can be the
   # PK - RegSID would be redundant there. RegSID is kept as its own
-  # index so RegistryTrigger's bulk "DELETE FROM FullEntities WHERE
+  # index so RegistryTrigger's bulk "DELETE FROM Entities WHERE
   # RegSID=..." stays fast. ParentSID is also a real (globally unique)
   # SID, so it needs no RegSID qualifier either. Path is NOT globally
   # unique (only unique per-Registry), so RegSID must stay paired with
@@ -384,7 +384,7 @@ CREATE TABLE FullEntities (
 
 # These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/
 # defaultVID whenever the corresponding OWN (non-cascaded, non-
-# calculated) property row is written/removed on FullTreeTable, which
+# calculated) property row is written/removed on Props, which
 # is the sole authoritative store for entity properties now (see
 # fulltree.go) - those DB columns are relied on throughout the codebase
 # (ancestor-chain resolution, xref detection, default-version lookups)
@@ -394,7 +394,7 @@ CREATE TABLE FullEntities (
 # Resource doesn't exist yet (or existed, was deleted, and later gets
 # recreated) - every consumer joins against Resources.Path live, at
 # query time, instead of relying on a point-in-time-resolved SID.
-CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON FullTreeTable
+CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON Props
 FOR EACH ROW
 BEGIN
     IF (NEW.Type=$ENTITY_VERSION AND NEW.IsDefaultVerCopy=false AND
@@ -423,7 +423,7 @@ BEGIN
     END IF $$
 END ;
 
-CREATE TRIGGER FullTreeXref BEFORE DELETE ON FullTreeTable
+CREATE TRIGGER FullTreeXref BEFORE DELETE ON Props
 FOR EACH ROW
 BEGIN
     # See ResourcesTrigger's comment: swallow error 1442 from the
@@ -455,9 +455,9 @@ BEGIN
 END ;
 
 CREATE VIEW Leaves AS
-SELECT eSID FROM FullEntities
+SELECT eSID FROM Entities
 WHERE eSID NOT IN (
-    SELECT DISTINCT ParentSID FROM FullEntities WHERE ParentSID IS NOT NULL
+    SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
 
 # Find all of the versions of a resource. Users of this should order
@@ -520,6 +520,6 @@ SELECT
     p.PropName,
     p.PropValue,
     p.PropType
-FROM FullTreeTable as p
-JOIN FullEntities as e ON (e.eSID=p.eSID)
+FROM Props as p
+JOIN Entities as e ON (e.eSID=p.eSID)
 ORDER by Path ;

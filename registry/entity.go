@@ -13,7 +13,7 @@ import (
 )
 
 // dbPropRow holds the per-property info needed to write (or delete) an
-// own-property FullTreeTable row - see prepDBProperty()/
+// own-property Props row - see prepDBProperty()/
 // SetDBProperty()/SetDBPropertyBatch()/DoDBPropertyBatch() below. Kept
 // as a struct (rather than individual values) so it's easy to add more
 // per-row info later without reshuffling every call site. Value==nil
@@ -29,7 +29,7 @@ type EntityExtensions struct {
 	tx         *Tx
 	AccessMode int // FOR_READ, FOR_WRITE
 
-	// dbPropBatch buffers own-property FullTreeTable row info during
+	// dbPropBatch buffers own-property Props row info during
 	// Save()'s traversal (see SetDBPropertyBatch()/DoDBPropertyBatch()
 	// below) so they can be written as a single multi-row REPLACE INTO
 	// instead of one round trip per property.
@@ -321,8 +321,8 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             p.PropValue as PropValue,
             p.PropType as PropType,
             p.IsSystemProp as IsSystemProp
-        FROM FullEntities AS e
-        LEFT JOIN FullTreeTable AS p ON (
+        FROM Entities AS e
+        LEFT JOIN Props AS p ON (
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
@@ -404,8 +404,8 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             p.PropValue as PropValue,
             p.PropType as PropType,
             p.IsSystemProp as IsSystemProp
-        FROM FullEntities AS e
-        LEFT JOIN FullTreeTable AS p ON (
+        FROM Entities AS e
+        LEFT JOIN Props AS p ON (
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
@@ -457,7 +457,7 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 
 	results := Query(e.tx, `
         SELECT PropName, PropValue, PropType, IsSystemProp
-        FROM FullTreeTable
+        FROM Props
         WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
               AND IsXrefVerCopy=false AND IsCalcStatic=false
               AND IsCalcDynamic=false`+mode, e.DbSID)
@@ -672,13 +672,13 @@ func (e *Entity) SetPP(pp *PropPath, val any) *XRError {
 // This will save a single property/value in the DB. This assumes
 // the caller is traversing the Object and splitting it into individual props
 // prepDBProperty validates and converts val into the form needed to
-// write (or delete) an own-property FullTreeTable row for pp, shared by
+// write (or delete) an own-property Props row for pp, shared by
 // SetDBProperty() (immediate single-row write) and
 // SetDBPropertyBatch() (buffered, for Save()'s traversal loop - see
 // DoDBPropertyBatch()). Returns skip=true if nothing further needs to
 // be written (e.g. dontStore props, or the RESOURCE-content special
 // case, which is written directly to ResourceContents here and never
-// touches FullTreeTable).
+// touches Props).
 func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
 	skip bool, xErr *XRError) {
 
@@ -797,7 +797,7 @@ func (e *Entity) prepDBProperty(pp *PropPath, val any) (row dbPropRow,
 
 // EnumValueToDBString encodes a single constraint "enum" value the
 // same way prepDBProperty() (above) encodes a real attribute value
-// before writing it to FullTreeTable.PropValue (booleans as
+// before writing it to Props.PropValue (booleans as
 // "true"/"false", everything else via fmt.Sprintf("%v", v)) - used by
 // Group.validateEnum() to build a SQL-comparable string for each enum
 // entry.
@@ -823,12 +823,12 @@ func (e *Entity) SetDBProperty(pp *PropPath, val any) *XRError {
 		return nil
 	}
 
-	e.FullTreeWriteOwnProp(row.Name, row.Value, row.Type, row.DocView)
+	e.DBWriteOwnProp(row.Name, row.Value, row.Type, row.DocView)
 	return nil
 }
 
 // SetDBPropertyBatch is like SetDBProperty() but, instead of writing
-// the property's FullTreeTable row immediately, buffers it into
+// the property's Props row immediately, buffers it into
 // e.dbPropBatch for a later single multi-row REPLACE INTO via
 // DoDBPropertyBatch() - see Save()'s traversal loop, the only caller.
 // The nil/delete case is a no-op here: Save() already issues one
@@ -859,7 +859,7 @@ const dbPropBatchChunkSize = 200
 
 // DoDBPropertyBatch flushes whatever SetDBPropertyBatch() has buffered
 // into e.dbPropBatch (if anything) as one or more multi-row
-// REPLACE INTO FullTreeTable statements (see fullTreeWritePropsBatch()
+// REPLACE INTO Props statements (see DBWritePropsBatch()
 // in fulltree.go), then clears the buffer. Called once by Save(),
 // right after its traversal loop finishes.
 func (e *Entity) DoDBPropertyBatch() {
@@ -870,7 +870,7 @@ func (e *Entity) DoDBPropertyBatch() {
 	rows := e.dbPropBatch
 	e.dbPropBatch = nil
 
-	e.fullTreeWritePropsBatch(rows, false)
+	e.DBWritePropsBatch(rows, false)
 }
 
 // Clears system prop(s) for all versions of this resource. Accepts
@@ -897,7 +897,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	PanicIf(!ok, "%s isn't a Resource", e.XID)
 
 	// Query the real Versions table directly (not r.GetVersions(),
-	// which reads from FullEntities and would also pick up synthetic
+	// which reads from Entities and would also pick up synthetic
 	// xref-copied version rows sharing this Resource's ParentSID).
 	results := Query(e.tx, `SELECT UID FROM Versions WHERE ResourceSID=?`,
 		r.DbSID)
@@ -921,11 +921,11 @@ func (e *Entity) ClearEntitySystemDBProperties() *XRError {
 	log.VPrintf(3, ">Enter: ClearEntitySystemDBProperties")
 	defer log.VPrintf(3, "<Exit ClearEntitySystemDBProperties")
 
-	Do(e.tx, `DELETE FROM FullTreeTable
+	Do(e.tx, `DELETE FROM Props
               WHERE RegSID=? AND eSID=? AND IsSystemProp=true`,
 		e.Registry.DbSID, e.DbSID)
 
-	e.FullTreeResyncOwnProps()
+	e.ResyncOwnProps()
 
 	return nil
 }
@@ -1026,7 +1026,7 @@ func (e *Entity) EnsureNewSystem() {
 }
 
 // This is used to take a DB entry and update the current Entity's Object
-// SetFromDBName parses one FullTreeTable row's PropValue/PropType and
+// SetFromDBName parses one Props row's PropValue/PropType and
 // applies it into e.Object (own/calculated/cascaded props) or e.System
 // (system props, isSystem=true) - the row-processing loop is otherwise
 // identical for both, but system props go into their own bucket (see
@@ -2235,7 +2235,7 @@ func (e *Entity) Save() *XRError {
 
 	// Delete all user props for this entity, we assume that NewObject
 	// contains everything we want going forward
-	Do(e.tx, `DELETE FROM FullTreeTable
+	Do(e.tx, `DELETE FROM Props
               WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
                     AND IsXrefVerCopy=false AND IsSystemProp=false
                     AND IsCalcStatic=false AND IsCalcDynamic=false`,
@@ -2351,7 +2351,7 @@ func (e *Entity) Save() *XRError {
 	}
 	e.NewObject = nil
 
-	e.FullSave()
+	e.VersionMetaPostSave()
 
 	return nil
 }
@@ -3482,4 +3482,614 @@ func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
 	}
 
 	return attr.Enum, isStrict
+}
+
+// ---- Moved from fulltree.go: incremental Props/Entities population ----
+//
+// This file implements the incremental population of the
+// Props/Entities tables described in sql.md. These tables
+// are now the sole, authoritative store for entity properties (own,
+// system, calculated, and cascaded/copied) - the old FullTree/Entities
+// views and Props table are no longer read from or written to anywhere
+// in the codebase (phase 2 of the sql.md migration). Every entity-
+// creation site (Registry/Group/Resource/Meta/Version) calls
+// EntityInsert() alongside its "real" table INSERT. Plain user-set
+// properties are written directly by Entity.SetDBProperty() (called
+// per-property during Save()'s NewObject traversal) and system-managed
+// ones by Entity.SetSystemDBProperty()/SyncSystemProp(); VersionMetaPostSave(),
+// called once at the very end of Save(), only needs to (re)compute
+// this entity's calculated singleton attributes (xid, isdefault,
+// RESOURCEid) and run whichever cascades are relevant given the
+// entity's type (default-version-copy, xref prop/version-copy).
+
+// EntityInsert adds a row to Entities for a newly-created
+// Registry/Group/Resource/Meta/Version - called from the same places
+// that insert into the corresponding "real" entity table, right after
+// e's fields (DbSID, ParentSID, etc.) have been populated. It also
+// writes e's write-once calculated ("IsCalcStatic") attributes here,
+// since they're provably immutable for the rest of this entity's
+// lifetime (see SaveCalcStaticInsert()'s doc comment) - so unlike
+// VersionMetaPostSave(), which runs on every Save(), this only ever runs once,
+// at creation.
+func (e *Entity) EntityInsert() {
+	defer log.Trace("FullTree", e.XID)()
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	// e.DbSID is always freshly generated for a brand-new entity, so
+	// this REPLACE always inserts (never replaces) exactly 1 row.
+	DoOne(e.tx, `
+        REPLACE INTO Entities(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
+            Abstract, Path, IsXrefVerCopy)
+        VALUES(?,?,?,?,?,?,?,?,?,false)`,
+		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
+		e.UID, e.Abstract, e.Path)
+
+	e.SaveCalcStaticInsert()
+}
+
+// DBWriteProp is the low-level writer for a single own
+// (non-cascaded, non-calculated) Props row. Deleting
+// (propValue==nil) removes the row; otherwise it's REPLACEd with the
+// new value. isSystem marks whether this is a plain user-set prop
+// (SetDBProperty, false) or a system-managed one (SetSystemDBProperty,
+// true). Never touches cascaded (IsDefaultVerCopy/IsXrefPropCopy/
+// IsXrefVerCopy) or calculated (IsCalcStatic/IsCalcDynamic - see
+// SaveCalcStaticInsert()/SaveVersionCalc()) rows - those are
+// always written by their own dedicated code paths, never through
+// here. Versions.AncestorID/CreatedAt and Metas.xRefPath/defaultVID are
+// kept in sync by the FullTreeAncestor/FullTreeXref DB triggers
+// (init.sql) whenever the corresponding own row is written/removed
+// here.
+func (e *Entity) DBWriteProp(name string, propValue *string,
+	propType string, docView bool, isSystem bool) {
+
+	// defer log.Trace("FullTree", "%s/%s", e.Path, name)()
+
+	if propValue == nil {
+		// The prop row may or may not exist yet (e.g. deleting a prop
+		// that was never set), so 0 or 1 rows is valid.
+		DoZeroOne(e.tx, `
+            DELETE FROM Props
+            WHERE eSID=? AND PropName=? AND IsDefaultVerCopy=false
+                  AND IsXrefPropCopy=false AND IsXrefVerCopy=false`,
+			e.DbSID, name)
+		return
+	}
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	// REPLACE reports 1 row if this (eSID,PropName) is new, 2 if it
+	// replaced an existing row.
+	DoOneTwo(e.tx, `
+        REPLACE INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsSystemProp, IsCalcStatic, IsCalcDynamic)
+        VALUES(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, ?,false,false)`,
+		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
+		e.UID, e.Path, name, *propValue, propType, e.Abstract, docView,
+		isSystem)
+}
+
+// DBWritePropsBatch writes multiple own/system Props rows
+// for e in as few REPLACE INTO statements as possible, chunked at
+// dbPropBatchChunkSize rows/statement as a max_allowed_packet safety
+// net. isSystem marks whether these rows are system-managed
+// (SaveSystemProps) or plain user-set (SetDBPropertyBatch/
+// DoDBPropertyBatch) - same meaning as DBWriteProp's isSystem
+// param, just batched across multiple rows in one statement instead of
+// one statement per row.
+func (e *Entity) DBWritePropsBatch(rows []dbPropRow, isSystem bool) {
+	if len(rows) == 0 {
+		return
+	}
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	isSystemStr := "false"
+	if isSystem {
+		isSystemStr = "true"
+	}
+	rowPlaceholder := "(?,?,?,?,?,?,?,?, ?,?,?,?,?, false,false,false, " +
+		isSystemStr + ",false,false)"
+
+	for len(rows) > 0 {
+		n := len(rows)
+		if n > dbPropBatchChunkSize {
+			n = dbPropBatchChunkSize
+		}
+		chunk := rows[:n]
+		rows = rows[n:]
+
+		placeholders := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)*13)
+		for i, row := range chunk {
+			placeholders[i] = rowPlaceholder
+			args = append(args,
+				e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+				e.DbSID, e.UID, e.Path,
+				row.Name, *row.Value, row.Type, e.Abstract, row.DocView)
+		}
+
+		Do(e.tx, `
+            REPLACE INTO Props(
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                PropName, PropValue, PropType, Abstract, DocView,
+                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+                IsSystemProp, IsCalcStatic, IsCalcDynamic)
+            VALUES `+strings.Join(placeholders, ","), args...)
+	}
+}
+
+// DBDeletePropsBatch deletes multiple own/system Props
+// rows for e (identified by DB PropName) in as few
+// "DELETE ... WHERE PropName IN (...)" statements as possible, chunked
+// the same way as DBWritePropsBatch. Matches DBWriteProp's
+// single-row delete filter (own rows only - never cascaded/copied
+// ones), regardless of isSystem, since own vs. system PropNames never
+// collide.
+func (e *Entity) DBDeletePropsBatch(names []string) {
+	if len(names) == 0 {
+		return
+	}
+
+	for len(names) > 0 {
+		n := len(names)
+		if n > dbPropBatchChunkSize {
+			n = dbPropBatchChunkSize
+		}
+		chunk := names[:n]
+		names = names[n:]
+
+		placeholders := make([]string, len(chunk))
+		args := make([]any, 0, len(chunk)+1)
+		args = append(args, e.DbSID)
+		for i, name := range chunk {
+			placeholders[i] = "?"
+			args = append(args, name)
+		}
+
+		Do(e.tx, `
+            DELETE FROM Props
+            WHERE eSID=? AND PropName IN (`+strings.Join(placeholders, ",")+`)
+                  AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+                  AND IsXrefVerCopy=false`, args...)
+	}
+}
+
+// DBWriteOwnProp writes (or deletes, if propValue is nil) a
+// plain user-set own property row for e - called by
+// Entity.SetDBProperty() as part of Save()'s per-property traversal.
+// Unlike SyncSystemProp, this never re-runs any cascade: Save()
+// already calls VersionMetaPostSave() once at the very end of the same Save()
+// call, which handles whatever cascade is relevant, so re-running it
+// here for every single property would be redundant, wasted work.
+func (e *Entity) DBWriteOwnProp(name string, propValue *string,
+	propType string, docView bool) {
+	e.DBWriteProp(name, propValue, propType, docView, false)
+}
+
+// SyncSystemProp keeps a single own (non-cascaded) Props row
+// in sync for a SYSTEM property that's written OUTSIDE of the normal
+// Save()/VersionMetaPostSave() flow. As of the System/NewSystem buffering split,
+// SetSystemDBProperty() no longer calls this directly (it buffers into
+// NewSystem instead - see SaveSystemProps()); this is kept as a small,
+// still-useful primitive for writing/deleting a single system-prop row
+// plus its cascade in one call, in case some future caller needs an
+// immediate (non-buffered) write.
+func (e *Entity) SyncSystemProp(name string, propValue *string,
+	propType string, docView bool) {
+
+	defer log.Trace("FullTree", "%s/%s", e.XID, name)()
+
+	e.DBWriteProp(name, propValue, propType, docView, true)
+
+	// If this is a Version, this prop change may also need to be
+	// reflected in the owning Resource's IsDefaultVerCopy set (if this
+	// Version happens to be the current default) - mark it for
+	// deferred (re-)validation (see Tx.AddResourceToValidate()) rather
+	// than running it immediately, since Save()'s own VersionMetaPostSave() already
+	// marked it once and this out-of-band write can just piggyback on
+	// that same deferred run.
+	if e.Type == ENTITY_VERSION {
+		v := e.Self.(*Version)
+		e.tx.AddResourceToValidate(v.Resource, true, false)
+	}
+}
+
+// SaveSystemProps flushes any system-prop changes buffered by
+// SetSystemDBProperty() (into e.NewSystem) since the last flush. It's
+// called once per cached entity at Tx-commit time (see
+// tx.WriteCache()) and is a no-op if nothing was buffered. It diffs
+// NewSystem against System so only props that actually changed get
+// written to the DB, and - unlike SyncSystemProp()'s old behavior of
+// re-running the default-version cascade on every single system-prop
+// write - runs that cascade AT MOST ONCE per flush, no matter how many
+// system props changed on this entity since the last flush. Deletes
+// and inserts are each batched into (at most, if chunked) one
+// statement via DBDeletePropsBatch()/DBWritePropsBatch(),
+// instead of one round trip per changed prop.
+func (e *Entity) SaveSystemProps() {
+	if e.NewSystem == nil {
+		return
+	}
+
+	defer log.Trace("FullTree", e.XID)()
+
+	newSystem := e.NewSystem
+	e.NewSystem = nil
+
+	changed := map[string]any{}
+	for name, newVal := range newSystem {
+		oldVal, existed := e.System[name]
+		if IsNil(newVal) {
+			if existed && !IsNil(oldVal) {
+				changed[name] = nil
+			}
+			continue
+		}
+		if !existed || !reflect.DeepEqual(oldVal, newVal) {
+			changed[name] = newVal
+		}
+	}
+
+	e.System = newSystem
+
+	if len(changed) == 0 {
+		return
+	}
+
+	_, propsMap := e.GetPropsOrdered()
+
+	// "name" here is the plain top-level attribute name (matching the
+	// key scheme used in e.System/e.NewSystem) - convert to the
+	// trailing-DB_IN-terminated DB PropName via pp.DB() before writing.
+	insertRows := make([]dbPropRow, 0, len(changed))
+	deleteNames := make([]string, 0, len(changed))
+
+	for name, val := range changed {
+		docView := true
+		if specProp, ok := propsMap[name]; ok && specProp.internals != nil &&
+			specProp.internals.noDocView {
+			docView = false
+		}
+		dbName := NewPPP(name).DB()
+
+		if IsNil(val) {
+			deleteNames = append(deleteNames, dbName)
+			continue
+		}
+
+		propType := GoToOurType(val)
+		dbVal := val
+		if propType == BOOLEAN {
+			if val == true {
+				dbVal = "true"
+			} else {
+				dbVal = "false"
+			}
+		}
+
+		switch reflect.ValueOf(val).Kind() {
+		case reflect.Slice, reflect.Map, reflect.Struct:
+			dbVal = ""
+		}
+
+		dbValStr := fmt.Sprintf("%v", dbVal)
+		insertRows = append(insertRows, dbPropRow{
+			Name: dbName, Value: &dbValStr, Type: propType, DocView: docView,
+		})
+	}
+
+	e.DBDeletePropsBatch(deleteNames)
+	e.DBWritePropsBatch(insertRows, true)
+
+	// Same idea as SyncSystemProp(): if e is a Version, mark the
+	// owning Resource for deferred (re-)validation
+	// (Tx.AddResourceToValidate()) so the Resource's mirrored props get
+	// refreshed once, no matter how many system props changed on this
+	// entity since the last flush.
+	if e.Type == ENTITY_VERSION {
+		if v, ok := e.Self.(*Version); ok {
+			e.tx.AddResourceToValidate(v.Resource, true, false)
+		}
+	}
+}
+
+// VersionMetaPostSave is called at the very end of Entity.Save(). Save()'s own
+// property traversal already wrote this entity's own (non-cascaded,
+// non-calculated) rows directly into Props via SetDBProperty()/
+// DBWriteOwnProp() as it walked NewObject, so VersionMetaPostSave() itself
+// only needs to (re)compute whichever of this entity's calculated
+// singleton attributes can actually change post-creation (just a
+// Version's own isdefault - see SaveVersionCalc()'s doc comment;
+// xid/Resource.isdefault/Version.RESOURCEid are write-once, handled by
+// EntityInsert()/SaveCalcStaticInsert() instead) and mark the
+// owning Resource for deferred (re-)validation - see
+// Tx.AddResourceToValidate()'s doc comment for why this is deferred
+// rather than run immediately here.
+//
+// SaveXrefCascade() (ENTITY_META) used to run eagerly right here,
+// but that's wrong: Resource.UpsertMeta()'s xref-setting path (registry/
+// resource.go) calls Version.JustDelete() in a loop to remove this
+// Resource's own real Versions BEFORE it's done processing, and
+// JustDelete() itself can trigger a Meta save (via Resource.Touch())
+// partway through that loop - i.e. while some of this Resource's own
+// real Version rows still exist in Props. Running the xref
+// cascade eagerly at that point built synthetic xref-version-copy rows
+// whose Path collided with those still-present real rows (same
+// PropName, same Path, different eSID - a Props PRIMARY KEY
+// violation). Deferring it via AddResourceToValidate()/
+// Resource.ValidateResource() instead means it only actually runs once,
+// at Registry.Validate() time (called from Tx.Validate()), which is
+// always after all of this Resource's own Version deletes for the
+// current request have completed.
+//
+// This relies on EntityInsert() having already been called (every
+// entity-creation site does so unconditionally alongside its "real"
+// table INSERT - see EntityInsert's doc comment), so there's no
+// need to re-verify the Entities row exists here.
+func (e *Entity) VersionMetaPostSave() {
+	defer log.Trace("FullTree", "%s", e.XID)()
+
+	switch e.Type {
+	case ENTITY_VERSION:
+		e.SaveVersionCalc()
+		v := e.Self.(*Version)
+		// onlyMetaChanged=false: this fires for ANY Version save,
+		// including real content/ancestor changes (e.g. WillDelete()'s
+		// ancestorid relinking), which need the full CheckAncestors()/
+		// EnsureMaxVersions()/etc. checks - not just the meta-only
+		// subset - before EnsureLatest() can correctly determine the
+		// new "newest" Version.
+		e.tx.AddResourceToValidate(v.Resource, false, false)
+
+	case ENTITY_META:
+		meta := e.Self.(*Meta)
+		e.tx.AddResourceToValidate(meta.Resource, true, false)
+	}
+}
+
+// SaveCalcStaticInsert writes e's write-once calculated attributes:
+// xid (every entity type), Resource.isdefault (always "true" - per the
+// old AllProps view, a Resource always shows the props of whichever
+// Version is its default), and Version.RESOURCEid (e.g. "fileid",
+// pointing at the owning Resource's UID). None of these can ever
+// change after creation: an entity's UID/Path is immutable (no rename
+// API - reusing an existing ID just errors instead of renaming), a
+// Resource's isdefault is a hardcoded constant, and a Version's owning
+// Resource never changes. So, unlike the genuinely-dynamic
+// Version.isdefault (see SaveVersionCalc()), these only need to be
+// computed once - here, called from EntityInsert() right after
+// creation - and are never touched again by VersionMetaPostSave(). Marked
+// IsCalcStatic=true so later reads/cascades can identify them and,
+// e.g., exclude them when copying an entity's "real" props elsewhere.
+func (e *Entity) SaveCalcStaticInsert() {
+	defer log.Trace("FullTree", e.Path)()
+
+	var parentArg any
+	if e.ParentSID != "" {
+		parentArg = e.ParentSID
+	}
+
+	// xid - every entity type. Plain single-row INSERT, always exactly
+	// 1 (this is called once, at creation, on a brand-new eSID).
+	DoOne(e.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsCalcStatic, IsCalcDynamic)
+        VALUES(?,?,?,?,?,?,?,?, ?, ?, 'string', ?, true,
+               false, false, false, true, false)`,
+		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
+		e.UID, e.Path, "xid"+string(DB_IN), "/"+e.Path, e.Abstract)
+
+	switch e.Type {
+	case ENTITY_RESOURCE:
+		// e is always a real, in-memory Resource, which always has a
+		// parent Group, so e.ParentSID is never empty here.
+		DoOne(e.tx, `
+            INSERT INTO Props(
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                PropName, PropValue, PropType, Abstract, DocView,
+                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+                IsCalcStatic, IsCalcDynamic)
+            VALUES(?,?,?,?,?,?,?,?, ?, 'true', 'boolean', ?, false,
+                   false, false, false, true, false)`,
+			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+			e.DbSID, e.UID, e.Path, "isdefault"+string(DB_IN), e.Abstract)
+
+	case ENTITY_VERSION:
+		// e is always a real, in-memory Version, which always has a
+		// parent Resource, so e.ParentSID is never empty here. The
+		// owning Resource is guaranteed to already exist (e was just
+		// created as one of its Versions), so this always inserts
+		// exactly 1 row.
+		DoOne(e.tx, `
+            INSERT INTO Props(
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                PropName, PropValue, PropType, Abstract, DocView,
+                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+                IsCalcStatic, IsCalcDynamic)
+            SELECT ?,?,?,?,?,?,?,?, CONCAT(r.Singular,?), r.UID, 'string', ?,
+                   true, false, false, false, true, false
+            FROM Resources AS r WHERE r.SID=?`,
+			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
+			e.DbSID, e.UID, e.Path, "id"+string(DB_IN), e.Abstract,
+			e.ParentSID)
+	}
+}
+
+// ResyncOwnProps re-derives e's calculated Props rows
+// that can actually change post-creation. Used by code that clears
+// system props directly, outside of Save()/VersionMetaPostSave() (e.g.
+// ClearResourceSystemDBProperty, ClearEntitySystemDBProperties). e is
+// assumed to already have gone through at least one EntityInsert()
+// (so its write-once xid/isdefault/RESOURCEid rows already exist and
+// never need re-deriving here). If e is a Version, re-adds its
+// calculated (dynamic) isdefault row, and refreshes the owning
+// Resource's IsDefaultVerCopy set in case this Version is the current
+// default (Save()'s own cascade already ran before this out-of-band
+// write happened, so it won't run again).
+func (e *Entity) ResyncOwnProps() {
+	defer log.Trace("FullTree", e.XID)()
+
+	if e.Type == ENTITY_VERSION {
+		e.SaveVersionCalc()
+		v := e.Self.(*Version)
+		e.tx.AddResourceToValidate(v.Resource, true, false)
+	}
+}
+
+// SaveVersionCalc (re)computes the calculated 'isdefault' attribute
+// for a (real, non-xref-synthetic) Version - the only Version-level
+// calculated value that can actually change post-creation (xid and
+// RESOURCEid are write-once - see SaveCalcStaticInsert(), called
+// once from EntityInsert() instead). e is always the real,
+// in-memory Entity (never just a SID/raw row) - either the one Save()
+// is currently running for, or the one ResyncOwnProps() is
+// resyncing out-of-band.
+func (e *Entity) SaveVersionCalc() {
+	defer log.Trace("FullTree", e.Path)()
+
+	// Own scoped delete (rather than relying on some shared blanket
+	// delete having already run) since this is the only calculated
+	// value left that needs recomputing on every relevant Save(). At
+	// most 1 IsCalcDynamic row ever exists per Version (the isdefault
+	// row inserted below); 0 if this is the first time this func runs
+	// for this Version.
+	DoZeroOne(e.tx, `DELETE FROM Props WHERE eSID=? AND IsCalcDynamic=true`,
+		e.DbSID)
+
+	// isdefault - true only if this Version is the owning Resource's
+	// current default (via its Meta.defaultVID), or - for a Resource
+	// with no defaultVID set but which is itself an xref source - if
+	// it matches the xref target's default. In the common non-xref
+	// case this just checks m.defaultVID. The owning Resource's Meta
+	// is guaranteed to exist, so this always inserts exactly 1 row.
+	DoOne(e.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsCalcStatic, IsCalcDynamic)
+        SELECT ?,?,?,?,?,?,?,?, ?,
+               IF(m.defaultVID IS NOT NULL AND ?=m.defaultVID, 'true', 'false'),
+               'boolean', ?, true, false, false, false, false, true
+        FROM Metas AS m WHERE m.ResourceSID=?`,
+		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
+		e.UID, e.Path, "isdefault"+string(DB_IN), e.UID, e.Abstract,
+		e.ParentSID)
+}
+
+// SaveXrefCascade refreshes the IsXrefPropCopy (this Meta's own
+// copied meta.* attrs) and IsXrefVerCopy (synthetic Version rows) sets
+// for a source Meta entity whose xref may have just been set, changed,
+// or cleared.
+// SaveXrefCascade refreshes the IsXrefPropCopy (this Meta's own
+// copied meta.* attrs) and IsXrefVerCopy (synthetic Version rows) sets
+// for a source Meta entity (e) whose xref may have just been set,
+// changed, or cleared. e is always the real, in-memory Meta - either
+// the one Save() is currently running for, or (via xref fan-out) one
+// resolved through Registry.FindResourceBySID()+FindMeta() rather than
+// a raw row.
+func (e *Entity) SaveXrefCascade() {
+	defer log.Trace("FullTree", e.Path)()
+
+	e.SaveXrefCascadeDelete()
+	e.SaveXrefCascadeInsert()
+}
+
+// SaveXrefCascadeDelete clears this Meta's stale IsXrefPropCopy
+// rows and its Resource's stale IsXrefVerCopy rows, from whatever the
+// PREVIOUS xref state was. Split out from SaveXrefCascadeInsert so
+// VersionMetaPostSave() can run ALL deletes (this plus fullSaveOwnPropsDelete)
+// before either insert runs - see VersionMetaPostSave()'s ENTITY_META handling.
+func (e *Entity) SaveXrefCascadeDelete() {
+	// e is always a real, in-memory Meta, which always has a parent
+	// Resource, so e.ParentSID is never empty here.
+	Do(e.tx, `DELETE FROM Props WHERE eSID=? AND IsXrefPropCopy=true`,
+		e.DbSID)
+	Do(e.tx, `
+        DELETE FROM Props
+        WHERE RegSID=? AND ParentSID=? AND IsXrefVerCopy=true`,
+		e.Registry.DbSID, e.ParentSID)
+	Do(e.tx, `
+        DELETE FROM Entities
+        WHERE RegSID=? AND ParentSID=? AND IsXrefVerCopy=true`,
+		e.Registry.DbSID, e.ParentSID)
+}
+
+// SaveXrefCascadeInsert (re)inserts this Meta's IsXrefPropCopy and
+// IsXrefVerCopy rows based on the CURRENT xref state. Assumes
+// SaveXrefCascadeDelete (and, for the own-props exclusion to work
+// correctly, fullSaveOwnPropsDelete) have already run.
+func (e *Entity) SaveXrefCascadeInsert() {
+	results := Query(e.tx, `
+        SELECT xRefPath FROM Metas WHERE SID=?`, e.DbSID)
+	row := results.NextRow()
+	results.Close()
+	if row == nil || NotNilString(row[0]) == "" {
+		return
+	}
+	xRefPath := NotNilString(row[0])
+
+	// Resolve the target live, by RegistrySID+Path (Path alone isn't
+	// unique across the whole DB, only within one Registry) - never by
+	// a cached SID, so this always reflects reality even if the
+	// target didn't exist (or existed under a different SID) the last
+	// time this ran.
+	tResults := Query(e.tx, `
+        SELECT m.SID, m.ResourceSID, r.Singular FROM Resources AS r
+        JOIN Metas AS m ON (m.ResourceSID=r.SID)
+        WHERE r.RegistrySID=? AND r.Path=?`, e.Registry.DbSID, xRefPath)
+	tRow := tResults.NextRow()
+	tResults.Close()
+	if tRow == nil {
+		return
+	}
+	targetMetaSID := NotNilString(tRow[0])
+	targetResourceSID := NotNilString(tRow[1])
+	targetSingular := NotNilString(tRow[2])
+
+	// e is always the real Meta entity, so its owning Resource is
+	// directly accessible via e.Self.(*Meta).Resource - no need to
+	// look it up as a "parent" entity at all. e always has a parent
+	// Resource, so e.ParentSID is never empty here.
+	resource := e.Self.(*Meta).Resource
+
+	// Copy the target's meta.* props into this (source) Meta, excluding
+	// its own xref and "<singular>id" attrs, and any '#' internal props.
+	Do(e.tx, `
+        REPLACE INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
+        SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
+               false, true, false
+        FROM Props
+        WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+              AND IsXrefVerCopy=false AND IsCalcStatic=false
+              AND IsCalcDynamic=false
+              AND PropName NOT IN (?, ?) AND LEFT(PropName,1)<>'#'`,
+		e.Registry.DbSID, e.Type, e.Plural, e.Singular, e.ParentSID, e.DbSID,
+		e.UID, e.Path, e.Abstract, targetMetaSID,
+		"xref"+string(DB_IN), targetSingular+"id"+string(DB_IN))
+
+	if resource != nil {
+		resource.SaveXrefVersionCopies(targetResourceSID)
+	}
 }

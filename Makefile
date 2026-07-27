@@ -55,11 +55,11 @@ errors: .errors
 	@touch .errors
 
 xrlint: .xrlint
-.xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/*
+.xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/* tests/*
 	@echo
 	@echo "# Running xrlink looking for source issues"
-	@misc/errOutput @go run ./cmds/xrlint ./registry/... ./common/... \
-		./cmds/...
+	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
+		./common/... ./cmds/... ./tests/...
 	@touch .xrlint
 
 utest: .utest

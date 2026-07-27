@@ -158,7 +158,7 @@ type Tx struct {
 	// Resources (keyed by DbSID) that need Resource.ValidateResource()
 	// (re-)run before this Tx's results are visible - including their
 	// default-version-copy cascade and xref fan-out.
-	// Entity.FullSave()/FullTreeSyncProp()/SaveSystemProps() mark a
+	// Entity.VersionMetaPostSave()/SyncSystemProp()/SaveSystemProps() mark a
 	// Resource here (see AddResourceToValidate()) instead of running
 	// the (potentially expensive) validation immediately every time a
 	// Version/Meta belonging to it is saved - which used to happen
@@ -184,12 +184,12 @@ type Tx struct {
 	// Tx's call stack. Saves made DURING that call (e.g.
 	// EnsureLatest()'s meta.SetSave("defaultversionid", ...)) can
 	// re-add the same Resource to ResourcesToValidate above via the
-	// normal Entity.FullSave() path, even though the in-progress call
+	// normal Entity.VersionMetaPostSave() path, even though the in-progress call
 	// will itself account for that change before it returns (via its
 	// own end-of-call runCascade()). Without this guard, a lazy-resolve
 	// call site (e.g. GetDefault()'s ResolvePendingValidation(), called
 	// from deep inside that same in-progress ValidateResource() via
-	// runCascade()->fullSaveDefaultVerCascade()) would see that fresh
+	// runCascade()->SaveDefaultVersionCascade()) would see that fresh
 	// mark and recursively re-run ValidateResource() (and its own
 	// runCascade()) a second time before the outer call even finishes -
 	// pure duplicated work, not a correctness fix (the in-memory state

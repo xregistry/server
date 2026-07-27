@@ -567,7 +567,7 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 SELECT
   RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,PropName,
   PropValue,PropType,IsSystemProp
-FROM FullTreeTable WHERE RegSID=? AND `
+FROM Props WHERE RegSID=? AND `
 	args := []any{info.Registry.DbSID}
 
 	path := strings.Join(info.Parts, "/")
@@ -2028,7 +2028,7 @@ func HTTPDeleteGroups(info *RequestInfo) *XRError {
 		list = EpochEntryMap{}
 		results := Query(info.tx, `
 			SELECT UID
-			FROM FullEntities
+			FROM Entities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID, info.GroupType)
 
@@ -2093,7 +2093,7 @@ func HTTPDeleteResources(info *RequestInfo) *XRError {
 		list = EpochEntryMap{}
 		results := Query(info.tx, `
 			SELECT UID
-			FROM FullEntities
+			FROM Entities
 			WHERE RegSID=? AND Abstract=?`,
 			info.Registry.DbSID,
 			NewPPP(info.GroupType).P(info.ResourceType).Abstract())
@@ -2699,7 +2699,7 @@ func ProcessShortSelf(tx *Tx, req *http.Request) *XRError {
 
 	query := fmt.Sprintf(`
         SELECT r.UID, e.Path
-        FROM FullEntities AS e
+        FROM Entities AS e
         JOIN Registries AS r ON (r.SID = e.RegSID)
         WHERE e.eSID = ?`)
 

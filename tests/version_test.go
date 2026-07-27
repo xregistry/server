@@ -1273,3 +1273,142 @@ func TestVersionExtensions(t *testing.T) {
 `)
 
 }
+
+// Deleting the current (non-sticky) default Version must recompute the
+// default to the next-newest remaining Version.
+func TestCascadeDeferDeleteNonStickyDefault(t *testing.T) {
+	reg := NewRegistry("TestCascadeDeferDeleteNonStickyDefault")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+      "v1": {}, "v2": {}, "v3": {}
+    }`, 200, `*`)
+
+	// v3 is the newest so it's the (non-sticky) default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 1,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "readonly": false,
+
+  "defaultversionid": "v3",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+  "defaultversionsticky": false
+}
+`)
+
+	// Delete the current default with no ?setdefaultversionid - must
+	// fall back to the next-newest remaining Version (v2).
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v3", "", 204, "")
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+  "defaultversionsticky": false
+}
+`)
+}
+
+// Deleting the current STICKY default Version, with no explicit
+// ?setdefaultversionid, must un-stick and recompute the default to the
+// newest remaining Version (Resource.SetDefault(nil) path).
+func TestCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
+	reg := NewRegistry("TestCascadeDeferDeleteStickyDefaultUnsticks")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+      "v1": {}, "v2": {}, "v3": {}
+    }`, 200, `*`)
+
+	// Explicitly stick the default to the oldest Version
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":"v1","defaultversionsticky":true}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 2,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v1",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "defaultversionsticky": true
+}
+`)
+
+	// Delete the sticky default with no ?setdefaultversionid - must
+	// un-stick and pick the newest remaining Version (v3).
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v1", "", 204, "")
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v3",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+  "defaultversionsticky": false
+}
+`)
+}
+
+// Deleting the current sticky default Version WITH an explicit
+// ?setdefaultversionid must keep the result sticky and pointed at the
+// requested Version (Resource.SetDefault(nextVersion) path).
+func TestCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
+	reg := NewRegistry("TestCascadeDeferDeleteStickyDefaultExplicitNext")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	gm.AddResourceModel("files", "file", 0, true, false)
+
+	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
+      "v1": {}, "v2": {}, "v3": {}
+    }`, 200, `*`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
+		`{"defaultversionid":"v1","defaultversionsticky":true}`, 200, `*`)
+
+	// Delete the sticky default, explicitly choosing v2 as the new
+	// (still sticky) default.
+	XHTTP(t, reg, "DELETE",
+		"/dirs/d1/files/f1/versions/v1?setdefaultversionid=v2", "",
+		204, "")
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "YYYY-MM-DDTHH:MM:01Z",
+  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+  "defaultversionsticky": true
+}
+`)
+}

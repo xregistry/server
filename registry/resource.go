@@ -802,7 +802,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			meta.DbSID, r.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
 
-		meta.FullEntityInsert()
+		meta.EntityInsert()
 
 		if xErr := meta.JustSet(r.Singular+"id", r.UID); xErr != nil {
 			return nil, false, xErr
@@ -1131,7 +1131,7 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 			r.Group.Plural+"/"+r.Group.UID+"/"+r.Plural+"/"+r.UID+"/versions/"+v.UID,
 			r.Group.Plural+string(DB_IN)+r.Plural+string(DB_IN)+"versions")
 
-		v.FullEntityInsert()
+		v.EntityInsert()
 
 		v.tx.AddVersion(v)
 
@@ -1316,7 +1316,7 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 
 	// Query for any versions with document content in ResourceContents table
 	// or with singular/singularurl/singularproxyurl attributes in
-	// FullTreeTable. Note: PropName includes DB_IN delimiter at the end
+	// Props. Note: PropName includes DB_IN delimiter at the end
 	// (e.g., "fileurl,")
 	query := fmt.Sprintf(`
 		SELECT v.Path FROM Versions v
@@ -1327,7 +1327,7 @@ func (r *Resource) checkHasDocumentViolation() *XRError {
 				WHERE rc.VersionSID = v.SID
 			)
 			OR EXISTS (
-				SELECT 1 FROM FullTreeTable p
+				SELECT 1 FROM Props p
 				WHERE p.eSID = v.SID
 				AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
 				AND p.IsXrefVerCopy=false
@@ -1367,7 +1367,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// Registry.Validate() would redundantly run ValidateResource() for
 	// r again later in this same Tx (e.g. a Version/Meta save that
 	// happened as part of this very call already marked r via
-	// Entity.FullSave()). Also drop it from ResourcesValidatingBatch
+	// Entity.VersionMetaPostSave()). Also drop it from ResourcesValidatingBatch
 	// (if present) - see that field's doc comment - so any other
 	// xref source's runCascade() checking "is my target still pending
 	// in this batch" correctly sees that r's own validation (and its
@@ -1380,12 +1380,12 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// Mark r as "currently being validated" for the duration of this
 	// call (see Tx.ResourcesValidating's doc comment) so that any
 	// ResolvePendingValidation() call triggered from further down this
-	// same call stack (e.g. via runCascade()->fullSaveDefaultVerCascade()
+	// same call stack (e.g. via runCascade()->SaveDefaultVersionCascade()
 	// ->GetDefault()) no-ops instead of recursively re-running
 	// ValidateResource() for r. Also, on the way out, delete any mark
 	// this call's OWN body may have re-added to ResourcesToValidate
 	// (e.g. EnsureLatest()'s meta.SetSave("defaultversionid", ...) ->
-	// Entity.FullSave() -> AddResourceToValidate()) - this call is
+	// Entity.VersionMetaPostSave() -> AddResourceToValidate()) - this call is
 	// about to account for that change itself (via runCascade() below),
 	// so leaving that self-mark in place would cause a second, fully
 	// redundant ValidateResource() run later when Registry.Validate()
@@ -1511,7 +1511,7 @@ func (r *Resource) runCascade() {
 
 	// (Re)build r's own IsXrefPropCopy/IsXrefVerCopy rows first, in
 	// case r's own Meta.xref was just set/changed/cleared -
-	// fullSaveDefaultVerCascade (next) reads those synthetic Version
+	// SaveDefaultVersionCascade (next) reads those synthetic Version
 	// rows when r has no real Versions of its own (r is an xref
 	// source - see its "No real default Version" branch), so this
 	// must run before it. Only run the Delete/Insert halves that could
@@ -1522,7 +1522,7 @@ func (r *Resource) runCascade() {
 	newXref := meta.GetAsString("xref")
 	if oldXref != newXref {
 		if oldXref != "" {
-			meta.fullSaveXrefCascadeDelete()
+			meta.SaveXrefCascadeDelete()
 		}
 		if newXref != "" {
 			// This Registry now has at least one xref - flip the
@@ -1548,7 +1548,7 @@ func (r *Resource) runCascade() {
 			// comment), skip our own insert: the target's own
 			// runCascade(), whenever it runs (later in this same
 			// batch), unconditionally fans out to every current xref
-			// source via fullSaveXrefFanOutForTarget (which re-queries
+			// source via SaveXrefFanOutForTarget (which re-queries
 			// Metas.xRefPath fresh, so it'll pick us up), making our own
 			// insert here redundant work that would just get
 			// immediately rebuilt anyway.
@@ -1559,7 +1559,7 @@ func (r *Resource) runCascade() {
 				}
 			}
 			if !skipInsert {
-				meta.fullSaveXrefCascadeInsert()
+				meta.SaveXrefCascadeInsert()
 			}
 		}
 	}
@@ -1592,13 +1592,13 @@ func (r *Resource) runCascade() {
 					!reflect.DeepEqual(finalDefVer.OriginSystem, finalDefVer.System)))
 	}
 	if defaultVerCascadeNeeded {
-		r.fullSaveDefaultVerCascade()
+		r.SaveDefaultVersionCascade()
 	}
 
 	// Skip entirely if this Registry has never used xref - see
 	// init.sql's Registries.UsesXref comment for the full design.
 	if r.tx.Registry.UsesXref {
-		r.fullSaveXrefFanOutForTarget()
+		r.SaveXrefFanOutForTarget()
 	}
 }
 
@@ -1884,7 +1884,7 @@ func (m *Meta) Delete() *XRError {
 	log.VPrintf(3, ">Enter: Meta.Delete(%s)", m.UID)
 	defer log.VPrintf(3, "<Exit: Meta.Delete")
 
-	// FullTreeTable/FullEntities rows for this Meta are cleaned up by
+	// Props/Entities rows for this Meta are cleaned up by
 	// ResourcesTrigger (ParentSID=OLD.SID) when the owning Resource is
 	// deleted right after this.
 	DoOne(m.tx, `DELETE FROM Metas WHERE SID=?`, m.DbSID)
@@ -2367,8 +2367,8 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 		}
 
 		query := fmt.Sprintf(`
-            SELECT count(*),p.PropName,p.PropValue FROM FullEntities e
-            LEFT JOIN FullTreeTable AS p ON ( p.eSID=e.eSID AND p.PropName=?)
+            SELECT count(*),p.PropName,p.PropValue FROM Entities e
+            LEFT JOIN Props AS p ON ( p.eSID=e.eSID AND p.PropName=?)
             WHERE e.RegSID = ?  AND e.ParentSID = ?  AND e.Type = ?
             GROUP BY %s PropValue`, binary)
 
@@ -2403,3 +2403,306 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 
 	return nil
 }
+
+// ---- Moved from fulltree.go: Resource-level Props/Entities cascades ----
+// See entity.go's "Moved from fulltree.go" comment above EntityInsert()
+// for the overall Props/Entities incremental-population design.
+
+// SaveDefaultVersionCascade refreshes the IsDefaultVerCopy=true rows on
+// r so they mirror whatever Version is currently r's default. Called
+// whenever a Version is saved (in case it's the current default) or a
+// Meta is saved (in case meta.defaultversionid just changed). r is nil
+// if r is nil (no Resource to cascade) - a no-op in that case.
+//
+// r is the actual, strongly-typed *Resource (not just its SID) so we
+// can follow its own in-memory fields plus tx.GetMeta(r)/tx.GetVersion(
+// r,...) to find the current default Version's SID without any DB
+// round-trip whenever this transaction already has them loaded.
+func (r *Resource) SaveDefaultVersionCascade() {
+	if r == nil {
+		return
+	}
+
+	defer log.Trace("FullTree", r.XID)()
+
+	resourceSID := r.DbSID
+
+	Do(r.tx, `
+        DELETE FROM Props WHERE eSID=? AND IsDefaultVerCopy=true`,
+		resourceSID)
+
+	// The Resource (and its Meta) may have been deleted earlier in this
+	// same Tx after being marked for a cascade run (e.g. all of its
+	// Versions were deleted, which per business rules deletes the
+	// Resource itself). If so there's nothing left to cascade.
+	meta, xErr := r.FindMeta(false, FOR_READ)
+	Must(xErr)
+	if meta == nil {
+		return
+	}
+
+	// Grab the default version. If there is none defined yet then
+	// call EnsureLatest (if no xref) just so the processing continues.
+	// If the default version needs to change based on later processing,
+	// e.g. ancestor processing, then the a subsequent call to EnsureLatest
+	// in resource.ValidateResource() should fix it. And hopefully, this
+	// func will be called again to fix-up the default version props for
+	// the resource.
+	ver, xErr := r.GetDefault(FOR_READ)
+	Must(xErr)
+	if !r.IsXref() && ver == nil {
+		Must(r.EnsureLatest())
+		ver, xErr = r.GetDefault(FOR_READ)
+		Must(xErr)
+	}
+
+	if ver == nil {
+		// No real default Version - this Resource may be an xref
+		// source with no Versions of its own, in which case its
+		// "current default" is really the xref target's current
+		// default, copied in as a synthetic Version by
+		// SaveXrefVersionCopies(). Copy from THAT synthetic
+		// Props eSID instead of Props.
+		tResults := Query(r.tx, `
+            SELECT v.SID FROM Metas AS srcM
+            JOIN Resources AS tr ON (tr.RegistrySID=srcM.RegistrySID AND
+                                      tr.Path=srcM.xRefPath)
+            JOIN Metas AS m ON (m.ResourceSID=tr.SID)
+            JOIN Versions AS v ON (v.ResourceSID=m.ResourceSID AND
+                                    v.UID=m.defaultVID)
+            WHERE srcM.ResourceSID=?`, resourceSID)
+		tRow := tResults.NextRow()
+		tResults.Close()
+		if tRow == nil {
+			return
+		}
+		targetDefVerSID := NotNilString(tRow[0])
+		synthESID := fmt.Sprintf("-%s-%s", resourceSID, targetDefVerSID)
+
+		Do(r.tx, `
+            REPLACE INTO Props(
+                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+                PropName, PropValue, PropType, Abstract, DocView,
+                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
+            SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
+                   true, false, false
+            FROM Props WHERE eSID=? AND IsXrefVerCopy=true
+                  AND IsCalcStatic=false AND IsCalcDynamic=false`,
+			r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID,
+			r.DbSID, r.UID, r.Path, r.Abstract, synthESID)
+		return
+	}
+
+	Do(r.tx, `
+        REPLACE INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
+        SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
+               true, false, false
+        FROM Props
+        WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
+              AND IsXrefVerCopy=false AND IsCalcStatic=false
+              AND IsCalcDynamic=false`,
+		r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID, r.DbSID,
+		r.UID, r.Path, r.Abstract, ver.DbSID)
+
+	// Fix up isdefault on every one of this Resource's OWN Versions -
+	// they were each set based on their own state at their own last
+	// Save(), so if the default just moved to a different Version, the
+	// old default's row (and the new one's, if it wasn't the one that
+	// triggered this call) would otherwise go stale.
+	Do(r.tx, `
+        UPDATE Props AS ft
+        JOIN Versions AS v ON (v.SID=ft.eSID)
+        JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
+        SET ft.PropValue = IF(v.UID=m.defaultVID, 'true', 'false')
+        WHERE v.ResourceSID=? AND ft.PropName=?`,
+		resourceSID, "isdefault"+string(DB_IN))
+}
+
+// SaveXrefVersionCopies (re)creates the synthetic Entities/
+// Props Version rows for srcResource (a real, in-memory
+// *Resource - either e.Self.(*Meta).Resource in the direct-Save() case,
+// or one resolved via Registry.FindResourceBySID() in the xref fan-out
+// case)
+// that xrefs targetResourceSID, one set of rows per Version the target
+// currently has - all done via set-based SQL (no per-Version Go loop/
+// round-trip) by joining against Versions/Resources/Metas directly.
+// targetResourceSID is passed as a bare SID rather than a loaded
+// *Resource: it's only ever used inside SQL WHERE/JOIN clauses here,
+// never as a Go-level field access, so there's no need to pay for
+// loading/caching that entity just to extract its SID back out again.
+// The synthetic eSID for each target Version is deterministically
+// CONCAT('-', sourceResourceSID, '-', v.SID), matching the
+// "-<srcRSID>-<verSID>" convention.
+func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
+	if srcResource == nil {
+		return
+	}
+
+	defer log.Trace("FullTree", "%s,%s", srcResource.Path, targetResourceSID)()
+
+	sourceResourceSID := srcResource.DbSID
+	synthAbstract := srcResource.Abstract + string(DB_IN) + "versions"
+
+	// Idempotent: this is called both from SaveXrefCascadeInsert
+	// (which already cleared out ALL of this source's xref-version
+	// rows first) and directly from SaveXrefFanOutForTarget
+	// (which does not) - so clear out just the synthetic versions that
+	// correspond to the target's CURRENT version set before
+	// recreating them, or a second Save() of the same target Version
+	// would hit a duplicate-key error here.
+	Do(srcResource.tx, `
+        DELETE ft FROM Props AS ft
+        JOIN Versions AS v ON (ft.eSID=CONCAT('-', ?, '-', v.SID))
+        WHERE v.ResourceSID=?`, sourceResourceSID, targetResourceSID)
+	Do(srcResource.tx, `
+        DELETE fe FROM Entities AS fe
+        JOIN Versions AS v ON (fe.eSID=CONCAT('-', ?, '-', v.SID))
+        WHERE v.ResourceSID=?`, sourceResourceSID, targetResourceSID)
+
+	// One Entities row per target Version, all at once.
+	Do(srcResource.tx, `
+        REPLACE INTO Entities(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID,
+            Abstract, Path, IsXrefVerCopy)
+        SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID, ?,
+               CONCAT(?, '/versions/', v.UID), true
+        FROM Versions AS v WHERE v.ResourceSID=?`,
+		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
+		sourceResourceSID, sourceResourceSID, synthAbstract, srcResource.Path,
+		targetResourceSID)
+
+	// Copy each target Version's own props onto its corresponding
+	// synthetic eSID, for every current Version at once (excluding the
+	// target's own "xref" - Versions never have one, but kept for
+	// parity with the old per-row exclusion).
+	Do(srcResource.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy)
+        SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
+               CONCAT(?, '/versions/', v.UID),
+               ft.PropName, ft.PropValue, ft.PropType, ?, false,
+               false, false, true
+        FROM Versions AS v
+        JOIN Props AS ft ON (ft.eSID=v.SID)
+        WHERE v.ResourceSID=? AND ft.IsDefaultVerCopy=false
+              AND ft.IsXrefPropCopy=false AND ft.IsXrefVerCopy=false
+              AND ft.IsCalcStatic=false AND ft.IsCalcDynamic=false
+              AND ft.PropName<>?`,
+		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
+		sourceResourceSID, sourceResourceSID, srcResource.Path, synthAbstract,
+		targetResourceSID, "xref"+string(DB_IN))
+
+	// Calculated attrs for every synthetic version at once: xid and
+	// RESOURCEid (using the SOURCE resource's singular/UID, since
+	// that's every synthetic version's effective parent) are static -
+	// wholesale recreated here only because the whole synthetic-
+	// version set itself is being recreated (the xref pointer moved),
+	// not because they individually change; isdefault is genuinely
+	// dynamic (mirrors the target's own per-Version isdefault).
+	Do(srcResource.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsCalcStatic, IsCalcDynamic)
+        SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
+               CONCAT(?, '/versions/', v.UID),
+               ?, CONCAT('/', ?, '/versions/', v.UID), 'string', ?, false,
+               false, false, true, true, false
+        FROM Versions AS v WHERE v.ResourceSID=?`,
+		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
+		sourceResourceSID, sourceResourceSID, srcResource.Path,
+		"xid"+string(DB_IN), srcResource.Path, synthAbstract, targetResourceSID)
+
+	Do(srcResource.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsCalcStatic, IsCalcDynamic)
+        SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
+               CONCAT(?, '/versions/', v.UID),
+               CONCAT(r.Singular, ?), r.UID, 'string', ?, false,
+               false, false, true, true, false
+        FROM Versions AS v
+        JOIN Resources AS r ON (r.SID=?)
+        WHERE v.ResourceSID=?`,
+		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
+		sourceResourceSID, sourceResourceSID, srcResource.Path,
+		"id"+string(DB_IN), synthAbstract, sourceResourceSID,
+		targetResourceSID)
+
+	Do(srcResource.tx, `
+        INSERT INTO Props(
+            RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
+            PropName, PropValue, PropType, Abstract, DocView,
+            IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
+            IsCalcStatic, IsCalcDynamic)
+        SELECT ?, ?, ?, ?, ?, CONCAT('-', ?, '-', v.SID), v.UID,
+               CONCAT(?, '/versions/', v.UID),
+               ?, IF(m.defaultVID=v.UID, 'true', 'false'), 'boolean', ?,
+               false, false, false, true, false, true
+        FROM Versions AS v
+        JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
+        WHERE v.ResourceSID=?`,
+		srcResource.Registry.DbSID, ENTITY_VERSION, "versions", "version",
+		sourceResourceSID, sourceResourceSID, srcResource.Path,
+		"isdefault"+string(DB_IN), synthAbstract, targetResourceSID)
+}
+
+// SaveXrefFanOutForTarget re-runs SaveXrefCascade and the
+// synthetic-version-copy refresh for every OTHER source Resource that
+// xrefs r - used whenever either r's Meta or one of r's Versions
+// (something that makes r someone else's xref target) is saved. r is
+// the real, in-memory *Resource whose Meta/Version was just saved
+// (always available at the VersionMetaPostSave() call site as meta.Resource or
+// v.Resource). This combines what used to be two separate functions
+// (fullSaveXrefFanOutForTargetMeta/fullSaveXrefFanOutForTargetVersion)
+// - they were always called back-to-back from the same runCascade()
+// call site, each running its own copy of the identical "who xrefs me"
+// query and its own SaveDefaultVersionCascade(sourceResource) call, so
+// merging them halves both the query count and the redundant
+// per-source default-version cascade work. Each source discovered here
+// is resolved to its own real *Resource/*Meta via
+// Registry.FindResourceBySID()/FindMeta() (cache-checked, so repeat
+// fan-out hits for the same source within one Tx are free) rather than
+// a raw fullEntityLookup() row.
+func (r *Resource) SaveXrefFanOutForTarget() {
+	if r == nil {
+		return
+	}
+
+	defer log.Trace("FullTree", r.XID)()
+
+	results := Query(r.tx, `
+        SELECT ResourceSID FROM Metas WHERE RegistrySID=? AND xRefPath=?`,
+		r.Registry.DbSID, r.Path)
+	defer results.Close()
+
+	for row := results.NextRow(); row != nil; row = results.NextRow() {
+		sourceResourceSID := NotNilString(row[0])
+		sourceResource, xErr := r.tx.Registry.FindResourceBySID(
+			sourceResourceSID, FOR_WRITE)
+		if xErr != nil || sourceResource == nil {
+			continue
+		}
+		sourceMeta, xErr := sourceResource.FindMeta(false, FOR_WRITE)
+		if xErr != nil || sourceMeta == nil {
+			continue
+		}
+		sourceMeta.SaveXrefCascade()
+		sourceResource.SaveXrefVersionCopies(r.DbSID)
+		sourceResource.SaveDefaultVersionCascade()
+	}
+}
+
+// NOTE: cleaning up stale xref-source mirror rows when a target
+// Resource is deleted is handled entirely by ResourcesTrigger (see
+// init.sql) now, not here - that trigger fires uniformly for every
+// deletion path (direct Resource delete, whole-Group delete, whole-
+// Registry delete), so there's no Go-level call site to remember.
