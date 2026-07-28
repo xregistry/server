@@ -49,6 +49,15 @@ func TestMiscDBRows(t *testing.T) {
 }
 `)
 
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fy/meta",
+		`{"xref": "/dirs/d1/files/zz"}`, 201, `{
+  "fileid": "fy",
+  "self": "http://localhost:8181/dirs/d1/files/fy/meta",
+  "xid": "/dirs/d1/files/fy/meta",
+  "xref": "/dirs/d1/files/zz"
+}
+`)
+
 	strFn := func(v any) string {
 		vp := v.(*any)
 		return NotNilString(vp)
@@ -76,14 +85,13 @@ func TestMiscDBRows(t *testing.T) {
 	// - fx's #epoch is saved so we can calc the new epoch if xref is del'd
 	// - #nextversionid is what vID we should use on next system set vID
 	// - All entities need at least one Prop, so fx needs 'fileid'
-	XEqual(t, "", result,
-		`: createdat, -> YYYY-MM-DDTHH:MM:01Z
+	XEqual(t, "", result, `: createdat, -> YYYY-MM-DDTHH:MM:01Z
 : epoch, -> 2
 : modifiedat, -> YYYY-MM-DDTHH:MM:02Z
 : registryid, -> TestMiscDBRows
 dirs/d1: createdat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1: dirid, -> d1
-dirs/d1: epoch, -> 2
+dirs/d1: epoch, -> 3
 dirs/d1: modifiedat, -> YYYY-MM-DDTHH:MM:03Z
 dirs/d1/files/f1: fileid, -> f1
 dirs/d1/files/f1/meta: #nextversionid, -> 1
@@ -100,12 +108,106 @@ dirs/d1/files/f1/versions/v1: epoch, -> 1
 dirs/d1/files/f1/versions/v1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
 dirs/d1/files/f1/versions/v1: versionid, -> v1
 dirs/d1/files/fx: fileid, -> fx
-dirs/d1/files/fx/meta: #createdat, -> YYYY-MM-DDTHH:MM:03Z
+dirs/d1/files/fx/meta: #createdat, -> YYYY-MM-DDTHH:MM:04Z
 dirs/d1/files/fx/meta: #epoch, -> 1
 dirs/d1/files/fx/meta: #nextversionid, -> 2
 dirs/d1/files/fx/meta: fileid, -> fx
 dirs/d1/files/fx/meta: xref, -> /dirs/d1/files/f1
+dirs/d1/files/fy: fileid, -> fy
+dirs/d1/files/fy/meta: #createdat, -> YYYY-MM-DDTHH:MM:03Z
+dirs/d1/files/fy/meta: #epoch, -> 1
+dirs/d1/files/fy/meta: #nextversionid, -> 2
+dirs/d1/files/fy/meta: fileid, -> fy
+dirs/d1/files/fy/meta: xref, -> /dirs/d1/files/zz
 `)
+
+	// Same query but don't exclude the calculated attributes.
+	// We want to check EVERYTHING!
+	rows = reg.Query("SELECT Path,PropName,PropValue "+
+		"FROM Props WHERE RegSID=? ORDER BY Path, PropName ",
+		reg.DbSID)
+
+	result = ""
+	for _, row := range rows {
+		result += fmt.Sprintf("%s: %s -> %s\n",
+			strFn(row[0]), strFn(row[1]), strFn(row[2]))
+	}
+	result = MaskTimestamps(result)
+
+	XEqual(t, "", result,
+		`: createdat, -> YYYY-MM-DDTHH:MM:01Z
+: epoch, -> 2
+: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+: registryid, -> TestMiscDBRows
+: xid, -> /
+dirs/d1: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1: dirid, -> d1
+dirs/d1: epoch, -> 3
+dirs/d1: modifiedat, -> YYYY-MM-DDTHH:MM:03Z
+dirs/d1: xid, -> /dirs/d1
+dirs/d1/files/f1: ancestorid, -> v1
+dirs/d1/files/f1: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1: epoch, -> 1
+dirs/d1/files/f1: fileid, -> f1
+dirs/d1/files/f1: isdefault, -> true
+dirs/d1/files/f1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1: versionid, -> v1
+dirs/d1/files/f1: xid, -> /dirs/d1/files/f1
+dirs/d1/files/f1/meta: #nextversionid, -> 1
+dirs/d1/files/f1/meta: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1/meta: defaultversionid, -> v1
+dirs/d1/files/f1/meta: defaultversionsticky, -> false
+dirs/d1/files/f1/meta: epoch, -> 1
+dirs/d1/files/f1/meta: fileid, -> f1
+dirs/d1/files/f1/meta: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1/meta: readonly, -> false
+dirs/d1/files/f1/meta: xid, -> /dirs/d1/files/f1/meta
+dirs/d1/files/f1/versions/v1: ancestorid, -> v1
+dirs/d1/files/f1/versions/v1: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1/versions/v1: epoch, -> 1
+dirs/d1/files/f1/versions/v1: fileid, -> f1
+dirs/d1/files/f1/versions/v1: isdefault, -> true
+dirs/d1/files/f1/versions/v1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/f1/versions/v1: versionid, -> v1
+dirs/d1/files/f1/versions/v1: xid, -> /dirs/d1/files/f1/versions/v1
+dirs/d1/files/fx: ancestorid, -> v1
+dirs/d1/files/fx: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx: epoch, -> 1
+dirs/d1/files/fx: fileid, -> fx
+dirs/d1/files/fx: isdefault, -> true
+dirs/d1/files/fx: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx: versionid, -> v1
+dirs/d1/files/fx: xid, -> /dirs/d1/files/fx
+dirs/d1/files/fx/meta: #createdat, -> YYYY-MM-DDTHH:MM:04Z
+dirs/d1/files/fx/meta: #epoch, -> 1
+dirs/d1/files/fx/meta: #nextversionid, -> 2
+dirs/d1/files/fx/meta: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx/meta: defaultversionid, -> v1
+dirs/d1/files/fx/meta: defaultversionsticky, -> false
+dirs/d1/files/fx/meta: epoch, -> 1
+dirs/d1/files/fx/meta: fileid, -> fx
+dirs/d1/files/fx/meta: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx/meta: readonly, -> false
+dirs/d1/files/fx/meta: xid, -> /dirs/d1/files/fx/meta
+dirs/d1/files/fx/meta: xref, -> /dirs/d1/files/f1
+dirs/d1/files/fx/versions/v1: ancestorid, -> v1
+dirs/d1/files/fx/versions/v1: createdat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx/versions/v1: epoch, -> 1
+dirs/d1/files/fx/versions/v1: fileid, -> fx
+dirs/d1/files/fx/versions/v1: isdefault, -> true
+dirs/d1/files/fx/versions/v1: modifiedat, -> YYYY-MM-DDTHH:MM:02Z
+dirs/d1/files/fx/versions/v1: versionid, -> v1
+dirs/d1/files/fx/versions/v1: xid, -> /dirs/d1/files/fx/versions/v1
+dirs/d1/files/fy: fileid, -> fy
+dirs/d1/files/fy: xid, -> /dirs/d1/files/fy
+dirs/d1/files/fy/meta: #createdat, -> YYYY-MM-DDTHH:MM:03Z
+dirs/d1/files/fy/meta: #epoch, -> 1
+dirs/d1/files/fy/meta: #nextversionid, -> 2
+dirs/d1/files/fy/meta: fileid, -> fy
+dirs/d1/files/fy/meta: xid, -> /dirs/d1/files/fy/meta
+dirs/d1/files/fy/meta: xref, -> /dirs/d1/files/zz
+`)
+
 }
 
 func TestMiscCORS(t *testing.T) {

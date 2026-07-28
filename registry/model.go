@@ -137,7 +137,7 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			Do(m.Registry.tx,
+			DoOne(m.Registry.tx,
 				`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
                      Abstract, Plural, Singular)
@@ -151,7 +151,7 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				Do(m.Registry.tx,
+				DoOne(m.Registry.tx,
 					`INSERT INTO ModelEntities(
                              SID, RegistrySID, ParentSID,
                              Abstract, Plural, Singular)

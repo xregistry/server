@@ -2479,6 +2479,16 @@ func (r *Resource) SaveDefaultVersionCascade() {
 		targetDefVerSID := NotNilString(tRow[0])
 		synthESID := fmt.Sprintf("-%s-%s", resourceSID, targetDefVerSID)
 
+		// IsCalcDynamic isn't excluded here (unlike IsCalcStatic) so
+		// the synthetic version's own "isdefault" row (already
+		// correctly computed by SaveXrefVersionCopies(), since this
+		// synthESID always corresponds to the target's CURRENT
+		// default version) is copied in too - just like createdat/
+		// modifiedat, it's simply mirrored content, not a special
+		// case. If the xref is dangling (tRow == nil, above) nothing
+		// gets copied at all, so "isdefault" - along with every other
+		// mirrored attribute - is naturally absent, exactly like a
+		// Resource with no default Version at all.
 		Do(r.tx, `
             REPLACE INTO Props(
                 RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
@@ -2487,12 +2497,33 @@ func (r *Resource) SaveDefaultVersionCascade() {
             SELECT ?,?,?,?,?,?,?,?, PropName, PropValue, PropType, ?, false,
                    true, false, false
             FROM Props WHERE eSID=? AND IsXrefVerCopy=true
-                  AND IsCalcStatic=false AND IsCalcDynamic=false`,
+                  AND IsCalcStatic=false`,
 			r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID,
 			r.DbSID, r.UID, r.Path, r.Abstract, synthESID)
 		return
 	}
 
+	// Fix up isdefault on every one of this Resource's OWN Versions -
+	// they were each set based on their own state at their own last
+	// Save(), so if the default just moved to a different Version, the
+	// old default's row (and the new one's, if it wasn't the one that
+	// triggered this call) would otherwise go stale. This must run
+	// BEFORE the copy below, so ver's own "isdefault" row is already
+	// correct by the time it gets mirrored into the Resource.
+	Do(r.tx, `
+        UPDATE Props AS ft
+        JOIN Versions AS v ON (v.SID=ft.eSID)
+        JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
+        SET ft.PropValue = IF(v.UID=m.defaultVID, 'true', 'false')
+        WHERE v.ResourceSID=? AND ft.PropName=?`,
+		resourceSID, "isdefault"+string(DB_IN))
+
+	// IsCalcDynamic isn't excluded here (unlike IsCalcStatic) so ver's
+	// own "isdefault" row (just fixed up above) is mirrored into the
+	// Resource too - like createdat/modifiedat, it's just copied
+	// content, no special-casing needed. It's simply absent whenever
+	// there's no default Version to copy from at all (see the ver ==
+	// nil branch above).
 	Do(r.tx, `
         REPLACE INTO Props(
             RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
@@ -2502,23 +2533,9 @@ func (r *Resource) SaveDefaultVersionCascade() {
                true, false, false
         FROM Props
         WHERE eSID=? AND IsDefaultVerCopy=false AND IsXrefPropCopy=false
-              AND IsXrefVerCopy=false AND IsCalcStatic=false
-              AND IsCalcDynamic=false`,
+              AND IsXrefVerCopy=false AND IsCalcStatic=false`,
 		r.Registry.DbSID, r.Type, r.Plural, r.Singular, r.ParentSID, r.DbSID,
 		r.UID, r.Path, r.Abstract, ver.DbSID)
-
-	// Fix up isdefault on every one of this Resource's OWN Versions -
-	// they were each set based on their own state at their own last
-	// Save(), so if the default just moved to a different Version, the
-	// old default's row (and the new one's, if it wasn't the one that
-	// triggered this call) would otherwise go stale.
-	Do(r.tx, `
-        UPDATE Props AS ft
-        JOIN Versions AS v ON (v.SID=ft.eSID)
-        JOIN Metas AS m ON (m.ResourceSID=v.ResourceSID)
-        SET ft.PropValue = IF(v.UID=m.defaultVID, 'true', 'false')
-        WHERE v.ResourceSID=? AND ft.PropName=?`,
-		resourceSID, "isdefault"+string(DB_IN))
 }
 
 // SaveXrefVersionCopies (re)creates the synthetic Entities/

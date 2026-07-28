@@ -3863,19 +3863,19 @@ func (e *Entity) VersionMetaPostSave() {
 }
 
 // SaveCalcStaticInsert writes e's write-once calculated attributes:
-// xid (every entity type), Resource.isdefault (always "true" - per the
-// old AllProps view, a Resource always shows the props of whichever
-// Version is its default), and Version.RESOURCEid (e.g. "fileid",
-// pointing at the owning Resource's UID). None of these can ever
-// change after creation: an entity's UID/Path is immutable (no rename
-// API - reusing an existing ID just errors instead of renaming), a
-// Resource's isdefault is a hardcoded constant, and a Version's owning
-// Resource never changes. So, unlike the genuinely-dynamic
-// Version.isdefault (see SaveVersionCalc()), these only need to be
-// computed once - here, called from EntityInsert() right after
-// creation - and are never touched again by VersionMetaPostSave(). Marked
-// IsCalcStatic=true so later reads/cascades can identify them and,
-// e.g., exclude them when copying an entity's "real" props elsewhere.
+// xid (every entity type) and Version.RESOURCEid (e.g. "fileid",
+// pointing at the owning Resource's UID). Neither can ever change
+// after creation: an entity's UID/Path is immutable (no rename API -
+// reusing an existing ID just errors instead of renaming), and a
+// Version's owning Resource never changes. So, unlike the genuinely-
+// dynamic Version.isdefault (see SaveVersionCalc()) or a Resource's
+// own isdefault (simply mirrored in from its default Version by
+// SaveDefaultVersionCascade(), same as createdat/modifiedat - not a
+// calculated singleton at all), these only need to be computed once -
+// here, called from EntityInsert() right after creation - and are
+// never touched again by VersionMetaPostSave(). Marked IsCalcStatic=true
+// so later reads/cascades can identify them and, e.g., exclude them
+// when copying an entity's "real" props elsewhere.
 func (e *Entity) SaveCalcStaticInsert() {
 	defer log.Trace("FullTree", e.Path)()
 
@@ -3897,22 +3897,7 @@ func (e *Entity) SaveCalcStaticInsert() {
 		e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg, e.DbSID,
 		e.UID, e.Path, "xid"+string(DB_IN), "/"+e.Path, e.Abstract)
 
-	switch e.Type {
-	case ENTITY_RESOURCE:
-		// e is always a real, in-memory Resource, which always has a
-		// parent Group, so e.ParentSID is never empty here.
-		DoOne(e.tx, `
-            INSERT INTO Props(
-                RegSID, Type, Plural, Singular, ParentSID, eSID, UID, Path,
-                PropName, PropValue, PropType, Abstract, DocView,
-                IsDefaultVerCopy, IsXrefPropCopy, IsXrefVerCopy,
-                IsCalcStatic, IsCalcDynamic)
-            VALUES(?,?,?,?,?,?,?,?, ?, 'true', 'boolean', ?, false,
-                   false, false, false, true, false)`,
-			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
-			e.DbSID, e.UID, e.Path, "isdefault"+string(DB_IN), e.Abstract)
-
-	case ENTITY_VERSION:
+	if e.Type == ENTITY_VERSION {
 		// e is always a real, in-memory Version, which always has a
 		// parent Resource, so e.ParentSID is never empty here. The
 		// owning Resource is guaranteed to already exist (e was just

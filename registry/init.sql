@@ -331,16 +331,20 @@ CREATE TABLE Props (
   IsSystemProp     BOOL NOT NULL DEFAULT false, # Set via SetSystemDBProperty()
 
   # Calculated singleton attrs are split into two flags rather than one,
-  # since they behave very differently: "static" ones (xid, Resource's
-  # isdefault, a Version's RESOURCEid, e.g. "fileid") are provably
-  # immutable after entity creation (no rename API, a Version's owning
-  # Resource never changes) so they're written ONCE by
-  # FullEntityInsert()/fullSaveCalcStaticInsert() and never touched
-  # again. "dynamic" ones (a Version's own isdefault) genuinely change
-  # over time (as the Resource's default version pointer moves) so
-  # they're recomputed on every relevant Save() by fullSaveVersionCalc().
-  IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Resource.isdefault,
-                                                 # Version.RESOURCEid
+  # since they behave very differently: "static" ones (xid, a Version's
+  # RESOURCEid, e.g. "fileid") are provably immutable after entity
+  # creation (no rename API, a Version's owning Resource never
+  # changes) so they're written ONCE by EntityInsert()/
+  # SaveCalcStaticInsert() and never touched again. "dynamic" ones (a
+  # Version's own isdefault) genuinely change over time (as the
+  # Resource's default version pointer moves) so they're recomputed on
+  # every relevant Save() by SaveVersionCalc(). A Resource's own
+  # "isdefault" isn't a calculated singleton at all - it's simply
+  # mirrored in from its default Version (same IsDefaultVerCopy
+  # mechanism as createdat/modifiedat) by SaveDefaultVersionCascade(),
+  # so it's naturally absent whenever there's no default Version to
+  # copy from (e.g. a dangling xref).
+  IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Version.RESOURCEid
   IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
 
   PRIMARY KEY(RegSID, Path, PropName),

@@ -30,8 +30,16 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	err := Type2Error[daType]
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
-	TestPanicIf(subject != "" && !strings.HasPrefix(subject, "http") &&
-		subject[0] != '/', "start with / : %s", subject)
+	if subject != "" && !strings.HasPrefix(subject, "http") &&
+		subject[0] != '/' {
+
+		// Show us who isn't setting 'subject' correctly so we can fix it.
+		// But don't stop process, just log it
+		ShowStack()
+
+		// But do stop if PANICLOG env var is set
+		TestPanicIf(true, "start with / : %s", subject)
+	}
 
 	if daType == "server_error" {
 		// This is special.

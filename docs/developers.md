@@ -20,7 +20,9 @@ welcome from anyone.
 ### Testing
 
 - Tests should check the expected output byte-for-byte. We want to make sure
-  that every character (even spaces) are excctly as we expect.
+  that every character (even spaces) are exactly as we expect. So, avoid
+  expected outputs of "*" and regular expressions (ie. one- that start with
+  `^`).
 - There may be times when that rule is too strict due to output varying too
   much across runs/environments - try to use masking first, but as a last
   resort regexp matching of the output is ok.

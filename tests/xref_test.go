@@ -3093,8 +3093,21 @@ func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
 	gm.AddResourceModel("files", "file", 0, true, false)
 
 	// Dangling xref: target "f1" doesn't exist yet.
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
-		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
+		`{"meta":{"xref":"/dirs/d1/files/f1"}}`, 201, `{
+  "fileid": "fx",
+  "self": "http://localhost:8181/dirs/d1/files/fx",
+  "xid": "/dirs/d1/files/fx",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
+  "meta": {
+    "fileid": "fx",
+    "self": "http://localhost:8181/dirs/d1/files/fx/meta",
+    "xid": "/dirs/d1/files/fx/meta",
+    "xref": "/dirs/d1/files/f1"
+  }
+}
+`)
 
 	// Now create the target for real, in a completely separate request.
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
@@ -3166,7 +3179,6 @@ func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
   "fileid": "fx",
   "self": "http://localhost:8181/dirs/d1/files/fx",
   "xid": "/dirs/d1/files/fx",
-  "isdefault": true,
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
   "meta": {
@@ -3279,7 +3291,6 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
   "fileid": "fx",
   "self": "http://localhost:8181/dirs/d2/files/fx",
   "xid": "/dirs/d2/files/fx",
-  "isdefault": true,
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
   "meta": {
