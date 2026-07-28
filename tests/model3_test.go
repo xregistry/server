@@ -3337,8 +3337,8 @@ func TestModelSourcePatchReplacement(t *testing.T) {
 	XCheck(t, strings.Contains(res.body, `"foos"`), "Model should contain 'foos' group")
 }
 
-func TestHasDocumentValidation(t *testing.T) {
-	reg := NewRegistry("TestHasDocumentValidation")
+func TestModelHasDocumentValidation(t *testing.T) {
+	reg := NewRegistry("TestModelHasDocumentValidation")
 	defer PassDeleteReg(t, reg)
 
 	// Test 1: Create model with hasdocument=true, add resource with document

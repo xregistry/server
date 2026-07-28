@@ -1276,8 +1276,8 @@ func TestVersionExtensions(t *testing.T) {
 
 // Deleting the current (non-sticky) default Version must recompute the
 // default to the next-newest remaining Version.
-func TestCascadeDeferDeleteNonStickyDefault(t *testing.T) {
-	reg := NewRegistry("TestCascadeDeferDeleteNonStickyDefault")
+func TestVerisonCascadeDeferDeleteNonStickyDefault(t *testing.T) {
+	reg := NewRegistry("TestVerisonCascadeDeferDeleteNonStickyDefault")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -1326,8 +1326,8 @@ func TestCascadeDeferDeleteNonStickyDefault(t *testing.T) {
 // Deleting the current STICKY default Version, with no explicit
 // ?setdefaultversionid, must un-stick and recompute the default to the
 // newest remaining Version (Resource.SetDefault(nil) path).
-func TestCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
-	reg := NewRegistry("TestCascadeDeferDeleteStickyDefaultUnsticks")
+func TestVersionCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
+	reg := NewRegistry("TestVersionCascadeDeferDeleteStickyDefaultUnsticks")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -1377,8 +1377,8 @@ func TestCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
 // Deleting the current sticky default Version WITH an explicit
 // ?setdefaultversionid must keep the result sticky and pointed at the
 // requested Version (Resource.SetDefault(nextVersion) path).
-func TestCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
-	reg := NewRegistry("TestCascadeDeferDeleteStickyDefaultExplicitNext")
+func TestVerisonCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
+	reg := NewRegistry("TestVerisonCascadeDeferDeleteStickyDefaultExplicitNext")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")

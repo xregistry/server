@@ -1942,15 +1942,15 @@ func TestFormatCompatModes(t *testing.T) {
 
 }
 
-// TestXrefFormatCascadeOnDirectSave (gaps item 1, remaining half) checks
+// TestFormatXrefCascadeOnDirectSave (gaps item 1, remaining half) checks
 // that formatvalidated correctly cascades into an xref source through the
 // NORMAL per-Resource save path (runCascade() called directly from
 // ValidateResource(), not via Registry.VerifyData()'s model-driven
 // revalidation pass, which is what tests/xref_model_revalidation_test.go
 // covers instead). format_test.go has zero xref mentions, so this was
 // completely unverified before.
-func TestXrefFormatCascadeOnDirectSave(t *testing.T) {
-	reg := NewRegistry("TestXrefFormatCascadeOnDirectSave")
+func TestFormatXrefCascadeOnDirectSave(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefCascadeOnDirectSave")
 	defer PassDeleteReg(t, reg)
 
 	model := registry.Model{}
@@ -2096,14 +2096,14 @@ func TestXrefFormatCascadeOnDirectSave(t *testing.T) {
 `)
 }
 
-// TestXrefCompatModeChangeCascade (gaps item 5) combines a Version-content-
+// TestFormatXrefCompatModeChangeCascade (gaps item 5) combines a Version-content-
 // unrelated compatibility MODE change (meta.compatibility, an
 // instance-level attribute) with an active xref, exercising the normal
 // runCascade() fan-out path (as opposed to the model-driven
 // Registry.VerifyData() path already covered by
 // tests/xref_model_revalidation_test.go).
-func TestXrefCompatModeChangeCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefCompatModeChangeCascade")
+func TestFormatXrefCompatModeChangeCascade(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefCompatModeChangeCascade")
 	defer PassDeleteReg(t, reg)
 
 	model := registry.Model{}
@@ -2291,17 +2291,17 @@ func TestXrefCompatModeChangeCascade(t *testing.T) {
 `)
 }
 
-// TestXrefFormatValidationFailureCascade verifies that a FAILED format
+// TestFormatXrefValidationFailureCascade verifies that a FAILED format
 // validation state (formatvalidated=false/compatibilityvalidated=false,
 // via an "unknown format" document - the only kind of format failure
 // that doesn't outright reject the save, see EnsureCompat()) on the xref
 // TARGET is correctly mirrored into the xref SOURCE too, not just the
 // "everything is valid" happy path already covered by
-// TestXrefFormatCascadeOnDirectSave. This is created BEFORE the xref
+// TestFormatXrefCascadeOnDirectSave. This is created BEFORE the xref
 // exists, so the xref creation itself must pick up the already-failed
 // state.
-func TestXrefFormatValidationFailureCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefFormatValidationFailureCascade")
+func TestFormatXrefValidationFailureCascade(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefValidationFailureCascade")
 	defer PassDeleteReg(t, reg)
 
 	model := registry.Model{}
@@ -2459,15 +2459,15 @@ func TestXrefFormatValidationFailureCascade(t *testing.T) {
 `)
 }
 
-// TestXrefFormatValidationFailureCascadeAfterUpdate is the "after the
-// fact" variant of TestXrefFormatValidationFailureCascade: the xref is
+// TestFormatXrefValidationFailureCascadeAfterUpdate is the "after the
+// fact" variant of TestFormatXrefValidationFailureCascade: the xref is
 // created while the target is VALID (so the mirror initially shows
 // formatvalidated=true), and only THEN does the target transition into
 // the failed ("unknown format") state via a normal direct update - the
 // mirror must pick up that failure transition too, not just the initial
 // state at xref-creation time.
-func TestXrefFormatValidationFailureCascadeAfterUpdate(t *testing.T) {
-	reg := NewRegistry("TestXrefFormatValidationFailureCascadeAfterUpdate")
+func TestFormatXrefValidationFailureCascadeAfterUpdate(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefValidationFailureCascadeAfterUpdate")
 	defer PassDeleteReg(t, reg)
 
 	model := registry.Model{}
@@ -2620,7 +2620,7 @@ func TestXrefFormatValidationFailureCascadeAfterUpdate(t *testing.T) {
 `)
 }
 
-// TestXrefTargetUpdateRejectionDoesNotCorruptMirror verifies that when a
+// TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror verifies that when a
 // direct update to the xref TARGET is REJECTED outright (a real
 // "compatibility_violation" 400, not just a formatvalidated/
 // compatibilityvalidated=false flag - see FormatNumbers.IsCompatible())
@@ -2628,8 +2628,8 @@ func TestXrefFormatValidationFailureCascadeAfterUpdate(t *testing.T) {
 // remains correctly in-sync with the target's last-good state - i.e. a
 // failed write to the target must not leave the mirror stale, corrupted,
 // or partially updated.
-func TestXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
-	reg := NewRegistry("TestXrefTargetUpdateRejectionDoesNotCorruptMirror")
+func TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefTargetUpdateRejectionDoesNotCorruptMirror")
 	defer PassDeleteReg(t, reg)
 
 	model := registry.Model{}
@@ -2799,8 +2799,8 @@ func TestXrefTargetUpdateRejectionDoesNotCorruptMirror(t *testing.T) {
 
 // ---- Moved from xref_model_revalidation_test.go ----
 
-func TestXrefModelRevalidationFormatCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefModelRevalidationFormatCascade")
+func TestFormatXrefModelRevalidationFormatCascade(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefModelRevalidationFormatCascade")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -2843,15 +2843,15 @@ func TestXrefModelRevalidationFormatCascade(t *testing.T) {
 		`^(?s)^.*"epoch": 1,.*"formatvalidated": true`)
 }
 
-// TestXrefModelRevalidationCompatCascade is the compatibilityvalidated
-// analog of TestXrefModelRevalidationFormatCascade above (gaps item 1's
+// TestFormatXrefModelRevalidationCompatCascade is the compatibilityvalidated
+// analog of TestFormatXrefModelRevalidationFormatCascade above (gaps item 1's
 // remaining "compatibilityvalidated variant" sub-case) - it checks that
 // when a model change forces Registry.VerifyData() to re-validate an
 // xref TARGET's compatibilityvalidated system attribute (with no other
 // attribute change), that fresh value is correctly cascaded into any
 // xref SOURCE pointing at it, exactly as formatvalidated is above.
-func TestXrefModelRevalidationCompatCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefModelRevalidationCompatCascade")
+func TestFormatXrefModelRevalidationCompatCascade(t *testing.T) {
+	reg := NewRegistry("TestFormatXrefModelRevalidationCompatCascade")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -3626,6 +3626,147 @@ func TestXrefModelRevalidationCompatCascade(t *testing.T) {
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/fx/versions",
+  "versionscount": 2
+}
+`)
+}
+
+// TestFormatModelOffClearsStaleFormatValidated verifies that turning
+// validateformat off at the model level (ApplyNewModel()'s
+// clearValidationSystemProps() bulk sweep) correctly clears a stale
+// formatvalidated/formatvalidatedreason value on a Resource that is
+// NOT touched again after the model change - EnsureCompat() no longer
+// re-clears defensively on every save while validation is off, so this
+// one-time model-transition sweep is the only thing that can catch it.
+func TestFormatModelOffClearsStaleFormatValidated(t *testing.T) {
+	reg := NewRegistry("TestFormatModelOffClearsStaleFormatValidated")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
+	rm.SetValidateFormat(true)
+
+	// Create f1 with a valid "numbers" format -> formatvalidated=true.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+  "format": "numbers",
+  "file": "1\n2\n3"
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-28T13:00:00.0Z",
+  "modifiedat": "2026-07-28T13:00:00.0Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": true,
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Turn validateformat OFF at the model level - f1 is NOT touched
+	// again.
+	rm.SetValidateFormat(false)
+	XHTTP(t, reg, "PUT", "/modelsource", reg.Model.MustUserMarshal("", "  "),
+		200, `*`)
+
+	// f1's formatvalidated must now be gone, purely from the
+	// model-transition bulk sweep - not from any per-save clear.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-28T13:00:00.0Z",
+  "modifiedat": "2026-07-28T13:00:00.0Z",
+  "ancestorid": "1",
+  "contenttype": "application/json",
+  "format": "numbers",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+}
+
+// TestFormatModelOffClearsStaleCompatValidated is the
+// compatibilityvalidated analog of
+// TestFormatModelOffClearsStaleFormatValidated above - turning
+// validatecompatibility off at the model level must clear a stale
+// compatibilityvalidated/compatibilityvalidatedreason value on an
+// untouched Resource, while leaving formatvalidated (still on) alone.
+func TestFormatModelOffClearsStaleCompatValidated(t *testing.T) {
+	reg := NewRegistry("TestFormatModelOffClearsStaleCompatValidated")
+	defer PassDeleteReg(t, reg)
+
+	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
+	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
+	rm.SetValidateFormat(true)
+	rm.SetValidateCompatibility(true)
+
+	// Create f1 with two compatible versions (equal sums) and
+	// "compatibility":"backward" set -> compatibilityvalidated=true.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+  "meta": { "compatibility": "backward" },
+  "versions": {
+    "v1": { "format": "numbers", "file": "2" },
+    "v2": { "format": "numbers", "file": "2" }
+  }
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-28T13:00:00.0Z",
+  "modifiedat": "2026-07-28T13:00:00.0Z",
+  "ancestorid": "v1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": true,
+  "compatibilityvalidated": true,
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
+
+	// Turn validatecompatibility OFF at the model level (validateformat
+	// stays ON) - f1 is NOT touched again.
+	rm.SetValidateCompatibility(false)
+	XHTTP(t, reg, "PUT", "/modelsource", reg.Model.MustUserMarshal("", "  "),
+		200, `*`)
+
+	// f1's compatibilityvalidated must now be gone, but formatvalidated
+	// (still on) must remain - purely from the model-transition bulk
+	// sweep, since f1 was never re-saved.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-07-28T13:00:00.0Z",
+  "modifiedat": "2026-07-28T13:00:00.0Z",
+  "ancestorid": "v1",
+  "contenttype": "application/json",
+  "format": "numbers",
+  "formatvalidated": true,
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
   "versionscount": 2
 }
 `)

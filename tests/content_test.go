@@ -12,8 +12,8 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestResourceContents(t *testing.T) {
-	reg := NewRegistry("TestResourceContents")
+func TestContentResource(t *testing.T) {
+	reg := NewRegistry("TestContentResource")
 	defer PassDeleteReg(t, reg)
 
 	XHTTP(t, reg, "PUT", "/", `{

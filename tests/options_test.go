@@ -6,8 +6,8 @@ import (
 	. "github.com/xregistry/server/common"
 )
 
-func TestHTTPOptions(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptions")
+func TestOptions(t *testing.T) {
+	reg := NewRegistry("TestOptions")
 	defer PassDeleteReg(t, reg)
 
 	// Test OPTIONS on root
@@ -95,8 +95,8 @@ func TestHTTPOptions(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithGroups(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithGroups")
+func TestOptionsWithGroups(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithGroups")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models
@@ -154,8 +154,8 @@ func TestHTTPOptionsWithGroups(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithResources(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithResources")
+func TestOptionsWithResources(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithResources")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models
@@ -232,8 +232,8 @@ func TestHTTPOptionsWithResources(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithCapabilities(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithCapabilities")
+func TestOptionsWithCapabilities(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithCapabilities")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models

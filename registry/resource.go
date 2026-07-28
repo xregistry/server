@@ -2025,13 +2025,13 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 			"error_detail=can't be an empty string")
 	}
 
-	// Doing neither so just return
+	// Doing neither so just return. No need to clear the *validated/
+	// *validatedreason props here - Model.ApplyNewModel() already
+	// bulk-clears them registry-wide, once, at the moment validation
+	// was turned off for this ResourceType (see
+	// Registry.clearValidationSystemProps()), so there's nothing stale
+	// left to worry about on every single save.
 	if !validateCompat && !validateFormat {
-		r.ClearResourceSystemDBProperty(
-			NewPPP("formatvalidated"),
-			NewPPP("formatvalidatedreason"),
-			NewPPP("compatibilityvalidated"),
-			NewPPP("compatibilityvalidatedreason"))
 		return nil
 	}
 
@@ -2160,10 +2160,17 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 					ver.SetSystemDBProperty(NewPPP("formatvalidated"), false)
 					ver.SetSystemDBProperty(NewPPP("formatvalidatedreason"),
 						"Unknown format")
-					ver.SetSystemDBProperty(NewPPP("compatibilityvalidated"),
-						false)
-					ver.SetSystemDBProperty(NewPPP(
-						"compatibilityvalidatedreason"), "Unknown format")
+					if validateCompat {
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidated"), false)
+						ver.SetSystemDBProperty(NewPPP(
+							"compatibilityvalidatedreason"), "Unknown format")
+					} else {
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidated"), nil)
+						ver.SetSystemDBProperty(
+							NewPPP("compatibilityvalidatedreason"), nil)
+					}
 					continue
 				}
 
@@ -2217,8 +2224,19 @@ func (r *Resource) EnsureCompat(force bool) *XRError {
 		}
 	}
 
-	// If compat isn't enabled, skip compat checking
-	if IsNil(newCompat) || !validateCompat {
+	// If compat isn't enabled at the model level, skip entirely - no
+	// need to clear here, Model.ApplyNewModel()'s bulk sweep already
+	// owns clearing stale values registry-wide the moment validation
+	// was turned off (see clearValidationSystemProps()).
+	if !validateCompat {
+		return nil
+	}
+
+	// Model-level validation is on, but THIS Resource's "compatibility"
+	// attribute isn't set - a per-instance condition, not a model
+	// transition, so it isn't covered by the bulk sweep above. Still
+	// need to clear it here.
+	if IsNil(newCompat) {
 		// clear compatvalidated attr for all versions
 		r.ClearResourceSystemDBProperty(
 			NewPPP("compatibilityvalidated"),

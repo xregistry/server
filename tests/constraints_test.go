@@ -3136,7 +3136,7 @@ func TestConstraintsMatchVersionsWithEquals(t *testing.T) {
 // resources (per spec). Note: per-spec, "equals" and "enum" ARE enforced for
 // xref'd resources (a xref's mirrored value is checked exactly like any other
 // Version's, since Group.Validate() scans Entities/Props broadly -
-// see TestXrefEqualsEnforcedOnXref/TestXrefEnumEnforcedOnXref in
+// see TestConstraintsEqualsEnforcedOnXref/TestConstraintsEnumEnforcedOnXref in
 // xref_gaps_test.go).
 //
 // The source resource lives in a group instance with NO constraint so its
@@ -3289,7 +3289,7 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
 `)
 }
 
-// TestXrefEqualsEnforcedOnXref (gaps item 4) verifies that "equals" group
+// TestConstraintsEqualsEnforcedOnXref (gaps item 4) verifies that "equals" group
 // constraints ARE enforced against a xref's mirrored value, exactly like
 // any other Version's - since Group.Validate() (registry/group.go) scans
 // Entities/Props broadly, without distinguishing real Version
@@ -3297,8 +3297,8 @@ func TestConstraintsModelLevelXrefRealValue(t *testing.T) {
 // in an unconstrained group (so its own save succeeds) with a value that
 // would violate the xref SOURCE's group's "equals" constraint; creating
 // the xref itself must fail.
-func TestXrefEqualsEnforcedOnXref(t *testing.T) {
-	reg := NewRegistry("TestXrefEqualsEnforcedOnXref")
+func TestConstraintsEqualsEnforcedOnXref(t *testing.T) {
+	reg := NewRegistry("TestConstraintsEqualsEnforcedOnXref")
 	defer PassDeleteReg(t, reg)
 
 	modelSrc := `{
@@ -3436,12 +3436,12 @@ func TestXrefEqualsEnforcedOnXref(t *testing.T) {
 `)
 }
 
-// TestXrefEnumEnforcedOnXref (gaps item 4) is the "enum" analog of
-// TestXrefEqualsEnforcedOnXref above: the target resource lives in an
+// TestConstraintsEnumEnforcedOnXref (gaps item 4) is the "enum" analog of
+// TestConstraintsEqualsEnforcedOnXref above: the target resource lives in an
 // unconstrained group with a value that would violate the xref SOURCE's
 // group's "enum" constraint; creating the xref itself must fail.
-func TestXrefEnumEnforcedOnXref(t *testing.T) {
-	reg := NewRegistry("TestXrefEnumEnforcedOnXref")
+func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
+	reg := NewRegistry("TestConstraintsEnumEnforcedOnXref")
 	defer PassDeleteReg(t, reg)
 
 	modelSrc := `{
@@ -3582,7 +3582,7 @@ func TestXrefEnumEnforcedOnXref(t *testing.T) {
 `)
 }
 
-// TestXrefConstraintViolationOnTargetUpdateAfterXref checks the reverse
+// TestConstraintsViolationOnTargetUpdateAfterXref checks the reverse
 // direction/timing from the two tests above: a xref is created first
 // while fully compliant with its own group's "equals"/"enum" constraints,
 // then the TARGET is later updated to a value that would violate those
@@ -3591,8 +3591,8 @@ func TestXrefEnumEnforcedOnXref(t *testing.T) {
 // own update must succeed (it isn't itself constrained) - but the
 // resulting xref mirror update, if/when re-validated, is what would need
 // to be caught. This documents current behavior for that scenario.
-func TestXrefConstraintViolationOnTargetUpdateAfterXref(t *testing.T) {
-	reg := NewRegistry("TestXrefConstraintViolationOnTargetUpdateAfterXref")
+func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
+	reg := NewRegistry("TestConstraintsViolationOnTargetUpdateAfterXref")
 	defer PassDeleteReg(t, reg)
 
 	modelSrc := `{
@@ -3726,13 +3726,13 @@ func TestXrefConstraintViolationOnTargetUpdateAfterXref(t *testing.T) {
 `)
 }
 
-// TestXrefConstraintDefaultTransitionCascade (gaps item 7) checks that
+// TestConstraintsDefaultTransitionCascade (gaps item 7) checks that
 // when an xref TARGET's explicitly-set, constrained attribute is cleared
 // (so the owning group's constraint default newly kicks in for it), that
 // transition (explicit value -> constraint-derived default) is correctly
 // cascaded into any xref SOURCE mirroring that target.
-func TestXrefConstraintDefaultTransitionCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefConstraintDefaultTransitionCascade")
+func TestConstraintsDefaultTransitionCascade(t *testing.T) {
+	reg := NewRegistry("TestConstraintsDefaultTransitionCascade")
 	defer PassDeleteReg(t, reg)
 
 	modelSrc := `{
@@ -3863,15 +3863,15 @@ func TestXrefConstraintDefaultTransitionCascade(t *testing.T) {
 `)
 }
 
-// TestXrefGroupConstraintDrivenResaveCascade (gaps item 8) checks that a
+// TestConstraintsGroupDrivenResaveXrefCascade (gaps item 8) checks that a
 // save which is driven by a group-level constraint interaction (an
 // "equals" constraint tying a Resource attribute to a Group attribute,
 // forcing Tx.AddGroupToValidate()) still correctly re-triggers xref
 // fan-out for any xref pointing at the affected Resource - i.e. the
 // UsesXref/constraint-triggered-resave interaction isn't accidentally
 // skipping the mirror refresh.
-func TestXrefGroupConstraintDrivenResaveCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefGroupConstraintDrivenResaveCascade")
+func TestConstraintsGroupDrivenResaveXrefCascade(t *testing.T) {
+	reg := NewRegistry("TestConstraintsGroupDrivenResaveXrefCascade")
 	defer PassDeleteReg(t, reg)
 
 	modelSrc := `{
@@ -4017,14 +4017,14 @@ func TestXrefGroupConstraintDrivenResaveCascade(t *testing.T) {
 `)
 }
 
-// TestXrefMultipleConstraintSourcesCascade (gaps item 9) combines a
+// TestConstraintsMultipleConstraintSourcesXrefCascade (gaps item 9) combines a
 // group-INSTANCE constraint default (on the target's own group) with a
 // model-level (group-model-wide) constraint default for a DIFFERENT
 // attribute, with the xref target and source living in different group
 // instances that each have their own instance-level constraint overrides -
 // a combinatorial scenario not exercised by any existing xref test.
-func TestXrefMultipleConstraintSourcesCascade(t *testing.T) {
-	reg := NewRegistry("TestXrefMultipleConstraintSourcesCascade")
+func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
+	reg := NewRegistry("TestConstraintsMultipleConstraintSourcesXrefCascade")
 	defer PassDeleteReg(t, reg)
 
 	// Model-level default for "name" (applies everywhere unless a group

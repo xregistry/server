@@ -7,8 +7,8 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestNoModel(t *testing.T) {
-	reg := NewRegistry("TestNoModel")
+func TestModelNoModel(t *testing.T) {
+	reg := NewRegistry("TestModelNoModel")
 	defer PassDeleteReg(t, reg)
 
 	XCheckGet(t, reg, "/model", `{
@@ -123,7 +123,7 @@ func TestNoModel(t *testing.T) {
 
 	XCheckGet(t, reg, "?inline=model", `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestNoModel",
+  "registryid": "TestModelNoModel",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 1,
@@ -250,8 +250,8 @@ func TestNoModel(t *testing.T) {
 `)
 }
 
-func TestGroupModelCreate(t *testing.T) {
-	reg := NewRegistry("TestGroupModelCreate")
+func TestModelGroupCreate(t *testing.T) {
+	reg := NewRegistry("TestModelGroupCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
@@ -1060,7 +1060,7 @@ func TestGroupModelCreate(t *testing.T) {
 	XCheck(t, gm == nil && err != nil, "gm should have failed")
 }
 
-func TestResourceModelCreate(t *testing.T) {
+func TestModelResourceCreate(t *testing.T) {
 	reg := NewRegistry("TestResourceModels")
 	defer PassDeleteReg(t, reg)
 
@@ -7577,8 +7577,8 @@ func TestResourceModelCreate(t *testing.T) {
 `)
 }
 
-func TestMultModelCreate(t *testing.T) {
-	reg := NewRegistry("TestMultModelCreate")
+func TestModelMultCreate(t *testing.T) {
+	reg := NewRegistry("TestModelMultCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm1, err := reg.Model.AddGroupModel("gms1", "gm1")
@@ -9481,8 +9481,8 @@ func TestModelAPI(t *testing.T) {
 	XNoErr(t, reg.SaveAllAndCommit())
 }
 
-func TestMultModel2Create(t *testing.T) {
-	reg := NewRegistry("TestMultModel2Create")
+func TestModelMult2Create(t *testing.T) {
+	reg := NewRegistry("TestModelMult2Create")
 	defer PassDeleteReg(t, reg)
 
 	reg.SaveAllAndCommit()
@@ -9513,7 +9513,7 @@ func TestMultModel2Create(t *testing.T) {
 
 	XCheckGet(t, reg, "?inline=model&inline", `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestMultModel2Create",
+  "registryid": "TestModelMult2Create",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 2,

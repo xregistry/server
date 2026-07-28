@@ -2286,8 +2286,8 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 // correctly to any xref SOURCE(s) pointing at it - this ties
 // Resource.SetDefault()'s cascade mark together with
 // SaveXrefFanOutForTarget in the same deferred drain.
-func TestCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
-	reg := NewRegistry("TestCascadeDeferDeleteDefaultWithXrefFanOut")
+func TestXrefCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
+	reg := NewRegistry("TestXrefCascadeDeferDeleteDefaultWithXrefFanOut")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -3332,8 +3332,8 @@ func getUsesXref(t *testing.T, reg *registry.Registry) bool {
 // the Registry) must eventually flip it back to false. Creating a new
 // xref again afterward must flip it back to true - the flag's
 // lifecycle must be fully reversible, not "sticky" once cleared.
-func TestUsesXrefLifecycle(t *testing.T) {
-	reg := NewRegistry("TestUsesXrefLifecycle")
+func TestXrefUsesXrefLifecycle(t *testing.T) {
+	reg := NewRegistry("TestXrefUsesXrefLifecycle")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -3390,8 +3390,8 @@ func TestUsesXrefLifecycle(t *testing.T) {
 // that bypasses Go-level Resource.Delete()) must still correctly
 // rescan and clear UsesXref - this is the whole reason the clearing
 // side of the flag is handled by DB triggers rather than only in Go.
-func TestUsesXrefClearedByGroupBulkDelete(t *testing.T) {
-	reg := NewRegistry("TestUsesXrefClearedByGroupBulkDelete")
+func TestXrefUsesXrefClearedByGroupBulkDelete(t *testing.T) {
+	reg := NewRegistry("TestXrefUsesXrefClearedByGroupBulkDelete")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
@@ -3421,8 +3421,8 @@ func TestUsesXrefClearedByGroupBulkDelete(t *testing.T) {
 // them). PassDeleteReg() (deferred above) already deletes the
 // Registry, so this test's real assertion is simply that it doesn't
 // panic.
-func TestUsesXrefRegistryDeleteWithActiveXref(t *testing.T) {
-	reg := NewRegistry("TestUsesXrefRegistryDeleteWithActiveXref")
+func TestXrefUsesXrefRegistryDeleteWithActiveXref(t *testing.T) {
+	reg := NewRegistry("TestXrefUsesXrefRegistryDeleteWithActiveXref")
 	defer PassDeleteReg(t, reg)
 
 	gm, _ := reg.Model.AddGroupModel("dirs", "dir")

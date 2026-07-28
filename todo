@@ -116,4 +116,5 @@ TODOs:
 - test attribute definitions with enums with strict=true / false
 - attr.clone should be deep
 - I think getorderedversions is wrong when there are multiple trees
-- add checks for constraints.enum during group.validate
+** add support for excludeall and add it to filter results
+- verify that shortself is exluded from docview
