@@ -1020,8 +1020,22 @@ func TestVersionOrdering2(t *testing.T) {
 	reg := NewRegistry("TestVersionOrdering2")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	ts1 := "2020-01-02T12:00:00Z"
 
@@ -1048,8 +1062,8 @@ func TestVersionOrdering2(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v5",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -1067,8 +1081,8 @@ func TestVersionOrdering2(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
 
   "defaultversionid": "v5",
@@ -1095,8 +1109,8 @@ func TestVersionOrdering2(t *testing.T) {
   "xid": "/dirs/d1/files/f1/versions/v3",
   "epoch": 2,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v3"
 }
 `})
@@ -1106,13 +1120,27 @@ func TestVersionExtensions(t *testing.T) {
 	reg := NewRegistry("TestVersionExtensions")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, false)
-	_, err := rm.AddAttribute(&registry.Attribute{
-		Name: "*",
-		Type: ANY,
-	})
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "attributes": {
+            "*": {
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{
       "meta": "ads"
@@ -1280,8 +1308,22 @@ func TestVerisonCascadeDeferDeleteNonStickyDefault(t *testing.T) {
 	reg := NewRegistry("TestVerisonCascadeDeferDeleteNonStickyDefault")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
       "v1": {}, "v2": {}, "v3": {}
@@ -1293,8 +1335,8 @@ func TestVerisonCascadeDeferDeleteNonStickyDefault(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
 
   "defaultversionid": "v3",
@@ -1312,8 +1354,8 @@ func TestVerisonCascadeDeferDeleteNonStickyDefault(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v2",
@@ -1330,8 +1372,22 @@ func TestVersionCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
 	reg := NewRegistry("TestVersionCascadeDeferDeleteStickyDefaultUnsticks")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
       "v1": {}, "v2": {}, "v3": {}
@@ -1344,8 +1400,8 @@ func TestVersionCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v1",
@@ -1363,8 +1419,8 @@ func TestVersionCascadeDeferDeleteStickyDefaultUnsticks(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v3",
@@ -1381,8 +1437,22 @@ func TestVerisonCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
 	reg := NewRegistry("TestVerisonCascadeDeferDeleteStickyDefaultExplicitNext")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
       "v1": {}, "v2": {}, "v3": {}
@@ -1402,8 +1472,8 @@ func TestVerisonCascadeDeferDeleteStickyDefaultExplicitNext(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v2",

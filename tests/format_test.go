@@ -1687,7 +1687,55 @@ func TestFormatNotStrict(t *testing.T) {
 `)
 
 		// varying format - 4
-		XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, "*")
+		XHTTP(t, reg, "PUT", "/modelsource", model.MustUserMarshal("", "  "), 200, `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "attributes": {
+            "format": {
+              "name": "format",
+              "type": "string",
+              "matchversions": true
+            }
+          }
+        },
+        "nofiles": {
+          "plural": "nofiles",
+          "singular": "nofile",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
+          "attributes": {
+            "format": {
+              "name": "format",
+              "type": "string",
+              "matchversions": true
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`)
 
 		XHTTP(t, reg, "PUT", "/dirs/d1/files/f2."+af.Name+"$details", `{
    "meta": { "compatibility": "backWARD" },

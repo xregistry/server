@@ -77,6 +77,7 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 		return xErr
 	}
 	r.LoadCapabilities()
+	r.LoadModel()
 	return nil
 }
 
@@ -1451,7 +1452,7 @@ func (r *Registry) FindResourceBySID(sid string, accessMode int) (*Resource, *XR
 	return g.FindResource(resPlural, resUID, false, accessMode)
 }
 
-func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XRError) {
+func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, NewXRError("malformed_xid", path,
@@ -1468,11 +1469,11 @@ func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XR
 			"xid="+xidStr,
 			"error_detail=missing a \"resourceid\"")
 	}
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, accessMode)
 	if xErr != nil || g == nil {
 		return nil, xErr
 	}
-	return g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
+	return g.FindResource(xid.Resource, xid.ResourceID, false, accessMode)
 }
 
 func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRError) {

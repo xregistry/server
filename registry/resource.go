@@ -617,7 +617,7 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 	targetEpoch := 0
 	if targetXref := meta.Object["xref"]; targetXref != nil {
 		tStr := targetXref.(string)
-		tgtR, xErr := meta.Registry.FindResourceByXID(tStr, meta.XID)
+		tgtR, xErr := meta.Registry.FindResourceByXID(tStr, meta.XID, FOR_READ)
 		if xErr != nil {
 			return nil, false, xErr
 		}
@@ -2422,8 +2422,7 @@ func (r *Resource) EnsureMatchVersions(force bool) *XRError {
 	return nil
 }
 
-// ---- Moved from fulltree.go: Resource-level Props/Entities cascades ----
-// See entity.go's "Moved from fulltree.go" comment above EntityInsert()
+// See entity.go's above EntityInsert()
 // for the overall Props/Entities incremental-population design.
 
 // SaveDefaultVersionCascade refreshes the IsDefaultVerCopy=true rows on

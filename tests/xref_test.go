@@ -12,11 +12,12 @@ func TestXrefBasic(t *testing.T) {
 	reg := NewRegistry("TestXrefBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := MODEL_DIRS
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `*`)
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
+	reg.LoadModel()
+	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/", registry.FOR_READ)
 	XNoErr(t, err)
 
 	rows := reg.Query("select * from Versions where ResourceSID=?",
@@ -54,7 +55,7 @@ func TestXrefBasic(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",
 		`{"xref":"/dirs/d1/files/f1"}`, 201, `*`)
 
-	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/")
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
 	XNoErr(t, err)
 
 	// Grab #createdat so we can make sure it's used when we remove 'xref'
@@ -85,8 +86,8 @@ func TestXrefBasic(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1/files/f1/meta",
       "xid": "/dirs/d1/files/f1/meta",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
 
       "defaultversionid": "v1",
@@ -114,8 +115,8 @@ func TestXrefBasic(t *testing.T) {
       "xid": "/dirs/d1/files/fx/meta",
       "xref": "/dirs/d1/files/f1",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
 
       "defaultversionid": "v1",
@@ -137,8 +138,8 @@ func TestXrefBasic(t *testing.T) {
   "epoch": 2,
   "isdefault": true,
   "description": "testing xref",
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -147,8 +148,8 @@ func TestXrefBasic(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v1",
@@ -160,10 +161,10 @@ func TestXrefBasic(t *testing.T) {
 }
 `)
 
-	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
+	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/", registry.FOR_READ)
 	XNoErr(t, err)
 
-	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx", "/")
+	fx, err = reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
 	XNoErr(t, err)
 
 	XEqual(t, "", fx.Get("description"), "testing xref")
@@ -178,8 +179,8 @@ func TestXrefBasic(t *testing.T) {
   "name": "v1 name",
   "isdefault": true,
   "description": "testing xref",
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
@@ -595,10 +596,27 @@ func TestXrefErrors(t *testing.T) {
 	reg := NewRegistry("TestXrefErrors")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    },
+    "bars": {
+      "singular": "bar"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+	reg.LoadModel()
 
-	gm2, _ := reg.Model.AddGroupModel("bars", "bar")
+	gm2 := reg.Model.FindGroupModel("bars")
+	XCheck(t, gm2 != nil, "Didn't find bars group model")
 
 	XCheckErr(t, gm2.AddXImportResource("dirs/files"),
 		`{
@@ -644,9 +662,18 @@ func TestXrefErrors(t *testing.T) {
 	// Now a good one
 	XNoErr(t, gm2.AddXImportResource("/dirs/files"))
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	_, err := d.AddResource("files", "f1", "v1")
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// bad xrefs
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta",
@@ -846,8 +873,8 @@ func TestXrefErrors(t *testing.T) {
   "xid": "/dirs/d1/files/ff",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/ff/meta",
@@ -879,8 +906,8 @@ func TestXrefErrors(t *testing.T) {
   "xid": "/bars/b1/files/f2",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/bars/b1/files/f2/meta",
@@ -890,8 +917,8 @@ func TestXrefErrors(t *testing.T) {
     "xid": "/bars/b1/files/f2/meta",
     "xref": "/dirs/d1/files/ff",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "1",
@@ -908,9 +935,8 @@ func TestXrefRevert(t *testing.T) {
 	reg := NewRegistry("TestXrefRevert")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
-	d, _ := reg.AddGroup("dirs", "d1")
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v9",
 		`{"description":"hi"}`, 201, `{
@@ -938,8 +964,8 @@ func TestXrefRevert(t *testing.T) {
     "xid": "/dirs/d1/files/f0",
     "epoch": 1,
     "isdefault": true,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/f0/meta",
@@ -948,8 +974,8 @@ func TestXrefRevert(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1/files/f0/meta",
       "xid": "/dirs/d1/files/f0/meta",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "readonly": false,
 
       "defaultversionid": "1",
@@ -967,8 +993,8 @@ func TestXrefRevert(t *testing.T) {
     "epoch": 1,
     "isdefault": true,
     "description": "hi",
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "ancestorid": "v9",
 
     "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -978,8 +1004,8 @@ func TestXrefRevert(t *testing.T) {
       "xid": "/dirs/d1/files/fx/meta",
       "xref": "/dirs/d1/files/f1",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
       "readonly": false,
 
       "defaultversionid": "v9",
@@ -993,7 +1019,8 @@ func TestXrefRevert(t *testing.T) {
 `)
 
 	// Grab F0's timestamp so we can compare later
-	f0, err := d.FindResource("files", "f0", false, registry.FOR_WRITE)
+	reg.LoadModel()
+	f0, err := reg.FindResourceByXID("/dirs/d1/files/f0", "/", registry.FOR_READ)
 	XNoErr(t, err)
 	f0TS := f0.Get("createdat").(string)
 	XCheck(t, f0TS > "2024", "bad ts: %s", f0TS)
@@ -1034,7 +1061,7 @@ func TestXrefRevert(t *testing.T) {
   "versionscount": 1
 }
 `)
-	fx, err := d.FindResource("files", "fx", false, registry.FOR_WRITE)
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
 	XNoErr(t, err)
 	fxMeta, err := fx.FindMeta(false, registry.FOR_WRITE)
 	XNoErr(t, err)
@@ -1238,8 +1265,8 @@ func TestXrefRevert(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "a1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -1248,8 +1275,8 @@ func TestXrefRevert(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/fx/meta",
     "xid": "/dirs/d1/files/fx/meta",
     "epoch": 5,
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "z1",
@@ -1513,8 +1540,8 @@ func TestXrefDocs(t *testing.T) {
 	reg := NewRegistry("TestXrefRevert")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := MODEL_DIRS
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello world", 201, "hello world")
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details?inline=file",
@@ -1525,8 +1552,8 @@ func TestXrefDocs(t *testing.T) {
   "xid": "/dirs/d1/files/f2",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "fileurl": "http://localhost:8282/EMPTY-URL",
@@ -1544,8 +1571,8 @@ func TestXrefDocs(t *testing.T) {
   "xid": "/dirs/d1/files/f3",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -1879,8 +1906,8 @@ func TestXrefDocs(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "fileurl": "http://localhost:8282/EMPTY-URL",
@@ -1909,8 +1936,8 @@ func TestXrefDocs(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "fileproxyurl": "http://localhost:8282/EMPTY-Proxy",
@@ -1929,13 +1956,31 @@ func TestXrefXImportTransitive(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Make sure they're not alphabetically ordered
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-      "groups": {
-        "bars":{"singular":"bar","ximportresources":["/foos/files"]},
-        "foos":{"singular":"foo","resources":{"files":{"singular":"file"}}},
-        "zoos":{"singular":"zoo","ximportresources":["/bars/files"]}
+	model := `{
+  "groups": {
+    "bars": {
+      "singular": "bar",
+      "ximportresources": [
+        "/foos/files"
+      ]
+    },
+    "foos": {
+      "singular": "foo",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
       }
-    }`, 200, `*`)
+    },
+    "zoos": {
+      "singular": "zoo",
+      "ximportresources": [
+        "/bars/files"
+      ]
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/foos/f1/files/f1", ``, 201, `*`)
 
@@ -1993,10 +2038,8 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 	reg := NewRegistry("TestXrefClearAfterMultipleTouches")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
-	d, err := reg.AddGroup("dirs", "d1")
-	XNoErr(t, err)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// ----------------------------------------------------------------
 	// Scenario A: drive it all through the Meta endpoint directly
@@ -2097,7 +2140,8 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 }
 `)
 
-	fx, err := d.FindResource("files", "fx", false, registry.FOR_WRITE)
+	reg.LoadModel()
+	fx, err := reg.FindResourceByXID("/dirs/d1/files/fx", "/", registry.FOR_READ)
 	XNoErr(t, err)
 	numVers, xErr := fx.GetNumberOfVersions()
 	XNoErr(t, xErr)
@@ -2267,7 +2311,7 @@ func TestXrefClearAfterMultipleTouches(t *testing.T) {
 }
 `)
 
-	fy, err := d.FindResource("files", "fy", false, registry.FOR_WRITE)
+	fy, err := reg.FindResourceByXID("/dirs/d1/files/fy", "/", registry.FOR_READ)
 	XNoErr(t, err)
 	numVers, xErr = fy.GetNumberOfVersions()
 	XNoErr(t, xErr)
@@ -2290,8 +2334,8 @@ func TestXrefCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
 	reg := NewRegistry("TestXrefCascadeDeferDeleteDefaultWithXrefFanOut")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
       "v1": {}, "v2": {}, "v3": {}
@@ -2309,8 +2353,8 @@ func TestXrefCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v2",
@@ -2328,8 +2372,8 @@ func TestXrefCascadeDeferDeleteDefaultWithXrefFanOut(t *testing.T) {
   "xid": "/dirs/d1/files/fx/meta",
   "xref": "/dirs/d1/files/f1",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v2",
@@ -2348,11 +2392,25 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
 	reg := NewRegistry("TestXrefSurvivesModelAttributeRemoval")
 	defer PassDeleteReg(t, reg)
 
-	modelSrc := `{
-	  "groups": { "dirs": { "singular": "dir",
-	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "extra": { "type": "string" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, modelSrc, true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "extra": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details",
 		`{"extra":"value1"}`, 201, `{
@@ -2414,11 +2472,25 @@ func TestXrefSurvivesModelAttributeRemoval(t *testing.T) {
 	// attribute (a model without ANY wildcard would instead reject
 	// existing "extra" data as an unknown_attribute during revalidation -
 	// that's a model-authoring choice, not what this test is about).
-	newModelSrc := `{
-	  "groups": { "dirs": { "singular": "dir",
-	    "resources": {"files": {"singular": "file", "hasdocument": false,
-	      "attributes": { "*": { "type": "any" } } } } } } }`
-	XNoErr(t, reg.Model.ApplyNewModel(nil, newModelSrc, true))
+	newModel := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "*": {
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", newModel, 200, newModel+"\n")
 
 	// The target's data survives (now as an untyped extension attr) ...
 	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200,
@@ -2488,8 +2560,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderMultiVersionAfterXref")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Target starts with just one version
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
@@ -2514,8 +2586,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -2524,8 +2596,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 2,
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v3",
@@ -2548,8 +2620,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
   "xid": "/dirs/d1/files/`+rid+`",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/`+rid+`/meta",
@@ -2559,8 +2631,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 2,
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v3",
@@ -2580,8 +2652,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/versions/v1",
     "epoch": 1,
     "isdefault": false,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "ancestorid": "v1"
   },
   "v2": {
@@ -2591,8 +2663,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/versions/v2",
     "epoch": 1,
     "isdefault": false,
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "ancestorid": "v1"
   },
   "v3": {
@@ -2602,8 +2674,8 @@ func TestXrefOrderMultiVersionAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/versions/v3",
     "epoch": 1,
     "isdefault": true,
-    "createdat": "YYYY-MM-DDTHH:MM:02Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:02Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "ancestorid": "v2"
   }
 }
@@ -2622,8 +2694,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderMultipleSourcesSameTarget")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Target with 2 versions, and a second (unrelated) target to re-point
 	// to later.
@@ -2649,8 +2721,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
   "xid": "/dirs/d1/files/`+rid+`",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/`+rid+`/meta",
@@ -2660,8 +2732,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v2",
@@ -2685,8 +2757,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
   "xid": "/dirs/d1/files/f1",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -2695,8 +2767,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v2",
@@ -2715,8 +2787,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
   "xid": "/dirs/d1/files/`+rid+`/meta",
   "xref": "/dirs/d1/files/f1",
   "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
 
   "defaultversionid": "v2",
@@ -2741,8 +2813,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
   "xid": "/dirs/d1/files/fa/meta",
   "xref": "/dirs/d1/files/f2",
   "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
 
   "defaultversionid": "w1",
@@ -2757,8 +2829,8 @@ func TestXrefOrderMultipleSourcesSameTarget(t *testing.T) {
   "xid": "/dirs/d1/files/fc/meta",
   "xref": "/dirs/d1/files/f1",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v3",
@@ -2787,8 +2859,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderBatchCreateTargetAndSourcesTogether")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/?inline=meta", `{
       "f1": {"meta": {"xref": "/dirs/d1/files/f2"}},
@@ -2804,8 +2876,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
   "xid": "/dirs/d1/files/f2",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -2814,8 +2886,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f2/meta",
     "xid": "/dirs/d1/files/f2/meta",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v2",
@@ -2838,8 +2910,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
   "xid": "/dirs/d1/files/`+rid+`",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/`+rid+`/meta",
@@ -2849,8 +2921,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/meta",
     "xref": "/dirs/d1/files/f2",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v2",
@@ -2870,8 +2942,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/versions/v1",
     "epoch": 1,
     "isdefault": false,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "ancestorid": "v1"
   },
   "v2": {
@@ -2881,8 +2953,8 @@ func TestXrefOrderBatchCreateTargetAndSourcesTogether(t *testing.T) {
     "xid": "/dirs/d1/files/`+rid+`/versions/v2",
     "epoch": 1,
     "isdefault": true,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "ancestorid": "v1"
   }
 }
@@ -2897,8 +2969,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderTargetDefaultChangeAfterXref")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1/versions", `{
       "v1": {}, "v2": {}, "v3": {}
@@ -2914,8 +2986,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
   "xid": "/dirs/d1/files/fx/meta",
   "xref": "/dirs/d1/files/f1",
   "epoch": 1,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "readonly": false,
 
   "defaultversionid": "v3",
@@ -2934,8 +3006,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/f1/meta",
   "xid": "/dirs/d1/files/f1/meta",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "v1",
@@ -2953,8 +3025,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -2964,8 +3036,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/fx/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 2,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
 
     "defaultversionid": "v1",
@@ -2988,8 +3060,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -2999,8 +3071,8 @@ func TestXrefOrderTargetDefaultChangeAfterXref(t *testing.T) {
     "xid": "/dirs/d1/files/fx/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 3,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
 
     "defaultversionid": "v1",
@@ -3024,27 +3096,30 @@ func TestXrefOrderRevertWithStickyDefault(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderRevertWithStickyDefault")
 	defer PassDeleteReg(t, reg)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-      "groups": {
-        "dirs": {
-          "singular": "dir",
-          "resources": {
-            "files": {
-              "singular": "file",
-              "hasdocument": false,
-              "metaattributes": {
-                "defaultversionsticky": {
-                  "type": "boolean",
-                  "required": true,
-                  "enum": [ true ],
-                  "default": true
-                }
-              }
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "enum": [
+                true
+              ],
+              "default": true
             }
           }
         }
       }
-    }`, 200, `*`)
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
 
@@ -3066,8 +3141,8 @@ func TestXrefOrderRevertWithStickyDefault(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1/files/fx/meta",
   "xid": "/dirs/d1/files/fx/meta",
   "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "readonly": false,
 
   "defaultversionid": "a1",
@@ -3089,8 +3164,8 @@ func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderDanglingTargetCreatedLater")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Dangling xref: target "f1" doesn't exist yet.
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx?inline=meta",
@@ -3120,8 +3195,8 @@ func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -3131,8 +3206,8 @@ func TestXrefOrderDanglingTargetCreatedLater(t *testing.T) {
     "xid": "/dirs/d1/files/fx/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v1",
@@ -3157,8 +3232,8 @@ func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderTargetDeletedThenRecreatedAtSamePath")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Original target, and a source xref'ing it.
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
@@ -3203,8 +3278,8 @@ func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
   "xid": "/dirs/d1/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/fx/meta",
@@ -3214,8 +3289,8 @@ func TestXrefOrderTargetDeletedThenRecreatedAtSamePath(t *testing.T) {
     "xid": "/dirs/d1/files/fx/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v2",
@@ -3239,8 +3314,8 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
 	reg := NewRegistry("TestXrefOrderTargetDeletedViaGroupBulkDelete")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Target "f1" lives in group "d1".
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
@@ -3257,8 +3332,8 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
   "xid": "/dirs/d2/files/fx",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
@@ -3268,8 +3343,8 @@ func TestXrefOrderTargetDeletedViaGroupBulkDelete(t *testing.T) {
     "xid": "/dirs/d2/files/fx/meta",
     "xref": "/dirs/d1/files/f1",
     "epoch": 1,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "readonly": false,
 
     "defaultversionid": "v1",
@@ -3336,8 +3411,8 @@ func TestXrefUsesXrefLifecycle(t *testing.T) {
 	reg := NewRegistry("TestXrefUsesXrefLifecycle")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Brand-new Registry, never touched xref.
 	if getUsesXref(t, reg) != false {
@@ -3394,8 +3469,8 @@ func TestXrefUsesXrefClearedByGroupBulkDelete(t *testing.T) {
 	reg := NewRegistry("TestXrefUsesXrefClearedByGroupBulkDelete")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
 	XHTTP(t, reg, "PUT", "/dirs/d2/files/fx/meta",
@@ -3425,8 +3500,8 @@ func TestXrefUsesXrefRegistryDeleteWithActiveXref(t *testing.T) {
 	reg := NewRegistry("TestXrefUsesXrefRegistryDeleteWithActiveXref")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := MODEL_DIRS_NODOC
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `*`)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/fx/meta",

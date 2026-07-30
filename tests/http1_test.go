@@ -7567,114 +7567,112 @@ func TestHTTPVersions(t *testing.T) {
 func TestHTTPEpochTimesAddRemove(t *testing.T) {
 	reg := NewRegistry("TestHTTPEpochTimesAddRemove")
 	defer PassDeleteReg(t, reg)
-	XNoErr(t, reg.SaveAllAndCommit())
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	regEpoch := reg.GetAsInt("epoch")
-	regCreated := reg.GetAsString("createdat")
-	regModified := reg.GetAsString("modifiedat")
+	XHTTP(t, reg, "GET", "/", "", 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:00Z",
+  "modifiedat": "2024-01-01T12:00:00Z"
+}
+`)
 
-	XCheck(t, regEpoch == 1, "regEpoch should be 1")
-	XCheck(t, !IsNil(regCreated), "regCreated should not be nil")
-	XCheck(t, regModified == regCreated, "reg created != modified")
-	XCheck(t, regModified != "", "reg modified is ''")
-	XCheck(t, regCreated != "", "reg created is ''")
-
-	d1, _ := reg.AddGroup("dirs", "d1")
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
-
-	d1Epoch := d1.GetAsInt(NewPP().P("epoch").UI())
-	d1Created := d1.GetAsString(NewPP().P("createdat").UI())
-	d1Modified := d1.GetAsString(NewPP().P("modifiedat").UI())
-
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
-
-	XEqual(t, "", d1Epoch, 1)
-	XEqual(t, "", reg.GetAsString("modifiedat"), d1Created, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), d1Modified, NOMASK_TS)
-
-	regEpoch = reg.GetAsInt("epoch")
-	regModified = reg.GetAsString("modifiedat")
-
-	f1, _ := d1.AddResource("files", "f1", "v1")
-	f2, _ := d1.AddResource("files", "f2", "v1")
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
-	f1.Refresh(registry.FOR_WRITE)
-	v1, _ := f1.FindVersion("v1", false, registry.FOR_WRITE)
-	m1, _ := f1.FindMeta(false, registry.FOR_WRITE)
-
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), regModified, NOMASK_TS)
-
-	XEqual(t, "", d1.GetAsInt("epoch"), 2)
-	XEqual(t, "", d1.GetAsString("createdat"), d1Created, NOMASK_TS)
-	XCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
-
-	d1Epoch = d1.GetAsInt("epoch")
-	d1Modified = d1.GetAsString("modifiedat")
-
-	XEqual(t, "", m1.GetAsInt("epoch"), 1)
-	XEqual(t, "", m1.GetAsString("createdat"), d1Modified, NOMASK_TS)
-	XEqual(t, "", m1.GetAsString("modifiedat"), d1Modified, NOMASK_TS)
-
-	m1Created := m1.GetAsString("createdat")
-	m1Modified := m1.GetAsString("modifiedat")
-
-	XEqual(t, "", v1.GetAsInt("epoch"), 1)
-	XEqual(t, "", v1.GetAsString("createdat"), d1Modified, NOMASK_TS)
-	XEqual(t, "", v1.GetAsString("modifiedat"), d1Modified, NOMASK_TS)
-
-	v1Created := v1.GetAsString("createdat")
-	v1Modified := v1.GetAsString("modifiedat")
-
-	v2, _ := f1.AddVersion("v2")
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
-	f1.Refresh(registry.FOR_WRITE)
-	m1.Refresh(registry.FOR_WRITE)
-	v1.Refresh(registry.FOR_WRITE)
-
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), regModified, NOMASK_TS)
-
-	XEqual(t, "", d1.GetAsInt("epoch"), 2)
-	XEqual(t, "", d1.GetAsString("createdat"), d1Created, NOMASK_TS)
-	XEqual(t, "", d1.GetAsString("modifiedat"), d1Modified, NOMASK_TS)
-
-	XEqual(t, "", m1.GetAsInt("epoch"), 2)
-	XEqual(t, "", m1.GetAsString("createdat"), m1Created, NOMASK_TS)
-	XCheckGreater(t, "", m1.GetAsString("modifiedat"), m1Modified)
-
-	m1Modified = m1.GetAsString("modifiedat")
-
-	XEqual(t, "", v1.GetAsInt("epoch"), 1)
-	XEqual(t, "", v1.GetAsString("createdat"), v1Created, NOMASK_TS)
-	XEqual(t, "", v1.GetAsString("modifiedat"), v1Modified, NOMASK_TS)
-
-	XEqual(t, "", v2.GetAsInt("epoch"), 1)
-	XEqual(t, "", v2.GetAsString("createdat"), m1.GetAsString("modifiedat"), NOMASK_TS)
-	XEqual(t, "", v2.GetAsString("modifiedat"), m1.GetAsString("modifiedat"), NOMASK_TS)
-
-	XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+	res := XHTTP(t, reg, "PUT", "/?inline=modelsource",
+		`{"modelsource":`+MODEL_DIRS+`
+    }`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
+      }
+    }
+  },
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+
+	daMap := res.ToMap()
+	regCreated := daMap["createdat"]
+	regModified := daMap["modifiedat"]
+
+	res = XHTTP(t, reg, "PATCH", "/?inline=dirs", `{"dirs":{"d1":{}}}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 1,
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "filescount": 0
+    }
+  },
+  "dirscount": 1
+}
+`)
+	daMap = res.ToMap()
+
+	d1Map := daMap["dirs"].(map[string]any)["d1"].(map[string]any)
+
+	d1Epoch := d1Map["epoch"]
+	d1Created := d1Map["createdat"]
+	d1Modified := d1Map["modifiedat"]
+
+	XEqual(t, "", daMap["epoch"], float64(3))
+	XEqual(t, "", daMap["createdat"], regCreated, NOMASK_TS)
+	XCheckGreater(t, "", daMap["modifiedat"].(string), regModified.(string))
+
+	XEqual(t, "", d1Epoch, float64(1))
+	XEqual(t, "", daMap["modifiedat"], d1Created, NOMASK_TS)
+	XEqual(t, "", daMap["modifiedat"], d1Modified, NOMASK_TS)
+
+	regModified = daMap["modifiedat"]
+
+	res = XHTTP(t, reg, "PATCH", "/?inline=*", `{
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": { "versionid": "v1" },
+        "f2": { "versionid": "v1" }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -7683,20 +7681,20 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 2,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
-          "versionid": "v2",
+          "versionid": "v1",
           "self": "http://localhost:8181/dirs/d1/files/f1$details",
           "xid": "/dirs/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "YYYY-MM-DDTHH:MM:04Z",
-          "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -7704,13 +7702,13 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "fileid": "f1",
             "self": "http://localhost:8181/dirs/d1/files/f1/meta",
             "xid": "/dirs/d1/files/f1/meta",
-            "epoch": 2,
-            "createdat": "YYYY-MM-DDTHH:MM:03Z",
-            "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
 
-            "defaultversionid": "v2",
-            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
             "defaultversionsticky": false
           },
           "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -7721,24 +7719,13 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
               "xid": "/dirs/d1/files/f1/versions/v1",
               "epoch": 1,
-              "isdefault": false,
-              "createdat": "YYYY-MM-DDTHH:MM:03Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
-              "ancestorid": "v1"
-            },
-            "v2": {
-              "fileid": "f1",
-              "versionid": "v2",
-              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
-              "xid": "/dirs/d1/files/f1/versions/v2",
-              "epoch": 1,
               "isdefault": true,
-              "createdat": "YYYY-MM-DDTHH:MM:04Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:04Z",
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
               "ancestorid": "v1"
             }
           },
-          "versionscount": 2
+          "versionscount": 1
         },
         "f2": {
           "fileid": "f2",
@@ -7747,8 +7734,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
           "xid": "/dirs/d1/files/f2",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "YYYY-MM-DDTHH:MM:03Z",
-          "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -7757,8 +7744,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "self": "http://localhost:8181/dirs/d1/files/f2/meta",
             "xid": "/dirs/d1/files/f2/meta",
             "epoch": 1,
-            "createdat": "YYYY-MM-DDTHH:MM:03Z",
-            "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
 
             "defaultversionid": "v1",
@@ -7774,8 +7761,335 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "xid": "/dirs/d1/files/f2/versions/v1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "YYYY-MM-DDTHH:MM:03Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:03Z",
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 2
+    }
+  },
+  "dirscount": 1
+}
+`)
+
+	regMap := res.ToMap()
+	d1Map = regMap["dirs"].(map[string]any)["d1"].(map[string]any)
+	f1Map := d1Map["files"].(map[string]any)["f1"].(map[string]any)
+	m1Map := f1Map["meta"].(map[string]any)
+	v1Map := f1Map["versions"].(map[string]any)["v1"].(map[string]any)
+
+	XEqual(t, "", regMap["epoch"], float64(4))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XCheckGreater(t, "", regMap["modifiedat"].(string), regModified.(string))
+
+	regModified = regMap["modifiedat"]
+
+	XEqual(t, "", d1Map["epoch"], float64(2))
+	XEqual(t, "", d1Map["createdat"], d1Created, NOMASK_TS)
+	XCheckGreater(t, "", d1Map["modifiedat"].(string), d1Modified.(string))
+
+	d1Modified = d1Map["modifiedat"]
+
+	XEqual(t, "", m1Map["epoch"], float64(1))
+	XEqual(t, "", m1Map["createdat"], d1Modified, NOMASK_TS)
+	XEqual(t, "", m1Map["modifiedat"], d1Modified, NOMASK_TS)
+
+	m1Created := m1Map["createdat"]
+	m1Modified := m1Map["modifiedat"]
+
+	XEqual(t, "", v1Map["epoch"], float64(1))
+	XEqual(t, "", v1Map["createdat"], d1Modified, NOMASK_TS)
+	XEqual(t, "", v1Map["modifiedat"], d1Modified, NOMASK_TS)
+
+	v1Created := v1Map["createdat"]
+	v1Modified := v1Map["modifiedat"]
+
+	// Add a 2nd version (v2) to f1 - becomes the new default version
+	res = XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "xid": "/dirs/d1/files/f1/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	v2Map := res.ToMap()
+
+	XEqual(t, "", v2Map["epoch"], float64(1))
+
+	v2Created := v2Map["createdat"]
+	v2Modified := v2Map["modifiedat"]
+
+	// Refetch the whole tree to see the ripple-effect on reg/d1/meta/v1
+	res = XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 2,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "v2",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:04Z",
+          "modifiedat": "2024-01-01T12:00:04Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:04Z",
+            "readonly": false,
+
+            "defaultversionid": "v2",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f1",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+              "xid": "/dirs/d1/files/f1/versions/v1",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            },
+            "v2": {
+              "fileid": "f1",
+              "versionid": "v2",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+              "xid": "/dirs/d1/files/f1/versions/v2",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:04Z",
+              "modifiedat": "2024-01-01T12:00:04Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 2
+        },
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 2
+    }
+  },
+  "dirscount": 1
+}
+`)
+	regMap = res.ToMap()
+	d1Map = regMap["dirs"].(map[string]any)["d1"].(map[string]any)
+	f1Map = d1Map["files"].(map[string]any)["f1"].(map[string]any)
+	m1Map = f1Map["meta"].(map[string]any)
+	v1Map = f1Map["versions"].(map[string]any)["v1"].(map[string]any)
+	v2Map2 := f1Map["versions"].(map[string]any)["v2"].(map[string]any)
+
+	XEqual(t, "", regMap["epoch"], float64(4))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XEqual(t, "", regMap["modifiedat"], regModified, NOMASK_TS)
+
+	XEqual(t, "", d1Map["epoch"], float64(2))
+	XEqual(t, "", d1Map["createdat"], d1Created, NOMASK_TS)
+	XEqual(t, "", d1Map["modifiedat"], d1Modified, NOMASK_TS)
+
+	XEqual(t, "", m1Map["epoch"], float64(2))
+	XEqual(t, "", m1Map["createdat"], m1Created, NOMASK_TS)
+	XCheckGreater(t, "", m1Map["modifiedat"].(string), m1Modified.(string))
+
+	m1Modified = m1Map["modifiedat"]
+
+	XEqual(t, "", v1Map["epoch"], float64(1))
+	XEqual(t, "", v1Map["createdat"], v1Created, NOMASK_TS)
+	XEqual(t, "", v1Map["modifiedat"], v1Modified, NOMASK_TS)
+
+	XEqual(t, "", v2Map2["epoch"], float64(1))
+	XEqual(t, "", v2Map2["createdat"], v2Created, NOMASK_TS)
+	XEqual(t, "", v2Map2["modifiedat"], v2Modified, NOMASK_TS)
+	XEqual(t, "", v2Map2["createdat"], m1Modified, NOMASK_TS)
+	XEqual(t, "", v2Map2["modifiedat"], m1Modified, NOMASK_TS)
+
+	XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 2,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "v2",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:04Z",
+          "modifiedat": "2024-01-01T12:00:04Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:04Z",
+            "readonly": false,
+
+            "defaultversionid": "v2",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f1",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+              "xid": "/dirs/d1/files/f1/versions/v1",
+              "epoch": 1,
+              "isdefault": false,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            },
+            "v2": {
+              "fileid": "f1",
+              "versionid": "v2",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+              "xid": "/dirs/d1/files/f1/versions/v2",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:04Z",
+              "modifiedat": "2024-01-01T12:00:04Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 2
+        },
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
               "ancestorid": "v1"
             }
           },
@@ -7791,75 +8105,295 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
 
 	// Now do DELETE up the tree
 
-	v2.DeleteSetNextVersion("")
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
-	f1.Refresh(registry.FOR_WRITE)
-	m1.Refresh(registry.FOR_WRITE)
-	v1.Refresh(registry.FOR_WRITE)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v2", ``, 204, ``)
 
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), regModified, NOMASK_TS)
+	res = XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
-	XEqual(t, "", d1.GetAsInt("epoch"), 2)
-	XEqual(t, "", d1.GetAsString("createdat"), d1Created, NOMASK_TS)
-	XEqual(t, "", d1.GetAsString("modifiedat"), d1Modified, NOMASK_TS)
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 2,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
 
-	XEqual(t, "", m1.GetAsInt("epoch"), 3)
-	XEqual(t, "", m1.GetAsString("createdat"), m1Created, NOMASK_TS)
-	XCheckGreater(t, "", m1.GetAsString("modifiedat"), m1Modified)
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f1$details",
+          "xid": "/dirs/d1/files/f1",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
 
-	m1Modified = m1.GetAsString("modifiedat")
+          "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+          "meta": {
+            "fileid": "f1",
+            "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta",
+            "epoch": 3,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:04Z",
+            "readonly": false,
 
-	XEqual(t, "", v1.GetAsInt("epoch"), 1)
-	XEqual(t, "", v1.GetAsString("createdat"), v1Created, NOMASK_TS)
-	XEqual(t, "", v1.GetAsString("modifiedat"), v1Modified, NOMASK_TS)
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f1",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+              "xid": "/dirs/d1/files/f1/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 1
+        },
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
 
-	v1.DeleteSetNextVersion("")
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
 
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), regModified, NOMASK_TS)
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 2
+    }
+  },
+  "dirscount": 1
+}
+`)
+	regMap = res.ToMap()
+	d1Map = regMap["dirs"].(map[string]any)["d1"].(map[string]any)
+	f1Map = d1Map["files"].(map[string]any)["f1"].(map[string]any)
+	m1Map = f1Map["meta"].(map[string]any)
+	v1Map = f1Map["versions"].(map[string]any)["v1"].(map[string]any)
 
-	XEqual(t, "", d1.GetAsInt("epoch"), 3)
-	XEqual(t, "", d1.GetAsString("createdat"), d1Created, NOMASK_TS)
-	XCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
+	XEqual(t, "", regMap["epoch"], float64(4))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XEqual(t, "", regMap["modifiedat"], regModified, NOMASK_TS)
 
-	d1Modified = d1.GetAsString("modifiedat")
+	XEqual(t, "", d1Map["epoch"], float64(2))
+	XEqual(t, "", d1Map["createdat"], d1Created, NOMASK_TS)
+	XEqual(t, "", d1Map["modifiedat"], d1Modified, NOMASK_TS)
 
-	f2.Delete()
-	reg.Refresh(registry.FOR_WRITE)
-	d1.Refresh(registry.FOR_WRITE)
+	XEqual(t, "", m1Map["epoch"], float64(3))
+	XEqual(t, "", m1Map["createdat"], m1Created, NOMASK_TS)
+	XCheckGreater(t, "", m1Map["modifiedat"].(string), m1Modified.(string))
 
-	XEqual(t, "", reg.GetAsInt("epoch"), 2)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XEqual(t, "", reg.GetAsString("modifiedat"), regModified, NOMASK_TS)
+	m1Modified = m1Map["modifiedat"]
 
-	XEqual(t, "", d1.GetAsInt("epoch"), 4)
-	XEqual(t, "", d1.GetAsString("createdat"), d1Created, NOMASK_TS)
-	XCheckGreater(t, "", d1.GetAsString("modifiedat"), d1Modified)
+	XEqual(t, "", v1Map["epoch"], float64(1))
+	XEqual(t, "", v1Map["createdat"], v1Created, NOMASK_TS)
+	XEqual(t, "", v1Map["modifiedat"], v1Modified, NOMASK_TS)
 
-	d1.Delete()
-	XNoErr(t, reg.SaveAllAndCommit())
-	reg.Refresh(registry.FOR_WRITE)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v1", ``, 204, ``)
 
-	XEqual(t, "", reg.GetAsInt("epoch"), 3)
-	XEqual(t, "", reg.GetAsString("createdat"), regCreated, NOMASK_TS)
-	XCheckGreater(t, "", reg.GetAsString("modifiedat"), regModified)
+	res = XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 3,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:04Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {
+        "f2": {
+          "fileid": "f2",
+          "versionid": "v1",
+          "self": "http://localhost:8181/dirs/d1/files/f2$details",
+          "xid": "/dirs/d1/files/f2",
+          "epoch": 1,
+          "isdefault": true,
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
+          "ancestorid": "v1",
+
+          "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
+          "meta": {
+            "fileid": "f2",
+            "self": "http://localhost:8181/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta",
+            "epoch": 1,
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
+            "readonly": false,
+
+            "defaultversionid": "v1",
+            "defaultversionurl": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+            "defaultversionsticky": false
+          },
+          "versionsurl": "http://localhost:8181/dirs/d1/files/f2/versions",
+          "versions": {
+            "v1": {
+              "fileid": "f2",
+              "versionid": "v1",
+              "self": "http://localhost:8181/dirs/d1/files/f2/versions/v1$details",
+              "xid": "/dirs/d1/files/f2/versions/v1",
+              "epoch": 1,
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
+              "ancestorid": "v1"
+            }
+          },
+          "versionscount": 1
+        }
+      },
+      "filescount": 1
+    }
+  },
+  "dirscount": 1
+}
+`)
+	regMap = res.ToMap()
+	d1Map = regMap["dirs"].(map[string]any)["d1"].(map[string]any)
+
+	XEqual(t, "", regMap["epoch"], float64(4))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XEqual(t, "", regMap["modifiedat"], regModified, NOMASK_TS)
+
+	XEqual(t, "", d1Map["epoch"], float64(3))
+	XEqual(t, "", d1Map["createdat"], d1Created, NOMASK_TS)
+	XCheckGreater(t, "", d1Map["modifiedat"].(string), d1Modified.(string))
+
+	d1Modified = d1Map["modifiedat"]
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f2", ``, 204, ``)
+
+	res = XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "self": "http://localhost:8181/dirs/d1",
+      "xid": "/dirs/d1",
+      "epoch": 4,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:04Z",
+
+      "filesurl": "http://localhost:8181/dirs/d1/files",
+      "files": {},
+      "filescount": 0
+    }
+  },
+  "dirscount": 1
+}
+`)
+	regMap = res.ToMap()
+	d1Map = regMap["dirs"].(map[string]any)["d1"].(map[string]any)
+
+	XEqual(t, "", regMap["epoch"], float64(4))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XEqual(t, "", regMap["modifiedat"], regModified, NOMASK_TS)
+
+	XEqual(t, "", d1Map["epoch"], float64(4))
+	XEqual(t, "", d1Map["createdat"], d1Created, NOMASK_TS)
+	XCheckGreater(t, "", d1Map["modifiedat"].(string), d1Modified.(string))
+
+	XHTTP(t, reg, "DELETE", "/dirs/d1", ``, 204, ``)
+
+	res = XHTTP(t, reg, "GET", "/", ``, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPEpochTimesAddRemove",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 0
+}
+`)
+	regMap = res.ToMap()
+
+	XEqual(t, "", regMap["epoch"], float64(5))
+	XEqual(t, "", regMap["createdat"], regCreated, NOMASK_TS)
+	XCheckGreater(t, "", regMap["modifiedat"].(string), regModified.(string))
 
 	XHTTP(t, reg, "GET", "/?inline", ``, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -7893,9 +8427,9 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 6,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -7908,9 +8442,9 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
   "registryid": "TestHTTPEpochTimesAddRemove",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 6,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -7919,8 +8453,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
@@ -7931,8 +8465,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "YYYY-MM-DDTHH:MM:02Z",
-          "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+          "createdat": "2024-01-01T12:00:02Z",
+          "modifiedat": "2024-01-01T12:00:02Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -7941,8 +8475,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
             "self": "http://localhost:8181/dirs/d1/files/f1/meta",
             "xid": "/dirs/d1/files/f1/meta",
             "epoch": 1,
-            "createdat": "YYYY-MM-DDTHH:MM:02Z",
-            "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+            "createdat": "2024-01-01T12:00:02Z",
+            "modifiedat": "2024-01-01T12:00:02Z",
             "readonly": false,
 
             "defaultversionid": "v2",
@@ -7958,8 +8492,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v1",
               "epoch": 1,
               "isdefault": false,
-              "createdat": "YYYY-MM-DDTHH:MM:02Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
               "ancestorid": "v1"
             },
             "v2": {
@@ -7969,8 +8503,8 @@ func TestHTTPEpochTimesAddRemove(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v2",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "YYYY-MM-DDTHH:MM:02Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+              "createdat": "2024-01-01T12:00:02Z",
+              "modifiedat": "2024-01-01T12:00:02Z",
               "ancestorid": "v1"
             }
           },

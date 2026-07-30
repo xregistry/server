@@ -214,7 +214,14 @@ func TestMiscCORS(t *testing.T) {
 	reg := NewRegistry("TestMiscCORS")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddGroupModel("dirs", "dir")
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 	// XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `*`)
 
 	type Test struct {
@@ -361,9 +368,7 @@ func TestMiscConcurrency(t *testing.T) {
 	reg := NewRegistry("TestMiscConcurrency")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModelSimple("files", "file")
-	reg.SaveAllAndCommit()
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
 	startFlag := false
 	wg := &sync.WaitGroup{}
@@ -428,7 +433,7 @@ func TestMiscConcurrency(t *testing.T) {
 	t.Logf("Json: %s", ToJSON(data))
 
 	// May need to check for 20 here (see below)
-	XEqual(t, "", data.Epoch, 21)
+	XEqual(t, "", data.Epoch, 22)
 	XEqual(t, "", data.DirsCount, 10)
 
 	// can be either depending on the order in which things are created

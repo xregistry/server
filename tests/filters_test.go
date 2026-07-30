@@ -10,21 +10,61 @@ func TestFiltersBasic(t *testing.T) {
 	reg := NewRegistry("TestFiltersBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel(true))
+	model := MODEL_DIRS
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.AddVersion("v2")
-	d, _ = reg.AddGroup("dirs", "d2")
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.AddVersion("v1.1")
+	XHTTP(t, reg, "PUT", "/", `{
+  "labels": {
+    "reg1": "1ger"
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionid": "v2"
+          },
+          "versions": {
+            "v1": {},
+            "v2": {}
+          }
+        }
+      }
+    },
+    "d2": {
+      "files": {
+        "f2": {
+          "meta": {
+            "defaultversionid": "v1.1"
+          },
+          "versions": {
+            "v1": {},
+            "v1.1": {
+              "labels": {
+                "file1": "1elif"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersBasic",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "labels": {
+    "reg1": "1ger"
+  },
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
-	reg.SetSave("labels.reg1", "1ger")
-	f.SetSaveDefault("labels.file1", "1elif")
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
 
 	// /dirs/d1/f1/v1
 	//            /v2
@@ -44,12 +84,12 @@ func TestFiltersBasic(t *testing.T) {
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "labels": {
     "reg1": "1ger"
   },
   "createdat": "2024-12-01T12:00:01Z",
-  "modifiedat": "2024-12-01T12:00:01Z",
+  "modifiedat": "2024-12-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2
@@ -184,8 +224,8 @@ func TestFiltersBasic(t *testing.T) {
   "xid": "/dirs/d1/files/f1/versions/v1",
   "epoch": 1,
   "isdefault": false,
-  "createdat": "2024-12-01T12:00:00Z",
-  "modifiedat": "2024-12-01T12:00:00Z",
+  "createdat": "2024-12-01T12:00:02Z",
+  "modifiedat": "2024-12-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `,
@@ -224,12 +264,12 @@ func TestFiltersBasic(t *testing.T) {
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "labels": {
     "reg1": "1ger"
   },
   "createdat": "2024-12-01T12:00:01Z",
-  "modifiedat": "2024-12-01T12:00:01Z",
+  "modifiedat": "2024-12-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2
@@ -244,12 +284,12 @@ func TestFiltersBasic(t *testing.T) {
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "labels": {
     "reg1": "1ger"
   },
   "createdat": "2024-12-01T12:00:01Z",
-  "modifiedat": "2024-12-01T12:00:01Z",
+  "modifiedat": "2024-12-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirscount": 1
@@ -264,12 +304,12 @@ func TestFiltersBasic(t *testing.T) {
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "labels": {
     "reg1": "1ger"
   },
   "createdat": "2024-12-01T12:00:01Z",
-  "modifiedat": "2024-12-01T12:00:01Z",
+  "modifiedat": "2024-12-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1=1elif",
   "dirs": {
@@ -390,12 +430,12 @@ func TestFiltersBasic(t *testing.T) {
   "registryid": "TestFiltersBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "labels": {
     "reg1": "1ger"
   },
   "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs?filter=files.labels.file1",
   "dirs": {
@@ -487,35 +527,100 @@ func TestFiltersANDOR(t *testing.T) {
 	reg := NewRegistry("TestFiltersANDOR")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "schemagroups": {
+      "singular": "schemagroup",
+      "resources": {
+        "schemas": {
+          "singular": "schema"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.AddVersion("v2")
-	f.SetSaveDefault("name", "f1")
-	d, _ = reg.AddGroup("dirs", "d2")
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.AddVersion("v1.1")
-	f.SetSaveDefault("name", "f2")
+	XHTTP(t, reg, "PUT", "/", `{
+  "labels": {
+    "reg1": "1ger"
+  },
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionid": "v2"
+          },
+          "versions": {
+            "v1": {},
+            "v2": {
+              "name": "f1"
+            }
+          }
+        }
+      }
+    },
+    "d2": {
+      "files": {
+        "f2": {
+          "meta": {
+            "defaultversionid": "v1.1"
+          },
+          "versions": {
+            "v1": {},
+            "v1.1": {
+              "name": "f2",
+              "labels": {
+                "file1": "1elif"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "schemagroups": {
+    "sg1": {
+      "schemas": {
+        "s1": {
+          "meta": {
+            "defaultversionid": "v2.0"
+          },
+          "versions": {
+            "v1.0": {},
+            "v2.0": {}
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersANDOR",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "labels": {
+    "reg1": "1ger"
+  },
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
-	gm, err = reg.Model.AddGroupModel("schemagroups", "schemagroup")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("schemas", "schema", 0, true, true)
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel(true))
-
-	sg, err := reg.AddGroup("schemagroups", "sg1")
-	XNoErr(t, err)
-	s, err := sg.AddResource("schemas", "s1", "v1.0")
-	XNoErr(t, err)
-	s.AddVersion("v2.0")
-
-	reg.SetSave("labels.reg1", "1ger")
-	f.SetSaveDefault("labels.file1", "1elif")
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2,
+  "schemagroupsurl": "http://localhost:8181/schemagroups",
+  "schemagroupscount": 1
+}
+`)
 
 	// /dirs/d1/f1/v1     f1.name=f1
 	//            /v2
@@ -614,24 +719,72 @@ func TestFiltersWildcards(t *testing.T) {
 	reg := NewRegistry("TestFiltersWildcards")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel(true))
+	model := MODEL_DIRS
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.AddVersion("v2")
-	f.SetSaveDefault("name", "f1")
-	d, _ = reg.AddGroup("dirs", "d2")
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.AddVersion("v1.1")
-	f.SetSaveDefault("name", "f123")
-	f, _ = d.AddResource("files", "f3", "v1")
-	f.AddVersion("v1.1")
-	f.SetSaveDefault("name", "g%d")
-	f, _ = d.AddResource("files", "f4", "v1") // No name at all
+	XHTTP(t, reg, "PUT", "/", `{
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "meta": {
+            "defaultversionid": "v2"
+          },
+          "versions": {
+            "v1": {},
+            "v2": {
+              "name": "f1"
+            }
+          }
+        }
+      }
+    },
+    "d2": {
+      "files": {
+        "f2": {
+          "meta": {
+            "defaultversionid": "v1.1"
+          },
+          "versions": {
+            "v1": {},
+            "v1.1": {
+              "name": "f123"
+            }
+          }
+        }
+        ,
+        "f3": {
+          "meta": {
+            "defaultversionid": "v1.1"
+          },
+          "versions": {
+            "v1": {},
+            "v1.1": {
+              "name": "g%d"
+            }
+          }
+        },
+        "f4": {
+          "versions": {
+            "v1": {}
+          }
+        }
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersWildcards",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 2
+}
+`)
 
 	tests := []struct {
 		Name string
@@ -812,22 +965,55 @@ func TestFiltersOps(t *testing.T) {
 	reg := NewRegistry("TestFiltersOps")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false) // nodoc
-	XNoErr(t, err)
-	rm.AddAttr("count", INTEGER)
-	XNoErr(t, reg.SaveModel(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "count": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.SetSaveDefault("name", "bob")
-	f.SetSaveDefault("count", 3)
+	XHTTP(t, reg, "PUT", "/", `{
+  "dirs": {
+    "d1": {
+      "files": {
+        "f1": {
+          "name": "bob",
+          "count": 3
+        },
+        "f2": {
+          "name": "",
+          "count": 7
+        },
+        "f3": {}
+      }
+    }
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersOps",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.SetSaveDefault("name", "")
-	f.SetSaveDefault("count", 7)
-
-	d.AddResource("files", "f3", "v1") // no "name", no "count"
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
 
 	PRE := "?oneline&inline=dirs.files&filter="
 	tests := []struct {
@@ -1175,17 +1361,50 @@ func TestFiltersObjs(t *testing.T) {
 	reg := NewRegistry("TestFiltersObjs")
 	defer PassDeleteReg(t, reg)
 
-	attr, _ := reg.Model.AddAttrObj("regobj1")
+	model := `{
+  "attributes": {
+    "regobj1": {
+      "type": "object"
+    },
+    "regobj2": {
+      "type": "object",
+      "attributes": {
+        "bool": {
+          "type": "boolean"
+        }
+      }
+    },
+    "regobj3": {
+      "type": "object",
+      "attributes": {
+        "bool": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	attr, _ = reg.Model.AddAttrObj("regobj2")
-	attr.AddAttr("bool", BOOLEAN)
-
-	attr, _ = reg.Model.AddAttrObj("regobj3")
-	attr.AddAttr("bool", BOOLEAN)
-	XNoErr(t, reg.SaveModel(true))
-
-	XNoErr(t, reg.SetSave("regobj2", map[string]any{}))
-	XNoErr(t, reg.SetSave("regobj3", map[string]any{"bool": true}))
+	XHTTP(t, reg, "PUT", "/", `{
+  "regobj2": {},
+  "regobj3": {
+    "bool": true
+  }
+}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersObjs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "regobj2": {},
+  "regobj3": {
+    "bool": true
+  }
+}
+`)
 
 	tests := []struct {
 		Name string
@@ -1338,13 +1557,22 @@ func TestFiltersURLs(t *testing.T) {
 	reg := NewRegistry("TestFiltersURLs")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("datas", "data", 0, true, true)
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveModel(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        },
+        "datas": {
+          "singular": "data"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// establish baseline
 	XHTTP(t, reg, "PUT", "/?inline=dirs", `{
@@ -1375,9 +1603,9 @@ func TestFiltersURLs(t *testing.T) {
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -1386,8 +1614,8 @@ func TestFiltersURLs(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
 
       "datasurl": "http://localhost:8181/dirs/d1/datas",
       "datascount": 2,
@@ -1399,8 +1627,8 @@ func TestFiltersURLs(t *testing.T) {
       "self": "http://localhost:8181/dirs/d2",
       "xid": "/dirs/d2",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
 
       "datasurl": "http://localhost:8181/dirs/d2/datas",
       "datascount": 2,
@@ -1421,7 +1649,7 @@ func TestFiltersURLs(t *testing.T) {
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2026-05-24T15:56:21.489831698Z",
   "modifiedat": "2026-05-24T15:56:21.510904221Z",
 
@@ -1491,8 +1719,8 @@ func TestFiltersURLs(t *testing.T) {
     "xid": "/dirs/d2/datas/d2",
     "epoch": 1,
     "isdefault": true,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:01Z",
     "ancestorid": "1",
 
     "metaurl": "http://localhost:8181/dirs/d2/datas/d2/meta",
@@ -1510,7 +1738,7 @@ func TestFiltersURLs(t *testing.T) {
   "registryid": "TestFiltersURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2026-05-24T16:04:17.48194014Z",
   "modifiedat": "2026-05-24T16:04:17.502254683Z",
 
@@ -1588,7 +1816,7 @@ func TestFiltersURLs(t *testing.T) {
   "registryid": "TestFiltersURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2026-05-24T16:16:01.48254591Z",
   "modifiedat": "2026-05-24T16:16:01.502446729Z",
 
@@ -1604,7 +1832,7 @@ func TestFiltersURLs(t *testing.T) {
   "registryid": "TestFiltersURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2026-05-24T16:17:02.012652627Z",
   "modifiedat": "2026-05-24T16:17:02.032361913Z",
 
@@ -1647,10 +1875,8 @@ func TestFiltersMisc(t *testing.T) {
 	reg := NewRegistry("TestFiltersMisc")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
+	model := MODEL_DIRS
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/?filter=dirs..dirid=d2", ``, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
@@ -1754,7 +1980,34 @@ func TestFiltersWildcardsInName(t *testing.T) {
           }
         }
       }
-    }`, 200, "*")
+    }`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestFiltersWildcardsInName",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+  "ext": {
+    "arr": [
+      {
+        "map": {
+          "k1": "v1",
+          "k2": "v2"
+        }
+      },
+      {
+        "obj": {
+          "a1": "b1"
+        }
+      }
+    ]
+  },
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
 
 	// First make sure a basic test works
 	XHTTP(t, reg, "GET", "/dirs/d1/files?filter=obj.str", "", 200, `{

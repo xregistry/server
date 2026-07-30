@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,20 +15,94 @@ func TestInlineBasic(t *testing.T) {
 	reg := NewRegistry("TestInlineBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    },
+    "dirs2": {
+      "singular": "dir2",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.AddVersion("v2")
-	d, _ = reg.AddGroup("dirs", "d2")
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.AddVersion("v1.1")
-
-	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, true, true)
-	d2, _ := reg.AddGroup("dirs2", "d2")
-	d2.AddResource("files", "f2", "v1")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "xid": "/dirs/d1/files/f1/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f2/versions/v1$details", `{}`, 201, `{
+  "fileid": "f2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d2/files/f2/versions/v1$details",
+  "xid": "/dirs/d2/files/f2/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f2/versions/v1.1$details", `{}`, 201, `{
+  "fileid": "f2",
+  "versionid": "v1.1",
+  "self": "http://localhost:8181/dirs/d2/files/f2/versions/v1.1$details",
+  "xid": "/dirs/d2/files/f2/versions/v1.1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs2/d2/files/f2/versions/v1$details", `{}`, 201, `{
+  "fileid": "f2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
+  "xid": "/dirs2/d2/files/f2/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// /dirs/d1/files/f1/v1
 	//                  /v2
@@ -48,9 +123,9 @@ func TestInlineBasic(t *testing.T) {
   "registryid": "TestInlineBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 5,
   "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 2,
@@ -67,9 +142,9 @@ func TestInlineBasic(t *testing.T) {
   "registryid": "TestInlineBasic",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 5,
   "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -78,8 +153,8 @@ func TestInlineBasic(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 1,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:03Z",
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
@@ -90,8 +165,8 @@ func TestInlineBasic(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:04Z",
+          "modifiedat": "2024-01-01T12:00:04Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -99,9 +174,9 @@ func TestInlineBasic(t *testing.T) {
             "fileid": "f1",
             "self": "http://localhost:8181/dirs/d1/files/f1/meta",
             "xid": "/dirs/d1/files/f1/meta",
-            "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:03Z",
+            "modifiedat": "2024-01-01T12:00:04Z",
             "readonly": false,
 
             "defaultversionid": "v2",
@@ -117,8 +192,8 @@ func TestInlineBasic(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v1",
               "epoch": 1,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:03Z",
+              "modifiedat": "2024-01-01T12:00:03Z",
               "ancestorid": "v1"
             },
             "v2": {
@@ -128,8 +203,8 @@ func TestInlineBasic(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v2",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:04Z",
+              "modifiedat": "2024-01-01T12:00:04Z",
               "ancestorid": "v1"
             }
           },
@@ -143,8 +218,8 @@ func TestInlineBasic(t *testing.T) {
       "self": "http://localhost:8181/dirs/d2",
       "xid": "/dirs/d2",
       "epoch": 1,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "createdat": "2024-01-01T12:00:05Z",
+      "modifiedat": "2024-01-01T12:00:05Z",
 
       "filesurl": "http://localhost:8181/dirs/d2/files",
       "files": {
@@ -155,8 +230,8 @@ func TestInlineBasic(t *testing.T) {
           "xid": "/dirs/d2/files/f2",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:06Z",
+          "modifiedat": "2024-01-01T12:00:06Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d2/files/f2/meta",
@@ -164,9 +239,9 @@ func TestInlineBasic(t *testing.T) {
             "fileid": "f2",
             "self": "http://localhost:8181/dirs/d2/files/f2/meta",
             "xid": "/dirs/d2/files/f2/meta",
-            "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:05Z",
+            "modifiedat": "2024-01-01T12:00:06Z",
             "readonly": false,
 
             "defaultversionid": "v1.1",
@@ -182,8 +257,8 @@ func TestInlineBasic(t *testing.T) {
               "xid": "/dirs/d2/files/f2/versions/v1",
               "epoch": 1,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:05Z",
+              "modifiedat": "2024-01-01T12:00:05Z",
               "ancestorid": "v1"
             },
             "v1.1": {
@@ -193,8 +268,8 @@ func TestInlineBasic(t *testing.T) {
               "xid": "/dirs/d2/files/f2/versions/v1.1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:06Z",
+              "modifiedat": "2024-01-01T12:00:06Z",
               "ancestorid": "v1"
             }
           },
@@ -458,40 +533,168 @@ func TestInlineResource(t *testing.T) {
 	reg := NewRegistry("TestInlineResource")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d, _ := reg.AddGroup("dirs", "d1")
+	b64 := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
 	// ProxyURL
-	f, _ := d.AddResource("files", "f1-proxy", "v1")
-	f.SetSaveDefault(NewPP().P("file").UI(), "Hello world! v1")
+	// /dirs/d1/files/f1-proxy/v1 - resource
+	//                        /v2 - URL
+	//                        /v3 - ProxyURL  <- default
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1-proxy/versions/v1$details",
+		`{"filebase64": "`+b64("Hello world! v1")+`"}`, 201, `{
+  "fileid": "f1-proxy",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1-proxy/versions/v1$details",
+  "xid": "/dirs/d1/files/f1-proxy/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1-proxy/versions/v2$details",
+		`{"fileurl": "http://localhost:8282/EMPTY-URL"}`, 201, `{
+  "fileid": "f1-proxy",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1-proxy/versions/v2$details",
+  "xid": "/dirs/d1/files/f1-proxy/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1",
 
-	v, _ := f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
+  "fileurl": "http://localhost:8282/EMPTY-URL"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1-proxy/versions/v3$details",
+		`{"fileproxyurl": "http://localhost:8282/EMPTY-Proxy"}`, 201, `{
+  "fileid": "f1-proxy",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1-proxy/versions/v3$details",
+  "xid": "/dirs/d1/files/f1-proxy/versions/v3",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v2",
 
-	v, _ = f.AddVersion("v3")
-	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
+}
+`)
 
 	// URL
-	f, _ = d.AddResource("files", "f2-url", "v1")
-	f.SetSaveDefault(NewPP().P("file").UI(), "Hello world! v1")
+	// /dirs/d1/files/f2-url/v1 - resource
+	//                      /v2 - ProxyURL
+	//                      /v3 - URL  <- default
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2-url/versions/v1$details",
+		`{"filebase64": "`+b64("Hello world! v1")+`"}`, 201, `{
+  "fileid": "f2-url",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f2-url/versions/v1$details",
+  "xid": "/dirs/d1/files/f2-url/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2-url/versions/v2$details",
+		`{"fileproxyurl": "http://localhost:8282/EMPTY-Proxy"}`, 201, `{
+  "fileid": "f2-url",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f2-url/versions/v2$details",
+  "xid": "/dirs/d1/files/f2-url/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1",
 
-	v, _ = f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2-url/versions/v3$details",
+		`{"fileurl": "http://localhost:8282/EMPTY-URL"}`, 201, `{
+  "fileid": "f2-url",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f2-url/versions/v3$details",
+  "xid": "/dirs/d1/files/f2-url/versions/v3",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v2",
 
-	v, _ = f.AddVersion("v3")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
+  "fileurl": "http://localhost:8282/EMPTY-URL"
+}
+`)
 
 	// Resource
-	f, _ = d.AddResource("files", "f3-resource", "v1")
-	f.SetSaveDefault(NewPP().P("fileproxyurl").UI(), "http://localhost:8282/EMPTY-Proxy")
+	// /dirs/d1/files/f3-resource/v1 - ProxyURL
+	//                           /v2 - URL
+	//                           /v3 - resource  <- default
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3-resource/versions/v1$details",
+		`{"fileproxyurl": "http://localhost:8282/EMPTY-Proxy"}`, 201, `{
+  "fileid": "f3-resource",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f3-resource/versions/v1$details",
+  "xid": "/dirs/d1/files/f3-resource/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1",
 
-	v, _ = f.AddVersion("v2")
-	v.SetSave(NewPP().P("fileurl").UI(), "http://localhost:8282/EMPTY-URL")
+  "fileproxyurl": "http://localhost:8282/EMPTY-Proxy"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3-resource/versions/v2$details",
+		`{"fileurl": "http://localhost:8282/EMPTY-URL"}`, 201, `{
+  "fileid": "f3-resource",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f3-resource/versions/v2$details",
+  "xid": "/dirs/d1/files/f3-resource/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1",
 
-	v, _ = f.AddVersion("v3")
-	XNoErr(t, v.SetSave(NewPP().P("file").UI(), "Hello world! v3"))
+  "fileurl": "http://localhost:8282/EMPTY-URL"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3-resource/versions/v3$details",
+		`{"filebase64": "`+b64("Hello world! v3")+`"}`, 201, `{
+  "fileid": "f3-resource",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f3-resource/versions/v3$details",
+  "xid": "/dirs/d1/files/f3-resource/versions/v3",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v2"
+}
+`)
 
 	// /dirs/d1/files/f1-proxy/v1 - resource
 	//                        /v2 - URL
@@ -793,8 +996,22 @@ func TestInlineWildcards(t *testing.T) {
 	reg := NewRegistry("TestInlineWildcards")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world"}}`, 201, `*`)
@@ -805,7 +1022,7 @@ func TestInlineWildcards(t *testing.T) {
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -884,7 +1101,7 @@ func TestInlineWildcards(t *testing.T) {
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -963,7 +1180,7 @@ func TestInlineWildcards(t *testing.T) {
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -1042,7 +1259,7 @@ func TestInlineWildcards(t *testing.T) {
   "registryid": "TestInlineWildcards",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -1544,17 +1761,31 @@ func TestInlineEmpty(t *testing.T) {
 	reg := NewRegistry("TestInlineEmpty")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "GET", "/?inline", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -1567,9 +1798,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -1582,9 +1813,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -1597,9 +1828,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -1612,9 +1843,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {},
@@ -1622,16 +1853,27 @@ func TestInlineEmpty(t *testing.T) {
 }
 `)
 
-	reg.AddGroup("dirs", "d1")
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	XHTTP(t, reg, "GET", "/?inline", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -1657,9 +1899,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -1684,9 +1926,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -1712,9 +1954,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -1740,9 +1982,9 @@ func TestInlineEmpty(t *testing.T) {
   "registryid": "TestInlineEmpty",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {

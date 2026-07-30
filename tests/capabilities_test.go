@@ -1577,8 +1577,7 @@ func TestCapabilityFlagsOff(t *testing.T) {
 	reg := NewRegistry("TestCapabilityFlags")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS_NODOC, 200, MODEL_DIRS_NODOC+"\n")
 
 	XHTTP(t, reg, "PUT", "/capabilities", `{
       "available":{

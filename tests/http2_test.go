@@ -14,15 +14,46 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 	reg := NewRegistry("TestHTTPHasDocumentFalse")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-
-	// plural, singular, versions, verId bool, isDefault bool, hasDocument bool
-	_, err = gm.AddResourceModel("bars", "bar", 0, true, true)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
-	_, err = rm.AddAttr("*", STRING)
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "bars": {
+          "plural": "bars",
+          "singular": "bar",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        },
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "attributes": {
+            "*": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files$details", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_details",
@@ -83,7 +114,7 @@ func TestHTTPHasDocumentFalse(t *testing.T) {
 		URL:    "/dirs/d1/files",
 		Method: "POST",
 		ReqBody: `{
-		  "ff1": {
+	      "ff1": {
 		    "test":"foo"
 		  }
 		}`,
@@ -366,17 +397,29 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 	reg := NewRegistry("TestHTTPReadOnlyResource")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-
-	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
-		Plural:       "files",
-		Singular:     "file",
-		MaxVersions:  PtrInt(0),
-		SetVersionId: PtrBool(true),
-		HasDocument:  PtrBool(true),
-	})
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1", "{}", 201, `{
   "dirid": "dir1",
@@ -391,14 +434,22 @@ func TestHTTPReadOnlyResource(t *testing.T) {
 }
 `)
 
-	d1, err := reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, d1 != nil, "d1 should not be nil")
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/dir1/files/f1/versions/v1$details",
+  "xid": "/dirs/dir1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
-	f1, err := d1.AddResource("files", "f1", "v1")
+	reg.Refresh(registry.FOR_READ)
+	f1, err := reg.FindResourceByXID("/dirs/dir1/files/f1", "", registry.FOR_WRITE)
 	XNoErr(t, err)
-	XCheck(t, f1 != nil, "f1 should not be nil")
-
 	XNoErr(t, f1.SetSaveMeta("readonly", true))
 
 	XHTTP(t, reg, "GET", "/dirs/dir1/files?inline=meta", "", 200, `{
@@ -418,9 +469,9 @@ func TestHTTPReadOnlyResource(t *testing.T) {
       "fileid": "f1",
       "self": "http://localhost:8181/dirs/dir1/files/f1/meta",
       "xid": "/dirs/dir1/files/f1/meta",
-      "epoch": 1,
+      "epoch": 2,
       "createdat": "2024-01-01T12:00:01Z",
-      "modifiedat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
       "readonly": true,
 
       "defaultversionid": "v1",
@@ -579,8 +630,29 @@ func TestHTTPDefaultVersionThis(t *testing.T) {
 	reg := NewRegistry("TestHTTPDefaultVersionThis")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "create res?setdefault=request",
@@ -851,10 +923,42 @@ func TestHTTPContent(t *testing.T) {
 	reg := NewRegistry("TestHTTPContent")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	reg.AddGroup("dirs", "d1")
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	// Simple string
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -2305,10 +2409,42 @@ func TestHTTPContent2(t *testing.T) {
 	reg := NewRegistry("TestHTTPContent")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	reg.AddGroup("dirs", "d1")
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1",
@@ -2427,8 +2563,8 @@ func TestHTTPContent2(t *testing.T) {
   "xid": "/dirs/d1/files/f2",
   "epoch": 2,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -2443,16 +2579,16 @@ func TestHTTPContent2(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f1": {
+          "f1": {
 		    "file": null
 		  },
-		  "f2": {
+          "f2": {
 		    "filebase64": null
 		  },
-		  "f3": {
+          "f3": {
 		    "file": "howdy"
 		  },
-		  "f4": {
+          "f4": {
 			"filebase64": "aGVsbG8gd29ybGQ="
 		  }
 		}`,
@@ -2531,16 +2667,16 @@ func TestHTTPContent2(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "v1": {
+          "v1": {
 		    "file": null
 		  },
-		  "v2": {
+          "v2": {
 		    "filebase64": null
 		  },
-		  "v3": {
+          "v3": {
 		    "file": "howdy"
 		  },
-		  "v4": {
+          "v4": {
 			"filebase64": "aGVsbG8gd29ybGQ="
 		  }
 		}`,
@@ -2600,9 +2736,41 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	reg := NewRegistry("TestHTTPResourcesBulk")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	reg.AddGroup("dirs", "dir1")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+	XHTTP(t, reg, "PUT", "/dirs/dir1", `{}`, 201, `{
+  "dirid": "dir1",
+  "self": "http://localhost:8181/dirs/dir1",
+  "xid": "/dirs/dir1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/dir1/files",
+  "filescount": 0
+}
+`)
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "POST resources - {}",
@@ -2624,7 +2792,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f22": {
+          "f22": {
 		    "fileid": "f22"
 		  }
         }`,
@@ -2658,7 +2826,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f23": {
+          "f23": {
 		    "fileid": "bad f23"
 		  }
         }`,
@@ -2682,7 +2850,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f2": {}
+          "f2": {}
         }`,
 		Code: 200,
 		ResHeaders: []string{
@@ -2714,7 +2882,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f2": {
+          "f2": {
             "description": "foo"
           }
         }`,
@@ -2749,7 +2917,7 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f2": {
+          "f2": {
             "description": "hello"
           },
           "f3": {
@@ -2776,12 +2944,12 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f2": {
+          "f2": {
             "description": "foo"
           },
-		  "f3": {
+          "f3": {
 		    "labels": {
-			  "l1": "hello"
+		  "l1": "hello"
 			}
           }
         }`,
@@ -2834,12 +3002,12 @@ func TestHTTPResourcesBulk(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f2": {
+          "f2": {
             "description": "foo"
           },
-		  "f3": {
+          "f3": {
 		    "labels": {
-			  "l1": "hello"
+		  "l1": "hello"
 			}
           }
         }`,
@@ -3230,26 +3398,26 @@ func TestHTTPResourcesBulk(t *testing.T) {
 	})
 
 	/* no longer a valid test, "null" should always be allowed
-		XCheckHTTP(t, reg, &HTTPTest{
-			Name:       "POST resources/f10/versions - new res,version-2v,err",
-			URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=null",
-			Method:     "POST",
-			ReqHeaders: []string{},
-			ReqBody: `{
-	          "v1": {},
-	          "v2": {}
-	        }`,
-			Code: 400,
-			ResHeaders: []string{
-				"Content-Type:application/json; charset=utf-8",
-			},
-			ResBody: `{
+			XCheckHTTP(t, reg, &HTTPTest{
+				Name:       "POST resources/f10/versions - new res,version-2v,err",
+				URL:        "/dirs/dir1/files/f10/versions?setdefaultversionid=null",
+				Method:     "POST",
+				ReqHeaders: []string{},
+				ReqBody: `{
+		          "v1": {},
+		          "v2": {}
+		        }`,
+				Code: 400,
+				ResHeaders: []string{
+					"Content-Type:application/json; charset=utf-8",
+				},
+				ResBody: `{
 	  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
 	  "subject": "http://localhost:8181/dirs/dir1/files/f10/versions",
 	  "title": "The request cannot be processed as provided: ?setdefaultversionid can not be 'null'"
-	}
-	`,
-		})
+		}
+		`,
+			})
 	*/
 
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -3759,21 +3927,75 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	reg := NewRegistry("TestHTTPRegistryPatch")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddAttr("regext", STRING)
+	model := `{
+  "attributes": {
+    "regext": {
+      "type": "string"
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "gext": {
+          "type": "string"
+        }
+      },
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "attributes": {
+            "rext": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+	XHTTP(t, reg, "PUT", "/dirs/dir1", `{}`, 201, `{
+  "dirid": "dir1",
+  "self": "http://localhost:8181/dirs/dir1",
+  "xid": "/dirs/dir1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddAttr("gext", STRING)
+  "filesurl": "http://localhost:8181/dirs/dir1/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/dir1/files/f1/versions/v1$details",
+  "xid": "/dirs/dir1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
-	rm.AddAttr("rext", STRING)
-
-	g, _ := reg.AddGroup("dirs", "dir1")
-	f, err := g.AddResource("files", "f1", "v1")
-
+	reg.Refresh(registry.FOR_READ)
+	g, err := reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	f, err := g.FindResource("files", "f1", false, registry.FOR_WRITE)
 	XNoErr(t, err)
 
-	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
 	regCre := reg.GetAsString("createdat")
 	regMod := reg.GetAsString("modifiedat")
 
@@ -3785,7 +4007,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 3,
   "createdat": "`+regCre+`",
   "modifiedat": "`+regMod+`",
 
@@ -3799,9 +4021,9 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "epoch": 4,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -3813,54 +4035,16 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XCheckNotEqual(t, "", reg.GetAsString("modifiedat"), regMod)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "description": "testing"
-	}`, 200, `{
-  "specversion": "`+SPECVERSION+`",
-  "registryid": "TestHTTPRegistryPatch",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 3,
-  "description": "testing",
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
-
-  "dirsurl": "http://localhost:8181/dirs",
-  "dirscount": 1
-}
-`)
-
-	XHTTP(t, reg, "PATCH", "/", `{
-	  "description": null
-	}`, 200, `{
-  "specversion": "`+SPECVERSION+`",
-  "registryid": "TestHTTPRegistryPatch",
-  "self": "http://localhost:8181/",
-  "xid": "/",
-  "epoch": 4,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
-
-  "dirsurl": "http://localhost:8181/dirs",
-  "dirscount": 1
-}
-`)
-
-	XHTTP(t, reg, "PATCH", "/", `{
-	  "labels": {
-	    "foo": "bar"
-	  },
-	  "createdat": null
+      "description": "testing"
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 5,
-  "labels": {
-    "foo": "bar"
-  },
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "description": "testing",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -3868,16 +4052,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "labels": {}
+      "description": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 6,
-  "labels": {},
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -3885,14 +4068,20 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "labels": null
+      "labels": {
+	    "foo": "bar"
+	  },
+      "createdat": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 7,
-  "createdat": "2024-01-01T12:00:00Z",
+  "labels": {
+    "foo": "bar"
+  },
+  "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
 
   "dirsurl": "http://localhost:8181/dirs",
@@ -3901,15 +4090,48 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "regext": "str"
+      "labels": {}
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 8,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "labels": {},
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/", `{
+      "labels": null
+	}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPRegistryPatch",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 9,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/", `{
+      "regext": "str"
+	}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
+  "registryid": "TestHTTPRegistryPatch",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 10,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "regext": "str",
 
   "dirsurl": "http://localhost:8181/dirs",
@@ -3918,15 +4140,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "regext": null
+      "regext": null
 	}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestHTTPRegistryPatch",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 9,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "epoch": 11,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -3934,7 +4156,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/", `{
-	  "badext": "str"
+      "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (badext) was specified for \"/\".",
@@ -3951,17 +4173,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
 
 	gmod := g.GetAsString("modifiedat")
 
-	XHTTP(t, reg, "PATCH", "/dirs", `{}`, 200,
-		`{}
-`)
+	XHTTP(t, reg, "PATCH", "/dirs", `{}`, 200, "{}\n")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
-  "epoch": 2,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
   "filescount": 1
@@ -3972,30 +4192,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XCheck(t, g.GetAsString("modifiedat") != gmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "description": "testing"
-	}`, 200, `{
-  "dirid": "dir1",
-  "self": "http://localhost:8181/dirs/dir1",
-  "xid": "/dirs/dir1",
-  "epoch": 3,
-  "description": "testing",
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
-
-  "filesurl": "http://localhost:8181/dirs/dir1/files",
-  "filescount": 1
-}
-`)
-
-	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "description": null
+      "description": "testing"
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
   "epoch": 4,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "description": "testing",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
   "filescount": 1
@@ -4003,20 +4208,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "labels": {
-	    "foo": "bar"
-	  },
-	  "createdat": null
+      "description": null
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
   "epoch": 5,
-  "labels": {
-    "foo": "bar"
-  },
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
   "filescount": 1
@@ -4024,14 +4223,19 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "labels": {}
+      "labels": {
+	    "foo": "bar"
+	  },
+      "createdat": null
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
   "epoch": 6,
-  "labels": {},
-  "createdat": "2024-01-01T12:00:00Z",
+  "labels": {
+    "foo": "bar"
+  },
+  "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:01Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
@@ -4040,14 +4244,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "labels": null
+      "labels": {}
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
   "epoch": 7,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "labels": {},
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
   "filescount": 1
@@ -4055,14 +4260,29 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "gext": "str"
+      "labels": null
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
   "epoch": 8,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
+
+  "filesurl": "http://localhost:8181/dirs/dir1/files",
+  "filescount": 1
+}
+`)
+
+	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
+      "gext": "str"
+	}`, 200, `{
+  "dirid": "dir1",
+  "self": "http://localhost:8181/dirs/dir1",
+  "xid": "/dirs/dir1",
+  "epoch": 9,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "gext": "str",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
@@ -4071,14 +4291,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "gext": null
+      "gext": null
 	}`, 200, `{
   "dirid": "dir1",
   "self": "http://localhost:8181/dirs/dir1",
   "xid": "/dirs/dir1",
-  "epoch": 9,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "epoch": 10,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "filesurl": "http://localhost:8181/dirs/dir1/files",
   "filescount": 1
@@ -4086,7 +4306,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1", `{
-	  "badext": "str"
+      "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (badext) was specified for \"/dirs/dir1\".",
@@ -4126,8 +4346,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1",
   "epoch": 2,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4140,7 +4360,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "description": "testing"
+      "description": "testing"
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4149,8 +4369,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "epoch": 3,
   "isdefault": true,
   "description": "testing",
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4160,7 +4380,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "description": null
+      "description": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4168,8 +4388,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1",
   "epoch": 4,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4179,10 +4399,10 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "labels": {
+      "labels": {
 	    "foo": "bar"
 	  },
-	  "createdat": null
+      "createdat": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4193,8 +4413,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "labels": {
     "foo": "bar"
   },
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4204,7 +4424,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "labels": {}
+  "labels": {}
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4213,8 +4433,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "epoch": 6,
   "isdefault": true,
   "labels": {},
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4224,7 +4444,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "labels": null
+      "labels": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4232,8 +4452,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1",
   "epoch": 7,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4243,7 +4463,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "rext": "str"
+      "rext": "str"
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4251,8 +4471,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1",
   "epoch": 8,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
   "rext": "str",
 
@@ -4263,7 +4483,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "rext": null
+      "rext": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4271,8 +4491,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1",
   "epoch": 9,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
 
   "metaurl": "http://localhost:8181/dirs/dir1/files/f1/meta",
@@ -4282,7 +4502,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details", `{
-	  "badext": "str"
+      "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (badext) was specified for \"/dirs/dir1/files/f1/versions/v1\".",
@@ -4322,8 +4542,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1/versions/v1",
   "epoch": 10,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
@@ -4332,7 +4552,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	XCheck(t, v.GetAsString("modifiedat") != vmod, "Should be diff")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "description": "testing"
+      "description": "testing"
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4341,14 +4561,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "epoch": 11,
   "isdefault": true,
   "description": "testing",
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "description": null
+      "description": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4356,17 +4576,17 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1/versions/v1",
   "epoch": 12,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "labels": {
+      "labels": {
 	    "foo": "bar"
 	  },
-	  "createdat": null
+      "createdat": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4377,14 +4597,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "labels": {
     "foo": "bar"
   },
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "labels": {}
+      "labels": {}
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4393,14 +4613,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "epoch": 14,
   "isdefault": true,
   "labels": {},
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "labels": null
+      "labels": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4408,14 +4628,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1/versions/v1",
   "epoch": 15,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "rext": "str"
+      "rext": "str"
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4423,15 +4643,15 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1/versions/v1",
   "epoch": 16,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1",
   "rext": "str"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "rext": null
+      "rext": null
 	}`, 200, `{
   "fileid": "f1",
   "versionid": "v1",
@@ -4439,14 +4659,14 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir1/files/f1/versions/v1",
   "epoch": 17,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ancestorid": "v1"
 }
 `)
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{
-	  "badext": "str"
+      "badext": "str"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
   "title": "An unknown attribute (badext) was specified for \"/dirs/dir1/files/f1/versions/v1\".",
@@ -4465,8 +4685,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "self": "http://localhost:8181/dirs/dir2",
   "xid": "/dirs/dir2",
   "epoch": 1,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
 
   "filesurl": "http://localhost:8181/dirs/dir2/files",
   "filescount": 0
@@ -4480,8 +4700,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir2/files/f2",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1",
 
   "metaurl": "http://localhost:8181/dirs/dir2/files/f2/meta",
@@ -4497,8 +4717,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir2/files/f2/versions/v2",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "1"
 }
 `)
@@ -4510,8 +4730,8 @@ func TestHTTPRegistryPatch(t *testing.T) {
   "xid": "/dirs/dir3/files/f3/versions/v3",
   "epoch": 1,
   "isdefault": true,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
   "ancestorid": "v3"
 }
 `)
@@ -4522,8 +4742,29 @@ func TestHTTPEpoch(t *testing.T) {
 	reg := NewRegistry("TestHTTPRegistryPatch")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions/v1$details", `{}`,
 		201, `{
@@ -4589,13 +4830,53 @@ func TestHTTPRegistryPatchNoDoc(t *testing.T) {
 	reg := NewRegistry("TestHTTPRegistryPatchNoDoc")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+	XHTTP(t, reg, "PUT", "/dirs/dir1", `{}`, 201, `{
+  "dirid": "dir1",
+  "self": "http://localhost:8181/dirs/dir1",
+  "xid": "/dirs/dir1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
 
-	g, _ := reg.AddGroup("dirs", "dir1")
-	_, err := g.AddResource("files", "f1", "v1")
-
-	XNoErr(t, err)
+  "filesurl": "http://localhost:8181/dirs/dir1/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/dir1/files/f1/versions/v1",
+  "xid": "/dirs/dir1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// Just double check $details on PATCH at the same time
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1$details",
@@ -4671,13 +4952,34 @@ func TestHTTPResourceCollections(t *testing.T) {
 	reg := NewRegistry("TestHTTPResourceCollections")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Files + empty
 	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
-	  "f1": {},
-	  "f2": {}
+      "f1": {},
+      "f2": {}
 	}`, 200, `{
   "f1": {
     "fileid": "f1",
@@ -4714,8 +5016,8 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// Files + IDs
 	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
-	  "f3": { "fileid": "f3" },
-	  "f4": { "fileid": "f4" }
+      "f3": { "fileid": "f3" },
+      "f4": { "fileid": "f4" }
 	}`, 200, `{
   "f3": {
     "fileid": "f3",
@@ -4752,8 +5054,8 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// Files + Bad IDs
 	XHTTP(t, reg, "POST", "/dirs/dir1/files", `{
-	  "f5": { "fileid": "f5" },
-	  "f6": { "fileid": "ef6" }
+      "f5": { "fileid": "f5" },
+      "f6": { "fileid": "ef6" }
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"fileid\" value (ef6) for \"/dirs/dir1/files/f6\" needs to be \"f6\".",
@@ -4769,7 +5071,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// via file, Versions + empty - new file
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v1", `{
-	  "versionid": "v1"
+      "versionid": "v1"
 	}`, 201, `{
   "fileid": "f7",
   "versionid": "v1",
@@ -4785,7 +5087,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// via file, Versions + empty + existing file
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=v2", `{
-	  "versionid": "v2"
+      "versionid": "v2"
 	}`, 201, `{
   "fileid": "f7",
   "versionid": "v2",
@@ -4801,7 +5103,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// via file, Versions + empty + existing file + this
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
-	  "versionid": "v3"
+      "versionid": "v3"
 	}`, 201, `{
   "fileid": "f7",
   "versionid": "v3",
@@ -4817,7 +5119,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// via file, Versions + empty + existing file + this + existing v
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=request", `{
-	  "versionid": "v2"
+      "versionid": "v2"
 	}`, 200, `{
   "fileid": "f7",
   "versionid": "v2",
@@ -4833,7 +5135,7 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// via file, Versions + empty + existing file + bad def + existing v
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/f7?setdefaultversionid=xxx", `{
-	  "versionid": "v2"
+      "versionid": "v2"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
   "title": "While processing \"/dirs/dir1/files/f7\", the \"version\" with a \"versionid\" value of \"xxx\" cannot be found.",
@@ -4848,8 +5150,8 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// Versions + empty
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff1/versions?setdefaultversionid=v2", `{
-	  "v1": {  },
-	  "v2": {  }
+      "v1": {  },
+      "v2": {  }
 	}`, 200, `{
   "v1": {
     "fileid": "ff1",
@@ -4878,8 +5180,8 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// Versions + IDs
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff8/versions?setdefaultversionid=v2", `{
-	  "v1": { "versionid": "v1" },
-	  "v2": { "versionid": "v2" }
+      "v1": { "versionid": "v1" },
+      "v2": { "versionid": "v2" }
 	}`, 200, `{
   "v1": {
     "fileid": "ff8",
@@ -4908,8 +5210,8 @@ func TestHTTPResourceCollections(t *testing.T) {
 
 	// Versions + bad IDs
 	XHTTP(t, reg, "POST", "/dirs/dir1/files/ff9/versions?setdefaultversionid=v2", `{
-	  "v1": { "versionid": "v1" },
-	  "v2": { "versionid": "ev2" }
+      "v1": { "versionid": "v1" },
+      "v2": { "versionid": "ev2" }
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"versionid\" value (ev2) for \"/dirs/dir1/files/ff9/versions/v2\" needs to be \"v2\".",
@@ -4928,8 +5230,29 @@ func TestHTTPmeta(t *testing.T) {
 	reg := NewRegistry("TestHTTPmeta")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1$details", `{}`, 201,
 		`{
@@ -5031,8 +5354,29 @@ func TestHTTPURLs(t *testing.T) {
 	reg := NewRegistry("TestHTTPURLs")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Just simple tests to make sure the most basic tests against the APIs
 	// work
@@ -5051,9 +5395,9 @@ func TestHTTPURLs(t *testing.T) {
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 1,
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "epoch": 2,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
@@ -5076,10 +5420,10 @@ func TestHTTPURLs(t *testing.T) {
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "description": "a test",
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
@@ -5102,13 +5446,13 @@ func TestHTTPURLs(t *testing.T) {
   "registryid": "TestHTTPURLs",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "description": "a test",
   "labels": {
     "l1": "foo"
   },
-  "createdat": "2024-01-01T12:00:00Z",
-  "modifiedat": "2024-01-01T12:00:01Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
@@ -5168,7 +5512,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "d1": {}
+	      "d1": {}
 		}`,
 		Code:       200,
 		ResHeaders: []string{},
@@ -5216,7 +5560,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "foo"
+	      "description": "foo"
         }`,
 		Code:       201,
 		ResHeaders: []string{},
@@ -5241,7 +5585,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "labels": {"l1":"v1"}
+	      "labels": {"l1":"v1"}
         }`,
 		Code:       200,
 		ResHeaders: []string{},
@@ -5315,7 +5659,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "POST",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "f1": {
+	      "f1": {
 		    "description": "my f1",
             "file": "hello world"
 		  }
@@ -5805,7 +6149,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "cool one"
+	      "description": "cool one"
 		}`,
 		Code:       200,
 		ResHeaders: []string{},
@@ -5830,7 +6174,7 @@ func TestHTTPURLs(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "labels": {"l1": "v1"}
+	      "labels": {"l1": "v1"}
 		}`,
 		Code:       200,
 		ResHeaders: []string{},
@@ -5879,9 +6223,41 @@ func TestHTTPGroupResources(t *testing.T) {
 	reg := NewRegistry("TestHTTPGroupResources")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	gm.AddResourceModel("datas", "data", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "datas": {
+          "plural": "datas",
+          "singular": "data",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        },
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Upload some resources into a preexisting group
 	// First create the group
@@ -5915,8 +6291,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/files/f1",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -5936,8 +6312,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/files/f1",
       "epoch": 2,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -5951,8 +6327,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/files/f2",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:02Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+      "createdat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:02Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f2/meta",
@@ -5969,8 +6345,8 @@ func TestHTTPGroupResources(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
   "epoch": 3,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "datasurl": "http://localhost:8181/dirs/d1/datas",
   "datascount": 0,
@@ -5989,8 +6365,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/files/f3",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f3/meta",
@@ -6010,8 +6386,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/datas/d1",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/datas/d1/meta",
@@ -6025,8 +6401,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/datas/d2",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/datas/d2/meta",
@@ -6042,8 +6418,8 @@ func TestHTTPGroupResources(t *testing.T) {
       "xid": "/dirs/d1/files/f4",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f4/meta",
@@ -6060,8 +6436,8 @@ func TestHTTPGroupResources(t *testing.T) {
   "self": "http://localhost:8181/dirs/d1",
   "xid": "/dirs/d1",
   "epoch": 5,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "datasurl": "http://localhost:8181/dirs/d1/datas",
   "datascount": 2,
@@ -6099,8 +6475,29 @@ func TestHTTPNestedRegistry(t *testing.T) {
 	reg := NewRegistry("TestHTTPNestedRegistry")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Registry + Nested Groups
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -6116,7 +6513,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "description": "myreg",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6133,8 +6530,8 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "myreg2",
-		  "dirs": {
+	      "description": "myreg2",
+	      "dirs": {
 		    "d1": {}
 		  }
 		}`,
@@ -6145,7 +6542,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "description": "myreg2",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6178,11 +6575,11 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "myreg3",
-		  "dirs": {
+	      "description": "myreg3",
+	      "dirs": {
 		    "d1": {
-			  "description": "d1",
-			  "files": {
+		      "description": "d1",
+		      "files": {
 			    "f1": {}
 			  }
 			}
@@ -6195,7 +6592,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "description": "myreg3",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6212,7 +6609,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "description": "myreg3",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6285,16 +6682,16 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "myreg4",
-		  "dirs": {
+	      "description": "myreg4",
+	      "dirs": {
 		    "d1": {
-			  "description": "d1.1",
-			  "files": {
+		      "description": "d1.1",
+		      "files": {
 			    "f1": {
-				  "description": "f1",
-				  "versions": {
+			      "description": "f1",
+			      "versions": {
 				    "1": {
-					  "description": "f1-1"
+				      "description": "f1-1"
 					}
 				  }
                 }
@@ -6309,7 +6706,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 5,
+  "epoch": 6,
   "description": "myreg4",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6326,7 +6723,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 5,
+  "epoch": 6,
   "description": "myreg4",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6401,24 +6798,24 @@ func TestHTTPNestedRegistry(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "myreg4",
-		  "dirs": {
+	      "description": "myreg4",
+	      "dirs": {
 		    "d1": {
-			  "description": "d1.1",
-			  "files": {
+		      "description": "d1.1",
+		      "files": {
 			    "f1": {
-				  "description": "f1",
+			      "description": "f1",
 
                   "meta": {
 				    "defaultversionsticky": true,
 				    "defaultversionid": "2"
                   },
-				  "versions": {
+			      "versions": {
 				    "1": {
-					  "description": "f1-1.1"
+				      "description": "f1-1.1"
 					},
 				    "2": {
-					  "description": "f1-2.1"
+				      "description": "f1-2.1"
 					}
 				  }
                 }
@@ -6433,7 +6830,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 6,
+  "epoch": 7,
   "description": "myreg4",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6450,7 +6847,7 @@ func TestHTTPNestedRegistry(t *testing.T) {
   "registryid": "TestHTTPNestedRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 6,
+  "epoch": 7,
   "description": "myreg4",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -6537,8 +6934,29 @@ func TestHTTPNestedResources(t *testing.T) {
 	reg := NewRegistry("TestHTTPNestedResources")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Registry + Nested Groups
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -6648,7 +7066,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.1",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": "hi"
 		  }
         }`,
@@ -6674,7 +7092,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.1",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": "hi",
 		    "defaultversionid": "v2"
 		  }
@@ -6701,7 +7119,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.2",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": null,
 		    "defaultversionid": "1"
 		  }
@@ -6734,7 +7152,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.2",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": null
 		  }
         }`,
@@ -6766,7 +7184,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.2",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": false
 		  }
         }`,
@@ -6813,7 +7231,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		ReqHeaders: []string{},
 		ReqBody: `{
           "description": "f1.3",
-		  "meta": {
+	      "meta": {
 		    "defaultversionsticky": true
 		  }
         }`,
@@ -6859,7 +7277,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "meta": {
+	      "meta": {
             "defaultversionsticky": true
 		  }
         }`,
@@ -6883,8 +7301,8 @@ func TestHTTPNestedResources(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 6,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
 
     "defaultversionid": "1",
@@ -6928,8 +7346,8 @@ func TestHTTPNestedResources(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 7,
-    "createdat": "YYYY-MM-DDTHH:MM:01Z",
-    "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+    "createdat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:02Z",
     "readonly": false,
 
     "defaultversionid": "1",
@@ -7056,7 +7474,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		    "defaultversionsticky": true,
 		    "defaultversionid": "v2"
           },
-		  "versions": {
+	      "versions": {
 		    "v4": { "description": "v4.1" }
 		  }
         }`,
@@ -7153,7 +7571,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		    "defaultversionsticky": true,
 		    "defaultversionid": "v5"
           },
-		  "versions": {
+	      "versions": {
 		    "v5": { "description": "v5.1" }
 		  }
         }`,
@@ -7259,7 +7677,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "meta": {
+	      "meta": {
 		    "defaultversionid": "v2"
 		  }
         }`,
@@ -7453,7 +7871,7 @@ func TestHTTPNestedResources(t *testing.T) {
 		Method:     "PATCH",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "meta": {
+	      "meta": {
 		    "defaultversionid": "badone.ignored"
 		  }
         }`,
@@ -7497,8 +7915,29 @@ func TestHTTPExport(t *testing.T) {
 	reg := NewRegistry("TestHTTPExport")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT / + init load",
@@ -7506,16 +7945,16 @@ func TestHTTPExport(t *testing.T) {
 		Method:     "PUT",
 		ReqHeaders: []string{},
 		ReqBody: `{
-		  "description": "my reg",
-		  "dirs": {
+	      "description": "my reg",
+	      "dirs": {
 		    "d1": {
-			  "files": {
+		      "files": {
 			    "d1-f1": {},
 				"d1-f2": {}
 			  }
 			},
 			"d2": {
-			  "files": {
+		      "files": {
 			    "d2-f1": {},
 				"d2-f2": {}
 			  }
@@ -7529,7 +7968,7 @@ func TestHTTPExport(t *testing.T) {
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "description": "my reg",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -7558,7 +7997,7 @@ func TestHTTPExport(t *testing.T) {
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "description": "my reg",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -7579,11 +8018,11 @@ func TestHTTPExport(t *testing.T) {
 		ResHeaders: []string{},
 		ResBody: `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_epoch",
-  "title": "The specified epoch value (2) for \"/\" does not match its current value (3).",
+  "title": "The specified epoch value (3) for \"/\" does not match its current value (4).",
   "subject": "/",
   "args": {
-    "bad_epoch": "2",
-    "epoch": "3"
+    "bad_epoch": "3",
+    "epoch": "4"
   },
   "source": ":registry:entity:1004"
 }
@@ -7603,7 +8042,7 @@ func TestHTTPExport(t *testing.T) {
   "registryid": "TestHTTPExport",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "description": "my reg",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
@@ -7620,8 +8059,29 @@ func TestHTTPVersionIDs(t *testing.T) {
 	reg := NewRegistry("TestHTTPVersionIDs")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{}`, 201,
 		`{
@@ -7638,8 +8098,8 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "fileid": "f1",
-	  "versionid": "v1"
+      "fileid": "f1",
+      "versionid": "v1"
 	}`, 200,
 		`{
   "fileid": "f1",
@@ -7670,7 +8130,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "fileid": "f1"
+      "fileid": "f1"
 	}`, 200,
 		`{
   "fileid": "f1",
@@ -7686,7 +8146,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "versionid": "v1"
+      "versionid": "v1"
 	}`, 200,
 		`{
   "fileid": "f1",
@@ -7702,8 +8162,8 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "fileid": "fx",
-	  "versionid": "v1"
+      "fileid": "fx",
+      "versionid": "v1"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"fileid\" value (fx) for \"/dirs/dir1/files/f1/versions/v1\" needs to be \"f1\".",
@@ -7718,7 +8178,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "fileid": "fx"
+      "fileid": "fx"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"fileid\" value (fx) for \"/dirs/dir1/files/f1/versions/v1\" needs to be \"f1\".",
@@ -7733,8 +8193,8 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "fileid": "f1",
-	  "versionid": "vx"
+      "fileid": "f1",
+      "versionid": "vx"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"versionid\" value (vx) for \"/dirs/dir1/files/f1/versions/v1\" needs to be \"v1\".",
@@ -7749,7 +8209,7 @@ func TestHTTPVersionIDs(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/dirs/dir1/files/f1/versions/v1", `{
-	  "versionid": "vx"
+      "versionid": "vx"
 	}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#mismatched_id",
   "title": "The specified \"versionid\" value (vx) for \"/dirs/dir1/files/f1/versions/v1\" needs to be \"v1\".",
@@ -7768,8 +8228,29 @@ func TestHTTPRecursiveData(t *testing.T) {
 	reg := NewRegistry("TestHTTPRecursiveData")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModelSimple("files", "file")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Converting the RESOURCE attributes from JSON into byte array tests
 
@@ -7782,7 +8263,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "versionid": "v1",
           "versions": {
 		    "v1": {
-			  "file": { "bar": "foo" }
+		      "file": { "bar": "foo" }
 			}
           }
 	    },
@@ -7807,9 +8288,9 @@ func TestHTTPRecursiveData(t *testing.T) {
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
-  "createdat": "2024-11-07T15:53:55.28040091Z",
-  "modifiedat": "2024-11-07T15:53:55.294594572Z",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -7821,7 +8302,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -8087,7 +8568,7 @@ func TestHTTPRecursiveData(t *testing.T) {
           "versionid": "v1",
           "versions": {
 		    "v1": {
-			  "file": { "bar": "foo" }
+		      "file": { "bar": "foo" }
 			}
           }
 	    },
@@ -8103,9 +8584,9 @@ func TestHTTPRecursiveData(t *testing.T) {
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
-  "createdat": "2024-11-07T15:53:55.28040091Z",
-  "modifiedat": "2024-11-07T15:53:55.294594572Z",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 1
@@ -8117,7 +8598,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "registryid": "TestHTTPRecursiveData",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -8244,12 +8725,12 @@ func TestHTTPRecursiveData(t *testing.T) {
 	    "file": { "foo": "bar" },
         "versionid": "v1",
         "versions": {
-		  "v1": {
+	      "v1": {
 			"file": { "bar": "foo" }
 		  }
         }
 	  },
-	  "f2": {
+      "f2": {
 	    "file": "string"
 	  }
     }
@@ -8387,7 +8868,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "files": {
     "f1": {
       "versionid": "v1",
-	  "file": { "foo": "bar" },
+      "file": { "foo": "bar" },
       "versions": {
 	    "v1": {
 	      "file": { "bar": "foo" }
@@ -8395,7 +8876,7 @@ func TestHTTPRecursiveData(t *testing.T) {
       }
 	},
 	"f2": {
-	  "file": "string"
+      "file": "string"
     }
   }
 }`, 201,
@@ -8525,12 +9006,12 @@ func TestHTTPRecursiveData(t *testing.T) {
 
 	XHTTP(t, reg, "POST", "/dirs/d1/files", `{
   "f1": {
-	"file": { "foo": "bar" },
+    "file": { "foo": "bar" },
     "versionid": "v1",
     "versions": {
-	  "v1": {
-	    "file": { "bar": "foo" }
-	  }
+      "v1": {
+        "file": { "bar": "foo" }
+      }
     }
   },
   "f2": {
@@ -8678,7 +9159,7 @@ func TestHTTPRecursiveData(t *testing.T) {
   "versionid": "v1",
   "versions": {
 	"v1": {
-	  "file": { "bar": "foo" }
+      "file": { "bar": "foo" }
 	}
   }
 }`, 201,
@@ -8799,8 +9280,29 @@ func TestHTTPDefVer(t *testing.T) {
 	reg := NewRegistry("TestHTTPDefVer")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModelSimple("files", "file")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:   "PUT file + versionid header",
@@ -8838,7 +9340,7 @@ func TestHTTPDefVer(t *testing.T) {
 		URL:    "/dirs/d1/files",
 		Method: "POST",
 		ReqBody: `{
-		  "f2": {
+	      "f2": {
 		    "versionid": "v1"
 		  }
         }`,
@@ -8873,8 +9375,29 @@ func TestHTTPInvalidID(t *testing.T) {
 	reg := NewRegistry("TestHTTPInvalidID")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModelSimple("files", "file")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/", `{"registryid": "*" }`, 400,
 		`{
@@ -9064,8 +9587,29 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
 	reg := NewRegistry("TestHTTPSpecVersionPatchIgnore")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Expected capabilities body - same for all successful
 	// specversion requests.
@@ -9299,10 +9843,41 @@ func TestHTTPMissingBody(t *testing.T) {
 	reg := NewRegistry("TestHTTPMissingBody")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)  //doc
-	_, err = gm.AddResourceModel("datas", "data", 0, true, false) //nodoc
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "datas": {
+          "plural": "datas",
+          "singular": "data",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        },
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Just check for an error about a missing body based on the path + method
 
@@ -9436,8 +10011,29 @@ func TestHTTPCollectionsFlag(t *testing.T) {
 	reg := NewRegistry("TestHTTPCollectionsFlag")
 	defer PassDeleteReg(t, reg)
 
-	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", "", 201, "*")
 
@@ -9450,8 +10046,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 1,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
@@ -9462,8 +10058,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "YYYY-MM-DDTHH:MM:01Z",
-          "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+          "createdat": "2024-01-01T12:00:01Z",
+          "modifiedat": "2024-01-01T12:00:01Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -9472,8 +10068,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
             "self": "http://localhost:8181/dirs/d1/files/f1/meta",
             "xid": "/dirs/d1/files/f1/meta",
             "epoch": 1,
-            "createdat": "YYYY-MM-DDTHH:MM:01Z",
-            "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+            "createdat": "2024-01-01T12:00:01Z",
+            "modifiedat": "2024-01-01T12:00:01Z",
             "readonly": false,
 
             "defaultversionid": "v1",
@@ -9489,8 +10085,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "YYYY-MM-DDTHH:MM:01Z",
-              "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+              "createdat": "2024-01-01T12:00:01Z",
+              "modifiedat": "2024-01-01T12:00:01Z",
               "ancestorid": "v1"
             }
           },
@@ -9514,8 +10110,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
       "xid": "/dirs/d1/files/f1",
       "epoch": 1,
       "isdefault": true,
-      "createdat": "YYYY-MM-DDTHH:MM:01Z",
-      "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+      "createdat": "2024-01-01T12:00:01Z",
+      "modifiedat": "2024-01-01T12:00:01Z",
       "ancestorid": "v1",
 
       "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -9524,8 +10120,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
         "self": "http://localhost:8181/dirs/d1/files/f1/meta",
         "xid": "/dirs/d1/files/f1/meta",
         "epoch": 1,
-        "createdat": "YYYY-MM-DDTHH:MM:01Z",
-        "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+        "createdat": "2024-01-01T12:00:01Z",
+        "modifiedat": "2024-01-01T12:00:01Z",
         "readonly": false,
 
         "defaultversionid": "v1",
@@ -9541,8 +10137,8 @@ func TestHTTPCollectionsFlag(t *testing.T) {
           "xid": "/dirs/d1/files/f1/versions/v1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "YYYY-MM-DDTHH:MM:01Z",
-          "modifiedat": "YYYY-MM-DDTHH:MM:01Z",
+          "createdat": "2024-01-01T12:00:01Z",
+          "modifiedat": "2024-01-01T12:00:01Z",
           "ancestorid": "v1"
         }
       },
@@ -9685,10 +10281,31 @@ func TestHTTPEmptyIDs(t *testing.T) {
 	reg := NewRegistry("TestHTTPEmptyIDs")
 	defer PassDeleteReg(t, reg)
 
-	_, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "{}", 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "", 201, "")
 
 	XHTTP(t, reg, "GET", "/dirs//files/f1/", "", 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
@@ -9746,8 +10363,29 @@ func TestHTTPTimestampHeaders(t *testing.T) {
 	reg := NewRegistry("TestHTTPTimestampHeaders")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Test 1: PUT Resource with both timestamps
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -9896,10 +10534,42 @@ func TestHTTPSetDefaultVersionIDRequirements(t *testing.T) {
 	reg := NewRegistry("TestHTTPSetDefaultVersionIDRequirements")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	reg.AddGroup("dirs", "d1")
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	// Create initial resources for testing
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `{}`)
@@ -10095,10 +10765,42 @@ func TestHTTPSetDefaultVersionIDAllAPIs(t *testing.T) {
 	reg := NewRegistry("TestHTTPSetDefaultVersionIDAllAPIs")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	reg.AddGroup("dirs", "d1")
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	// Test setdefaultversionid on all write APIs at resource level and deeper
 	// Verify that the flag overrides any values in the request body

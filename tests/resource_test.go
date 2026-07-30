@@ -433,9 +433,29 @@ func TestResourceDeprecated(t *testing.T) {
 	reg := NewRegistry("TestResourceDeprecated")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModelSimple("files", "file")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": false,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
       "deprecated": {}
@@ -643,9 +663,29 @@ func TestResourceSamples(t *testing.T) {
 	reg := NewRegistry("TestResourceSamples")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) //hasdoc=false
-	rm.SetVersionMode("cREATEdAt")                                // weird casing
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "cREATEdAt",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Create single Resource with empty content - PUT
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{}`, 201, `{
@@ -3662,9 +3702,29 @@ func TestResourceFlow(t *testing.T) {
 	reg := NewRegistry("TestResourceFlow")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) //hasdoc=false
-	rm.SetVersionMode("createdat")
+	model := `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "versionmode": "createdat",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// NOT PART OF THE resource.md doc
 

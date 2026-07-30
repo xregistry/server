@@ -6,7 +6,7 @@
 [Pull Requests (PR)](https://github.com/xregistry/server/pulls) are always
 welcome from anyone.
 
-### Codin
+### Coding
 
 - Wrap lines at 80 columns (or try hard)
 - `gofmt` all go files

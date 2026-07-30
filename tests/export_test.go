@@ -11,8 +11,7 @@ func TestExportBasic(t *testing.T) {
 	reg := NewRegistry("TestExportBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
 		`{"file": { "hello": "world" }}`, 201, `*`)
@@ -34,7 +33,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -142,7 +141,18 @@ func TestExportBasic(t *testing.T) {
       "manual"
     ]
   },
-  "modelsource": {},
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
+      }
+    }
+  },
 
   "dirsurl": "#/dirs",
   "dirs": {
@@ -243,7 +253,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -346,7 +356,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -472,7 +482,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -1611,7 +1621,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -1712,7 +1722,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -1801,7 +1811,7 @@ func TestExportBasic(t *testing.T) {
   "registryid": "TestExportBasic",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -2053,19 +2063,31 @@ func TestExportURLs(t *testing.T) {
 	reg := NewRegistry("TestExportURLs")
 	defer PassDeleteReg(t, reg)
 
-	gm, _, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModelSimple("schemas", "schema")
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        },
+        "schemas": {
+          "singular": "schema"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "GET", "/?doc", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirscount": 0
@@ -2077,9 +2099,9 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 1,
+  "epoch": 2,
   "createdat": "2025-01-01T12:00:01Z",
-  "modifiedat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:02Z",
 
   "dirsurl": "#/dirs",
   "dirs": {},
@@ -2094,7 +2116,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2141,7 +2163,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2190,7 +2212,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2230,7 +2252,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2283,7 +2305,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2336,7 +2358,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2493,7 +2515,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2546,7 +2568,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2662,7 +2684,7 @@ func TestExportURLs(t *testing.T) {
   "registryid": "TestExportURLs",
   "self": "#/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2025-01-01T12:00:01Z",
   "modifiedat": "2025-01-01T12:00:02Z",
 
@@ -2743,8 +2765,7 @@ func TestExportNoDoc(t *testing.T) {
 	reg := NewRegistry("TestExportBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, false)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS_NODOC, 200, MODEL_DIRS_NODOC+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1?doc", "{}", 201, `{
   "fileid": "f1",

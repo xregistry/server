@@ -14,18 +14,31 @@ func TestModelLabels(t *testing.T) {
 	reg := NewRegistry("TestModelLabels")
 	defer PassDeleteReg(t, reg)
 
-	reg.Model.AddLabel("reg-label", "reg-value")
-
-	gm, err := reg.Model.AddGroupModel("gms1", "gm1")
-	XCheck(t, gm != nil && err == nil, "gm should have worked")
-	gm.AddLabel("g-label", "g-value")
-
-	rm, err := gm.AddResourceModel("rms", "rm", 0, true, true)
-	XCheck(t, rm != nil && err == nil, "rm should have worked: %s", err)
-	rm.AddLabel("r-label", "r-value")
-
-	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
+	model1 := `{
+  "labels": {
+    "reg-label": "reg-value"
+  },
+  "groups": {
+    "gms1": {
+      "singular": "gm1",
+      "labels": {
+        "g-label": "g-value"
+      },
+      "resources": {
+        "rms": {
+          "singular": "rm",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "labels": {
+            "r-label": "r-value"
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model1, 200, model1+"\n")
 
 	XCheckGet(t, reg, "/model", `{
   "labels": {
@@ -660,15 +673,22 @@ func TestModelLabels(t *testing.T) {
 }
 `)
 
-	XNoErr(t, reg.Refresh(registry.FOR_WRITE))
-	reg.LoadModel()
-
-	gm = reg.Model.FindGroupModel(gm.Plural)
-	rm = gm.Resources[rm.Plural]
-
-	reg.Model.RemoveLabel("reg-label")
-	gm.RemoveLabel("g-label")
-	rm.RemoveLabel("r-label")
+	model2 := `{
+  "groups": {
+    "gms1": {
+      "singular": "gm1",
+      "resources": {
+        "rms": {
+          "singular": "rm",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
 
 	XCheckGet(t, reg, "/model", `{
   "attributes": {

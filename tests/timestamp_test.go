@@ -15,8 +15,7 @@ func TestTimestampRegistry(t *testing.T) {
 	defer PassDeleteReg(t, reg)
 
 	// Check basic GET first
-	XCheckGet(t, reg, "/",
-		`{
+	res := XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
@@ -28,20 +27,14 @@ func TestTimestampRegistry(t *testing.T) {
 `)
 
 	// Should be the same values
-	regCreate := reg.Get("createdat")
-	regMod := reg.Get("modifiedat")
+	data := res.ToMap()
+	regCreate := data["createdat"].(string)
+	regMod := data["modifiedat"].(string)
 	XEqual(t, "", regCreate, regMod)
-	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
 
 	// Test to make sure modify timestamp changes, but created didn't
-	XNoErr(t, reg.SetSave("description", "my docs"))
-	XCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/",
-		Method: "GET",
-		Code:   200,
-		ResBody: `{
-  "specversion": "` + SPECVERSION + `",
+	res = XHTTP(t, reg, "PATCH", "/", `{"description":"my docs"}`, 200, `{
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
@@ -50,42 +43,57 @@ func TestTimestampRegistry(t *testing.T) {
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z"
 }
-`})
+`)
 
-	XEqual(t, "", reg.Get("createdat"), regCreate)
-	XCheck(t, regMod != reg.Get("modifiedat"), "should be new time")
+	data = res.ToMap()
+	newMod := data["modifiedat"].(string)
+	XEqual(t, "", data["createdat"].(string), regCreate)
+	XCheck(t, regMod != newMod, "should be new time")
 
 	// Mod should be higher than before
-	XCheck(t, ToJSON(reg.Get("modifiedat")) > ToJSON(regMod),
-		"Mod should be newer than before")
+	XCheck(t, newMod > regMod, "Mod should be newer than before")
+	regMod = newMod
 
-	reg.Refresh(registry.FOR_WRITE)
-	regMod = reg.Get("modifiedat")
-
-	XCheck(t, ToJSON(regMod) > ToJSON(regCreate),
-		"Mod should be newer than create")
+	XCheck(t, regMod > regCreate, "Mod should be newer than create")
 
 	// Now test with Groups and Resources
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	_, err = gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`, 200, "*")
 
-	d, _ := reg.AddGroup("dirs", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:03Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
+  "ancestorid": "v1"
+}
+`)
 
-	XCheckHTTP(t, reg, &HTTPTest{
-		URL:    "/?inline",
-		Method: "GET",
-		Code:   200,
-		ResBody: `{
-  "specversion": "` + SPECVERSION + `",
+	res = XHTTP(t, reg, "GET", "/?inline", "", 200, `{
+  "specversion": "`+SPECVERSION+`",
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "description": "my docs",
   "createdat": "2024-01-01T12:00:01Z",
-  "modifiedat": "2024-01-01T12:00:02Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
 
   "dirsurl": "http://localhost:8181/dirs",
   "dirs": {
@@ -94,8 +102,8 @@ func TestTimestampRegistry(t *testing.T) {
       "self": "http://localhost:8181/dirs/d1",
       "xid": "/dirs/d1",
       "epoch": 1,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:03Z",
 
       "filesurl": "http://localhost:8181/dirs/d1/files",
       "files": {
@@ -106,8 +114,8 @@ func TestTimestampRegistry(t *testing.T) {
           "xid": "/dirs/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:03Z",
+          "modifiedat": "2024-01-01T12:00:03Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
@@ -116,8 +124,8 @@ func TestTimestampRegistry(t *testing.T) {
             "self": "http://localhost:8181/dirs/d1/files/f1/meta",
             "xid": "/dirs/d1/files/f1/meta",
             "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "createdat": "2024-01-01T12:00:03Z",
+            "modifiedat": "2024-01-01T12:00:03Z",
             "readonly": false,
 
             "defaultversionid": "v1",
@@ -133,8 +141,8 @@ func TestTimestampRegistry(t *testing.T) {
               "xid": "/dirs/d1/files/f1/versions/v1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:03Z",
+              "modifiedat": "2024-01-01T12:00:03Z",
               "ancestorid": "v1"
             }
           },
@@ -146,26 +154,66 @@ func TestTimestampRegistry(t *testing.T) {
   },
   "dirscount": 1
 }
-`})
-	dCTime := d.Get("createdat")
-	dMTime := d.Get("modifiedat")
+`)
 
-	fCTime := f.Get("createdat")
-	fMTime := f.Get("modifiedat")
+	data = res.ToMap()
+	dirs := data["dirs"].(map[string]any)
+	d1 := dirs["d1"].(map[string]any)
+	dCTime := d1["createdat"].(string)
+	dMTime := d1["modifiedat"].(string)
 
-	XEqual(t, "", reg.Get("createdat"), regCreate)
-	XEqual(t, "", reg.Get("modifiedat"), regMod)
+	files := d1["files"].(map[string]any)
+	f1 := files["f1"].(map[string]any)
+	fCTime := f1["createdat"].(string)
+	fMTime := f1["modifiedat"].(string)
 
-	XNoErr(t, f.SetSaveDefault("description", "myfile"))
+	XEqual(t, "", data["createdat"].(string), regCreate)
+	// Adding a Group/Resource touches (bumps) the parent Registry's own
+	// epoch AND modifiedat, since ancestor propagation re-saves the
+	// Registry entity as part of the same commit - so it's expected to
+	// now match the new Group/Resource's timestamp, not the old regMod.
+	XCheck(t, data["modifiedat"].(string) > regMod,
+		"registry modifiedat should be bumped by the child creation")
+	XEqual(t, "", data["modifiedat"].(string), dMTime)
 
-	XEqual(t, "", dCTime, d.Get("createdat"))
-	XEqual(t, "", dMTime, d.Get("modifiedat"))
-	XEqual(t, "", fCTime, f.Get("createdat"))
-	XCheck(t, ToJSON(fMTime) < ToJSON(f.Get("modifiedat")),
-		"Should not be the same")
+	res = XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1$details",
+		`{"description":"myfile"}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "description": "myfile",
+  "createdat": "2024-01-01T12:00:03Z",
+  "modifiedat": "2024-01-01T12:00:04Z",
+  "ancestorid": "v1",
 
-	// Close out any lingering tx
-	XNoErr(t, reg.SaveAllAndCommit())
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+	newF := res.ToMap()
+
+	dRes := XHTTP(t, reg, "GET", "/dirs/d1", "", 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:03Z",
+  "modifiedat": "2024-01-01T12:00:03Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 1
+}
+`)
+	newD := dRes.ToMap()
+
+	XEqual(t, "", dCTime, newD["createdat"].(string))
+	XEqual(t, "", dMTime, newD["modifiedat"].(string))
+	XEqual(t, "", fCTime, newF["createdat"].(string))
+	XCheck(t, fMTime < newF["modifiedat"].(string), "Should not be the same")
 
 	/*
 	   	reg = NewRegistry("TestTimestampRegistry2")
@@ -203,7 +251,7 @@ func TestTimestampRegistry(t *testing.T) {
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "createdat": "1970-01-02T03:04:05Z",
   "modifiedat": "2000-05-04T03:02:01Z",
 
@@ -212,10 +260,12 @@ func TestTimestampRegistry(t *testing.T) {
 }
 `,
 	}, NOMASK_TS)
-	reg.Refresh(registry.FOR_WRITE)
+
 	// Shouldn't need these, but do it anyway
-	XEqual(t, "", reg.Get("createdat"), "1970-01-02T03:04:05Z")
-	XEqual(t, "", reg.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	res = XHTTP(t, reg, "GET", "/", "", 200, "*", NOMASK_TS)
+	data = res.ToMap()
+	XEqual(t, "", data["createdat"].(string), "1970-01-02T03:04:05Z")
+	XEqual(t, "", data["modifiedat"].(string), "2000-05-04T03:02:01Z")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		Name:       "PUT reg - set ts",
@@ -232,7 +282,7 @@ func TestTimestampRegistry(t *testing.T) {
   "registryid": "TestTimestampRegistry",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 5,
+  "epoch": 6,
   "createdat": "2024-01-01T12:00:00Z",
   "modifiedat": "2024-01-01T12:00:00Z",
 
@@ -268,10 +318,10 @@ func TestTimestampRegistry(t *testing.T) {
 `,
 	})
 
-	g, err := reg.FindGroup("dirs", "d4", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XEqual(t, "", g.Get("createdat"), "1970-01-02T03:04:05Z")
-	XEqual(t, "", g.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	gRes := XHTTP(t, reg, "GET", "/dirs/d4", "", 200, "*", NOMASK_TS)
+	gData := gRes.ToMap()
+	XEqual(t, "", gData["createdat"].(string), "1970-01-02T03:04:05Z")
+	XEqual(t, "", gData["modifiedat"].(string), "2000-05-04T03:02:01Z")
 
 	// Test creating a dir/file/version and setting the version's times
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -299,14 +349,11 @@ func TestTimestampRegistry(t *testing.T) {
 `,
 	})
 
-	g, err = reg.FindGroup("dirs", "d5", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	r, err := g.FindResource("files", "f5", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	v, err := r.FindVersion("v99", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XEqual(t, "", v.Get("createdat"), "1970-01-02T03:04:05Z")
-	XEqual(t, "", v.Get("modifiedat"), "2000-05-04T03:02:01Z")
+	vRes := XHTTP(t, reg, "GET", "/dirs/d5/files/f5/versions/v99$details", "",
+		200, "*", NOMASK_TS)
+	vData := vRes.ToMap()
+	XEqual(t, "", vData["createdat"].(string), "1970-01-02T03:04:05Z")
+	XEqual(t, "", vData["modifiedat"].(string), "2000-05-04T03:02:01Z")
 }
 
 func TestTimestampParsing(t *testing.T) {

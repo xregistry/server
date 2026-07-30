@@ -3484,9 +3484,7 @@ func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
 	return attr.Enum, isStrict
 }
 
-// ---- Moved from fulltree.go: incremental Props/Entities population ----
-//
-// This file implements the incremental population of the
+// This stuff implements the incremental population of the
 // Props/Entities tables described in sql.md. These tables
 // are now the sole, authoritative store for entity properties (own,
 // system, calculated, and cascaded/copied) - the old FullTree/Entities
@@ -3512,7 +3510,7 @@ func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
 // VersionMetaPostSave(), which runs on every Save(), this only ever runs once,
 // at creation.
 func (e *Entity) EntityInsert() {
-	defer log.Trace("FullTree", e.XID)()
+	defer log.Trace("EntityInsert", e.XID)()
 
 	var parentArg any
 	if e.ParentSID != "" {

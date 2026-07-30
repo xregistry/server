@@ -358,7 +358,8 @@ func TestModelXImport(t *testing.T) {
 	// Erase everything, including the model itself
 	XHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
 	XHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
-	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "*")
+	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, `{}
+`)
 
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
@@ -2771,18 +2772,19 @@ func TestModelUpdateSingular(t *testing.T) {
 	reg := NewRegistry("TestModelUpdateSingular")
 	defer PassDeleteReg(t, reg)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-      "groups": {
-        "dirs": {
-          "singular": "dir",
-          "resources": {
-            "files": {
-              "singular": "file"
-            }
-          }
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
         }
       }
-}`, 200, `*`)
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
@@ -3891,52 +3893,64 @@ func TestModelMatchCase(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "string",
-            "matchcase": true
-          }
-        }
-    }`, 200, `*`)
+	model1 := `{
+  "attributes": {
+    "str": {
+      "type": "string",
+      "matchcase": true
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model1, 200, model1+"\n")
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "array",
-            "matchcase": true,
-            "item": {
-              "type": "string"
-            }
-          }
-        }
-    }`, 200, `*`)
+	model2 := `{
+  "attributes": {
+    "str": {
+      "type": "array",
+      "matchcase": true,
+      "item": {
+        "type": "string"
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "string",
-            "matchcase": true,
-            "enum": [ "YeS", "no" ]
-          }
-        }
-    }`, 200, `*`)
+	model3 := `{
+  "attributes": {
+    "str": {
+      "type": "string",
+      "matchcase": true,
+      "enum": [
+        "YeS",
+        "no"
+      ]
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model3, 200, model3+"\n")
 
 	XHTTP(t, reg, "PUT", "/", `{ "str": "YeS" }`, 200, `*`)
 	XHTTP(t, reg, "PUT", "/", `{ "str": "yes" }`, 400,
 		`^(?s)^.*"value \(yes\) must be one of the enum values: YeS, no"`)
 	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "array",
-            "matchcase": true,
-            "item": { "type": "string" },
-            "enum": [ "YeS", "no" ]
-          }
-        }
-    }`, 200, `*`)
+	model4 := `{
+  "attributes": {
+    "str": {
+      "type": "array",
+      "matchcase": true,
+      "item": {
+        "type": "string"
+      },
+      "enum": [
+        "YeS",
+        "no"
+      ]
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model4, 200, model4+"\n")
 
 	XHTTP(t, reg, "PUT", "/", `{ "str": [ "YeS", "no" ] }`, 200, `*`)
 	XHTTP(t, reg, "PUT", "/", `{ "str": [ "yeS", "no" ] }`, 400, `{
@@ -3952,16 +3966,22 @@ func TestModelMatchCase(t *testing.T) {
 `)
 
 	XHTTP(t, reg, "PUT", "/", `{ "str": null }`, 200, `*`)
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-        "attributes": {
-          "str": {
-            "type": "map",
-            "matchcase": true,
-            "item": { "type": "string" },
-            "enum": [ "YeS", "no" ]
-          }
-        }
-    }`, 200, `*`)
+	model5 := `{
+  "attributes": {
+    "str": {
+      "type": "map",
+      "matchcase": true,
+      "item": {
+        "type": "string"
+      },
+      "enum": [
+        "YeS",
+        "no"
+      ]
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model5, 200, model5+"\n")
 
 	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "YeS", "2": "no" } }`, 200, `*`)
 	XHTTP(t, reg, "PUT", "/", `{ "str": { "1": "yeS", "2": "no" } }`, 400, `{

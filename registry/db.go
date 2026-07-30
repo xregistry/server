@@ -281,9 +281,11 @@ func (tx *Tx) NewTx() *XRError {
 	tx.Cache = map[string]*Entity{}
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
+
 	TXsMutex.Lock()
 	TXs[tx.uuid] = tx
 	TXsMutex.Unlock()
+
 	return nil
 }
 
@@ -549,16 +551,7 @@ func (tx *Tx) Commit() *XRError {
 
 	Must(tx.tx.Commit())
 
-	TXsMutex.Lock()
-	delete(TXs, tx.uuid)
-	TXsMutex.Unlock()
-	tx.tx = nil
-	tx.CreateTime = ""
-	tx.Cache = nil
-	tx.GroupsToValidate = nil
-	tx.ResourcesToValidate = nil
-	tx.uuid = ""
-
+	tx.Clear()
 	return nil
 }
 
@@ -569,15 +562,22 @@ func (tx *Tx) Rollback() *XRError {
 	err := tx.tx.Rollback()
 	Must(err)
 
+	tx.Clear()
+	return nil
+}
+
+// Clears all variables - the tx MUST be Committed or Rolledback prior to this.
+// This is just a bookkeeping func
+func (tx *Tx) Clear() {
 	TXsMutex.Lock()
 	delete(TXs, tx.uuid)
 	TXsMutex.Unlock()
 	tx.tx = nil
 	tx.CreateTime = ""
 	tx.Cache = nil
+	tx.GroupsToValidate = nil
+	tx.ResourcesToValidate = nil
 	tx.uuid = ""
-
-	return nil
 }
 
 func (tx *Tx) Conditional(xErr *XRError) *XRError {

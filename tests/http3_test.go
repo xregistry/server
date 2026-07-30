@@ -13,9 +13,7 @@ func TestHTTPMixedCase(t *testing.T) {
 	reg := NewRegistry("TestHTTPMixedCase")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModelSimple("files", "file")
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
 	XHTTP(t, reg, "POST", "/?inline&doc", `{
   "dirs": {
@@ -3457,9 +3455,7 @@ func TestHTTPBinaryFlag(t *testing.T) {
 	reg := NewRegistry("TestHTTPBinaryFlag")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModelSimple("files", "file")
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details?inline=file", `{
   "file": { "attr": "value" }
@@ -3540,10 +3536,7 @@ func TestHTTPVersWithResLevel(t *testing.T) {
 	reg := NewRegistry("TestHTTPVersWithResLevel")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS_NODOC, 200, MODEL_DIRS_NODOC+"\n")
 
 	// baseline
 	XHTTP(t, reg, "POST", "/dirs/d1/files/f1", `{}`, 201, `{
@@ -3623,10 +3616,7 @@ func TestHTTPIgnore(t *testing.T) {
 	reg := NewRegistry("TestHTTPIgnore")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS_NODOC, 200, MODEL_DIRS_NODOC+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `*`)
 
@@ -3660,7 +3650,7 @@ func TestHTTPIgnore(t *testing.T) {
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "createdat": "2025-12-05T16:07:11.927880184Z",
   "modifiedat": "2025-12-05T16:07:12.001535569Z",
 
@@ -3674,7 +3664,7 @@ func TestHTTPIgnore(t *testing.T) {
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "createdat": "2025-12-05T16:07:11.927880184Z",
   "modifiedat": "2025-12-05T16:07:12.001535569Z",
 
@@ -4255,7 +4245,7 @@ func TestHTTPIgnore(t *testing.T) {
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 10,
+  "epoch": 11,
   "createdat": "2025-12-08T20:36:43.903572833Z",
   "modifiedat": "2025-12-08T20:36:44.386384641Z",
 
@@ -4308,7 +4298,7 @@ func TestHTTPIgnore(t *testing.T) {
   "registryid": "TestHTTPIgnore",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 11,
+  "epoch": 12,
   "createdat": "2026-03-31T16:58:38.827310968Z",
   "modifiedat": "2026-03-31T16:58:39.594726599Z",
 

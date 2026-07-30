@@ -2052,13 +2052,26 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
 		`^(?s)^.*"name": "n"`)
 
 	// Update model in a valid way
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-	  "groups":{"dirs":{"singular":"dir","constraints":{
-        "files.name": { "default":"z"}
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "constraints": {
+        "files.name": {
+          "default": "z"
+        }
       },
-	  "resources": {"files": {"singular":"file", "hasdocument":false,
-        "attributes": {
-      }}}}}}`, 200, `*`)
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {}
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Update f1, with a val that used to be invalid
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name":"y"}`, 200,
