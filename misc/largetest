@@ -13,6 +13,7 @@
 # 8284d7b2ce7b 12m0s   2m46s  43s     rm more validate calls
 # 9c17ac6381c9 11m58s  2m47s  43s     tons of xref fixes/optimizations
 # f58db84dbc20 11m15s  2m49s  43s     old sql table names, moved funcs/tests
+# cfe72b3bb9a2 11m38s  2m46s  43s     partial move of test to use http
 
 set -e
  
