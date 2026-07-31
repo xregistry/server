@@ -304,6 +304,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		ErrFatalf(reg.SetSave("mapobj['cool_key'].inint", 666))
 		ErrFatalf(reg.SetSave("arrmapobj[1].key1",
 			map[string]any{}))
+		ErrFatalf(reg.SaveAllAndCommit())
 	}
 
 	newModel := reg.Model.GetSourceAsModel()
@@ -339,6 +340,8 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(g.SetSave("labels.private", "true"))
 	_, xErr = r.AddVersion("v2")
 	ErrFatalf(xErr)
+	ErrFatalf(reg.SaveAllAndCommit())
+
 	ErrFatalf(r.SetSaveMeta("labels.stage", "dev"))
 	ErrFatalf(r.SetSaveMeta("labels.none", ""))
 	ErrFatalf(r.SetSaveMeta("rext", "a string"))
@@ -347,13 +350,21 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 
 	ErrFatalf(r.SetSave("file", `{"hello":"world"}`))
 	ErrFatalf(r.SetSave("contenttype", `application/json`))
+	reg.SaveAllAndCommit()
+
+	g, xErr = reg.FindGroup("dirs", "d1", false, registry.FOR_READ)
+	ErrFatalf(xErr)
 
 	r, xErr = g.AddResource("files", "fr", "v1")
 	ErrFatalf(xErr)
-	ErrFatalf(r.SetSaveMeta("readonly", true))
+	reg.SaveAllAndCommit()
+
+	meta, xErr := r.FindMeta(false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
+
+	ErrFatalf(meta.SetSave("readonly", true))
 
 	_, xErr = g.AddResource("datas", "d1", "v1")
-
 	_, xErr = g.AddResourceWithObject("files", "fx", "",
 		map[string]any{
 			"meta": map[string]any{"xref": "/dirs/d1/files/f1"},
@@ -603,20 +614,44 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 
 	r, xErr := g.AddResource("docformats", "json", "v1")
 	ErrFatalf(xErr)
+	reg.SaveAllAndCommit()
+
+	g, xErr = reg.FindGroup("documents", "mydoc1", false, registry.FOR_READ)
+	ErrFatalf(xErr)
+	r, xErr = g.FindResource("docformats", "json", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
+	reg.SaveAllAndCommit()
+
 	r.SetSaveDefault("contenttype", "application/json")
 	r.SetSaveDefault("docformat", `{"prop": "A document 1"}`)
 
-	r, _ = g.AddResource("docformats", "xml", "v1")
+	r, xErr = g.AddResource("docformats", "xml", "v1")
+	ErrFatalf(xErr)
+	reg.SaveAllAndCommit()
+	r, xErr = g.FindResource("docformats", "xml", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
+
 	r.SetSaveDefault("contenttype", "application/xml")
 	r.SetSaveDefault("docformat", `<elem title="A document 1"/>`)
 
 	g, _ = reg.AddGroup("documents", "mydoc2")
-
 	r, _ = g.AddResource("docformats", "json", "v1")
+	reg.SaveAllAndCommit()
+
+	g, xErr = reg.FindGroup("documents", "mydoc2", false, registry.FOR_READ)
+	ErrFatalf(xErr)
+	r, xErr = g.FindResource("docformats", "json", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
+
 	r.SetSaveDefault("contenttype", "application/json")
 	r.SetSaveDefault("docformat", `{"prop": "A document 2"}`)
 
 	r, _ = g.AddResource("docformats", "xml", "v1")
+	reg.SaveAllAndCommit()
+	g, xErr = reg.FindGroup("documents", "mydoc2", false, registry.FOR_READ)
+	ErrFatalf(xErr)
+	r, xErr = g.FindResource("docformats", "xml", false, registry.FOR_WRITE)
+	ErrFatalf(xErr)
 	r.SetSaveDefault("contenttype", "application/xml")
 	r.SetSaveDefault("docformat", `<elem title="A document 2"/>`)
 

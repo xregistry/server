@@ -120,3 +120,4 @@ TODOs:
 - verify that shortself is excluded from docview
 - look over the xref tests added for PR 19
 - clean-up design of model save/apply 
+- add support for json structure

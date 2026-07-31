@@ -179,25 +179,6 @@ type Tx struct {
 	// Registry.Validate().
 	ResourcesToValidate map[string]*resourceValidation
 
-	// Resources (keyed by DbSID) that currently have a
-	// Resource.ValidateResource() call in progress somewhere on this
-	// Tx's call stack. Saves made DURING that call (e.g.
-	// EnsureLatest()'s meta.SetSave("defaultversionid", ...)) can
-	// re-add the same Resource to ResourcesToValidate above via the
-	// normal Entity.VersionMetaPostSave() path, even though the in-progress call
-	// will itself account for that change before it returns (via its
-	// own end-of-call runCascade()). Without this guard, a lazy-resolve
-	// call site (e.g. GetDefault()'s ResolvePendingValidation(), called
-	// from deep inside that same in-progress ValidateResource() via
-	// runCascade()->SaveDefaultVersionCascade()) would see that fresh
-	// mark and recursively re-run ValidateResource() (and its own
-	// runCascade()) a second time before the outer call even finishes -
-	// pure duplicated work, not a correctness fix (the in-memory state
-	// is already current). ResolvePendingValidation() checks this set
-	// and no-ops instead of recursing when r is already being
-	// validated.
-	ResourcesValidating map[string]bool
-
 	// Snapshot of the batch Registry.Validate()'s drain loop is
 	// CURRENTLY iterating over (keyed by DbSID), exposed so
 	// Resource.runCascade() can tell whether an xref TARGET it's about

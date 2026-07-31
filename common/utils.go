@@ -1659,3 +1659,78 @@ func SplitCommandLine(input string) []string {
 
 	return args
 }
+
+type CommonHttpResponse struct {
+	Code   int
+	Status string
+	Body   []byte
+	Header http.Header
+
+	JSON  map[string]any
+	Error *XRError
+}
+
+func CommonHttpDo(verb string, url string, headers map[string]string, body []byte) (*CommonHttpResponse, *XRError) {
+	client := &http.Client{}
+	httpRes := &CommonHttpResponse{}
+	bodyReader := bytes.NewReader(body)
+
+	req, err := http.NewRequest(verb, url, bodyReader)
+	if err != nil {
+		return httpRes, NewXRError("talking_to_server", url,
+			"error_detail="+err.Error())
+	}
+
+	for key, value := range headers {
+		if key = strings.TrimSpace(key); key != "" {
+			req.Header.Add(key, value) // ok even if value is ""
+		}
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		httpRes.Error = NewXRError("talking_to_server", url,
+			"error_detail="+err.Error())
+		return httpRes, httpRes.Error
+	}
+
+	httpRes.Body, err = io.ReadAll(res.Body)
+	res.Body.Close()
+
+	if err != nil {
+		httpRes.Error = NewXRError("parsing_response", url,
+			"error_detail="+err.Error())
+
+		return httpRes, httpRes.Error
+	}
+
+	httpRes.Code = res.StatusCode
+	httpRes.Status = res.Status
+	httpRes.Header = res.Header
+
+	if len(httpRes.Body) > 0 {
+		// Ignore any parsing error, just assume it's not JSON and keep going
+		json.Unmarshal(httpRes.Body, &httpRes.JSON)
+	}
+
+	var xErr *XRError
+	if res.StatusCode/100 != 2 {
+		// If response has no body then we need to say something back to
+		// the user. A non-zero exit code w/o any text isn't helpful.
+		if len(httpRes.Body) == 0 {
+			xErr = NewXRError("talking_to_server", url,
+				"error_detail="+res.Status)
+		} else {
+			// If we 'think' it's an XRError then return it, else just
+			// return the raw data
+			err := json.Unmarshal(httpRes.Body, &xErr)
+			if (err == nil && xErr.Type == "") || err != nil {
+				xErr = NewXRError("talking_to_server", url,
+					"error_detail="+strings.TrimSpace(string(httpRes.Body)))
+			}
+		}
+	}
+
+	httpRes.Error = xErr
+	return httpRes, xErr
+}

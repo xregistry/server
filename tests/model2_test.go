@@ -2180,9 +2180,9 @@ func TestModelUseSpecAttrs(t *testing.T) {
 	// AddResource() above defers r1's Resource-level validation (see
 	// Tx.AddResourceToValidate()) until later, but this test bypasses
 	// the normal Resource/Meta upsert APIs and saves "meta" directly
-	// below, so resolve that pending validation now to ensure
-	// "defaultversionid" etc. are set before we do so.
-	XNoErr(t, r1.ResolvePendingValidation())
+	// below, so run that validation now to ensure "defaultversionid"
+	// etc. are set before we do so.
+	XNoErr(t, r1.ValidateResource(false, false))
 
 	for k, v := range vals {
 		XNoErr(t, v1.JustSet(k, v))
