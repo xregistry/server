@@ -132,38 +132,102 @@ func TestResourceSet(t *testing.T) {
 	reg := NewRegistry("TestResourceSet")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, true)
-	rm.AddAttr("ext1", STRING)
-	rm.AddAttr("ext2", INTEGER)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "ext1": {
+              "type": "string"
+            },
+            "ext2": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	d1, _ := reg.AddGroup("dirs", "d1")
-	f1, _ := d1.AddResource("files", "f1", "v1")
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	// Make sure fields are empty first
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:01Z",
+  "ancestorid": "1",
 
-	// /dirs/d1/f1/v1
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 
-	XNoErr(t, f1.SetSaveDefault("name", "myName"))
-	XNoErr(t, f1.SetSaveDefault("epoch", 68))
-	XNoErr(t, f1.SetSaveDefault("ext1", "someext"))
-	XNoErr(t, f1.SetSaveDefault("ext2", 123))
+	// Delete it to start over
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", ``, 204, ``)
 
-	// Make sure the props on the resource weren't set
-	XCheck(t, f1.Entity.Get("name") == nil, "name should be nil")
-	XCheck(t, f1.Entity.Get("epoch") == nil, "epoch should be nil")
-	XCheck(t, f1.Entity.Get("ext1") == nil, "ext1 should be nil")
-	XCheck(t, f1.Entity.Get("ext2") == nil, "ext2 should be nil")
+	//Create + some fields (built-in and custom) on the default Version only -
+	// make sure they don't leak onto the Resource/meta entity itself.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{
+  "name": "myName",
+  "epoch": 68,
+  "ext1": "someext",
+  "ext2": 123
+}`, 201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "myName",
+  "isdefault": true,
+  "createdat": "2025-01-01T12:00:01Z",
+  "modifiedat": "2025-01-01T12:00:01Z",
+  "ancestorid": "1",
+  "ext1": "someext",
+  "ext2": 123,
 
-	ft, _ := d1.FindResource("files", "f1", false, registry.FOR_WRITE)
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 
-	XJSONCheck(t, ft, f1)
+	// Check Resource and its meta to make sure they didn't pick-up stuff
+	// they shouldn't have (like version-only fields)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?doc&inline=meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "#/",
+  "xid": "/dirs/d1/files/f1",
 
-	// Make sure the version was set
-	vt, _ := ft.GetDefault(registry.FOR_WRITE)
-	XEqual(t, "", vt.Get("name"), "myName")
-	XEqual(t, "", vt.Get("epoch"), 68)
-	XEqual(t, "", vt.Get("ext1"), "someext")
-	XEqual(t, "", vt.Get("ext2"), 123)
+  "metaurl": "#/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "#/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2026-07-31T16:32:37.606013676Z",
+    "modifiedat": "2026-07-31T16:32:37.606013676Z",
+    "readonly": false,
+
+    "defaultversionid": "1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 }
 
 func TestResourceRequiredFields(t *testing.T) {
@@ -221,182 +285,160 @@ func TestResourceMaxVersions(t *testing.T) {
 	reg := NewRegistry("TestResourceMaxVersions")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	d1, _ := reg.AddGroup("dirs", "d1")
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir"
+    }
+  }
+}`
 
-	_, err = gm.AddResourceModelFull(&registry.ResourceModel{
-		Plural:      "files",
-		Singular:    "file",
-		MaxVersions: PtrInt(-1),
-	})
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z"
+}
+`)
+
+	// -1 is not a valid maxversions
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": -1
+        }
+      }
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"maxversions\"(-1) must be >= 0.",
   "subject": "/model",
   "args": {
     "error_detail": "\"maxversions\"(-1) must be >= 0"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:1010"
-}`)
-	// reg.LoadModel()
+  "source": "abc04c6d0dd6:registry:shared_model:2513"
+}
+`)
 
-	// gm = reg.Model.FindGroupModel(gm.Plural)
-	/*
-	   	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
-	   		Plural:      "files",
-	   		Singular:    "file",
-	   		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
-	   	})
-	   	XCheckErr(t, err, `{
-	     "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
-	     "title": "The model attribute \"setdefaultversionsticky\" needs to be \"false\" since \"maxversions\" is \"1\".",
-	     "subject": "/model",
-	     "source": "e4e59b8a76c4:registry:shared_model:1017"
-	   }`)
-	*/
-	// reg.LoadModel()
+	// ONLY ALLOW 1 VERSION, no sticky
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 1,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	// gm = reg.Model.FindGroupModel(gm.Plural)
-	rm, err := gm.AddResourceModelFull(&registry.ResourceModel{
-		Plural:      "files",
-		Singular:    "file",
-		MaxVersions: PtrInt(1), // ONLY ALLOW 1 VERSION
-	})
-	rm.EnableSticky(false)
-	XNoErr(t, err)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
 
-	f1, err := d1.AddResource("files", "f1", "v1")
-	XCheck(t, f1 != nil && err == nil, "Creating f1 failed: %s", err)
-	vers, err := f1.GetVersions()
-	XNoErr(t, err)
-	XCheck(t, len(vers) == 1, "Should be just one version")
+	// Make sure it only has one version and its v1
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=meta,versions", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1",
 
-	defaultV, err := f1.GetDefault(registry.FOR_WRITE)
-	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v1",
-		"err: %q default: %s", err, ToJSON(defaultV))
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 1,
+    "createdat": "2024-01-01T12:00:00.00Z",
+    "modifiedat": "2024-01-01T12:00:00.00Z",
+    "readonly": false,
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2024-01-01T12:00:00.00Z",
+      "modifiedat": "2024-01-01T12:00:00.00Z",
+      "ancestorid": "v1"
+    }
+  },
+  "versionscount": 1
+}
+`)
 
 	// Create v2 and bump v1 out of the list
-	v2, err := f1.AddVersion("v2")
-	XCheck(t, v2 != nil && err == nil, "Creating v2 failed: %s", err)
-	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
-		"err: %q default: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
-	XNoErr(t, err)
-	XCheck(t, len(vers) == 1 && vers[0].Object["versionid"] == "v2", "Should be v2")
-
-	rm.SetMaxVersions(2)
-	rm.EnableSticky(true)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
-
-	// Create v3, but keep v2 as default
-	XNoErr(t, f1.SetDefault(v2))
-	v3, err := f1.AddVersion("v3")
-	XCheck(t, v3 != nil && err == nil, "Creating v3 failed: %s", err)
-	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
-		"err: %q defaultV: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
-	XNoErr(t, err)
-	XCheck(t, len(vers) == 2, "Should be 2")
-	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
-	XCheck(t, vers[1].Object["versionid"] == "v3", "1=v3")
-
-	// Create v4, which should bump v3 out of the list, not v2 (default)
-	v4, err := f1.AddVersion("v4")
-	XCheck(t, v4 != nil && err == nil, "Creating v4 failed: %s", err)
-	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v2",
-		"err: %q defaultV: %s", err, ToJSON(defaultV))
-	vers, err = f1.GetVersions()
-	XNoErr(t, err)
-	XCheck(t, len(vers) == 2, "Should be 2, but is: %d", len(vers))
-	XCheck(t, len(vers) == 2, "Should be 2, but is: %s", ToJSON(vers))
-	XCheck(t, vers[0].Object["versionid"] == "v2", "0=v2")
-	XCheck(t, vers[1].Object["versionid"] == "v4", "1=v4")
-
-	rm.SetMaxVersions(0)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
-
-	v5, err := f1.AddVersion("v5")
-	XNoErr(t, err)
-	XNoErr(t, f1.SetDefault(v5))
-	_, err = f1.AddVersion("v6")
-	XNoErr(t, err)
-	_, err = f1.AddVersion("v7")
-	XNoErr(t, err)
-	_, err = f1.AddVersion("v8")
-	XNoErr(t, err)
-	_, err = f1.AddVersion("v9")
-	XNoErr(t, err)
-	vers, err = f1.GetVersions()
-	XNoErr(t, err)
-	XCheck(t, len(vers) == 7, "Should be 7, but is: %d", len(vers))
-	XCheck(t, len(vers) == 7, "Should be 7, but is: %s", ToJSON(vers))
-	defaultV, err = f1.GetDefault(registry.FOR_WRITE)
-	XCheck(t, defaultV != nil && err == nil && defaultV.UID == "v5",
-		"err: %q defaultV: %s", err, ToJSON(defaultV))
-
-	// Now set maxVer to 1 and just v5 should remain
-	/*
-	   	XNoErr(t, f1.SetDefault(nil))
-	   	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", "", 200, `{
-	     "fileid": "f1",
-	     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
-	     "xid": "/dirs/d1/files/f1/meta",
-	     "epoch": 1,
-	     "createdat": "2026-06-10T23:03:16.127884682Z",
-	     "modifiedat": "2026-06-10T23:03:16.127884682Z",
-	     "readonly": false,
-
-	     "defaultversionid": "v9",
-	     "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v9$details",
-	     "defaultversionsticky": false
-	   }
-	   `)
-	*/
-
-	rm.SetMaxVersions(1)
-	XCheckErr(t, reg.Model.VerifyAndSave(true), `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
-  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
-  "subject": "/dirs/d1/files/f1/meta",
-  "source": "9263661f51d9:registry:resource:1516"
-}`)
-
-	XNoErr(t, f1.SetDefault(nil))
-	rm.SetMaxVersions(1) // probably not needed
-	XNoErr(t, reg.Model.VerifyAndSave(true))
-
-	vers, err = f1.GetVersions()
-	XNoErr(t, err)
-
-	XCheck(t, len(vers) == 1, "Should be 1, but is: %d", len(vers))
-	XCheck(t, len(vers) == 1, "Should be 1, but is: %s", ToJSON(vers))
-	// DUG CHECK THIS - REMOVING STICKY
-	// Not sure why this is v5 and not v9
-	XCheck(t, vers[0].Object["versionid"] == "v5", "%s", ToJSON(vers[0].Object))
-
-	rm.SetMaxVersions(2)
-	rm.EnableSticky(true)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
-
-	// Set a sticky version
-	XHTTP(t, reg, "PUT",
-		"/dirs/d1/files/f1$details?inline=meta&setdefaultversionid=v5",
-		`{}`, 200, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2", `{}`, 201, `{
   "fileid": "f1",
-  "versionid": "v5",
-  "self": "http://localhost:8181/dirs/d1/files/f1$details",
-  "xid": "/dirs/d1/files/f1",
-  "epoch": 2,
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+  "xid": "/dirs/d1/files/f1/versions/v2",
+  "epoch": 1,
   "isdefault": true,
-  "createdat": "2026-06-10T22:08:00.537178943Z",
-  "modifiedat": "2026-06-10T22:08:00.83551978Z",
-  "ancestorid": "v5",
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v2"
+}
+`)
+
+	// Verify everything - just one version, v2
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=meta,versions", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.02Z",
+  "modifiedat": "2024-01-01T12:00:00.02Z",
+  "ancestorid": "v2",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
   "meta": {
@@ -404,12 +446,512 @@ func TestResourceMaxVersions(t *testing.T) {
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
     "epoch": 2,
-    "createdat": "2026-06-10T22:08:00.537178943Z",
-    "modifiedat": "2026-06-10T22:08:00.83551978Z",
+    "createdat": "2024-01-01T12:00:00.01Z",
+    "modifiedat": "2024-01-01T12:00:00.02Z",
     "readonly": false,
 
-    "defaultversionid": "v5",
-    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5$details",
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2024-01-01T12:00:00.02Z",
+      "modifiedat": "2024-01-01T12:00:00.02Z",
+      "ancestorid": "v2"
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Set maxversion=2
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 2,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	// Create v3, but keep v2 as default (sticky)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+  "defaultversionid": "v2",
+  "defaultversionsticky": true
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 3,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "readonly": false,
+
+  "defaultversionid": "v2",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+  "defaultversionsticky": true
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v3",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+  "xid": "/dirs/d1/files/f1/versions/v3",
+  "epoch": 1,
+  "isdefault": false,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v2"
+}
+`)
+
+	// Verison v2 is default,sticky and both v2 and v3 exist
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=meta,versions", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.01Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 4,
+    "createdat": "2024-01-01T12:00:00.00Z",
+    "modifiedat": "2024-01-01T12:00:00.02Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2024-01-01T12:00:00.01Z",
+      "modifiedat": "2024-01-01T12:00:00.01Z",
+      "ancestorid": "v2"
+    },
+    "v3": {
+      "fileid": "f1",
+      "versionid": "v3",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v3",
+      "xid": "/dirs/d1/files/f1/versions/v3",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2024-01-01T12:00:00.02Z",
+      "modifiedat": "2024-01-01T12:00:00.02Z",
+      "ancestorid": "v2"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// Create v4, which should bump v3 out of the list, not v2 (default)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v4", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v4",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+  "xid": "/dirs/d1/files/f1/versions/v4",
+  "epoch": 1,
+  "isdefault": false,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v4"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1?inline=meta,versions", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.01Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v2",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 5,
+    "createdat": "2024-01-01T12:00:00.00Z",
+    "modifiedat": "2024-01-01T12:00:00.02Z",
+    "readonly": false,
+
+    "defaultversionid": "v2",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "defaultversionsticky": true
+  },
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versions": {
+    "v2": {
+      "fileid": "f1",
+      "versionid": "v2",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+      "xid": "/dirs/d1/files/f1/versions/v2",
+      "epoch": 1,
+      "isdefault": true,
+      "createdat": "2024-01-01T12:00:00.01Z",
+      "modifiedat": "2024-01-01T12:00:00.01Z",
+      "ancestorid": "v2"
+    },
+    "v4": {
+      "fileid": "f1",
+      "versionid": "v4",
+      "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+      "xid": "/dirs/d1/files/f1/versions/v4",
+      "epoch": 1,
+      "isdefault": false,
+      "createdat": "2024-01-01T12:00:00.02Z",
+      "modifiedat": "2024-01-01T12:00:00.02Z",
+      "ancestorid": "v4"
+    }
+  },
+  "versionscount": 2
+}
+`)
+
+	// back to unlimited versions
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 0,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	// Create v5 and then set it to be default/sticky
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v5", `{}`, 201, `{
+  "fileid": "f1",
+  "versionid": "v5",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+  "xid": "/dirs/d1/files/f1/versions/v5",
+  "epoch": 1,
+  "isdefault": false,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v4"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+  "defaultversionid": "v5",
+  "defaultversionsticky": true
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 7,
+  "createdat": "2026-07-31T21:17:00.531802523Z",
+  "modifiedat": "2026-07-31T21:17:00.747828766Z",
+  "readonly": false,
+
+  "defaultversionid": "v5",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+  "defaultversionsticky": true
+}
+`)
+
+	// Create a bunch more versions
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v6", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v7", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v8", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v9", `{}`, 201, `*`)
+
+	// Make sure there's 7 of them and v5 is the default
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions", ``, 200, `{
+  "v2": {
+    "fileid": "f1",
+    "versionid": "v2",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2",
+    "xid": "/dirs/d1/files/f1/versions/v2",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:20.971064343Z",
+    "modifiedat": "2026-07-31T13:42:20.971064343Z",
+    "ancestorid": "v2"
+  },
+  "v4": {
+    "fileid": "f1",
+    "versionid": "v4",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v4",
+    "xid": "/dirs/d1/files/f1/versions/v4",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:21.194838059Z",
+    "modifiedat": "2026-07-31T13:42:21.194838059Z",
+    "ancestorid": "v4"
+  },
+  "v5": {
+    "fileid": "f1",
+    "versionid": "v5",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+    "xid": "/dirs/d1/files/f1/versions/v5",
+    "epoch": 1,
+    "isdefault": true,
+    "createdat": "2026-07-31T13:42:21.303275078Z",
+    "modifiedat": "2026-07-31T13:42:21.303275078Z",
+    "ancestorid": "v4"
+  },
+  "v6": {
+    "fileid": "f1",
+    "versionid": "v6",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v6",
+    "xid": "/dirs/d1/files/f1/versions/v6",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:21.379015939Z",
+    "modifiedat": "2026-07-31T13:42:21.379015939Z",
+    "ancestorid": "v5"
+  },
+  "v7": {
+    "fileid": "f1",
+    "versionid": "v7",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v7",
+    "xid": "/dirs/d1/files/f1/versions/v7",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:21.428627935Z",
+    "modifiedat": "2026-07-31T13:42:21.428627935Z",
+    "ancestorid": "v6"
+  },
+  "v8": {
+    "fileid": "f1",
+    "versionid": "v8",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v8",
+    "xid": "/dirs/d1/files/f1/versions/v8",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:21.48199951Z",
+    "modifiedat": "2026-07-31T13:42:21.48199951Z",
+    "ancestorid": "v7"
+  },
+  "v9": {
+    "fileid": "f1",
+    "versionid": "v9",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
+    "xid": "/dirs/d1/files/f1/versions/v9",
+    "epoch": 1,
+    "isdefault": false,
+    "createdat": "2026-07-31T13:42:21.537276505Z",
+    "modifiedat": "2026-07-31T13:42:21.537276505Z",
+    "ancestorid": "v8"
+  }
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 11,
+  "createdat": "2026-07-31T13:42:24.626557604Z",
+  "modifiedat": "2026-07-31T13:42:25.183426687Z",
+  "readonly": false,
+
+  "defaultversionid": "v5",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v5",
+  "defaultversionsticky": true
+}
+`)
+
+	// Trying to set maxversions=1 now should fail since f1 is still
+	// pinned sticky to v5
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 1,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
+  "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
+  "subject": "/dirs/d1/files/f1/meta",
+  "source": "abc04c6d0dd6:registry:entity:2030"
+}
+`)
+
+	// Now clear the sticky flag,notice default is now v9
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+  "defaultversionid": null
+}`, 200, `{
+  "fileid": "f1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "xid": "/dirs/d1/files/f1/meta",
+  "epoch": 12,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "readonly": false,
+
+  "defaultversionid": "v9",
+  "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
+  "defaultversionsticky": false
+}
+`)
+
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 1,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	// After clearing sticky and setting maxversions=1, the newest
+	// version (v9) survives - not v5 (v5 was only sticky, not newest)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions", ``, 200, `{
+  "v9": {
+    "fileid": "f1",
+    "versionid": "v9",
+    "self": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
+    "xid": "/dirs/d1/files/f1/versions/v9",
+    "epoch": 2,
+    "isdefault": true,
+    "createdat": "2024-01-01T12:00:00.00Z",
+    "modifiedat": "2024-01-01T12:00:00.01Z",
+    "ancestorid": "v9"
+  }
+}
+`)
+
+	// Back to maxversions=2
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 2,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	// Make v9 sticky, and the PUT should bump its epoch
+	XHTTP(t, reg, "PUT",
+		"/dirs/d1/files/f1$details?inline=meta&setdefaultversionid=v9",
+		`{}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v9",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.01Z",
+  "modifiedat": "2024-01-01T12:00:00.02Z",
+  "ancestorid": "v9",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "http://localhost:8181/dirs/d1/files/f1/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 14,
+    "createdat": "2024-01-01T12:00:00.00Z",
+    "modifiedat": "2024-01-01T12:00:00.02Z",
+    "readonly": false,
+
+    "defaultversionid": "v9",
+    "defaultversionurl": "http://localhost:8181/dirs/d1/files/f1/versions/v9",
     "defaultversionsticky": true
   },
   "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
@@ -419,14 +961,34 @@ func TestResourceMaxVersions(t *testing.T) {
 
 	// Now set maxversions and we should get an error because sticky is set
 	// but it's not allowed to be when maxversions=1
-	rm.SetMaxVersions(1)
-	XCheckErr(t, reg.Model.VerifyAndSave(true), `{
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 1,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#setdefaultversionsticky_false",
   "title": "Setting \"defaultversionsticky\" to \"true\" is not allowed since \"maxversions\" is \"1\".",
   "subject": "/dirs/d1/files/f1/meta",
   "source": "9263661f51d9:registry:resource:1516"
-}`)
-
+}
+`)
 }
 
 func TestResourceDeprecated(t *testing.T) {

@@ -12,39 +12,125 @@ func TestVersionCreate(t *testing.T) {
 	reg := NewRegistry("TestVersionCreate")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	d1, _ := reg.AddGroup("dirs", "d1")
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
 
-	f1, err := d1.AddResource("files", "f1", "v1")
-	XNoErr(t, err)
-	XCheck(t, f1 != nil, "Creating f1 failed")
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	v2, err := f1.AddVersion("v2")
-	XNoErr(t, err)
-	XCheck(t, v2 != nil, "Creating v2 failed")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
 
-	vt, err := f1.AddVersion("v2")
-	XCheck(t, vt == nil && err != nil, "Dup v2 should have failed")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "xid": "/dirs/d1/files/f1/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
 
-	vt, isNew, err := f1.UpsertVersion("v2")
-	XCheck(t, vt != nil && err == nil, "Dup v2 should have worked")
-	XCheck(t, isNew == false, "Should not be new")
-	XCheck(t, vt == v2, "Should be the same")
+	// PUT to an existing version is just an upsert (HTTP has no
+	// separate strict-create-only vs upsert distinction like the raw
+	// Go API's AddVersion() vs UpsertVersion())
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2$details", `{}`,
+		200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v2$details",
+  "xid": "/dirs/d1/files/f1/versions/v2",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v1"
+}
+`)
 
-	l, err := f1.GetDefault(registry.FOR_WRITE)
-	XNoErr(t, err)
-	XJSONCheck(t, l, v2)
+	// v2 should now be the default (newest version)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "isdefault": true,
+  "createdat": "2026-07-31T13:40:27.46166805Z",
+  "modifiedat": "2026-07-31T13:40:28.46166805Z",
+  "ancestorid": "v1",
 
-	d2, err := reg.AddGroup("dirs", "d2")
-	XNoErr(t, err)
-	XCheck(t, d2 != nil && err == nil, "Creating d2 failed")
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 2
+}
+`)
 
-	f2, err := d2.AddResource("files", "f1", "v1")
-	XNoErr(t, err)
-	XCheck(t, f2 != nil, "Creating d2/f1/v1 failed")
-	_, err = f2.AddVersion("v1.1")
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/dirs/d2", `{}`, 201, `{
+  "dirid": "d2",
+  "self": "http://localhost:8181/dirs/d2",
+  "xid": "/dirs/d2",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+
+  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filescount": 0
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1/versions/v1$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d2/files/f1/versions/v1$details",
+  "xid": "/dirs/d2/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1/versions/v1.1$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1.1",
+  "self": "http://localhost:8181/dirs/d2/files/f1/versions/v1.1$details",
+  "xid": "/dirs/d2/files/f1/versions/v1.1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// /dirs/d1/f1/v1
 	//            /v2
@@ -97,37 +183,22 @@ func TestVersionCreate(t *testing.T) {
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
-	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, vt != nil, "Didn't find v2")
-	XJSONCheck(t, vt, v2)
+	// Delete v2, next default should be auto-computed (back to v1)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v2", ``, 204, ``)
 
-	vt, err = f1.FindVersion("xxx", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, vt == nil, "Find version xxx should have failed")
-
-	err = v2.DeleteSetNextVersion("")
-	XNoErr(t, err)
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
 
-	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	XCheck(t, err == nil && vt == nil, "Finding delete version failed")
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `*`)
 
-	// check that default == v1 now
-	// delete v1, check that f1 is deleted too
-	err = f1.Refresh(registry.FOR_WRITE)
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v2", `{}`, 201, `*`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3", `{}`, 201, `*`)
 
-	XEqual(t, "", f1.Get("defaultversionid"), "v1")
-
-	vt, err = f1.AddVersion("v2")
-	XCheck(t, vt != nil && err == nil, "Adding v2 again")
-
-	vt, err = f1.AddVersion("v3")
-	XCheck(t, vt != nil && err == nil, "Added v3")
-	XNoErr(t, vt.SetDefault())
-	XEqual(t, "", f1.Get("defaultversionid"), "v3")
+	// Make v3 the sticky default
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/meta", `{
+  "defaultversionid": "v3",
+  "defaultversionsticky": true
+}`, 200, `*`)
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{},"v3":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}}}`)
@@ -147,9 +218,9 @@ func TestVersionCreate(t *testing.T) {
     "fileid": "f1",
     "self": "http://localhost:8181/dirs/d1/files/f1/meta",
     "xid": "/dirs/d1/files/f1/meta",
-    "epoch": 3,
+    "epoch": 6,
     "createdat": "2024-01-01T12:00:02Z",
-    "modifiedat": "2024-01-01T12:00:01Z",
+    "modifiedat": "2024-01-01T12:00:03Z",
     "readonly": false,
 
     "defaultversionid": "v3",
@@ -160,75 +231,45 @@ func TestVersionCreate(t *testing.T) {
   "versionscount": 3
 }
 `)
-	vt, err = f1.FindVersion("v2", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	err = vt.DeleteSetNextVersion("")
-	XNoErr(t, err)
-	XEqual(t, "", f1.Get("defaultversionid"), "v3")
 
-	vt, err = f1.FindVersion("v3", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, vt != nil, "Can't be nil")
-	err = vt.DeleteSetNextVersion("")
-	XNoErr(t, err)
-	XEqual(t, "", f1.Get("defaultversionid"), "v1")
+	// Delete v2 (not the sticky default), default should stay v3
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v2", ``, 204, ``)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `*`)
 
-	f1, err = d2.FindResource("files", "f1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	err = f1.SetDefault(v2)
-	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
-  "title": "While processing \"/dirs/d2/files/f1/meta\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
-  "subject": "/dirs/d2/files/f1/meta",
-  "args": {
-    "id": "v2",
-    "singular": "version"
-  },
-  "source": "396100315a6e:registry:entity:1446"
-}`)
-	_, err = f1.AddVersion("v3")
-	XNoErr(t, err)
-	vt, err = f1.FindVersion("v1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, vt != nil, "should not be nil")
-	err = vt.DeleteSetNextVersion("")
-	XNoErr(t, err)
+	// Delete v3 (the sticky default), next default auto-computed
+	// (back to v1, sticky cleared)
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1/versions/v3", ``, 204, ``)
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/meta", ``, 200, `*`)
+
+	// Trying to set default to a non-existent version should fail
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1/meta", `{
+  "defaultversionid": "v2",
+  "defaultversionsticky": true
+}`, 400, `*`)
+
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1/versions/v3", `{}`, 201, `*`)
+
+	// Delete v1 in d2, next default auto-computed
+	XHTTP(t, reg, "DELETE", "/dirs/d2/files/f1/versions/v1", ``, 204, ``)
+
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{}}}}},"d2":{"files":{"f1":{"meta":{},"versions":{"v1.1":{},"v3":{}}}}}}}`)
 
-	err = vt.DeleteSetNextVersion("v2")
-	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_id",
-  "title": "While processing \"/dirs/d2/files/f1\", the \"version\" with a \"versionid\" value of \"v2\" cannot be found.",
-  "detail": "Can't find next default Version \"v2\".",
-  "subject": "/dirs/d2/files/f1",
-  "args": {
-    "id": "v2",
-    "singular": "version"
-  },
-  "source": "e4e59b8a76c4:registry:version:117"
-}`)
+	// Trying to delete a version and set the next default to a
+	// non-existent version should fail
+	XHTTP(t, reg, "DELETE", "/dirs/d2/files/f1/versions/v1.1?setdefaultversionid=v2",
+		``, 400, `*`)
 
-	vt, err = f1.FindVersion("v1.1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XCheck(t, vt != nil, "should not be nil")
+	// Trying to delete a version and set the next default to itself
+	// should fail
+	XHTTP(t, reg, "DELETE", "/dirs/d2/files/f1/versions/v1.1?setdefaultversionid=v1.1",
+		``, 400, `*`)
 
-	err = vt.DeleteSetNextVersion("v1.1")
-	XCheckErr(t, err, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_request",
-  "title": "Can't set \"defaultversionid\" to a Version that is being deleted.",
-  "subject": "/dirs/d2/files/f1/versions/v1.1",
-  "args": {
-    "error_detail": "Can't set \"defaultversionid\" to a Version that is being deleted"
-  },
-  "source": "e4e59b8a76c4:registry:version:63"
-}`)
+	XHTTP(t, reg, "PUT", "/dirs/d2/files/f1/versions/v4", `{}`, 201, `*`)
 
-	vt, err = f1.AddVersion("v4")
-	XNoErr(t, err)
-
-	err = vt.DeleteSetNextVersion("v3")
-	XNoErr(t, err)
+	// Delete v4 and explicitly set the next default to v3
+	XHTTP(t, reg, "DELETE", "/dirs/d2/files/f1/versions/v4?setdefaultversionid=v3",
+		``, 204, ``)
 
 	XCheckGet(t, reg, "dirs/d2/files?inline=meta",
 		`{
@@ -248,7 +289,7 @@ func TestVersionCreate(t *testing.T) {
       "fileid": "f1",
       "self": "http://localhost:8181/dirs/d2/files/f1/meta",
       "xid": "/dirs/d2/files/f1/meta",
-      "epoch": 3,
+      "epoch": 6,
       "createdat": "2024-01-01T12:00:02Z",
       "modifiedat": "2024-01-01T12:00:03Z",
       "readonly": false,

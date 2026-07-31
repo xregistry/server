@@ -257,19 +257,8 @@ func (m *Meta) SetSave(name string, val any) *XRError {
 	return m.Entity.eSetSave(name, val)
 }
 
-// TODO remove this - mainly due to teh call to ResolvePendingValidation
 func (r *Resource) SetSaveMeta(name string, val any) *XRError {
 	log.VPrintf(4, "SetSaveMeta: r(%s).Set(%s,%v)", r.UID, name, val)
-
-	// Resolve any still-pending deferred validation (see
-	// Tx.AddResourceToValidate()) before touching Meta directly -
-	// otherwise "defaultversionid" (and other resource-derived Meta
-	// values) may not be set/up-to-date yet. Do this explicitly here
-	// (rather than lazily deep inside a SpecProp's updateFn) so any
-	// resulting error is attributed to the right entity, not to Meta.
-	if xErr := r.ResolvePendingValidation(); xErr != nil {
-		return xErr
-	}
 
 	meta := r.MustFindMeta(false, FOR_WRITE)
 	return meta.Entity.eSetSave(name, val)
@@ -388,38 +377,8 @@ func (r *Resource) GetDefault(accessMode int) (*Version, *XRError) {
 		return nil, nil
 	}
 
-	// If this Resource still has deferred validation pending (see
-	// Tx.AddResourceToValidate()), resolve it now - otherwise
-	// meta's "defaultversionid" may not be set/up-to-date yet and
-	// we'd return the wrong (or no) Version.
-	if xErr := r.ResolvePendingValidation(); xErr != nil {
-		return nil, xErr
-	}
-
 	val := meta.GetAsString("defaultversionid")
 	return r.FindVersion(val, false, accessMode)
-}
-
-// ResolvePendingValidation runs ValidateResource() now if this Resource
-// still has a deferred-validation mark pending (see
-// Tx.AddResourceToValidate()) - otherwise properties such as
-// meta's "defaultversionid" may not be set/up-to-date yet. Safe/cheap
-// to call even when nothing is pending.
-//
-// If r is already being validated further up this same Tx's call stack
-// (see Tx.ResourcesValidating's doc comment), this is a no-op instead
-// of recursing into ValidateResource() again - that in-progress call
-// already reflects the current in-memory state and will account for
-// anything pending on its own before it returns, so recursing here
-// would only redundantly re-run the same validation/cascade work.
-func (r *Resource) ResolvePendingValidation() *XRError {
-	if r.tx.ResourcesValidating[r.DbSID] {
-		return nil
-	}
-	if pending, ok := r.tx.ResourcesToValidate[r.DbSID]; ok {
-		return r.ValidateResource(pending.onlyMetaChanged, pending.force)
-	}
-	return nil
 }
 
 func (r *Resource) GetVersionMode() VersionMode {
@@ -1362,25 +1321,15 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	}
 	delete(r.tx.ResourcesValidatingBatch, r.DbSID)
 
-	// Mark r as "currently being validated" for the duration of this
-	// call (see Tx.ResourcesValidating's doc comment) so that any
-	// ResolvePendingValidation() call triggered from further down this
-	// same call stack (e.g. via runCascade()->SaveDefaultVersionCascade()
-	// ->GetDefault()) no-ops instead of recursively re-running
-	// ValidateResource() for r. Also, on the way out, delete any mark
-	// this call's OWN body may have re-added to ResourcesToValidate
-	// (e.g. EnsureLatest()'s meta.SetSave("defaultversionid", ...) ->
-	// Entity.VersionMetaPostSave() -> AddResourceToValidate()) - this call is
-	// about to account for that change itself (via runCascade() below),
-	// so leaving that self-mark in place would cause a second, fully
-	// redundant ValidateResource() run later when Registry.Validate()
-	// drains the Tx.
-	if r.tx.ResourcesValidating == nil {
-		r.tx.ResourcesValidating = map[string]bool{}
-	}
-	r.tx.ResourcesValidating[r.DbSID] = true
+	// On the way out, delete any mark this call's OWN body may have
+	// re-added to ResourcesToValidate (e.g. EnsureLatest()'s
+	// meta.SetSave("defaultversionid", ...) -> Entity.VersionMetaPostSave()
+	// -> AddResourceToValidate()) - this call is about to account for
+	// that change itself (via runCascade() below), so leaving that
+	// self-mark in place would cause a second, fully redundant
+	// ValidateResource() run later when Registry.Validate() drains the
+	// Tx.
 	defer func() {
-		delete(r.tx.ResourcesValidating, r.DbSID)
 		delete(r.tx.ResourcesToValidate, r.DbSID)
 	}()
 

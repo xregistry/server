@@ -141,77 +141,163 @@ func TestSetResource(t *testing.T) {
 	reg := NewRegistry("TestSetResource")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	XNoErr(t, reg.SaveModel(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	dir, _ := reg.AddGroup("dirs", "d1")
-	file, _ := dir.AddResource("files", "f1", "v1")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+  "ancestorid": "v1"
+}
+`)
 
-	// /dirs/d1/f1/v1
+	// Set a prop on the version, to make sure it appears on the resource/def
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details",
+		`{"name": "myName"}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "name": "myName",
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v1"
+}
+`)
 
-	// Make sure setting it on the version is seen by res.Default and res
-	namePP := NewPP().P("name").UI()
-	file.SetSaveDefault(namePP, "myName")
-	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
-	val := ver.Get(namePP)
-	if val != "myName" {
-		t.Errorf("ver.Name is %q, should be 'myName'", val)
-	}
+	// Make sure it appears on the resource too
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "myName",
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v1",
 
-	name := file.Get(namePP).(string)
-	XEqual(t, "", name, "myName")
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 
 	// Verify that nil and "" are treated differently
-	ver.SetSave(namePP, nil)
-	ver2, _ := file.FindVersion(ver.UID, false, registry.FOR_WRITE)
-	XJSONCheck(t, ver2, ver)
-	val = ver.Get(namePP)
-	XCheck(t, val == nil, "Setting to nil should return nil")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{
+  "name": null
+}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 3,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v1"
+}
+`)
 
-	ver.SetSave(namePP, "")
-	ver2, _ = file.FindVersion(ver.UID, false, registry.FOR_WRITE)
-	XJSONCheck(t, ver2, ver)
-	val = ver.Get(namePP)
-	XCheck(t, val == "", "Setting to '' should return ''")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{
+  "name": ""
+}`, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1$details",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 4,
+  "name": "",
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.01Z",
+  "ancestorid": "v1"
+}
+`)
 }
 
 func TestSetVersion(t *testing.T) {
 	reg := NewRegistry("TestSetVersion")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
-	reg.SaveModel(true)
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`, 200, `*`)
 
-	dir, _ := reg.AddGroup("dirs", "d1")
-	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{
+  "versionid": "v1"
+}`, 201, `*`)
 
-	// /dirs/d1/f1/v1
+	// Make sure setting it directly on the version is seen by
+	// resource.default and resource itself
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", `{
+  "name": "myName"
+}`, 200, `*`)
 
-	// Make sure setting it on the version is seen by res.Default and res
-	namePP := NewPP().P("name").UI()
-	ver.SetSave(namePP, "myName")
-	file, _ = dir.FindResource("files", "f1", false, registry.FOR_WRITE)
-	l, xErr := file.GetDefault(registry.FOR_WRITE)
-	XNoErr(t, xErr)
-	XCheck(t, l != nil, "default is nil")
-	val := l.Get(namePP)
-	if val != "myName" {
-		t.Errorf("resource.default.Name is %q, should be 'myName'", val)
-	}
-	val = file.Get(namePP)
-	if val != "myName" {
-		t.Errorf("resource.Name is %q, should be 'myName'", val)
-	}
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 2,
+  "name": "myName",
+  "isdefault": true,
+  "createdat": "2026-07-31T13:40:27.46166805Z",
+  "modifiedat": "2026-07-31T13:40:28.46166805Z",
+  "ancestorid": "v1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 
 	// Make sure we can also still see it from the version itself
-	ver, _ = file.FindVersion("v1", false, registry.FOR_WRITE)
-	val = ver.Get(namePP)
-	if val != "myName" {
-		t.Errorf("version.Name is %q, should be 'myName'", val)
-	}
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1/versions/v1", ``, 200, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 2,
+  "name": "myName",
+  "isdefault": true,
+  "createdat": "2026-07-31T13:40:27.46166805Z",
+  "modifiedat": "2026-07-31T13:40:28.46166805Z",
+  "ancestorid": "v1"
+}
+`)
 }
 
 func TestSetDots(t *testing.T) {
