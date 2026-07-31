@@ -568,31 +568,6 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	// Resolve any still-pending deferred validation (see
-	// Tx.AddResourceToValidate()) before touching Meta - e.g. this
-	// Resource may have just been implicitly created (with a pending
-	// default Version) a moment ago in this same request, and Meta
-	// processing below (e.g. its "defaultversionid" check, or the
-	// #epoch/#createdat capture for xref) needs that fully resolved
-	// first. Do this explicitly here (rather than lazily deep inside a
-	// SpecProp's updateFn) so any resulting error is attributed to the
-	// right entity, not to Meta.
-	//
-	// Only do this when we're the final/direct call (mu.more == false)
-	// - e.g. a client PUTing directly to ".../meta". When mu.more is
-	// true we're being called mid-way through a larger
-	// Group.UpsertResource() flow (which still has its own Version/
-	// Meta updates from this same request left to apply) and that
-	// flow always finishes with its own full validation - resolving
-	// early here would run that validation prematurely, against
-	// stale/incomplete data (e.g. before the request's own
-	// "defaultversionid" override has even been applied to Meta).
-	if !mu.more {
-		if xErr := r.ResolvePendingValidation(); xErr != nil {
-			return nil, false, xErr
-		}
-	}
-
 	if xErr := CheckAttrs(mu.obj, r.XID+"/meta"); xErr != nil {
 		return nil, false, xErr
 	}
@@ -872,7 +847,17 @@ func (r *Resource) UpsertMeta(mu *MetaUpsert) (*Meta, bool, *XRError) {
 			// Clear all existing attributes except ID
 			oldEpoch := meta.Object["epoch"]
 			if IsNil(oldEpoch) {
-				oldEpoch = 0
+				// This Resource was just created (in this same request)
+				// and is becoming an xref before it ever had a chance to
+				// be independently validated/saved as a normal Resource
+				// - so it never really had an epoch of its own, and no
+				// caller could have observed one yet. Treat it as if it
+				// had already been through its normal first-epoch(1)
+				// lifecycle anyway, so the eventual "restore from xref"
+				// epoch (oldEpoch+1, see above) stays consistent with
+				// every other Resource's numbering scheme instead of
+				// needing a special case.
+				oldEpoch = 1
 			}
 			meta.JustSet("#epoch", oldEpoch)
 
