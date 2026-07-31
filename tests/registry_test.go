@@ -140,17 +140,26 @@ func TestRegistryProps(t *testing.T) {
 	reg := NewRegistry("TestRegistryProps")
 	defer PassDeleteReg(t, reg)
 
-	err := reg.SetSave("specversion", "x.y")
-	if err == nil {
-		t.Errorf("Setting specversion to x.y should have failed")
-		t.FailNow()
-	}
-	reg.SetSave("name", "nameIt")
-	reg.SetSave("description", "a very cool reg")
-	reg.SetSave("documentation", "https://docs.com")
-	reg.SetSave("labels.stage", "dev")
+	XHTTP(t, reg, "PUT", "/", `{"specversion":"x.y"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
+  "title": "The attribute \"specversion\" for \"/\" is not valid: invalid value: x.y.",
+  "subject": "/",
+  "args": {
+    "error_detail": "invalid value: x.y",
+    "name": "specversion"
+  },
+  "source": ":registry:entity:1200"
+}
+`)
 
-	XCheckGet(t, reg, "", `{
+	XHTTP(t, reg, "PUT", "/", `{
+  "name": "nameIt",
+  "description": "a very cool reg",
+  "documentation": "https://docs.com",
+  "labels": {
+    "stage": "dev"
+  }
+}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryProps",
   "self": "http://localhost:8181/",
@@ -172,189 +181,272 @@ func TestRegistryRequiredFields(t *testing.T) {
 	reg := NewRegistry("TestRegistryRequiredFields")
 	defer PassDeleteReg(t, reg)
 
-	_, err := reg.Model.AddAttribute(&registry.Attribute{
-		Name:     "req",
-		Type:     STRING,
-		Required: true,
-	})
-	XNoErr(t, err)
+	// Start with a wildcard model (any extension allowed) so we can set
+	// "req" on the registry BEFORE the model requires it - that way, by
+	// the time we make "req" a required attribute, the existing data
+	// already satisfies it and PUT /modelsource's forced revalidation
+	// of existing data doesn't fail.
+	model1 := `{
+  "attributes": {
+    "*": {
+      "name": "*",
+      "type": "any"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model1, 200, model1+"\n")
 
-	// Commit before we call Set below otherwise the Tx will be rolled back
-	reg.SaveAllAndCommit()
+	XHTTP(t, reg, "PUT", "/", `{
+  "req": "testing"
+}`, 200, `*`)
 
-	err = reg.SetSave("description", "testing")
-	XCheckErr(t, err, `{
+	model2 := `{
+  "attributes": {
+    "req": {
+      "name": "req",
+      "type": "string",
+      "required": true
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
+
+	XHTTP(t, reg, "PUT", "/", `{
+  "description": "testing"
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
   "title": "One or more mandatory attributes for \"/\" are missing: req.",
   "subject": "/",
   "args": {
     "list": "req"
   },
-  "source": "e4e59b8a76c4:registry:entity:2149"
-}`)
+  "source": ":registry:entity:2761"
+}
+`)
 
-	XNoErr(t, reg.JustSet("req", "testing2"))
-	XNoErr(t, reg.SetSave("description", "testing"))
-
-	XHTTP(t, reg, "GET", "/", "", 200, `{
+	XHTTP(t, reg, "PUT", "/", `{
+  "description": "testing",
+  "req": "testing2"
+}`, 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryRequiredFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 5,
   "description": "testing",
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "req": "testing2"
 }
 `)
-
 }
 
 func TestRegistryDefaultFields(t *testing.T) {
 	reg := NewRegistry("TestRegistryDefaultFields")
 	defer PassDeleteReg(t, reg)
 
-	_, err := reg.Model.AddAttribute(&registry.Attribute{
-		Name:     "defstring",
-		Type:     STRING,
-		Required: true,
-		Default:  123,
-	})
-	XCheckErr(t, err, `{
+	// PUT /modelsource runs through the same model-definition validation
+	// as the Go-API AddAttribute() calls this test used to make - so all
+	// of these bad-default checks convert directly to HTTP model_error/
+	// model_required_true/model_scalar_default checks.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": 123
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"defstring\" \"default\" value must be of type \"string\".",
   "subject": "/model",
   "args": {
     "error_detail": "\"defstring\" \"default\" value must be of type \"string\""
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2962"
-}`)
+  "source": ":registry:shared_model:3541"
+}
+`)
 
-	_, err = reg.Model.AddAttribute(&registry.Attribute{
-		Name:    "defstring",
-		Type:    STRING,
-		Default: "abc",
-	})
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "default": "abc"
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_required_true",
   "title": "Model attribute \"defstring\" needs to have a \"required\" value of \"true\" since a default value is provided.",
   "subject": "/model",
   "args": {
     "name": "defstring"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2969"
-}`)
+  "source": ":registry:shared_model:3548"
+}
+`)
 
-	_, err = reg.Model.AddAttribute(&registry.Attribute{
-		Name:     "defstring",
-		Type:     OBJECT,
-		Required: true,
-		Default:  "hello",
-	})
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "object",
+      "required": true,
+      "default": "hello"
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_scalar_default",
   "title": "Model attribute \"defstring\" is not allowed to have a default value since it is not a scalar.",
   "subject": "/model",
   "args": {
     "name": "defstring"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2954"
-}`)
+  "source": ":registry:shared_model:3535"
+}
+`)
 
-	_, err = reg.Model.AddAttribute(&registry.Attribute{
-		Name:     "defstring",
-		Type:     STRING,
-		Required: true,
-		Default:  map[string]any{"key": "value"},
-	})
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": {"key": "value"}
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"defstring\" \"default\" value must be of type \"string\".",
   "subject": "/model",
   "args": {
     "error_detail": "\"defstring\" \"default\" value must be of type \"string\""
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2960"
-}`)
+  "source": ":registry:shared_model:3541"
+}
+`)
 
-	_, err = reg.Model.AddAttribute(&registry.Attribute{
-		Name:     "defstring",
-		Type:     STRING,
-		Required: true,
-		Default:  "hello",
-	})
-	XNoErr(t, err)
+	// Now the good "defstring" + an empty "myobj" - saved successfully.
+	model := `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": "hello"
+    },
+    "myobj": {
+      "name": "myobj",
+      "type": "object"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	obj, err := reg.Model.AddAttribute(&registry.Attribute{
-		Name: "myobj",
-		Type: OBJECT,
-	})
-	XNoErr(t, err)
-	err = reg.SaveModel(true)
-	XNoErr(t, err)
-
-	_, err = obj.AddAttribute(&registry.Attribute{
-		Name:     "defint",
-		Type:     INTEGER,
-		Required: true,
-		Default:  "string",
-	})
-	XNoErr(t, err)
-	err = reg.SaveModel(true)
-	XCheckErr(t, err, `{
+	// Bad nested default (myobj.defint) - same model_error as top-level.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": "hello"
+    },
+    "myobj": {
+      "name": "myobj",
+      "type": "object",
+      "attributes": {
+        "defint": {
+          "name": "defint",
+          "type": "integer",
+          "required": true,
+          "default": "string"
+        }
+      }
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
   "title": "There was an error in the model definition provided: \"myobj.defint\" \"default\" value must be of type \"integer\".",
   "subject": "/model",
   "args": {
     "error_detail": "\"myobj.defint\" \"default\" value must be of type \"integer\""
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2960"
-}`)
-	reg.LoadModel()
+  "source": ":registry:shared_model:3541"
+}
+`)
 
-	obj = reg.Model.Attributes["myobj"]
-	_, err = obj.AddAttribute(&registry.Attribute{
-		Name:     "defint",
-		Type:     OBJECT,
-		Required: true,
-		Default:  "string",
-	})
-	XNoErr(t, err)
-	err = reg.SaveModel(true)
-	XCheckErr(t, err, `{
+	// Bad nested default (myobj.defint, non-scalar type) - model_scalar_default.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": "hello"
+    },
+    "myobj": {
+      "name": "myobj",
+      "type": "object",
+      "attributes": {
+        "defint": {
+          "name": "defint",
+          "type": "object",
+          "required": true,
+          "default": "string"
+        }
+      }
+    }
+  }
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_scalar_default",
   "title": "Model attribute \"myobj.defint\" is not allowed to have a default value since it is not a scalar.",
   "subject": "/model",
   "args": {
     "name": "myobj.defint"
   },
-  "source": "e4e59b8a76c4:registry:shared_model:2954"
-}`)
-	reg.LoadModel()
+  "source": ":registry:shared_model:3535"
+}
+`)
 
-	obj = reg.Model.Attributes["myobj"]
-	_, err = obj.AddAttribute(&registry.Attribute{
-		Name:     "defint",
-		Type:     INTEGER,
-		Required: true,
-		Default:  123,
-	})
-	XNoErr(t, err)
-	err = reg.SaveModel(true)
-	XNoErr(t, err)
-
-	// Commit before we call Set below otherwise the Tx will be rolled back
-	reg.Refresh(registry.FOR_WRITE)
-	reg.Touch() // Force a validation which will set all defaults
-	reg.ValidateAndSave(false)
+	// Finally, the fully-correct model: defstring + myobj.defint, both
+	// with good defaults. This PUT /modelsource also forces a
+	// revalidation of the existing registry data, which applies the new
+	// defaults and saves - bumping the entity epoch from 1 to 2 with no
+	// separate write needed (replaces the old Touch()/ValidateAndSave()
+	// Go-API-only mechanism).
+	model = `{
+  "attributes": {
+    "defstring": {
+      "name": "defstring",
+      "type": "string",
+      "required": true,
+      "default": "hello"
+    },
+    "myobj": {
+      "name": "myobj",
+      "type": "object",
+      "attributes": {
+        "defint": {
+          "name": "defint",
+          "type": "integer",
+          "required": true,
+          "default": 123
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "GET", "/", "", 200, `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "hello"
@@ -366,7 +458,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "hello"
@@ -381,7 +473,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 5,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "updated hello",
@@ -400,7 +492,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 5,
+  "epoch": 6,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "hello",
@@ -416,7 +508,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 6,
+  "epoch": 7,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "hello"
@@ -430,7 +522,7 @@ func TestRegistryDefaultFields(t *testing.T) {
   "registryid": "TestRegistryDefaultFields",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 7,
+  "epoch": 8,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
   "defstring": "hello"

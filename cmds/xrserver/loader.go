@@ -206,7 +206,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	}
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -360,7 +360,7 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		}, false)
 	ErrFatalf(xErr)
 
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -429,7 +429,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 	ErrFatalf(g.SetSave("epoch", 1))
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -462,7 +462,7 @@ func LoadMessagesSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -495,7 +495,7 @@ func LoadSchemasSample(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -546,15 +546,16 @@ func LoadLargeSample(reg *registry.Registry) *registry.Registry {
 				_, xErr = f.AddVersion(fmt.Sprintf("v%d", vcount))
 				vers++
 				ErrFatalf(xErr)
-				ErrFatalf(reg.Commit())
+				ErrFatalf(reg.SaveAllAndCommit())
 			}
 		}
+		Verbose("Loaded: %s", dName)
 	}
 
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	dur := time.Now().Sub(start).Round(time.Second)
 	Verbose("Done loading registry: %s (time: %s)", reg.UID, dur)
 	Verbose("Dirs: %d  Files: %d  Versions: %d", dirs, files, vers)
@@ -622,7 +623,7 @@ func LoadDocStore(reg *registry.Registry) *registry.Registry {
 	// End of model
 
 	ErrFatalf(reg.Model.Verify())
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }
 
@@ -798,6 +799,6 @@ func LoadCESample(reg *registry.Registry) *registry.Registry {
 		}
 	}
 
-	reg.Commit()
+	reg.SaveAllAndCommit()
 	return reg
 }

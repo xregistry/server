@@ -4,6 +4,8 @@ package tests
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"testing"
 
 	. "github.com/xregistry/server/common"
@@ -14,9 +16,20 @@ func TestAncestorBasic(t *testing.T) {
 	reg := NewRegistry("TestAncestorBasic")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 201, `{
   "fileid": "f1",
@@ -517,9 +530,20 @@ func TestAncestorWithSicky(t *testing.T) {
 	reg := NewRegistry("TestAncestorWithSticky")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1?inline=meta", `{
       "meta":{"defaultversionsticky": true,"defaultversionid": "v1"},
@@ -554,23 +578,26 @@ func TestAncestorWithSicky(t *testing.T) {
 }
 `)
 
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
-
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v2->v1,1)(v3->v2,2)")
 
-	rm.SetMaxVersions(2)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	model2 := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 2
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
 
-	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
-
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v3->v3,0)")
 }
 
@@ -578,9 +605,20 @@ func TestAncestorOrdering(t *testing.T) {
 	reg := NewRegistry("TestAncestorOrdering")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Timestamps should be the determining factor.
 	// "versionsid" make sure we don't create the implied Version "1"
@@ -594,12 +632,7 @@ func TestAncestorOrdering(t *testing.T) {
   }
 }`, 201, `*`)
 
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
-
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v4->v4,0)(V3->v4,1)(v2->V3,1)(v1->v2,2)")
 
 	// Reverse the order of the timestamps, and clear ancestor
@@ -612,8 +645,7 @@ func TestAncestorOrdering(t *testing.T) {
   }
 }`, 200, `*`)
 
-	vas, _ = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v2->v1,1)(V3->v2,1)(v4->V3,2)")
 
 	// Make it into a tree 1<-2,3,4 diff timestamps
@@ -626,8 +658,7 @@ func TestAncestorOrdering(t *testing.T) {
   }
 }`, 200, `*`)
 
-	vas, _ = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v4->v1,2)(v2->v1,2)(V3->v1,2)")
 
 	// Same, but use same TS, so it'll alphabetize things (case insense)
@@ -640,8 +671,7 @@ func TestAncestorOrdering(t *testing.T) {
   }
 }`, 200, `*`)
 
-	vas, _ = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v2->v1,2)(V3->v1,2)(v4->v1,2)")
 
 	// Deep tree and add a new more
@@ -660,8 +690,7 @@ func TestAncestorOrdering(t *testing.T) {
 }`, 200, `*`)
 
 	// v4 is older than v1.1.. and v2, and then v1.1 < v2 alphabetically
-	vas, _ = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v2->v1,1)(V3->v2,1)(v1.1.0->v1,1)(v4->V3,2)(v1.1.1->v1.1.0,2)(v2.1.0->v2,2)")
 
 }
@@ -670,9 +699,20 @@ func TestAncestorRoots(t *testing.T) {
 	reg := NewRegistry("TestAncestorOrdering")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Start with singlversionroot=default (which should be 'false')
 
@@ -686,44 +726,57 @@ func TestAncestorRoots(t *testing.T) {
   }
 }`, 201, `*`)
 
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"), "(v2->v2,0)(v1->v1,0)")
 
-	XEqual(t, "", VAS2String(vas), "(v2->v2,0)(v1->v1,0)")
-
-	rm.SetSingleVersionRoot(false)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	model2 := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "singleversionroot": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
 
 	// Trying to turn singleversionroot=true should generate an error
-	rm.SetSingleVersionRoot(true)
-	err = reg.Model.VerifyAndSave(true)
-	XCheckErr(t, err, `{
+	model3 := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "singleversionroot": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model3, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#multiple_roots",
   "title": "The operation would result in multiple root Versions for \"/dirs/d1/files/f1\", which is not allowed for \"files\".",
   "subject": "/dirs/d1/files/f1",
   "args": {
     "plural": "files"
   },
-  "source": ":registry:resource:1408"
-}`)
-	reg.LoadModel()   // reset
-	rm = rm.Refresh() // reload
+  "source": ":registry:resource:1778"
+}
+`)
 
 	// convert a root into a leaf and try again
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/f1/versions/v2",
 		`{"ancestorid":"v1"}`, 200, `*`)
 
-	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"), "(v1->v1,0)(v2->v1,2)")
 
-	XEqual(t, "", VAS2String(vas), "(v1->v1,0)(v2->v1,2)")
-
-	rm.SetSingleVersionRoot(true)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	XHTTP(t, reg, "PUT", "/modelsource", model3, 200, model3+"\n")
 
 	// make sure an add of a root fails
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v3",
@@ -810,9 +863,20 @@ func TestAncestorCircles(t *testing.T) {
 	reg := NewRegistry("TestAncestorCircles")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions":{"v1":{"ancestorid":"v1"},"v2":{"ancestorid":"v1"}}}`,
@@ -864,13 +928,31 @@ func TestAncestorMaxVersions(t *testing.T) {
 	reg := NewRegistry("TestAncestorCircles")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	rm, err := gm.AddResourceModel("files", "file", 0, true, false)
-
-	rm.SetMaxVersions(1)
-	rm.EnableSticky(false)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 1,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// the circular ref shouldn't be an issue because we'll delete the
 	// oldest one due to maxversions
@@ -900,9 +982,28 @@ func TestAncestorMaxVersions(t *testing.T) {
 
 	//  v2->v1->v3->v3
 	// Should delete v3
-	rm.SetMaxVersions(2)
-	rm.EnableSticky(true)
-	XNoErr(t, reg.Model.VerifyAndSave(true))
+	model2 := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "maxversions": 2,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model2, 200, model2+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions":{"v1":{"ancestorid":"v1"},"v2":{"ancestorid":"v1"}}}`,
@@ -942,12 +1043,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 }
 `)
 
-	f1, err := reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err := f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
-
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v2->v1,2)")
 
 	// v3->v2->v1 + default=v1/sticky
@@ -972,12 +1068,7 @@ func TestAncestorMaxVersions(t *testing.T) {
 }
 `)
 
-	f1, err = reg.FindResourceByXID("/dirs/d1/files/f1", "/")
-	XNoErr(t, err)
-	vas, err = f1.GetOrderedVersionIDs() // []*VersionAncestor
-	XNoErr(t, err)
-
-	XEqual(t, "", VAS2String(vas),
+	XEqual(t, "", VAS2String(t, reg, "/dirs/d1/files/f1"),
 		"(v1->v1,0)(v3->v3,0)")
 }
 
@@ -985,9 +1076,20 @@ func TestAncestorErrors(t *testing.T) {
 	reg := NewRegistry("TestAncestorErrors")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
 		`{"versions": {"v1":{"ancestorid":"v2"}}}`, 400,
@@ -1021,11 +1123,63 @@ func TestAncestorErrors(t *testing.T) {
 
 }
 
-func VAS2String(vas []*registry.VersionAncestor) string {
-	res := ""
-	for _, va := range vas {
-		// Pos, 0=root, 1=middle, 2=leaf
-		res += fmt.Sprintf("(%s->%s,%s)", va.VID, va.AncestorID, va.Pos[:1])
+// VAS2String fetches all Versions of the Resource at "xid" (via HTTP) and
+// builds a "(vid->ancestorid,pos)" string for each one - just like the old
+// Go-API-only GetOrderedVersionIDs()/VersionAncestor mechanism did. Pos is
+// derived the same way the server's "VersionAncestors" SQL view computes it
+// (registry/init.sql): 0=root (vid==ancestorid), 1=middle (some other
+// Version's ancestorid points at it), 2=leaf (otherwise). The ORDER of the
+// entries is just sorted by (pos,vid) for determinism - it's not guaranteed
+// to match the server's own internal ordering, but each individual
+// "vid->ancestorid,pos" tuple is what matters for these tests.
+func VAS2String(t *testing.T, reg *registry.Registry, xid string) string {
+	res := XHTTP(t, reg, "GET", xid+"/versions", "", 200, `*`)
+	versions := res.ToMap()
+
+	ancestors := map[string]string{}
+	createdAt := map[string]string{}
+	for vid, v := range versions {
+		vm := v.(map[string]any)
+		ancestors[vid] = vm["ancestorid"].(string)
+		createdAt[vid] = vm["createdat"].(string)
 	}
-	return res
+
+	hasChild := map[string]bool{}
+	for vid, aid := range ancestors {
+		if vid != aid {
+			hasChild[aid] = true
+		}
+	}
+
+	pos := func(vid string) string {
+		if vid == ancestors[vid] {
+			return "0"
+		}
+		if hasChild[vid] {
+			return "1"
+		}
+		return "2"
+	}
+
+	vids := []string{}
+	for vid := range ancestors {
+		vids = append(vids, vid)
+	}
+	sort.Slice(vids, func(i, j int) bool {
+		if posI, posJ := pos(vids[i]), pos(vids[j]); posI != posJ {
+			return posI < posJ
+		}
+		if createdAt[vids[i]] != createdAt[vids[j]] {
+			return createdAt[vids[i]] < createdAt[vids[j]]
+		}
+		// The VersionUID DB column uses a case-insensitive collation, so
+		// match that here for the final tiebreaker.
+		return strings.ToLower(vids[i]) < strings.ToLower(vids[j])
+	})
+
+	str := ""
+	for _, vid := range vids {
+		str += fmt.Sprintf("(%s->%s,%s)", vid, ancestors[vid], pos(vid))
+	}
+	return str
 }

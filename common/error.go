@@ -30,8 +30,16 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	err := Type2Error[daType]
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
-	TestPanicIf(subject != "" && !strings.HasPrefix(subject, "http") &&
-		subject[0] != '/', "start with / : %s", subject)
+	if subject != "" && !strings.HasPrefix(subject, "http") &&
+		subject[0] != '/' {
+
+		// Show us who isn't setting 'subject' correctly so we can fix it.
+		// But don't stop process, just log it
+		ShowStack()
+
+		// But do stop if PANICLOG env var is set
+		TestPanicIf(true, "start with / : %s", subject)
+	}
 
 	if daType == "server_error" {
 		// This is special.
@@ -154,7 +162,7 @@ var Type2Error = map[string]*XRError{
 	},
 	"constraint_failure": &XRError{
 		Code:  400,
-		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "equals" constraint for attribute "<path>".`,
+		Title: `The request would result in one or more Versions of "<subject>" not being compliant with its owning Group's "<kind>" constraint for attribute "<path>".`,
 	},
 	"data_retrieval_error": &XRError{
 		Code:  500,

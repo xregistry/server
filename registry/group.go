@@ -30,7 +30,7 @@ func (g *Group) Delete() *XRError {
 
 	// Make sure we don't have any readonly Resources
 	results := Query(g.tx, `
-	    SELECT EXISTS(SELECT 1 FROM FullTree
+	    SELECT EXISTS(SELECT 1 FROM Props
 		WHERE RegSID=? AND Type=`+StrTypes(ENTITY_META)+` AND
 		  Path LIKE '`+g.Path+`/%' AND
 		  PropName='readonly`+string(DB_IN)+`' AND
@@ -272,11 +272,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: g.Registry,
-				DbSID:    NewUUID(),
-				Plural:   ru.RType,
-				Singular: rModel.Singular,
-				UID:      ru.Id,
+				Registry:  g.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: g.DbSID,
+				Plural:    ru.RType,
+				Singular:  rModel.Singular,
+				UID:       ru.Id,
 
 				Type:     ENTITY_RESOURCE,
 				Path:     g.Path + "/" + ru.RType + "/" + ru.Id,
@@ -317,6 +318,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// then I think we can use rModel.SID in the above sql stmt
 		// instead of the sub-query
 
+		r.EntityInsert()
+
 		isNew = true
 		r.tx.AddResource(r)
 		g.Touch()
@@ -335,11 +338,12 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: g.Registry,
-				DbSID:    NewUUID(),
-				Plural:   "metas",
-				Singular: "meta",
-				UID:      r.UID,
+				Registry:  g.Registry,
+				DbSID:     NewUUID(),
+				ParentSID: r.DbSID,
+				Plural:    "metas",
+				Singular:  "meta",
+				UID:       r.UID,
 
 				Type:     ENTITY_META,
 				Path:     r.Path + "/meta",
@@ -359,6 +363,8 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
                 SELECT ?,?,?,?,?,?,?`,
 			meta.DbSID, g.Registry.DbSID, r.DbSID,
 			meta.Path, meta.Abstract, r.Plural, r.Singular)
+
+		meta.EntityInsert()
 
 		xErr = meta.JustSet(r.Singular+"id", r.UID)
 		if xErr != nil {
@@ -410,7 +416,13 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	// Need to set meta.xref early because some processing depends on it
 	// being set to the final value before we actually process "meta"
 	if hasXref {
-		if objXref == false || (okObj && IsNil(objXref)) {
+		// xref is being explicitly nulled/falsed out, or "meta" was
+		// provided as a full-replace (non-PATCH) sub-object that
+		// simply omits "xref" entirely - which means it's being
+		// cleared too. See the parallel check/comment in
+		// Resource.UpsertMeta() for why the !okObj case matters.
+		if objXref == false || (okObj && IsNil(objXref)) ||
+			(hasMeta && !okObj && metaAddType != ADD_PATCH) {
 			hasXref = false
 			meta.JustSet("xref", nil)
 			// This is also done in the upsertMeta call but we need it
@@ -616,9 +628,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		return nil, false, xErr
 	}
 
-	if xErr = r.ValidateResource(false, false); xErr != nil {
-		return nil, false, xErr
-	}
+	r.tx.AddResourceToValidate(r, false, false)
 
 	return r, isNew, xErr
 }
@@ -671,14 +681,6 @@ func (g *Group) UpsertJustResources(rootObj Object, addType AddType) (map[string
 	}
 
 	return resources, nil
-}
-
-func (g *Group) CheckConstraints() *XRError {
-	constraints := g.Object["constraints"]
-	if !IsNil(constraints) {
-		return NewXRError("constraint_failure", g.XID, "path=...")
-	}
-	return nil
 }
 
 func (g *Group) GetConstraints() (map[string]*Constraint, *XRError) {
@@ -779,16 +781,7 @@ func (g *Group) Validate() *XRError {
 	}
 
 	for key, constraint := range constraints {
-		if constraint.Equals == "" {
-			continue
-		}
-
-		// groupAttr parsed into a PP
-		gPP, _ := PropPathFromUI(constraint.Equals)
-
-		// If the attr is missing at the group level then don't bother
-		// to check it
-		if IsNil(g.GetPP(gPP)) {
+		if constraint.Equals == "" && len(constraint.Enum) == 0 {
 			continue
 		}
 
@@ -810,9 +803,41 @@ func (g *Group) Validate() *XRError {
 			binary = "BINARY"
 		}
 
-		query := fmt.Sprintf(`
-            # I'm hoping generating the view once will speed things up
-            WITH tmpFullTree AS ( SELECT * FROM FullTree )
+		if constraint.Equals != "" {
+			if xErr := g.validateEquals(constraint, resPlural, pp,
+				binary); xErr != nil {
+				return xErr
+			}
+		}
+
+		if len(constraint.Enum) > 0 {
+			if xErr := g.validateEnum(constraint, resPlural, pp,
+				binary); xErr != nil {
+				return xErr
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateEquals checks the "equals" half of a constraint: every
+// Version (real or xref-mirrored, since this scans Entities/
+// Props broadly) of resPlural, under this Group, must have
+// pp's value equal to this Group's own value of constraint.Equals.
+func (g *Group) validateEquals(constraint *Constraint, resPlural string,
+	pp *PropPath, binary string) *XRError {
+
+	// groupAttr parsed into a PP
+	gPP, _ := PropPathFromUI(constraint.Equals)
+
+	// If the attr is missing at the group level then don't bother
+	// to check it
+	if IsNil(g.GetPP(gPP)) {
+		return nil
+	}
+
+	query := fmt.Sprintf(`
             SELECT
                 r.Path, v.UID, vp.PropValue
             FROM Resources r
@@ -821,12 +846,12 @@ func (g *Group) Validate() *XRError {
                 v.ParentSID=r.SID AND
                 v.Type=?
             )
-            JOIN tmpFullTree AS gp ON (
+            JOIN Props AS gp ON (
                 gp.RegSID=r.RegistrySID AND
                 gp.eSID=r.GroupSID AND
                 gp.PropName=?
             )
-            LEFT JOIN tmpFullTree AS vp ON (
+            LEFT JOIN Props AS vp ON (
                 vp.RegSID=v.RegSID AND
                 vp.eSID=v.eSID AND
                 vp.PropName=?
@@ -838,39 +863,113 @@ func (g *Group) Validate() *XRError {
                 (vp.PropValue IS NULL OR %s vp.PropValue<>gp.PropValue)
             `, binary)
 
-		// log.Printf("%q vs %q", gPP.DB(), pp.DB())
-		results := Query(g.tx, query,
-			ENTITY_VERSION, gPP.DB(), pp.DB(),
-			g.Registry.DbSID, g.DbSID, resPlural)
-		defer results.Close()
+	// log.Printf("%q vs %q", gPP.DB(), pp.DB())
+	results := Query(g.tx, query,
+		ENTITY_VERSION, gPP.DB(), pp.DB(),
+		g.Registry.DbSID, g.DbSID, resPlural)
+	defer results.Close()
 
-		rID := ""
-		failures := []string{}
+	rID := ""
+	failures := []string{}
 
-		for {
-			row := results.NextRow()
-			if row == nil {
-				break
-			}
-
-			// log.Printf("%q %q %q",
-			// NotNilString(row[0]), NotNilString(row[1]),
-			// NotNilString(row[2]))
-
-			// Stop on 2nd Resource
-			if rID != "" && rID != NotNilString(row[0]) {
-				break
-			}
-			rID = NotNilString(row[0])
-			failures = append(failures, NotNilString(row[1]))
-
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
 		}
 
-		if len(failures) > 0 {
-			return NewXRError("constraint_failure", "/"+rID,
-				"path="+pp.UI()).SetDetailf("Versions: %s.",
-				strings.Join(failures, ","))
+		// log.Printf("%q %q %q",
+		// NotNilString(row[0]), NotNilString(row[1]),
+		// NotNilString(row[2]))
+
+		// Stop on 2nd Resource
+		if rID != "" && rID != NotNilString(row[0]) {
+			break
 		}
+		rID = NotNilString(row[0])
+		failures = append(failures, NotNilString(row[1]))
+
+	}
+
+	if len(failures) > 0 {
+		return NewXRError("constraint_failure", "/"+rID,
+			"path="+pp.UI(), "kind=equals").SetDetailf("Versions: %s.",
+			strings.Join(failures, ","))
+	}
+
+	return nil
+}
+
+// validateEnum checks the "enum" half of a constraint: every Version
+// (real or xref-mirrored, since this scans Entities/Props
+// broadly - so a xref whose mirrored value violates the hosting
+// group's "enum" constraint is caught here too) of resPlural, under
+// this Group, must have pp's value (when set) be one of
+// constraint.Enum's values.
+func (g *Group) validateEnum(constraint *Constraint, resPlural string,
+	pp *PropPath, binary string) *XRError {
+
+	// Encode each enum value the same way prepDBProperty() encodes a
+	// real attribute value before it's written to PropValue (booleans
+	// as "true"/"false", everything else via fmt.Sprintf("%v", v)) so
+	// the SQL string comparison lines up with what's actually stored.
+	placeholders := make([]string, 0, len(constraint.Enum))
+	args := []any{ENTITY_VERSION, pp.DB(), g.Registry.DbSID, g.DbSID,
+		resPlural}
+	enumArgs := make([]any, 0, len(constraint.Enum))
+	for _, v := range constraint.Enum {
+		enumArgs = append(enumArgs, EnumValueToDBString(v))
+		placeholders = append(placeholders, "?")
+	}
+	args = append(args, enumArgs...)
+
+	query := fmt.Sprintf(`
+            SELECT
+                r.Path, v.UID, vp.PropValue
+            FROM Resources r
+            JOIN Entities AS v ON (
+                v.RegSID=r.RegistrySID AND
+                v.ParentSID=r.SID AND
+                v.Type=?
+            )
+            LEFT JOIN Props AS vp ON (
+                vp.RegSID=v.RegSID AND
+                vp.eSID=v.eSID AND
+                vp.PropName=?
+            )
+            WHERE
+                r.RegistrySID=? AND
+                r.GroupSID=? AND
+                r.Plural=? AND
+                vp.PropValue IS NOT NULL AND
+                %s vp.PropValue NOT IN (%s)
+            `, binary, strings.Join(placeholders, ","))
+
+	results := Query(g.tx, query, args...)
+	defer results.Close()
+
+	rID := ""
+	failures := []string{}
+
+	for {
+		row := results.NextRow()
+		if row == nil {
+			break
+		}
+
+		// Stop on 2nd Resource
+		if rID != "" && rID != NotNilString(row[0]) {
+			break
+		}
+		rID = NotNilString(row[0])
+		failures = append(failures, NotNilString(row[1]))
+	}
+
+	if len(failures) > 0 {
+		return NewXRError("constraint_failure", "/"+rID,
+			"path="+pp.UI(), "kind=enum").SetDetailf("Versions: %s. Must "+
+			"be one of: %s.", strings.Join(failures, ","),
+			EnumAsString(constraint.Enum))
 	}
 
 	return nil

@@ -118,19 +118,29 @@ func (fp *FilterPProf) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// resourceValidation is one entry in Tx.ResourcesToValidate - it carries
+// the flags Resource.ValidateResource() needs, merged across however
+// many times AddResourceToValidate() got called for the same Resource
+// within one Tx (see AddResourceToValidate()'s doc comment for the
+// merge policy).
+type resourceValidation struct {
+	r               *Resource
+	onlyMetaChanged bool
+	force           bool
+}
+
 // Holds info about the current transaction. In a lot of ways this is similar
 // to golang's Context in that it holds other info related to the current
 // changes that are going on. Maybe one day convert this to a Context where
 // Tx is just as apsect of it.
 type Tx struct {
-	tx            *sql.Tx
-	Registry      *Registry
-	CreateTime    string // use for entity timestamps too
-	User          string
-	RequestInfo   *RequestInfo
-	ClearFullTree bool
-	Locked        bool // no more writes allowed!
-	Validated     bool // just to make sure it's not called more than once
+	tx          *sql.Tx
+	Registry    *Registry
+	CreateTime  string // use for entity timestamps too
+	User        string
+	RequestInfo *RequestInfo
+	Locked      bool // no more writes allowed!
+	Validated   bool // just to make sure it's not called more than once
 
 	// Cache of entities this Tx is dealing with. Things can get funky if
 	// we have more than one instance of the same entity in memory.
@@ -144,6 +154,65 @@ type Tx struct {
 	// w.r.t. constraints. This isn't always the same as "groups that changed"
 	// since it's possible only a Resource change could break a constraint.
 	GroupsToValidate map[string]*Group
+
+	// Resources (keyed by DbSID) that need Resource.ValidateResource()
+	// (re-)run before this Tx's results are visible - including their
+	// default-version-copy cascade and xref fan-out.
+	// Entity.VersionMetaPostSave()/SyncSystemProp()/SaveSystemProps() mark a
+	// Resource here (see AddResourceToValidate()) instead of running
+	// the (potentially expensive) validation immediately every time a
+	// Version/Meta belonging to it is saved - which used to happen
+	// redundantly, e.g. once for the $TBD ancestorid placeholder save
+	// and again when it's resolved (see plan.md "Backend / SQL
+	// re-architecture" item (b)). The few explicit call sites that
+	// need r's post-validation state right away (e.g.
+	// Resource.GetDefault() shortly after an Upsert) still call
+	// r.ValidateResource() directly/synchronously instead of deferring
+	// via this mechanism - see ValidateResource()'s own doc comment for
+	// why it clears any pending mark for itself at the very start, so a
+	// direct/synchronous call never gets redundantly re-run by the
+	// drain below. Registry.Validate() drains this, running
+	// ValidateResource() AT MOST ONCE per Resource per Tx, using the
+	// final state - mirroring how GroupsToValidate (above) already
+	// works. This is Tx-scoped bookkeeping (hence living here), even
+	// though the actual draining logic lives on Registry - see
+	// Registry.Validate().
+	ResourcesToValidate map[string]*resourceValidation
+
+	// Resources (keyed by DbSID) that currently have a
+	// Resource.ValidateResource() call in progress somewhere on this
+	// Tx's call stack. Saves made DURING that call (e.g.
+	// EnsureLatest()'s meta.SetSave("defaultversionid", ...)) can
+	// re-add the same Resource to ResourcesToValidate above via the
+	// normal Entity.VersionMetaPostSave() path, even though the in-progress call
+	// will itself account for that change before it returns (via its
+	// own end-of-call runCascade()). Without this guard, a lazy-resolve
+	// call site (e.g. GetDefault()'s ResolvePendingValidation(), called
+	// from deep inside that same in-progress ValidateResource() via
+	// runCascade()->SaveDefaultVersionCascade()) would see that fresh
+	// mark and recursively re-run ValidateResource() (and its own
+	// runCascade()) a second time before the outer call even finishes -
+	// pure duplicated work, not a correctness fix (the in-memory state
+	// is already current). ResolvePendingValidation() checks this set
+	// and no-ops instead of recursing when r is already being
+	// validated.
+	ResourcesValidating map[string]bool
+
+	// Snapshot of the batch Registry.Validate()'s drain loop is
+	// CURRENTLY iterating over (keyed by DbSID), exposed so
+	// Resource.runCascade() can tell whether an xref TARGET it's about
+	// to fan out to is itself still pending in the very same batch
+	// (i.e. hasn't started its own ValidateResource() yet) - see
+	// runCascade()'s "skip our own insert if the target is still
+	// pending" optimization. Deliberately separate from
+	// ResourcesToValidate above: Registry.Validate() swaps that field
+	// to a fresh empty map before draining a batch (so any NEW marks
+	// added mid-batch, e.g. via EnsureLatest(), safely land in the next
+	// iteration instead of racing the in-progress range over the old
+	// map) - so ResourcesToValidate itself is never a reliable way to
+	// ask "is X still pending in the batch currently being drained".
+	// Set for the duration of one drain-loop batch only; nil otherwise.
+	ResourcesValidatingBatch map[string]bool
 
 	// For debugging
 	uuid  string   // just a unique ID for the TXs map key
@@ -212,9 +281,11 @@ func (tx *Tx) NewTx() *XRError {
 	tx.Cache = map[string]*Entity{}
 	tx.uuid = NewUUID()
 	tx.stack = GetStack()
+
 	TXsMutex.Lock()
 	TXs[tx.uuid] = tx
 	TXsMutex.Unlock()
+
 	return nil
 }
 
@@ -257,14 +328,16 @@ func (tx *Tx) IsLocked() bool {
 	return tx.Locked
 }
 
+// Validate does this Tx's own bookkeeping/sanity-checks, then delegates
+// the actual (registry-wide) Resource/Group validation to
+// Registry.Validate() - that logic belongs at the Registry level, not
+// here, even though the pending-work lists it drains (ResourcesToValidate/
+// GroupsToValidate, above) are themselves Tx-scoped.
 func (tx *Tx) Validate(info *RequestInfo) *XRError {
 	// DUG see if we can add this back in
 	// PanicIf(tx.Validated, "Already validated. tx: %p", tx)
 
 	tx.Validated = true
-
-	// If not already locked, lock it
-	tx.Lock()
 
 	/*
 		if info != nil {
@@ -274,31 +347,22 @@ func (tx *Tx) Validate(info *RequestInfo) *XRError {
 		}
 	*/
 
+	if tx.Registry != nil {
+		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
+
+		// Drains any deferred Resource/Group validation - this can
+		// still write (e.g. meta.ValidateAndSave()/r.ValidateAndSave()
+		// for Resources that were only marked via
+		// AddResourceToValidate() rather than validated immediately),
+		// so it must run before the cache-dirty assertion below.
+		if xErr := tx.Registry.Validate(info); xErr != nil {
+			return xErr
+		}
+	}
+
 	// Make sure we've saved everything in the cache before we generate
 	// the results. If the stack isn't shown, enable it in entity.SetNewObject
 	PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
-
-	if tx.Registry != nil {
-		PanicIf(tx.Registry.Model.GetChanged(), "Unwritten model")
-	}
-
-	for _, g := range tx.GroupsToValidate {
-		if xErr := g.Validate(); xErr != nil {
-			return xErr
-		}
-	}
-
-	// At one point we almost called a ValidateResources type of func to
-	// double check everthing is ok. We shouldn't need to, but something
-	// to think about if things get complicated
-	/*
-		if xErr := ValidateResources(tx); xErr != nil {
-			return xErr
-		}
-
-		// Check again just to be sure ValidateResources didn't mess up
-		PanicIf(tx.IsCacheDirty(), "Unwritten stuff in cache")
-	*/
 
 	return nil
 }
@@ -344,8 +408,31 @@ func (tx *Tx) WriteCache(force bool) *XRError {
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr
 		}
+
+		// Flush any buffered system-prop changes (SetSystemDBProperty())
+		// now, at commit time - a no-op if nothing was buffered. This is
+		// what lets several system props on the same entity (e.g.
+		// EnsureCompat()'s format/compat validated+reason attrs) get
+		// written - and, if relevant, the default-version cascade
+		// re-run - at most ONCE per entity per Tx, instead of once per
+		// individual SetSystemDBProperty() call.
+		e.SaveSystemProps()
 	}
 	return nil
+}
+
+// FlushSystemProps flushes any system-prop changes buffered on any
+// entity currently in this Tx's cache (see Entity.SetSystemDBProperty()/
+// SaveSystemProps()). Unlike WriteCache()'s own flush (which only
+// happens at Commit() time), this can be called earlier - e.g. right
+// after EnsureCompat() finishes setting several system props across
+// possibly-multiple Versions - so the buffered values are visible to
+// the response that gets serialized later in the same request, well
+// before the Tx actually commits.
+func (tx *Tx) FlushSystemProps() {
+	for _, e := range tx.Cache {
+		e.SaveSystemProps()
+	}
 }
 
 func (tx *Tx) AddGroupToValidate(g *Group) {
@@ -355,11 +442,42 @@ func (tx *Tx) AddGroupToValidate(g *Group) {
 	tx.GroupsToValidate[g.XID] = g
 }
 
+// AddResourceToValidate records that r needs Resource.ValidateResource()
+// (re-)run before this Tx's results are used, without running it
+// immediately. It's safe/cheap to call this many times for the same
+// Resource within one Tx (e.g. once per Version save, once per
+// buffered-system-prop flush) - Registry.Validate() collapses
+// all of them into a single ValidateResource() run using the final
+// state, mirroring AddGroupToValidate() above. If r is already marked,
+// the onlyMetaChanged/force flags are merged with whatever's already
+// there rather than overwritten: onlyMetaChanged stays true only if
+// every mark agreed (AND), while force becomes true if any mark asked
+// for it (OR) - so the eventual single run is at least as thorough as
+// every individual request made of it. A no-op if r is nil.
+func (tx *Tx) AddResourceToValidate(r *Resource, onlyMetaChanged bool, force bool) {
+	if r == nil {
+		return
+	}
+	if tx.ResourcesToValidate == nil {
+		tx.ResourcesToValidate = map[string]*resourceValidation{}
+	}
+	if existing, ok := tx.ResourcesToValidate[r.DbSID]; ok {
+		existing.onlyMetaChanged = existing.onlyMetaChanged && onlyMetaChanged
+		existing.force = existing.force || force
+		return
+	}
+	tx.ResourcesToValidate[r.DbSID] = &resourceValidation{
+		r:               r,
+		onlyMetaChanged: onlyMetaChanged,
+		force:           force,
+	}
+}
+
 // Only call from tests
 func (tx *Tx) SaveCommitRefresh() *XRError {
 	// savedCache := maps.Clone(tx.Cache)
 
-	if xErr := tx.WriteCache(true); xErr != nil {
+	if xErr := tx.SaveAll(); xErr != nil {
 		return xErr
 	}
 	tx.Validate(nil)
@@ -381,6 +499,20 @@ func (tx *Tx) SaveCommitRefresh() *XRError {
 }
 
 func (tx *Tx) SaveAll() *XRError {
+	// Drain any deferred Resource/Group validation (see
+	// Tx.AddResourceToValidate()) BEFORE flushing the cache below -
+	// otherwise a Resource/Meta/Version this drain still needs to
+	// update (e.g. resolving "defaultversionid" via EnsureLatest())
+	// would still show up dirty and trip WriteCache()'s "not saved"
+	// sanity check. tx.Validate() (called later, by callers like
+	// SaveAllAndCommit()) re-runs this drain too, but it's a cheap
+	// no-op the second time since everything's already drained.
+	if tx.Registry != nil {
+		if xErr := tx.Registry.Validate(nil); xErr != nil {
+			return xErr
+		}
+	}
+
 	if xErr := tx.WriteCache(true); xErr != nil {
 		return xErr
 	}
@@ -419,15 +551,7 @@ func (tx *Tx) Commit() *XRError {
 
 	Must(tx.tx.Commit())
 
-	TXsMutex.Lock()
-	delete(TXs, tx.uuid)
-	TXsMutex.Unlock()
-	tx.tx = nil
-	tx.CreateTime = ""
-	tx.Cache = nil
-	tx.GroupsToValidate = nil
-	tx.uuid = ""
-
+	tx.Clear()
 	return nil
 }
 
@@ -438,15 +562,22 @@ func (tx *Tx) Rollback() *XRError {
 	err := tx.tx.Rollback()
 	Must(err)
 
+	tx.Clear()
+	return nil
+}
+
+// Clears all variables - the tx MUST be Committed or Rolledback prior to this.
+// This is just a bookkeeping func
+func (tx *Tx) Clear() {
 	TXsMutex.Lock()
 	delete(TXs, tx.uuid)
 	TXsMutex.Unlock()
 	tx.tx = nil
 	tx.CreateTime = ""
 	tx.Cache = nil
+	tx.GroupsToValidate = nil
+	tx.ResourcesToValidate = nil
 	tx.uuid = ""
-
-	return nil
 }
 
 func (tx *Tx) Conditional(xErr *XRError) *XRError {
@@ -758,22 +889,12 @@ func Query(tx *Tx, cmd string, args ...interface{}) *Result {
 	return result
 }
 
-var inDo = false
-
 func doCount(tx *Tx, cmd string, args ...interface{}) int {
 	log.VPrintf(4, "doCount: %q args: %v", cmd, args)
 
 	if tx.IsLocked() {
 		ShowStack("Attempting a write when TX is locked - tx: %p", tx)
 		panic("Tx is locked!!")
-	}
-
-	if !inDo {
-		if strings.Index(cmd, "INSERT") >= 0 ||
-			strings.Index(cmd, "DELETE") >= 0 ||
-			strings.Index(cmd, "REPLACE") >= 0 {
-			tx.ClearFullTree = true
-		}
 	}
 
 	ps, xErr := tx.Prepare(cmd)

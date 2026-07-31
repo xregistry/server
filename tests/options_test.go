@@ -1,13 +1,12 @@
 package tests
 
 import (
-	"testing"
-
 	. "github.com/xregistry/server/common"
+	"testing"
 )
 
-func TestHTTPOptions(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptions")
+func TestOptions(t *testing.T) {
+	reg := NewRegistry("TestOptions")
 	defer PassDeleteReg(t, reg)
 
 	// Test OPTIONS on root
@@ -95,21 +94,39 @@ func TestHTTPOptions(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithGroups(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithGroups")
+func TestOptionsWithGroups(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithGroups")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Create a group
-	XNoErr(t, reg.SaveModel(true))
-	_, err = reg.AddGroup("dirs", "d1")
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveAllAndCommit())
+	XHTTP(t, reg, "PUT", "/dirs/d1", "{}", 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
 
 	// Test OPTIONS on /dirs (collection)
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -154,23 +171,39 @@ func TestHTTPOptionsWithGroups(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithResources(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithResources")
+func TestOptionsWithResources(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithResources")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Create a group and resource
-	XNoErr(t, reg.SaveModel(true))
-	g, err := reg.AddGroup("dirs", "d1")
-	XNoErr(t, err)
-	_, err = g.AddResource("files", "f1", "v1")
-	XNoErr(t, err)
-	XNoErr(t, reg.SaveAllAndCommit())
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1/versions/v1$details", "{}", 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs/d1/files/f1/versions/v1",
+  "xid": "/dirs/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// Test OPTIONS on /dirs/d1/files/f1 (resource entity)
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -232,19 +265,28 @@ func TestHTTPOptionsWithResources(t *testing.T) {
 	})
 }
 
-func TestHTTPOptionsWithCapabilities(t *testing.T) {
-	reg := NewRegistry("TestHTTPOptionsWithCapabilities")
+func TestOptionsWithCapabilities(t *testing.T) {
+	reg := NewRegistry("TestOptionsWithCapabilities")
 	defer PassDeleteReg(t, reg)
 
 	// Add group and resource models
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModel("files", "file", 0, true, false)
-	XNoErr(t, err)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Disable entities.mutable capability
-	XNoErr(t, reg.SaveModel(true))
-	XNoErr(t, reg.SetSave("#capabilities", `{
+	XHTTP(t, reg, "PUT", "/capabilities", `{
 		"available": {
 			"entities": {
 				"mutable": false
@@ -256,8 +298,32 @@ func TestHTTPOptionsWithCapabilities(t *testing.T) {
 				"mutable": true
 			}
 		}
-	}`))
-	XNoErr(t, reg.SaveAllAndCommit())
+	}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": true
+    },
+    "entities": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
 
 	// Test OPTIONS on root - should only have GET with entities immutable
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -288,7 +354,7 @@ func TestHTTPOptionsWithCapabilities(t *testing.T) {
 	})
 
 	// Make capabilities immutable too
-	XNoErr(t, reg.SetSave("#capabilities", `{
+	XHTTP(t, reg, "PUT", "/capabilities", `{
 		"available": {
 			"capabilities": {
 				"mutable": false
@@ -300,8 +366,32 @@ func TestHTTPOptionsWithCapabilities(t *testing.T) {
 				"mutable": true
 			}
 		}
-	}`))
-	XNoErr(t, reg.SaveAllAndCommit())
+	}`, 200, `{
+  "available": {
+    "capabilities": {
+      "mutable": false
+    },
+    "entities": {
+      "mutable": false
+    },
+    "modelsource": {
+      "mutable": true
+    }
+  },
+  "compatibilities": {},
+  "flags": [],
+  "formats": [],
+  "ignores": [],
+  "pagination": false,
+  "shortself": false,
+  "specversions": [
+    "`+SPECVERSION+`"
+  ],
+  "versionmodes": [
+    "manual"
+  ]
+}
+`)
 
 	// Test OPTIONS on /capabilities - should now be read-only
 	XCheckHTTP(t, reg, &HTTPTest{

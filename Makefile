@@ -31,8 +31,10 @@ TEST:=-run $(TEST)
 FORCETEST=bogus
 endif
 export GO_TEST        := go test $(BUILDFLAGS) -failfast $(TEST)
+
 # Remove indentation from "go test" output - make copy-n-paste easier
 export SED            ?= | sed "s/^        //"
+export TIMEIT         ?= TIMEFORMAT="Time: %0lR" ; time
 
 TESTDIRS := $(shell find . -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
 UTESTDIRS := $(shell find . -path ./tests -prune -o -name *_test.go -exec dirname {} \; | sort -u | grep -v -e save -e tmp)
@@ -54,13 +56,13 @@ errors: .errors
 	@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
 	@touch .errors
 
-nilcheck: .nilcheck
-.nilcheck: cmds/nilcheck cmds/xr cmds/xrserver/*  registry/* common/*
+xrlint: .xrlint
+.xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/* tests/*
 	@echo
-	@echo "# Checking for '== nil'/'!= nil' misuse on 'any'-typed values"
-	@misc/errOutput @go run ./cmds/nilcheck ./registry/... ./common/... \
-		./cmds/...
-	@touch .nilcheck
+	@echo "# Running xrlink looking for source issues"
+	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
+		./common/... ./cmds/... ./tests/...
+	@touch .xrlint
 
 utest: .utest
 .utest: .cmds */*test.go
@@ -69,7 +71,8 @@ utest: .utest
 	@echo "# Unit Testing"
 	@go clean -testcache
 	@echo "go test -failfast $(UTESTDIRS)"
-	@for s in $(UTESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
+	@$(TIMEIT) for s in $(UTESTDIRS); do \
+		if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
 	@echo
 	@touch .utest
 
@@ -82,7 +85,8 @@ qtest: .qtest
 	@! grep -e '	' registry/init.sql||(echo "Remove tabs in init.db";exit 1)
 	@go clean -testcache
 	@echo "go test -failfast $(TESTDIRS) $(TEST)"
-	@for s in $(TESTDIRS); do if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
+	@$(TIMEIT) for s in $(TESTDIRS); do \
+		if ! $(GO_TEST) $$s; then exit 1; fi; done $(SED)
 	@# go test -failfast $(TESTDIRS)
 	@echo
 ifndef TEST
@@ -90,14 +94,20 @@ ifndef TEST
 	@touch .qtest
 endif
 
+ftest: .fulltest
 .fulltest: .sharedfiles .cmds */*test.go .qtest
 	@echo "# Run tests w/o deleting the Registry after each one"
 	@go clean -testcache
 	@echo NO_DELETE_REGISTRY=1 go test -failfast $(TESTDIRS)
-	@NO_DELETE_REGISTRY=1 $(GO_TEST) -failfast $(TESTDIRS) $(SED)
+	@$(TIMEIT) NO_DELETE_REGISTRY=1 $(GO_TEST) $(TESTDIRS) $(SED)
 	@touch .fulltest
 
-test: .qtest .fulltest .errors .nilcheck .testimages
+test: .qtest .fulltest .errors .xrlint .testimages
+
+benchmark:
+	@rm -f .ftest
+	@make ftest
+	@misc/largetest
 
 .sharedfiles: common/shared*
 	@echo
@@ -333,7 +343,7 @@ clean:
 	@rm -f cpu.prof mem.prof
 	@rm -f xrserver xrserver.linux* xrserver.mac* xrserver.windows*
 	@rm -f xr xr.linux* xr.mac* xr.windows.*
-	@rm -f .sharedfiles .errors .nilcheck .utest .qtest .fulltest \
+	@rm -f .sharedfiles .errors .xrlint .utest .qtest .fulltest \
 		.testimages .devimage .images .push \
 		.xr-all .xrserver-all
 	@go clean -cache -testcache

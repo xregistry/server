@@ -77,6 +77,7 @@ func (r *Registry) Refresh(accessMode int) *XRError {
 		return xErr
 	}
 	r.LoadCapabilities()
+	r.LoadModel()
 	return nil
 }
 
@@ -97,6 +98,60 @@ func (r *Registry) Commit() *XRError {
 	if r != nil {
 		return r.tx.Commit()
 	}
+	return nil
+}
+
+// Validate drains this Registry's Tx of any deferred Resource/Group
+// validation work (Tx.ResourcesToValidate/GroupsToValidate) - this is
+// registry-wide constraint/cascade checking, so it belongs here rather
+// than in the Tx layer, even though the pending-work lists themselves
+// are Tx-scoped bookkeeping (see those fields' doc comments in db.go).
+// Called from Tx.Validate() once the Tx's own bookkeeping/sanity-checks
+// are done.
+func (r *Registry) Validate(info *RequestInfo) *XRError {
+	tx := r.tx
+
+	// Drain any Resources marked for (re-)validation - possibly marked
+	// several times each (see AddResourceToValidate()'s doc comment).
+	// Loops until the map is empty since running ValidateResource() can,
+	// in theory, cause further marks (e.g. Resource.EnsureLatest() saving
+	// a Meta), with a safety cap to avoid an infinite loop should that
+	// ever cycle unexpectedly. Must run before we lock the Tx below
+	// since validation itself still needs to write, and must run before
+	// GroupsToValidate since constraint checks may depend on
+	// cascade-derived mirrored data (e.g. isdefault).
+	for i := 0; len(tx.ResourcesToValidate) > 0; i++ {
+		if i >= 20 {
+			return NewXRError("server_error", "/").SetDetail(
+				"Resource validation worklist did not converge.")
+		}
+		batch := tx.ResourcesToValidate
+		tx.ResourcesToValidate = map[string]*resourceValidation{}
+
+		tx.ResourcesValidatingBatch = map[string]bool{}
+		for sid := range batch {
+			tx.ResourcesValidatingBatch[sid] = true
+		}
+
+		for _, entry := range batch {
+			if xErr := entry.r.ValidateResource(entry.onlyMetaChanged,
+				entry.force); xErr != nil {
+				tx.ResourcesValidatingBatch = nil
+				return xErr
+			}
+		}
+		tx.ResourcesValidatingBatch = nil
+	}
+
+	// If not already locked, lock it
+	tx.Lock()
+
+	for _, g := range tx.GroupsToValidate {
+		if xErr := g.Validate(); xErr != nil {
+			return xErr
+		}
+	}
+
 	return nil
 }
 
@@ -164,6 +219,7 @@ func NewRegistry(tx *Tx, id string, regOpts ...RegOpt) (*Registry, *XRError) {
 
 	reg.Self = reg
 	reg.Entity.Registry = reg
+	reg.EntityInsert()
 	reg.Capabilities = DefaultCapabilities.Clone()
 	reg.Model = &Model{
 		Registry: reg,
@@ -294,6 +350,16 @@ func FindRegistryBySID(tx *Tx, sid string, accessMode int) (*Registry, *XRError)
 
 	tx.Registry = reg
 	tx.AddRegistry(reg)
+
+	// UsesXref lives on the raw Registries table (not Entities/
+	// Props, since it's a plain internal flag, not a real
+	// attribute), so it needs its own tiny supplemental lookup here -
+	// a single indexed PK read, once per Tx.
+	results := Query(tx, `SELECT UsesXref FROM Registries WHERE SID=?`, sid)
+	if row := results.NextRow(); row != nil {
+		reg.UsesXref = NotNilBoolDef(row[0], false)
+	}
+	results.Close()
 
 	reg.LoadCapabilities()
 	reg.LoadModel()
@@ -723,11 +789,12 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 					AccessMode: FOR_WRITE,
 				},
 
-				Registry: reg,
-				DbSID:    NewUUID(),
-				Plural:   gType,
-				Singular: gm.Singular,
-				UID:      id,
+				Registry:  reg,
+				DbSID:     NewUUID(),
+				ParentSID: reg.DbSID,
+				Plural:    gType,
+				Singular:  gm.Singular,
+				UID:       id,
 
 				Type:     ENTITY_GROUP,
 				Path:     gType + "/" + id,
@@ -749,6 +816,8 @@ func (reg *Registry) UpsertGroupWithObject(gType string, id string, obj Object, 
 			g.DbSID, g.Registry.DbSID, g.UID,
 			gm.SID, g.Path, g.Abstract,
 			g.Plural, g.Singular)
+
+		g.EntityInsert()
 
 		// Use the ID passed as an arg, not from the metadata, as the true
 		// ID. If the one in the metadata differs we'll flag it down below
@@ -951,7 +1020,7 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 `
 
 		sortJoin = `
-  LEFT JOIN FullTree AS sj ON (
+  LEFT JOIN Props AS sj ON (
     sj.RegSID = ft.RegSID AND
     sj.Path = substring_index(ft.Path, '/', ` + slashCount + `) AND
     sj.PropName = '` + sortKey + `')
@@ -961,8 +1030,8 @@ func GenerateQuery(reg *Registry, what string, paths []string, filters [][]*Filt
 	args = []interface{}{reg.DbSID}
 	query = `
 SELECT
-  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.eSID,ft.UID,ft.PropName,ft.PropValue,ft.PropType,ft.Path,ft.Abstract
-  FROM FullTree AS ft` + sortJoin + `
+  ft.RegSID,ft.Type,ft.Plural,ft.Singular,ft.ParentSID,ft.eSID,ft.UID,ft.Abstract,ft.Path,ft.PropName,ft.PropValue,ft.PropType,ft.IsSystemProp
+  FROM Props AS ft` + sortJoin + `
   WHERE ft.RegSID=?
 `
 
@@ -1075,7 +1144,7 @@ ft.eSID IN ( -- eSID from query
 					// 2+ rows at matching more than one filter expression
 					check += " GROUP BY eSID" // " LIMIT 1"
 					query += `
-          (SELECT eSID,Type,Path FROM FullTree  -- FILTER_PRESENT
+          (SELECT eSID,Type,Path FROM Props  -- FILTER_PRESENT
            WHERE RegSID=? AND ` + check + ")" // Need () for groupBy/limit
 
 				} else if filter.Operator == FILTER_ABSENT { // ?filter=xxx=null
@@ -1088,7 +1157,7 @@ ft.eSID IN ( -- eSID from query
           -- Entities that don't have the specified prop
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM FullTree WHERE
+            NOT EXISTS (SELECT 1 FROM Props WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
 						propNameSearch + `))`
 
@@ -1115,7 +1184,7 @@ ft.eSID IN ( -- eSID from query
 					}
 					check += ")"
 					query += `
-          SELECT eSID,Type,Path FROM FullTree
+          SELECT eSID,Type,Path FROM Props
             WHERE RegSID=? AND ` + check
 
 				} else if filter.Operator == FILTER_NOT_EQUAL { // ?filter=x!=z
@@ -1126,7 +1195,7 @@ ft.eSID IN ( -- eSID from query
           -- Entities that don't have the specified prop
           SELECT e.eSID,e.Type,e.Path FROM Entities AS e
           WHERE e.RegSID=? AND e.Abstract=? AND
-            NOT EXISTS (SELECT 1 FROM FullTree WHERE
+            NOT EXISTS (SELECT 1 FROM Props WHERE
               RegSID=e.RegSID AND eSID=e.eSID AND (` + binary + ` ` +
 						propNameSearch + ` AND `
 
@@ -1174,7 +1243,7 @@ ft.eSID IN ( -- eSID from query
 						" THEN CAST(PropValue AS DECIMAL) " + sqlOp + " CAST(? AS DECIMAL)" +
 						" ELSE PropValue " + FILTER_CI_COLLATE + " " + sqlOp + " ? END))"
 					query += `
-          SELECT eSID,Type,Path FROM FullTree
+          SELECT eSID,Type,Path FROM Props
             WHERE RegSID=? AND ` + check
 
 				} else {
@@ -1345,7 +1414,45 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 }
 
-func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XRError) {
+// FindResourceBySID resolves a Resource's SID to its real, in-memory
+// *Resource - going through the normal FindGroup()/FindResource() path
+// (cache-checked first, DB-read-and-cached on a miss) rather than
+// building a partial/synthetic shell from raw row data. Used by code
+// (e.g. xref fan-out) that only discovers a Resource's SID via a query
+// (Metas.xRefPath, etc.) and has no path/XID string on hand - a small
+// join against Resources/Groups gets us the type names+UIDs needed to
+// go through the real finder functions, so callers get a fully-wired
+// Resource (correct Group/Registry pointers) instead of a fragile
+// hand-built stand-in.
+func (r *Registry) FindResourceBySID(sid string, accessMode int) (*Resource, *XRError) {
+	if sid == "" {
+		return nil, nil
+	}
+
+	results := Query(r.tx, `
+        SELECT g.Plural, g.UID, res.Plural, res.UID
+        FROM Resources AS res
+        JOIN "Groups" AS g ON (g.SID=res.GroupSID)
+        WHERE res.SID=?`, sid)
+	row := results.NextRow()
+	results.Close()
+	if row == nil {
+		return nil, nil
+	}
+
+	groupPlural := NotNilString(row[0])
+	groupUID := NotNilString(row[1])
+	resPlural := NotNilString(row[2])
+	resUID := NotNilString(row[3])
+
+	g, xErr := r.FindGroup(groupPlural, groupUID, false, accessMode)
+	if xErr != nil || g == nil {
+		return nil, xErr
+	}
+	return g.FindResource(resPlural, resUID, false, accessMode)
+}
+
+func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
 		return nil, NewXRError("malformed_xid", path,
@@ -1362,11 +1469,11 @@ func (r *Registry) FindResourceByXID(xidStr string, path string) (*Resource, *XR
 			"xid="+xidStr,
 			"error_detail=missing a \"resourceid\"")
 	}
-	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
+	g, xErr := r.FindGroup(xid.Group, xid.GroupID, false, accessMode)
 	if xErr != nil || g == nil {
 		return nil, xErr
 	}
-	return g.FindResource(xid.Resource, xid.ResourceID, false, FOR_READ)
+	return g.FindResource(xid.Resource, xid.ResourceID, false, accessMode)
 }
 
 func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRError) {
@@ -1533,7 +1640,7 @@ func (r *Registry) VerifyData() *XRError {
 
 	// Now do all Groups
 	entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-		fmt.Sprintf(`Type=%d`, ENTITY_GROUP))
+		fmt.Sprintf(`e.Type=%d`, ENTITY_GROUP))
 	if xErr != nil {
 		return xErr
 	}
@@ -1547,7 +1654,7 @@ func (r *Registry) VerifyData() *XRError {
 
 		// Now do all Resource in this Group and implicitly it's owning Meta
 		entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-			`ParentSID=?`, group.DbSID)
+			`e.ParentSID=?`, group.DbSID)
 		if xErr != nil {
 			return xErr
 		}
@@ -1556,6 +1663,13 @@ func (r *Registry) VerifyData() *XRError {
 			resource := &Resource{Entity: *e, Group: group}
 			resource.Self = resource
 			// onlyMetaChanged, forceVerify
+			//
+			// Unlike the other ValidateResource() call sites, this one
+			// is called directly (VerifyData() has callers - including
+			// tests - that invoke it via the Go API without ever going
+			// through an HTTP request/Tx.Validate()), so it must run
+			// synchronously here rather than being deferred via
+			// AddResourceToValidate().
 			if xErr = resource.ValidateResource(false, true); xErr != nil {
 				return xErr
 			}
@@ -1574,7 +1688,7 @@ func (r *Registry) VerifyData() *XRError {
 
 			// Now do Versions
 			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-				`ParentSID=?`, resource.DbSID)
+				`e.ParentSID=?`, resource.DbSID)
 			if xErr != nil {
 				return xErr
 			}

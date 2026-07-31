@@ -651,28 +651,59 @@ func TestSetNameUser(t *testing.T) {
 	reg := NewRegistry("TestSetNameUser")
 	defer PassDeleteReg(t, reg)
 
-	gm, rm, err := reg.Model.CreateModels("dirs", "dir", "files", "file")
-	XNoErr(t, err)
-	_, err = reg.Model.AddAttrMap("mymap",
-		registry.NewItemType(STRING))
-	XNoErr(t, err)
-	_, err = reg.Model.AddAttr("*", ANY)
-	XNoErr(t, err)
-
-	_, err = gm.AddAttr("*", ANY)
-	XNoErr(t, err)
-	_, err = gm.AddAttrMap("mymap", registry.NewItemType(STRING))
-	XNoErr(t, err)
-
-	_, err = rm.AddAttr("*", ANY)
-	XNoErr(t, err)
-	_, err = rm.AddMetaAttr("*", ANY)
-	XNoErr(t, err)
-	_, err = rm.AddAttrMap("mymap", registry.NewItemType(STRING))
-	XNoErr(t, err)
-
-	XNoErr(t, reg.SaveModel(true))
-	XNoErr(t, reg.Commit())
+	model := `{
+  "attributes": {
+    "*": {
+      "type": "any"
+    },
+    "mymap": {
+      "type": "map",
+      "item": {
+        "type": "string"
+      }
+    }
+  },
+  "groups": {
+    "dirs": {
+      "plural": "dirs",
+      "singular": "dir",
+      "attributes": {
+        "*": {
+          "type": "any"
+        },
+        "mymap": {
+          "type": "map",
+          "item": {
+            "type": "string"
+          }
+        }
+      },
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "attributes": {
+            "*": {
+              "type": "any"
+            },
+            "mymap": {
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            }
+          },
+          "metaattributes": {
+            "*": {
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	base := "http://localhost:8181"
 	for _, test := range []struct {
@@ -739,9 +770,9 @@ func TestSetNameUser(t *testing.T) {
   "registryid": "TestSetNameUser",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 5,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ext": {},
 
   "dirsurl": "http://localhost:8181/dirs",
@@ -758,9 +789,9 @@ func TestSetNameUser(t *testing.T) {
   "registryid": "TestSetNameUser",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 5,
-  "createdat": "YYYY-MM-DDTHH:MM:01Z",
-  "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
+  "epoch": 6,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:02Z",
   "ext": {
     "foo": "bar"
   },

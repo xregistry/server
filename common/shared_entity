@@ -15,6 +15,7 @@ type Entity struct {
 
 	Registry     *Registry `json:"-"`
 	DbSID        string    // Entity's SID
+	ParentSID    string    // Parent entity's SID ("" for the Registry root)
 	Plural       string
 	Singular     string
 	UID          string         // Entity's UID
@@ -26,6 +27,28 @@ type Entity struct {
 	// have just set a flag on Meta when "compat" changed (via the
 	// updateFn(), and then avoid cloning the entire Object. Just something
 	// to think about for the future
+
+	// System/NewSystem mirror Object/NewObject but for "system" props
+	// (currently just formatvalidated/formatvalidatedreason/
+	// compatibilityvalidated/compatibilityvalidatedreason - the
+	// IsSystemProp=true attrs). These are kept separate because setting
+	// them must NOT bump epoch/modifiedat (so they can't just live in
+	// Object/NewObject). SetSystemDBProperty() buffers changes into
+	// NewSystem (like Set() buffers into NewObject); SaveSystemProps()
+	// flushes NewSystem to the DB (and re-runs the default-version
+	// cascade, if needed) at most once per entity per Tx, at commit
+	// time - see tx.WriteCache().
+	System       map[string]any `json:"-"`
+	NewSystem    map[string]any `json:"-"`
+	OriginSystem map[string]any `json:"-"` // pre-Tx values, mirrors OriginObject
+	// OriginSystem is captured once, by EnsureNewSystem(), the first
+	// time SetSystemDBProperty() genuinely buffers a change this Tx
+	// (mirrors OriginObject/EnsureNewObject()). Like OriginObject, it's
+	// never touched by Refresh(), so comparing it against System at any
+	// later point in the Tx (e.g. Resource.runCascade()'s cascade-skip
+	// optimization) reliably answers "did a system prop really change
+	// this Tx" regardless of any mid-Tx Refresh() calls - unlike
+	// EpochSet, which Refresh() resets as part of reloading.
 
 	// These were added just for convenience and so we can use the same
 	// struct for traversing the SQL results
@@ -77,6 +100,14 @@ type Registry struct {
 	Model        *Model        `json:"-"`
 
 	oldCapabilities *Capabilities // as seen at the start of the tx
+
+	// UsesXref mirrors Registries.UsesXref (a raw DB column, NOT a
+	// model/user-visible attribute - never serialized, never bumps
+	// epoch/modifiedAt). Loaded once per Tx by FindRegistryBySID().
+	// Lets Resource.runCascade() skip the xref-target fan-out check
+	// entirely for Registries that never use xref. See init.sql's
+	// Registries.UsesXref doc comment for the full design.
+	UsesXref bool `json:"-"`
 }
 
 type Group struct {

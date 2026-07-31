@@ -4,7 +4,7 @@
 # Don't forget to escape things, e.g. sql select \* from Props
 
 registry=registry
-if [[ "$1" == "registry" || "$1" == "testreg" ]]; then
+if [[ "$1" == "registry" || "$1" == test* ]]; then
   registry=$1
   shift
 fi

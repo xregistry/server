@@ -2,17 +2,34 @@ package tests
 
 import (
 	"testing"
-
-	. "github.com/xregistry/server/common"
 )
 
 func TestMetaSimple(t *testing.T) {
 	reg := NewRegistry("TestMetaSimple")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) // noDoc
-	rm.AddMetaAttr("foo", ANY)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "metaattributes": {
+            "foo": {
+              "name": "foo",
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Simple no body create PUT
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -563,9 +580,28 @@ func TestMetaCombos(t *testing.T) {
 	reg := NewRegistry("TestMetaCombos")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	rm, _ := gm.AddResourceModel("files", "file", 0, true, false) // noDoc
-	rm.AddMetaAttr("foo", ANY)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": false,
+          "metaattributes": {
+            "foo": {
+              "name": "foo",
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	// Create Resource and set the versionID
 	XCheckHTTP(t, reg, &HTTPTest{
@@ -1479,8 +1515,22 @@ func TestMetaLabels(t *testing.T) {
 	reg := NewRegistry("TestMetaLabels")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:     "/dirs/d1/files/f1/meta",
@@ -1564,8 +1614,22 @@ func TestMetaXregHeaders(t *testing.T) {
 	reg := NewRegistry("TestMetaXregHeaders")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	gm.AddResourceModel("files", "file", 0, true, true)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckHTTP(t, reg, &HTTPTest{
 		URL:    "/dirs/d1/files/f1",

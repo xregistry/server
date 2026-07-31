@@ -565,8 +565,9 @@ func HTTPGETContent(info *RequestInfo) *XRError {
 
 	query := `
 SELECT
-  RegSID,Type,Plural,Singular,eSID,UID,PropName,PropValue,PropType,Path,Abstract
-FROM FullTree WHERE RegSID=? AND `
+  RegSID,Type,Plural,Singular,ParentSID,eSID,UID,Abstract,Path,PropName,
+  PropValue,PropType,IsSystemProp
+FROM Props WHERE RegSID=? AND `
 	args := []any{info.Registry.DbSID}
 
 	path := strings.Join(info.Parts, "/")
@@ -1290,6 +1291,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	resourceUID := info.ResourceUID
 	versionUID := info.VersionUID
 	setDefVerID := info.GetFlag("setdefaultversionid")
+	locationVersionUID := ""
+	needLocationVersionIDFromMeta := false
 
 	// Do Resources and Versions at the same time
 	// URL: /GROUPs/gID/RESOURCEs
@@ -1360,8 +1363,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		// PUT|PATCH GROUPs/gID/RESOURCEs/rID [$details]
 
 		if resource != nil {
-			// version, xErr = resource.GetDefault(FOR_WRITE)
-
 			// ID needs to be the version's ID, not the Resources
 			// IncomingObj["id"] = version.UID
 
@@ -1382,8 +1383,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-
-			version, xErr = resource.GetDefault(FOR_WRITE)
 		} else {
 			// Upsert resource's default version
 
@@ -1403,8 +1402,6 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-
-			version, xErr = resource.GetDefault(FOR_WRITE)
 		}
 		if xErr != nil {
 			return xErr
@@ -1434,7 +1431,13 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 			if xErr != nil {
 				return xErr
 			}
-			version, xErr = resource.GetDefault(FOR_WRITE)
+
+			// Grab the one and only version UID, we need it for the
+			// "location" header in the response. Resource.ValidateResource()
+			// (which computes/sets meta's "defaultversionid") is now
+			// deferred (see Tx.AddResourceToValidate()), so we can't read
+			// it yet - do it after info.tx.Validate() runs below instead.
+			needLocationVersionIDFromMeta = true
 		} else {
 			version, isNew, xErr = resource.UpsertVersionWithObject(&VersionUpsert{
 				Id:               propsID,
@@ -1443,6 +1446,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 				More:             false,
 				DefaultVersionID: setDefVerID,
 			})
+			if xErr == nil {
+				locationVersionUID = version.UID
+			}
 		}
 		if xErr != nil {
 			return xErr
@@ -1675,6 +1681,7 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 		if xErr != nil {
 			return xErr
 		}
+		locationVersionUID = version.UID
 	}
 
 	PanicIf(xErr != nil, "err should be nil")
@@ -1682,6 +1689,14 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	// Make sure everything is ok before we send back the results
 	if xErr := info.tx.Validate(info); xErr != nil {
 		return xErr
+	}
+
+	if needLocationVersionIDFromMeta {
+		// Now that validation has run (deferred via
+		// Tx.AddResourceToValidate()), meta's "defaultversionid" is
+		// guaranteed to be resolved - safe to read it now.
+		meta := resource.MustFindMeta(false, FOR_READ)
+		locationVersionUID = meta.GetAsString("defaultversionid")
 	}
 
 	originalLen := numParts
@@ -1695,9 +1710,9 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 
 	location := info.BaseURL + "/" + resource.Path
 	if originalLen > 4 || (originalLen == 4 && method == "POST") {
-		info.Parts = append(info.Parts, "versions", version.UID)
-		info.VersionUID = version.UID
-		location += "/versions/" + version.UID
+		info.VersionUID = locationVersionUID
+		info.Parts = append(info.Parts, "versions", info.VersionUID)
+		location += "/versions/" + info.VersionUID
 	}
 
 	if info.ShowDetails { // not 100% sure this the right way/spot

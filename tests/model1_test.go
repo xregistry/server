@@ -7,8 +7,8 @@ import (
 	"github.com/xregistry/server/registry"
 )
 
-func TestNoModel(t *testing.T) {
-	reg := NewRegistry("TestNoModel")
+func TestModelNoModel(t *testing.T) {
+	reg := NewRegistry("TestModelNoModel")
 	defer PassDeleteReg(t, reg)
 
 	XCheckGet(t, reg, "/model", `{
@@ -123,7 +123,7 @@ func TestNoModel(t *testing.T) {
 
 	XCheckGet(t, reg, "?inline=model", `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestNoModel",
+  "registryid": "TestModelNoModel",
   "self": "http://localhost:8181/",
   "xid": "/",
   "epoch": 1,
@@ -250,8 +250,8 @@ func TestNoModel(t *testing.T) {
 `)
 }
 
-func TestGroupModelCreate(t *testing.T) {
-	reg := NewRegistry("TestGroupModelCreate")
+func TestModelGroupCreate(t *testing.T) {
+	reg := NewRegistry("TestModelGroupCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm, err := reg.Model.AddGroupModel("dirs", "dir")
@@ -1060,7 +1060,7 @@ func TestGroupModelCreate(t *testing.T) {
 	XCheck(t, gm == nil && err != nil, "gm should have failed")
 }
 
-func TestResourceModelCreate(t *testing.T) {
+func TestModelResourceCreate(t *testing.T) {
 	reg := NewRegistry("TestResourceModels")
 	defer PassDeleteReg(t, reg)
 
@@ -7577,8 +7577,8 @@ func TestResourceModelCreate(t *testing.T) {
 `)
 }
 
-func TestMultModelCreate(t *testing.T) {
-	reg := NewRegistry("TestMultModelCreate")
+func TestModelMultCreate(t *testing.T) {
+	reg := NewRegistry("TestModelMultCreate")
 	defer PassDeleteReg(t, reg)
 
 	gm1, err := reg.Model.AddGroupModel("gms1", "gm1")
@@ -9481,29 +9481,158 @@ func TestModelAPI(t *testing.T) {
 	XNoErr(t, reg.SaveAllAndCommit())
 }
 
-func TestMultModel2Create(t *testing.T) {
-	reg := NewRegistry("TestMultModel2Create")
+func TestModelMult2Create(t *testing.T) {
+	reg := NewRegistry("TestModelMult2Create")
 	defer PassDeleteReg(t, reg)
 
-	reg.SaveAllAndCommit()
-	reg.Refresh(registry.FOR_WRITE)
+	model := `{
+  "groups": {
+    "dirs1": {
+      "plural": "dirs1",
+      "singular": "dir1",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "default": false,
+              "required": true,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dirs2": {
+      "plural": "dirs2",
+      "singular": "dir2",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	gm, _ := reg.Model.AddGroupModel("dirs1", "dir1")
-	rm, _ := gm.AddResourceModel("files", "file", 2, true, true)
-	rm.EnableSticky(false)
+	XHTTP(t, reg, "PUT", "/dirs1/d1", "{}", 201, `{
+  "dir1id": "d1",
+  "self": "http://localhost:8181/dirs1/d1",
+  "xid": "/dirs1/d1",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
 
-	d, _ := reg.AddGroup("dirs1", "d1")
-	f, _ := d.AddResource("files", "f1", "v1")
-	f.AddVersion("v2")
-	d, _ = reg.AddGroup("dirs1", "d2")
-	f, _ = d.AddResource("files", "f2", "v1")
-	f.AddVersion("v1.1")
+  "filesurl": "http://localhost:8181/dirs1/d1/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs1/d1/files/f1/versions/v1$details", "{}", 201, `{
+  "fileid": "f1",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs1/d1/files/f1/versions/v1$details",
+  "xid": "/dirs1/d1/files/f1/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs1/d1/files/f1/versions/v2$details", "{}", 201, `{
+  "fileid": "f1",
+  "versionid": "v2",
+  "self": "http://localhost:8181/dirs1/d1/files/f1/versions/v2$details",
+  "xid": "/dirs1/d1/files/f1/versions/v2",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs1/d2", "{}", 201, `{
+  "dir1id": "d2",
+  "self": "http://localhost:8181/dirs1/d2",
+  "xid": "/dirs1/d2",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
 
-	gm2, _ := reg.Model.AddGroupModel("dirs2", "dir2")
-	gm2.AddResourceModel("files", "file", 0, true, true)
-	d2, _ := reg.AddGroup("dirs2", "d2")
-	_, err := d2.AddResource("files", "f2", "v1")
-	XNoErr(t, err)
+  "filesurl": "http://localhost:8181/dirs1/d2/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs1/d2/files/f2/versions/v1$details", "{}", 201, `{
+  "fileid": "f2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs1/d2/files/f2/versions/v1$details",
+  "xid": "/dirs1/d2/files/f2/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs1/d2/files/f2/versions/v1.1$details", "{}", 201, `{
+  "fileid": "f2",
+  "versionid": "v1.1",
+  "self": "http://localhost:8181/dirs1/d2/files/f2/versions/v1.1$details",
+  "xid": "/dirs1/d2/files/f2/versions/v1.1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs2/d2", "{}", 201, `{
+  "dir2id": "d2",
+  "self": "http://localhost:8181/dirs2/d2",
+  "xid": "/dirs2/d2",
+  "epoch": 1,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+
+  "filesurl": "http://localhost:8181/dirs2/d2/files",
+  "filescount": 0
+}
+`)
+	XHTTP(t, reg, "PUT", "/dirs2/d2/files/f2/versions/v1$details", "{}", 201, `{
+  "fileid": "f2",
+  "versionid": "v1",
+  "self": "http://localhost:8181/dirs2/d2/files/f2/versions/v1$details",
+  "xid": "/dirs2/d2/files/f2/versions/v1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2024-01-01T12:00:01Z",
+  "modifiedat": "2024-01-01T12:00:01Z",
+  "ancestorid": "v1"
+}
+`)
 
 	// /dirs1/d1/f1/v1
 	//            /v2
@@ -9513,10 +9642,10 @@ func TestMultModel2Create(t *testing.T) {
 
 	XCheckGet(t, reg, "?inline=model&inline", `{
   "specversion": "`+SPECVERSION+`",
-  "registryid": "TestMultModel2Create",
+  "registryid": "TestModelMult2Create",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 5,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -10665,9 +10794,9 @@ func TestMultModel2Create(t *testing.T) {
       "dir1id": "d1",
       "self": "http://localhost:8181/dirs1/d1",
       "xid": "/dirs1/d1",
-      "epoch": 1,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "epoch": 2,
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:04Z",
 
       "filesurl": "http://localhost:8181/dirs1/d1/files",
       "files": {
@@ -10678,8 +10807,8 @@ func TestMultModel2Create(t *testing.T) {
           "xid": "/dirs1/d1/files/f1",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:05Z",
+          "modifiedat": "2024-01-01T12:00:05Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs1/d1/files/f1/meta",
@@ -10687,9 +10816,9 @@ func TestMultModel2Create(t *testing.T) {
             "fileid": "f1",
             "self": "http://localhost:8181/dirs1/d1/files/f1/meta",
             "xid": "/dirs1/d1/files/f1/meta",
-            "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:04Z",
+            "modifiedat": "2024-01-01T12:00:05Z",
             "readonly": false,
 
             "defaultversionid": "v2",
@@ -10705,8 +10834,8 @@ func TestMultModel2Create(t *testing.T) {
               "xid": "/dirs1/d1/files/f1/versions/v1",
               "epoch": 1,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:04Z",
+              "modifiedat": "2024-01-01T12:00:04Z",
               "ancestorid": "v1"
             },
             "v2": {
@@ -10716,8 +10845,8 @@ func TestMultModel2Create(t *testing.T) {
               "xid": "/dirs1/d1/files/f1/versions/v2",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:05Z",
+              "modifiedat": "2024-01-01T12:00:05Z",
               "ancestorid": "v1"
             }
           },
@@ -10730,9 +10859,9 @@ func TestMultModel2Create(t *testing.T) {
       "dir1id": "d2",
       "self": "http://localhost:8181/dirs1/d2",
       "xid": "/dirs1/d2",
-      "epoch": 1,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "epoch": 2,
+      "createdat": "2024-01-01T12:00:06Z",
+      "modifiedat": "2024-01-01T12:00:07Z",
 
       "filesurl": "http://localhost:8181/dirs1/d2/files",
       "files": {
@@ -10743,8 +10872,8 @@ func TestMultModel2Create(t *testing.T) {
           "xid": "/dirs1/d2/files/f2",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:08Z",
+          "modifiedat": "2024-01-01T12:00:08Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs1/d2/files/f2/meta",
@@ -10752,9 +10881,9 @@ func TestMultModel2Create(t *testing.T) {
             "fileid": "f2",
             "self": "http://localhost:8181/dirs1/d2/files/f2/meta",
             "xid": "/dirs1/d2/files/f2/meta",
-            "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "epoch": 2,
+            "createdat": "2024-01-01T12:00:07Z",
+            "modifiedat": "2024-01-01T12:00:08Z",
             "readonly": false,
 
             "defaultversionid": "v1.1",
@@ -10770,8 +10899,8 @@ func TestMultModel2Create(t *testing.T) {
               "xid": "/dirs1/d2/files/f2/versions/v1",
               "epoch": 1,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:07Z",
+              "modifiedat": "2024-01-01T12:00:07Z",
               "ancestorid": "v1"
             },
             "v1.1": {
@@ -10781,8 +10910,8 @@ func TestMultModel2Create(t *testing.T) {
               "xid": "/dirs1/d2/files/f2/versions/v1.1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:08Z",
+              "modifiedat": "2024-01-01T12:00:08Z",
               "ancestorid": "v1"
             }
           },
@@ -10799,9 +10928,9 @@ func TestMultModel2Create(t *testing.T) {
       "dir2id": "d2",
       "self": "http://localhost:8181/dirs2/d2",
       "xid": "/dirs2/d2",
-      "epoch": 1,
+      "epoch": 2,
       "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:09Z",
 
       "filesurl": "http://localhost:8181/dirs2/d2/files",
       "files": {
@@ -10812,8 +10941,8 @@ func TestMultModel2Create(t *testing.T) {
           "xid": "/dirs2/d2/files/f2",
           "epoch": 1,
           "isdefault": true,
-          "createdat": "2024-01-01T12:00:02Z",
-          "modifiedat": "2024-01-01T12:00:02Z",
+          "createdat": "2024-01-01T12:00:09Z",
+          "modifiedat": "2024-01-01T12:00:09Z",
           "ancestorid": "v1",
 
           "metaurl": "http://localhost:8181/dirs2/d2/files/f2/meta",
@@ -10822,8 +10951,8 @@ func TestMultModel2Create(t *testing.T) {
             "self": "http://localhost:8181/dirs2/d2/files/f2/meta",
             "xid": "/dirs2/d2/files/f2/meta",
             "epoch": 1,
-            "createdat": "2024-01-01T12:00:02Z",
-            "modifiedat": "2024-01-01T12:00:02Z",
+            "createdat": "2024-01-01T12:00:09Z",
+            "modifiedat": "2024-01-01T12:00:09Z",
             "readonly": false,
 
             "defaultversionid": "v1",
@@ -10839,8 +10968,8 @@ func TestMultModel2Create(t *testing.T) {
               "xid": "/dirs2/d2/files/f2/versions/v1",
               "epoch": 1,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:02Z",
-              "modifiedat": "2024-01-01T12:00:02Z",
+              "createdat": "2024-01-01T12:00:09Z",
+              "modifiedat": "2024-01-01T12:00:09Z",
               "ancestorid": "v1"
             }
           },
@@ -10854,26 +10983,335 @@ func TestMultModel2Create(t *testing.T) {
 }
 `)
 
-	gm, _ = reg.Model.AddGroupModel("dirs0", "dir0")
-	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
-	gm, _ = reg.Model.AddGroupModel("dirs3", "dir3")
-	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
+	model = `{
+  "groups": {
+    "dirs0": {
+      "plural": "dirs0",
+      "singular": "dir0",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs1": {
+      "plural": "dirs1",
+      "singular": "dir1",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "default": false,
+              "required": true,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dirs2": {
+      "plural": "dirs2",
+      "singular": "dir2",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs3": {
+      "plural": "dirs3",
+      "singular": "dir3",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs0":{},"dirs1":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}},"dirs2":{"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{}}}}}},"dirs3":{}}`)
 
-	gm, _ = reg.Model.AddGroupModel("dirs15", "dir15")
-	rm, _ = gm.AddResourceModel("files", "file", 2, true, true)
+	model = `{
+  "groups": {
+    "dirs0": {
+      "plural": "dirs0",
+      "singular": "dir0",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs1": {
+      "plural": "dirs1",
+      "singular": "dir1",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "default": false,
+              "required": true,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dirs15": {
+      "plural": "dirs15",
+      "singular": "dir15",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs2": {
+      "plural": "dirs2",
+      "singular": "dir2",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs3": {
+      "plural": "dirs3",
+      "singular": "dir3",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs0":{},"dirs1":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}},"dirs15":{},"dirs2":{"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{}}}}}},"dirs3":{}}`)
 
-	gm, _ = reg.Model.AddGroupModel("dirs01", "dir01")
-	gm, _ = reg.Model.AddGroupModel("dirs02", "dir02")
-	gm, _ = reg.Model.AddGroupModel("dirs14", "dir014")
-	gm, _ = reg.Model.AddGroupModel("dirs16", "dir016")
-	gm, _ = reg.Model.AddGroupModel("dirs4", "dir4")
-	gm, _ = reg.Model.AddGroupModel("dirs5", "dir5")
+	model = `{
+  "groups": {
+    "dirs0": {
+      "plural": "dirs0",
+      "singular": "dir0",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs01": {
+      "plural": "dirs01",
+      "singular": "dir01"
+    },
+    "dirs02": {
+      "plural": "dirs02",
+      "singular": "dir02"
+    },
+    "dirs1": {
+      "plural": "dirs1",
+      "singular": "dir1",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false,
+          "metaattributes": {
+            "defaultversionsticky": {
+              "type": "boolean",
+              "default": false,
+              "required": true,
+              "enum": [
+                false
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dirs14": {
+      "plural": "dirs14",
+      "singular": "dir014"
+    },
+    "dirs15": {
+      "plural": "dirs15",
+      "singular": "dir15",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs16": {
+      "plural": "dirs16",
+      "singular": "dir016"
+    },
+    "dirs2": {
+      "plural": "dirs2",
+      "singular": "dir2",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs3": {
+      "plural": "dirs3",
+      "singular": "dir3",
+      "resources": {
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "maxversions": 2,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": false,
+          "validatecompatibility": false,
+          "strictvalidation": false
+        }
+      }
+    },
+    "dirs4": {
+      "plural": "dirs4",
+      "singular": "dir4"
+    },
+    "dirs5": {
+      "plural": "dirs5",
+      "singular": "dir5"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCheckGet(t, reg, "?inline&oneline",
 		`{"dirs0":{},"dirs01":{},"dirs02":{},"dirs1":{"d1":{"files":{"f1":{"meta":{},"versions":{"v1":{},"v2":{}}}}},"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{},"v1.1":{}}}}}},"dirs14":{},"dirs15":{},"dirs16":{},"dirs2":{"d2":{"files":{"f2":{"meta":{},"versions":{"v1":{}}}}}},"dirs3":{},"dirs4":{},"dirs5":{}}`)

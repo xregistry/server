@@ -598,6 +598,7 @@ func (info *RequestInfo) ParseRegistryURL() *XRError {
 				SetDetail(xErr.GetTitle())
 		}
 		if reg == nil {
+			name = "/reg-" + name
 			return NewXRError("not_found", name).
 				SetDetailf("Can't find registry %q.", name)
 		}

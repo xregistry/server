@@ -133,56 +133,80 @@ func TestGroupRequiredFields(t *testing.T) {
 	reg := NewRegistry("TestGroupRequiredFields")
 	defer PassDeleteReg(t, reg)
 
-	gm, _ := reg.Model.AddGroupModel("dirs", "dir")
-	_, err := gm.AddAttribute(&registry.Attribute{
-		Name:     "req",
-		Type:     STRING,
-		Required: true,
-	})
-	XNoErr(t, err)
-	reg.SaveAllAndCommit()
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "attributes": {
+        "req": {
+          "name": "req",
+          "type": "string",
+          "required": true
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	_, err = reg.AddGroup("dirs", "d1")
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
   "title": "One or more mandatory attributes for \"/dirs/d1\" are missing: req.",
   "subject": "/dirs/d1",
   "args": {
     "list": "req"
   },
-  "source": ":registry:entity:2146"
-}`)
-	reg.Rollback()
-	reg.Refresh(registry.FOR_WRITE)
+  "source": ":registry:entity:2761"
+}
+`)
 
-	g1, err := reg.AddGroupWithObject("dirs", "d1",
-		Object{"req": "test"})
-	XNoErr(t, err)
-	reg.SaveAllAndCommit()
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{
+  "req": "test"
+}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "createdat": "2025-06-12T15:43:53.1Z",
+  "modifiedat": "2025-06-12T15:43:53.1Z",
+  "req": "test"
+}
+`)
 
-	err = g1.SetSave("req", nil)
-	XCheckErr(t, err, `{
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{
+  "epoch": 1,
+  "req": null
+}`, 400, `{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#required_attribute_missing",
   "title": "One or more mandatory attributes for \"/dirs/d1\" are missing: req.",
   "subject": "/dirs/d1",
   "args": {
     "list": "req"
   },
-  "source": ":registry:entity:2146"
-}`)
+  "source": ":registry:entity:2761"
+}
+`)
 
-	err = g1.SetSave("req", "again")
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{
+  "epoch": 1,
+  "req": "again"
+}`, 200, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 2,
+  "createdat": "2025-06-12T15:43:53.1Z",
+  "modifiedat": "2025-06-12T15:43:54.1Z",
+  "req": "again"
+}
+`)
 }
 
 func TestGroupDeprecated(t *testing.T) {
 	reg := NewRegistry("TestGroupDeprecated")
 	defer PassDeleteReg(t, reg)
 
-	gm, err := reg.Model.AddGroupModel("dirs", "dir")
-	XNoErr(t, err)
-	_, err = gm.AddResourceModelSimple("files", "file")
-	XNoErr(t, err)
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
 
 	// deprecated on a Group entity
 	XHTTP(t, reg, "PUT", "/dirs/d1", `{
@@ -223,7 +247,7 @@ func TestGroupDeprecated(t *testing.T) {
     "error_detail": "must not be sooner than deprecated.effective",
     "name": "deprecated.removal"
   },
-  "source": "xxx"
+  "source": ":registry:entity:1703"
 }
 `)
 }

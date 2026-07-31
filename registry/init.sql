@@ -20,12 +20,13 @@ whichever resource was asked to be deleted and then the DB triggers
 will delete all necessarily (related) rows/resources as needed. So,
 deleting a row from the "Registry" table should delete ALL other resources
 in all other tables automatically.
-The "Props" table holds all properties for all entities rather than
-having property specific columns in the appropriate tables. No idea which
-is easier/faster but having it all in one table made things a lot easier
-for filtering/searching. But we can switch it if needed at some point. This
-also means that all properties (including extensions) are processed the
-same way... via the generic Get/Set methods.
+The "Entities"/"Props" tables hold all properties for all
+entities rather than having property specific columns in the appropriate
+tables. No idea which is easier/faster but having it all in one table
+made things a lot easier for filtering/searching. But we can switch it
+if needed at some point. This also means that all properties (including
+extensions) are processed the same way... via the generic Get/Set
+methods.
 */
 
 
@@ -36,6 +37,22 @@ CREATE TABLE Registries (
     SID     VARCHAR(255) NOT NULL,  # System ID
     UID     VARCHAR(255) NOT NULL,  # User defined
 
+    # Internal fast-path flag: true if this Registry currently has AT
+    # LEAST ONE xref set anywhere in it (Metas.xRefPath IS NOT NULL for
+    # some row). NOT a model/user-visible attribute - it's a plain
+    # column, never surfaced via Object/System/Props, so it's
+    # never serialized in any response and never bumps the Registry's
+    # own epoch/modifiedAt. Lets Resource.runCascade() skip the "am I
+    # an xref target?" fan-out check entirely for Registries that never
+    # use xref. Set to true synchronously in Go (runCascade()) the
+    # moment a first xref is created, so it's correct even within the
+    # same Tx that creates it. Cleared back to false lazily by the
+    # triggers below whenever an xref is removed/its source Resource is
+    # deleted and a rescan finds no xrefs remain - safe to be "stuck
+    # true" a little longer than strictly needed (just a missed
+    # optimization), never a correctness issue.
+    UsesXref BOOL NOT NULL DEFAULT false,
+
     PRIMARY KEY (SID),
     UNIQUE INDEX (UID)
 );
@@ -43,9 +60,10 @@ CREATE TABLE Registries (
 CREATE TRIGGER RegistryTrigger BEFORE DELETE ON Registries
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props    WHERE RegistrySID=OLD.SID $$
     DELETE FROM "Groups" WHERE RegistrySID=OLD.SID $$
     DELETE FROM Models   WHERE RegistrySID=OLD.SID $$
+    DELETE FROM Props WHERE RegSID=OLD.SID $$
+    DELETE FROM Entities  WHERE RegSID=OLD.SID $$
 END ;
 
 CREATE TABLE Models (
@@ -117,8 +135,9 @@ CREATE TABLE "Groups" (
 CREATE TRIGGER GroupTrigger BEFORE DELETE ON "Groups"
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM Resources WHERE GroupSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID $$
 END ;
 
 CREATE TABLE Resources (
@@ -133,19 +152,78 @@ CREATE TABLE Resources (
     Singular        VARCHAR(64) NOT NULL,
 
     PRIMARY KEY (SID),
-    UNIQUE INDEX(RegistrySID,SID),
     INDEX(GroupSID, UID),
     INDEX(Path),
     INDEX(RegistrySID),
+    INDEX(RegistrySID, Path),
     UNIQUE INDEX (GroupSID, ModelSID, UID)
 );
 
 CREATE TRIGGER ResourcesTrigger BEFORE DELETE ON Resources
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
+    # Swallow error 1442 ("Can't update table 'Registries' in stored
+    # function/trigger because it is already used by statement which
+    # invoked this stored function/trigger") from the Registries UPDATE
+    # below. This fires when this Resource is being deleted as part of
+    # a cascading whole-Registry delete (DELETE FROM Registries ->
+    # RegistryTrigger -> ... -> this trigger) - MySQL forbids modifying
+    # a table that's already being modified higher up the same trigger
+    # chain. That's fine here: if the whole Registry is being deleted,
+    # its UsesXref value is moot anyway (the row is going away too).
+    DECLARE CONTINUE HANDLER FOR 1442 BEGIN END $$
+
+    # Clear the stale xref mirror on every source Meta that points at
+    # this Resource's Path, since Metas.xRefPath is a plain path string
+    # (not a SID) that ISN'T touched by the eSID/ParentSID=OLD.SID
+    # deletes below - a source's synthetic mirror rows live under ITS
+    # OWN ParentSID (its own owning Resource's SID), not the target's.
+    # This single trigger fires for every deletion path (direct
+    # Resource delete, whole-Group delete via GroupTrigger, whole-
+    # Registry delete), so it's the one place this needs to be handled
+    # - no Go-level call site needs to remember to do it. Each source's
+    # own xRefPath is left untouched, so if a new Resource is later
+    # created at this same Path, its own creation-time Go-level fan-out
+    # (fullSaveXrefFanOutForTargetMeta/Version) naturally re-populates
+    # these sources again.
+    DELETE ft FROM Props AS ft
+    JOIN Metas AS srcM ON (ft.eSID=srcM.SID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsXrefPropCopy=true $$
+
+    DELETE ft FROM Props AS ft
+    JOIN Metas AS srcM ON (ft.RegSID=srcM.RegistrySID AND
+                            ft.ParentSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsXrefVerCopy=true $$
+
+    DELETE fe FROM Entities AS fe
+    JOIN Metas AS srcM ON (fe.RegSID=srcM.RegistrySID AND
+                            fe.ParentSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND fe.IsXrefVerCopy=true $$
+
+    DELETE ft FROM Props AS ft
+    JOIN Metas AS srcM ON (ft.eSID=srcM.ResourceSID)
+    WHERE srcM.RegistrySID=OLD.RegistrySID AND srcM.xRefPath=OLD.Path
+          AND ft.IsDefaultVerCopy=true $$
+
     DELETE FROM Metas WHERE ResourceSID=OLD.SID $$
     DELETE FROM Versions WHERE ResourceSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID OR ParentSID=OLD.SID $$
+
+    # Lazily clear Registries.UsesXref if this deletion may have
+    # removed the last remaining xref in the Registry (e.g. OLD itself
+    # was an xref source). Guarded by "AND UsesXref=true" so this is a
+    # cheap single-row PK no-match in the common case where the
+    # Registry doesn't use xref at all - safe to run unconditionally on
+    # every Resource delete since the EXISTS rescan only actually
+    # executes when there's something to potentially clear.
+    UPDATE Registries SET UsesXref = EXISTS(
+        SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegistrySID
+                             AND xRefPath IS NOT NULL)
+    WHERE SID=OLD.RegistrySID AND UsesXref=true $$
 END ;
 
 CREATE TABLE Metas (
@@ -157,15 +235,19 @@ CREATE TABLE Metas (
     Plural          VARCHAR(64) NOT NULL,
     Singular        VARCHAR(64) NOT NULL,
 
-    xRefSID         VARCHAR(64),           # Generated
+    xRefPath        VARCHAR(255) COLLATE utf8mb4_bin, # Generated
     defaultVID      VARCHAR(64),           # Generated
 
     PRIMARY KEY (SID),
-    UNIQUE INDEX(RegistrySID,SID),
-    INDEX(RegistrySID, ResourceSID),
+    INDEX(ResourceSID),
     INDEX(RegistrySID, Path),
     INDEX(RegistrySID),
-    INDEX(RegistrySID,xRefSID)
+    INDEX(xRefPath),
+    # Speeds up the "who currently xrefs me" fan-out query
+    # (fullSaveXrefFanOutForTarget: SELECT ResourceSID FROM Metas WHERE
+    # RegistrySID=? AND xRefPath=?) with a single composite lookup
+    # instead of relying on the single-column xRefPath index above.
+    INDEX(RegistrySID, xRefPath)
 );
 
 # Can't use this because we get recursive triggers on meta.delete()
@@ -188,170 +270,16 @@ CREATE TABLE Versions (
 
     PRIMARY KEY (SID),
     UNIQUE INDEX (ResourceSID, UID),
-    UNIQUE INDEX (RegistrySID, SID),
-    INDEX (ResourceSID),
-    INDEX (RegistrySID, ResourceSID, AncestorID)
+    INDEX (ResourceSID, AncestorID)
 );
-
-CREATE TABLE Props (
-    RegistrySID VARCHAR(64) NOT NULL,
-    EntitySID   VARCHAR(64) NOT NULL,       # Reg,Group,Res,Ver System ID
-    eType       INT NOT NULL,
-    PropName    VARCHAR($MAX_PROPNAME) NOT NULL,
-    PropValue   VARCHAR($MAX_VARCHAR),
-    PropType    CHAR(64) NOT NULL,          # string, boolean, int, ...
-    DocView     BOOL NOT NULL,              # Should include during doc view?
-    SystemProp  BOOL NOT NULL,              # System property
-
-    # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which is ',')
-    # For example: "fileurl," not "fileurl"
-    # This is used throughout the codebase to simplify attribute name parsing and
-    # prevent ambiguity (e.g., distinguishing "file" from "fileurl").
-    # When querying Props by name, always append DB_IN to the attribute name:
-    #   WHERE PropName = 'fileurl' || string(DB_IN)  -- CORRECT
-    #   WHERE PropName = 'fileurl'                    -- WRONG (will never match)
-
-    # non-doc-view-able attributes are ones that are generated at runtime
-    # due to things like showing the Default Version props in the Resource
-    # or entities/props that materialize due to an xref. Normally a GET
-    # will show all props, but during /export or ?doc we want to exclude
-    # these non-doc-view ones. In case where all of the props for an entity
-    # are generated, the entire entity should vanish from the serialization.
-    # e.g. Versions of an xref'd Resource.
-
-    PRIMARY KEY (EntitySID, PropName),
-    INDEX (EntitySID),
-    INDEX (RegistrySID, PropName)
-);
-
-CREATE TRIGGER PropsAncestor BEFORE INSERT ON Props
-FOR EACH ROW
-BEGIN
-    IF (NEW.eType=$ENTITY_VERSION) THEN
-        IF (NEW.PropName='ancestorid$DB_IN') THEN
-          UPDATE Versions SET AncestorID=NEW.PropValue
-              WHERE SID=NEW.EntitySID $$
-        END IF $$
-        IF (NEW.PropName='createdat$DB_IN') THEN
-          UPDATE Versions SET CreatedAt=NEW.PropValue
-              WHERE SID=NEW.EntitySID $$
-        END IF $$
-    END IF $$
-
-    IF (NEW.eType=$ENTITY_META) THEN
-        IF (NEW.PropName='xref$DB_IN') THEN
-          # Remove leading /
-          SET @rSID := (SELECT SID FROM Resources WHERE
-                        RegistrySID=NEW.RegistrySID AND
-                        Path=SUBSTRING(NEW.PropValue,2)) $$
-
-          UPDATE Metas AS m SET xRefSID=@rSID
-            WHERE m.SID=NEW.EntitySID $$
-        END IF $$
-        IF (NEW.PropName='defaultversionid$DB_IN') THEN
-          UPDATE Metas AS m SET defaultVID=NEW.PropValue
-            WHERE m.SID=NEW.EntitySID $$
-        END IF $$
-    END IF $$
-END ;
-
-CREATE TRIGGER PropsXref BEFORE DELETE ON Props
-FOR EACH ROW
-BEGIN
-    IF (OLD.eType=$ENTITY_META) THEN
-        IF (OLD.PropName='xref$DB_IN') THEN
-          UPDATE Metas SET xRefSID=NULL
-          WHERE SID=OLD.EntitySID $$
-        END IF $$
-        IF (OLD.PropName='defaultversionid$DB_IN') THEN
-          UPDATE Metas AS m SET defaultVID=NULL
-            WHERE m.SID=OLD.EntitySID $$
-        END IF $$
-    END IF $$
-END ;
 
 CREATE TRIGGER VersionsTrigger BEFORE DELETE ON Versions
 FOR EACH ROW
 BEGIN
-    DELETE FROM Props WHERE EntitySID=OLD.SID $$
     DELETE FROM ResourceContents WHERE VersionSID=OLD.SID $$
+    DELETE FROM Props WHERE eSID=OLD.SID $$
+    DELETE FROM Entities  WHERE eSID=OLD.SID $$
 END ;
-
-CREATE VIEW Entities AS
-SELECT                          # Gather Registries
-    r.SID AS RegSID,
-    $ENTITY_REGISTRY AS Type,
-    'registries' AS Plural,
-    'registry' AS Singular,
-    NULL AS ParentSID,
-    r.SID AS eSID,
-    r.UID AS UID,
-    '' AS Abstract,
-    '' AS Path
-FROM Registries AS r
-
-UNION ALL SELECT                # Gather Groups
-    g.RegistrySID AS RegSID,
-    $ENTITY_GROUP AS Type,
-    g.Plural AS Plural,
-    g.Singular AS Singular,
-    g.RegistrySID AS ParentSID,
-    g.SID AS eSID,
-    g.UID AS UID,
-    g.Abstract,
-    g.Path
-FROM "Groups" AS g
-
-UNION ALL SELECT                # Add Resources
-    r.RegistrySID AS RegSID,
-    $ENTITY_RESOURCE AS Type,
-    r.Plural AS Plural,
-    r.Singular AS Singular,
-    r.GroupSID AS ParentSID,
-    r.SID AS eSID,
-    r.UID AS UID,
-    r.Abstract,
-    r.Path
-FROM Resources AS r
-
-UNION ALL SELECT                # Add Metas
-    metas.RegistrySID AS RegSID,
-    $ENTITY_META AS Type,
-    'metas' AS Plural,
-    'meta' AS Singular,
-    metas.ResourceSID AS ParentSID,
-    metas.SID AS eSID,
-    'meta',
-    metas.Abstract,
-    metas.Path
-FROM Metas AS metas
-
-UNION ALL SELECT                # Add Versions for non-xref Resources
-    v.RegistrySID AS RegSID,
-    $ENTITY_VERSION AS Type,
-    'versions' AS Plural,
-    'version' AS Singular,
-    v.ResourceSID AS ParentSID,
-    v.SID AS eSID,
-    v.UID AS UID,
-    v.Abstract,
-    v.Path
-FROM Versions AS v
-
-UNION ALL SELECT                # Add Versions for xref Resources
-    v.RegistrySID AS RegSID,
-    $ENTITY_VERSION AS Type,
-    'versions' AS Plural,
-    'version' AS Singular,
-    m.ResourceSID AS ParentSID,
-    CONCAT('-', m.ResourceSID, '-', v.SID) AS eSID,
-    v.UID AS UID,
-    CONCAT(sR.Abstract, ',versions') AS Abstract,
-    CONCAT(sR.Path, '/versions/', v.UID) AS Path
-FROM Metas AS m
-JOIN Versions AS v ON (v.ResourceSID=m.xRefSID)
-JOIN Resources AS sR ON (sR.SID=m.ResourceSID)
-WHERE m.xRefSID IS NOT NULL ;
 
 CREATE TABLE ResourceContents (
     VersionSID      VARCHAR(255),
@@ -360,123 +288,7 @@ CREATE TABLE ResourceContents (
     PRIMARY KEY (VersionSID)
 );
 
-# This pulls-in or creates all props in Resources due to default Ver processing
-CREATE VIEW DefaultProps AS
-SELECT                             # Get default prop for non-xref resources
-    p.RegistrySID,
-    m.ResourceSID AS EntitySID,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    false                          # DocView
-FROM Metas AS m
-JOIN Versions AS v
-  ON (m.ResourceSID=v.ResourceSID AND v.UID=m.defaultVID)
-JOIN Props AS p ON (p.EntitySID=v.SID)
-WHERE m.xRefSID IS NULL
-
-UNION ALL SELECT                   # Get default prop for xref resources
-    p.RegistrySID,
-    m.ResourceSID AS EntitySID,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    false                          # DocView
-FROM Metas AS m
-JOIN Versions AS v
-  ON (
-    m.xRefSID=v.ResourceSID AND
-        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
-  )
-JOIN Props AS p ON (p.EntitySID=v.SID)
-WHERE m.xRefSID IS NOT NULL
-
-UNION ALL SELECT                # Add Resource.isdefault, always 'true'
-    m.RegistrySID,
-    m.ResourceSID,
-    'isdefault$DB_IN',
-    'true',
-    'boolean',
-    false                       # DocView
-FROM Metas AS m ;
-
-CREATE VIEW AllProps AS
-SELECT                          # Base props
-    RegistrySID,
-    EntitySID,
-    PropName,
-    PropValue,
-    PropType,
-    DocView
-FROM Props
-
-UNION ALL SELECT                # Add Props for xRef resources
-    mS.RegistrySID AS RegistrySID,
-    mS.SID AS EntitySID,
-    p.PropName AS PropName,
-    p.PropValue AS PropValue,
-    p.PropType AS PropType,
-    false AS DocView
-FROM Metas AS mS
-JOIN Metas AS mT ON (mT.ResourceSID=mS.xRefSID)
-JOIN Props AS p ON (p.EntitySID=mT.SID AND
-       p.PropName NOT IN ('xref$DB_IN',CONCAT(mT.Singular,'id$DB_IN')) AND
-       LEFT(p.PropName,1) <> '#' )
-WHERE mS.xRefSID IS NOT NULL
-
-UNION ALL SELECT               # Add Version props for xRef resources
-    mS.RegistrySID AS RegistrySID,
-    CONCAT('-', mS.ResourceSID, '-', p.EntitySID) AS EntitySID,
-    p.PropName AS PropName,
-    p.PropValue AS PropValue,
-    p.PropType AS PropType,
-    false AS DocView
-FROM Metas as mS
-JOIN Props as p ON (p.EntitySID IN (
-       SELECT eSID FROM Entities WHERE ParentSID=mS.xRefSID AND
-                                       Type=$ENTITY_VERSION
-     ) AND p.PropName<>'xref$DB_IN')
-WHERE mS.xRefSID IS NOT NULL
-
-UNION ALL SELECT * FROM DefaultProps
-
-UNION ALL SELECT                # Add Version.isdefault, which is calculated
-  v.RegSID,
-  v.eSID,
-  'isdefault$DB_IN',
-  IF(
-      (m.defaultVID IS NOT NULL AND v.UID=m.defaultVID) OR
-      (m.defaultVID IS NULL AND m.xRefSID IS NOT NULL AND
-        v.UID=(SELECT defaultVID FROM Metas WHERE ResourceSID=m.xRefSID)
-      ),
-      'true', 'false'
-    ),
-  'boolean',                    # Type
-  IF(LEFT(v.eSID,1)='-',false,true)  # DocView,Lie if it's not xref'd prop/ver
-FROM Entities AS v
-JOIN Metas AS m ON (m.ResourceSID=v.ParentSID AND v.Type='$ENTITY_VERSION')
-
-UNION ALL SELECT               # Add *.xid, which is calculated
-  e.RegSID,
-  e.eSID,
-  'xid$DB_IN',
-  CONCAT('/', e.Path),
-  'string',
-  IF(LEFT(e.eSID,1)='-',false,true)   # A bit of a lie for DocView mode
-FROM Entities AS e
-
-UNION ALL SELECT               # Add in Version.RESOURCEid, which is calculated
-  v.RegSID,
-  v.eSID,
-  CONCAT(r.Singular, 'id$DB_IN'),
-  r.UID,
-  'string',
-  IF(LEFT(v.eSID,1)='-',false,true)  # Lie if it's not an xref'd prop/ver
-FROM Entities AS v
-JOIN Resources AS r ON (r.SID=v.ParentSID)
-WHERE v.Type=$ENTITY_VERSION;
-
-CREATE TABLE FullTreeTable (
+CREATE TABLE Props (
   RegSID     VARCHAR(64) NOT NULL,
   Type       BIGINT NOT NUll,
   Plural     VARCHAR(64) NOT NULL,
@@ -491,49 +303,166 @@ CREATE TABLE FullTreeTable (
   Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
   DocView    BOOL NOT NULL,
 
-  PRIMARY KEY(RegSID, Path, PropName)
-  # UNIQUE INDEX(RegSID, eSID, PropName)
+  # IMPORTANT: PropName always includes a trailing delimiter (DB_IN, which
+  # is ','). For example: "fileurl," not "fileurl"
+  # This is used throughout the codebase to simplify attribute name parsing and
+  # prevent ambiguity (e.g., distinguishing "file" from "fileurl").
+  # When querying Props by name, always append DB_IN to the attribute name:
+  #   WHERE PropName = 'fileurl' || string(DB_IN)  -- CORRECT
+  #   WHERE PropName = 'fileurl'                   -- WRONG (will never match)
+
+  # non-doc-view-able attributes are ones that are generated at runtime
+  # due to things like showing the Default Version props in the Resource
+  # or entities/props that materialize due to an xref. Normally a GET
+  # will show all props, but during /export or ?doc we want to exclude
+  # these non-doc-view ones. In case where all of the props for an entity
+  # are generated, the entire entity should vanish from the serialization.
+  # e.g. Versions of an xref'd Resource.
+
+
+  # These flag WHY this row exists when it's not a direct write of the
+  # entity's own user-set value (multiple booleans, one per reason, so
+  # each can be independently identified/refreshed without disturbing
+  # the others). All false means this row is a direct, currently-live
+  # user-set property (written by SetDBProperty()).
+  IsDefaultVerCopy BOOL NOT NULL DEFAULT false, # Copied from default Version
+  IsXrefPropCopy   BOOL NOT NULL DEFAULT false, # meta.* copied from xref target
+  IsXrefVerCopy    BOOL NOT NULL DEFAULT false, # Synthetic Version copied via xref
+  IsSystemProp     BOOL NOT NULL DEFAULT false, # Set via SetSystemDBProperty()
+
+  # Calculated singleton attrs are split into two flags rather than one,
+  # since they behave very differently: "static" ones (xid, a Version's
+  # RESOURCEid, e.g. "fileid") are provably immutable after entity
+  # creation (no rename API, a Version's owning Resource never
+  # changes) so they're written ONCE by EntityInsert()/
+  # SaveCalcStaticInsert() and never touched again. "dynamic" ones (a
+  # Version's own isdefault) genuinely change over time (as the
+  # Resource's default version pointer moves) so they're recomputed on
+  # every relevant Save() by SaveVersionCalc(). A Resource's own
+  # "isdefault" isn't a calculated singleton at all - it's simply
+  # mirrored in from its default Version (same IsDefaultVerCopy
+  # mechanism as createdat/modifiedat) by SaveDefaultVersionCascade(),
+  # so it's naturally absent whenever there's no default Version to
+  # copy from (e.g. a dangling xref).
+  IsCalcStatic     BOOL NOT NULL DEFAULT false, # xid, Version.RESOURCEid
+  IsCalcDynamic    BOOL NOT NULL DEFAULT false, # Version.isdefault
+
+  PRIMARY KEY(RegSID, Path, PropName),
+  UNIQUE INDEX(eSID, PropName),
+  INDEX(ParentSID) # for cascade-copy cleanup (e.g.
+                   # fullSaveXrefCascadeDelete's ParentSID scan)
   # INDEX(RegSID, Abstract)
 );
 
-CREATE VIEW FullTree AS
-SELECT
-    e.RegSID,
-    e.Type,
-    e.Plural,
-    e.Singular,
-    e.ParentSID,
-    e.eSID,
-    e.UID,
-    e.Path,
-    p.PropName,
-    p.PropValue,
-    p.PropType,
-    e.Abstract,
-    p.DocView
-FROM Entities AS e
-JOIN AllProps AS p ON (p.EntitySID=e.eSID)
-ORDER by Path, PropName;
+# This is the authoritative store for all entity properties (own,
+# system, calculated, and cascaded/copied) - see fulltree.go.
+CREATE TABLE Entities (
+  RegSID     VARCHAR(64) NOT NULL,
+  Type       BIGINT NOT NULL,
+  Plural     VARCHAR(64) NOT NULL,
+  Singular   VARCHAR(64) NOT NULL,
+  ParentSID  VARCHAR(64) NULL,
+  eSID       VARCHAR(64) NOT NULL,      # Reg,Group,Res,Ver System ID (or
+                                          # synthetic "-<srcRSID>-<verSID>")
+  UID        VARCHAR(255) NOT NULL,
+  Abstract   VARCHAR(255) NOT NULL COLLATE utf8mb4_bin,
+  Path       VARCHAR(329) NOT NULL COLLATE utf8mb4_bin,
+
+  # True for the synthetic Version rows added because a Resource
+  # xref's another Resource (mirrors the "-" eSID prefix convention
+  # this table already uses, but as an explicit flag for clarity).
+  IsXrefVerCopy BOOL NOT NULL DEFAULT false,
+
+  # eSID is already globally unique (NewUUID()), so it alone can be the
+  # PK - RegSID would be redundant there. RegSID is kept as its own
+  # index so RegistryTrigger's bulk "DELETE FROM Entities WHERE
+  # RegSID=..." stays fast. ParentSID is also a real (globally unique)
+  # SID, so it needs no RegSID qualifier either. Path is NOT globally
+  # unique (only unique per-Registry), so RegSID must stay paired with
+  # it.
+  PRIMARY KEY(eSID),
+  INDEX(RegSID),
+  INDEX(ParentSID),
+  UNIQUE INDEX (RegSID, Path)
+);
+
+# These maintain Versions.AncestorID/CreatedAt and Metas.xRefPath/
+# defaultVID whenever the corresponding OWN (non-cascaded, non-
+# calculated) property row is written/removed on Props, which
+# is the sole authoritative store for entity properties now (see
+# fulltree.go) - those DB columns are relied on throughout the codebase
+# (ancestor-chain resolution, xref detection, default-version lookups)
+# and are otherwise never set anywhere else. xRefPath stores the raw
+# xref target path text (not a resolved SID) so it never needs to be
+# re-resolved/self-healed: it stays correct even if the target
+# Resource doesn't exist yet (or existed, was deleted, and later gets
+# recreated) - every consumer joins against Resources.Path live, at
+# query time, instead of relying on a point-in-time-resolved SID.
+CREATE TRIGGER FullTreeAncestor BEFORE INSERT ON Props
+FOR EACH ROW
+BEGIN
+    IF (NEW.Type=$ENTITY_VERSION AND NEW.IsDefaultVerCopy=false AND
+        NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
+        IF (NEW.PropName='ancestorid$DB_IN') THEN
+          UPDATE Versions SET AncestorID=NEW.PropValue
+              WHERE SID=NEW.eSID $$
+        END IF $$
+        IF (NEW.PropName='createdat$DB_IN') THEN
+          UPDATE Versions SET CreatedAt=NEW.PropValue
+              WHERE SID=NEW.eSID $$
+        END IF $$
+    END IF $$
+
+    IF (NEW.Type=$ENTITY_META AND NEW.IsDefaultVerCopy=false AND
+        NEW.IsXrefPropCopy=false AND NEW.IsXrefVerCopy=false) THEN
+        IF (NEW.PropName='xref$DB_IN') THEN
+          # Remove leading / - store the path text as-is, no lookup.
+          UPDATE Metas AS m SET xRefPath=SUBSTRING(NEW.PropValue,2)
+            WHERE m.SID=NEW.eSID $$
+        END IF $$
+        IF (NEW.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NEW.PropValue
+            WHERE m.SID=NEW.eSID $$
+        END IF $$
+    END IF $$
+END ;
+
+CREATE TRIGGER FullTreeXref BEFORE DELETE ON Props
+FOR EACH ROW
+BEGIN
+    # See ResourcesTrigger's comment: swallow error 1442 from the
+    # Registries UPDATE below when this fires as part of a cascading
+    # whole-Registry delete (Registries is already in use higher up
+    # that same trigger chain) - harmless since the Registry row itself
+    # is being removed too in that case.
+    DECLARE CONTINUE HANDLER FOR 1442 BEGIN END $$
+
+    IF (OLD.Type=$ENTITY_META AND OLD.IsDefaultVerCopy=false AND
+        OLD.IsXrefPropCopy=false AND OLD.IsXrefVerCopy=false) THEN
+        IF (OLD.PropName='xref$DB_IN') THEN
+          UPDATE Metas SET xRefPath=NULL
+          WHERE SID=OLD.eSID $$
+
+          # Lazily clear Registries.UsesXref if this was the last
+          # remaining xref in the Registry - see ResourcesTrigger's
+          # comment for why this is safe/cheap to run unconditionally.
+          UPDATE Registries SET UsesXref = EXISTS(
+              SELECT 1 FROM Metas WHERE RegistrySID=OLD.RegSID
+                                   AND xRefPath IS NOT NULL)
+          WHERE SID=OLD.RegSID AND UsesXref=true $$
+        END IF $$
+        IF (OLD.PropName='defaultversionid$DB_IN') THEN
+          UPDATE Metas AS m SET defaultVID=NULL
+            WHERE m.SID=OLD.eSID $$
+        END IF $$
+    END IF $$
+END ;
 
 CREATE VIEW Leaves AS
 SELECT eSID FROM Entities
 WHERE eSID NOT IN (
     SELECT DISTINCT ParentSID FROM Entities WHERE ParentSID IS NOT NULL
 );
-
-# Just for debugging purposes
-CREATE VIEW VerboseProps AS
-SELECT
-    p.RegistrySID,
-    p.EntitySID,
-    e.Abstract,
-    e.Path,
-    p.PropName,
-    p.PropValue,
-    p.PropType
-FROM Props as p
-JOIN Entities as e ON (e.eSID=p.EntitySID)
-ORDER by Path ;
 
 # Find all of the versions of a resource. Users of this should order
 # the results: ORDER BY Pos ASC, Time ASC, VersionUID ASC
@@ -584,3 +513,17 @@ WHERE NOT EXISTS(SELECT 1 FROM cte
                  WHERE cte.RegistrySID=v.RegistrySID AND
                        cte.ResourceSID=v.ResourceSID AND
                        cte.UID=v.UID);
+
+# Just for debugging purposes
+CREATE VIEW VerboseProps AS
+SELECT
+    p.RegSID,
+    p.eSID,
+    e.Abstract,
+    e.Path,
+    p.PropName,
+    p.PropValue,
+    p.PropType
+FROM Props as p
+JOIN Entities as e ON (e.eSID=p.eSID)
+ORDER by Path ;

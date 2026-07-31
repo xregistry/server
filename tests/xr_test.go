@@ -488,18 +488,55 @@ func TestXRUpdateRegistry(t *testing.T) {
 	reg := NewRegistry("TestXRUpdateRegistry")
 	defer PassDeleteReg(t, reg)
 
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-     "attributes": {
-      "bool":{"type":"boolean"},
-      "int":{"type":"integer"},
-      "decimal":{"type":"decimal"},
-      "obj":{"type":"object","attributes":{"age":{"type":"integer"}}},
-      "map":{"type":"map","item":{"type":"integer"}},
-      "arrint":{"type":"array","item":{"type":"integer"}},
-      "arrstr":{"type":"array","item":{"type":"string"}},
-      "arrarr":{"type":"array","item":{"type":"array","item":{"type":"string"}}}
-     }
-    }`, 200, `*`)
+	model := `{
+  "attributes": {
+    "bool": {
+      "type": "boolean"
+    },
+    "int": {
+      "type": "integer"
+    },
+    "decimal": {
+      "type": "decimal"
+    },
+    "obj": {
+      "type": "object",
+      "attributes": {
+        "age": {
+          "type": "integer"
+        }
+      }
+    },
+    "map": {
+      "type": "map",
+      "item": {
+        "type": "integer"
+      }
+    },
+    "arrint": {
+      "type": "array",
+      "item": {
+        "type": "integer"
+      }
+    },
+    "arrstr": {
+      "type": "array",
+      "item": {
+        "type": "string"
+      }
+    },
+    "arrarr": {
+      "type": "array",
+      "item": {
+        "type": "array",
+        "item": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
 	XCLIServer("localhost:8181")
 

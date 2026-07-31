@@ -27,5 +27,5 @@ encounter problems.
 
 ### Implementation Details/Choices
 
-See the [Design Doc](#DESIGN.md)
+See the [Design Doc](DESIGN.md)
 

@@ -7218,3 +7218,899 @@ server on 8080 untouched) via `puppeteer-core`:
   distinction confirmed (`.../versions/v1$details` vs `.../versions/v1`).
 
 **Status**: Implemented, `node --check` passed, CDP-verified.
+
+## Backend / SQL re-architecture (fulltree.go) — deferred follow-ups (2026-07-22)
+
+These are backend items from the `sql.md` Phase 2 migration work
+(`registry/fulltree.go`, `registry/entity.go` — System/NewSystem prop
+buffering, default-version cascade gating), unrelated to the SPA UI
+above but logged here per user request since this is the durable
+cross-session record.
+
+**Status snapshot (2026-07-24)**: The core `sql.md` goal — "all read
+operations to the Registry only ever used tables, never views" — is
+**done**: the legacy `Entities`/`FullTree`/`AllProps`/`DefaultProps`/
+`VerboseProps` views and the `Props` table (plus its
+`PropsAncestor`/`PropsXref` triggers) were dropped entirely from
+`registry/init.sql`; `FullEntities`/`FullTreeTable` are now the sole
+authoritative store for both reads and writes (see the "3 remaining
+live call sites..." item below for the migration, and git history
+`phase1`..`phase7`/"new logging stuff" for the full build-out). Real
+remaining open items in this section: **(1)** `cascade-skip-when-unchanged`
+— investigate a safe way to skip a Resource's cascade when nothing
+relevant actually changed (currently always runs once per marked
+Resource per Tx); **(2)** xref fan-out N+1 Go-loop → single set-based
+SQL statement (not yet prototyped); **(3)** write-side perf is still
+slower than the old view-based code for bulk loads (reads are ~15x
+faster; see the "Re-confirm..." item below) - no concrete plan yet,
+just tracked. Everything else in this section is closed `[x]`,
+including two real bugs found via user repros this session (2026-07-23/24):
+the `FullTreeTable` PK collision when setting `xref` on a Resource with
+pre-existing real Versions, and the "clearing xref via a full-replace
+body that omits the key" panic (fixed in both `Resource.UpsertMeta()`
+and `Group.UpsertResource()` - see `tests/xref_test.go`'s
+`TestXrefClearAfterMultipleTouches` for regression coverage). None of
+this session's uncommitted changes (`registry/db.go`, `entity.go`,
+`fulltree.go`, `group.go`, `resource.go`, `tests/xref_test.go`) have
+been committed yet - awaiting explicit go-ahead.
+
+- [x] **(b) Double `Version.FullSave()` on resource creation.**
+  Confirmed live (via `curl ...?verbose=FullTree` against a freshly
+  created resource) that a brand-new Version gets `FullSave()` called
+  twice in the same request:
+  ```
+  FullSave type=4 sid=360595c3 ...   (1st save)
+  FullSave type=4 sid=360595c3 ...   (2nd save, same sid)
+  ```
+  Root cause: the version is first saved with `ancestorid=$TBD`
+  (placeholder, see `ANCESTORID_TBD` in `registry/resource.go` ~line
+  1167/1175), then `Resource.CheckAncestors()` →
+  `ManualVersionMode.CheckAncestors()` (registry/versionmodes.go ~line
+  28-83) does a second `v.SetSave("ancestorid", newestVerID)` to resolve
+  it to the real value. This second save is legitimate (not a bug) but
+  wasteful: each pass re-runs `fullSaveOwnProps`, `fullSaveVersionCalc`,
+  `fullVersionIsCurrentDefault`, and a full
+  `fullSaveXrefFanOutForTargetVersion` DB-query scan — even when the
+  resource has no xref'd sources at all.
+  Possible fixes to consider later: special-case "this is the only/
+  first version, so ancestorid can just be set directly instead of via
+  the $TBD-then-resolve placeholder dance" to avoid the second save
+  entirely for the common single-version-creation case; and/or make
+  `fullSaveXrefFanOutForTargetVersion` cheaply short-circuit (e.g. via a
+  cached "does anything xref this Resource" flag) instead of always
+  querying.
+
+  **Update (2026-07-23)**: prototyped the "$TBD-then-resolve" special
+  case via a `VersionUpsert.Single` flag (resolve `ancestorid`
+  immediately instead of via the placeholder, for genuinely
+  single-version creates). This worked but was fragile — required a
+  precise "no other pending versions in this Tx" signal (`vu.More` was
+  NOT a reliable proxy for this: it's only `false` on the
+  last-iterated entry of a Go map in the batch `/versions` POST
+  handler, `registry/httpStuff.go` ~1604-1620, not "this is the only
+  version"), and needed an extra self-reference-exclusion fix (the new
+  Version's own not-yet-resolved row, with `AncestorID=""`, was
+  visible to the naive "find current newest version" query and could
+  self-select). After discussion, **rejected this approach** in favor
+  of a more architecturally sound fix, matching the existing
+  `Group.Validate()`/`tx.GroupsToValidate` "mark dirty, drain once per
+  Tx" pattern (registry/db.go ~145/284/373-378):
+  - Add `tx.ResourcesToCascade map[string]*Resource` +
+    `tx.MarkResourceForCascade()`.
+  - Keep `fullSaveVersionCalc()` eager in `FullSave()` (cheap,
+    single-row, own-entity `isdefault` recompute).
+  - Defer `fullSaveDefaultVerCascade()` /
+    `fullSaveXrefFanOutForTargetVersion()` /
+    `fullSaveXrefFanOutForTargetMeta()` (and possibly
+    `fullSaveXrefCascade()`, TBD by measurement) to a new
+    `tx.RunPendingCascades()`, drained once from `tx.Validate()`
+    (worklist pattern, loop-until-empty with a safety cap) alongside
+    the existing `GroupsToValidate` loop — confirmed via
+    `ServeHTTP`/`tx.Conditional()` (registry/httpStuff.go ~62-210,
+    registry/db.go ~474-479) that `tx.Validate()` runs, and response
+    serialization happens, before `tx.Commit()`, so this is a safe,
+    visible-to-the-response hook point. Confirmed every Version/Meta
+    save path eventually reaches `r.ValidateResource()` before the
+    request finishes.
+  - The `Single`-flag prototype was fully reverted (`git checkout --
+    registry/resource.go registry/httpStuff.go`); `make qtest` is
+    green again (~65s) confirming a clean baseline.
+  - Plan going forward: (1) write new xref/version-ordering/
+    default-version-cascade test cases first, expressed purely via
+    HTTP API assertions with **no dependency on `FullTree*`
+    internals** (so they're portable to the pre-`FullTree` codebase to
+    distinguish pre-existing bugs from new regressions) — including
+    the `defaultversionsticky=true`-by-default edge case
+    (`tests/http1_test.go` ~10142-10158) combined with `xref`; (2)
+    prototype the `tx.ResourcesToCascade`/`RunPendingCascades()`
+    design; (3) validate via full `make qtest` + a
+    `/tmp/benchtrigger.sh`-style throughput benchmark.
+
+  **Update (2026-07-23, step 1 complete)**: added
+  `tests/xref_order_test.go` covering the gap identified by reviewing
+  existing xref coverage (`tests/xref_test.go`,
+  `tests/ancestor_test.go`, `tests/constraints_test.go` never mutate
+  the xref TARGET *after* an xref SOURCE already points at it, and
+  never have multiple sources pointing at the same target):
+  - `TestXrefOrderMultiVersionAfterXref`: batch-adds 2 new versions to
+    a target that already has 2 xref sources pointing at it in one
+    request; confirms both sources correctly mirror the target's final
+    state (not a stale intermediate one).
+  - `TestXrefOrderMultipleSourcesSameTarget`: batch-creates 3 xref
+    sources pointing at the same target in one request
+    (order-independence within a Tx); deletes one source (must not
+    affect target or remaining sources); re-points one source's xref
+    to a different target (must stop being fanned out to by the old
+    target while the other source keeps mirroring the original target
+    correctly - no cross-contamination).
+  - `TestXrefOrderTargetDefaultChangeAfterXref`: sticks the target's
+    default version (via `setdefaultversionid`) after a source already
+    exists; confirms the source mirrors the new sticky default
+    (including `defaultversionsticky` itself, which is also mirrored
+    from the target); confirms a further new version on the target
+    does not move the sticky default and the source keeps mirroring it.
+  - `TestXrefOrderRevertWithStickyDefault`: combines the
+    `defaultversionsticky=true`-by-default edge case
+    (`TestHTTPSticky`, `tests/http1_test.go` ~10142-10158) with
+    reverting an xref back to owned versions.
+  All 5 new tests pass individually and as part of the full
+  `make qtest` (~66s, unchanged from baseline) against the current
+  (already-reverted) codebase - this is the clean baseline step 2
+  (the `tx.ResourcesToCascade` prototype) will be validated against.
+
+  **Update (2026-07-23, steps 2-4 complete, DONE)**: implemented and
+  validated the deferred-cascade design:
+  - `registry/db.go`: added `Tx.ResourcesToCascade map[string]*Resource`,
+    `MarkResourceForCascade(r)` (O(1), safe to call many times per
+    Resource per Tx), `runResourceCascade(r)` (private, unconditionally
+    runs `fullSaveDefaultVerCascade` + `fullSaveXrefFanOutForTargetVersion`
+    + `fullSaveXrefFanOutForTargetMeta`), `RunResourceCascade(r)` (public,
+    check-delete-run for one Resource, no-op if unmarked), and
+    `RunPendingCascades()` (safety-net drain of the whole map, loop-
+    until-empty with a cap of 20, for any path that marks a Resource
+    without going through `ValidateResource()`). `RunPendingCascades()`
+    is called from `tx.Validate()` **before** `tx.Lock()` (cascades still
+    need to write) and before the `GroupsToValidate` loop (constraint
+    checks may depend on cascade-derived mirrored data like `isdefault`).
+  - `registry/fulltree.go`: converted `fullSaveXrefFanOutForTargetVersion`/
+    `fullSaveXrefFanOutForTargetMeta` from `*Entity` methods to free
+    `(tx *Tx, r *Resource)` functions (they only ever used `e.tx`);
+    replaced all 4 eager-cascade call sites (`FullSave()`'s switch,
+    `FullTreeSyncProp()`, `SaveSystemProps()`,
+    `FullTreeResyncOwnProps()`) with `MarkResourceForCascade()` calls,
+    dropping the old `fullVersionIsCurrentDefault(v)`/`metaDefaultChanged`
+    gating (no longer needed for correctness - the cascade is now
+    deduped-per-Tx and always recomputes from final DB state regardless
+    of what triggered the mark); deleted the now-dead
+    `fullVersionIsCurrentDefault()`. Also hardened
+    `fullSaveDefaultVerCascade()` to no-op cleanly if the Resource's
+    Meta no longer exists (e.g. all its Versions were deleted earlier in
+    the same Tx, which deletes the Resource itself, but it was already
+    marked for cascade beforehand) instead of panicking on a nil Meta;
+    likewise hardened `Resource.GetDefault()` to return `(nil, nil)` if
+    `FindMeta()` returns nil instead of dereferencing it.
+  - `registry/resource.go`: wired `r.tx.RunResourceCascade(r)` into the
+    end of `ValidateResource()` (the "this Resource's processing is
+    fully done" hook, confirmed called exactly once per Resource per
+    request from all 4 known call sites) - including its early-return
+    path for xref-source Resources (`meta.GetAsString("xref") != ""`),
+    which was found to be a real gap: an xref source's own Meta save
+    (setting `xref`) routes through `FullSave()`'s `ENTITY_META` case and
+    DOES mark the Resource for cascade, so that branch needed the same
+    `RunResourceCascade()` call before its `return nil`.
+  - **Validation**: `go build ./registry/... ./tests/...` clean;
+    `TEST=TestXrefOrder make qtest` green; full `make qtest` green
+    (64.6s, actually a hair faster than the ~66s baseline); a throughput
+    micro-benchmark (Go HTTP client, keep-alive, no per-request curl
+    subprocess overhead, creating 1000 brand-new single-version
+    Resources against a fresh `perfbench` DB on port 8288) showed
+    **291/sec (old eager-cascade code, git-stashed for the A/B
+    comparison) vs 311/sec (new deferred-cascade code) - about a 7%
+    throughput improvement** on exactly the scenario the double-
+    `FullSave()` bug affected. Modest rather than dramatic, since a
+    single-version resource create with no xrefs pointing at it was
+    already a cheap case for the fan-out queries (they return zero
+    rows); the win is concentrated in the `fullSaveDefaultVerCascade`
+    work (default-version prop copy) that used to run twice and now
+    runs once. Marked `cascade-defer-prototype`/`cascade-defer-validate`
+    todos done.
+
+- [x] **Better understand why `metaDefaultChanged` is needed at all.**
+  **Resolved (2026-07-23) by removing it entirely.** Once the
+  deferred-cascade design (item (b) above) landed, `metaDefaultChanged`
+  had already become a dead parameter — the cascade is always
+  deferred/deduped via `tx.MarkResourceForCascade()` regardless of
+  whether `defaultversionid`/`xref` actually changed, so the gate it
+  used to provide was no longer read by anything. Deleted the
+  computation in `Entity.Save()` (registry/entity.go, was ~line 2182)
+  and the now-zero-arg `FullSave()` signature (registry/fulltree.go,
+  was ~line 359) accordingly; only call site (`entity.go:2292`)
+  updated to `e.FullSave()`. `make xrserver`/`make qtest` green after
+  the removal (full suite, `tests` package ~60s). The original
+  "minimal/correct condition" question this item was tracking is now
+  moot — see the new "Better understand how to skip the cascade when
+  nothing changed" item below for the follow-up if/when we revisit
+  gating for performance reasons.
+
+- [ ] **Investigate how to better skip the cascade when nothing
+  changed.** Today `tx.RunResourceCascade()`/`runResourceCascade()`
+  (registry/db.go ~423-447) always re-runs
+  `fullSaveDefaultVerCascade()`/`fullSaveXrefFanOutForTargetVersion()`/
+  `fullSaveXrefFanOutForTargetMeta()` unconditionally for any Resource
+  marked via `tx.MarkResourceForCascade()`, even if nothing about that
+  Resource's default-version/xref state actually changed this Tx. This
+  traded "skip when unnecessary" for "run at most once" (a deliberate,
+  measured-net-positive tradeoff per the 291→311/sec benchmark), but
+  there may be a cheap, hard-to-get-wrong way to skip entirely when
+  truly nothing relevant changed. Any reintroduced gating needs to
+  avoid the fragility of the old `metaDefaultChanged`/`OriginObject`
+  approach (see item above and checkpoint 115/116) — prefer a coarse,
+  structural signal (e.g. "was any Version/Meta belonging to this
+  Resource actually written to FullTreeTable this Tx at all") over
+  trying to re-derive semantic diffs of specific attributes.
+
+- [x] **Fixed: setting `xref` on a Resource with pre-existing real
+  Versions could panic with a `FullTreeTable` PRIMARY KEY collision.**
+  (Found by @duglin via a live `xr` repro, 2026-07-23.) Repro: create
+  `fx` with its own real Version (any UID, e.g. "1"), then `PUT
+  /.../fx/meta` with `xref` pointing at a target (`f1`) that has a
+  Version with the SAME UID. Root cause:
+  `Resource.UpsertMeta()`'s xref-setting branch (registry/resource.go
+  ~803-864) does `meta.JustSet("xref", xref)`, then loops calling
+  `ver.JustDelete()` (registry/version.go ~31-49) for each of `fx`'s own
+  real Versions to remove them - but `JustDelete()` itself has a
+  `Resource.Touch()`-gated `meta.ValidateAndSave(false)` call that fires
+  *before* its own `DELETE FROM Versions`, i.e. on the very first loop
+  iteration, `fullSaveXrefCascade()` ran (via the old eager `FullSave()`
+  call) while `fx`'s own real Version row(s) still existed in
+  `FullTreeTable`. The synthetic xref-version-copy row it built for
+  `fx` (from `f1`'s Version) used a `Path` based only on
+  `sourcePath+"/versions/"+targetVersionUID` - if `fx`'s own
+  (not-yet-deleted) real Version shared that same UID, the new
+  synthetic INSERT collided with the still-present real row on
+  `FullTreeTable`'s `(RegSID, Path, PropName)` primary key. Confirmed
+  via live tracing this is a pre-existing bug in the `FullTreeTable`
+  architecture (registry/fulltree.go), NOT caused by this session's
+  cascade-deferral work for item (b) above - it reproduces the same way
+  against any build with the `FullTreeTable`/`FullEntities` schema,
+  before or after the deferred-cascade change; the old view-based
+  (`FullTree`/`AllProps`) implementation has no such collision since it
+  never persists synthetic rows.
+  - Fix: deferred `fullSaveXrefCascade()` too, mirroring
+    `fullSaveDefaultVerCascade()`/the xref fan-out functions - removed
+    the eager call from `FullSave()`'s `ENTITY_META` case
+    (registry/fulltree.go), and added it to `tx.runResourceCascade()`
+    (registry/db.go), resolving `r`'s Meta and calling
+    `meta.fullSaveXrefCascade()` there instead - **before**
+    `fullSaveDefaultVerCascade()` in the same function, since that
+    function's "no real default Version" (xref source) branch reads
+    the `IsXrefVerCopy=true` synthetic rows `fullSaveXrefCascade()`
+    creates. Since `tx.Validate()`/`RunPendingCascades()` (drained at
+    the top of `SerializeQuery()`, registry/httpStuff.go:855) always
+    runs after `UpsertMeta()`'s entire xref-setting loop (all real
+    Version deletes included) has completed, the cascade now only ever
+    builds synthetic rows once all of the source's own real Version
+    rows are actually gone - no more collision window. Verified via the
+    exact `xr` repro (no error, correct mirrored `epoch`/
+    `defaultversionid` on the source) and a full `make qtest` run
+    (registry `registry` DB needed a `--recreatedb` first - unrelated
+    schema drift from an older DB predating the `IsCalcStatic`/
+    `IsCalcDynamic` migration, not caused by this fix).
+
+- [x] **Investigated whether `Versions.AncestorID`/`Metas.xRefSID`/
+  `Metas.defaultVID` mirror columns (and the `FullTreeAncestor`/
+  `FullTreeXref` triggers that keep them in sync — see item above) can
+  be eliminated entirely now that `FullTreeTable` exists**, rather than
+  just moving the trigger's sync logic into Go. These columns were
+  originally added directly on `Versions`/`Metas` because querying the
+  old `FullTree`/`Props` view for them was too slow — but now that
+  `FullTreeTable` is the single authoritative store (Phase 2 of
+  `sql.md`), it's worth checking whether reading straight from
+  `FullTreeTable` (no mirror column, no trigger) would be fast enough.
+  **If yes**: delete the mirror columns/triggers entirely (bigger win
+  than just moving trigger logic to Go). **If no** (performance
+  regresses): fall back to the earlier idea of doing the sync in Go
+  application code instead of a MySQL trigger (still worth it either
+  way, since MySQL triggers have no `WHEN` clause and currently fire +
+  evaluate their `IF` chain on literally every row inserted into
+  `FullTreeTable`, for every entity/prop type, even though the real
+  work only applies to 4 specific PropNames on Version/Meta own rows).
+  Key existing usages to account for when evaluating this (all in
+  `registry/fulltree.go`/`resource.go`/`versionmodes.go`, non-test):
+  - `Versions.AncestorID`: `resource.go` `GetProblematicVersions()`
+    (~1428, a JOIN/self-join query for ancestor-chain validation),
+    `resource.go` ~1860-1868 (building ancestor/children maps in Go
+    after a query), `versionmodes.go` ~43-177 (ancestor-chain
+    resolution/validation, including a `LAG() OVER (...)` window-
+    function query comparing `AncestorID` to an expected value).
+  - `Metas.defaultVID`: heavily used as a simple equality/JOIN
+    condition throughout `fulltree.go` (default-version cascade calc
+    ~367-383, ~478-549, ~629, ~868) — e.g. `SELECT 1 FROM Metas WHERE
+    ResourceSID=? AND defaultVID=?` and `JOIN ... ON v.UID=m.defaultVID`.
+  - `Metas.xRefSID`: used for the reverse xref-fan-out lookup (`SELECT
+    SID FROM Metas WHERE xRefSID=?`, `fulltree.go` ~889/915) and to find
+    a Resource's own xref target (`SELECT xRefSID FROM Metas WHERE
+    SID=?`/`ResourceSID=?`, ~572/708).
+  **Key technical question to resolve**: `FullTreeTable`'s current
+  indexes (`PRIMARY KEY(RegSID,Path,PropName)`,
+  `UNIQUE INDEX(RegSID,eSID,PropName)`, `INDEX(eSID)`,
+  `INDEX(RegSID,ParentSID)`) do **not** support an efficient point-
+  lookup/JOIN on `PropValue` (e.g. "find the Resource whose `xref`
+  PropValue equals this path" or "find all Metas whose `defaultversionid`
+  PropValue equals this Version's UID") — such a query would need a full
+  scan filtered only by `PropName` (no index on `PropValue`) unless a
+  new index (e.g. `INDEX(RegSID, PropName, PropValue(N))`) is added.
+  Evaluate whether adding such an index is cheap/safe enough, or whether
+  it's simpler to just keep the mirror columns and move the sync logic
+  to Go as originally proposed.
+  **Conclusion (measured, not pursued)**: benchmarked the triggers'
+  actual runtime cost directly (isolated `xrserver --db perfbench -p
+  8288` instance, curl-loop creating 500 Versions of one Resource) —
+  with `FullTreeAncestor`/`FullTreeXref` active (current code): **7.44s**
+  for 500 versions. Rebuilt with both trigger bodies stubbed out
+  (`registry/init.sql` temporarily replaced with a no-op comment,
+  backed up first to `/tmp/init.sql.bak`, restored immediately after):
+  **7.48s** for 500 versions — i.e. no measurable difference, within
+  normal run-to-run noise. This confirms the triggers themselves are
+  not a meaningful bottleneck (each trigger invocation is a handful of
+  cheap indexed `UPDATE`s guarded by simple `IF`s, not the source of
+  any real overhead). Given that eliminating the mirror
+  columns/triggers would require rewriting `GetRootVersionIDs`/
+  `GetProblematicVersions`/`GetChildVersionIDs`/`HasCircularAncestors`
+  (`resource.go`), the `VersionAncestors`/`VersionCircles` view/CTE
+  (`init.sql`), and every `Metas.xRefSID`/`defaultVID` read in
+  `fulltree.go` to instead query `FullTreeTable` filtered by `PropName`
+  (plus adding a new `PropValue`-prefix index to make those queries
+  efficient) — a large, high-risk change — **decided not to pursue
+  this rewrite**: the triggers/mirror columns stay as-is. No code
+  changes were made; `registry/init.sql` is confirmed unchanged
+  (verified via `git status`/`diff` against `/tmp/init.sql.bak`) and
+  `xrserver`/`xr` were rebuilt from the restored, unmodified source.
+- [x] **Dropped redundant `RegistrySID`/`RegSID` from composite
+  keys/indexes/queries on tables where `SID`/`eSID` is already present**
+  (Groups, Resources, Metas, Versions, `FullTreeTable`, `FullEntities`),
+  since `SID`/`eSID` values are already globally unique (`NewUUID()` in
+  `common/utils.go:31-34`, not scoped per-Registry) — so
+  `RegistrySID`/`RegSID` is redundant for correctness in any lookup that
+  already includes `eSID`/`SID`.
+  Potential upside (MySQL/InnoDB-specific): InnoDB clusters data by
+  `PRIMARY KEY`, and **every secondary index entry embeds a copy of the
+  primary key** as its row pointer — so a smaller PK (e.g. dropping
+  `RegSID` from `FullTreeTable`'s `PRIMARY KEY(RegSID,Path,PropName)`,
+  registry/init.sql ~513) shrinks *every* secondary index on that table
+  too, not just the PK itself — could meaningfully improve cache
+  locality/seek speed on large tables like `FullTreeTable`/`Versions`/
+  `Metas`.
+  Tables/keys currently including `RegistrySID`/`RegSID` redundantly
+  alongside an already-unique `SID`/`eSID` (registry/init.sql): Groups
+  (~92-93, `UNIQUE INDEX(RegistrySID,ParentSID,Plural)` /
+  `UNIQUE INDEX(RegistrySID,Abstract)` — these aren't purely redundant,
+  they enforce per-registry uniqueness of Plural/Abstract, so may need
+  to stay), Resources (~140-144), Metas (~170-174), Versions (~196-197),
+  `FullTreeTable` (~513-518, `PRIMARY KEY(RegSID,Path,PropName)`,
+  `UNIQUE INDEX(RegSID,eSID,PropName)`, `INDEX(RegSID,ParentSID)`),
+  `FullEntities` (~540-542, `PRIMARY KEY(RegSID,eSID)`,
+  `UNIQUE INDEX(RegSID,ParentSID,eSID)`, `UNIQUE INDEX(RegSID,Path)`).
+  Note: some of these (e.g. `Path`, `Plural`, `Abstract` uniqueness
+  constraints) are legitimately scoped *per-registry* by design (the
+  same Path/Plural can validly repeat across different Registries), so
+  not every `RegistrySID` occurrence is removable — only ones that
+  exist purely alongside an already-globally-unique `SID`/`eSID` column
+  as a redundant extra qualifier.
+  **Important caveat/prerequisite found while looking into this**:
+  `NewUUID()` (common/utils.go:31-34) is NOT a full UUID — it's only
+  the first 8 hex chars of a UUIDv4 (32 bits of randomness) plus a
+  **process-lifetime counter that resets to 0 on every server
+  restart**:
+  ```go
+  func NewUUID() string {
+      count++
+      return fmt.Sprintf("%s%d", uuid.NewString()[:8], count)
+  }
+  ```
+  This gives a real, if currently low, SID collision risk — especially
+  across server restarts (since `count` resets) or multiple concurrent
+  server instances writing to the same DB. Today, `RegistrySID` being
+  included everywhere acts as a silent safety net: even if two
+  different Registries somehow produced the same `eSID`, every query
+  is still scoped by `RegistrySID` too, so it would never surface as a
+  bug. **Before removing `RegistrySID`/`RegSID` from keys/queries,
+  should first harden `NewUUID()` to true global-collision-resistance**
+  (e.g. don't truncate the UUID, or otherwise increase entropy/add a
+  DB-backed sequence) — otherwise a collision would mean real
+  cross-registry data corruption instead of a harmless duplicate ID.
+  **Suggested approach when picked up**: (1) harden `NewUUID()` first,
+  (2) then evaluate/implement the smaller-key change per table, (3)
+  benchmark before/after on a representative dataset size to confirm
+  the change actually helps before committing to it (this is a fairly
+  invasive, many-table/many-query change, so worth confirming the win
+  is real first).
+
+  **Done (2026-07-23).** Implemented in two parts:
+  1. **Hardened `NewUUID()`** (`common/utils.go`): replaced the
+     8-hex-chars + process-lifetime-counter scheme with 16 hex chars
+     (64 bits of randomness) stripped from a fresh UUIDv4, no counter.
+     Rejected a full 36-char UUID (per user feedback) because synthetic
+     xref `eSID`s are `"-"+ResourceSID+"-"+VersionSID` (two SIDs
+     concatenated) and `eSID` columns are `VARCHAR(64)` - two 36-char
+     SIDs plus dashes would overflow that. 16 hex chars keeps a
+     synthetic xref `eSID` at 34 chars (comfortable headroom under 64)
+     while giving far better collision resistance than the old scheme
+     and, crucially, no more cross-restart collision risk from the
+     counter resetting to 0.
+  2. **Narrowed/dropped redundant indexes** in `registry/init.sql`
+     (schema-only change, no Go code changes needed - existing queries
+     are unaffected since indexes are transparent to query semantics):
+     - `Resources`/`Metas`/`Versions`: dropped `UNIQUE INDEX
+       (RegistrySID,SID)` entirely (100% redundant - `SID` is already
+       the `PRIMARY KEY`).
+     - `Metas`: `INDEX(RegistrySID,ResourceSID)`→`INDEX(ResourceSID)`;
+       `INDEX(RegistrySID,xRefSID)`→`INDEX(xRefSID)` (`ResourceSID`/
+       `xRefSID` are themselves globally-unique SIDs). Kept
+       `INDEX(RegistrySID,Path)` and standalone `INDEX(RegistrySID)`
+       unchanged (`Path` isn't globally unique; the standalone index is
+       needed for full per-registry scans).
+     - `Versions`: `INDEX(RegistrySID,ResourceSID,AncestorID)`→
+       `INDEX(ResourceSID,AncestorID)`; also dropped the now-fully-
+       redundant standalone `INDEX(ResourceSID)` (subsumed by the
+       existing `UNIQUE INDEX(ResourceSID,UID)`'s leftmost prefix).
+     - `FullTreeTable`: `UNIQUE INDEX(RegSID,eSID,PropName)`→`UNIQUE
+       INDEX(eSID,PropName)`; `INDEX(RegSID,ParentSID)`→
+       `INDEX(ParentSID)`; dropped the now-redundant standalone
+       `INDEX(eSID)`. **Kept** `PRIMARY KEY(RegSID,Path,PropName)`
+       unchanged - `Path` isn't globally unique (only per-Registry),
+       and this PK's physical clustering backs the `Path LIKE
+       '...%'` prefix-match queries used throughout
+       `registry.go`/`httpStuff.go`/`group.go`.
+     - `FullEntities`: `PRIMARY KEY(RegSID,eSID)`→`PRIMARY KEY(eSID)`
+       (the one real PK simplification - shrinks every secondary index
+       on the table per the InnoDB clustering note above); added an
+       explicit `INDEX(RegSID)` to keep `RegistryTrigger`'s bulk
+       `DELETE FROM FullEntities WHERE RegSID=...` fast now that
+       `RegSID` is no longer the PK's leading column; dropped `UNIQUE
+       INDEX(RegSID,ParentSID,eSID)` (redundant with the new PK) in
+       favor of a plain `INDEX(ParentSID)`. Kept `UNIQUE
+       INDEX(RegSID,Path)` unchanged (`Path` not globally unique).
+     - **Not touched**: `Groups`' `Plural`/`Abstract`/`Singular` unique
+       indexes and any `Path`-based indexes - these enforce genuine
+       per-registry uniqueness, not redundant with `SID`.
+  `make xrserver`/`make cmds`/`make qtest` all green (~77s) after the
+  full change.
+
+- [ ] **Xref fan-out: replace the per-source Go loop with a single
+  set-based SQL statement.** `fullSaveXrefFanOutForTargetMeta` and
+  `fullSaveXrefFanOutForTargetVersion` (registry/fulltree.go ~792-851)
+  both do `SELECT ResourceSID FROM Metas WHERE xRefSID=?` and then loop
+  in Go over every source Resource that xrefs the target, calling
+  `Registry.FindResourceBySID()`/`FindMeta()` (cache-checked, so cheap
+  if already loaded) plus `sourceMeta.fullSaveXrefCascade()` /
+  `fullSaveXrefVersionCopies()` + `fullSaveDefaultVerCascade()` once per
+  source — i.e. N+1 round-trips/cascades when a popular xref target
+  changes and has many sources. The idea floated (not yet attempted) is
+  whether these could instead be done as one big set-based SQL
+  statement (e.g. a single `INSERT ... SELECT` joining `Metas` (on
+  `xRefSID`) against `FullTreeTable`/`Versions` directly, the same
+  style already used by `fullSaveXrefVersionCopies()`/
+  `fullSaveXrefCascadeInsert()` for the single-source case) instead of
+  looping per source in Go. Worth prototyping and comparing against the
+  current loop, especially for registries where one Resource is xref'd
+  by many others.
+
+- [x] **`ParentSID` added to `Entity`; `GetParent()` eliminated
+  (2026-07-22).** Per user request, `Entity` (`common/shared_entity`)
+  now has a `ParentSID string` field, populated at every in-memory
+  construction site (Registry root gets `""`; Group/Resource/Meta/
+  Version each get their parent's `DbSID`) and by both DB-loading paths
+  (`RawEntityFromPath`/`RawEntitiesFromQuery` in `registry/entity.go`,
+  reading a new `e.ParentSID as ParentSID` column, ordered to match
+  `FullEntities`' real column order: RegSID,Type,Plural,Singular,
+  ParentSID,eSID,UID,Abstract,Path). `FullEntityInsert()` became a
+  zero-arg `(e *Entity)` method reading fields directly off `e`. All 8
+  `GetParent()` call sites in `registry/fulltree.go` were replaced with
+  direct `e.ParentSID`/`r.ParentSID` reads (or, for
+  `fullSaveXrefCascadeInsert`, `e.Self.(*Meta).Resource` directly, since
+  `e` there is always the real Meta). `GetParent()` itself was then
+  confirmed dead code repo-wide and removed from `common/shared_entity`
+  (regenerated via `make .sharedfiles`).
+  Follow-up simplification (also user-requested): in the handful of
+  `fulltree.go` funcs that only ever run for entity types guaranteed to
+  have a parent (Version/Resource/Meta — `fullSaveVersionCalc`,
+  `fullSaveResourceIsDefault`, `fullSaveXrefCascadeDelete`,
+  `fullSaveXrefCascadeInsert`), the `var parentArg any` nil-guard
+  pattern was dropped in favor of passing `e.ParentSID` directly as the
+  SQL arg. **This nil-guard must stay** in the 3 funcs that also run for
+  the parentless Registry root (`FullEntityInsert`, `fullTreeWriteProp`,
+  `fullSaveOwnPropsInsert`) — passing `""` instead of a real `nil` there
+  would insert an empty string into a nullable `ParentSID` column
+  instead of `NULL`.
+  **Also fixed as a byproduct**: two other pre-existing raw-SQL query
+  sites that feed the shared `readNextEntity()` row parser —
+  `GenerateQuery` (`registry/registry.go`, the main per-request
+  serialization query) and `HTTPGETContent` (`registry/httpStuff.go`,
+  the `?doc`/content-serving query) — were missing the `ParentSID`
+  column entirely (a latent bug, unrelated to this task, that
+  `readNextEntity`'s new column-index expectations exposed as an
+  immediate `TestAncestorBasic` panic: `Can't find Group "1"`, from
+  columns shifting one over). Both were fixed to select
+  `ParentSID` in the same column position as `RawEntityFromPath`/
+  `RawEntitiesFromQuery` so `readNextEntity` parses all four query
+  sources consistently.
+  Verified via `make xrserver`, `make cmds`, and `make qtest` (all
+  packages pass, ~78s for `tests`).
+
+- [x] **`fullSaveDefaultVerCascade`'s stale-default-version bug fixed
+  by the user directly (2026-07-22).** The previously-queued "v1 is
+  only coincidentally correct" issue (cascade was reading
+  `meta.Object["defaultversionid"]`, which happened to already hold the
+  right answer in the one failing test, not because it was actually
+  correct) was root-caused and fixed properly: (1) the earlier
+  suggestion to use `meta.GetAsString("defaultversionid")` was based on
+  misreading a local var named `defVerSID` as `defVerUID`; (2) reading
+  `meta.Object` instead of `meta.NewObject` was wrong in general — it
+  only avoided a crash because `EnsureLatest()` runs later and
+  overwrites/fixes up the default version regardless of what cascade
+  used in the meantime; (3) the real fix: `fullSaveDefaultVerCascade`
+  (registry/fulltree.go ~473) now calls `r.GetDefault(FOR_READ)`, and if
+  that's `nil` and the Resource isn't an xref, calls `r.EnsureLatest()`
+  and re-fetches — so the cascade always sees a real, validated default
+  Version, not a stale/placeholder value; (4) switched from passing a
+  version SID around to using the real `*Version` (`ver`) directly; (5)
+  `registry/resource.go` (~880, in the Meta upsert path) now explicitly
+  clears `defaultversionid` to `""` via `meta.JustSet(...)` whenever
+  `defaultversionsticky` isn't `true`, since that value is going to be
+  ignored/recomputed anyway — clearing it proactively both matches the
+  "always known-good" invariant needed by the cascade fix above, and
+  helps surface latent bugs elsewhere that might otherwise coast on a
+  stale value. This also incidentally fixes the earlier `GetPP()`/
+  `Get()`/`GetAsString()` "NewObject staged but missing key" staging bug
+  for this specific attribute, since `JustSet()` (via `EnsureNewObject()`)
+  guarantees `NewObject` has a real, fully-populated clone of `Object`
+  before the key is set — no more relying on `Object` as a fallback.
+  Verified via `make qtest` (all packages pass).
+
+- [x] **3 remaining live call sites still read from the OLD
+  `Entities`/`FullTree` views, not `FullEntities`/`FullTreeTable`.**
+  User's stated goal (2026-07-22, turn ~850): "if the diff of the sql
+  tables yields zero diffs, go ahead and make the switch to use the new
+  tables exclusively - to the point where we never touch Props,
+  FullTree or Entities at all." **Done.** Migrated `HTTPDeleteGroups`,
+  `HTTPDeleteResources`, and `ProcessShortSelf` (registry/httpStuff.go)
+  from querying the legacy `Entities` view to `FullEntities` (same
+  columns needed - UID/Path/Abstract/eSID/RegSID - all present).
+  Then, per the user's explicit "go ahead and do #6" follow-up
+  instruction, dropped the entire now-dead legacy view/table stack
+  from `registry/init.sql`: the `Entities`, `AllProps`, `DefaultProps`,
+  and `FullTree` views, the `Props` table itself, and its
+  `PropsAncestor`/`PropsXref` triggers - confirmed dead first via
+  `grep` showing nothing in live Go code still does `INSERT INTO
+  Props` (writes to `Props` stopped once `FullSave()`/`FullTreeTable`
+  became the authoritative write path; the removed `PropsAncestor`/
+  `PropsXref` triggers had already been functionally superseded by
+  `FullTreeAncestor`/`FullTreeXref` on `FullTreeTable`, per an existing
+  code comment in init.sql). Removed the now-dead `DELETE FROM Props
+  WHERE ...` lines from `RegistryTrigger`/`GroupTrigger`/
+  `ResourcesTrigger`/`VersionsTrigger`. Redefined the `Leaves` view
+  (still actively used by `GenerateQuery`'s filter logic in
+  registry.go) to query `FullEntities` instead of `Entities` (direct
+  column-compatible swap). Also dropped `VerboseProps` (a
+  debug-only view built on `Props`+`Entities`, confirmed unused by any
+  live Go code). Verified `VersionAncestors`/`VersionCircles` (also
+  still live-used, in versionmodes.go/resource.go) depend only on the
+  real `Versions` table, not on `Entities`/`Props`/`AllProps`, so they
+  needed no changes. `make xrserver`/`make cmds`/`make qtest` all
+  green after the full cleanup (`db.go`'s historical `FullTree`/
+  `Entities` SQL mentions are just doc-comment examples, not live
+  code, so weren't blockers).
+
+- [x] **Re-confirm the Phase 2 SQL re-architecture actually delivered a
+  real performance win (or at least didn't regress).** Partway through
+  Phase 2 (2026-07-22, turn ~855) the user observed `make qtest`'s
+  overall test time was running about **2x slower** than before the
+  `sql.md` migration started, which contradicted the original premise
+  that the old `FullTree`/`Entities`/`Props` views were the bottleneck.
+  **User ran a real-world benchmark (2026-07-23) and reported the
+  results**: loading 10 dirs / 1500 files / 7500 versions — writes:
+  old 12m vs new 21m (regression, confirms the earlier `qtest` slowdown
+  observation was real and write-side); GET on each entity: old 46m vs
+  new 3m (**huge win** — ~15x faster reads). So the new
+  `FullEntities`/`FullTreeTable` architecture delivers a large net win
+  for the read-heavy path it was designed for, at the cost of slower
+  writes that still need optimization. Per the user: "We still have
+  more work to do on the 'writes'. But luckily I'm trying to optimize
+  for reads." Remaining write-side perf work (candidates: the
+  `FullTreeAncestor`/`FullTreeXref` trigger `IF` chains firing on every
+  row inserted into `FullTreeTable` regardless of entity/prop type, the
+  xref fan-out Go-loop item above, index tuning on `FullTreeTable`/
+  `FullEntities`) is still open and tracked in the other items in this
+  list (not a new separate item - the read-side question this item was
+  tracking is now answered).
+
+- [x] **Write certain calculated/static attributes ONCE at entity
+  creation instead of recomputing on every `FullSave()`.** (User
+  request, 2026-07-22.) **DONE (2026-07-23).** `xid` (all entity
+  types), `Resource.isdefault`, and `Version.RESOURCEid` are now
+  written exactly once, at entity-creation time, instead of being
+  deleted+reinserted on every `FullSave()` call.
+  - Design: replaced the single `IsCalculated BOOL` column
+    (`registry/init.sql`) with two booleans — `IsCalcStatic` (xid,
+    Resource.isdefault, Version.RESOURCEid — write-once) and
+    `IsCalcDynamic` (Version.isdefault only — must still be recomputed
+    on every relevant Save(), since the default-version pointer can
+    move). Chosen over (a) a single flag with `PropName<>'xid'`-style
+    SQL exclusion (rejected — inconsistent with the codebase's
+    established "one boolean per reason" convention, e.g.
+    `IsDefaultVerCopy`/`IsXrefPropCopy`/`IsXrefVerCopy`), and (b)
+    making `xid`/`isdefault` fully "normal" attributes with
+    `dontStore` removed (rejected — `Save()` deliberately never diffs,
+    so normal-attribute treatment would recreate exactly the per-Save
+    churn this optimization eliminates).
+  - Implementation (`registry/fulltree.go`): new
+    `fullSaveCalcStaticInsert()` runs once, right after the
+    `FullEntities` insert in `FullEntityInsert()`, writing the static
+    rows. Removed `fullSaveOwnProps()`/`fullSaveOwnPropsDelete()`/
+    `fullSaveOwnPropsInsert()`/`fullSaveResourceIsDefault()` entirely
+    and their unconditional per-`FullSave()` calls.
+    `fullSaveVersionCalc()` keeps its own scoped
+    `IsCalcDynamic=true` delete+reinsert for Version-level `isdefault`
+    only. `FullTreeResyncOwnProps()` simplified to only call
+    `fullSaveVersionCalc()` (the one thing that can still change
+    post-creation).
+  - Bug found & fixed during verification: one synthetic xref-version-
+    copy INSERT (`fullSaveXrefVersionCopies`, the Version-level
+    `isdefault` row copied in for a resource that xrefs another) was
+    missing a value in its column list, and once padded out
+    incorrectly set `IsXrefVerCopy=false` instead of `true` on that
+    row — this left a stale synthetic Version row behind after
+    clearing an xref (`TestXrefBasic` regression: cleared-xref
+    Resource retained both its new real Version and a leftover
+    docView-collapsed synthetic Version, `versionscount` off by one).
+    Root-caused via direct DB inspection (`misc/sql testreg "SELECT
+    ... FROM FullTreeTable WHERE ..."` — h/t @duglin for the `misc/sql
+    <db> "<query>"` helper). Fixed by setting `IsXrefVerCopy=true` on
+    that row, matching its sibling static rows (xid, RESOURCEid) for
+    the same synthetic version.
+  - Verified: full `make qtest` green (all packages) after also
+    running `xrserver --recreatedb` once to bring the local dev
+    `registry` DB schema up to date with the new
+    `IsCalcStatic`/`IsCalcDynamic` columns (confirmed with @duglin
+    before running, since `--recreatedb` wipes that DB).
+
+- [x] **Batch Save()'s per-property FullTreeTable writes into one
+  multi-row INSERT/REPLACE instead of N individual ones.** (User idea,
+  2026-07-23.) **DONE.** Confirmed the premise first: `registry/db.go`'s
+  `doCount()` (backing `Do()`/`DoOne()`/etc.) does a fresh
+  `tx.Prepare()`+`Exec()`+`Close()` for every call — no statement
+  caching — so `Save()`'s traversal loop, which called
+  `SetDBProperty()` once per own attribute, cost one full DB round trip
+  per attribute (Save()'s own-prop DELETE was already a single batched
+  statement; only the reinsert side was unbatched).
+  - Implementation (`registry/entity.go`): extracted the shared
+    validation/conversion logic that used to be inline in
+    `SetDBProperty()` (name-length check, `dontStore`/`noDocView`
+    lookup, the RESOURCE-content special case which writes directly to
+    `ResourceContents` and is unaffected by batching, bool/slice/map/
+    struct → `dbVal` conversion) into a new private helper,
+    `prepDBProperty()`. `SetDBProperty()` now just calls it and writes
+    immediately (unchanged behavior, kept for any future non-Save()
+    caller). New `SetDBPropertyBatch()` calls the same helper but
+    appends the resulting row tuple to a new `e.dbPropBatch` buffer
+    (`common/shared_entity`) instead of writing immediately; the
+    nil/delete case is a no-op there since Save()'s existing blanket
+    per-entity DELETE already removes every own-prop row before
+    traversal starts. New `DoDBPropertyBatch()` builds one
+    `REPLACE INTO FullTreeTable(...) VALUES (...),(...),...` covering
+    all buffered rows (chunked at 200 rows/statement as a
+    `max_allowed_packet` safety net) and runs it in a single `Do()`
+    call. All 6 `SetDBProperty()` call sites inside `Save()`'s
+    `traverse()` closure now call `SetDBPropertyBatch()`, and
+    `Save()` calls `e.DoDBPropertyBatch()` once right after `traverse()`
+    completes, before `FullSave()`'s cascades run.
+  - Verified: full `make qtest` green. Measured real wall-clock win:
+    the `tests` package's full suite (lots of small `Save()` calls)
+    dropped from ~73s to a consistent ~59s (~19% faster) across
+    repeated `-count=1` runs — larger real-world entities with more
+    custom attributes per Save() should see proportionally bigger
+    gains since round trips scale with attribute count.
+  - Follow-on: **DONE (2026-07-23)** - see next item below for the
+    `SaveSystemProps()` batching that closes this out.
+
+- [x] **Batch `SaveSystemProps()`'s per-changed-prop FullTreeTable
+  writes/deletes too** (follow-on to the item above, same session).
+  Extracted the shared batch-writer logic out of
+  `Entity.DoDBPropertyBatch()` into two new `Entity` methods in
+  `registry/fulltree.go`: `fullTreeWritePropsBatch(rows []dbPropRow,
+  isSystem bool)` (multi-row `REPLACE INTO`, chunked at
+  `dbPropBatchChunkSize`, parametrized by `isSystem` so it serves both
+  own-prop and system-prop callers) and `fullTreeDeletePropsBatch(names
+  []string)` (single `DELETE ... WHERE PropName IN (...)`, same
+  chunking). `DoDBPropertyBatch()` now just calls
+  `fullTreeWritePropsBatch(rows, false)`. `SaveSystemProps()`'s loop
+  now splits `changed` into an `insertRows []dbPropRow` slice and a
+  `deleteNames []string` slice instead of calling
+  `fullTreeWriteProp()` once per changed prop, then flushes each via
+  one `fullTreeDeletePropsBatch()`/`fullTreeWritePropsBatch()` call
+  (each possibly chunked, but normally a single round trip apiece)
+  after the loop. Verified: full `make qtest` green, timing unchanged
+  (~59-61s, as expected - `SaveSystemProps()` affects far fewer/smaller
+  writes per Tx than `Save()`'s main traversal, so no large additional
+  win expected here, but it closes the same round-trip-per-prop gap for
+  format/compat-validation flows).
+
+
+- [x] **Fixed manual-versionmode "newest version" bug: deleting a
+  Version's ancestor could make the wrong Version become default.**
+  (User-reported via `tests/tt_test.go` repro, 2026-07-24.) Root cause:
+  `ManualVersionMode.NewestVersionID()` derived "newest" from
+  `GetOrderedVersionIDs()`'s root/middle/leaf `Pos` ordering (from
+  `VersionAncestors` SQL view in `init.sql`), which classifies
+  self-referencing roots first, *before* checking whether anything else
+  still references them as an ancestor. Per spec (`model.md`), "newest"
+  should simply be: among Versions **not referenced as ancestor of any
+  other Version**, pick newest `createdat` (tie-break: highest
+  versionid, case-insensitive) - root-ness is irrelevant to that rule
+  (only relevant to "oldest"). When `WillDelete()` correctly turns an
+  orphaned child into a self-referencing root per spec's "Deleted
+  Ancestor" rule, that Version could be simultaneously root AND
+  unreferenced-by-anything-else, but the Pos-based ordering buried it in
+  the root bucket (sorted to the front) so it was skipped in favor of
+  whatever else was classified as a leaf - explaining both the bug and
+  why it "self-corrected" once no competing leaf existed.
+  - Fix (`registry/versionmodes.go`): `ManualVersionMode.NewestVersionID()`
+    and `CheckAncestors()`'s orphan-anchor lookup now share a new private
+    `newestVersionID(r, excludeTBD)` helper that queries `Versions`
+    directly for "not referenced as ancestor of any other Version",
+    ordered by `CreatedAt DESC, UID COLLATE ... DESC`, bypassing the
+    Pos/root-leaf categorization entirely. This also fixed an unrelated
+    dead-loop indexing bug in the old `CheckAncestors()` code (it always
+    re-read `VIDs[len(VIDs)-1]` regardless of loop index `i`).
+  - Edge case handled: if this stricter query finds *no* candidate (only
+    possible when every Version's ancestorid chain forms a full circle),
+    it falls back to picking an arbitrary candidate from all Versions
+    (same leniency the old Pos-based code had) rather than erroring
+    immediately - verified via `TestAncestorMaxVersions` that an
+    immediate hard error here is wrong: `EnsureLatest()` runs *before*
+    `EnsureMaxVersions()` in `ValidateResource()`, and that test
+    intentionally creates a temporary 2-Version cycle that
+    `EnsureMaxVersions()` legitimately resolves (by evicting the oldest)
+    before the real `EnsureCircularReferences()` check runs later in the
+    same call - so the authoritative circular-reference judgment must
+    stay deferred to that later check, not short-circuited here.
+  - `GetOrderedVersionIDs()` itself is untouched - still correct for
+    "oldest" and `EnsureCompat()`'s ancestor/children-map building (which
+    only uses each Version's own `AncestorID` edge directly, never the
+    positional Pos ordering, so it was unaffected by this bug).
+  - Test coverage (`tests/http3_test.go`'s `TestHTTPIgnore`): added a GET
+    assertion right after the `DELETE .../versions/v3` call confirming
+    `defaultversionid` stays `v4` immediately after the delete (not
+    `v2`), and corrected one later assertion that had baked in the old
+    buggy `v2`-becomes-default behavior. Deleted the temporary
+    `tests/tt_test.go` repro (its coverage is now captured directly in
+    `TestHTTPIgnore`).
+  - Verified: full `make qtest` green.
+
+- [x] **Checked whether `createdat` versionmode has the same "newest
+  version" bug as `manual` mode - it does not.** Per spec (`model.md`
+  872-888), `createdat` mode's "Newest Version" rule is just "the
+  Version with the newest `createdat`" (a flat timestamp-based total
+  order, no "not referenced as ancestor" clause like manual mode has).
+  Structurally, `CreatedatVersionMode.CheckAncestors()` always forces
+  the `ancestorid` chain to mirror strict createdat order (via a `lag()`
+  window-function query), and `WillDelete()` bridges a deleted version's
+  children to its own ancestor (not to a new root) - so the ancestor
+  graph in this mode is always a single linear chain, never branching,
+  meaning there's always exactly one root (oldest) and one leaf
+  (newest) and `GetOrderedVersionIDs()`'s Pos-based ordering always
+  agrees with true createdat order. The precondition for the manual-mode
+  bug (a Version that's simultaneously self-referencing-root AND
+  unreferenced-by-anyone-else) can't arise here. No code change made.
+
+## Converted last 3 synchronous `Resource.ValidateResource()` call
+## sites to deferred `AddResourceToValidate()` (2026-07-24)
+
+- [x] **Converted `Group.UpsertResource()` (group.go:631),
+  `Resource.UpsertMeta()` (`!mu.more` branch), and
+  `Resource.UpsertVersionWithObject()` (`!vu.More` branch) from
+  synchronous `r.ValidateResource(...)` calls to
+  `r.tx.AddResourceToValidate(r, ...)`**, so Resource validation is
+  driven through the same deferred/"near the end of the tx" mechanism
+  as everything else, rather than running eagerly at 3 extra spots.
+  This surfaced a long chain of ripple-effect bugs from other code
+  reading Resource/Meta-derived properties (`defaultversionid`, etc)
+  immediately after an Upsert with no intervening `Validate()`/
+  `Commit()` - each fixed individually:
+  - `Resource.GetDefault()`: added a lazy-resolve via a new exported
+    `Resource.ResolvePendingValidation()` helper (checks
+    `tx.ResourcesToValidate[r.DbSID]`, runs `ValidateResource()` if
+    pending, no-op otherwise) before reading `defaultversionid`.
+  - `db.go`'s `SaveAll()`/`SaveCommitRefresh()`: now drain deferred
+    validation (`tx.Registry.Validate(nil)`) before `WriteCache(true)`.
+  - `Resource.SetSaveMeta()`: calls `ResolvePendingValidation()` before
+    touching Meta directly.
+  - `Resource.UpsertMeta()`: added the same explicit resolve, gated by
+    `if !mu.more` (only for the final/direct call, not mid-processing
+    inside `Group.UpsertResource()`) - an ungated version broke
+    `TestAncestorMaxVersions` by resolving prematurely against
+    incomplete metaObj state.
+  - Tried (then reverted) embedding a resolve inside
+    `Entity.ValidateAndSave()` gated on `e.Self.(*Meta)` - fixed
+    `TestModelUseSpecAttrs` but broke `TestAncestorBasic` again, because
+    `eSetSave()` (entity.go) unconditionally overwrites any bubbled
+    error's `Subject` with its own entity's XID, reintroducing a
+    "wrong error subject" bug for nested/deeper validation errors
+    reached via `eSetSave→SetPP→ValidateAndSave`. Fixed
+    `TestModelUseSpecAttrs` instead by adding an explicit
+    `XNoErr(t, r1.ResolvePendingValidation())` directly in the test
+    (`tests/model2_test.go`), since that test bypasses
+    `UpsertMeta`/`SetSaveMeta` and calls `meta.ValidateAndSave()` raw.
+  - Fixed `TestTypesWildcardBool` by updating `PassDeleteReg()`
+    (`tests/utils_test.go`) to call `reg.Validate(nil)` before its
+    `tx.IsCacheDirty()` check, draining any pending validation left by
+    raw Go-API test calls before the aggressive dirty-check runs.
+  - `httpStuff.go`: moved a `defaultversionid` read (for the Location
+    header on Version creation) to *after* `info.tx.Validate()` runs
+    (`@duglin`'s own edit, done directly, confirmed safe), so it always
+    sees post-validation state.
+
+- [x] **Root-caused and fixed a `TestVersionOrdering` regression this
+  conversion introduced for *standalone* (non-HTTP, direct Go-API)
+  callers.** `tests/utils_test.go`'s `XDoHTTP()` already calls
+  `reg.SaveAllAndCommit()` before every HTTP request it issues - this
+  is what was draining deferred Resource validation accumulated by
+  prior raw Go-API calls (e.g. `d1.AddResource(...)`,
+  `f1.AddVersionWithObject(...)`), but only at whatever DB state
+  existed at that later, unrelated moment - not synchronously when
+  each individual Go-API call was made like before. This changed which
+  version an orphan/TBD version (e.g. a Resource's implicit initial
+  version) got anchored to, since by the time deferred validation
+  finally ran, later-created sibling versions already existed with
+  their original ("now") timestamps.
+  - Tried an intermediate fix first: have `Group.UpsertResource()`,
+    `Resource.UpsertVersionWithObject()` (`!vu.More`), and
+    `Resource.UpsertMeta()` (`!mu.more`) call
+    `r.ResolvePendingValidation()` immediately after marking the
+    Resource for deferred validation, since these are always the
+    final/direct call for that Resource (no "more processing coming"
+    signal). This fixed `TestVersionOrdering` but broke
+    `tests/http1_test.go`'s `TestHTTPDelete` (which an earlier fix this
+    session had rewritten to expect `v10`, not `v2`, as the ancestor
+    that changes) - proving that rewrite was itself just papering over
+    this exact same timing bug (10 Versions built via raw, sequential
+    `f1.AddVersion(...)` Go-API calls with no intervening HTTP request
+    batch-resolve together under deferred validation, differently than
+    one-at-a-time synchronous resolution would).
+  - `@duglin` then rewrote both tests to build their Resources/Versions
+    via an equivalent single HTTP PUT/POST (`XHTTP`) instead of raw
+    Go-API calls, sidestepping the standalone-caller timing dependency
+    entirely - `TestHTTPDelete`'s *original* `v2` expectations held
+    correctly again this way, and a new HTTP-based counterpart of
+    `TestVersionOrdering` (temporarily named `TestMe` in a scratch
+    `tests/aa_test.go`) passed cleanly with **all 3** eager-resolve
+    calls removed (i.e. fully deferred/batched validation, no special
+    casing at all).
+  - This proved the eager-resolve calls were only ever needed to prop
+    up a raw-Go-API-only test artifact, not a real production
+    requirement - the one non-test caller of these entry points
+    (`cmds/xrserver/loader.go`) already has a separately-tracked,
+    pre-existing gap (`modernize-loader-go` todo: calls `reg.Commit()`
+    directly without ever calling `tx.Validate()` first) that isn't
+    made any worse by this. Final fix: **removed all 3 eager
+    `ResolvePendingValidation()` calls** added during the intermediate
+    attempt, keeping Resource validation fully deferred/batched
+    everywhere with no eager-resolve special casing. Replaced
+    `tests/version_test.go`'s `TestVersionOrdering` body with the
+    HTTP-based `TestMe` version (verified byte-for-byte identical
+    post-setup assertions to the original) and deleted the scratch
+    `tests/aa_test.go`.
+  - Verified: full `make qtest` green (`cmds/xr`, `common`, `registry`,
+    `tests` all pass), including `TestVersionOrdering` (now HTTP-based)
+    and `TestHTTPDelete` (HTTP-based, original `v2` expectations).
+
+- [ ] **Follow-up idea from `@duglin` (not yet started, large job):**
+  convert all of `tests/`'s raw Go-API setup calls (`AddGroup`,
+  `AddResource`, `AddVersionWithObject`, etc.) to equivalent HTTP
+  requests (`XHTTP`), so tests exercise the same code path production
+  traffic does and stop being exposed to Go-API-only timing/batching
+  edge cases like the ones found in this session (`TestVersionOrdering`/
+  `TestHTTPDelete` above are the first two converted). Tracked as a
+  durable todo (`tests-use-http-api` in the session todo DB) since it's
+  a large, separate effort.

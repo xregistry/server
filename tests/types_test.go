@@ -544,12 +544,12 @@ func TestTypesBasic(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var entity *registry.Entity
+		// var entity *registry.Entity
 		eField := reflect.ValueOf(test.Entity).Elem().FieldByName("Entity")
 		if !eField.IsValid() {
 			panic("help me")
 		}
-		entity = eField.Addr().Interface().(*registry.Entity)
+		// entity = eField.Addr().Interface().(*registry.Entity)
 		setter := test.Entity
 
 		for _, prop := range test.Props {
@@ -577,11 +577,11 @@ func TestTypesBasic(t *testing.T) {
 				t.FailNow()
 			}
 			if xErr != nil {
-				entity.Refresh(registry.FOR_WRITE)
+				// entity.Refresh(registry.FOR_WRITE)
 			}
 		}
 
-		entity.Refresh(registry.FOR_WRITE) // and then re-get props from DB
+		// entity.Refresh(registry.FOR_WRITE) // and then re-get props from DB
 
 		for _, prop := range test.Props {
 			if prop.ErrMsg != "" {
@@ -593,7 +593,7 @@ func TestTypesBasic(t *testing.T) {
 				expected = prop.Value
 			}
 			if !reflect.DeepEqual(got, expected) {
-				// if got != expected {
+				// if got != expected
 				t.Logf("%s  val: %v", prop.Name, prop.Value)
 				t.Errorf("%T) %s: got %v(%T), expected %v(%T)\n",
 					test.Entity, prop.Name, got, got, prop.Value, prop.Value)

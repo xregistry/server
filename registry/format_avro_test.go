@@ -286,21 +286,21 @@ func TestAvroCompat_PrimitivePromotion(t *testing.T) {
 			old:  `"bytes"`, new: `"string"`,
 		},
 		{
-			name:    "int → string – incompatible",
-			dir:     "backward",
-			old:     `"int"`, new: `"string"`,
+			name: "int → string – incompatible",
+			dir:  "backward",
+			old:  `"int"`, new: `"string"`,
 			wantErr: true,
 		},
 		{
-			name:    "double → int – incompatible (no demotion)",
-			dir:     "backward",
-			old:     `"double"`, new: `"int"`,
+			name: "double → int – incompatible (no demotion)",
+			dir:  "backward",
+			old:  `"double"`, new: `"int"`,
 			wantErr: true,
 		},
 		{
-			name:    "null → string – incompatible",
-			dir:     "backward",
-			old:     `"null"`, new: `"string"`,
+			name: "null → string – incompatible",
+			dir:  "backward",
+			old:  `"null"`, new: `"string"`,
 			wantErr: true,
 		},
 	})
@@ -354,8 +354,8 @@ func TestAvroCompat_RecordFields(t *testing.T) {
 		{
 			// backward: new reader adds field without default → NOT
 			// compat (old writer data lacks it; no fallback)
-			name:    "add field without default – incompatible (backward)",
-			dir:     "backward", old: base, new: withoutDefault,
+			name: "add field without default – incompatible (backward)",
+			dir:  "backward", old: base, new: withoutDefault,
 			wantErr: true,
 		},
 		{
@@ -374,8 +374,8 @@ func TestAvroCompat_RecordFields(t *testing.T) {
 		{
 			// forward: new writer removes "name" which old reader has
 			// but without a default → old reader can't fill gap
-			name:    "remove field without reader default – incompatible (forward)",
-			dir:     "forward", old: base, new: idOnly,
+			name: "remove field without reader default – incompatible (forward)",
+			dir:  "forward", old: base, new: idOnly,
 			wantErr: true,
 		},
 		{
@@ -694,9 +694,9 @@ func TestAvroCompat_Nested(t *testing.T) {
 			old:  outerV1, new: outerAddFieldWithDefault,
 		},
 		{
-			name:    "nested record add field without default – incompatible",
-			dir:     "backward",
-			old:     outerV1, new: outerAddFieldNoDefault,
+			name: "nested record add field without default – incompatible",
+			dir:  "backward",
+			old:  outerV1, new: outerAddFieldNoDefault,
 			wantErr: true,
 		},
 	})
@@ -709,9 +709,9 @@ func TestAvroCompat_ForwardDirection(t *testing.T) {
 		{
 			// forward = checkAvroBackward(new=writer, old=reader)
 			// new writes "long"; old reader expects "int" → NOT compat
-			name:    "type widening – incompatible (forward)",
-			dir:     "forward",
-			old:     `"int"`, new: `"long"`,
+			name: "type widening – incompatible (forward)",
+			dir:  "forward",
+			old:  `"int"`, new: `"long"`,
 			wantErr: true,
 		},
 		{

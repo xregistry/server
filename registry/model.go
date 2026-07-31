@@ -58,6 +58,46 @@ func (m *Model) Save() *XRError {
 		log.Printf("Saving model:\n%s", string(buf))
 	}
 
+	// Diff against whatever is STILL persisted in the DB right now (not
+	// against any in-memory "old" Model/ResourceModel object - a caller
+	// may have already mutated one of those directly, e.g.
+	// rm.SetValidateFormat(false) on reg.Model itself, before calling
+	// Save()/VerifyAndSave(), which would make an in-memory comparison
+	// useless). Reading fresh from the DB here - before we overwrite the
+	// Models row below - guarantees we see the true "before" state no
+	// matter which style of caller (JSON PUT of a separate Model, or
+	// direct Go-API mutation of reg.Model) got us here. This is what lets
+	// EnsureCompat() (registry/resource.go) skip its old per-save
+	// defensive clear of *validated/*validatedreason props when
+	// validation is off: this one-time, model-change-triggered sweep is
+	// the sole owner of clearing stale values on a true->false
+	// transition. false->true needs no clearing - normal per-save
+	// checking just starts happening again.
+	if oldM := loadModelFromDB(m.Registry, false); oldM != nil {
+		for gmPlural, gm := range m.Groups {
+			oldGM := oldM.FindGroupModel(gmPlural)
+			if oldGM == nil {
+				continue
+			}
+			for rmPlural, rm := range gm.Resources {
+				oldRM := oldGM.Resources[rmPlural]
+				if oldRM == nil {
+					continue
+				}
+				if oldRM.GetValidateFormat() && !rm.GetValidateFormat() {
+					m.Registry.clearValidationSystemProps(rm.SID,
+						"formatvalidated", "formatvalidatedreason")
+				}
+				if oldRM.GetValidateCompatibility() &&
+					!rm.GetValidateCompatibility() {
+					m.Registry.clearValidationSystemProps(rm.SID,
+						"compatibilityvalidated",
+						"compatibilityvalidatedreason")
+				}
+			}
+		}
+	}
+
 	// Create a temporary type so that we don't use the MarshalJSON func
 	// in model.go. That one will exclude "model" from the serialization and
 	// we don't want to do that when we're saving it in the DB. We only want
@@ -137,7 +177,7 @@ func (m *Model) Save() *XRError {
 		// If GroupModel is already in DB then skip it
 		if _, ok := existingModelEntities[gmAbs]; !ok {
 			// Add new GroupModel
-			Do(m.Registry.tx,
+			DoOne(m.Registry.tx,
 				`INSERT INTO ModelEntities(
                      SID, RegistrySID, ParentSID,
                      Abstract, Plural, Singular)
@@ -151,7 +191,7 @@ func (m *Model) Save() *XRError {
 			// If ResourceModel is already in DB then skip it
 			if _, ok := existingModelEntities[rmAbs]; !ok {
 				// Add new ResourceModel
-				Do(m.Registry.tx,
+				DoOne(m.Registry.tx,
 					`INSERT INTO ModelEntities(
                              SID, RegistrySID, ParentSID,
                              Abstract, Plural, Singular)
@@ -171,6 +211,22 @@ func LoadModel(reg *Registry) *Model {
 	log.VPrintf(3, ">Enter: LoadModel")
 	defer log.VPrintf(3, "<Exit: LoadModel")
 
+	model := loadModelFromDB(reg, true)
+	if model != nil {
+		reg.Model = model
+	}
+	return model
+}
+
+// loadModelFromDB reads and parses whatever Model is CURRENTLY persisted
+// in the DB for reg, with no side-effects on reg.Model. This is safe to
+// call from the middle of Model.Save() (e.g. to diff the about-to-be-
+// overwritten "old" state against the new in-memory one) since - unlike
+// LoadModel() - it never clobbers reg.Model out from under the caller.
+// If loud is false, a missing row is treated as "nothing persisted yet"
+// (e.g. the very first model save for a brand new Registry) instead of
+// being logged as an error.
+func loadModelFromDB(reg *Registry, loud bool) *Model {
 	PanicIf(reg == nil, "nil")
 
 	// Load Registry model
@@ -181,8 +237,10 @@ func LoadModel(reg *Registry) *Model {
 
 	row := results.NextRow()
 	if row == nil {
-		ShowStack()
-		log.Printf("Can't find registry: %s", reg.UID)
+		if loud {
+			ShowStack()
+			log.Printf("Can't find registry: %s", reg.UID)
+		}
 		return nil
 	}
 
@@ -198,7 +256,6 @@ func LoadModel(reg *Registry) *Model {
 	}
 	model.Registry = reg
 
-	reg.Model = model
 	return model
 }
 
@@ -267,6 +324,48 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	return nil
 }
 
+// clearValidationSystemProps bulk-clears the given system prop(s) (e.g.
+// "formatvalidated"/"formatvalidatedreason" or "compatibilityvalidated"/
+// "compatibilityvalidatedreason") from every Version of every Resource
+// instance of the ResourceModel identified by modelSID, in one indexed
+// sweep. Called by Model.Save() right after a validateformat/
+// validatecompatibility true->false transition is detected, so
+// EnsureCompat() (registry/resource.go) no longer needs to defensively
+// re-clear these on every single save while validation stays off - this
+// one-time, model-change-triggered sweep is the sole owner of clearing
+// stale values.
+func (reg *Registry) clearValidationSystemProps(modelSID string, names ...string) {
+	if len(names) == 0 {
+		return
+	}
+
+	placeholders := make([]string, len(names))
+	args := make([]any, 0, len(names)+4)
+	for i, name := range names {
+		placeholders[i] = "?"
+		args = append(args, name+string(DB_IN))
+	}
+	args = append(args, reg.DbSID, modelSID, reg.DbSID, modelSID)
+
+	// Clear both the Version's own row AND the Resource-level
+	// IsDefaultVerCopy mirror of it (same mirroring mechanism as
+	// isdefault/createdat/modifiedat - the Resource-level copy is
+	// what HTTP GET on the Resource actually serves).
+	Do(reg.tx, `
+        DELETE FROM Props
+        WHERE PropName IN (`+strings.Join(placeholders, ",")+`)
+              AND (
+                eSID IN (
+                    SELECT SID FROM Versions WHERE ResourceSID IN (
+                        SELECT SID FROM Resources
+                        WHERE RegistrySID=? AND ModelSID=?))
+                OR
+                eSID IN (
+                    SELECT SID FROM Resources
+                    WHERE RegistrySID=? AND ModelSID=?)
+              )`, args...)
+}
+
 func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {
 	modelSource := string(buf)
 	modelSource = strings.TrimSpace(modelSource)
@@ -304,7 +403,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 	gAbs := NewPPP(rm.GroupModel.Plural).Abstract()
 	rAbs := NewPPP(rm.GroupModel.Plural).P(rm.Plural).Abstract()
 	entities, xErr := RawEntitiesFromQuery(reg.tx, reg.DbSID, FOR_WRITE,
-		`Abstract=? OR Abstract=?`, gAbs, rAbs)
+		`e.Abstract=? OR e.Abstract=?`, gAbs, rAbs)
 	if xErr != nil {
 		return xErr
 	}
@@ -334,6 +433,7 @@ func (rm *ResourceModel) VerifyData() *XRError {
 			if xErr = resource.EnsureCompat(true); xErr != nil {
 				return xErr
 			}
+			resource.tx.FlushSystemProps()
 
 			resource.tx.AddResource(resource)
 		}
