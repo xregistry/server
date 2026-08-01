@@ -16,6 +16,7 @@
 # cfe72b3bb9a2 11m38s  2m46s  43s     partial move of test to use http
 # f6df0bef5d8f 11m14s  2m54s  43s     fix hasDoc model updates
 # f819d7594a64 2m20s   2m50s  44s     phase 3 of tx fixes
+# c4be9c4f3fdc 11m21s  2m51s  43s     ValidateRes cleanup/group constraints
 
 set -e
  
@@ -28,6 +29,7 @@ pkill xrserver || echo -n
 (XR_LOAD_LARGE=1 ./xrserver --recreatedb --samples -v 2>&1 ) | tee server.out &
 trap "pkill xrserver ; rm -f server.out" EXIT
 
+sleep 5 # just to avoid an error on grep because server.out isn't there yet
 while ! grep "$SEARCH" server.out > /dev/null ; do 
   sleep 10
 done

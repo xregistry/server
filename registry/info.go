@@ -417,6 +417,8 @@ func ParseRequest(tx *Tx, w http.ResponseWriter, r *http.Request) (*RequestInfo,
 }
 
 func (info *RequestInfo) ParseFilters() *XRError {
+	seenExcludeAll := false
+
 	for _, filterQ := range info.GetFlagValues("filter") {
 		// ?filter=path.to.attribute[=value],* & filter=...
 
@@ -427,6 +429,23 @@ func (info *RequestInfo) ParseFilters() *XRError {
 			expr = strings.TrimSpace(expr)
 			if expr == "" {
 				continue
+			}
+
+			if expr == "excludeall" {
+				if len(info.Filters) > 0 || len(AndFilters) > 0 {
+					return NewXRError("bad_filter",
+						info.OriginalRequest.URL.RequestURI(),
+						"value=excludeall",
+						"error_detail=\"excludeall\" must not appear with "+
+							"any other filter expressions")
+				}
+				seenExcludeAll = true
+			} else if seenExcludeAll {
+				return NewXRError("bad_filter",
+					info.OriginalRequest.URL.RequestURI(),
+					"value="+expr,
+					"error_detail=\"excludeall\" must not appear with "+
+						"any other filter expressions")
 			}
 
 			filterOp := FILTER_PRESENT

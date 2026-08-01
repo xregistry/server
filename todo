@@ -115,7 +115,7 @@ TODOs:
 ** I think getorderedversions is wrong when there are multiple trees
 ** support smart sub-filter generation
    https://grok.com/share/bGVnYWN5LWNvcHk_54be15f5-d342-464b-836c-90f3cd7ef39a
-** add support for excludeall and add it to filter results
+** add support for smart sub-set filters in COLLECTIONurls
 - clean-up design of model save/apply
 - make sure we support ?ignore  w/o value (or "*") to mean all possible
 ** support "instance/tx" in errors

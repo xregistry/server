@@ -2203,7 +2203,7 @@ func TestHTTPSort(t *testing.T) {
       "foo": "zzz"
     },
 
-    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filesurl": "http://localhost:8181/dirs/d2/files?filter=excludeall",
     "filescount": 0
   },
   "d3": {
@@ -2215,7 +2215,7 @@ func TestHTTPSort(t *testing.T) {
     "createdat": "2026-07-08T19:29:40.277009584Z",
     "modifiedat": "2026-07-08T19:29:40.277009584Z",
 
-    "filesurl": "http://localhost:8181/dirs/d3/files",
+    "filesurl": "http://localhost:8181/dirs/d3/files?filter=excludeall",
     "filescount": 0
   }
 }

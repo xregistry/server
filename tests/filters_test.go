@@ -1665,7 +1665,7 @@ func TestFiltersURLs(t *testing.T) {
 
       "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
       "datascount": 1,
-      "filesurl": "http://localhost:8181/dirs/d2/files",
+      "filesurl": "http://localhost:8181/dirs/d2/files?filter=excludeall",
       "filescount": 0
     }
   },
@@ -1686,7 +1686,7 @@ func TestFiltersURLs(t *testing.T) {
 
     "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
     "datascount": 1,
-    "filesurl": "http://localhost:8181/dirs/d2/files",
+    "filesurl": "http://localhost:8181/dirs/d2/files?filter=excludeall",
     "filescount": 0
   }
 }
@@ -1704,7 +1704,7 @@ func TestFiltersURLs(t *testing.T) {
 
   "datasurl": "http://localhost:8181/dirs/d2/datas?filter=dataid=d2",
   "datascount": 1,
-  "filesurl": "http://localhost:8181/dirs/d2/files",
+  "filesurl": "http://localhost:8181/dirs/d2/files?filter=excludeall",
   "filescount": 0
 }
 `)
@@ -1846,7 +1846,7 @@ func TestFiltersURLs(t *testing.T) {
       "createdat": "2026-05-24T16:17:02.032361913Z",
       "modifiedat": "2026-05-24T16:17:02.032361913Z",
 
-      "datasurl": "http://localhost:8181/dirs/d1/datas",
+      "datasurl": "http://localhost:8181/dirs/d1/datas?filter=excludeall",
       "datascount": 0,
       "filesurl": "http://localhost:8181/dirs/d1/files?filter=fileid=f1",
       "filescount": 1
@@ -1859,7 +1859,7 @@ func TestFiltersURLs(t *testing.T) {
       "createdat": "2026-05-24T16:17:02.032361913Z",
       "modifiedat": "2026-05-24T16:17:02.032361913Z",
 
-      "datasurl": "http://localhost:8181/dirs/d2/datas",
+      "datasurl": "http://localhost:8181/dirs/d2/datas?filter=excludeall",
       "datascount": 0,
       "filesurl": "http://localhost:8181/dirs/d2/files?filter=fileid=f1",
       "filescount": 1
@@ -2219,4 +2219,87 @@ func TestFiltersWildcardsInName(t *testing.T) {
 
 	XHTTP(t, reg, "GET", "/?filter=foo", "", 404, `*`)
 	XHTTP(t, reg, "GET", "/?filter=foo=null", "", 200, `*`)
+}
+
+func TestFiltersExcludeAll(t *testing.T) {
+	reg := NewRegistry("TestFiltersExcludeAll")
+	defer PassDeleteReg(t, reg)
+
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    }
+  }
+}`
+
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
+	XHTTP(t, reg, "GET", "/?filter=excludeall", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "For \"/?filter=excludeall\", an error was found in \"filter\" value (excludeall): \"excludeall\" must only be used on collections.",
+  "subject": "/?filter=excludeall",
+  "args": {
+    "error_detail": "\"excludeall\" must only be used on collections",
+    "value": "excludeall"
+  },
+  "source": "c3e948919fa8:registry:registry:1013"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?filter=epoch,excludeall", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "For \"/dirs?filter=epoch,excludeall\", an error was found in \"filter\" value (excludeall): \"excludeall\" must not appear with any other filter expressions.",
+  "subject": "/dirs?filter=epoch,excludeall",
+  "args": {
+    "error_detail": "\"excludeall\" must not appear with any other filter expressions",
+    "value": "excludeall"
+  },
+  "source": "c3e948919fa8:registry:info:436"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?filter=excludeall,epoch", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "For \"/dirs?filter=excludeall,epoch\", an error was found in \"filter\" value (epoch): \"excludeall\" must not appear with any other filter expressions.",
+  "subject": "/dirs?filter=excludeall,epoch",
+  "args": {
+    "error_detail": "\"excludeall\" must not appear with any other filter expressions",
+    "value": "epoch"
+  },
+  "source": "c3e948919fa8:registry:info:444"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?filter=excludeall&filter=epoch", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "For \"/dirs?filter=excludeall&filter=epoch\", an error was found in \"filter\" value (epoch): \"excludeall\" must not appear with any other filter expressions.",
+  "subject": "/dirs?filter=excludeall&filter=epoch",
+  "args": {
+    "error_detail": "\"excludeall\" must not appear with any other filter expressions",
+    "value": "epoch"
+  },
+  "source": "c3e948919fa8:registry:info:444"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?filter=epoch&filter=excludeall", "", 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#bad_filter",
+  "title": "For \"/dirs?filter=epoch&filter=excludeall\", an error was found in \"filter\" value (excludeall): \"excludeall\" must not appear with any other filter expressions.",
+  "subject": "/dirs?filter=epoch&filter=excludeall",
+  "args": {
+    "error_detail": "\"excludeall\" must not appear with any other filter expressions",
+    "value": "excludeall"
+  },
+  "source": "c3e948919fa8:registry:info:436"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/dirs?filter=excludeall", "", 200, `{}
+`)
 }
