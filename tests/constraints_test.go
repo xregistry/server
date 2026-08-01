@@ -1882,14 +1882,15 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
       }}}}}},
       "dirs": { "d1": { "files": { "f1": {"name":"c"}}}} }`, 400,
 		`{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"name\" for \"/dirs/d1/files/f1/versions/1\" is not valid: value (c) must be one of the enum values: a, b.",
-  "subject": "/dirs/d1/files/f1/versions/1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d1/files/f1",
   "args": {
-    "error_detail": "value (c) must be one of the enum values: a, b",
-    "name": "name"
+    "kind": "enum",
+    "path": "name"
   },
-  "source": "3ba414aa22c1:registry:entity:2945"
+  "source": ":registry:group:969"
 }
 `)
 
@@ -2039,9 +2040,20 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
 		`{"dirs":{"d1":{"name":"n","files":{"f1":{}}}} }`, 200,
 		`^(?s)^.*"name": "n",\n *"createdat.*"name": "n",\n *"isdefault"`)
 
-	// Update f1, bad name
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name": "y"}`, 400,
-		`^(?s)^.*invalid_attribute.*value \(y\).* n, z`)
+	// Update f1, bad name (fails BOTH "equals" and "enum" - "equals"
+	// is checked first by Group.Validate())
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name": "y"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": ":registry:group:895"
+}
+`)
 
 	// Update f1, good alt name, but fails "equals" constraint
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name": "z"}`, 400,
@@ -2084,8 +2096,18 @@ func TestConstraintsGroupTypeRuntime(t *testing.T) {
       },
 	  "resources": {"files": {"singular":"file", "hasdocument":false,
         "attributes": {
-      }}}}}}`, 400,
-		`^(?s)^.*invalid_attribute.*\\"name\\".*value \(y\).*a, b`)
+      }}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": ":registry:group:969"
+}
+`)
 }
 
 func TestConstraintsGroupErrors(t *testing.T) {
@@ -2427,8 +2449,18 @@ func TestConstraintsGroupRuntime(t *testing.T) {
       }}}}}},
       "dirs":{"d1":{
         "constraints":{"files.name":{"enum":["n","z"]}},
-        "files":{"f1":{"name":"c"}}}} }`, 400,
-		`^(?s)^.*invalid_attribute.*value \(c\).* n, z".*"name": "name"`)
+        "files":{"f1":{"name":"c"}}}} }`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: n, z.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// g.enum present, f1 present (in enum)
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": {
@@ -2451,8 +2483,18 @@ func TestConstraintsGroupRuntime(t *testing.T) {
         "files":{"f2":{"name":null}}}} }`, 200,
 		`^(?s)^.*"epoch": 1,\n *"isdefault`) // no "name"
 
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"name":"y"}`, 400,
-		`^(?s)^.*invalid_attribute.*value \(y\) must.* n, z.*"name": "name"`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"name":"y"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f2\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: n, z.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"name":"n"}`, 200,
 		`^(?s)^.*"name": "n"`)
@@ -2508,9 +2550,20 @@ func TestConstraintsGroupRuntime(t *testing.T) {
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 200,
 		`^(?s)^.*"name": "n"`)
 
-	// Update file - bad attr
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name":"y"}`, 400,
-		`^(?s)^.*invalid_attribute.*value \(y\).* n, z`)
+	// Update file - bad attr (fails BOTH "equals" and "enum" - "equals"
+	// is checked first by Group.Validate())
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{"name":"y"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": ":registry:group:895"
+}
+`)
 
 	// Update group - missing attr
 	XHTTP(t, reg, "PATCH", "/dirs/d1", `{"name":null}`, 200,
@@ -2613,8 +2666,18 @@ func TestConstraintsLayering(t *testing.T) {
 	  "dirs":{"d1":{
 	    "name": "c",
 	    "constraints":{"files.name":{"equals":"name"}},
-	    "files":{"f1":{"name":"c"}}}}}`, 400,
-		`^(?s)^.*invalid_attribute`)
+	    "files":{"f1":{"name":"c"}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// --- Case 4: gm.{equals:"name"} + g.{default:"n"} ---
 	// Success: g.default matches group.name so equals constraint is satisfied
@@ -2679,8 +2742,18 @@ func TestConstraintsLayering(t *testing.T) {
 	  "dirs":{"d1":{
 	    "name": "c",
 	    "constraints":{"files.name":{"enum":["a","b"]}},
-	    "files":{"f1":{"name":"c"}}}}}`, 400,
-		`^(?s)^.*invalid_attribute`)
+	    "files":{"f1":{"name":"c"}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// --- Case 6: gm.{default:"a",enum:["a","b"]} + g.{equals:"name"} ---
 	// Success: resource gets gm.default, in gm.enum, equals group.name
@@ -2902,14 +2975,34 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	// Constraints don't bleed: file with "doc-other" is rejected
 	// (not in files enum)
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details",
-		`{"mystr":"doc-other"}`, 400,
-		`^(?s)^.*invalid_attribute`)
+		`{"mystr":"doc-other"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f2\" not being compliant with its owning Group's \"enum\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1. Must be one of: file-default, file-other.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "kind": "enum",
+    "path": "mystr"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// Constraints don't bleed: doc with "file-other" is rejected
 	// (not in docs enum)
 	XHTTP(t, reg, "PUT", "/dirs/d1/docs/d2$details",
-		`{"mystr":"file-other"}`, 400,
-		`^(?s)^.*invalid_attribute`)
+		`{"mystr":"file-other"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/docs/d2\" not being compliant with its owning Group's \"enum\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1. Must be one of: doc-default, doc-other.",
+  "subject": "/dirs/d1/docs/d2",
+  "args": {
+    "kind": "enum",
+    "path": "mystr"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// Valid values within each type's enum work fine
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f3$details",
@@ -2939,8 +3032,18 @@ func TestConstraintsMultipleResourceTypes(t *testing.T) {
 	    "constraints":{
 	      "files.mystr":{"enum":["file-default"]}
 	    },
-	    "files":{"f2":{"mystr":"file-other"}}}}}`, 400,
-		`^(?s)^.*invalid_attribute`)
+	    "files":{"f2":{"mystr":"file-other"}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d3/files/f2\" not being compliant with its owning Group's \"enum\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1. Must be one of: file-default.",
+  "subject": "/dirs/d3/files/f2",
+  "args": {
+    "kind": "enum",
+    "path": "mystr"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	reg.Model.SetChanged(false)
 }
@@ -3033,8 +3136,18 @@ func TestConstraintsDeepNestedPath(t *testing.T) {
 
 	// Error: a.b.c value not in enum
 	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource": `+modelSrc+`,
-	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"z"}}}}}}}`, 400,
-		`^(?s)^.*invalid_attribute`)
+	  "dirs":{"d1":{"files":{"f1":{"a":{"b":{"c":"z"}}}}}}}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"enum\" constraint for attribute \"a.b.c\".",
+  "detail": "Versions: 1. Must be one of: x, y.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "enum",
+    "path": "a.b.c"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// Model error: path stops at non-object
 	modelSrcBadPath := `{
@@ -3088,8 +3201,18 @@ func TestConstraintsGroupInstanceNewKey(t *testing.T) {
 		`^(?s)^.*"myint": 5.*"mystr": "a"`)
 
 	// Both constraints apply: gm.enum for mystr
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"mystr":"c"}`, 400,
-		`^(?s)^.*invalid_attribute`)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"mystr":"c"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f2\" not being compliant with its owning Group's \"enum\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d1/files/f2",
+  "args": {
+    "kind": "enum",
+    "path": "mystr"
+  },
+  "source": ":registry:group:969"
+}
+`)
 
 	// Both constraints apply: g.default for myint even with explicit mystr
 	XHTTP(t, reg, "PUT", "/dirs/d1/files/f2$details", `{"mystr":"b"}`, 201,
@@ -3510,14 +3633,15 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
 	// resource in d2 with myattr="c" (not in the enum) fails.
 	XHTTP(t, reg, "PUT", "/dirs/d2/files/real$details",
 		`{"myattr":"c"}`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#invalid_attribute",
-  "title": "The attribute \"myattr\" for \"/dirs/d2/files/real/versions/1\" is not valid: value (c) must be one of the enum values: a, b.",
-  "subject": "/dirs/d2/files/real/versions/1",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d2/files/real\" not being compliant with its owning Group's \"enum\" constraint for attribute \"myattr\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d2/files/real",
   "args": {
-    "error_detail": "value (c) must be one of the enum values: a, b",
-    "name": "myattr"
+    "kind": "enum",
+    "path": "myattr"
   },
-  "source": ":registry:entity:3203"
+  "source": ":registry:group:969"
 }
 `)
 
@@ -3599,11 +3723,13 @@ func TestConstraintsEnumEnforcedOnXref(t *testing.T) {
 // direction/timing from the two tests above: a xref is created first
 // while fully compliant with its own group's "equals"/"enum" constraints,
 // then the TARGET is later updated to a value that would violate those
-// constraints (via its mirrored value). Since the constraint truly
-// belongs to the xref SOURCE's group (not the target's), the target's
-// own update must succeed (it isn't itself constrained) - but the
-// resulting xref mirror update, if/when re-validated, is what would need
-// to be caught. This documents current behavior for that scenario.
+// constraints (via its mirrored value). The constraint truly belongs to
+// the xref SOURCE's group (not the target's), so the target's own group
+// (d1) never rejects the value itself - but SaveXrefFanOutForTarget()
+// marks the source's Group (d2) for constraint re-validation as part of
+// the same Tx, so the overall request is rejected (and fully rolled
+// back - neither t1 nor its xref mirror fx are changed) once d2's
+// GroupsToValidate drain catches the now-non-compliant mirrored value.
 func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
 	reg := NewRegistry("TestConstraintsViolationOnTargetUpdateAfterXref")
 	defer PassDeleteReg(t, reg)
@@ -3695,24 +3821,38 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
 `)
 
 	// Now update t1 (in the UNCONSTRAINED d1) to a value that would
-	// violate d2's enum. t1's own save succeeds (d1 has no constraint
-	// on myattr), and its cascade updates fx's mirrored value too -
-	// current behavior does NOT re-run d2's Group.Validate() as part of
-	// t1's save (only d1's own group is re-validated on a group-level
-	// save), so this succeeds even though fx now mirrors a
-	// constraint-violating value for d2.
+	// violate d2's enum via its xref mirror. t1's own group (d1) has no
+	// constraint on myattr, but SaveXrefFanOutForTarget() marks d2 (fx's
+	// hosting group) for constraint re-validation as part of this same
+	// Tx, so the whole request is rejected - and fully rolled back, see
+	// the two GETs below - once d2's GroupsToValidate drain catches the
+	// now-non-compliant mirrored value.
 	XHTTP(t, reg, "PATCH", "/dirs/d1/files/t1$details",
-		`{"myattr":"c"}`, 200, `{
+		`{"myattr":"c"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d2/files/fx\" not being compliant with its owning Group's \"enum\" constraint for attribute \"myattr\".",
+  "detail": "Versions: 1. Must be one of: a, b.",
+  "subject": "/dirs/d2/files/fx",
+  "args": {
+    "kind": "enum",
+    "path": "myattr"
+  },
+  "source": ":registry:group:969"
+}
+`)
+	// t1 itself must be unchanged - the whole Tx rolled back.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/t1$details", ``, 200,
+		`{
   "fileid": "t1",
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d1/files/t1",
   "xid": "/dirs/d1/files/t1",
-  "epoch": 2,
+  "epoch": 1,
   "isdefault": true,
   "createdat": "2026-07-27T00:25:25.573062855Z",
-  "modifiedat": "2026-07-27T00:25:25.693362417Z",
+  "modifiedat": "2026-07-27T00:25:25.573062855Z",
   "ancestorid": "1",
-  "myattr": "c",
+  "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d1/files/t1/meta",
   "versionsurl": "http://localhost:8181/dirs/d1/files/t1/versions",
@@ -3725,12 +3865,12 @@ func TestConstraintsViolationOnTargetUpdateAfterXref(t *testing.T) {
   "versionid": "1",
   "self": "http://localhost:8181/dirs/d2/files/fx",
   "xid": "/dirs/d2/files/fx",
-  "epoch": 2,
+  "epoch": 1,
   "isdefault": true,
   "createdat": "2026-07-27T00:25:27.731699639Z",
-  "modifiedat": "2026-07-27T00:25:27.857600485Z",
+  "modifiedat": "2026-07-27T00:25:27.731699639Z",
   "ancestorid": "1",
-  "myattr": "c",
+  "myattr": "a",
 
   "metaurl": "http://localhost:8181/dirs/d2/files/fx/meta",
   "versionsurl": "http://localhost:8181/dirs/d2/files/fx/versions",
@@ -4160,4 +4300,306 @@ func TestConstraintsMultipleConstraintSourcesXrefCascade(t *testing.T) {
   "versionscount": 1
 }
 `)
+}
+
+func TestConstraintsWithXrefs(t *testing.T) {
+	reg := NewRegistry("TestConstraintsWithXrefs")
+	defer PassDeleteReg(t, reg)
+
+	// good: import with xref + group constraints
+	model := `{
+  "modelsource": {
+    "groups": {
+      "dirs": { "singular": "dir",
+        "constraints": {
+          "files.name": { "equals": "name", "enum": [ "joe", "mary" ] }
+        },
+        "resources": {
+          "files": { "singular": "file" }
+        }
+      },
+      "datas": { "singular": "data",
+        "ximportresources": [ "/dirs/files" ],
+        "constraints": {
+          "files.name": { "equals": "name", "enum": [ "joe" ] }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "name": "joe",
+      "files": { "f1": { "name": "joe" } }
+    }
+  },
+  "datas": {
+    "da1": {
+      "name": "joe",
+      "files": { "fx": { "meta": { "xref": "/dirs/d1/files/f1" } } }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/", model, 200, `{
+  "specversion": "1.0-rc3",
+  "registryid": "TestConstraintsWithXrefs",
+  "self": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 2,
+  "createdat": "2026-08-01T17:02:32.860014368Z",
+  "modifiedat": "2026-08-01T17:02:32.871987984Z",
+
+  "datasurl": "http://localhost:8181/datas",
+  "datascount": 1,
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
+	// bad: import with xref + group constraints / enum bad
+	model = `{
+  "modelsource": {
+    "groups": {
+      "dirs": { "singular": "dir",
+        "constraints": {
+          "files.name": { "equals": "name", "enum": [ "joe", "mary" ] }
+        },
+        "resources": {
+          "files": { "singular": "file" }
+        }
+      },
+      "datas": { "singular": "data",
+        "ximportresources": [ "/dirs/files" ],
+        "constraints": {
+          "files.name": { "equals": "name", "enum": [ "joe" ] }
+        }
+      }
+    }
+  },
+  "dirs": {
+    "d1": {
+      "name": "joe",
+      "files": { "f1": { "name": "joe" } }
+    }
+  },
+  "datas": {
+    "da1": {
+      "name": "mary",
+      "files": { "fx": { "meta": { "xref": "/dirs/d1/files/f1" } } }
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/", model, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/datas/da1/files/fx\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/datas/da1/files/fx",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": "d201b31810dc:registry:group:895"
+}
+`)
+
+	// Now just the model part
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "constraints": {
+        "files.name": {
+          "equals": "name",
+          "enum": [
+            "joe",
+            "mary"
+          ]
+        }
+      },
+      "resources": {
+        "files": {
+          "singular": "file"
+        }
+      }
+    },
+    "datas": {
+      "singular": "data",
+      "ximportresources": [
+        "/dirs/files"
+      ],
+      "constraints": {
+        "files.name": {
+          "equals": "name",
+          "enum": [
+            "joe"
+          ]
+        }
+      }
+    }
+  }
+}
+`
+
+	// Clear everything first
+	XHTTP(t, reg, "DELETE", "/dirs", "", 204, "")
+	XHTTP(t, reg, "DELETE", "/datas", "", 204, "")
+
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+
+	// Create d1 - ok
+	XHTTP(t, reg, "PUT", "/dirs/d1", `{"name":"joe"}`, 201, `{
+  "dirid": "d1",
+  "self": "http://localhost:8181/dirs/d1",
+  "xid": "/dirs/d1",
+  "epoch": 1,
+  "name": "joe",
+  "createdat": "2026-08-01T19:50:04.233260699Z",
+  "modifiedat": "2026-08-01T19:50:04.233260699Z",
+
+  "filesurl": "http://localhost:8181/dirs/d1/files",
+  "filescount": 0
+}
+`)
+
+	// Now f1 - bad - name needs to be "joe" (plus in enum)
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"name": "steve"}`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": "d201b31810dc:registry:group:895"
+}
+`)
+
+	// Now f1 - good
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1$details", `{"name": "joe"}`,
+		201, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "name": "joe",
+  "isdefault": true,
+  "createdat": "2026-08-01T19:51:18.638764802Z",
+  "modifiedat": "2026-08-01T19:51:18.638764802Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
+
+	// Now create another type of group, no name yet - dd1
+	XHTTP(t, reg, "PUT", "/datas/dd1", `{}`, 201, `{
+  "dataid": "dd1",
+  "self": "http://localhost:8181/datas/dd1",
+  "xid": "/datas/dd1",
+  "epoch": 1,
+  "createdat": "2026-08-01T19:54:56.641999897Z",
+  "modifiedat": "2026-08-01T19:54:56.641999897Z",
+
+  "filesurl": "http://localhost:8181/datas/dd1/files",
+  "filescount": 0
+}
+`)
+
+	// Create a resource fx
+	// Notice no groups constraint is run because dd1 has no 'name', even though
+	// d1 above does have its constraint run
+	XHTTP(t, reg, "PUT", "/datas/dd1/files/fx/meta",
+		`{"xref":"/dirs/d1/files/f1"}`, 201,
+		`{
+  "fileid": "fx",
+  "self": "http://localhost:8181/datas/dd1/files/fx/meta",
+  "xid": "/datas/dd1/files/fx/meta",
+  "xref": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "createdat": "2026-08-01T19:56:29.950648612Z",
+  "modifiedat": "2026-08-01T19:56:29.950648612Z",
+  "readonly": false,
+
+  "defaultversionid": "1",
+  "defaultversionurl": "http://localhost:8181/datas/dd1/files/fx/versions/1$details",
+  "defaultversionsticky": false
+}
+`)
+
+	// Now give dd1 a "name", not 'joe'
+	XHTTP(t, reg, "PUT", "/datas/dd1", `{"name":"mary"}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/datas/dd1/files/fx\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/datas/dd1/files/fx",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": "d201b31810dc:registry:group:895"
+}
+`)
+
+	// Now make it 'joe' - ok
+	XHTTP(t, reg, "PUT", "/datas/dd1", `{"name":"joe"}`, 200, `{
+  "dataid": "dd1",
+  "self": "http://localhost:8181/datas/dd1",
+  "xid": "/datas/dd1",
+  "epoch": 3,
+  "name": "joe",
+  "createdat": "2026-08-01T20:00:33.091971971Z",
+  "modifiedat": "2026-08-01T20:00:33.151265805Z",
+
+  "filesurl": "http://localhost:8181/datas/dd1/files",
+  "filescount": 1
+}
+`)
+
+	// Change dirs/d1 & ../files/f1's name to 'mary' which is ok for dirs/d1
+	// but not for data/dd1
+	XHTTP(t, reg, "PATCH", "/dirs/d1",
+		`{"name":"mary", "files": { "f1": { "name": "mary" }}}`, 400,
+		`{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/datas/dd1/files/fx\" not being compliant with its owning Group's \"equals\" constraint for attribute \"name\".",
+  "detail": "Versions: 1.",
+  "subject": "/datas/dd1/files/fx",
+  "args": {
+    "kind": "equals",
+    "path": "name"
+  },
+  "source": "d201b31810dc:registry:group:895"
+}
+`)
+
+	// force an enum issue for fx
+	XHTTP(t, reg, "PATCH", "/", `{
+    "dirs": {
+      "d1": {
+        "name": "mary",
+        "files": { "f1": { "name": "mary" } }
+      }
+    },
+    "datas": {
+      "dd1": { "name": "mary" }
+    }
+}`, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/datas/dd1/files/fx\" not being compliant with its owning Group's \"enum\" constraint for attribute \"name\".",
+  "detail": "Versions: 1. Must be one of: joe.",
+  "subject": "/datas/dd1/files/fx",
+  "args": {
+    "kind": "enum",
+    "path": "name"
+  },
+  "source": "d201b31810dc:registry:group:969"
+}
+`)
+
 }

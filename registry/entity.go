@@ -917,19 +917,6 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	}
 }
 
-func (e *Entity) ClearEntitySystemDBProperties() *XRError {
-	log.VPrintf(3, ">Enter: ClearEntitySystemDBProperties")
-	defer log.VPrintf(3, "<Exit ClearEntitySystemDBProperties")
-
-	Do(e.tx, `DELETE FROM Props
-              WHERE RegSID=? AND eSID=? AND IsSystemProp=true`,
-		e.Registry.DbSID, e.DbSID)
-
-	e.ResyncOwnProps()
-
-	return nil
-}
-
 // SetSystemDBProperty buffers a system-prop change into e.NewSystem -
 // it does NOT write to the DB immediately. The actual write (and, if
 // e is a Version, at most one re-run of the default-version cascade)
@@ -2351,7 +2338,15 @@ func (e *Entity) Save() *XRError {
 	}
 	e.NewObject = nil
 
-	e.VersionMetaPostSave()
+	// Make sure the Resource is validated when Version or Meta is changed.
+	if e.Type == ENTITY_VERSION {
+		// onlyMetaChanged=false because we need the full validation code.
+		v := e.Self.(*Version)
+		e.tx.AddResourceToValidate(v.Resource, false, false)
+	} else if e.Type == ENTITY_META {
+		meta := e.Self.(*Meta)
+		e.tx.AddResourceToValidate(meta.Resource, true, false)
+	}
 
 	return nil
 }
@@ -2891,11 +2886,10 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 		Type:       mapAttr.Item.Type,
 		Item:       mapAttr.Item.Item,
 		Attributes: mapAttr.Item.Attributes,
-		// Enum:       e.CalcAttrEnum(mapAttr, path), // mapAttr.Enum,
-		Strict:    mapAttr.Strict,
-		MatchCase: mapAttr.MatchCase,
+		Enum:       mapAttr.Enum,
+		Strict:     mapAttr.Strict,
+		MatchCase:  mapAttr.MatchCase,
 	}
-	attr.Enum, _ = e.CalcAttrEnum(mapAttr, path)
 
 	for _, k := range valValue.MapKeys() {
 		if k.Kind() != reflect.String {
@@ -2956,11 +2950,10 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Type:       arrayAttr.Item.Type,
 		Item:       arrayAttr.Item.Item,
 		Attributes: arrayAttr.Item.Attributes,
-		// Enum:       e.CalcAttrEnum(arrayAttr, path), // arrayAttr.Enum,
-		Strict:    arrayAttr.Strict,
-		MatchCase: arrayAttr.MatchCase,
+		Enum:       arrayAttr.Enum,
+		Strict:     arrayAttr.Strict,
+		MatchCase:  arrayAttr.MatchCase,
 	}
-	attr.Enum, _ = e.CalcAttrEnum(arrayAttr, path)
 
 	for i := 0; i < valValue.Len(); i++ {
 		v := valValue.Index(i).Interface()
@@ -3212,8 +3205,10 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
 	}
 
-	// check against enum values - calc enum list from attr+constraints
-	enums, strict := e.CalcAttrEnum(attr, path)
+	// check against enum values - group-level "enum" constraints are
+	// enforced separately (and more completely, incl. xref-mirrored
+	// data) via Group.validateEnum(), not here.
+	enums, strict := attr.Enum, attr.GetStrict()
 	// log.Printf("Checking: %q: %q vs %q", attr.Name, val, EnumAsString(enums))
 	if strict && !IsValidEnum(val, enums, attr.GetMatchCase()) {
 		return NewXRError("invalid_attribute", e.XID,
@@ -3463,52 +3458,14 @@ func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
 	return attr.Default
 }
 
-// return:   enum: []any , isStrict: bool
-func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
-	isStrict := attr.GetStrict()
-
-	if e.Type != ENTITY_VERSION {
-		return attr.Enum, isStrict
-	}
-
-	v := e.Self.(*Version)
-	g := v.Resource.Group
-
-	if c := g.GetAttrConstraint(v, attr, path); c != nil {
-		if len(c.Enum) > 0 {
-			// Enums from constraints are always "strict"
-			return c.Enum, true
-		}
-	}
-
-	return attr.Enum, isStrict
-}
-
-// This stuff implements the incremental population of the
-// Props/Entities tables described in sql.md. These tables
-// are now the sole, authoritative store for entity properties (own,
-// system, calculated, and cascaded/copied) - the old FullTree/Entities
-// views and Props table are no longer read from or written to anywhere
-// in the codebase (phase 2 of the sql.md migration). Every entity-
-// creation site (Registry/Group/Resource/Meta/Version) calls
-// EntityInsert() alongside its "real" table INSERT. Plain user-set
-// properties are written directly by Entity.SetDBProperty() (called
-// per-property during Save()'s NewObject traversal) and system-managed
-// ones by Entity.SetSystemDBProperty()/SyncSystemProp(); VersionMetaPostSave(),
-// called once at the very end of Save(), only needs to (re)compute
-// this entity's calculated singleton attributes (xid, isdefault,
-// RESOURCEid) and run whichever cascades are relevant given the
-// entity's type (default-version-copy, xref prop/version-copy).
-
 // EntityInsert adds a row to Entities for a newly-created
 // Registry/Group/Resource/Meta/Version - called from the same places
 // that insert into the corresponding "real" entity table, right after
 // e's fields (DbSID, ParentSID, etc.) have been populated. It also
 // writes e's write-once calculated ("IsCalcStatic") attributes here,
 // since they're provably immutable for the rest of this entity's
-// lifetime (see SaveCalcStaticInsert()'s doc comment) - so unlike
-// VersionMetaPostSave(), which runs on every Save(), this only ever runs once,
-// at creation.
+// lifetime (see SaveCalcStaticInsert()'s doc comment), this only ever runs
+// once, at creation.
 func (e *Entity) EntityInsert() {
 	defer log.Trace("EntityInsert", e.XID)()
 
@@ -3535,14 +3492,7 @@ func (e *Entity) EntityInsert() {
 // (propValue==nil) removes the row; otherwise it's REPLACEd with the
 // new value. isSystem marks whether this is a plain user-set prop
 // (SetDBProperty, false) or a system-managed one (SetSystemDBProperty,
-// true). Never touches cascaded (IsDefaultVerCopy/IsXrefPropCopy/
-// IsXrefVerCopy) or calculated (IsCalcStatic/IsCalcDynamic - see
-// SaveCalcStaticInsert()/SaveVersionCalc()) rows - those are
-// always written by their own dedicated code paths, never through
-// here. Versions.AncestorID/CreatedAt and Metas.xRefPath/defaultVID are
-// kept in sync by the FullTreeAncestor/FullTreeXref DB triggers
-// (init.sql) whenever the corresponding own row is written/removed
-// here.
+// true).
 func (e *Entity) DBWriteProp(name string, propValue *string,
 	propType string, docView bool, isSystem bool) {
 
@@ -3670,41 +3620,9 @@ func (e *Entity) DBDeletePropsBatch(names []string) {
 // DBWriteOwnProp writes (or deletes, if propValue is nil) a
 // plain user-set own property row for e - called by
 // Entity.SetDBProperty() as part of Save()'s per-property traversal.
-// Unlike SyncSystemProp, this never re-runs any cascade: Save()
-// already calls VersionMetaPostSave() once at the very end of the same Save()
-// call, which handles whatever cascade is relevant, so re-running it
-// here for every single property would be redundant, wasted work.
 func (e *Entity) DBWriteOwnProp(name string, propValue *string,
 	propType string, docView bool) {
 	e.DBWriteProp(name, propValue, propType, docView, false)
-}
-
-// SyncSystemProp keeps a single own (non-cascaded) Props row
-// in sync for a SYSTEM property that's written OUTSIDE of the normal
-// Save()/VersionMetaPostSave() flow. As of the System/NewSystem buffering split,
-// SetSystemDBProperty() no longer calls this directly (it buffers into
-// NewSystem instead - see SaveSystemProps()); this is kept as a small,
-// still-useful primitive for writing/deleting a single system-prop row
-// plus its cascade in one call, in case some future caller needs an
-// immediate (non-buffered) write.
-func (e *Entity) SyncSystemProp(name string, propValue *string,
-	propType string, docView bool) {
-
-	defer log.Trace("FullTree", "%s/%s", e.XID, name)()
-
-	e.DBWriteProp(name, propValue, propType, docView, true)
-
-	// If this is a Version, this prop change may also need to be
-	// reflected in the owning Resource's IsDefaultVerCopy set (if this
-	// Version happens to be the current default) - mark it for
-	// deferred (re-)validation (see Tx.AddResourceToValidate()) rather
-	// than running it immediately, since Save()'s own VersionMetaPostSave() already
-	// marked it once and this out-of-band write can just piggyback on
-	// that same deferred run.
-	if e.Type == ENTITY_VERSION {
-		v := e.Self.(*Version)
-		e.tx.AddResourceToValidate(v.Resource, true, false)
-	}
 }
 
 // SaveSystemProps flushes any system-prop changes buffered by
@@ -3712,13 +3630,7 @@ func (e *Entity) SyncSystemProp(name string, propValue *string,
 // called once per cached entity at Tx-commit time (see
 // tx.WriteCache()) and is a no-op if nothing was buffered. It diffs
 // NewSystem against System so only props that actually changed get
-// written to the DB, and - unlike SyncSystemProp()'s old behavior of
-// re-running the default-version cascade on every single system-prop
-// write - runs that cascade AT MOST ONCE per flush, no matter how many
-// system props changed on this entity since the last flush. Deletes
-// and inserts are each batched into (at most, if chunked) one
-// statement via DBDeletePropsBatch()/DBWritePropsBatch(),
-// instead of one round trip per changed prop.
+// written to the DB.
 func (e *Entity) SaveSystemProps() {
 	if e.NewSystem == nil {
 		return
@@ -3794,69 +3706,11 @@ func (e *Entity) SaveSystemProps() {
 	e.DBDeletePropsBatch(deleteNames)
 	e.DBWritePropsBatch(insertRows, true)
 
-	// Same idea as SyncSystemProp(): if e is a Version, mark the
-	// owning Resource for deferred (re-)validation
-	// (Tx.AddResourceToValidate()) so the Resource's mirrored props get
-	// refreshed once, no matter how many system props changed on this
-	// entity since the last flush.
+	// If this is a Version, make sure we fully validate its owning Resource
 	if e.Type == ENTITY_VERSION {
 		if v, ok := e.Self.(*Version); ok {
 			e.tx.AddResourceToValidate(v.Resource, true, false)
 		}
-	}
-}
-
-// VersionMetaPostSave is called at the very end of Entity.Save(). Save()'s own
-// property traversal already wrote this entity's own (non-cascaded,
-// non-calculated) rows directly into Props via SetDBProperty()/
-// DBWriteOwnProp() as it walked NewObject, so VersionMetaPostSave() itself
-// only needs to (re)compute whichever of this entity's calculated
-// singleton attributes can actually change post-creation (just a
-// Version's own isdefault - see SaveVersionCalc()'s doc comment;
-// xid/Resource.isdefault/Version.RESOURCEid are write-once, handled by
-// EntityInsert()/SaveCalcStaticInsert() instead) and mark the
-// owning Resource for deferred (re-)validation - see
-// Tx.AddResourceToValidate()'s doc comment for why this is deferred
-// rather than run immediately here.
-//
-// SaveXrefCascade() (ENTITY_META) used to run eagerly right here,
-// but that's wrong: Resource.UpsertMeta()'s xref-setting path (registry/
-// resource.go) calls Version.JustDelete() in a loop to remove this
-// Resource's own real Versions BEFORE it's done processing, and
-// JustDelete() itself can trigger a Meta save (via Resource.Touch())
-// partway through that loop - i.e. while some of this Resource's own
-// real Version rows still exist in Props. Running the xref
-// cascade eagerly at that point built synthetic xref-version-copy rows
-// whose Path collided with those still-present real rows (same
-// PropName, same Path, different eSID - a Props PRIMARY KEY
-// violation). Deferring it via AddResourceToValidate()/
-// Resource.ValidateResource() instead means it only actually runs once,
-// at Registry.Validate() time (called from Tx.Validate()), which is
-// always after all of this Resource's own Version deletes for the
-// current request have completed.
-//
-// This relies on EntityInsert() having already been called (every
-// entity-creation site does so unconditionally alongside its "real"
-// table INSERT - see EntityInsert's doc comment), so there's no
-// need to re-verify the Entities row exists here.
-func (e *Entity) VersionMetaPostSave() {
-	defer log.Trace("FullTree", "%s", e.XID)()
-
-	switch e.Type {
-	case ENTITY_VERSION:
-		e.SaveVersionCalc()
-		v := e.Self.(*Version)
-		// onlyMetaChanged=false: this fires for ANY Version save,
-		// including real content/ancestor changes (e.g. WillDelete()'s
-		// ancestorid relinking), which need the full CheckAncestors()/
-		// EnsureMaxVersions()/etc. checks - not just the meta-only
-		// subset - before EnsureLatest() can correctly determine the
-		// new "newest" Version.
-		e.tx.AddResourceToValidate(v.Resource, false, false)
-
-	case ENTITY_META:
-		meta := e.Self.(*Meta)
-		e.tx.AddResourceToValidate(meta.Resource, true, false)
 	}
 }
 
@@ -3865,15 +3719,21 @@ func (e *Entity) VersionMetaPostSave() {
 // pointing at the owning Resource's UID). Neither can ever change
 // after creation: an entity's UID/Path is immutable (no rename API -
 // reusing an existing ID just errors instead of renaming), and a
-// Version's owning Resource never changes. So, unlike the genuinely-
-// dynamic Version.isdefault (see SaveVersionCalc()) or a Resource's
-// own isdefault (simply mirrored in from its default Version by
-// SaveDefaultVersionCascade(), same as createdat/modifiedat - not a
-// calculated singleton at all), these only need to be computed once -
-// here, called from EntityInsert() right after creation - and are
-// never touched again by VersionMetaPostSave(). Marked IsCalcStatic=true
-// so later reads/cascades can identify them and, e.g., exclude them
-// when copying an entity's "real" props elsewhere.
+// Version's owning Resource never changes. So these only need to be
+// computed once - here, called from EntityInsert() right after
+// creation.
+// Marked IsCalcStatic=true so later reads/cascades can identify them
+// and, e.g., exclude them when copying an entity's "real" props
+// elsewhere.
+//
+// Also gives a brand-new Version its very first isdefault row (via
+// SaveVersionCalc() - see its doc comment): unlike xid/RESOURCEid,
+// isdefault's VALUE can change post-creation, but nothing else ever
+// INSERTs its row (the end-of-tx SaveDefaultVersionCascade() bulk
+// fix-up is an UPDATE...JOIN, so it can only correct an existing row,
+// never create one) - so without this, a new Version would have no
+// isdefault attribute at all until something else happened to trigger
+// a recompute.
 func (e *Entity) SaveCalcStaticInsert() {
 	defer log.Trace("FullTree", e.Path)()
 
@@ -3913,27 +3773,16 @@ func (e *Entity) SaveCalcStaticInsert() {
 			e.Registry.DbSID, e.Type, e.Plural, e.Singular, parentArg,
 			e.DbSID, e.UID, e.Path, "id"+string(DB_IN), e.Abstract,
 			e.ParentSID)
-	}
-}
 
-// ResyncOwnProps re-derives e's calculated Props rows
-// that can actually change post-creation. Used by code that clears
-// system props directly, outside of Save()/VersionMetaPostSave() (e.g.
-// ClearResourceSystemDBProperty, ClearEntitySystemDBProperties). e is
-// assumed to already have gone through at least one EntityInsert()
-// (so its write-once xid/isdefault/RESOURCEid rows already exist and
-// never need re-deriving here). If e is a Version, re-adds its
-// calculated (dynamic) isdefault row, and refreshes the owning
-// Resource's IsDefaultVerCopy set in case this Version is the current
-// default (Save()'s own cascade already ran before this out-of-band
-// write happened, so it won't run again).
-func (e *Entity) ResyncOwnProps() {
-	defer log.Trace("FullTree", e.XID)()
-
-	if e.Type == ENTITY_VERSION {
+		// Give this brand-new Version its first isdefault row. Its
+		// DELETE is a no-op here (nothing exists yet for this eSID),
+		// so this just inserts the initial value based on the owning
+		// Resource's Meta.defaultVID at this moment - which is fine
+		// even if it's not yet the final answer, since
+		// SaveDefaultVersionCascade() will fix it up (for every
+		// Version of this Resource) once EnsureLatest() has settled
+		// on the true default, at end-of-tx.
 		e.SaveVersionCalc()
-		v := e.Self.(*Version)
-		e.tx.AddResourceToValidate(v.Resource, true, false)
 	}
 }
 
@@ -3941,21 +3790,15 @@ func (e *Entity) ResyncOwnProps() {
 // for a (real, non-xref-synthetic) Version - the only Version-level
 // calculated value that can actually change post-creation (xid and
 // RESOURCEid are write-once - see SaveCalcStaticInsert(), called
-// once from EntityInsert() instead). e is always the real,
-// in-memory Entity (never just a SID/raw row) - either the one Save()
-// is currently running for, or the one ResyncOwnProps() is
-// resyncing out-of-band.
+// once from EntityInsert() instead). Unlike those, isdefault isn't
+// recomputed on every subsequent Save() either: its row is inserted
+// exactly once, from SaveCalcStaticInsert() at creation, and its
+// VALUE is thereafter only ever corrected in bulk, for every Version
+// of a Resource at once, by the end-of-tx SaveDefaultVersionCascade()
+// UPDATE. This func itself is only ever called from
+// SaveCalcStaticInsert(), for that one initial insert.
 func (e *Entity) SaveVersionCalc() {
 	defer log.Trace("FullTree", e.Path)()
-
-	// Own scoped delete (rather than relying on some shared blanket
-	// delete having already run) since this is the only calculated
-	// value left that needs recomputing on every relevant Save(). At
-	// most 1 IsCalcDynamic row ever exists per Version (the isdefault
-	// row inserted below); 0 if this is the first time this func runs
-	// for this Version.
-	DoZeroOne(e.tx, `DELETE FROM Props WHERE eSID=? AND IsCalcDynamic=true`,
-		e.DbSID)
 
 	// isdefault - true only if this Version is the owning Resource's
 	// current default (via its Meta.defaultVID), or - for a Resource
@@ -3987,7 +3830,7 @@ func (e *Entity) SaveVersionCalc() {
 // for a source Meta entity (e) whose xref may have just been set,
 // changed, or cleared. e is always the real, in-memory Meta - either
 // the one Save() is currently running for, or (via xref fan-out) one
-// resolved through Registry.FindResourceBySID()+FindMeta() rather than
+// resolved through Registry.FindResourceByXID()+FindMeta() rather than
 // a raw row.
 func (e *Entity) SaveXrefCascade() {
 	defer log.Trace("FullTree", e.Path)()
@@ -3998,9 +3841,7 @@ func (e *Entity) SaveXrefCascade() {
 
 // SaveXrefCascadeDelete clears this Meta's stale IsXrefPropCopy
 // rows and its Resource's stale IsXrefVerCopy rows, from whatever the
-// PREVIOUS xref state was. Split out from SaveXrefCascadeInsert so
-// VersionMetaPostSave() can run ALL deletes (this plus fullSaveOwnPropsDelete)
-// before either insert runs - see VersionMetaPostSave()'s ENTITY_META handling.
+// PREVIOUS xref state was.
 func (e *Entity) SaveXrefCascadeDelete() {
 	// e is always a real, in-memory Meta, which always has a parent
 	// Resource, so e.ParentSID is never empty here.

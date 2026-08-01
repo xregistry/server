@@ -116,10 +116,9 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 	// Loops until the map is empty since running ValidateResource() can,
 	// in theory, cause further marks (e.g. Resource.EnsureLatest() saving
 	// a Meta), with a safety cap to avoid an infinite loop should that
-	// ever cycle unexpectedly. Must run before we lock the Tx below
-	// since validation itself still needs to write, and must run before
-	// GroupsToValidate since constraint checks may depend on
-	// cascade-derived mirrored data (e.g. isdefault).
+	// ever cycle unexpectedly. Must run before GroupsToValidate since
+	// constraint checks may depend on cascade-derived mirrored data
+	// (e.g. isdefault).
 	for i := 0; len(tx.ResourcesToValidate) > 0; i++ {
 		if i >= 20 {
 			return NewXRError("server_error", "/").SetDetail(
@@ -142,9 +141,6 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 		}
 		tx.ResourcesValidatingBatch = nil
 	}
-
-	// If not already locked, lock it
-	tx.Lock()
 
 	for _, g := range tx.GroupsToValidate {
 		if xErr := g.Validate(); xErr != nil {
@@ -1414,44 +1410,6 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 }
 
-// FindResourceBySID resolves a Resource's SID to its real, in-memory
-// *Resource - going through the normal FindGroup()/FindResource() path
-// (cache-checked first, DB-read-and-cached on a miss) rather than
-// building a partial/synthetic shell from raw row data. Used by code
-// (e.g. xref fan-out) that only discovers a Resource's SID via a query
-// (Metas.xRefPath, etc.) and has no path/XID string on hand - a small
-// join against Resources/Groups gets us the type names+UIDs needed to
-// go through the real finder functions, so callers get a fully-wired
-// Resource (correct Group/Registry pointers) instead of a fragile
-// hand-built stand-in.
-func (r *Registry) FindResourceBySID(sid string, accessMode int) (*Resource, *XRError) {
-	if sid == "" {
-		return nil, nil
-	}
-
-	results := Query(r.tx, `
-        SELECT g.Plural, g.UID, res.Plural, res.UID
-        FROM Resources AS res
-        JOIN "Groups" AS g ON (g.SID=res.GroupSID)
-        WHERE res.SID=?`, sid)
-	row := results.NextRow()
-	results.Close()
-	if row == nil {
-		return nil, nil
-	}
-
-	groupPlural := NotNilString(row[0])
-	groupUID := NotNilString(row[1])
-	resPlural := NotNilString(row[2])
-	resUID := NotNilString(row[3])
-
-	g, xErr := r.FindGroup(groupPlural, groupUID, false, accessMode)
-	if xErr != nil || g == nil {
-		return nil, xErr
-	}
-	return g.FindResource(resPlural, resUID, false, accessMode)
-}
-
 func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
@@ -1664,15 +1622,12 @@ func (r *Registry) VerifyData() *XRError {
 			resource.Self = resource
 			// onlyMetaChanged, forceVerify
 			//
-			// Unlike the other ValidateResource() call sites, this one
-			// is called directly (VerifyData() has callers - including
-			// tests - that invoke it via the Go API without ever going
-			// through an HTTP request/Tx.Validate()), so it must run
-			// synchronously here rather than being deferred via
-			// AddResourceToValidate().
-			if xErr = resource.ValidateResource(false, true); xErr != nil {
-				return xErr
-			}
+			// Deferred (not run synchronously here) so it goes through
+			// the same batching/merging logic as every other
+			// AddResourceToValidate() call site - r.Validate(nil) below
+			// drains it (along with GroupsToValidate) once all Resources
+			// and Versions in this loop have been marked/processed.
+			r.tx.AddResourceToValidate(resource, false, true)
 
 			// Skip xref'd resources, the real owner will do it.
 			// Note that we're assuming we're just skipping data validation.
@@ -1686,9 +1641,13 @@ func (r *Registry) VerifyData() *XRError {
 				continue
 			}
 
-			// Now do Versions
-			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-				`e.ParentSID=?`, resource.DbSID)
+			// Now do Versions. Filter to just ENTITY_VERSION - a
+			// Resource's Meta shares the same ParentSID
+			// (resource.DbSID), so without this filter we'd also pick
+			// up the Meta row here and mis-process it as a Version.
+			entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+				fmt.Sprintf(`e.ParentSID=? AND e.Type=%d`, ENTITY_VERSION),
+				resource.DbSID)
 			if xErr != nil {
 				return xErr
 			}
@@ -1701,7 +1660,21 @@ func (r *Registry) VerifyData() *XRError {
 				}
 			}
 		}
+	}
 
+	// Drain any deferred Resource validation (marked just above via
+	// AddResourceToValidate()) and Group constraint checks
+	// (GroupsToValidate) - this is the original gap this session set
+	// out to fix: VerifyData() never checked group-level equals/enum
+	// cross-attribute constraints on model changes, and (as of this
+	// change) no longer runs ValidateResource() synchronously either,
+	// so both are drained together via the same Registry.Validate()
+	// used by every HTTP request (Tx.Validate()). Must run last, after
+	// all per-Version attribute validation above, so a more specific
+	// per-attribute error isn't masked by a more generic one for the
+	// same violation.
+	if xErr := r.Validate(nil); xErr != nil {
+		return xErr
 	}
 
 	return nil
