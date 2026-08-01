@@ -3593,7 +3593,13 @@ func TestModelHasDocumentValidation(t *testing.T) {
 }
 `)
 
-	// Test 8: Create a resource with fileurl attribute, try to change to hasdocument=false - should FAIL
+	// Test 8: Create a resource with fileurl attribute (a reference, not
+	// actual document content), try to change to hasdocument=false. This
+	// should FAIL, but not because of hasdocument_violation - "fileurl" is
+	// only a reserved attribute name when hasdocument=true, so once the
+	// model changes to hasdocument=false the (undefined) "fileurl" simply
+	// becomes an unrecognized attribute like any other, and the generic
+	// attribute validator already correctly rejects it.
 	// First, clean up from previous tests
 	XHTTP(t, reg, "DELETE", "/dirs/d1", "", 204, "")
 	XHTTP(t, reg, "DELETE", "/dirs/d2", "", 204, "")
@@ -3674,14 +3680,42 @@ func TestModelHasDocumentValidation(t *testing.T) {
     }
   }
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d3/files/f3/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fileurl) was specified for \"/dirs/d3/files/f3/versions/1\".",
   "subject": "/dirs/d3/files/f3/versions/1",
+  "args": {
+    "name": "fileurl"
+  },
   "source": "xxx"
 }
 `)
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false,
+          "attributes": {
+            "*": {
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
 
-	// Test 9: Create a resource with fileproxyurl attribute, try to change to hasdocument=false - should FAIL
+	// Test 9: Create a resource with fileproxyurl attribute (a reference,
+	// not actual document content), try to change to hasdocument=false.
+	// Same reasoning as Test 8 - "fileproxyurl" is only reserved when
+	// hasdocument=true, so this becomes a plain unknown_attribute once
+	// hasdocument=false, not a hasdocument_violation.
 	// First, clean up from previous tests
 	XHTTP(t, reg, "DELETE", "/dirs/d3", "", 204, "")
 
@@ -3761,12 +3795,40 @@ func TestModelHasDocumentValidation(t *testing.T) {
     }
   }
 }`, 400, `{
-  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_violation",
-  "title": "The request would cause Version \"/dirs/d4/files/f4/versions/1\" to be non-compliant. The Resource model has \"hasdocument\" set to \"false\" but this Version has document content.",
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#unknown_attribute",
+  "title": "An unknown attribute (fileproxyurl) was specified for \"/dirs/d4/files/f4/versions/1\".",
   "subject": "/dirs/d4/files/f4/versions/1",
+  "args": {
+    "name": "fileproxyurl"
+  },
   "source": "xxx"
 }
 `)
+
+	model = `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "plural": "dirs",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "plural": "files",
+          "hasdocument": false,
+          "attributes": {
+            "*": {
+              "type": "any"
+            }
+          }
+        }
+      }
+    }
+  }
+}`
+
+	// But when there's a "*" extension, then it's ok
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model+"\n")
+
 }
 
 func TestModelStrictEnum(t *testing.T) {

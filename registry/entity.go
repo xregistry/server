@@ -2886,11 +2886,10 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 		Type:       mapAttr.Item.Type,
 		Item:       mapAttr.Item.Item,
 		Attributes: mapAttr.Item.Attributes,
-		// Enum:       e.CalcAttrEnum(mapAttr, path), // mapAttr.Enum,
+		Enum:       mapAttr.Enum,
 		Strict:    mapAttr.Strict,
 		MatchCase: mapAttr.MatchCase,
 	}
-	attr.Enum, _ = e.CalcAttrEnum(mapAttr, path)
 
 	for _, k := range valValue.MapKeys() {
 		if k.Kind() != reflect.String {
@@ -2951,11 +2950,10 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Type:       arrayAttr.Item.Type,
 		Item:       arrayAttr.Item.Item,
 		Attributes: arrayAttr.Item.Attributes,
-		// Enum:       e.CalcAttrEnum(arrayAttr, path), // arrayAttr.Enum,
+		Enum:       arrayAttr.Enum,
 		Strict:    arrayAttr.Strict,
 		MatchCase: arrayAttr.MatchCase,
 	}
-	attr.Enum, _ = e.CalcAttrEnum(arrayAttr, path)
 
 	for i := 0; i < valValue.Len(); i++ {
 		v := valValue.Index(i).Interface()
@@ -3207,8 +3205,10 @@ func (e *Entity) ValidateScalar(val any, attr *Attribute, path *PropPath) (*XREr
 		panic(fmt.Sprintf("Unknown type: %v", attr.Type))
 	}
 
-	// check against enum values - calc enum list from attr+constraints
-	enums, strict := e.CalcAttrEnum(attr, path)
+	// check against enum values - group-level "enum" constraints are
+	// enforced separately (and more completely, incl. xref-mirrored
+	// data) via Group.validateEnum(), not here.
+	enums, strict := attr.Enum, attr.GetStrict()
 	// log.Printf("Checking: %q: %q vs %q", attr.Name, val, EnumAsString(enums))
 	if strict && !IsValidEnum(val, enums, attr.GetMatchCase()) {
 		return NewXRError("invalid_attribute", e.XID,
@@ -3456,27 +3456,6 @@ func (e *Entity) CalcAttrDefault(attr *Attribute, path *PropPath) any {
 	}
 
 	return attr.Default
-}
-
-// return:   enum: []any , isStrict: bool
-func (e *Entity) CalcAttrEnum(attr *Attribute, path *PropPath) ([]any, bool) {
-	isStrict := attr.GetStrict()
-
-	if e.Type != ENTITY_VERSION {
-		return attr.Enum, isStrict
-	}
-
-	v := e.Self.(*Version)
-	g := v.Resource.Group
-
-	if c := g.GetAttrConstraint(v, attr, path); c != nil {
-		if len(c.Enum) > 0 {
-			// Enums from constraints are always "strict"
-			return c.Enum, true
-		}
-	}
-
-	return attr.Enum, isStrict
 }
 
 // EntityInsert adds a row to Entities for a newly-created

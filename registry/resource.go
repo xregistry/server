@@ -1253,33 +1253,28 @@ func (r *Resource) UpsertVersionWithObject(vu *VersionUpsert) (*Version, bool, *
 }
 
 // checkHasDocumentViolation returns non-nil XRError if hasdocument=false
-// but any versions have document content stored in ResourceContents DB table
-// or have singular/singularurl/singularproxyurl attributes set.
+// but any versions have document content stored in the ResourceContents DB
+// table. Note: this deliberately does NOT look at whether
+// singular/singularurl/singularproxyurl Props are set - those are only
+// reserved attribute names when hasdocument=true (see AddAttribute() in
+// shared_model.go), so when hasdocument=false a user may have legitimately
+// defined one of those exact names as their own extension attribute (or
+// used a "*" wildcard extension). That data is 100% valid and must not be
+// flagged here. If no such extension is defined, the generic attribute
+// validator (run elsewhere, on every PUT) already correctly rejects it as
+// an unknown_attribute - there's no need to duplicate that check here.
+// The one thing generic attribute validation can never see is actual
+// stored document bytes, which can never be legal once hasdocument=false -
+// that's the only thing left to check for.
 func (r *Resource) checkHasDocumentViolation() *XRError {
-	singular := r.ResourceModel.Singular
-
-	// Query for any versions with document content in ResourceContents table
-	// or with singular/singularurl/singularproxyurl attributes in
-	// Props. Note: PropName includes DB_IN delimiter at the end
-	// (e.g., "fileurl,")
-	query := fmt.Sprintf(`
+	query := `
 		SELECT v.Path FROM Versions v
 		WHERE v.ResourceSID = ?
-		AND (
-			EXISTS (
-				SELECT 1 FROM ResourceContents rc
-				WHERE rc.VersionSID = v.SID
-			)
-			OR EXISTS (
-				SELECT 1 FROM Props p
-				WHERE p.eSID = v.SID
-				AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
-				AND p.IsXrefVerCopy=false
-				AND p.PropName IN ('%s%s', '%surl%s', '%sproxyurl%s')
-			)
+		AND EXISTS (
+			SELECT 1 FROM ResourceContents rc
+			WHERE rc.VersionSID = v.SID
 		)
-		LIMIT 1`, singular, string(DB_IN), singular, string(DB_IN),
-		singular, string(DB_IN))
+		LIMIT 1`
 
 	results := Query(r.tx, query, r.DbSID)
 	defer results.Close()
@@ -2675,6 +2670,16 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 		sourceMeta.SaveXrefCascade()
 		sourceResource.SaveXrefVersionCopies(r.DbSID)
 		sourceResource.SaveDefaultVersionCascade()
+
+		// The mirrored data we just (re-)copied into sourceResource may
+		// now violate sourceResource's own Group's "equals"/"enum"
+		// constraints (e.g. this xref target's attribute value changed
+		// to something the source's group doesn't allow) - mark that
+		// Group for constraint re-validation so GroupsToValidate
+		// catches it before this Tx commits/responds. Without this,
+		// a target update could silently leave a xref source's mirror
+		// in a group-non-compliant state.
+		r.tx.AddGroupToValidate(sourceResource.Group)
 	}
 }
 

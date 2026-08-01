@@ -826,3 +826,139 @@ func TestRegistryRoot(t *testing.T) {
 `)
 
 }
+
+// Demonstrates a gap in Registry.VerifyData(): it never runs
+// Group.Validate() (the "equals"/"enum" cross-attribute constraint
+// checker) itself. VerifyData()'s resource loop marks each Resource's
+// owning Group via AddGroupToValidate() (inside ValidateResource()), but
+// VerifyData() never drains tx.GroupsToValidate - that only happens via
+// Registry.Validate(), which VerifyData() never calls. So a model change
+// that leaves EXISTING data non-compliant with a cross-attribute "equals"
+// group constraint is only caught "by accident", whenever something else
+// later happens to call Registry.Validate()/Tx.Validate() (e.g. HTTP's
+// SerializeQuery(), HTTPPUTModelSource()'s explicit drain, or
+// Tx.SaveAll()/SaveAllAndCommit()).
+//
+// "equals" is used (rather than "enum") because enum constraints get
+// merged into the attribute's own static validation rules (see
+// GetConstraints()), so ordinary per-Version attribute validation
+// independently (and coincidentally) catches enum violations, masking
+// this gap. "equals" is cross-entity/dynamic (compares to another live
+// Group attribute's current value) and can ONLY be caught by the
+// explicit Group.Validate() function.
+//
+// Exercises 3 variants of "how the model change reaches the server",
+// reusing the same Registry, resetting the data (DELETE /dirs) and
+// model (PUT /modelsource) back to the "v1" baseline between each one.
+func TestRegistryVerifyDataMissesGroupConstraintOnModelChange(t *testing.T) {
+	reg := NewRegistry("TestRegistryVerifyDataMissesGroupConstraintOnModelChange")
+	defer PassDeleteReg(t, reg)
+
+	modelSrc := `{
+      "groups": { "dirs": { "singular": "dir",
+        "attributes": {
+          "gstr": { "type": "string" },
+          "gstr2": { "type": "string" }
+        },
+        "constraints": { "files.mystr": { "equals": "gstr" } },
+        "resources": { "files": { "singular": "file",
+          "attributes": { "mystr": { "type": "string" } } } } } } }`
+
+	newModelSrc := `{
+      "groups": { "dirs": { "singular": "dir",
+        "attributes": {
+          "gstr": { "type": "string" },
+          "gstr2": { "type": "string" }
+        },
+        "constraints": { "files.mystr": { "equals": "gstr2" } },
+        "resources": { "files": { "singular": "file",
+          "attributes": { "mystr": { "type": "string" } } } } } } }`
+
+	// v1 model+data (via real HTTP, so it's fully committed): valid -
+	// f1.mystr ("foo") matches d1.gstr ("foo").
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource":`+
+		modelSrc+`,
+      "dirs": { "d1": { "gstr": "foo", "gstr2": "bar",
+        "files": { "f1": { "mystr": "foo" } } } } }`,
+		200, `*`)
+
+	// Variant 1: pure Go API, no HTTP at all - Model.ApplyNewModelFromJSON()
+	// directly, with no subsequent SaveAllAndCommit()/Registry.Validate()
+	// call. This is the clearest, most direct reproduction: nothing else
+	// in this call chain happens to drain tx.GroupsToValidate.
+
+	// v2 model (pure Go API): retarget the constraint to gstr2.
+	// f1.mystr ("foo") no longer equals d1.gstr2 ("bar") - a genuine
+	// violation that ApplyNewModelFromJSON() should catch/reject.
+	xErr := reg.Model.ApplyNewModelFromJSON([]byte(newModelSrc), true)
+	XCheckErr(t, xErr, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "mystr"
+  },
+  "source": ":registry:group:895"
+}`)
+	reg.Rollback()
+
+	// Variant 2: single combined "PUT /" request containing BOTH the new
+	// modelsource AND (unrelated) data changes in the same body - the
+	// case the user specifically flagged: model needs to be applied
+	// (and, eventually, verified) but not before any new data in the
+	// same request has been loaded, since that new data may itself need
+	// to be checked too. Registry.Update() currently defers VerifyData()
+	// until after all incoming collections are upserted (see its
+	// "modelchanged" check) - this variant confirms whether that
+	// existing deferral correctly catches the violation once data
+	// loading is done.
+
+	// Single PUT / with the new modelsource AND an unrelated data
+	// change (a second, harmless Resource) in the same request body.
+	// f1 (untouched by this request) still violates the new
+	// constraint once gstr2 becomes the target.
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource":`+
+		newModelSrc+`,
+      "dirs": { "d1": { "gstr": "foo", "gstr2": "bar",
+        "files": {
+          "f1": { "mystr": "foo" },
+          "f2": { "mystr": "bar" }
+        } } } }`,
+		400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "mystr"
+  },
+  "source": ":registry:group:895"
+}
+`)
+
+	// Reset data+model back to the "v1" baseline for variant 3.
+	XHTTP(t, reg, "DELETE", "/dirs", ``, 204, ``)
+	XHTTP(t, reg, "PUT", "/?inline=dirs.files", `{"modelsource":`+
+		modelSrc+`,
+      "dirs": { "d1": { "gstr": "foo", "gstr2": "bar",
+        "files": { "f1": { "mystr": "foo" } } } } }`,
+		200, `*`)
+
+	// Variant 3: PUT /modelsource only (no data in the request body) -
+	// the endpoint dedicated to model-only updates.
+	XHTTP(t, reg, "PUT", "/modelsource", newModelSrc, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#constraint_failure",
+  "title": "The request would result in one or more Versions of \"/dirs/d1/files/f1\" not being compliant with its owning Group's \"equals\" constraint for attribute \"mystr\".",
+  "detail": "Versions: 1.",
+  "subject": "/dirs/d1/files/f1",
+  "args": {
+    "kind": "equals",
+    "path": "mystr"
+  },
+  "source": ":registry:group:895"
+}
+`)
+}

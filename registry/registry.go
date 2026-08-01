@@ -116,10 +116,9 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 	// Loops until the map is empty since running ValidateResource() can,
 	// in theory, cause further marks (e.g. Resource.EnsureLatest() saving
 	// a Meta), with a safety cap to avoid an infinite loop should that
-	// ever cycle unexpectedly. Must run before we lock the Tx below
-	// since validation itself still needs to write, and must run before
-	// GroupsToValidate since constraint checks may depend on
-	// cascade-derived mirrored data (e.g. isdefault).
+	// ever cycle unexpectedly. Must run before GroupsToValidate since
+	// constraint checks may depend on cascade-derived mirrored data
+	// (e.g. isdefault).
 	for i := 0; len(tx.ResourcesToValidate) > 0; i++ {
 		if i >= 20 {
 			return NewXRError("server_error", "/").SetDetail(
@@ -142,9 +141,6 @@ func (r *Registry) Validate(info *RequestInfo) *XRError {
 		}
 		tx.ResourcesValidatingBatch = nil
 	}
-
-	// If not already locked, lock it
-	tx.Lock()
 
 	for _, g := range tx.GroupsToValidate {
 		if xErr := g.Validate(); xErr != nil {
@@ -1648,9 +1644,13 @@ func (r *Registry) VerifyData() *XRError {
 				continue
 			}
 
-			// Now do Versions
-			entities, xErr = RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
-				`e.ParentSID=?`, resource.DbSID)
+			// Now do Versions. Filter to just ENTITY_VERSION - a
+			// Resource's Meta shares the same ParentSID
+			// (resource.DbSID), so without this filter we'd also pick
+			// up the Meta row here and mis-process it as a Version.
+			entities, xErr := RawEntitiesFromQuery(r.tx, r.DbSID, FOR_WRITE,
+				fmt.Sprintf(`e.ParentSID=? AND e.Type=%d`, ENTITY_VERSION),
+				resource.DbSID)
 			if xErr != nil {
 				return xErr
 			}
@@ -1663,7 +1663,20 @@ func (r *Registry) VerifyData() *XRError {
 				}
 			}
 		}
+	}
 
+	// Drain any deferred Group constraint checks (GroupsToValidate) -
+	// this is the original gap this session set out to fix: VerifyData()
+	// never checked group-level equals/enum cross-attribute constraints
+	// on model changes. Must run last, after all per-Version attribute
+	// validation above, so a more specific per-attribute error (e.g. an
+	// "enum" violation reported as invalid_attribute) isn't masked by
+	// Group.Validate()'s more generic "constraint_failure" for the same
+	// violation.
+	for _, g := range r.tx.GroupsToValidate {
+		if xErr := g.Validate(); xErr != nil {
+			return xErr
+		}
 	}
 
 	return nil
