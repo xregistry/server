@@ -1622,15 +1622,12 @@ func (r *Registry) VerifyData() *XRError {
 			resource.Self = resource
 			// onlyMetaChanged, forceVerify
 			//
-			// Unlike the other ValidateResource() call sites, this one
-			// is called directly (VerifyData() has callers - including
-			// tests - that invoke it via the Go API without ever going
-			// through an HTTP request/Tx.Validate()), so it must run
-			// synchronously here rather than being deferred via
-			// AddResourceToValidate().
-			if xErr = resource.ValidateResource(false, true); xErr != nil {
-				return xErr
-			}
+			// Deferred (not run synchronously here) so it goes through
+			// the same batching/merging logic as every other
+			// AddResourceToValidate() call site - r.Validate(nil) below
+			// drains it (along with GroupsToValidate) once all Resources
+			// and Versions in this loop have been marked/processed.
+			r.tx.AddResourceToValidate(resource, false, true)
 
 			// Skip xref'd resources, the real owner will do it.
 			// Note that we're assuming we're just skipping data validation.
@@ -1665,18 +1662,19 @@ func (r *Registry) VerifyData() *XRError {
 		}
 	}
 
-	// Drain any deferred Group constraint checks (GroupsToValidate) -
-	// this is the original gap this session set out to fix: VerifyData()
-	// never checked group-level equals/enum cross-attribute constraints
-	// on model changes. Must run last, after all per-Version attribute
-	// validation above, so a more specific per-attribute error (e.g. an
-	// "enum" violation reported as invalid_attribute) isn't masked by
-	// Group.Validate()'s more generic "constraint_failure" for the same
-	// violation.
-	for _, g := range r.tx.GroupsToValidate {
-		if xErr := g.Validate(); xErr != nil {
-			return xErr
-		}
+	// Drain any deferred Resource validation (marked just above via
+	// AddResourceToValidate()) and Group constraint checks
+	// (GroupsToValidate) - this is the original gap this session set
+	// out to fix: VerifyData() never checked group-level equals/enum
+	// cross-attribute constraints on model changes, and (as of this
+	// change) no longer runs ValidateResource() synchronously either,
+	// so both are drained together via the same Registry.Validate()
+	// used by every HTTP request (Tx.Validate()). Must run last, after
+	// all per-Version attribute validation above, so a more specific
+	// per-attribute error isn't masked by a more generic one for the
+	// same violation.
+	if xErr := r.Validate(nil); xErr != nil {
+		return xErr
 	}
 
 	return nil

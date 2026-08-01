@@ -2887,8 +2887,8 @@ func (e *Entity) ValidateMap(mapAttr *Attribute, val any, path *PropPath) *XRErr
 		Item:       mapAttr.Item.Item,
 		Attributes: mapAttr.Item.Attributes,
 		Enum:       mapAttr.Enum,
-		Strict:    mapAttr.Strict,
-		MatchCase: mapAttr.MatchCase,
+		Strict:     mapAttr.Strict,
+		MatchCase:  mapAttr.MatchCase,
 	}
 
 	for _, k := range valValue.MapKeys() {
@@ -2951,8 +2951,8 @@ func (e *Entity) ValidateArray(arrayAttr *Attribute, val any, path *PropPath) *X
 		Item:       arrayAttr.Item.Item,
 		Attributes: arrayAttr.Item.Attributes,
 		Enum:       arrayAttr.Enum,
-		Strict:    arrayAttr.Strict,
-		MatchCase: arrayAttr.MatchCase,
+		Strict:     arrayAttr.Strict,
+		MatchCase:  arrayAttr.MatchCase,
 	}
 
 	for i := 0; i < valValue.Len(); i++ {
