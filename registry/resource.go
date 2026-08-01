@@ -1311,7 +1311,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 	// Registry.Validate() would redundantly run ValidateResource() for
 	// r again later in this same Tx (e.g. a Version/Meta save that
 	// happened as part of this very call already marked r via
-	// Entity.VersionMetaPostSave()). Also drop it from ResourcesValidatingBatch
+	// Entity.Save()). Also drop it from ResourcesValidatingBatch
 	// (if present) - see that field's doc comment - so any other
 	// xref source's runCascade() checking "is my target still pending
 	// in this batch" correctly sees that r's own validation (and its
@@ -1323,7 +1323,7 @@ func (r *Resource) ValidateResource(onlyMetaChanged bool, force bool) *XRError {
 
 	// On the way out, delete any mark this call's OWN body may have
 	// re-added to ResourcesToValidate (e.g. EnsureLatest()'s
-	// meta.SetSave("defaultversionid", ...) -> Entity.VersionMetaPostSave()
+	// meta.SetSave("defaultversionid", ...) -> Entity.Save()
 	// -> AddResourceToValidate()) - this call is about to account for
 	// that change itself (via runCascade() below), so leaving that
 	// self-mark in place would cause a second, fully redundant
@@ -2492,7 +2492,7 @@ func (r *Resource) SaveDefaultVersionCascade() {
 // SaveXrefVersionCopies (re)creates the synthetic Entities/
 // Props Version rows for srcResource (a real, in-memory
 // *Resource - either e.Self.(*Meta).Resource in the direct-Save() case,
-// or one resolved via Registry.FindResourceBySID() in the xref fan-out
+// or one resolved via Registry.FindResourceByXID() in the xref fan-out
 // case)
 // that xrefs targetResourceSID, one set of rows per Version the target
 // currently has - all done via set-based SQL (no per-Version Go loop/
@@ -2628,18 +2628,24 @@ func (srcResource *Resource) SaveXrefVersionCopies(targetResourceSID string) {
 // xrefs r - used whenever either r's Meta or one of r's Versions
 // (something that makes r someone else's xref target) is saved. r is
 // the real, in-memory *Resource whose Meta/Version was just saved
-// (always available at the VersionMetaPostSave() call site as meta.Resource or
+// (always available at the Entity.Save() call site as meta.Resource or
 // v.Resource). This combines what used to be two separate functions
 // (fullSaveXrefFanOutForTargetMeta/fullSaveXrefFanOutForTargetVersion)
 // - they were always called back-to-back from the same runCascade()
 // call site, each running its own copy of the identical "who xrefs me"
 // query and its own SaveDefaultVersionCascade(sourceResource) call, so
 // merging them halves both the query count and the redundant
-// per-source default-version cascade work. Each source discovered here
-// is resolved to its own real *Resource/*Meta via
-// Registry.FindResourceBySID()/FindMeta() (cache-checked, so repeat
-// fan-out hits for the same source within one Tx are free) rather than
-// a raw fullEntityLookup() row.
+// per-source default-version cascade work. The query below joins
+// straight through to Resources to grab each source's own Path
+// (already exactly "groupPlural/groupUID/resPlural/resUID" - see
+// where it's written at Resource creation), rather than just
+// returning its SID and needing a separate lookup query to turn that
+// SID back into the Group/Resource plural+UID FindGroup()/
+// FindResource() need (what Registry.FindResourceBySID() used to do)
+// - so each source is resolved via Registry.FindResourceByXID()/
+// FindMeta() (cache-checked, so repeat fan-out hits for the same
+// source within one Tx are free) with no extra DB round trip beyond
+// this one query.
 func (r *Resource) SaveXrefFanOutForTarget() {
 	if r == nil {
 		return
@@ -2648,14 +2654,17 @@ func (r *Resource) SaveXrefFanOutForTarget() {
 	defer log.Trace("FullTree", r.XID)()
 
 	results := Query(r.tx, `
-        SELECT ResourceSID FROM Metas WHERE RegistrySID=? AND xRefPath=?`,
+        SELECT res.Path
+        FROM Metas AS m
+        JOIN Resources AS res ON (res.SID=m.ResourceSID)
+        WHERE m.RegistrySID=? AND m.xRefPath=?`,
 		r.Registry.DbSID, r.Path)
 	defer results.Close()
 
 	for row := results.NextRow(); row != nil; row = results.NextRow() {
-		sourceResourceSID := NotNilString(row[0])
-		sourceResource, xErr := r.tx.Registry.FindResourceBySID(
-			sourceResourceSID, FOR_WRITE)
+		sourceXID := "/" + NotNilString(row[0])
+		sourceResource, xErr := r.tx.Registry.FindResourceByXID(
+			sourceXID, r.Path, FOR_WRITE)
 		if xErr != nil || sourceResource == nil {
 			continue
 		}

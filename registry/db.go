@@ -158,25 +158,6 @@ type Tx struct {
 	// Resources (keyed by DbSID) that need Resource.ValidateResource()
 	// (re-)run before this Tx's results are visible - including their
 	// default-version-copy cascade and xref fan-out.
-	// Entity.VersionMetaPostSave()/SyncSystemProp()/SaveSystemProps() mark a
-	// Resource here (see AddResourceToValidate()) instead of running
-	// the (potentially expensive) validation immediately every time a
-	// Version/Meta belonging to it is saved - which used to happen
-	// redundantly, e.g. once for the $TBD ancestorid placeholder save
-	// and again when it's resolved (see plan.md "Backend / SQL
-	// re-architecture" item (b)). The few explicit call sites that
-	// need r's post-validation state right away (e.g.
-	// Resource.GetDefault() shortly after an Upsert) still call
-	// r.ValidateResource() directly/synchronously instead of deferring
-	// via this mechanism - see ValidateResource()'s own doc comment for
-	// why it clears any pending mark for itself at the very start, so a
-	// direct/synchronous call never gets redundantly re-run by the
-	// drain below. Registry.Validate() drains this, running
-	// ValidateResource() AT MOST ONCE per Resource per Tx, using the
-	// final state - mirroring how GroupsToValidate (above) already
-	// works. This is Tx-scoped bookkeeping (hence living here), even
-	// though the actual draining logic lives on Registry - see
-	// Registry.Validate().
 	ResourcesToValidate map[string]*resourceValidation
 
 	// Snapshot of the batch Registry.Validate()'s drain loop is

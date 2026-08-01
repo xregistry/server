@@ -1414,44 +1414,6 @@ func (r *Registry) FindXIDGroup(xidStr string, path string) (*Group, *XRError) {
 	return r.FindGroup(xid.Group, xid.GroupID, false, FOR_READ)
 }
 
-// FindResourceBySID resolves a Resource's SID to its real, in-memory
-// *Resource - going through the normal FindGroup()/FindResource() path
-// (cache-checked first, DB-read-and-cached on a miss) rather than
-// building a partial/synthetic shell from raw row data. Used by code
-// (e.g. xref fan-out) that only discovers a Resource's SID via a query
-// (Metas.xRefPath, etc.) and has no path/XID string on hand - a small
-// join against Resources/Groups gets us the type names+UIDs needed to
-// go through the real finder functions, so callers get a fully-wired
-// Resource (correct Group/Registry pointers) instead of a fragile
-// hand-built stand-in.
-func (r *Registry) FindResourceBySID(sid string, accessMode int) (*Resource, *XRError) {
-	if sid == "" {
-		return nil, nil
-	}
-
-	results := Query(r.tx, `
-        SELECT g.Plural, g.UID, res.Plural, res.UID
-        FROM Resources AS res
-        JOIN "Groups" AS g ON (g.SID=res.GroupSID)
-        WHERE res.SID=?`, sid)
-	row := results.NextRow()
-	results.Close()
-	if row == nil {
-		return nil, nil
-	}
-
-	groupPlural := NotNilString(row[0])
-	groupUID := NotNilString(row[1])
-	resPlural := NotNilString(row[2])
-	resUID := NotNilString(row[3])
-
-	g, xErr := r.FindGroup(groupPlural, groupUID, false, accessMode)
-	if xErr != nil || g == nil {
-		return nil, xErr
-	}
-	return g.FindResource(resPlural, resUID, false, accessMode)
-}
-
 func (r *Registry) FindResourceByXID(xidStr string, path string, accessMode int) (*Resource, *XRError) {
 	xid, err := ParseXid(xidStr)
 	if err != nil {
