@@ -188,6 +188,12 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
+	// Delete the "dirs" data first - the model update below drops the
+	// "dirs" Group type entirely (renaming it to "dirs1"), and the model
+	// is no longer allowed to silently delete live entities of a removed
+	// type.
+	XHTTP(t, reg, "DELETE", "/dirs", "", 204, "")
+
 	XHTTP(t, reg, "PUT", "/?inline=modelsource,model", `{
   "model": { "ignore": "me" },
   "modelsource": {
@@ -216,7 +222,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 3,
+  "epoch": 4,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -860,6 +866,12 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
+	// Delete the "dirs1" data first - the model update below erases the
+	// model entirely, dropping the "dirs1" Group type, and a model update
+	// is no longer allowed to silently delete live entities of a removed
+	// type.
+	XHTTP(t, reg, "DELETE", "/dirs1", "", 204, "")
+
 	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
   "modelsource": {}
@@ -868,7 +880,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 4,
+  "epoch": 6,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -1008,7 +1020,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 6,
+  "epoch": 8,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -1133,7 +1145,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 7,
+  "epoch": 9,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -1280,7 +1292,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 8,
+  "epoch": 10,
   "createdat": "2025-05-29T21:12:41.262020774Z",
   "modifiedat": "2025-05-29T21:12:41.399898946Z",
 
@@ -3375,6 +3387,11 @@ func TestHTTPModelEnum(t *testing.T) {
   "dirscount": 1
 }
 `)
+
+	// Delete the "files" data first - the next model update below drops
+	// the "files" Resource type entirely, and a model update is no longer
+	// allowed to silently delete live entities of a removed type.
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", ``, 204, ``)
 
 	// Verify enum for arrays
 	XHTTP(t, reg, "PUT", "/", `{

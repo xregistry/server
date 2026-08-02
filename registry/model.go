@@ -159,6 +159,55 @@ func (m *Model) Save() *XRError {
 		}
 	}
 
+	// Before deleting anything, make sure none of the model entities about
+	// to be removed still have live instances. Deleting a ModelEntity
+	// cascades (via the ModelTrigger DB trigger) into silently deleting
+	// every Group/Resource of that type - and everything under them. We'd
+	// rather reject the model update and have the user explicitly delete
+	// those entities first than have a model change accidentally wipe out
+	// data. Check ALL types first (before deleting any) so a rejection
+	// never leaves a partial delete behind.
+	for meAbs, sid := range existingModelEntities {
+		if inUseAbs[meAbs] == true {
+			continue
+		}
+
+		// A Group type's Abstract looks like "/plural" (1 path segment),
+		// a Resource type's looks like "/gPlural/rPlural" (2 segments)
+		parts := strings.Split(strings.Trim(meAbs, "/"), "/")
+
+		var count int
+		if len(parts) == 1 {
+			results := Query(m.Registry.tx,
+				`SELECT COUNT(*) FROM "Groups" WHERE ModelSID=?`, sid)
+			count = NotNilInt(results.NextRow()[0])
+			results.Close()
+
+			if count > 0 {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf(`can't remove Group type %q from the `+
+							`model - it still has %d entities. Delete `+
+							`them before removing the type`,
+							parts[0], count))
+			}
+		} else {
+			results := Query(m.Registry.tx,
+				`SELECT COUNT(*) FROM Resources WHERE ModelSID=?`, sid)
+			count = NotNilInt(results.NextRow()[0])
+			results.Close()
+
+			if count > 0 {
+				return NewXRError("model_error", "/model",
+					"error_detail="+
+						fmt.Sprintf(`can't remove Resource type %q from `+
+							`Group type %q - it still has %d entities. `+
+							`Delete them before removing the type`,
+							parts[1], parts[0], count))
+			}
+		}
+	}
+
 	// Delete any model entities not found in the new model
 	for meAbs, _ := range existingModelEntities {
 		if inUseAbs[meAbs] != true {

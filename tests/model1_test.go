@@ -6341,6 +6341,16 @@ func TestModelResourceCreate(t *testing.T) {
 }
 `)
 
+	// Delete the "files" data first - the model swap below drops the
+	// "files" Resource type entirely (replaced by "files2"), and a model
+	// update is no longer allowed to silently delete live entities of a
+	// removed type.
+	g, err = reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	r, err := g.FindResource("files", "f1", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	XNoErr(t, r.Delete())
+
 	newModel = &registry.Model{
 		Groups: map[string]*registry.GroupModel{
 			"dirs": &registry.GroupModel{
@@ -6986,9 +6996,9 @@ func TestModelResourceCreate(t *testing.T) {
       "dirid": "dir1",
       "self": "http://localhost:8181/dirs/dir1",
       "xid": "/dirs/dir1",
-      "epoch": 1,
+      "epoch": 2,
       "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z",
+      "modifiedat": "2024-01-01T12:00:03Z",
 
       "files2url": "http://localhost:8181/dirs/dir1/files2",
       "files2count": 0
@@ -7282,14 +7292,22 @@ func TestModelResourceCreate(t *testing.T) {
       "dirid": "dir1",
       "self": "http://localhost:8181/dirs/dir1",
       "xid": "/dirs/dir1",
-      "epoch": 1,
+      "epoch": 2,
       "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:02Z"
+      "modifiedat": "2024-01-01T12:00:03Z"
     }
   },
   "dirscount": 1
 }
 `)
+
+	// Delete the "dirs" data first - the model swap below drops the
+	// "dirs" Group type entirely (replaced by "dirs2"), and a model
+	// update is no longer allowed to silently delete live entities of a
+	// removed type.
+	g, err = reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
+	XNoErr(t, err)
+	XNoErr(t, g.Delete())
 
 	newModel = &registry.Model{
 		Groups: map[string]*registry.GroupModel{
@@ -7300,7 +7318,7 @@ func TestModelResourceCreate(t *testing.T) {
 		},
 	}
 
-	reg.Model.ApplyNewModel(newModel, "", true)
+	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
 
 	XCheckGet(t, reg, "?inline=model&inline=", `{
   "specversion": "`+SPECVERSION+`",

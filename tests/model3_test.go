@@ -403,6 +403,8 @@ func TestModelXImport(t *testing.T) {
 `)
 
 	// Used to be an error, but now transitive is ok
+	XHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
+	XHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
 	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "{}\n")
 	// non-alphabetical order
 	XHTTP(t, reg, "PUT", "/modelsource", `{
@@ -4057,4 +4059,199 @@ func TestModelMatchCase(t *testing.T) {
   "source": "637a8784fa0d:registry:entity:2976"
 }
 `)
+}
+
+// TestModelDeleteBlocksOnLiveData verifies that a model update is
+// rejected - instead of silently deleting data - if it would drop a
+// Group or Resource type that still has live entities. The user must
+// explicitly delete those entities first.
+func TestModelDeleteBlocksOnLiveData(t *testing.T) {
+	reg := NewRegistry("TestModelDeleteBlocksOnLiveData")
+	defer PassDeleteReg(t, reg)
+
+	// Scenario A: removing a Resource type ("files") while it still has a
+	// live instance should FAIL, and the existing data must be untouched.
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", "hello", 201, "*")
+
+	modelNoFiles := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", modelNoFiles, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: can't remove Resource type \"files\" from Group type \"dirs\" - it still has 1 entities. Delete them before removing the type.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "can't remove Resource type \"files\" from Group type \"dirs\" - it still has 1 entities. Delete them before removing the type"
+  },
+  "source": "xxx"
+}
+`)
+
+	// Data should still be intact - the rejected model update must not
+	// have deleted anything.
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 200, "*")
+
+	// Scenario B: removing a Group type ("extra") while it still has a
+	// live instance should FAIL, and the existing data must be untouched.
+	XHTTP(t, reg, "DELETE", "/dirs/d1/files/f1", "", 204, "")
+
+	modelWithExtra := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": { "singular": "file" }
+      }
+    },
+    "extra": {
+      "singular": "ex"
+    }
+  }
+}`
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithExtra, 200, "*")
+	XHTTP(t, reg, "PUT", "/extra/e1", "{}", 201, "*")
+
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#model_error",
+  "title": "There was an error in the model definition provided: can't remove Group type \"extra\" from the model - it still has 1 entities. Delete them before removing the type.",
+  "subject": "/model",
+  "args": {
+    "error_detail": "can't remove Group type \"extra\" from the model - it still has 1 entities. Delete them before removing the type"
+  },
+  "source": "xxx"
+}
+`)
+
+	XHTTP(t, reg, "GET", "/extra/e1", "", 200, "*")
+
+	// Regression: once the "extra" Group instance is actually deleted
+	// first, the same model update should succeed.
+	XHTTP(t, reg, "DELETE", "/extra/e1", "", 204, "")
+	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 200, MODEL_DIRS+"\n")
+}
+
+// TestModelHasDocumentReservedNameCollision documents (intentional,
+// non-error) behavior: the "$RESOURCE*"-derived reserved attribute names
+// (<singular>, <singular>base64, <singular>url, <singular>proxyurl) are
+// NOT user-overridable once "hasdocument" is "true" - just like the
+// "versions"/"versionsurl"/"versionscount" collection attributes are never
+// user-overridable. While "hasdocument" is "false" these names aren't
+// reserved at all, so a user is free to declare "fileurl" (for example) as
+// a plain attribute of any type they want. If the user then flips
+// "hasdocument" to "true" while STILL declaring that same name, the spec's
+// reserved definition silently takes over - it's not merged, type-checked,
+// or rejected against the user's prior declaration. This is intentional,
+// not a bug: it exactly mirrors how the collection attributes have always
+// behaved.
+func TestModelHasDocumentReservedNameCollision(t *testing.T) {
+	reg := NewRegistry("TestModelHasDocumentReservedNameCollision")
+	defer PassDeleteReg(t, reg)
+
+	// While hasdocument=false, "fileurl" isn't reserved, so declaring it
+	// as a plain "integer" attribute is legit.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "fileurl": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}`, 200, "*")
+
+	// Flip hasdocument to "true" while STILL declaring "fileurl" (with a
+	// deliberately wrong type, to prove the point) - this succeeds, no
+	// model_error, exactly like it would for a collision with "versions".
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": true,
+          "attributes": {
+            "fileurl": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
+}`, 200, "*")
+}
+
+// TestModelHasDocumentStaleExtensionBecomesReserved documents (intentional,
+// non-error) behavior: stale extension DATA (not a re-declared model
+// attribute) that happens to share a name with a "$RESOURCE*"-derived
+// reserved attribute silently becomes exposed as that reserved field once
+// "hasdocument" flips to "true" - even though the attribute is never
+// re-declared in the new model at all. This is intentional, matching the
+// "treat a model update like a fresh export+reimport" philosophy: importing
+// this exact data into a "hasdocument=true" model from scratch would behave
+// identically, so no special-casing is needed for the in-place transition.
+func TestModelHasDocumentStaleExtensionBecomesReserved(t *testing.T) {
+	reg := NewRegistry("TestModelHasDocumentStaleExtensionBecomesReserved")
+	defer PassDeleteReg(t, reg)
+
+	// hasdocument=false: "fileurl" is just a legit user-declared string
+	// extension attribute - nothing reserved about it yet.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "fileurl": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}`, 200, "*")
+
+	// A value is set that happens to look like a URL, but it's just plain
+	// extension data at this point - no document semantics apply.
+	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+		`{ "fileurl": "http://example.com/f1" }`, 201, "*")
+
+	// Flip hasdocument to "true" WITHOUT re-declaring "fileurl" anywhere -
+	// this succeeds; the pre-existing data is untouched by the model
+	// change itself.
+	XHTTP(t, reg, "PUT", "/modelsource", `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": true
+        }
+      }
+    }
+  }
+}`, 200, "*")
+
+	// The stale extension value is now silently exposed as the Resource's
+	// document reference - GET redirects to it, exactly as it would for
+	// any hasdocument=true Resource whose "fileurl" happens to be set.
+	res := XHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 303, "*")
+	if loc := res.Header.Get("Location"); loc != "http://example.com/f1" {
+		t.Fatalf("Expected redirect Location %q, got %q",
+			"http://example.com/f1", loc)
+	}
 }
