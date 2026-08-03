@@ -379,6 +379,12 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `There was an error talking to the server (<subject>): <error_detail>.`,
 	},
+
+	// SERVER impl defined
+	"hasdocument_enable_violation": &XRError{
+		Code:  400,
+		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model is changing "hasdocument" to "true" but this Version already has data for the reserved attribute "<name>".`,
+	},
 }
 
 func init() {

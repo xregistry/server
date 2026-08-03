@@ -131,7 +131,7 @@ func (m *Model) Save() *XRError {
 		existingModelEntities[abs] = sid
 	}
 
-	// Remove from existingModelEntities, all MEs that are going to be kept
+	// Remove from existingModelEntities all MEs that are going to be kept
 	// around. Then we'll delete everything else before we re-add the keepers
 	// to ensure there isn't any conflicts.
 	// We can't just delete the entire set and re-add them because the DB
@@ -209,9 +209,9 @@ func (m *Model) Save() *XRError {
 	}
 
 	// Delete any model entities not found in the new model
+	// TODO consider batching if this gets too slow, or the list is too long
 	for meAbs, _ := range existingModelEntities {
 		if inUseAbs[meAbs] != true {
-			// TODO if we ever think this list is long, make this faster
 			DoOne(m.Registry.tx, `
                       DELETE FROM ModelEntities
                       WHERE RegistrySID=? AND Abstract=?`,
@@ -343,6 +343,24 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 									"Resource %q is not allowed", rmPlural))
 					}
 					rm.SID = oldRM.SID
+
+					// If hasdocument is transitioning false->true, any
+					// pre-existing data under the reserved names
+					// (<singular>/<singular>url/<singular>base64/
+					// <singular>proxyurl) must not be silently reinterpreted
+					// as document content - reject the transition instead
+					// and make the user explicitly clear that data first.
+					// NOTE: this is a one-time check at the transition
+					// moment only - once hasdocument=true these names are
+					// legitimately used going forward to set the actual
+					// document reference, so this must NOT become a
+					// standing/repeatable invariant.
+					if !oldRM.GetHasDocument() && rm.GetHasDocument() {
+						if xErr := checkHasDocumentEnableViolation(
+							m.Registry, oldRM); xErr != nil {
+							return xErr
+						}
+					}
 				}
 			}
 		}
@@ -368,6 +386,57 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 		// Too much to undo. The Verify() at the top should have caught
 		// anything wrong
 		return xErr
+	}
+
+	return nil
+}
+
+// checkHasDocumentEnableViolation returns non-nil XRError if oldRM (a
+// Resource type currently hasdocument=false, transitioning to true) has
+// any existing Version with a non-nil value for one of the 4 reserved
+// "$RESOURCE*" names (<singular>, <singular>url, <singular>base64,
+// <singular>proxyurl). Those names are only reserved once hasdocument is
+// true, so while hasdocument=false a user may have legitimately declared
+// one of them as their own plain extension attribute with real data. Once
+// the transition to hasdocument=true happens, that pre-existing data would
+// otherwise be silently reinterpreted as document content - so we reject
+// the transition instead and make the caller explicitly clear that data
+// first (symmetric with checkHasDocumentViolation()'s true->false block).
+//
+// IMPORTANT: this must only ever be called once, at the exact moment of
+// the false->true transition (see ApplyNewModel() above) - NOT as a
+// standing/repeatable invariant. Once hasdocument=true, these same names
+// are legitimately used going forward to set the actual document
+// reference, so re-running this check on every subsequent write would
+// incorrectly reject normal document usage.
+func checkHasDocumentEnableViolation(reg *Registry, oldRM *ResourceModel) *XRError {
+	names := []string{
+		oldRM.Singular + string(DB_IN),
+		oldRM.Singular + "url" + string(DB_IN),
+		oldRM.Singular + "base64" + string(DB_IN),
+		oldRM.Singular + "proxyurl" + string(DB_IN),
+	}
+
+	query := `
+		SELECT v.Path, p.PropName FROM Versions v
+		JOIN Resources r ON v.ResourceSID = r.SID
+		JOIN Props p ON p.eSID = v.SID
+		WHERE r.ModelSID = ?
+		AND p.PropName IN (?, ?, ?, ?)
+		AND p.PropValue IS NOT NULL
+		LIMIT 1`
+
+	results := Query(reg.tx, query, oldRM.SID,
+		names[0], names[1], names[2], names[3])
+	defer results.Close()
+
+	row := results.NextRow()
+	if row != nil {
+		versionPath := "/" + string((*(row[0])).([]byte))
+		propName := strings.TrimRight(string((*(row[1])).([]byte)),
+			string(DB_IN))
+		return NewXRError("hasdocument_enable_violation", versionPath,
+			"name="+propName)
 	}
 
 	return nil

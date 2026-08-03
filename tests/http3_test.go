@@ -872,6 +872,7 @@ func TestHTTPModelSource(t *testing.T) {
 	// type.
 	XHTTP(t, reg, "DELETE", "/dirs1", "", 204, "")
 
+	// Notice modelsource={} means erase model
 	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
   "modelsource": {}
@@ -996,6 +997,7 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
+	// Load something to delete
 	XHTTP(t, reg, "PUT", "/", `{
   "modelsource": {
     "groups": {
@@ -1136,6 +1138,22 @@ func TestHTTPModelSource(t *testing.T) {
 }
 `)
 
+	// Load something to delete
+	XHTTP(t, reg, "PUT", "/", `{
+  "modelsource": {
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "resources": {
+          "files": {
+            "singular": "file"
+          }
+        }
+      }
+    }
+  }
+}`, 200, `*`)
+
 	// Notice "null" and {} both erase the model - they behave identically
 	XHTTP(t, reg, "PUT", "/?inline=model,modelsource", `{
   "model": { "ignore": "me" },
@@ -1145,7 +1163,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 9,
+  "epoch": 10,
   "createdat": "YYYY-MM-DDTHH:MM:01Z",
   "modifiedat": "YYYY-MM-DDTHH:MM:02Z",
 
@@ -1292,7 +1310,7 @@ func TestHTTPModelSource(t *testing.T) {
   "registryid": "TestHTTPModelSource",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 10,
+  "epoch": 11,
   "createdat": "2025-05-29T21:12:41.262020774Z",
   "modifiedat": "2025-05-29T21:12:41.399898946Z",
 

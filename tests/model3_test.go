@@ -402,10 +402,13 @@ func TestModelXImport(t *testing.T) {
 }
 `)
 
+	// Delete groups before we try to delete their model
+	XHTTP(t, reg, "DELETE", "/g1p", "", 204, "")
+	XHTTP(t, reg, "DELETE", "/g2p", "", 204, "")
+
 	// Used to be an error, but now transitive is ok
-	XHTTP(t, reg, "DELETE", "/g1p", "", 204, "*")
-	XHTTP(t, reg, "DELETE", "/g2p", "", 204, "*")
 	XHTTP(t, reg, "PUT", "/modelsource", `{}`, 200, "{}\n")
+
 	// non-alphabetical order
 	XHTTP(t, reg, "PUT", "/modelsource", `{
       "groups": {
@@ -4094,7 +4097,22 @@ func TestModelDeleteBlocksOnLiveData(t *testing.T) {
 
 	// Data should still be intact - the rejected model update must not
 	// have deleted anything.
-	XHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 200, "*")
+	XHTTP(t, reg, "GET", "/dirs/d1/files/f1$details", "", 200, `{
+  "fileid": "f1",
+  "versionid": "1",
+  "self": "http://localhost:8181/dirs/d1/files/f1$details",
+  "xid": "/dirs/d1/files/f1",
+  "epoch": 1,
+  "isdefault": true,
+  "createdat": "2026-08-02T18:00:43.555444419Z",
+  "modifiedat": "2026-08-02T18:00:43.555444419Z",
+  "ancestorid": "1",
+
+  "metaurl": "http://localhost:8181/dirs/d1/files/f1/meta",
+  "versionsurl": "http://localhost:8181/dirs/d1/files/f1/versions",
+  "versionscount": 1
+}
+`)
 
 	// Scenario B: removing a Group type ("extra") while it still has a
 	// live instance should FAIL, and the existing data must be untouched.
@@ -4105,15 +4123,18 @@ func TestModelDeleteBlocksOnLiveData(t *testing.T) {
     "dirs": {
       "singular": "dir",
       "resources": {
-        "files": { "singular": "file" }
+        "files": {
+          "singular": "file"
+        }
       }
     },
     "extra": {
       "singular": "ex"
     }
   }
-}`
-	XHTTP(t, reg, "PUT", "/modelsource", modelWithExtra, 200, "*")
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", modelWithExtra, 200, modelWithExtra)
 	XHTTP(t, reg, "PUT", "/extra/e1", "{}", 201, "*")
 
 	XHTTP(t, reg, "PUT", "/modelsource", MODEL_DIRS, 400, `{
@@ -4127,7 +4148,15 @@ func TestModelDeleteBlocksOnLiveData(t *testing.T) {
 }
 `)
 
-	XHTTP(t, reg, "GET", "/extra/e1", "", 200, "*")
+	XHTTP(t, reg, "GET", "/extra/e1", "", 200, `{
+  "exid": "e1",
+  "self": "http://localhost:8181/extra/e1",
+  "xid": "/extra/e1",
+  "epoch": 1,
+  "createdat": "2026-08-02T18:04:16.968654205Z",
+  "modifiedat": "2026-08-02T18:04:16.968654205Z"
+}
+`)
 
 	// Regression: once the "extra" Group instance is actually deleted
 	// first, the same model update should succeed.
@@ -4154,7 +4183,7 @@ func TestModelHasDocumentReservedNameCollision(t *testing.T) {
 
 	// While hasdocument=false, "fileurl" isn't reserved, so declaring it
 	// as a plain "integer" attribute is legit.
-	XHTTP(t, reg, "PUT", "/modelsource", `{
+	model := `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -4163,18 +4192,22 @@ func TestModelHasDocumentReservedNameCollision(t *testing.T) {
           "singular": "file",
           "hasdocument": false,
           "attributes": {
-            "fileurl": { "type": "integer" }
+            "fileurl": {
+              "type": "integer"
+            }
           }
         }
       }
     }
   }
-}`, 200, "*")
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
 
 	// Flip hasdocument to "true" while STILL declaring "fileurl" (with a
 	// deliberately wrong type, to prove the point) - this succeeds, no
 	// model_error, exactly like it would for a collision with "versions".
-	XHTTP(t, reg, "PUT", "/modelsource", `{
+	model = `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -4183,56 +4216,34 @@ func TestModelHasDocumentReservedNameCollision(t *testing.T) {
           "singular": "file",
           "hasdocument": true,
           "attributes": {
-            "fileurl": { "type": "integer" }
+            "fileurl": {
+              "type": "integer"
+            }
           }
         }
       }
     }
   }
-}`, 200, "*")
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
 }
 
-// TestModelHasDocumentStaleExtensionBecomesReserved documents (intentional,
-// non-error) behavior: stale extension DATA (not a re-declared model
-// attribute) that happens to share a name with a "$RESOURCE*"-derived
-// reserved attribute silently becomes exposed as that reserved field once
-// "hasdocument" flips to "true" - even though the attribute is never
-// re-declared in the new model at all. This is intentional, matching the
-// "treat a model update like a fresh export+reimport" philosophy: importing
-// this exact data into a "hasdocument=true" model from scratch would behave
-// identically, so no special-casing is needed for the in-place transition.
+// TestModelHasDocumentStaleExtensionBecomesReserved confirms that a
+// "hasdocument" false->true model transition is REJECTED when a Resource
+// already has stale extension DATA (not a re-declared model attribute)
+// under a name that becomes reserved once "hasdocument" is true
+// ("<singular>", "<singular>url", "<singular>base64",
+// "<singular>proxyurl"). Without this check, that pre-existing data would
+// be silently reinterpreted as document content the moment the model
+// changes - so the transition must fail instead, symmetric with the
+// existing true->false block (checkHasDocumentViolation()), and the
+// caller must explicitly clear the conflicting data first.
 func TestModelHasDocumentStaleExtensionBecomesReserved(t *testing.T) {
 	reg := NewRegistry("TestModelHasDocumentStaleExtensionBecomesReserved")
 	defer PassDeleteReg(t, reg)
 
-	// hasdocument=false: "fileurl" is just a legit user-declared string
-	// extension attribute - nothing reserved about it yet.
-	XHTTP(t, reg, "PUT", "/modelsource", `{
-  "groups": {
-    "dirs": {
-      "singular": "dir",
-      "resources": {
-        "files": {
-          "singular": "file",
-          "hasdocument": false,
-          "attributes": {
-            "fileurl": { "type": "string" }
-          }
-        }
-      }
-    }
-  }
-}`, 200, "*")
-
-	// A value is set that happens to look like a URL, but it's just plain
-	// extension data at this point - no document semantics apply.
-	XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
-		`{ "fileurl": "http://example.com/f1" }`, 201, "*")
-
-	// Flip hasdocument to "true" WITHOUT re-declaring "fileurl" anywhere -
-	// this succeeds; the pre-existing data is untouched by the model
-	// change itself.
-	XHTTP(t, reg, "PUT", "/modelsource", `{
+	newModelSrc := `{
   "groups": {
     "dirs": {
       "singular": "dir",
@@ -4244,14 +4255,69 @@ func TestModelHasDocumentStaleExtensionBecomesReserved(t *testing.T) {
       }
     }
   }
-}`, 200, "*")
+}
+`
 
-	// The stale extension value is now silently exposed as the Resource's
-	// document reference - GET redirects to it, exactly as it would for
-	// any hasdocument=true Resource whose "fileurl" happens to be set.
-	res := XHTTP(t, reg, "GET", "/dirs/d1/files/f1", "", 303, "*")
-	if loc := res.Header.Get("Location"); loc != "http://example.com/f1" {
-		t.Fatalf("Expected redirect Location %q, got %q",
-			"http://example.com/f1", loc)
+	// Establish the "dirs" group type up-front so the per-iteration DELETE
+	// below has something valid to target even on the first pass.
+	model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir"
+    }
+  }
+}
+`
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+
+	for _, name := range []string{"file", "filebase64", "fileurl", "fileproxyurl"} {
+		// Reset: remove any data from the previous iteration and start each
+		// pass with hasdocument=false so "name" is just a legit user-declared
+		// string extension attribute - nothing reserved about it yet.
+		XHTTP(t, reg, "DELETE", "/dirs", "", 204, "")
+		model := `{
+  "groups": {
+    "dirs": {
+      "singular": "dir",
+      "resources": {
+        "files": {
+          "singular": "file",
+          "hasdocument": false,
+          "attributes": {
+            "` + name + `": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+		XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+
+		// A value is set - it's just plain extension data at this point,
+		// no document semantics apply yet.
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f1",
+			`{ "`+name+`": "some data" }`, 201, "*")
+
+		// Flip hasdocument to "true" WITHOUT re-declaring "name" anywhere -
+		// this must be REJECTED because f1's existing data would
+		// otherwise silently become the document reference/content.
+		XHTTP(t, reg, "PUT", "/modelsource", newModelSrc, 400, `{
+  "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#hasdocument_enable_violation",
+  "title": "The request would cause Version \"/dirs/d1/files/f1/versions/1\" to be non-compliant. The Resource model is changing \"hasdocument\" to \"true\" but this Version already has data for the reserved attribute \"`+name+`\".",
+  "subject": "/dirs/d1/files/f1/versions/1",
+  "args": {
+    "name": "`+name+`"
+  },
+  "source": "xxx"
+}
+`)
+
+		// clearing the conflicting data first must allow the
+		// exact same model update to succeed afterward.
+		XHTTP(t, reg, "PUT", "/dirs/d1/files/f1", `{}`, 200, "*")
+		XHTTP(t, reg, "PUT", "/modelsource", newModelSrc, 200, newModelSrc)
 	}
 }

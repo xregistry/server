@@ -6345,11 +6345,7 @@ func TestModelResourceCreate(t *testing.T) {
 	// "files" Resource type entirely (replaced by "files2"), and a model
 	// update is no longer allowed to silently delete live entities of a
 	// removed type.
-	g, err = reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	r, err := g.FindResource("files", "f1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XNoErr(t, r.Delete())
+	XHTTP(t, reg, "DELETE", "/dirs/dir1/files", "", 204, "")
 
 	newModel = &registry.Model{
 		Groups: map[string]*registry.GroupModel{
@@ -6372,14 +6368,16 @@ func TestModelResourceCreate(t *testing.T) {
 		},
 	}
 
-	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
+	model := ToJSON(newModel) + "\n"
+
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
 
 	XCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 3,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -6997,8 +6995,8 @@ func TestModelResourceCreate(t *testing.T) {
       "self": "http://localhost:8181/dirs/dir1",
       "xid": "/dirs/dir1",
       "epoch": 2,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:03Z",
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:04Z",
 
       "files2url": "http://localhost:8181/dirs/dir1/files2",
       "files2count": 0
@@ -7016,14 +7014,16 @@ func TestModelResourceCreate(t *testing.T) {
 			},
 		},
 	}
+	model = ToJSON(newModel) + "\n"
 
-	reg.Model.ApplyNewModel(newModel, "", true)
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
+
 	XCheckGet(t, reg, "?inline=model&inline=dirs", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 4,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
@@ -7293,8 +7293,8 @@ func TestModelResourceCreate(t *testing.T) {
       "self": "http://localhost:8181/dirs/dir1",
       "xid": "/dirs/dir1",
       "epoch": 2,
-      "createdat": "2024-01-01T12:00:02Z",
-      "modifiedat": "2024-01-01T12:00:03Z"
+      "createdat": "2024-01-01T12:00:03Z",
+      "modifiedat": "2024-01-01T12:00:04Z"
     }
   },
   "dirscount": 1
@@ -7305,9 +7305,7 @@ func TestModelResourceCreate(t *testing.T) {
 	// "dirs" Group type entirely (replaced by "dirs2"), and a model
 	// update is no longer allowed to silently delete live entities of a
 	// removed type.
-	g, err = reg.FindGroup("dirs", "dir1", false, registry.FOR_WRITE)
-	XNoErr(t, err)
-	XNoErr(t, g.Delete())
+	XHTTP(t, reg, "DELETE", "/dirs", "", 204, "")
 
 	newModel = &registry.Model{
 		Groups: map[string]*registry.GroupModel{
@@ -7318,14 +7316,16 @@ func TestModelResourceCreate(t *testing.T) {
 		},
 	}
 
-	XNoErr(t, reg.Model.ApplyNewModel(newModel, "", true))
+	model = ToJSON(newModel) + "\n"
+
+	XHTTP(t, reg, "PUT", "/modelsource", model, 200, model)
 
 	XCheckGet(t, reg, "?inline=model&inline=", `{
   "specversion": "`+SPECVERSION+`",
   "registryid": "TestResourceModels",
   "self": "http://localhost:8181/",
   "xid": "/",
-  "epoch": 2,
+  "epoch": 6,
   "createdat": "2024-01-01T12:00:01Z",
   "modifiedat": "2024-01-01T12:00:02Z",
 
