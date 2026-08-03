@@ -249,6 +249,9 @@ func runFunc(cmd *cobra.Command, args []string) {
 		os.Setenv("XR_MODEL_PATH", ".:"+paths+
 			":http://raw.githubusercontent.com/xregistry/spec/main")
 
+		saveV := log.GetVerbose()
+		log.SetVerbose(1) // Hide the HTTP PUTs, etc.
+
 		LoadCESample(nil)
 		LoadDirsSample(nil)
 		LoadEndpointsSample(nil)
@@ -256,6 +259,8 @@ func runFunc(cmd *cobra.Command, args []string) {
 		LoadSchemasSample(nil)
 		LoadAPIGuru(nil, "APIs-guru", "openapi-directory")
 		LoadDocStore(nil)
+
+		log.SetVerbose(saveV)
 
 		if os.Getenv("XR_LOAD_LARGE") != "" {
 			go LoadLargeSample(nil)

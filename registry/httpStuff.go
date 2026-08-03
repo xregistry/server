@@ -1079,7 +1079,8 @@ func HTTPPutPost(info *RequestInfo) *XRError {
 	}
 
 	if !info.IsAvailableMutable("entities") {
-		return NewXRError("not_available", "/"+info.OriginalPath)
+		return NewXRError("not_available", "/"+info.OriginalPath).
+			SetDetail("Registry data is read-only.")
 	}
 
 	// Check for some obvious high-level bad states up-front
