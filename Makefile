@@ -147,6 +147,21 @@ xr: .sharedfiles cmds/xr/* common/*
 	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
 		go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
 
+xreg: cmds mysql
+	@peval kill -f "xrserver.*8181" > /dev/null 2>&1 || true
+	@echo Starting temp server
+	@xrserver registry create -f HardCoded -vv
+	@xrserver -p 8181 -r HardCoded &
+	@sleep 1
+	@echo Uploading registry data
+	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
+	@rm -r registry/ui/xreg
+	@mkdir -p registry/ui/xreg
+	@echo Downloading files
+	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
+		download . -c -u '$$HOST/ui/xreg'
+	@pkill -f xrserver.*8181
+
 docs/xr_help.md docs/xrserver_help.md: xr xrserver
 	@echo
 	@echo "# Regenerating the help text for the docs"
@@ -186,13 +201,16 @@ ifdef XR_SPEC
 		(echo "# Copy xReg spec files so 'docker build' gets them" && \
 		cp -r "$(XR_SPEC)/"* .spec/  )
 endif
-	@misc/errOutput -"docker build -f misc/Dockerfile-xr -t $(XR_IMAGE) --no-cache ." \
-	    docker build -f misc/Dockerfile-xr \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xr -t $(XR_IMAGE) \
+		--no-cache ." \
+		docker build -f misc/Dockerfile-xr \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XR_IMAGE) --no-cache .
-	@misc/errOutput -"docker build -f misc/Dockerfile-xrserver -t $(XRSERVER_IMAGE) --no-cache ." \
-	    docker build -f misc/Dockerfile-xrserver \
+	@misc/errOutput -"docker build -f misc/Dockerfile-xrserver \
+		-t $(XRSERVER_IMAGE) --no-cache ." \
+		docker build -f misc/Dockerfile-xrserver \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE) --no-cache .
-	@misc/errOutput -"docker build -f misc/Dockerfile-all -t $(XRSERVER_IMAGE)-all --no-cache ." \
+	@misc/errOutput -"docker build -f misc/Dockerfile-all \
+		-t $(XRSERVER_IMAGE)-all --no-cache ." \
 	    docker build -f misc/Dockerfile-all \
 		--build-arg GIT_COMMIT=$(GIT_COMMIT) -t $(XRSERVER_IMAGE)-all \
 		--no-cache .

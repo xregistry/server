@@ -73,6 +73,10 @@
       "type": "timestamp",
       "required": true
     },
+    "*": {
+      "name": "*",
+      "type": "any"
+    },
     "capabilities": {
       "name": "capabilities",
       "type": "object",
@@ -135,8 +139,8 @@
     "dirs": {
       "plural": "dirs",
       "singular": "dir",
-      "description": "A directory of files",
-      "icon": "http://soaphub.org/svgen/folder/dir",
+      "description": "Just a collection of stuff",
+      "icon": "http://soaphub.org/svgen/folder/Dir",
       "attributes": {
         "dirid": {
           "name": "dirid",
@@ -254,6 +258,40 @@
             }
           }
         },
+        "format": {
+          "name": "format",
+          "type": "string"
+        },
+        "*": {
+          "name": "*",
+          "type": "any"
+        },
+        "eventsurl": {
+          "name": "eventsurl",
+          "type": "url",
+          "readonly": true,
+          "immutable": true,
+          "required": true
+        },
+        "eventscount": {
+          "name": "eventscount",
+          "type": "uinteger",
+          "readonly": true,
+          "required": true
+        },
+        "events": {
+          "name": "events",
+          "type": "map",
+          "item": {
+            "type": "object",
+            "attributes": {
+              "*": {
+                "name": "*",
+                "type": "any"
+              }
+            }
+          }
+        },
         "filesurl": {
           "name": "filesurl",
           "type": "url",
@@ -279,25 +317,348 @@
               }
             }
           }
-        },
-        "*": {
-          "type": "any"
         }
       },
       "resources": {
-        "files": {
-          "plural": "files",
-          "singular": "file",
-          "description": "A bunch of ordered bytes on disk",
+        "events": {
+          "plural": "events",
+          "singular": "event",
+          "description": "Describe an event",
+          "icon": "http://soaphub.org/svgen/file/Event",
           "maxversions": 0,
           "setversionid": true,
-          "hasdocument": true,
+          "hasdocument": false,
           "versionmode": "manual",
           "singleversionroot": false,
           "validateformat": false,
           "validatecompatibility": false,
           "strictvalidation": false,
-          "icon": "http://soaphub.org/svgen/file/file",
+          "attributes": {
+            "eventid": {
+              "name": "eventid",
+              "type": "string",
+              "matchcase": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionid": {
+              "name": "versionid",
+              "type": "string",
+              "matchcase": true,
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "name": {
+              "name": "name",
+              "type": "string"
+            },
+            "isdefault": {
+              "name": "isdefault",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "description": {
+              "name": "description",
+              "type": "string"
+            },
+            "documentation": {
+              "name": "documentation",
+              "type": "url"
+            },
+            "icon": {
+              "name": "icon",
+              "type": "url"
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "ancestorid": {
+              "name": "ancestorid",
+              "type": "string",
+              "matchcase": true,
+              "required": true
+            },
+            "contenttype": {
+              "name": "contenttype",
+              "type": "string"
+            },
+            "format": {
+              "name": "format",
+              "type": "string"
+            },
+            "formatvalidated": {
+              "name": "formatvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "formatvalidatedreason": {
+              "name": "formatvalidatedreason",
+              "type": "string",
+              "readonly": true
+            },
+            "compatibilityvalidated": {
+              "name": "compatibilityvalidated",
+              "type": "boolean",
+              "readonly": true
+            },
+            "compatibilityvalidatedreason": {
+              "name": "compatibilityvalidatedreason",
+              "type": "string",
+              "readonly": true
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
+            }
+          },
+          "resourceattributes": {
+            "eventid": {
+              "name": "eventid",
+              "type": "string",
+              "matchcase": true,
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "metaurl": {
+              "name": "metaurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "meta": {
+              "name": "meta",
+              "type": "object",
+              "attributes": {
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "versionsurl": {
+              "name": "versionsurl",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "versionscount": {
+              "name": "versionscount",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "versions": {
+              "name": "versions",
+              "type": "map",
+              "item": {
+                "type": "object",
+                "attributes": {
+                  "*": {
+                    "name": "*",
+                    "type": "any"
+                  }
+                }
+              }
+            }
+          },
+          "metaattributes": {
+            "eventid": {
+              "name": "eventid",
+              "type": "string",
+              "matchcase": true,
+              "immutable": true,
+              "required": true
+            },
+            "self": {
+              "name": "self",
+              "type": "url",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "shortself": {
+              "name": "shortself",
+              "type": "url",
+              "readonly": true,
+              "immutable": true
+            },
+            "xid": {
+              "name": "xid",
+              "type": "xid",
+              "readonly": true,
+              "immutable": true,
+              "required": true
+            },
+            "xref": {
+              "name": "xref",
+              "type": "url"
+            },
+            "epoch": {
+              "name": "epoch",
+              "type": "uinteger",
+              "readonly": true,
+              "required": true
+            },
+            "labels": {
+              "name": "labels",
+              "type": "map",
+              "item": {
+                "type": "string"
+              }
+            },
+            "createdat": {
+              "name": "createdat",
+              "type": "timestamp",
+              "required": true
+            },
+            "modifiedat": {
+              "name": "modifiedat",
+              "type": "timestamp",
+              "required": true
+            },
+            "readonly": {
+              "name": "readonly",
+              "type": "boolean",
+              "readonly": true,
+              "required": true,
+              "default": false
+            },
+            "compatibility": {
+              "name": "compatibility",
+              "type": "string",
+              "enum": [
+                "backward",
+                "backward_transitive",
+                "forward",
+                "forward_transitive",
+                "full",
+                "full_transitive"
+              ],
+              "strict": true
+            },
+            "deprecated": {
+              "name": "deprecated",
+              "type": "object",
+              "attributes": {
+                "alternative": {
+                  "name": "alternative",
+                  "type": "url"
+                },
+                "documentation": {
+                  "name": "documentation",
+                  "type": "url"
+                },
+                "effective": {
+                  "name": "effective",
+                  "type": "timestamp"
+                },
+                "removal": {
+                  "name": "removal",
+                  "type": "timestamp"
+                },
+                "*": {
+                  "name": "*",
+                  "type": "any"
+                }
+              }
+            },
+            "defaultversionid": {
+              "name": "defaultversionid",
+              "type": "string",
+              "matchcase": true,
+              "required": true
+            },
+            "defaultversionurl": {
+              "name": "defaultversionurl",
+              "type": "url",
+              "readonly": true,
+              "required": true
+            },
+            "defaultversionsticky": {
+              "name": "defaultversionsticky",
+              "type": "boolean",
+              "required": true,
+              "default": false
+            }
+          }
+        },
+        "files": {
+          "plural": "files",
+          "singular": "file",
+          "description": "A file store file",
+          "icon": "http://soaphub.org/svgen/file/File",
+          "maxversions": 0,
+          "setversionid": true,
+          "hasdocument": true,
+          "versionmode": "manual",
+          "singleversionroot": false,
+          "validateformat": true,
+          "validatecompatibility": true,
+          "strictvalidation": false,
           "attributes": {
             "fileid": {
               "name": "fileid",
@@ -412,6 +773,10 @@
               "name": "compatibilityvalidatedreason",
               "type": "string",
               "readonly": true
+            },
+            "*": {
+              "name": "*",
+              "type": "any"
             },
             "fileurl": {
               "name": "fileurl",
@@ -620,10 +985,6 @@
               "type": "boolean",
               "required": true,
               "default": false
-            },
-            "*": {
-              "name": "*",
-              "type": "any"
             }
           }
         }

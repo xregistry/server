@@ -1,11 +1,12 @@
 {
   "ancestorid": "v3.0",
-  "createdat": "2026-07-02T23:10:06.551058868Z",
-  "epoch": 1,
+  "createdat": "2024-01-01T12:00:00Z",
+  "epoch": 26,
   "fileid": "f2",
   "isdefault": false,
-  "modifiedat": "2026-07-02T23:10:06.551058868Z",
+  "modifiedat": "2026-08-03T22:36:32.851120505Z",
   "self": "$HOST/ui/xreg/dirs/d1/files/f2/versions/v2.0",
+  "shortself": "http://localhost:8181/r/3e11680250bb45df",
   "versionid": "v2.0",
   "xid": "/dirs/d1/files/f2/versions/v2.0"
 }

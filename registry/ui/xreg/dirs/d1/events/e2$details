@@ -1,0 +1,15 @@
+{
+  "ancestorid": "1",
+  "createdat": "2026-08-03T21:13:59.325098513Z",
+  "epoch": 26,
+  "eventid": "e2",
+  "isdefault": true,
+  "metaurl": "$HOST/ui/xreg/dirs/d1/events/e2/meta",
+  "modifiedat": "2026-08-03T22:36:32.851120505Z",
+  "self": "$HOST/ui/xreg/dirs/d1/events/e2",
+  "shortself": "http://localhost:8181/r/481ca819e1ea454d",
+  "versionid": "1",
+  "versionscount": 1,
+  "versionsurl": "$HOST/ui/xreg/dirs/d1/events/e2/versions",
+  "xid": "/dirs/d1/events/e2"
+}
