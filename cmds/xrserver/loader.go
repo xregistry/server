@@ -4,7 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"net/http/httptest"
 	// "errors"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,6 +49,19 @@ func init() {
 		if buf, _ := os.ReadFile(".github"); len(buf) > 0 {
 			Token = string(buf)
 		}
+	}
+}
+
+func LoadRegistry(regName string, data string) {
+	req, err := http.NewRequest("PUT", "/reg-"+regName, strings.NewReader(data))
+	if err != nil {
+		ErrFatalf(err)
+	}
+	rr := httptest.NewRecorder()
+	((*registry.Server)(nil)).ServeHTTP(rr, req)
+	if rr.Code != 200 {
+		body, _ := io.ReadAll(rr.Body)
+		ErrFatalf(fmt.Errorf("%d: %s", rr.Code, string(body)))
 	}
 }
 
@@ -210,6 +225,9 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 	return reg
 }
 
+//go:embed test-reg.json
+var testRegJson string
+
 func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 	var xErr *XRError
 	if reg == nil {
@@ -222,156 +240,9 @@ func LoadDirsSample(reg *registry.Registry) *registry.Registry {
 		}
 
 		reg, xErr = registry.NewRegistry(nil, "TestRegistry")
-		ErrFatalf(xErr, "Error creating new registry: %s", xErr)
-		defer reg.Rollback()
-
-		ErrFatalf(reg.SetSave("#baseURL", "http://soaphub.org:8585/"))
-		ErrFatalf(reg.SetSave("name", "Test Registry"))
-		ErrFatalf(reg.SetSave("description", "A test reg"))
-		ErrFatalf(reg.SetSave("documentation", "https://github.com/xregistry/server"))
-
-		ErrFatalf(reg.SetSave("labels.stage", "prod"))
-
-		newModel := &registry.Model{}
-
-		_, xErr = newModel.AddAttr("bool1", BOOLEAN)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttr("int1", INTEGER)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttr("dec1", DECIMAL)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttr("str1", STRING)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrMap("map1", registry.NewItemType(STRING))
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrArray("arr1", registry.NewItemType(STRING))
-		ErrFatalf(xErr)
-
-		_, xErr = newModel.AddAttrMap("emptymap", registry.NewItemType(STRING))
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrArray("emptyarr", registry.NewItemType(STRING))
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrObj("emptyobj")
-		ErrFatalf(xErr)
-		obj, xErr := newModel.AddAttrObj("modelobj")
-		ErrFatalf(xErr)
-		_, xErr = obj.AddAttr("model", STRING)
-		ErrFatalf(xErr)
-		_, xErr = obj.AddAttr("model2", STRING)
-		ErrFatalf(xErr)
-
-		item := registry.NewItemObject()
-		_, xErr = item.AddAttr("inint", INTEGER)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrMap("mapobj", item)
-		ErrFatalf(xErr)
-
-		_, xErr = newModel.AddAttrArray("arrmapstr",
-			registry.NewItemMap(registry.NewItemType(STRING)))
-		ErrFatalf(xErr)
-
-		item = registry.NewItemMap(registry.NewItemObject())
-		_, xErr = newModel.AddAttrArray("arrmapobj", item)
-		ErrFatalf(xErr)
-		item = item.Item
-		_, xErr = item.AddAttr("aoint", INTEGER)
-		ErrFatalf(xErr)
-		objAttr, xErr := item.AddAttrObj("objint")
-		ErrFatalf(xErr)
-		_, xErr = objAttr.AddAttr("anobjint", INTEGER)
-		ErrFatalf(xErr)
-
-		item = registry.NewItemObject()
-		_, xErr = item.AddAttr("aoint", INTEGER)
-		ErrFatalf(xErr)
-		_, xErr = newModel.AddAttrArray("arrobj", item)
-		ErrFatalf(xErr)
-
-		ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
-
-		ErrFatalf(reg.SetSave("bool1", true))
-		ErrFatalf(reg.SetSave("int1", 1))
-		ErrFatalf(reg.SetSave("dec1", 1.1))
-		ErrFatalf(reg.SetSave("str1", "hi"))
-		ErrFatalf(reg.SetSave("map1.k1", "v1"))
-
-		ErrFatalf(reg.SetSave("emptymap", map[string]int{}))
-		ErrFatalf(reg.SetSave("emptyarr", []int{}))
-		ErrFatalf(reg.SetSave("emptyobj", map[string]any{})) // struct{}{}))
-
-		ErrFatalf(reg.SetSave("arr1[0]", "arr1-value"))
-		ErrFatalf(reg.SetSave("mapobj.mapkey.inint", 5))
-		ErrFatalf(reg.SetSave("mapobj['cool_key'].inint", 666))
-		ErrFatalf(reg.SetSave("arrmapobj[1].key1",
-			map[string]any{}))
-		ErrFatalf(reg.SaveAllAndCommit())
 	}
-
-	newModel := reg.Model.GetSourceAsModel()
-	if newModel == nil {
-		ErrFatalf(fmt.Errorf("modelsource is empty"))
-	}
-
 	Verbose("Loading: /reg-%s", reg.UID)
-	gm, xErr := newModel.AddGroupModel("dirs", "dir")
-	ErrFatalf(xErr)
-	rm, xErr := gm.AddResourceModel("files", "file", 2, true, true)
-	_, xErr = rm.AddMetaAttr("rext", STRING)
-	ErrFatalf(xErr)
-	_, xErr = rm.AddMetaAttr("*", ANY)
-	ErrFatalf(xErr)
-	_, xErr = rm.AddAttr("vext", STRING)
-	ErrFatalf(xErr)
-	rm, xErr = gm.AddResourceModel("datas", "data", 2, true, false)
-	ErrFatalf(xErr)
-	_, xErr = rm.AddAttr("*", STRING)
-	ErrFatalf(xErr)
-
-	_, xErr = newModel.AddAttrXID("resptr", "/dirs/files[/versions]")
-	ErrFatalf(xErr)
-
-	ErrFatalf(reg.Model.ApplyNewModel(newModel, "", true))
-
-	g, xErr := reg.AddGroup("dirs", "d1")
-	ErrFatalf(xErr)
-	ErrFatalf(g.SetSave("labels.private", "true"))
-	r, xErr := g.AddResource("files", "f1", "v1")
-	ErrFatalf(xErr)
-	ErrFatalf(g.SetSave("labels.private", "true"))
-	_, xErr = r.AddVersion("v2")
-	ErrFatalf(xErr)
-	ErrFatalf(reg.SaveAllAndCommit())
-
-	ErrFatalf(r.SetSaveMeta("labels.stage", "dev"))
-	ErrFatalf(r.SetSaveMeta("labels.none", ""))
-	ErrFatalf(r.SetSaveMeta("rext", "a string"))
-	ErrFatalf(r.SetSaveDefault("vext", "a ver string"))
-	ErrFatalf(reg.SetSave("resptr", "/dirs/d1/files/f1/versions/v1"))
-
-	ErrFatalf(r.SetSave("file", `{"hello":"world"}`))
-	ErrFatalf(r.SetSave("contenttype", `application/json`))
-	reg.SaveAllAndCommit()
-
-	g, xErr = reg.FindGroup("dirs", "d1", false, registry.FOR_READ)
-	ErrFatalf(xErr)
-
-	r, xErr = g.AddResource("files", "fr", "v1")
-	ErrFatalf(xErr)
-	reg.SaveAllAndCommit()
-
-	meta, xErr := r.FindMeta(false, registry.FOR_WRITE)
-	ErrFatalf(xErr)
-
-	ErrFatalf(meta.SetSave("readonly", true))
-
-	_, xErr = g.AddResource("datas", "d1", "v1")
-	_, xErr = g.AddResourceWithObject("files", "fx", "",
-		map[string]any{
-			"meta": map[string]any{"xref": "/dirs/d1/files/f1"},
-		}, false)
-	ErrFatalf(xErr)
-
-	reg.SaveAllAndCommit()
+	LoadRegistry("TestRegistry", testRegJson)
 	return reg
 }
 

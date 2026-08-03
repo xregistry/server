@@ -2012,6 +2012,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/",
   "source": "b1fcff68b7f8:registry:httpStuff:930"
 }
@@ -2223,6 +2224,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2232,6 +2234,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2241,6 +2244,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2250,6 +2254,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2259,6 +2264,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1/versions) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2269,6 +2275,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2278,6 +2285,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d2) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d2",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2287,6 +2295,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2296,6 +2305,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f2) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f2",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2305,6 +2315,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions/1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2315,6 +2326,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2325,6 +2337,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2334,6 +2347,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2343,6 +2357,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/dirs/d1/files/f1/versions/1) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/dirs/d1/files/f1/versions/1",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }
@@ -2353,6 +2368,7 @@ func TestCapabilityAvailable(t *testing.T) {
 		`{
   "type": "https://github.com/xregistry/spec/blob/main/core/spec.md#not_available",
   "title": "The requested data (/) is not available.",
+  "detail": "Registry data is read-only.",
   "subject": "/",
   "source": "b1fcff68b7f8:registry:httpStuff:936"
 }

@@ -1,0 +1,278 @@
+{
+  "specversion": "1.0-rc3",
+  "capabilities": {
+    "available": {
+      "capabilities":        { "mutable": true  },
+      "capabilitiesoffered": { "mutable": false },
+      "entities":            { "mutable": true  },
+      "export":              { "mutable": false },
+      "model":               { "mutable": false },
+      "modelsource":         { "mutable": true  }
+    },
+    "compatibilities": {
+      "avro*":       [ "backward", "backward_transitive", "forward",
+                       "forward_transitive", "full", "full_transitive" ],
+      "jsonschema*": [ "backward", "backward_transitive", "forward",
+                       "forward_transitive", "full", "full_transitive" ],
+      "numbers":     [ "backward", "backward_transitive", "forward",
+                       "forward_transitive", "full", "full_transitive" ],
+      "protobuf*":   [ "backward", "backward_transitive", "forward",
+                        "forward_transitive", "full", "full_transitive" ],
+      "xmlschema*":  [ "backward", "backward_transitive", "forward",
+                       "forward_transitive", "full", "full_transitive" ]
+    },
+    "flags":        [ "*" ],
+    "formats":      [ "avro*","jsonschema*","numbers","protobuf*","xmlschema*"],
+    "ignores":      [ "*" ],
+    "pagination":   false,
+    "shortself":    true,
+    "specversions": [ "1.0-rc3" ],
+    "versionmodes": [ "createdat", "manual" ]
+  },
+
+  "modelsource": {
+    "attributes": { "*": { "type": "any" } },
+    "groups": {
+      "dirs": {
+        "singular": "dir",
+        "description": "Just a collection of stuff",
+        "icon": "http://soaphub.org/svgen/folder/Dir",
+        "attributes": {
+          "format": { "type": "string" },
+          "*": { "type": "any" }
+        },
+        "resources": {
+          "files": {
+            "singular": "file",
+            "description": "A file store file",
+            "icon": "http://soaphub.org/svgen/file/File",
+            "hasdocument": true,
+            "validateformat": true,
+            "validatecompatibility": true,
+            "attributes": { "*": { "type": "any" } }
+          },
+          "events": {
+            "singular": "event",
+            "description": "Describe an event",
+            "icon": "http://soaphub.org/svgen/file/Event",
+            "hasdocument": false,
+            "attributes": { "*": { "type": "any" } }
+          }
+        }
+      }
+    }
+  },
+
+  "name": "Hard-Coded xReg Sample",
+  "description": "A hard-coded xRegistry sample registry for testing purposes. It should have ALL possible attributes specified even if the reference implementation doesn't support that feature yet.",
+  "documentation": "http://example.com",
+  "icon": "https://raw.githubusercontent.com/cncf/artwork/refs/heads/main/projects/xregistry/icon/black/xregistry-icon-black.svg",
+  "labels": { "env": "production", "owner": "joe" },
+  "createdat": "2024-01-01T12:00:00.00Z",
+  "modifiedat": "2024-01-01T12:00:00.00Z",
+
+  "extarray": [ "abc", "def", 123 ],
+  "extarrayobj": [
+    { "a1": "foo", "a2": "bar" },
+    { "c1": "foo", "obj": { "xxx":"xxx"},"c2": "bar" },
+    { "d1": "foo", "obj": { "xxx":"xxx"},"z2": "bar" },
+    { "b1": "foo", "objempty": {}, "b2": "bar" },
+    {}
+  ],
+  "extarrayempty": [],
+
+  "extmap": { "ext1": "val1", "ext2": "val2" },
+  "extmapempty": {},
+
+  "extobj": {
+    "attrStr": "aString",
+    "attrObj": {
+      "nestedStr": "nestedString",
+      "nestedArr": [ 1,2,3],
+      "nestedObj": { "anattr": "hello" }
+    }
+  },
+
+  "dirs": {
+    "d1": {
+      "dirid": "d1",
+      "name": "Eldest D",
+      "description": "This is directory d1",
+      "documentation": "http://example.com/docs-for-d1",
+      "icon": "http://soaphub.org/svgen/folder/D1",
+      "labels": { "env": "d1" },
+      "createdat": "2024-01-01T12:00:00.00Z",
+      "modifiedat": "2024-01-01T12:00:00.00Z",
+      "deprecated": {
+        "effective": "2023-01-01T09:09:09.09Z",
+        "removal": "2033-12-31T11:59:59.59Z",
+        "alternative": "http://some-other-d.com",
+        "documentation": "http://example.com/d1-removal-info.txt"
+      },
+      "constraints": {
+        "files.format": {
+          "enum": [ "numbers" ],
+          "equals": "format"
+        }
+      },
+      "extemptyarry" : [],
+      "extemptymap": {},
+      "extarrayempty": [ {}, {} ],
+      "extmap": {
+         "extmap1": {
+           "extmap1val1": "foo",
+           "extmap1val2": "bar"
+         },
+         "extarr1": [ "hello", 123 ]
+      },
+      "extarray": [
+        { 
+          "exrarrayobj1": [ 1,2,3 ],
+          "extarrayobj2": [ "abc", "def" ]
+        },
+        { "foo": "bar" }
+      ],
+
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "meta": {
+            "fileid": "f1",
+            "createdat": "2026-07-02T23:09:18.670387558Z",
+            "modifiedat": "2026-07-02T23:09:27.969221352Z",
+            "readonly": false,
+            "deprecated": {
+              "effective": "2023-01-01T09:09:09.09Z",
+              "removal": "2033-12-31T11:59:59.59Z",
+              "alternative": "http://some-other-f.com",
+              "documentation": "http://example.com/f1-removal-info.txt"
+            },
+            "defaultversionid": "v3.0",
+            "defaultversionsticky": false
+          },
+          "versions": {
+            "v1.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v1.0",
+              "file": "1"
+            },
+            "v2.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v1.0",
+              "file": "12"
+            },
+            "v3.0": {
+              "name": "f1-v3.0",
+              "description": "Hello, I'm d1.f1!",
+              "documentation": "http://example.com/docs-for-f1",
+              "icon": "http://soaphub.org/svgen/file/F1",
+              "labels": { "env": "d1-f1" },
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v2.0",
+              "contenttype": "application/json",
+              "format": "numbers",
+              "file": "123"
+
+            }
+          }
+        },
+        "f2": {
+          "fileid": "f2",
+          "meta": {
+            "createdat": "2024-01-01T12:00:00.00Z",
+            "modifiedat": "2024-01-01T12:00:00.00Z",
+            "defaultversionid": "v1.0",
+            "defaultversionsticky": false
+          },
+          "versions": {
+            "v1.0": {
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v2.0"
+            },
+            "v2.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v3.0"
+            },
+            "v3.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v3.0"
+            }
+          }
+        }
+      },
+      "events": {
+        "e1": {},
+        "e2": {}
+      }
+    },
+    "d2": {
+      "createdat": "2024-01-01T12:00:00.00Z",
+      "modifiedat": "2024-01-01T12:00:00.00Z",
+      "deprecated": {},
+      "files": {
+        "f1": {
+          "fileid": "f1",
+          "meta": {
+            "createdat": "2026-07-02T23:09:36.711513789Z",
+            "modifiedat": "2026-07-02T23:09:40.814288223Z",
+            "defaultversionid": "v1.0",
+            "defaultversionsticky": false
+          },
+          "versions": {
+            "v1.0": {
+              "isdefault": true,
+              "createdat": "2026-07-02T23:09:40.814288223Z",
+              "modifiedat": "2026-07-02T23:09:40.814288223Z",
+              "ancestorid": "v2.0"
+            },
+            "v2.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v3.0"
+            },
+            "v3.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v3.0"
+            }
+          }
+        },
+        "f2": {
+          "fileid": "f2",
+          "meta": {
+            "createdat": "2024-01-01T12:00:00.00Z",
+            "modifiedat": "2024-01-01T12:00:00.00Z",
+            "defaultversionid": "v3.0",
+            "defaultversionsticky": false
+          },
+          "versions": {
+            "v1.0": {
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v1.0"
+            },
+            "v2.0": {
+              "createdat": "2026-07-02T23:09:54.86261168Z",
+              "modifiedat": "2026-07-02T23:09:54.86261168Z",
+              "ancestorid": "v1.0"
+            },
+            "v3.0": {
+              "isdefault": true,
+              "createdat": "2024-01-01T12:00:00.00Z",
+              "modifiedat": "2024-01-01T12:00:00.00Z",
+              "ancestorid": "v2.0"
+            }
+          }
+        }
+      }
+    }
+  }
+}
