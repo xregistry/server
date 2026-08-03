@@ -50,7 +50,7 @@ cmds-all: xr-all xrserver-all
 docs: docs/xr_help.md docs/xrserver_help.md
 
 errors: .errors
-.errors: .cmds misc/checkerrors
+.errors: misc/checkerrors
 	@echo
 	@echo "# Checking the errors for spec alignment"
 	@misc/errOutput @misc/checkerrors core/spec.md core/model.md core/http.md
