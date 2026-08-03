@@ -79,7 +79,7 @@
     "readonly"
   ],
   "pagination": false,
-  "shortself": false,
+  "shortself": true,
   "specversions": [
     "1.0-rc3"
   ],

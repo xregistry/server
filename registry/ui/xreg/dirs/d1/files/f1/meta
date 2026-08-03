@@ -3,11 +3,17 @@
   "defaultversionid": "v3.0",
   "defaultversionsticky": false,
   "defaultversionurl": "$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0",
-  "epoch": 3,
+  "deprecated": {
+    "effective": "2023-01-01T09:09:09.09Z",
+    "removal": "2033-12-31T11:59:59.59Z",
+    "alternative": "http://some-other-f.com",
+    "documentation": "http://example.com/f1-removal-info.txt"
+  },
+  "epoch": 26,
   "fileid": "f1",
-  "modifiedat": "2026-07-02T23:09:27.969221352Z",
+  "modifiedat": "2026-08-03T22:36:32.851120505Z",
   "readonly": false,
   "self": "$HOST/ui/xreg/dirs/d1/files/f1/meta",
-  "xid": "/dirs/d1/files/f1/meta",
-  "compatibility": "backward"
+  "shortself": "http://localhost:8181/r/94faa30cb55542ff",
+  "xid": "/dirs/d1/files/f1/meta"
 }

@@ -344,7 +344,6 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 	if err := Unmarshal(buf, model); err != nil {
 		return NewXRError("parsing_data", fileName,
 			"error_detail="+err.Error())
-		//Error("%s%s", fileName, err)
 	}
 
 	if skipTarget {
@@ -356,7 +355,6 @@ func VerifyModel(fileName string, buf []byte, skipTarget bool) *XRError {
 
 	if xErr := model.Verify(); xErr != nil {
 		return xErr
-		// Error("%s%s", fileName, err)
 	}
 	return nil
 }
@@ -950,9 +948,9 @@ func modelGroupCreateFunc(cmd *cobra.Command, args []string) {
 
 	}
 
-	buf, err := json.MarshalIndent(model, "", "  ")
-	if err != nil {
-		Error(err)
+	buf, xErr := model.SerializeForUser()
+	if xErr != nil {
+		Error(xErr)
 	}
 	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
@@ -1031,8 +1029,8 @@ func modelGroupDeleteFunc(cmd *cobra.Command, args []string) {
 		verMsg += fmt.Sprintf("Deleted Group type: %s\n", arg)
 	}
 
-	buf, err := json.MarshalIndent(model, "", "  ")
-	Error(err)
+	buf, xErr := model.SerializeForUser()
+	Error(xErr)
 	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
@@ -1354,8 +1352,8 @@ func modelResourceCreateFunc(cmd *cobra.Command, args []string) {
 			actionStr, resourcePlural)
 	}
 
-	buf, err := json.MarshalIndent(modelSrc, "", "  ")
-	Error(err)
+	buf, xErr := modelSrc.SerializeForUser()
+	Error(xErr)
 	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)
@@ -1442,8 +1440,8 @@ func modelResourceDeleteFunc(cmd *cobra.Command, args []string) {
 		verMsg += fmt.Sprintf("Deleted Resource type: %s\n", arg)
 	}
 
-	buf, err := json.MarshalIndent(model, "", "  ")
-	Error(err)
+	buf, xErr := model.SerializeForUser()
+	Error(xErr)
 	_, xErr = reg.HttpDo(VerboseCount > 1, "PUT", "/modelsource", buf)
 	Error(xErr)
 	Verbose(verMsg)

@@ -1,0 +1,12 @@
+{
+  "ancestorid": "1",
+  "createdat": "2026-08-03T21:13:59.325098513Z",
+  "epoch": 26,
+  "eventid": "e2",
+  "isdefault": true,
+  "modifiedat": "2026-08-03T22:36:32.851120505Z",
+  "self": "$HOST/ui/xreg/dirs/d1/events/e2/versions/1",
+  "shortself": "http://localhost:8181/r/55b0d32b452e474d",
+  "versionid": "1",
+  "xid": "/dirs/d1/events/e2/versions/1"
+}

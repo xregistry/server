@@ -559,11 +559,3 @@ func (rm *ResourceModel) VerifyData() *XRError {
 
 	return nil
 }
-
-func (m *Model) SerializeForUser() ([]byte, *XRError) {
-	buf, err := json.MarshalIndent((*UserModel)(m), "", "  ")
-	if err != nil {
-		return nil, NewXRError("server_error", "/").SetDetail(err.Error() + ".")
-	}
-	return buf, nil
-}

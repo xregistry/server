@@ -3,10 +3,11 @@ content-length:0
 content-location:$HOST/ui/xreg/dirs/d2/files/f1/versions/v1.0
 xregistry-ancestorid:v2.0
 xregistry-createdat:2026-07-02T23:09:40.814288223Z
-xregistry-epoch:1
+xregistry-epoch:26
 xregistry-fileid:f1
 xregistry-isdefault:true
-xregistry-modifiedat:2026-07-02T23:09:40.814288223Z
+xregistry-modifiedat:2026-08-03T22:36:32.851120505Z
 xregistry-self:$HOST/ui/xreg/dirs/d2/files/f1/versions/v1.0
+xregistry-shortself:http://localhost:8181/r/1867144d32574f11
 xregistry-versionid:v1.0
 xregistry-xid:/dirs/d2/files/f1/versions/v1.0
