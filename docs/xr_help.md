@@ -68,6 +68,7 @@ xr download DIR [XID...]
       --md2html-header string     HTML to add in <head> (data,@FILE,@URL,@-)
       --md2html-html string       HTML to add after <head> (data,@FILE,@URL,@-)
       --md2html-no-style          Do not add default styling to html files
+      --nodiff strings            No-diff attrs: *,epoch,createdat,modifiedat
   -p, --parallel int              Number of items to download in parallel (10*)
   -s, --server string             xRegistry server URL
   -u, --url string                Host/path to Update xRegistry paths

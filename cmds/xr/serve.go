@@ -59,13 +59,13 @@ func doit(w http.ResponseWriter, r *http.Request, dir string) {
 	origFile := file
 
 	if r.Method != "GET" {
-		Verbose("405 %s %s", r.Method, file)
+		Verbose("405 %s /%s", r.Method, file)
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	if strings.Index(file, "..") >= 0 {
-		Verbose("400 %s %s", r.Method, file)
+		Verbose("400 %s /%s", r.Method, file)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -74,11 +74,11 @@ func doit(w http.ResponseWriter, r *http.Request, dir string) {
 	info, err := os.Stat(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			Verbose("404 %s %s", r.Method, file)
+			Verbose("404 %s /%s", r.Method, file)
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		Verbose("400 %s %s", r.Method, file)
+		Verbose("400 %s /%s", r.Method, file)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -91,7 +91,7 @@ func doit(w http.ResponseWriter, r *http.Request, dir string) {
 
 	buf, err := os.ReadFile(file)
 	if err != nil {
-		Verbose("400 %s %s", r.Method, file)
+		Verbose("400 %s /%s", r.Method, file)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -109,6 +109,6 @@ func doit(w http.ResponseWriter, r *http.Request, dir string) {
 		}
 	}
 
-	Verbose("200 %s %s", r.Method, origFile)
+	Verbose("200 %s /%s", r.Method, origFile)
 	w.Write(buf)
 }

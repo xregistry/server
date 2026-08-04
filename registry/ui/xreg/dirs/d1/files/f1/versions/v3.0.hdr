@@ -3,19 +3,18 @@ content-length:3
 content-location:$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0
 content-type:application/json
 xregistry-ancestorid:v2.0
-xregistry-createdat:2024-01-01T12:00:00Z
+xregistry-createdat:2000-01-01T12:00:00.00Z
 xregistry-description:Hello, I'm d1.f1!
 xregistry-documentation:http://example.com/docs-for-f1
-xregistry-epoch:26
+xregistry-epoch:1
 xregistry-fileid:f1
 xregistry-format:numbers
 xregistry-formatvalidated:true
-xregistry-icon:http://soaphub.org/svgen/file/F1
+xregistry-icon:http://soaphub.org/svgen/doc/F1
 xregistry-isdefault:true
 xregistry-labels.env:d1-f1
-xregistry-modifiedat:2026-08-03T22:36:32.851120505Z
+xregistry-modifiedat:2000-01-01T12:00:00.00Z
 xregistry-name:f1-v3.0
 xregistry-self:$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0
-xregistry-shortself:http://localhost:8181/r/53d0e5ba2ba84a1d
 xregistry-versionid:v3.0
 xregistry-xid:/dirs/d1/files/f1/versions/v3.0

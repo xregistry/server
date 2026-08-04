@@ -6626,11 +6626,12 @@ var PROP_CATEGORY_DEFS = [
 // (not just xReg plumbing) that Domain view keeps them visible even
 // though the rest of that category is hidden — e.g. the Meta tab's
 // defaultversionid/defaultversionsticky/readonly (which version is
-// active, whether changes are locked out), and the Version Details
-// table's isdefault/ancestorid (whether this is the default version, and
+// active, whether changes are locked out), deprecated (whether this
+// Resource/Version is deprecated), and the Version Details table's
+// isdefault/ancestorid (whether this is the default version, and
 // which version it descends from).
 var DOMAIN_FOCUSED_KEEP_KEYS = {defaultversionid:1, defaultversionsticky:1, readonly:1,
-  isdefault:1, ancestorid:1};
+  isdefault:1, ancestorid:1, deprecated:1};
 
 function groupPropsByCategory(keys, specLevel, singular, resourceSingular, domainFocused, extLabel) {
   if (!specLevel) return null;

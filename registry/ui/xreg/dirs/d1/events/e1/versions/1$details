@@ -1,12 +1,14 @@
 {
   "ancestorid": "1",
-  "createdat": "2026-08-03T21:13:59.325098513Z",
-  "epoch": 26,
+  "createdat": "2000-01-01T12:00:00.00Z",
+  "description": "Hello, I'm d1.e1!",
+  "documentation": "http://example.com/event-for-E1",
+  "epoch": 1,
   "eventid": "e1",
+  "icon": "http://soaphub.org/svgen/file/E1",
   "isdefault": true,
-  "modifiedat": "2026-08-03T22:36:32.851120505Z",
+  "modifiedat": "2000-01-01T12:00:00.00Z",
   "self": "$HOST/ui/xreg/dirs/d1/events/e1/versions/1",
-  "shortself": "http://localhost:8181/r/c7108e356cce42ec",
   "versionid": "1",
   "xid": "/dirs/d1/events/e1/versions/1"
 }

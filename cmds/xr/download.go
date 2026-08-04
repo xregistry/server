@@ -67,6 +67,8 @@ func addDownloadCmd(parent *cobra.Command) {
 	downloadCmd.Flags().IntP("parallel", "p", 10,
 		"Number of items to download in parallel (10*)")
 	downloadCmd.Flag("parallel").DefValue = "0" // hide default text
+	downloadCmd.Flags().StringSliceP("nodiff", "", nil,
+		"No-diff attrs: *,epoch,createdat,modifiedat")
 
 	parent.AddCommand(downloadCmd)
 }
@@ -120,6 +122,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	indexFile, _ := cmd.Flags().GetString("index")
 	host, _ := cmd.Flags().GetString("url")
 	modCap, _ := cmd.Flags().GetBool("capabilities")
+	noDiff, _ := cmd.Flags().GetStringSlice("nodiff")
 	if host != "" {
 		if host[len(host)-1] != '/' {
 			host += "/"
@@ -136,144 +139,149 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
+	noDiffObj := func(obj map[string]any) {}
+	noDiffObj = func(obj map[string]any) {
+		if !cmd.Flags().Changed("nodiff") || len(obj) == 0 {
+			return
+		}
+
+		if xidAny, ok := obj["xid"]; ok {
+			xidStr, ok := xidAny.(string)
+			if !ok {
+				return
+			}
+
+			// if there's an XID then it must be an object and not a collection
+			xid, err := ParseXid(xidStr)
+			if err != nil {
+				return
+			}
+
+			delete(obj, "shortself") // needs live server
+
+			if host != "" {
+				self := host + xid.String()[1:]
+				selfAny := obj["self"]
+				if _, ok := selfAny.(string); ok && selfAny.(string)[0] != '#' {
+					obj["self"] = self
+				}
+
+				// Process nested collection URLs
+				for k, v := range obj {
+					// Only tweak *url fields that are: string, not relative
+					vStr, ok := v.(string)
+					if !ok || !strings.HasSuffix(k, "url") || vStr[0] == '#' {
+						continue
+					}
+
+					base := k[:len(k)-3]
+					if _, ok := obj[base+"count"]; ok {
+						obj[k] = host + xid.String()[1:] + "/" + base
+					} else if base == "meta" {
+						obj[k] = host + xid.String()[1:] + "/" + base
+					} else if base == "defaultversion" {
+						verID := obj["defaultversionid"].(string)
+						// Remove "/meta" from self
+						obj[k] = self[:len(self)-5] + "/versions/" + verID
+					}
+				}
+			}
+
+			// Proces the --nodiff flag
+			all := ArrayContains(noDiff, "*")
+
+			if all || ArrayContains(noDiff, "epoch") {
+				if _, ok := obj["epoch"]; ok {
+					obj["epoch"] = 1
+				}
+			}
+			if all || ArrayContains(noDiff, "createdat") {
+				if _, ok := obj["createdat"]; ok {
+					obj["createdat"] = `2000-01-01T12:00:00.00Z`
+				}
+			}
+			// Must come after "createdat" processing
+			if all || ArrayContains(noDiff, "modifiedat") {
+				if _, ok := obj["modifiedat"]; ok {
+					obj["modifiedat"] = obj["createdat"]
+				}
+			}
+		}
+
+		// Recurse for nested collections
+		for _, v := range obj {
+			if v1, ok := v.(map[string]any); ok {
+				noDiffObj(v1)
+			}
+		}
+	}
+
+	noDiffHeaders := func(headers map[string]string) {
+		if !cmd.Flags().Changed("nodiff") {
+			return
+		}
+
+		delete(headers, "xregistry-shortself")
+		for _, k := range SortedKeys(headers) {
+			all := ArrayContains(noDiff, "*")
+
+			if all || ArrayContains(noDiff, "epoch") {
+				if k == "xregistry-epoch" {
+					headers[k] = "1"
+				}
+			}
+			if all || ArrayContains(noDiff, "createdat") {
+				if k == "xregistry-createdat" {
+					headers[k] = "2000-01-01T12:00:00.00Z"
+				}
+			}
+			if all || ArrayContains(noDiff, "modifiedat") {
+				if k == "xregistry-modifiedat" {
+					headers[k] = headers["xregistry-createdat"]
+				}
+			}
+		}
+	}
+
 	downloadXidFn := func(xid *Xid, wait bool) ([]byte, *XRError) {
 		if !wait && parallel > 1 {
 			listCH <- xid
 			return nil, nil
 		}
 
-		obj := map[string]json.RawMessage{}
-		plurals := []string{}
-
 		file := dir
-		data := []byte(nil)
+		obj := map[string]any{}
+		fname := xid.String()
+		if xid.Type == ENTITY_RESOURCE || xid.Type == ENTITY_VERSION {
+			fname += "$details"
+		}
+
+		data, _ := Download(reg, fname)
+		if err := json.Unmarshal(data, &obj); err != nil {
+			fmt.Printf("JSON(%s): %s", fname, string(data))
+			Error(NewXRError("parsing_response", reg.GetServerURL(),
+				"error_detail="+err.Error()))
+		}
+
+		noDiffObj(obj)
+		data, err = json.MarshalIndent(obj, "", "  ")
+		Error(err)
+
 		switch xid.Type {
 		case ENTITY_REGISTRY:
-			data, _ = Download(reg, xid.String())
-			if err := json.Unmarshal(data, &obj); err != nil {
-				Error(NewXRError("parsing_response", reg.GetServerURL(),
-					"error_detail="+err.Error()))
-			}
-
-			if host != "" {
-				obj["self"] = []byte(fmt.Sprintf("%q", host))
-				list, xErr := reg.ListGroupModels()
-				Error(xErr)
-				for _, gmName := range list {
-					gm, xErr := reg.FindGroupModel(gmName)
-					Error(xErr)
-					obj[gm.Plural+"url"] =
-						[]byte(fmt.Sprintf("%q", host+gm.Plural))
-				}
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			}
-
-			fn := file + "/" + indexFile
-			Write(fn, data)
-			Write(fn+".hdr", []byte("content-type: application/json"))
-
+			fallthrough
 		case ENTITY_GROUP_TYPE:
-			gm, xErr := reg.FindGroupModel(xid.Group)
-			Error(xErr)
-
-			for rName, _ := range gm.Resources {
-				plurals = append(plurals, rName) // rm.Plural)
-			}
 			fallthrough
 		case ENTITY_RESOURCE_TYPE:
-			if xid.Type == ENTITY_RESOURCE_TYPE {
-				plurals = append(plurals, "versions")
-			}
 			fallthrough
 		case ENTITY_VERSION_TYPE:
-			data, _ = Download(reg, xid.String())
-
-			if host != "" {
-				if err := json.Unmarshal(data, &obj); err != nil {
-					Error(NewXRError("parsing_response",
-						reg.GetServerURL()+xid.String(),
-						"error_detail="+err.Error()))
-				}
-
-				for k, d2 := range obj {
-					tmp := map[string]json.RawMessage{}
-					if err := json.Unmarshal(d2, &tmp); err != nil {
-						Error(NewXRError("parsing_response", xid.String(),
-							"error_detail="+err.Error()))
-					}
-
-					self := host + xid.String()[1:] + "/" + k
-					tmp["self"] = []byte(fmt.Sprintf("%q", self))
-
-					if _, ok := tmp["metaurl"]; ok {
-						tmp["metaurl"] =
-							[]byte(fmt.Sprintf("\"%s/meta\"", self))
-					}
-
-					sort.Strings(plurals)
-					for _, p := range plurals {
-						pURL := fmt.Sprintf("%s/%s", self, p)
-						tmp[p+"url"] = []byte(fmt.Sprintf("%q", pURL))
-					}
-
-					b, err := json.Marshal(tmp)
-					Error(err)
-					obj[k] = b
-				}
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			}
-
-			fn := file + xid.String() + "/" + indexFile
-			Write(fn, data)
-			Write(fn+".hdr", []byte("content-type: application/json"))
-
+			fallthrough
 		case ENTITY_GROUP:
-			data, _ = Download(reg, xid.String())
-
-			if host != "" {
-				if err := json.Unmarshal(data, &obj); err != nil {
-					Error(NewXRError("parsing_response",
-						reg.GetServerURL()+xid.String(),
-						"error_detail="+err.Error()))
-				}
-
-				self := host + xid.String()[1:]
-				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				gm, xErr := reg.FindGroupModel(xid.Group)
-				Error(xErr)
-				for rName, _ := range gm.Resources {
-					p := fmt.Sprintf(`"%s/%s"`, self, rName) // rm.Plural)
-					// obj[rm.Plural+"url"] = []byte(p)
-					obj[rName+"url"] = []byte(p)
-				}
-				data, err = json.MarshalIndent(obj, "", "  ")
-				Error(err)
-			}
-
-			fn := file + xid.String() + "/" + indexFile
+			fn := file + strings.TrimRight(xid.String(), "/") + "/" + indexFile
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case ENTITY_RESOURCE:
-			data, _ = Download(reg, xid.String()+"$details")
-			if err := json.Unmarshal(data, &obj); err != nil {
-				Error(NewXRError("parsing_response",
-					reg.GetServerURL()+xid.String()+"$details",
-					"error_detail="+err.Error()))
-			}
-
-			if host != "" {
-				self := host + xid.String()[1:]
-				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				obj["versionsurl"] = []byte(`"` + self + "/versions" + `"`)
-				obj["metaurl"] = []byte(`"` + self + "/meta" + `"`)
-			}
-
-			data, err = json.MarshalIndent(obj, "", "  ")
-			Error(err)
-
 			fn := file + xid.String() + "$details"
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
@@ -295,6 +303,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 						cl := self + "/versions/" + hdr["xregistry-versionid"]
 						hdr["content-location"] = cl
 					}
+					noDiffHeaders(hdr)
 
 					fn = file + xid.String() + ".hdr"
 					str := ""
@@ -394,50 +403,11 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 
 		case ENTITY_META:
-			data, _ = Download(reg, xid.String())
-			if err := json.Unmarshal(data, &obj); err != nil {
-				Error(NewXRError("parsing_response",
-					reg.GetServerURL()+xid.String(),
-					"error_detail="+err.Error()))
-			}
-
-			if host != "" {
-				self := host + xid.String()[1:]
-				obj["self"] = []byte(fmt.Sprintf("%q", self))
-				verid := ""
-				err := json.Unmarshal(obj["defaultversionid"], &verid)
-				if err != nil {
-					Error(NewXRError("parsing_response", xid.String(),
-						"error_detail="+err.Error()))
-				}
-				ver := fmt.Sprintf(`"%s/versions/%s"`, self[:len(self)-5],
-					verid)
-				obj["defaultversionurl"] = []byte(ver)
-			}
-
-			data, err = json.MarshalIndent(obj, "", "  ")
-			Error(err)
-
 			fn := file + xid.String()
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
 
 		case ENTITY_VERSION:
-			data, _ = Download(reg, xid.String()+"$details")
-			if err := json.Unmarshal(data, &obj); err != nil {
-				Error(NewXRError("parsing_response",
-					reg.GetServerURL()+xid.String()+"$details",
-					"error_detail="+err.Error()))
-			}
-
-			if host != "" {
-				self := host + xid.String()[1:]
-				obj["self"] = []byte(fmt.Sprintf("%q", self))
-			}
-
-			data, err = json.MarshalIndent(obj, "", "  ")
-			Error(err)
-
 			fn := file + xid.String() + "$details"
 			Write(fn, data)
 			Write(fn+".hdr", []byte("content-type: application/json"))
@@ -456,6 +426,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 					if hdr["content-location"] != "" {
 						hdr["content-location"] = self
 					}
+					noDiffHeaders(hdr)
 
 					fn = file + xid.String() + ".hdr"
 					str := ""
@@ -513,15 +484,16 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	if len(data) > 0 {
 		// If the user wants the "capabilities" to be modified for a static
 		// web site then we need to update them in the /export output too
-		if modCap {
-			tmpData := map[string]json.RawMessage(nil)
-			if err := json.Unmarshal(data, &tmpData); err != nil {
-				Error(NewXRError("parsing_response",
-					reg.GetServerURL()+"/export",
-					"error_detail="+err.Error()))
-			}
+		// obj := map[string]json.RawMessage(nil)
+		obj := map[string]any{}
+		if err := json.Unmarshal(data, &obj); err != nil {
+			Error(NewXRError("parsing_response",
+				reg.GetServerURL()+"/export",
+				"error_detail="+err.Error()))
+		}
 
-			caps, xErr := ParseCapabilities(tmpData["capabilities"])
+		if modCap {
+			caps, xErr := ParseCapabilities([]byte(ToJSON(obj["capabilities"])))
 			Error(xErr)
 
 			caps.Available = map[string]*AvailableObject{
@@ -534,9 +506,13 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			}
 			caps.Flags = nil
 			caps.Pagination = false
-			tmpData["capabilities"], _ = json.Marshal(caps)
-			data, _ = json.MarshalIndent(tmpData, "", "  ")
+			caps.ShortSelf = false
+			obj["capabilities"] = caps
 		}
+
+		noDiffObj(obj)
+		data, _ = json.MarshalIndent(obj, "", "  ")
+
 		Write(dir+"/export", data)
 		Write(dir+"/export.hdr", []byte("content-type: application/json"))
 	}
