@@ -98,6 +98,22 @@ func main() {
 		"Regenerate: make .sharedfiles")
 	fmt.Fprintln(out, "// Generator: cmds/genspecattrs/main.go")
 	fmt.Fprintln(out, "//")
+	// The UI's own build-time commit sha — NOT the sha of whatever
+	// registry server the SPA happens to be pointed at (that's runtime,
+	// per-server data unrelated to this file). Read from the GIT_COMMIT
+	// env var the Makefile already exports for BUILDFLAGS/STATIC (falls
+	// back to common.GitCommit, e.g. when this generator is invoked with
+	// -ldflags directly instead of via `make`). Surfaced by the Config
+	// page's "About" section (see renderConfig() in app.js). Since this
+	// only regenerates when its Makefile prerequisites change (see
+	// registry/ui/specattrs.js's rule), it reflects the commit as of the
+	// last time this file was regenerated, not necessarily HEAD.
+	uiCommit := os.Getenv("GIT_COMMIT")
+	if uiCommit == "" {
+		uiCommit = common.GitCommit
+	}
+	fmt.Fprintf(out, "var XREG_UI_COMMIT = %q;\n", uiCommit)
+	fmt.Fprintln(out, "")
 	fmt.Fprintln(out, "// Spec-defined attributes per entity level.")
 	fmt.Fprintln(out, "// Extensions: attrs NOT in this set, NOT "+
 		"<singular>id, NOT collection keys.")

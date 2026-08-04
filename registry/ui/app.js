@@ -3375,6 +3375,52 @@ function cfgSortedServerUrls(urls) {
   });
 }
 
+// Builds the Config page's "About" section — static project links plus the
+// UI's own build-time commit sha (XREG_UI_COMMIT, from specattrs.js — see
+// cmds/genspecattrs/main.go). This is about the UI bundle itself, NOT
+// whatever registry server happens to be selected at runtime, so nothing
+// here depends on _state/servers/probing.
+function buildAboutSectionHtml() {
+  var commit = (typeof XREG_UI_COMMIT !== 'undefined' && XREG_UI_COMMIT) || '';
+  var shortCommit = commit ? commit.slice(0, 12) : '';
+
+  var pills = [
+    { label: 'xRegistry Spec',
+      href: 'https://github.com/xregistry/spec/blob/main/core/spec.md',
+      title: 'The spec this server and UI implement' },
+    { label: 'Spec Repo',
+      href: 'https://github.com/xregistry/spec',
+      title: 'Source of the xRegistry specification' },
+    { label: 'Server Repo',
+      href: 'https://github.com/xregistry/server',
+      title: 'Source of this server and its web UI' },
+    { label: 'Report an Issue',
+      href: 'https://github.com/xregistry/server/issues',
+      title: 'File a bug or feature request' }
+  ];
+
+  var pillsHtml = pills.map(function(p) {
+    return '<a class="reg-endpoint-pill" href="' + esc(p.href) + '" target="_blank" '
+      + 'rel="noopener" title="' + esc(p.title) + '">' + esc(p.label) + '</a>';
+  }).join('');
+
+  pillsHtml += commit
+    ? '<span class="reg-endpoint-pill" title="' + esc(commit) + '">Version: '
+      + '<a href="https://github.com/xregistry/server/tree/' + esc(commit) + '" '
+      + 'target="_blank" rel="noopener" class="eg-mono">' + esc(shortCommit) + '</a></span>'
+    : '<span class="reg-endpoint-pill">Version: <span style="color:#999">unknown</span></span>';
+
+  return '<div class="config-section">'
+    + '<h3 class="config-section-title">About</h3>'
+    + '<p class="config-section-desc">'
+      + '<a href="https://xregistry.io" target="_blank" rel="noopener">xRegistry</a>'
+      + ' is a <a href="https://www.cncf.io" target="_blank" rel="noopener">Cloud Native'
+      + ' Computing Foundation (CNCF)</a> <a href="https://www.cncf.io/sandbox-projects/" '
+      + 'target="_blank" rel="noopener">Sandbox</a> project.</p>'
+    + '<div class="reg-endpoint-pills">' + pillsHtml + '</div>'
+    + '</div>';
+}
+
 function renderConfig() {
   var main   = el('main-view');
   var origin = window.location.origin;
@@ -3551,7 +3597,10 @@ function renderConfig() {
     +   '<button class="cfg-btn cfg-btn-danger" onclick="cfgResetAll()">Clear All</button>'
     +   '<button class="cfg-btn" onclick="cfgResetExceptServers()">Clear All Except Registry Locations</button>'
     + '</div>'
-    + '</div>';
+    + '</div>'
+
+    // ---- About section ----
+    + buildAboutSectionHtml();
   main.innerHTML = html;
 
   // Probe all servers; mark any that error with the same ! badge + popup as the home page
