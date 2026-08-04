@@ -1,13 +1,12 @@
 {
-  "createdat": "2024-01-01T12:00:00Z",
+  "createdat": "2000-01-01T12:00:00.00Z",
   "defaultversionid": "v3.0",
   "defaultversionsticky": false,
   "defaultversionurl": "$HOST/ui/xreg/dirs/d2/files/f2/versions/v3.0",
-  "epoch": 26,
+  "epoch": 1,
   "fileid": "f2",
-  "modifiedat": "2026-08-03T22:36:32.851120505Z",
+  "modifiedat": "2000-01-01T12:00:00.00Z",
   "readonly": false,
   "self": "$HOST/ui/xreg/dirs/d2/files/f2/meta",
-  "shortself": "http://localhost:8181/r/dcd9666826184756",
   "xid": "/dirs/d2/files/f2/meta"
 }

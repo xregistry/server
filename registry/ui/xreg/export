@@ -80,7 +80,7 @@
       "readonly"
     ],
     "pagination": false,
-    "shortself": true,
+    "shortself": false,
     "specversions": [
       "1.0-rc3"
     ],
@@ -89,29 +89,10 @@
       "manual"
     ]
   },
-  "createdat": "2024-01-01T12:00:00Z",
+  "createdat": "2000-01-01T12:00:00.00Z",
   "description": "A hard-coded xRegistry sample registry for testing purposes. It should have ALL possible attributes specified even if the reference implementation doesn't support that feature yet.",
   "dirs": {
     "d1": {
-      "dirid": "d1",
-      "self": "#/dirs/d1",
-      "xid": "/dirs/d1",
-      "epoch": 26,
-      "name": "Eldest D",
-      "description": "This is directory d1",
-      "documentation": "http://example.com/docs-for-d1",
-      "icon": "http://soaphub.org/svgen/folder/D1",
-      "labels": {
-        "env": "d1"
-      },
-      "createdat": "2024-01-01T12:00:00Z",
-      "modifiedat": "2026-08-03T22:36:32.851120505Z",
-      "deprecated": {
-        "alternative": "http://some-other-d.com",
-        "documentation": "http://example.com/d1-removal-info.txt",
-        "effective": "2023-01-01T09:09:09.09Z",
-        "removal": "2033-12-31T11:59:59.59Z"
-      },
       "constraints": {
         "files.format": {
           "enum": [
@@ -120,6 +101,93 @@
           "equals": "format"
         }
       },
+      "createdat": "2000-01-01T12:00:00.00Z",
+      "deprecated": {
+        "alternative": "http://some-other-d.com",
+        "documentation": "http://example.com/d1-removal-info.txt",
+        "effective": "2023-01-01T09:09:09.09Z",
+        "removal": "2033-12-31T11:59:59.59Z"
+      },
+      "description": "This is directory d1",
+      "dirid": "d1",
+      "documentation": "http://example.com/docs-for-d1",
+      "epoch": 1,
+      "events": {
+        "e1": {
+          "eventid": "e1",
+          "meta": {
+            "createdat": "2000-01-01T12:00:00.00Z",
+            "defaultversionid": "1",
+            "defaultversionsticky": false,
+            "defaultversionurl": "#/dirs/d1/events/e1/versions/1",
+            "epoch": 1,
+            "eventid": "e1",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d1/events/e1/meta",
+            "xid": "/dirs/d1/events/e1/meta"
+          },
+          "metaurl": "#/dirs/d1/events/e1/meta",
+          "self": "#/dirs/d1/events/e1",
+          "versions": {
+            "1": {
+              "ancestorid": "1",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "description": "Hello, I'm d1.e1!",
+              "documentation": "http://example.com/event-for-E1",
+              "epoch": 1,
+              "eventid": "e1",
+              "icon": "http://soaphub.org/svgen/file/E1",
+              "isdefault": true,
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/events/e1/versions/1",
+              "versionid": "1",
+              "xid": "/dirs/d1/events/e1/versions/1"
+            }
+          },
+          "versionscount": 1,
+          "versionsurl": "#/dirs/d1/events/e1/versions",
+          "xid": "/dirs/d1/events/e1"
+        },
+        "e2": {
+          "eventid": "e2",
+          "meta": {
+            "createdat": "2000-01-01T12:00:00.00Z",
+            "defaultversionid": "1",
+            "defaultversionsticky": false,
+            "defaultversionurl": "#/dirs/d1/events/e2/versions/1",
+            "epoch": 1,
+            "eventid": "e2",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d1/events/e2/meta",
+            "xid": "/dirs/d1/events/e2/meta"
+          },
+          "metaurl": "#/dirs/d1/events/e2/meta",
+          "self": "#/dirs/d1/events/e2",
+          "versions": {
+            "1": {
+              "ancestorid": "1",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "description": "Hello, I'm d1.e2!",
+              "documentation": "http://example.com/event-for-E2",
+              "epoch": 1,
+              "eventid": "e2",
+              "icon": "http://soaphub.org/svgen/file/E2",
+              "isdefault": true,
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/events/e2/versions/1",
+              "versionid": "1",
+              "xid": "/dirs/d1/events/e2/versions/1"
+            }
+          },
+          "versionscount": 1,
+          "versionsurl": "#/dirs/d1/events/e2/versions",
+          "xid": "/dirs/d1/events/e2"
+        }
+      },
+      "eventscount": 2,
+      "eventsurl": "#/dirs/d1/events",
       "extarray": [
         {
           "exrarrayobj1": [
@@ -152,342 +220,280 @@
           "extmap1val2": "bar"
         }
       },
-      "eventsurl": "#/dirs/d1/events",
-      "events": {
-        "e1": {
-          "eventid": "e1",
-          "self": "#/dirs/d1/events/e1",
-          "xid": "/dirs/d1/events/e1",
-          "metaurl": "#/dirs/d1/events/e1/meta",
-          "meta": {
-            "eventid": "e1",
-            "self": "#/dirs/d1/events/e1/meta",
-            "xid": "/dirs/d1/events/e1/meta",
-            "epoch": 1,
-            "createdat": "2026-08-03T21:13:59.325098513Z",
-            "modifiedat": "2026-08-03T21:13:59.325098513Z",
-            "readonly": false,
-            "defaultversionid": "1",
-            "defaultversionurl": "#/dirs/d1/events/e1/versions/1",
-            "defaultversionsticky": false
-          },
-          "versionsurl": "#/dirs/d1/events/e1/versions",
-          "versions": {
-            "1": {
-              "eventid": "e1",
-              "versionid": "1",
-              "self": "#/dirs/d1/events/e1/versions/1",
-              "xid": "/dirs/d1/events/e1/versions/1",
-              "epoch": 26,
-              "isdefault": true,
-              "createdat": "2026-08-03T21:13:59.325098513Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "1"
-            }
-          },
-          "versionscount": 1
-        },
-        "e2": {
-          "eventid": "e2",
-          "self": "#/dirs/d1/events/e2",
-          "xid": "/dirs/d1/events/e2",
-          "metaurl": "#/dirs/d1/events/e2/meta",
-          "meta": {
-            "eventid": "e2",
-            "self": "#/dirs/d1/events/e2/meta",
-            "xid": "/dirs/d1/events/e2/meta",
-            "epoch": 1,
-            "createdat": "2026-08-03T21:13:59.325098513Z",
-            "modifiedat": "2026-08-03T21:13:59.325098513Z",
-            "readonly": false,
-            "defaultversionid": "1",
-            "defaultversionurl": "#/dirs/d1/events/e2/versions/1",
-            "defaultversionsticky": false
-          },
-          "versionsurl": "#/dirs/d1/events/e2/versions",
-          "versions": {
-            "1": {
-              "eventid": "e2",
-              "versionid": "1",
-              "self": "#/dirs/d1/events/e2/versions/1",
-              "xid": "/dirs/d1/events/e2/versions/1",
-              "epoch": 26,
-              "isdefault": true,
-              "createdat": "2026-08-03T21:13:59.325098513Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "1"
-            }
-          },
-          "versionscount": 1
-        }
-      },
-      "eventscount": 2,
-      "filesurl": "#/dirs/d1/files",
       "files": {
         "f1": {
           "fileid": "f1",
-          "self": "#/dirs/d1/files/f1",
-          "xid": "/dirs/d1/files/f1",
-          "metaurl": "#/dirs/d1/files/f1/meta",
           "meta": {
-            "fileid": "f1",
-            "self": "#/dirs/d1/files/f1/meta",
-            "xid": "/dirs/d1/files/f1/meta",
-            "epoch": 26,
-            "createdat": "2026-07-02T23:09:18.670387558Z",
-            "modifiedat": "2026-08-03T22:36:32.851120505Z",
-            "readonly": false,
-            "deprecated": {
-              "effective": "2023-01-01T09:09:09.09Z",
-              "removal": "2033-12-31T11:59:59.59Z",
-              "alternative": "http://some-other-f.com",
-              "documentation": "http://example.com/f1-removal-info.txt"
-            },
+            "createdat": "2000-01-01T12:00:00.00Z",
             "defaultversionid": "v3.0",
+            "defaultversionsticky": false,
             "defaultversionurl": "#/dirs/d1/files/f1/versions/v3.0",
-            "defaultversionsticky": false
+            "deprecated": {
+              "alternative": "http://some-other-f.com",
+              "documentation": "http://example.com/f1-removal-info.txt",
+              "effective": "2023-01-01T09:09:09.09Z",
+              "removal": "2033-12-31T11:59:59.59Z"
+            },
+            "epoch": 1,
+            "fileid": "f1",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d1/files/f1/meta",
+            "xid": "/dirs/d1/files/f1/meta"
           },
-          "versionsurl": "#/dirs/d1/files/f1/versions",
+          "metaurl": "#/dirs/d1/files/f1/meta",
+          "self": "#/dirs/d1/files/f1",
           "versions": {
             "v1.0": {
-              "fileid": "f1",
-              "versionid": "v1.0",
-              "self": "#/dirs/d1/files/f1/versions/v1.0",
-              "xid": "/dirs/d1/files/f1/versions/v1.0",
-              "epoch": 26,
-              "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
               "ancestorid": "v1.0",
               "contenttype": "application/json",
-              "file": 1
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
+              "file": 1,
+              "fileid": "f1",
+              "isdefault": false,
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/files/f1/versions/v1.0",
+              "versionid": "v1.0",
+              "xid": "/dirs/d1/files/f1/versions/v1.0"
             },
             "v2.0": {
-              "fileid": "f1",
-              "versionid": "v2.0",
-              "self": "#/dirs/d1/files/f1/versions/v2.0",
-              "xid": "/dirs/d1/files/f1/versions/v2.0",
-              "epoch": 26,
-              "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
               "ancestorid": "v1.0",
               "contenttype": "application/json",
-              "file": 12
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
+              "file": 12,
+              "fileid": "f1",
+              "isdefault": false,
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/files/f1/versions/v2.0",
+              "versionid": "v2.0",
+              "xid": "/dirs/d1/files/f1/versions/v2.0"
             },
             "v3.0": {
-              "fileid": "f1",
-              "versionid": "v3.0",
-              "self": "#/dirs/d1/files/f1/versions/v3.0",
-              "xid": "/dirs/d1/files/f1/versions/v3.0",
-              "epoch": 26,
-              "name": "f1-v3.0",
-              "isdefault": true,
+              "ancestorid": "v2.0",
+              "contenttype": "application/json",
+              "createdat": "2000-01-01T12:00:00.00Z",
               "description": "Hello, I'm d1.f1!",
               "documentation": "http://example.com/docs-for-f1",
-              "icon": "http://soaphub.org/svgen/file/F1",
+              "epoch": 1,
+              "file": 123,
+              "fileid": "f1",
+              "format": "numbers",
+              "icon": "http://soaphub.org/svgen/doc/F1",
+              "isdefault": true,
               "labels": {
                 "env": "d1-f1"
               },
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v2.0",
-              "contenttype": "application/json",
-              "format": "numbers",
-              "file": 123
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "name": "f1-v3.0",
+              "self": "#/dirs/d1/files/f1/versions/v3.0",
+              "versionid": "v3.0",
+              "xid": "/dirs/d1/files/f1/versions/v3.0"
             }
           },
-          "versionscount": 3
+          "versionscount": 3,
+          "versionsurl": "#/dirs/d1/files/f1/versions",
+          "xid": "/dirs/d1/files/f1"
         },
         "f2": {
           "fileid": "f2",
-          "self": "#/dirs/d1/files/f2",
-          "xid": "/dirs/d1/files/f2",
-          "metaurl": "#/dirs/d1/files/f2/meta",
           "meta": {
-            "fileid": "f2",
-            "self": "#/dirs/d1/files/f2/meta",
-            "xid": "/dirs/d1/files/f2/meta",
-            "epoch": 26,
-            "createdat": "2024-01-01T12:00:00Z",
-            "modifiedat": "2026-08-03T22:36:32.851120505Z",
-            "readonly": false,
+            "createdat": "2000-01-01T12:00:00.00Z",
             "defaultversionid": "v1.0",
+            "defaultversionsticky": false,
             "defaultversionurl": "#/dirs/d1/files/f2/versions/v1.0",
-            "defaultversionsticky": false
+            "epoch": 1,
+            "fileid": "f2",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d1/files/f2/meta",
+            "xid": "/dirs/d1/files/f2/meta"
           },
-          "versionsurl": "#/dirs/d1/files/f2/versions",
+          "metaurl": "#/dirs/d1/files/f2/meta",
+          "self": "#/dirs/d1/files/f2",
           "versions": {
             "v1.0": {
+              "ancestorid": "v2.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v1.0",
-              "self": "#/dirs/d1/files/f2/versions/v1.0",
-              "xid": "/dirs/d1/files/f2/versions/v1.0",
-              "epoch": 26,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v2.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/files/f2/versions/v1.0",
+              "versionid": "v1.0",
+              "xid": "/dirs/d1/files/f2/versions/v1.0"
             },
             "v2.0": {
+              "ancestorid": "v3.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v2.0",
-              "self": "#/dirs/d1/files/f2/versions/v2.0",
-              "xid": "/dirs/d1/files/f2/versions/v2.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v3.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/files/f2/versions/v2.0",
+              "versionid": "v2.0",
+              "xid": "/dirs/d1/files/f2/versions/v2.0"
             },
             "v3.0": {
+              "ancestorid": "v3.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v3.0",
-              "self": "#/dirs/d1/files/f2/versions/v3.0",
-              "xid": "/dirs/d1/files/f2/versions/v3.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v3.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d1/files/f2/versions/v3.0",
+              "versionid": "v3.0",
+              "xid": "/dirs/d1/files/f2/versions/v3.0"
             }
           },
-          "versionscount": 3
+          "versionscount": 3,
+          "versionsurl": "#/dirs/d1/files/f2/versions",
+          "xid": "/dirs/d1/files/f2"
         }
       },
-      "filescount": 2
+      "filescount": 2,
+      "filesurl": "#/dirs/d1/files",
+      "icon": "http://soaphub.org/svgen/folder/D1",
+      "labels": {
+        "env": "d1"
+      },
+      "modifiedat": "2000-01-01T12:00:00.00Z",
+      "name": "Eldest D",
+      "self": "#/dirs/d1",
+      "xid": "/dirs/d1"
     },
     "d2": {
-      "dirid": "d2",
-      "self": "#/dirs/d2",
-      "xid": "/dirs/d2",
-      "epoch": 26,
-      "createdat": "2024-01-01T12:00:00Z",
-      "modifiedat": "2026-08-03T22:36:32.851120505Z",
+      "createdat": "2000-01-01T12:00:00.00Z",
       "deprecated": {},
-      "eventsurl": "#/dirs/d2/events",
+      "dirid": "d2",
+      "epoch": 1,
       "events": {},
       "eventscount": 0,
-      "filesurl": "#/dirs/d2/files",
+      "eventsurl": "#/dirs/d2/events",
       "files": {
         "f1": {
           "fileid": "f1",
-          "self": "#/dirs/d2/files/f1",
-          "xid": "/dirs/d2/files/f1",
-          "metaurl": "#/dirs/d2/files/f1/meta",
           "meta": {
-            "fileid": "f1",
-            "self": "#/dirs/d2/files/f1/meta",
-            "xid": "/dirs/d2/files/f1/meta",
-            "epoch": 26,
-            "createdat": "2026-07-02T23:09:36.711513789Z",
-            "modifiedat": "2026-08-03T22:36:32.851120505Z",
-            "readonly": false,
+            "createdat": "2000-01-01T12:00:00.00Z",
             "defaultversionid": "v1.0",
+            "defaultversionsticky": false,
             "defaultversionurl": "#/dirs/d2/files/f1/versions/v1.0",
-            "defaultversionsticky": false
+            "epoch": 1,
+            "fileid": "f1",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d2/files/f1/meta",
+            "xid": "/dirs/d2/files/f1/meta"
           },
-          "versionsurl": "#/dirs/d2/files/f1/versions",
+          "metaurl": "#/dirs/d2/files/f1/meta",
+          "self": "#/dirs/d2/files/f1",
           "versions": {
             "v1.0": {
+              "ancestorid": "v2.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f1",
-              "versionid": "v1.0",
-              "self": "#/dirs/d2/files/f1/versions/v1.0",
-              "xid": "/dirs/d2/files/f1/versions/v1.0",
-              "epoch": 26,
               "isdefault": true,
-              "createdat": "2026-07-02T23:09:40.814288223Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v2.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f1/versions/v1.0",
+              "versionid": "v1.0",
+              "xid": "/dirs/d2/files/f1/versions/v1.0"
             },
             "v2.0": {
+              "ancestorid": "v3.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f1",
-              "versionid": "v2.0",
-              "self": "#/dirs/d2/files/f1/versions/v2.0",
-              "xid": "/dirs/d2/files/f1/versions/v2.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v3.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f1/versions/v2.0",
+              "versionid": "v2.0",
+              "xid": "/dirs/d2/files/f1/versions/v2.0"
             },
             "v3.0": {
+              "ancestorid": "v3.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f1",
-              "versionid": "v3.0",
-              "self": "#/dirs/d2/files/f1/versions/v3.0",
-              "xid": "/dirs/d2/files/f1/versions/v3.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v3.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f1/versions/v3.0",
+              "versionid": "v3.0",
+              "xid": "/dirs/d2/files/f1/versions/v3.0"
             }
           },
-          "versionscount": 3
+          "versionscount": 3,
+          "versionsurl": "#/dirs/d2/files/f1/versions",
+          "xid": "/dirs/d2/files/f1"
         },
         "f2": {
           "fileid": "f2",
-          "self": "#/dirs/d2/files/f2",
-          "xid": "/dirs/d2/files/f2",
-          "metaurl": "#/dirs/d2/files/f2/meta",
           "meta": {
-            "fileid": "f2",
-            "self": "#/dirs/d2/files/f2/meta",
-            "xid": "/dirs/d2/files/f2/meta",
-            "epoch": 26,
-            "createdat": "2024-01-01T12:00:00Z",
-            "modifiedat": "2026-08-03T22:36:32.851120505Z",
-            "readonly": false,
+            "createdat": "2000-01-01T12:00:00.00Z",
             "defaultversionid": "v3.0",
+            "defaultversionsticky": false,
             "defaultversionurl": "#/dirs/d2/files/f2/versions/v3.0",
-            "defaultversionsticky": false
+            "epoch": 1,
+            "fileid": "f2",
+            "modifiedat": "2000-01-01T12:00:00.00Z",
+            "readonly": false,
+            "self": "#/dirs/d2/files/f2/meta",
+            "xid": "/dirs/d2/files/f2/meta"
           },
-          "versionsurl": "#/dirs/d2/files/f2/versions",
+          "metaurl": "#/dirs/d2/files/f2/meta",
+          "self": "#/dirs/d2/files/f2",
           "versions": {
             "v1.0": {
+              "ancestorid": "v1.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v1.0",
-              "self": "#/dirs/d2/files/f2/versions/v1.0",
-              "xid": "/dirs/d2/files/f2/versions/v1.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v1.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f2/versions/v1.0",
+              "versionid": "v1.0",
+              "xid": "/dirs/d2/files/f2/versions/v1.0"
             },
             "v2.0": {
+              "ancestorid": "v1.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v2.0",
-              "self": "#/dirs/d2/files/f2/versions/v2.0",
-              "xid": "/dirs/d2/files/f2/versions/v2.0",
-              "epoch": 26,
               "isdefault": false,
-              "createdat": "2026-07-02T23:09:54.86261168Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v1.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f2/versions/v2.0",
+              "versionid": "v2.0",
+              "xid": "/dirs/d2/files/f2/versions/v2.0"
             },
             "v3.0": {
+              "ancestorid": "v2.0",
+              "createdat": "2000-01-01T12:00:00.00Z",
+              "epoch": 1,
               "fileid": "f2",
-              "versionid": "v3.0",
-              "self": "#/dirs/d2/files/f2/versions/v3.0",
-              "xid": "/dirs/d2/files/f2/versions/v3.0",
-              "epoch": 26,
               "isdefault": true,
-              "createdat": "2024-01-01T12:00:00Z",
-              "modifiedat": "2026-08-03T22:36:32.851120505Z",
-              "ancestorid": "v2.0"
+              "modifiedat": "2000-01-01T12:00:00.00Z",
+              "self": "#/dirs/d2/files/f2/versions/v3.0",
+              "versionid": "v3.0",
+              "xid": "/dirs/d2/files/f2/versions/v3.0"
             }
           },
-          "versionscount": 3
+          "versionscount": 3,
+          "versionsurl": "#/dirs/d2/files/f2/versions",
+          "xid": "/dirs/d2/files/f2"
         }
       },
-      "filescount": 2
+      "filescount": 2,
+      "filesurl": "#/dirs/d2/files",
+      "modifiedat": "2000-01-01T12:00:00.00Z",
+      "self": "#/dirs/d2",
+      "xid": "/dirs/d2"
     }
   },
   "dirscount": 2,
   "dirsurl": "#/dirs",
   "documentation": "http://example.com",
-  "epoch": 27,
+  "epoch": 1,
   "extarray": [
     "abc",
     "def",
@@ -552,47 +558,47 @@
     },
     "groups": {
       "dirs": {
-        "singular": "dir",
-        "description": "Just a collection of stuff",
-        "icon": "http://soaphub.org/svgen/folder/Dir",
         "attributes": {
-          "format": {
-            "type": "string"
-          },
           "*": {
             "type": "any"
+          },
+          "format": {
+            "type": "string"
           }
         },
+        "description": "Just a collection of stuff",
+        "icon": "http://soaphub.org/svgen/folder/Dir",
         "resources": {
-          "files": {
-            "singular": "file",
-            "description": "A file store file",
-            "icon": "http://soaphub.org/svgen/file/File",
-            "hasdocument": true,
-            "validateformat": true,
-            "validatecompatibility": true,
-            "attributes": {
-              "*": {
-                "type": "any"
-              }
-            }
-          },
           "events": {
-            "singular": "event",
-            "description": "Describe an event",
-            "icon": "http://soaphub.org/svgen/file/Event",
-            "hasdocument": false,
             "attributes": {
               "*": {
                 "type": "any"
               }
-            }
+            },
+            "description": "Describe an event",
+            "hasdocument": false,
+            "icon": "http://soaphub.org/svgen/file/Event",
+            "singular": "event"
+          },
+          "files": {
+            "attributes": {
+              "*": {
+                "type": "any"
+              }
+            },
+            "description": "A file store file",
+            "hasdocument": true,
+            "icon": "http://soaphub.org/svgen/file/File",
+            "singular": "file",
+            "validatecompatibility": true,
+            "validateformat": true
           }
-        }
+        },
+        "singular": "dir"
       }
     }
   },
-  "modifiedat": "2024-01-01T12:00:00Z",
+  "modifiedat": "2000-01-01T12:00:00.00Z",
   "name": "Hard-Coded xReg Sample",
   "registryid": "HardCoded",
   "self": "#/",

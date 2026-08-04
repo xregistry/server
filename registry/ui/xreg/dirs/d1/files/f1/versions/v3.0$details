@@ -1,22 +1,21 @@
 {
   "ancestorid": "v2.0",
   "contenttype": "application/json",
-  "createdat": "2024-01-01T12:00:00Z",
+  "createdat": "2000-01-01T12:00:00.00Z",
   "description": "Hello, I'm d1.f1!",
   "documentation": "http://example.com/docs-for-f1",
-  "epoch": 26,
+  "epoch": 1,
   "fileid": "f1",
   "format": "numbers",
   "formatvalidated": true,
-  "icon": "http://soaphub.org/svgen/file/F1",
+  "icon": "http://soaphub.org/svgen/doc/F1",
   "isdefault": true,
   "labels": {
     "env": "d1-f1"
   },
-  "modifiedat": "2026-08-03T22:36:32.851120505Z",
+  "modifiedat": "2000-01-01T12:00:00.00Z",
   "name": "f1-v3.0",
   "self": "$HOST/ui/xreg/dirs/d1/files/f1/versions/v3.0",
-  "shortself": "http://localhost:8181/r/53d0e5ba2ba84a1d",
   "versionid": "v3.0",
   "xid": "/dirs/d1/files/f1/versions/v3.0"
 }

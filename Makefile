@@ -59,7 +59,7 @@ errors: .errors
 xrlint: .xrlint
 .xrlint: cmds/xrlint cmds/xr cmds/xrserver/*  registry/* common/* tests/*
 	@echo
-	@echo "# Running xrlink looking for source issues"
+	@echo "# Running xrlint looking for source issues"
 	@misc/errOutput @go run ./cmds/xrlint --unused=false ./registry/... \
 		./common/... ./cmds/... ./tests/...
 	@touch .xrlint
@@ -147,11 +147,11 @@ xr: .sharedfiles cmds/xr/* common/*
 	@misc/errOutput -"go build -o $@ cmds/xr/*.go" \
 		go build $(BUILDFLAGS) -o $@ cmds/xr/*.go
 
-xreg: cmds mysql
-	@peval kill -f "xrserver.*8181" > /dev/null 2>&1 || true
+xreg: cmds mysql registry/ui/xreg/index.html
+registry/ui/xreg/index.html: cmds/xrserver/test-reg.json
+	@-pkill -f "[x]rserver.*8181" || true
 	@echo Starting temp server
-	@xrserver registry create -f HardCoded -vv
-	@xrserver -p 8181 -r HardCoded &
+	@xrserver -p 8181 -r HardCoded --recreatereg &
 	@sleep 1
 	@echo Uploading registry data
 	@xr -s localhost:8181 update / -d @cmds/xrserver/test-reg.json
@@ -159,7 +159,7 @@ xreg: cmds mysql
 	@mkdir -p registry/ui/xreg
 	@echo Downloading files
 	@cd registry/ui/xreg && ../../../misc/errOutput @xr -s localhost:8181 \
-		download . -c -u '$$HOST/ui/xreg'
+		download . --nodiff=* -c -u '$$HOST/ui/xreg'
 	@pkill -f xrserver.*8181
 
 docs/xr_help.md docs/xrserver_help.md: xr xrserver

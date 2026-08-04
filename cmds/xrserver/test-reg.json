@@ -167,7 +167,7 @@
               "name": "f1-v3.0",
               "description": "Hello, I'm d1.f1!",
               "documentation": "http://example.com/docs-for-f1",
-              "icon": "http://soaphub.org/svgen/file/F1",
+              "icon": "http://soaphub.org/svgen/doc/F1",
               "labels": { "env": "d1-f1" },
               "isdefault": true,
               "createdat": "2024-01-01T12:00:00.00Z",
@@ -209,8 +209,28 @@
         }
       },
       "events": {
-        "e1": {},
-        "e2": {}
+        "e1": {
+          "createdat": "2024-01-01T12:00:00.00Z",
+          "modifiedat": "2024-01-01T12:00:00.00Z",
+          "description": "Hello, I'm d1.e1!",
+          "documentation": "http://example.com/event-for-E1",
+          "icon": "http://soaphub.org/svgen/file/E1",
+          "meta": {
+            "createdat": "2024-01-01T12:00:00.00Z",
+            "modifiedat": "2024-01-01T12:00:00.00Z"
+          }
+        },
+        "e2": {
+          "createdat": "2024-01-01T12:00:00.00Z",
+          "modifiedat": "2024-01-01T12:00:00.00Z",
+          "description": "Hello, I'm d1.e2!",
+          "documentation": "http://example.com/event-for-E2",
+          "icon": "http://soaphub.org/svgen/file/E2",
+          "meta": {
+            "createdat": "2024-01-01T12:00:00.00Z",
+            "modifiedat": "2024-01-01T12:00:00.00Z"
+          }
+        }
       }
     },
     "d2": {

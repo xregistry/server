@@ -1,13 +1,12 @@
 {
-  "createdat": "2026-08-03T21:13:59.325098513Z",
+  "createdat": "2000-01-01T12:00:00.00Z",
   "defaultversionid": "1",
   "defaultversionsticky": false,
   "defaultversionurl": "$HOST/ui/xreg/dirs/d1/events/e2/versions/1",
   "epoch": 1,
   "eventid": "e2",
-  "modifiedat": "2026-08-03T21:13:59.325098513Z",
+  "modifiedat": "2000-01-01T12:00:00.00Z",
   "readonly": false,
   "self": "$HOST/ui/xreg/dirs/d1/events/e2/meta",
-  "shortself": "http://localhost:8181/r/363b02d2bd0a4adf",
   "xid": "/dirs/d1/events/e2/meta"
 }
