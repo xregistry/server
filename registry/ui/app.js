@@ -1450,14 +1450,14 @@ function renderHeader() {
     viewToggleBtn.title = 'Switch to ' + VIEW_LABELS[otherView];
   }
 
-  // Global "Refresh" button — Home page only (both Grid/Tile and List
-  // layouts), lets the user force a fresh re-probe of every listed
-  // registry on demand, bypassing the in-memory probe cache (see
+  // Global "Refresh" button — Home and Config pages (both Grid/Tile and
+  // List layouts on Home), lets the user force a fresh re-probe of every
+  // listed registry on demand, bypassing the in-memory probe cache (see
   // _registryProbeCache/probeRegistry()) without needing a full page
   // reload. Positioned as its own pinned icon, left of the view-toggle
   // button, same slot pattern as Edit Mode/Filter/Show-Hide-xReg-Data.
   var homeRefreshBtn = el('home-refresh-btn');
-  if (homeRefreshBtn) homeRefreshBtn.style.display = isHome ? '' : 'none';
+  if (homeRefreshBtn) homeRefreshBtn.style.display = (isHome || isConfig) ? '' : 'none';
 
   // Pinned "editing" indicator — the only Edit-related control left
   // directly in the header (outside the kebab menu); visible only while
@@ -2862,6 +2862,9 @@ function renderHome() {
 // Briefly spins the icon via a CSS class for visual feedback that the
 // click actually did something, even though the re-probe itself usually
 // completes fast enough that the spin is mostly decorative.
+// Also reused on the Config page (same button, same slot — see
+// renderHeader()), where there's no probe cache to clear, so it just
+// re-renders the Registry Servers table from storage.
 function doHomeRefresh() {
   _registryProbeCache = {};
   var btn = el('home-refresh-btn');
@@ -2869,7 +2872,8 @@ function doHomeRefresh() {
     btn.classList.add('spinning');
     setTimeout(function() { btn.classList.remove('spinning'); }, 600);
   }
-  renderHome();
+  if (_state.view === 'config') renderConfig();
+  else renderHome();
 }
 
 function renderHomeGrid(main, servers) {

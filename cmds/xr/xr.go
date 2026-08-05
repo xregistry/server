@@ -453,7 +453,7 @@ func main() {
 
 	xrCmd.PersistentFlags().BoolVarP(&ShowDebug, "debug", "", false,
 		"Show debug info")
-	// xrCmd.Flags().MarkHidden("debug")
+	xrCmd.PersistentFlags().MarkHidden("debug")
 
 	xrCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 
