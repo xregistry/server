@@ -103,6 +103,12 @@ function saveLabelCache() {
 var _modelCache    = {};  // normalizedURL → model JSON
 var _capCache      = {};  // normalizedURL → capabilities JSON
 var _offeredCache  = {};  // normalizedURL → capabilitiesoffered JSON
+// Data-loading warning tracking — see plan.md "Data-loading warning
+// indicators". Populated (and cleared on success) by both
+// ensureModelCached/ensureCapCached and probeRegistry()'s fetches, so any
+// code path that notices a failure is reflected consistently everywhere.
+var _modelLoadError = {};  // normalizedURL → error message string (or absent)
+var _capLoadError   = {};  // normalizedURL → error message string (or absent)
 var _headerCompact = false;
 var _fbDraft        = null;  // filter-builder working draft, see fbXxx() funcs
 var _fbDraftKey     = null;  // server|section|path this draft belongs to
@@ -2897,6 +2903,7 @@ function renderHomeTable(main, servers) {
       +   '<div class="reg-row-title">'
       +     '<a class="reg-row-name ht-name-text ht-name-link" href="' + esc(href) + '" onclick="' + esc(guardedOnclick('doBrowse(' + JSON.stringify(url) + ')')) + '">' + esc(serverLabel(url)) + '</a>'
       +     '<span class="reg-row-err-badge" style="display:none" title="Click for error details">Connection failed</span>'
+      +     '<span class="reg-row-warn-badge" style="display:none" title="Click to view details">Data warning</span>'
       +   '</div>'
       +   '<div class="reg-row-sub"></div>'
       + '</div>'
@@ -2958,6 +2965,17 @@ function renderHomeTable(main, servers) {
                 return groupTypePillHTML(row.dataset.serverUrl, c);
               }).join('')
             : '<span class="group-type-none">none</span>';
+        }
+        if (info.warnings && info.warnings.length) {
+          var warnBadge = row.querySelector('.reg-row-warn-badge');
+          if (warnBadge) {
+            warnBadge.style.display = '';
+            warnBadge.title = info.warnings.join(' ');
+            warnBadge.addEventListener('click', function(e) {
+              e.stopPropagation();
+              doBrowse(row.dataset.serverUrl);
+            });
+          }
         }
       }
       sortServerElements(row.closest('.reg-list'));
@@ -3051,6 +3069,9 @@ function renderHomeFlatList(main, servers) {
         +   '<a class="gt-row-registry" href="' + esc(regHref) + '" onclick="' + esc(regOnclick) + '" title="Browse this registry">'
         +     '<span class="gt-row-reg-name">' + esc(r.regLabel) + '</span>'
         +   '</a>'
+        +   (r.warnings && r.warnings.length
+                ? '<span class="gt-row-warn-badge" title="' + esc(r.warnings.join(' ') + ' — click to view details') + '" onclick="' + esc(regOnclick) + '">!</span>'
+                : '')
         +   '<span class="gt-row-url" title="' + esc(r.serverUrl) + '">' + esc(r.serverUrl) + '</span>'
         + '</div>'
         + '</div>';
@@ -3066,7 +3087,8 @@ function renderHomeFlatList(main, servers) {
         info.colls.forEach(function(c) {
           allRows.push({plural: c.plural, count: c.count, resources: c.resources || [],
                         description: c.description || '', serverUrl: url, regLabel: label,
-                        regIcon: info.icon || '', icon: c.icon || '', url: c.url});
+                        regIcon: info.icon || '', icon: c.icon || '', url: c.url,
+                        warnings: info.warnings || []});
         });
       }
       pending--;
@@ -3128,6 +3150,18 @@ function probeAllCards(main) {
                 return groupTypePillHTML(card.dataset.serverUrl, c);
               }).join('')
             : '<span class="group-type-none">none</span>';
+        }
+        if (info.warnings && info.warnings.length) {
+          var warnBadge = document.createElement('span');
+          warnBadge.className = 'server-card-warn-badge';
+          warnBadge.textContent = '!';
+          warnBadge.title = info.warnings.join(' ') + ' — click to view details';
+          warnBadge.addEventListener('click', function(e) {
+            e.stopPropagation();
+            doBrowse(card.dataset.serverUrl);
+          });
+          var titleEl2 = card.querySelector('.server-card-title');
+          if (titleEl2) titleEl2.appendChild(warnBadge);
         }
       }
       sortServerElements(container);
@@ -3208,18 +3242,45 @@ function probeRegistry(url, cb, force) {
   // Fetch capabilities first; use it to decide what else to fetch.
   // Per spec: if /capabilities is 404, default available = {entities:{mutable:true}}
   var capP = fetchWithTimeout(fetchUrl + '/capabilities', PROBE_FETCH_TIMEOUT_MS)
-    .then(function(r) { return r.ok ? r.json() : null; })
-    .catch(function() { return null; });
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(cap) {
+      var shapeErr = validateCapDoc(cap);
+      if (shapeErr) { _capLoadError[normUrl] = shapeErr; } else { delete _capLoadError[normUrl]; }
+      return cap;
+    })
+    .catch(function(err) {
+      _capLoadError[normUrl] = (err && err.message) ? err.message : String(err);
+      return null;
+    });
 
   capP.then(function(cap) {
     var available = (cap && cap.available) || {entities: {mutable: true}};
     // Populate capabilities cache so JSON view left panel gets it for free
     _capCache[normUrl] = cap || {available: available, flags: []};
 
-    // Only fetch model if capabilities says it's available
-    var modelP = available.model
-      ? fetchWithTimeout(fetchUrl + '/model', PROBE_FETCH_TIMEOUT_MS).then(function(r) { return r.json(); }).catch(function() { return null; })
-      : Promise.resolve(null);
+    // /model is spec-required, so it's always attempted (regardless of
+    // what /capabilities said for available.model) purely so a genuine
+    // failure can be detected and surfaced as a warning — see plan.md
+    // "Data-loading warning indicators". This doesn't change whether
+    // Model-dependent UI actually renders (still gated on available.model
+    // elsewhere), only whether we try the fetch for warning-detection.
+    var modelP = fetchWithTimeout(fetchUrl + '/model', PROBE_FETCH_TIMEOUT_MS)
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(m) {
+        var shapeErr = validateModelDoc(m);
+        if (shapeErr) { _modelLoadError[normUrl] = shapeErr; } else { delete _modelLoadError[normUrl]; }
+        return m;
+      })
+      .catch(function(err) {
+        _modelLoadError[normUrl] = (err && err.message) ? err.message : String(err);
+        return null;
+      });
 
     Promise.all([
       fetchWithTimeout(fetchUrl + '/', PROBE_FETCH_TIMEOUT_MS).then(function(r) {
@@ -3232,7 +3293,7 @@ function probeRegistry(url, cb, force) {
         var data  = results[0];
         var model = results[1];
         if (!data.specversion || !data.registryid) {
-          cb({label: '', colls: [], icon: '', available: available, error: 'Not a valid xRegistry (missing specversion or registryid)'});
+          cb({label: '', colls: [], icon: '', available: available, error: 'Not a valid xRegistry (missing specversion or registryid)', warnings: getRegDataWarnings(normUrl)});
           return;
         }
         var label = data.registryid || '';
@@ -3255,11 +3316,11 @@ function probeRegistry(url, cb, force) {
           c.description = (grpDef && grpDef.description) || '';
           c.icon        = (grpDef && grpDef.icon) || '';
         });
-        var info = {label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null};
+        var info = {label: label, colls: colls, icon: data.icon || '', description: data.description || '', available: available, error: null, warnings: getRegDataWarnings(normUrl)};
         _registryProbeCache[normUrl] = info; // only cache successes — transient errors (e.g. a momentarily unreachable host) should retry on next visit, not stick around
         cb(info);
       })
-      .catch(function(err) { cb({label: '', colls: [], icon: '', available: available, error: (err && err.message) ? err.message : String(err)}); });
+      .catch(function(err) { cb({label: '', colls: [], icon: '', available: available, error: (err && err.message) ? err.message : String(err), warnings: getRegDataWarnings(normUrl)}); });
   });
 }
 
@@ -5189,14 +5250,24 @@ function buildRegEndpointPillsHtml() {
   var svBaseP = (_state.serverURL || window.location.origin).replace(/\/$/, '');
   var capDataP = _capCache[normalizeURL(svBaseP)];
   var availP   = capDataP && capDataP.available;
+  var modelKeyP = normalizeURL(svBaseP);
+  // /model is spec-required, so its pill is shown whenever /model itself
+  // demonstrably loaded successfully, regardless of what /capabilities
+  // says for available.model (a broken/old-format capabilities doc
+  // shouldn't be able to hide a Model tab that's actually there and
+  // working) — see plan.md "Data-loading warning indicators".
+  var modelLoadedOkP = _modelCache.hasOwnProperty(modelKeyP) && _modelCache[modelKeyP] != null && !_modelLoadError[modelKeyP];
   var sectionTilesP = ['model','modelsource','capabilities','capabilitiesoffered','xregistry'];
-  var availSectionsP = sectionTilesP.filter(function(s) { return availP && availP[sectionCapKey(s)]; });
+  var availSectionsP = sectionTilesP.filter(function(s) {
+    if (s === 'model' && modelLoadedOkP) return true;
+    return availP && availP[sectionCapKey(s)];
+  });
   if (!availSectionsP.length) return '';
   var sectionNamesP = {model:'Model', modelsource:'Model Source', capabilities:'Capabilities', capabilitiesoffered:'Capabilities Offered', xregistry:'.xregistry'};
   var html = '<div class="reg-endpoint-pills">';
   html += '<span class="reg-endpoint-pills-title">Config:</span>';
   availSectionsP.forEach(function(s) {
-    var mutP = availP[sectionCapKey(s)] && availP[sectionCapKey(s)].mutable;
+    var mutP = availP && availP[sectionCapKey(s)] && availP[sectionCapKey(s)].mutable;
     var pushExprP = 'pushState({section:\'' + s + '\',useExport:false})';
     var sHrefP = buildURL(Object.assign({}, _state, {section: s, useExport: false}));
     html += '<a class="reg-endpoint-pill" href="' + esc(sHrefP) + '" onclick="' + esc(guardedOnclick(pushExprP)) + '">'
@@ -5206,6 +5277,37 @@ function buildRegEndpointPillsHtml() {
   });
   html += '</div>';
   return html;
+}
+
+// Whether the Registry-root-page data-loading warning banner is currently
+// expanded — collapsed by default; toggled by clicking the summary line.
+// Not persisted; resets to collapsed on each fresh page load.
+var _regWarnBannerExpanded = false;
+
+function toggleRegWarnBanner() {
+  _regWarnBannerExpanded = !_regWarnBannerExpanded;
+  var el = document.getElementById('regDataWarnBanner');
+  if (el) el.classList.toggle('reg-data-warn-banner-expanded', _regWarnBannerExpanded);
+}
+
+// Builds the collapsible yellow warning banner shown on the Registry root
+// page (depth 0 only) when some background data fetch (/capabilities or
+// /model) failed and the UI silently fell back to best-effort rendering —
+// see plan.md "Data-loading warning indicators". Returns '' when there's
+// nothing to warn about.
+function buildRegDataWarnBannerHtml() {
+  var svBaseW = (_state.serverURL || window.location.origin).replace(/\/$/, '');
+  var warningsW = getRegDataWarnings(svBaseW);
+  if (!warningsW.length) return '';
+  var html2 = '<div id="regDataWarnBanner" class="reg-data-warn-banner' + (_regWarnBannerExpanded ? ' reg-data-warn-banner-expanded' : '') + '">'
+    + '<div class="reg-data-warn-banner-summary" onclick="toggleRegWarnBanner()">'
+    + '&#9888; Some registry data could not be loaded (click for details)'
+    + '</div>'
+    + '<ul class="reg-data-warn-banner-list">'
+    + warningsW.map(function(w) { return '<li>' + esc(w) + '</li>'; }).join('')
+    + '</ul>'
+    + '</div>';
+  return html2;
 }
 
 // Builds the "Entity Data Editor" Save (PUT/PATCH)/Undo/Delete action bar —
@@ -5405,6 +5507,14 @@ function renderSingleEntity(data) {
 
   // Registry endpoint pills (depth 0 only) — see buildRegEndpointPillsHtml().
   html += buildRegEndpointPillsHtml();
+
+  // Data-loading warning banner (depth 0 only) — see plan.md "Data-loading
+  // warning indicators". Placed right after the Config: pills row, above
+  // the Group Types table, so it's visible before the user wonders why a
+  // pill/table row might be missing.
+  if (_state.path.length === 0) {
+    html += buildRegDataWarnBannerHtml();
+  }
 
   // Collections section — id cell is a real link; row itself is plain text
   // (not clickable) so its content can be selected/copied.
@@ -5685,14 +5795,61 @@ function renderSingleEntity(data) {
 
 // ---- Grid view for single entity (Registry / Group / Resource / Version) -
 
+// Validates the basic shape of a parsed /capabilities response — this is
+// spec content validation, not just "did fetch/JSON.parse succeed". Some
+// servers return a syntactically-valid JSON document that's simply the
+// wrong shape (e.g. an old pre-"available" capabilities format, or some
+// unrelated JSON blob) — that needs to be flagged as a warning too, since
+// nothing throws in that case and the Config: pills silently disappear
+// with no visible explanation. Returns an error message string, or null
+// if the shape looks valid.
+function validateCapDoc(cap) {
+  if (!cap || typeof cap !== 'object' || Array.isArray(cap)) {
+    return 'Response is not a JSON object';
+  }
+  if (!cap.available || typeof cap.available !== 'object' || Array.isArray(cap.available)) {
+    return 'Missing or invalid "available" field — this may be an old/non-conforming capabilities format';
+  }
+  return null;
+}
+
+// Same idea as validateCapDoc() for /model — a model document should at
+// least be a plain JSON object (its "groups"/"attributes" fields, if
+// present, are themselves plain objects). Deliberately lenient beyond
+// that (an empty {} or a registry with no groups yet is legitimate).
+function validateModelDoc(model) {
+  if (!model || typeof model !== 'object' || Array.isArray(model)) {
+    return 'Response is not a JSON object';
+  }
+  if (model.groups !== undefined && (typeof model.groups !== 'object' || Array.isArray(model.groups))) {
+    return 'Invalid "groups" field (expected an object)';
+  }
+  if (model.attributes !== undefined && (typeof model.attributes !== 'object' || Array.isArray(model.attributes))) {
+    return 'Invalid "attributes" field (expected an object)';
+  }
+  return null;
+}
+
 // Fetch and cache the model for a registry base URL (non-blocking)
 function ensureModelCached(baseURL, cb) {
   var key = normalizeURL(baseURL);
   if (_modelCache[key]) { if (cb) cb(_modelCache[key]); return; }
   fetch(serverFetchBase(baseURL) + '/model')
-    .then(function(r) { return r.json(); })
-    .then(function(m) { _modelCache[key] = m; if (cb) cb(m); })
-    .catch(function()  { _modelCache[key] = null; if (cb) cb(null); });
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(m) {
+      _modelCache[key] = m;
+      var shapeErr = validateModelDoc(m);
+      if (shapeErr) { _modelLoadError[key] = shapeErr; } else { delete _modelLoadError[key]; }
+      if (cb) cb(m);
+    })
+    .catch(function(err) {
+      _modelCache[key] = null;
+      _modelLoadError[key] = (err && err.message) ? err.message : String(err);
+      if (cb) cb(null);
+    });
 }
 
 function ensureCapCached(baseURL, cb) {
@@ -5700,10 +5857,49 @@ function ensureCapCached(baseURL, cb) {
   if (_capCache.hasOwnProperty(key)) { if (cb) cb(_capCache[key]); return; }
   _capCache[key] = undefined; // mark in-flight
   fetch(serverFetchBase(baseURL) + '/capabilities')
-    .then(function(r) { return r.json(); })
-    .then(function(c) { _capCache[key] = c; if (cb) cb(c); })
-    .catch(function()  { _capCache[key] = null; if (cb) cb(null); });
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(c) {
+      _capCache[key] = c;
+      var shapeErr = validateCapDoc(c);
+      if (shapeErr) { _capLoadError[key] = shapeErr; } else { delete _capLoadError[key]; }
+      if (cb) cb(c);
+    })
+    .catch(function(err) {
+      _capCache[key] = null;
+      _capLoadError[key] = (err && err.message) ? err.message : String(err);
+      if (cb) cb(null);
+    });
 }
+
+// Returns the list of human-readable data-loading warning strings for a
+// given registry base URL — see plan.md "Data-loading warning indicators".
+// /model failures are always surfaced (regardless of what /capabilities
+// reported for available.model) since /model is spec-required. Covers
+// both fetch/HTTP/JSON-parse failures AND successfully-parsed-but-wrong-
+// shaped responses (see validateCapDoc()/validateModelDoc()). Note: the
+// Model pill itself (buildRegEndpointPillsHtml()) no longer depends on
+// /capabilities' available.model flag — it shows whenever /model loads
+// successfully, so there's no separate "pill hidden despite good model
+// data" case to warn about here anymore.
+function getRegDataWarnings(baseURL) {
+  var key = normalizeURL(baseURL);
+  var warnings = [];
+  if (_capLoadError[key]) {
+    warnings.push('Could not load /capabilities: ' + _capLoadError[key] + '.');
+  }
+  if (_modelLoadError[key]) {
+    warnings.push('Could not load /model: ' + _modelLoadError[key] + '.');
+  }
+  return warnings;
+}
+
+function hasRegDataWarnings(baseURL) {
+  return getRegDataWarnings(baseURL).length > 0;
+}
+
 
 // Whether the current registry's cached /capabilities declares support for
 // flag f (e.g. 'filter', 'sort', 'inline') — a standalone equivalent of

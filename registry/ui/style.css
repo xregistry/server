@@ -1167,6 +1167,45 @@ body[data-json-color="none"] .json-url:hover { color: #000; }
   word-break: break-word;
   line-height: 1.4;
 }
+.server-card-warn-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  background: #d99a00;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 4px;
+}
+.reg-data-warn-banner {
+  background: #fff8e1;
+  border: 1px solid #d99a00;
+  border-radius: 6px;
+  margin: 8px 0 12px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #6b5400;
+}
+.reg-data-warn-banner-summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: bold;
+}
+.reg-data-warn-banner-list {
+  display: none;
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+.reg-data-warn-banner-expanded .reg-data-warn-banner-list {
+  display: block;
+}
 .server-card-divider { border: none; border-top: 1px solid #bbb; margin: 0 0 8px; }
 .server-card-desc {
   font-size: 11px;
@@ -1557,6 +1596,33 @@ a.group-type-item:hover { background: #e0e0e0; color: #222; text-decoration: und
   white-space: nowrap;
 }
 .reg-row-err-badge:hover { background: #fbd6d6; }
+.reg-row-warn-badge {
+  font-size: 11px;
+  font-weight: bold;
+  color: #6b5400;
+  background: #fff3cd;
+  border: 1px solid #d99a00;
+  border-radius: 10px;
+  padding: 1px 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.reg-row-warn-badge:hover { background: #ffe9a8; }
+.gt-row-warn-badge {
+  font-size: 11px;
+  font-weight: bold;
+  color: #6b5400;
+  background: #fff3cd;
+  border: 1px solid #d99a00;
+  border-radius: 10px;
+  padding: 1px 6px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+.gt-row-warn-badge:hover { background: #ffe9a8; }
 .reg-row-groups {
   display: flex;
   flex-wrap: wrap;
