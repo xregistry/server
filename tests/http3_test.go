@@ -4959,4 +4959,59 @@ func TestHTTPShortSelf(t *testing.T) {
 }
 `)
 
+	// Again, this time make sure shortself is excluded from ?doc view
+	XHTTP(t, reg, "GET", ss+"$details?inline&doc", "", 200, `{
+  "fileid": "f1",
+  "self": "#/",
+  "xid": "/dirs/d1/files/f1",
+
+  "metaurl": "#/meta",
+  "meta": {
+    "fileid": "f1",
+    "self": "#/meta",
+    "xid": "/dirs/d1/files/f1/meta",
+    "epoch": 2,
+    "createdat": "2026-08-05T00:56:54.128524368Z",
+    "modifiedat": "2026-08-05T00:56:54.277331398Z",
+    "readonly": false,
+
+    "defaultversionid": "v1",
+    "defaultversionurl": "#/versions/v1",
+    "defaultversionsticky": false
+  },
+  "versionsurl": "#/versions",
+  "versions": {
+    "v1": {
+      "fileid": "f1",
+      "versionid": "v1",
+      "self": "#/versions/v1",
+      "xid": "/dirs/d1/files/f1/versions/v1",
+      "epoch": 3,
+      "isdefault": true,
+      "createdat": "2026-08-05T00:56:54.128524368Z",
+      "modifiedat": "2026-08-05T00:56:54.251990162Z",
+      "ancestorid": "v1",
+      "filebase64": "aGVsbG8gd29ybGQ="
+    }
+  },
+  "versionscount": 1
+}
+`)
+
+	// Make sure shortself on Registry == self because it's actually shorts
+	XHTTP(t, reg, "GET", "/", "", 200, `{
+  "specversion": "1.0-rc3",
+  "registryid": "TestHTTPShortSelf",
+  "self": "http://localhost:8181/",
+  "shortself": "http://localhost:8181/",
+  "xid": "/",
+  "epoch": 5,
+  "createdat": "2026-08-05T00:57:16.271016581Z",
+  "modifiedat": "2026-08-05T00:57:16.358804758Z",
+
+  "dirsurl": "http://localhost:8181/dirs",
+  "dirscount": 1
+}
+`)
+
 }

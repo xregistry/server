@@ -1369,7 +1369,14 @@ var PropsFuncs = []*Attribute{
 					base = info.OriginalBaseURL
 				}
 
-				return base + "/r/" + e.DbSID
+				ss := base + "/r/" + e.DbSID
+
+				selfAny := SpecProps["self"].internals.getFn(e)
+				if self, ok := selfAny.(string); ok && len(self) < len(ss) {
+					ss = self
+				}
+
+				return ss
 			},
 		},
 	},

@@ -117,8 +117,6 @@ TODOs:
 - attr.clone should be deep
 - I think getorderedversions is wrong when there are multiple trees
 ** add support for excludeall and add it to filter results
-- verify that shortself is excluded from docview
 - look over the xref tests added for PR 19
 - clean-up design of model save/apply 
 - add support for json structure
-- when turning off hasdoc, convert "file" to "filebase64" as an extension
