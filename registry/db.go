@@ -360,12 +360,13 @@ func (tx *Tx) DumpDirtyCache() {
 func (tx *Tx) WriteCache(force bool) *XRError {
 	for _, e := range tx.Cache {
 		if true { // !force {
-			PanicIf(e.NewObject != nil, "Entity %s/%q not saved",
-				e.Singular, e.UID)
 			if e.NewObject != nil {
 				log.Printf("%s: %s", e.Singular, e.UID)
+				log.Printf("%s", ToJSON(e.NewObject))
 				ShowStack()
 			}
+			PanicIf(e.NewObject != nil, "Entity %s/%q not saved",
+				e.Singular, e.UID)
 		}
 		if xErr := e.ValidateAndSave(false); xErr != nil {
 			return xErr

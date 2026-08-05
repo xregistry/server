@@ -369,6 +369,10 @@ func (m *Model) ApplyNewModel(newM *Model, src string, verifyData bool) *XRError
 	m.Registry.Model = newM
 	m = newM
 	m.SetChanged(true)
+	// If verifyData==true then it'll call reg.ValidateAndSave() to make sure
+	// we process the changed Reg( touch, if nothing else). But if verifyData
+	// is false then the caller will be responsible for calling Val&Save.
+	m.Registry.Touch()
 
 	if src == "" {
 		// This should serialize just the bare minimum, only what the
@@ -511,51 +515,4 @@ func (m *Model) ApplyNewModelFromJSON(buf []byte, verify bool) *XRError {
 	// model.Source = modelSource
 
 	return m.ApplyNewModel(model, modelSource, verify)
-}
-
-func (rm *ResourceModel) VerifyData() *XRError {
-	reg := rm.GroupModel.Model.Registry
-
-	// Query to find all Groups/Resources of the proper type.
-	// The resulting list MUST be Group followed by it's Resources, repeat...
-	gAbs := NewPPP(rm.GroupModel.Plural).Abstract()
-	rAbs := NewPPP(rm.GroupModel.Plural).P(rm.Plural).Abstract()
-	entities, xErr := RawEntitiesFromQuery(reg.tx, reg.DbSID, FOR_WRITE,
-		`e.Abstract=? OR e.Abstract=?`, gAbs, rAbs)
-	if xErr != nil {
-		return xErr
-	}
-
-	// For each Resource, make this it's compliant with all of the various
-	// constraints/rules that are defined
-
-	group := (*Group)(nil)
-	resource := (*Resource)(nil)
-	for _, e := range entities {
-		if e.Type == ENTITY_GROUP {
-			group = &Group{Entity: *e, Registry: reg}
-			group.Self = group
-		} else {
-			PanicIf(group == nil, "Group can't be nil")
-			resource = &Resource{Entity: *e, Group: group}
-			resource.Self = resource
-
-			if xErr = resource.EnsureSingleVersionRoot(); xErr != nil {
-				return xErr
-			}
-
-			if xErr = resource.EnsureMaxVersions(); xErr != nil {
-				return xErr
-			}
-
-			if xErr = resource.EnsureCompat(true); xErr != nil {
-				return xErr
-			}
-			resource.tx.FlushSystemProps()
-
-			resource.tx.AddResource(resource)
-		}
-	}
-
-	return nil
 }

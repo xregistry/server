@@ -1811,12 +1811,6 @@ func HTTPPUTModelSource(info *RequestInfo) *XRError {
 		return xErr
 	}
 
-	info.Registry.Touch()
-
-	if xErr = info.Registry.ValidateAndSave(false); xErr != nil {
-		return xErr
-	}
-
 	return HTTPGETModelSource(info)
 }
 
