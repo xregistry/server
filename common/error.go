@@ -31,7 +31,7 @@ func NewXRError(daType string, subject string, args ...string) *XRError {
 	PanicIf(err == nil, "Unknown error type: %s", daType)
 
 	if subject != "" && !strings.HasPrefix(subject, "http") &&
-		subject[0] != '/' {
+		daType != "client_error" && subject[0] != '/' {
 
 		// Show us who isn't setting 'subject' correctly so we can fix it.
 		// But don't stop process, just log it

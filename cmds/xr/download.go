@@ -49,6 +49,8 @@ func addDownloadCmd(parent *cobra.Command) {
 	}
 	downloadCmd.Flags().StringP("url", "u", "",
 		"Host/path to Update xRegistry paths")
+	downloadCmd.Flags().BoolP("import", "", false,
+		"Create '/import.json' based on /export")
 	downloadCmd.Flags().StringP("index", "i", "index.html",
 		"Directory index file name (index.html*)")
 	downloadCmd.Flag("index").DefValue = "" // hide default text
@@ -89,7 +91,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	stat, err := os.Stat(dir)
 	if os.IsNotExist(err) || !stat.IsDir() {
 		Error(NewXRError("client_error", dir,
-			fmt.Sprintf("%q must be an existing directory", dir)))
+			"error_detail="+dir+" must be an existing directory"))
 	}
 	args = args[1:]
 
@@ -123,6 +125,8 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 	host, _ := cmd.Flags().GetString("url")
 	modCap, _ := cmd.Flags().GetBool("capabilities")
 	noDiff, _ := cmd.Flags().GetStringSlice("nodiff")
+	importFile, _ := cmd.Flags().GetBool("import")
+
 	if host != "" {
 		if host[len(host)-1] != '/' {
 			host += "/"
@@ -154,7 +158,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 			// if there's an XID then it must be an object and not a collection
 			xid, err := ParseXid(xidStr)
 			if err != nil {
-				return
+				Error(err)
 			}
 
 			delete(obj, "shortself") // needs live server
@@ -243,6 +247,100 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	makeImportObj := func(objAny any) {}
+	makeImportObj = func(objAny any) {
+		obj, ok := objAny.(map[string]any)
+		if !ok || len(obj) == 0 {
+			return
+		}
+
+		xidAny, ok := obj["xid"]
+		if !ok {
+			return
+		}
+
+		xidStr, ok := xidAny.(string)
+		if !ok {
+			return
+		}
+
+		// if there's an XID then it must be an object and not a collection
+		xid, err := ParseXid(xidStr)
+		if err != nil {
+			Error(err)
+		}
+
+		// For all entities
+		delete(obj, "self")
+		delete(obj, "shortself")
+		delete(obj, "xid")
+		delete(obj, "epoch")
+
+		switch xid.Type {
+		case ENTITY_REGISTRY:
+			delete(obj, "registryid")
+
+			for _, gm := range reg.Model.Groups {
+				delete(obj, gm.Plural+"url")
+				delete(obj, gm.Plural+"count")
+
+				if nestedObj, ok := obj[gm.Plural].(map[string]any); ok {
+					for _, gObj := range nestedObj {
+						makeImportObj(gObj)
+					}
+				}
+			}
+
+		case ENTITY_GROUP:
+			gm := reg.Model.Groups[xid.Group]
+			for _, rm := range gm.Resources {
+				delete(obj, rm.Plural+"url")
+				delete(obj, rm.Plural+"count")
+
+				if nestedObj, ok := obj[rm.Plural].(map[string]any); ok {
+					for _, rObj := range nestedObj {
+						makeImportObj(rObj)
+					}
+				}
+			}
+
+		case ENTITY_RESOURCE:
+			gm := reg.Model.Groups[xid.Group]
+			rm := gm.Resources[xid.Resource]
+
+			delete(obj, rm.Singular+"id")
+			delete(obj, "versionid")
+			delete(obj, "isdefault")
+			delete(obj, "metaurl")
+			delete(obj, "versionsurl")
+			delete(obj, "versionscount")
+
+			makeImportObj(obj["meta"])
+			if nestedObj, ok := obj["versions"].(map[string]any); ok {
+				for _, vObj := range nestedObj {
+					makeImportObj(vObj)
+				}
+			}
+
+		case ENTITY_META:
+			gm := reg.Model.Groups[xid.Group]
+			rm := gm.Resources[xid.Resource]
+
+			delete(obj, rm.Singular+"id")
+			delete(obj, "defaultversionurl")
+
+		case ENTITY_VERSION:
+			gm := reg.Model.Groups[xid.Group]
+			rm := gm.Resources[xid.Resource]
+
+			delete(obj, rm.Singular+"id")
+			delete(obj, "isdefault")
+			delete(obj, "versionid")
+			delete(obj, "vesionsurl")
+			delete(obj, "versionscount")
+		}
+	}
+
 	downloadXidFn := func(xid *Xid, wait bool) ([]byte, *XRError) {
 		if !wait && parallel > 1 {
 			listCH <- xid
@@ -258,7 +356,7 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		data, _ := Download(reg, fname)
 		if err := json.Unmarshal(data, &obj); err != nil {
-			fmt.Printf("JSON(%s): %s", fname, string(data))
+			// fmt.Printf("JSON(%s): %s", fname, string(data))
 			Error(NewXRError("parsing_response", reg.GetServerURL(),
 				"error_detail="+err.Error()))
 		}
@@ -515,6 +613,20 @@ func downloadFunc(cmd *cobra.Command, args []string) {
 
 		Write(dir+"/export", data)
 		Write(dir+"/export.hdr", []byte("content-type: application/json"))
+	}
+
+	if importFile {
+		obj := map[string]any{}
+		if err := json.Unmarshal(data, &obj); err != nil {
+			Error(NewXRError("parsing_response",
+				reg.GetServerURL()+"/export",
+				"error_detail="+err.Error()))
+		}
+		makeImportObj(obj)
+		data, _ = json.MarshalIndent(obj, "", "  ")
+
+		Write(dir+"/import.json", data)
+		Write(dir+"/import.json.hdr", []byte("content-type: application/json"))
 	}
 
 	data, _ = Download(reg, "/model")

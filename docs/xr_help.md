@@ -62,6 +62,7 @@ xr download DIR [XID...]
       --config string             Config file ($HOME/.xrconfig)
       --errjson                   Print errors as json
   -?, --help                      Help for xr
+      --import                    Create '/import.json' based on /export
   -i, --index string              Directory index file name (index.html*)
   -m, --md2html                   Generate HTML files for MD files
       --md2html-css-link string   CSS stylesheet 'link' to add in md2html files
