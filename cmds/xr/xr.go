@@ -14,6 +14,7 @@ import (
 
 var GitComit string
 var VerboseCount = 0
+var ShowDebug = false
 
 var ErrJson = false
 
@@ -86,8 +87,10 @@ func ShowError(obj any, args ...any) bool {
 
 	fmt.Fprintf(os.Stderr, "%s\n", msg)
 
-	// ShowStack()
-	// fmt.Printf("xErr: %s\n", xErr)
+	if ShowDebug {
+		ShowStack()
+		fmt.Printf("xErr: %s\n", xErr)
+	}
 
 	return true // yes we printed something
 }
@@ -447,6 +450,10 @@ func main() {
 			},
 		*/
 	})
+
+	xrCmd.PersistentFlags().BoolVarP(&ShowDebug, "debug", "", false,
+		"Show debug info")
+	// xrCmd.Flags().MarkHidden("debug")
 
 	xrCmd.Flags().BoolP("help-all", "", false, "Help for all commands")
 

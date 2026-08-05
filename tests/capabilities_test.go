@@ -62,6 +62,14 @@ func TestCapabilitySimple(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -102,6 +110,7 @@ func TestCapabilitySimple(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -177,6 +186,14 @@ func TestCapabilitySimple(t *testing.T) {
         "full",
         "full_transitive"
       ],
+      "jsonstructure*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
       "numbers": [
         "backward",
         "backward_transitive",
@@ -217,6 +234,7 @@ func TestCapabilitySimple(t *testing.T) {
     "formats": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -427,6 +445,14 @@ func TestCapabilityPath(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -467,6 +493,7 @@ func TestCapabilityPath(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -692,6 +719,14 @@ func TestCapabilityPath(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -724,6 +759,7 @@ func TestCapabilityPath(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -773,6 +809,14 @@ func TestCapabilityPath(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -813,6 +857,7 @@ func TestCapabilityPath(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -876,6 +921,14 @@ func TestCapabilityPath(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -916,6 +969,7 @@ func TestCapabilityPath(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -1227,6 +1281,14 @@ func TestCapabilityAttr(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -1259,6 +1321,7 @@ func TestCapabilityAttr(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -1319,6 +1382,14 @@ func TestCapabilityAttr(t *testing.T) {
         "full",
         "full_transitive"
       ],
+      "jsonstructure*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
       "numbers": [
         "backward",
         "backward_transitive",
@@ -1359,6 +1430,7 @@ func TestCapabilityAttr(t *testing.T) {
     "formats": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -1423,6 +1495,14 @@ func TestCapabilityAttr(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -1463,6 +1543,7 @@ func TestCapabilityAttr(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -1802,6 +1883,20 @@ func TestCapabilityOffered(t *testing.T) {
           "type": "string"
         }
       },
+      "jsonstructure*": {
+        "type": "array",
+        "enum": [
+          "backward",
+          "backward_transitive",
+          "forward",
+          "forward_transitive",
+          "full",
+          "full_transitive"
+        ],
+        "item": {
+          "type": "string"
+        }
+      },
       "numbers": {
         "type": "array",
         "enum": [
@@ -1869,6 +1964,7 @@ func TestCapabilityOffered(t *testing.T) {
     "enum": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -2474,6 +2570,14 @@ func TestCapabilityPatch(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -2505,6 +2609,7 @@ func TestCapabilityPatch(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -2599,6 +2704,14 @@ func TestCapabilityPatch(t *testing.T) {
         "full",
         "full_transitive"
       ],
+      "jsonstructure*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
       "numbers": [
         "backward",
         "backward_transitive",
@@ -2631,6 +2744,7 @@ func TestCapabilityPatch(t *testing.T) {
     "formats": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -2738,6 +2852,14 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -2778,6 +2900,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -2858,6 +2981,14 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
         "full",
         "full_transitive"
       ],
+      "jsonstructure*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
       "numbers": [
         "backward",
         "backward_transitive",
@@ -2889,6 +3020,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
     "formats": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -2973,6 +3105,14 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3004,6 +3144,7 @@ func TestCapabilityPatchRootSemantics(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -3161,6 +3302,14 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3192,6 +3341,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -3260,6 +3410,14 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3291,6 +3449,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -3378,6 +3537,14 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3409,6 +3576,7 @@ func TestCapabilityPatchRootVsPatch(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -3556,6 +3724,14 @@ func TestCapabilityNullHandling(t *testing.T) {
         "full",
         "full_transitive"
       ],
+      "jsonstructure*": [
+        "backward",
+        "backward_transitive",
+        "forward",
+        "forward_transitive",
+        "full",
+        "full_transitive"
+      ],
       "numbers": [
         "backward",
         "backward_transitive",
@@ -3596,6 +3772,7 @@ func TestCapabilityNullHandling(t *testing.T) {
     "formats": [
       "avro*",
       "jsonschema*",
+      "jsonstructure*",
       "numbers",
       "protobuf*",
       "xmlschema*"
@@ -3664,6 +3841,14 @@ func TestCapabilityNullHandling(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3704,6 +3889,7 @@ func TestCapabilityNullHandling(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -3851,6 +4037,14 @@ func TestCapabilityNullHandling(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -3891,6 +4085,7 @@ func TestCapabilityNullHandling(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -4333,6 +4528,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
@@ -4630,6 +4826,7 @@ func TestCapabilityWildcard(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"

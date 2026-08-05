@@ -9654,6 +9654,14 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
       "full",
       "full_transitive"
     ],
+    "jsonstructure*": [
+      "backward",
+      "backward_transitive",
+      "forward",
+      "forward_transitive",
+      "full",
+      "full_transitive"
+    ],
     "numbers": [
       "backward",
       "backward_transitive",
@@ -9694,6 +9702,7 @@ func TestHTTPSpecVersionPatchIgnore(t *testing.T) {
   "formats": [
     "avro*",
     "jsonschema*",
+    "jsonstructure*",
     "numbers",
     "protobuf*",
     "xmlschema*"
