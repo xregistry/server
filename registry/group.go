@@ -58,6 +58,12 @@ func (g *Group) Delete() *XRError {
 	return nil
 }
 
+// FindResource keeps an explicit accessMode arg (unlike Resource's own
+// FindMeta/FindVersion, which derive it from r.AccessMode) - see
+// Registry.FindGroup()'s doc comment for why: Group/Resource-as-a-
+// Group-child is not part of a lockEntityFamily() "family", so there's
+// no analogous need to force every subsequent read through this Group
+// to inherit a prior FOR_WRITE.
 func (g *Group) FindResource(rType string, id string, anyCase bool, accessMode int) (*Resource, *XRError) {
 	log.VPrintf(3, ">Enter: FindResource(%s,%s,%v)", rType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindResource")
@@ -147,7 +153,14 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 	rXID := g.XID + "/" + ru.RType + "/" + ru.Id
 
 	if r != nil {
-		meta := r.MustFindMeta(false, FOR_READ)
+		// Use FOR_WRITE (not FOR_READ): r itself was just fetched
+		// FOR_WRITE above (so it reflects latest-committed data, even
+		// if that means observing another Tx's just-committed Resource+
+		// Meta pair) - but a plain FOR_READ here is a non-locking SELECT
+		// that can still be pinned to this Tx's original RR snapshot
+		// from before that Meta row was committed, incorrectly finding
+		// no rows even though we just proved the Resource exists.
+		meta := r.MustFindMeta(false)
 		if meta.Get("readonly") == true {
 			if r.tx.RequestInfo.HasIgnore("readonly") {
 				// Ignoring that it's read-only but also stopping
@@ -392,7 +405,7 @@ func (g *Group) UpsertResource(ru *ResourceUpsert) (*Resource, bool, *XRError) {
 		// If still not found/set then leave it blank since "" will use
 		// #nextversionid automatically when we create the new version
 	} else {
-		meta = r.MustFindMeta(false, FOR_WRITE)
+		meta = r.MustFindMeta(false)
 		resourceDefaultVersionID = meta.GetAsString("defaultversionid")
 	}
 
@@ -825,6 +838,16 @@ func (g *Group) Validate() *XRError {
 // Version (real or xref-mirrored, since this scans Entities/
 // Props broadly) of resPlural, under this Group, must have
 // pp's value equal to this Group's own value of constraint.Equals.
+//
+// This scans ALL Resources/Versions under the Group, not just
+// whatever triggered this validation run, so it must use a locking
+// (FOR UPDATE) read rather than a plain SELECT. Under RR isolation a
+// plain SELECT would reuse this Tx's original snapshot (established
+// at its first read), which could predate a concurrent Tx's commit of
+// a new/changed sibling Resource or Version in this same Group -
+// letting two Txs each pass a constraint that's violated once
+// combined. FOR UPDATE forces this read to see latest-committed data
+// and to block on any in-flight conflicting Tx, closing that gap.
 func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 	pp *PropPath, binary string) *XRError {
 
@@ -861,6 +884,7 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
                 r.GroupSID=? AND
                 r.Plural=? AND
                 (vp.PropValue IS NULL OR %s vp.PropValue<>gp.PropValue)
+            FOR UPDATE
             `, binary)
 
 	// log.Printf("%q vs %q", gPP.DB(), pp.DB())
@@ -906,6 +930,9 @@ func (g *Group) validateEquals(constraint *Constraint, resPlural string,
 // group's "enum" constraint is caught here too) of resPlural, under
 // this Group, must have pp's value (when set) be one of
 // constraint.Enum's values.
+//
+// See validateEquals()'s comment above for why this must be a FOR
+// UPDATE (locking) read rather than a plain SELECT.
 func (g *Group) validateEnum(constraint *Constraint, resPlural string,
 	pp *PropPath, binary string) *XRError {
 
@@ -943,6 +970,7 @@ func (g *Group) validateEnum(constraint *Constraint, resPlural string,
                 r.Plural=? AND
                 vp.PropValue IS NOT NULL AND
                 %s vp.PropValue NOT IN (%s)
+            FOR UPDATE
             `, binary, strings.Join(placeholders, ","))
 
 	results := Query(g.tx, query, args...)

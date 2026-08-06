@@ -4725,7 +4725,7 @@ func TestHTTPLinkHeader(t *testing.T) {
 	})
 
 	// Test to ensure Link header doesn't appear twice in error cases
-	res := XDoHTTP(t, reg, "GET", "/notfound", "")
+	res := XHTTP(t, reg, "GET", "/notfound", "", 404, "*")
 	linkHeaders := res.Header.Values("Link")
 	XCheck(t, len(linkHeaders) == 1,
 		"Link header should appear exactly once, got %d occurrences: %v",

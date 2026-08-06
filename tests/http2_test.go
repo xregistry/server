@@ -4322,7 +4322,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// //////////////////////////////////////////////////////
 
 	f.Refresh(registry.FOR_WRITE)
-	v, _ := f.GetDefault(registry.FOR_WRITE)
+	v, _ := f.GetDefault()
 	vmod := v.GetAsString("modifiedat")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files", `{}`, 200,
@@ -4518,7 +4518,7 @@ func TestHTTPRegistryPatch(t *testing.T) {
 	// //////////////////////////////////////////////////////
 
 	f.Refresh(registry.FOR_WRITE)
-	v, _ = f.GetDefault(registry.FOR_WRITE)
+	v, _ = f.GetDefault()
 	vmod = v.GetAsString("modifiedat")
 
 	XHTTP(t, reg, "PATCH", "/dirs/dir1/files/f1/versions", `{}`, 200,

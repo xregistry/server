@@ -3010,8 +3010,7 @@ func TestExportImportModel(t *testing.T) {
 `)
 
 	// Now export the model so we can re-add it
-	res := XDoHTTP(t, reg, "GET", "/model", "")
-	XCheck(t, res.StatusCode == 200, "Should be 200")
+	res := XHTTP(t, reg, "GET", "/model", "", 200, "*")
 
 	// Import it and make sure it passes
 	XHTTP(t, reg, "PUT", "/modelsource", res.body, 200, res.body)

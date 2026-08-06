@@ -188,8 +188,7 @@ func LoadAPIGuru(reg *registry.Registry, orgName string, repoName string) *regis
 		res, xErr := group.AddResource("apis", resName, "v1")
 		ErrFatalf(xErr)
 
-		version, xErr := res.FindVersion(parts[verIndex], false,
-			registry.FOR_WRITE)
+		version, xErr := res.FindVersion(parts[verIndex], false)
 		ErrFatalf(xErr)
 		if version != nil {
 			log.Fatalf("Have more than one file per version: %s\n", header.Name)
@@ -285,7 +284,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, xErr := g.AddResource("messages", "created", "v1")
 	ErrFatalf(xErr)
-	v, xErr := r.FindVersion("v1", false, registry.FOR_WRITE)
+	v, xErr := r.FindVersion("v1", false)
 	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobCreated"))
 	ErrFatalf(v.SetSave("epoch", 2))
@@ -298,7 +297,7 @@ func LoadEndpointsSample(reg *registry.Registry) *registry.Registry {
 
 	r, xErr = g.AddResource("messages", "deleted", "v1.0")
 	ErrFatalf(xErr)
-	v, xErr = r.FindVersion("v1.0", false, registry.FOR_WRITE)
+	v, xErr = r.FindVersion("v1.0", false)
 	ErrFatalf(xErr)
 	ErrFatalf(v.SetSave("name", "blobDeleted"))
 	ErrFatalf(v.SetSave("epoch", 3))

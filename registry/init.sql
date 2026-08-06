@@ -527,3 +527,20 @@ SELECT
 FROM Props as p
 JOIN Entities as e ON (e.eSID=p.eSID)
 ORDER by Path ;
+
+CREATE VIEW NewVAs AS
+SELECT
+    r.UID AS rUID,
+    v.UID AS VersionUID,
+    v.AncestorID AS AncestorID,
+    v.CreatedAt AS CTime,
+    CASE
+        WHEN v.UID=v.AncestorID THEN '0-root'
+        WHEN EXISTS(SELECT 1 FROM Versions AS v2 WHERE
+                    # v2.RegistrySID=v2.ResistrySID AND
+                    v2.ResourceSID=v.ResourceSID AND v2.AncestorID=v.UID)
+             THEN '1-middle'
+        ELSE '2-leaf'
+    END AS Pos
+FROM Versions AS v
+JOIN Resources as r on (r.SID=v.ResourceSID) ;

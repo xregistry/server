@@ -292,6 +292,32 @@ func (e *Entity) GetPP(pp *PropPath) any {
 	return val
 }
 
+// lockResourceFamily locks (FOR UPDATE) a Resource's own row plus its
+// Meta row and all of its Version rows, in the type-specific tables
+// (Resources/Metas/Versions) - NOT the generic Entities table. The
+// problematic plain SELECTs this exists to fix (newestVersionID(),
+// GetProblematicVersions(), GetOrderedVersionIDs(), the
+// VersionAncestors view) all read Versions/Metas/Resources directly,
+// so a FOR UPDATE lock scoped to Entities rows alone would never
+// synchronize with them - InnoDB row locks are per-table, and locking
+// one table's row for a given entity does not lock a different
+// table's row for that same logical entity. See Entity.Lock()'s doc
+// comment for why Resource+Meta+Versions are always locked together as
+// a single family.
+func lockResourceFamily(tx *Tx, resourceSID string) {
+	results := Query(tx, `SELECT SID FROM Resources WHERE SID=? FOR UPDATE`,
+		resourceSID)
+	results.Close()
+
+	results = Query(tx, `SELECT SID FROM Metas WHERE ResourceSID=? FOR UPDATE`,
+		resourceSID)
+	results.Close()
+
+	results = Query(tx, `SELECT SID FROM Versions WHERE ResourceSID=? FOR UPDATE`,
+		resourceSID)
+	results.Close()
+}
+
 func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMode int) (*Entity, *XRError) {
 	log.VPrintf(3, ">Enter: RawEntityFromPath(%s)", path)
 	defer log.VPrintf(3, "<Exit: RawEntityFromPath")
@@ -304,6 +330,19 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
 	caseExpr := ""
 	if anyCase {
 		caseExpr = " COLLATE utf8mb4_0900_ai_ci"
+	}
+
+	// If the caller already wants FOR_WRITE on this (not-yet-cached)
+	// entity, lock its rows as of THIS initial fetch rather than waiting
+	// for some later Entity.Lock()/Refresh(FOR_WRITE) call - without
+	// this, Entity.Lock() would see AccessMode already == FOR_WRITE
+	// (set below by readNextEntity()) and skip re-locking entirely,
+	// leaving the entity believed-locked in Go but never actually
+	// row-locked in the DB. Matches Entity.Refresh()'s own " FOR UPDATE"
+	// handling for its Props-only reload query.
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
 	}
 
 	results := Query(tx, `
@@ -327,11 +366,45 @@ func RawEntityFromPath(tx *Tx, regID string, path string, anyCase bool, accessMo
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
         WHERE e.RegSID=? AND e.Path`+caseExpr+`=?
-        ORDER BY Path`,
+        ORDER BY Path`+lockExpr,
 		regID, path)
 	defer results.Close()
 
-	return readNextEntity(tx, results, accessMode)
+	ent, xErr := readNextEntity(tx, results, accessMode)
+	if xErr != nil {
+		return nil, xErr
+	}
+
+	// See lockExpr's comment above: this initial fetch already FOR
+	// UPDATE-locked ent's own row (if accessMode==FOR_WRITE), but if
+	// ent is a Resource/Meta/Version it also needs its sibling
+	// Resource+Meta+Versions family locked - matches Entity.Lock()'s
+	// same handling for already-cached entities.
+	if accessMode == FOR_WRITE {
+		lockEntityFamily(tx, ent)
+	}
+
+	return ent, nil
+}
+
+// lockEntityFamily locks (FOR UPDATE) the full Resource+Meta+Versions
+// family that ent belongs to, if any - see lockResourceFamily()'s and
+// Entity.Lock()'s doc comments for why. Safe to call with a nil ent or
+// a non-Resource/Meta/Version entity (no-op).
+func lockEntityFamily(tx *Tx, ent *Entity) {
+	if ent == nil {
+		return
+	}
+	resourceSID := ""
+	switch ent.Type {
+	case ENTITY_RESOURCE:
+		resourceSID = ent.DbSID
+	case ENTITY_META, ENTITY_VERSION:
+		resourceSID = ent.ParentSID
+	}
+	if resourceSID != "" {
+		lockResourceFamily(tx, resourceSID)
+	}
 }
 
 func (e *Entity) Query(query string, args ...any) [][]any {
@@ -388,6 +461,17 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 	if query != "" {
 		query = "AND (" + query + ") "
 	}
+
+	// See RawEntityFromPath()'s matching comment - without this, a
+	// FOR_WRITE caller's very first (not-yet-cached) fetch would never
+	// actually lock these rows, yet Entity.Lock() would believe it's
+	// already locked (AccessMode == FOR_WRITE, stamped by
+	// readNextEntity() below) and silently skip re-locking.
+	lockExpr := ""
+	if accessMode == FOR_WRITE {
+		lockExpr = " FOR UPDATE"
+	}
+
 	args = append(append([]any{}, regID), args...)
 	results := Query(tx, `
 		SELECT
@@ -409,7 +493,7 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
             e.eSID=p.eSID AND p.IsDefaultVerCopy=false AND p.IsXrefPropCopy=false
             AND p.IsXrefVerCopy=false AND p.IsCalcStatic=false
             AND p.IsCalcDynamic=false)
-        WHERE e.RegSID=? `+query+` ORDER BY Path`, args...)
+        WHERE e.RegSID=? `+query+` ORDER BY Path`+lockExpr, args...)
 	defer results.Close()
 
 	entities := []*Entity{}
@@ -422,6 +506,14 @@ func RawEntitiesFromQuery(tx *Tx, regID string, accessMode int, query string, ar
 			break
 		}
 		entities = append(entities, e)
+	}
+
+	// See RawEntityFromPath()'s matching comment: lock each returned
+	// entity's Resource+Meta+Versions family too, if applicable.
+	if accessMode == FOR_WRITE {
+		for _, e := range entities {
+			lockEntityFamily(tx, e)
+		}
 	}
 
 	return entities, nil
@@ -453,6 +545,21 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 	mode := ""
 	if accessMode == FOR_WRITE {
 		mode = " FOR UPDATE"
+
+		// Lock the parent Entities row FIRST, before touching Props. Save()
+		// rewrites an entity's Props via DELETE-then-INSERT (not an atomic
+		// update), so a "FOR UPDATE" lock scoped to just the Props rows can
+		// transiently observe zero rows if we happen to land between a
+		// sibling Tx's DELETE and its subsequent INSERT (InnoDB's "FOR
+		// UPDATE" only re-checks the specific rows it originally blocked
+		// on when the blocking Tx commits/rolls back - it doesn't re-scan
+		// for newly-inserted rows). Locking the single, always-present
+		// Entities row here forces us to fully serialize with any other
+		// Tx that's mid-Save() on this entity, so by the time we run the
+		// Props query below, that other Tx has either fully committed
+		// (Props fully rewritten) or fully rolled back (Props unchanged).
+		results := Query(e.tx, `SELECT eSID FROM Entities WHERE eSID=? FOR UPDATE`, e.DbSID)
+		results.Close()
 	}
 
 	results := Query(e.tx, `
@@ -507,6 +614,11 @@ func (e *Entity) Refresh(accessMode int) *XRError {
 func (e *Entity) eSetSave(path string, val any) *XRError {
 	log.VPrintf(3, ">Enter: SetSave(%s=%v)", path, val)
 	defer log.VPrintf(3, "<Exit Set")
+
+	if path == "defaultversionid" && val == "" {
+		log.Printf("In setsave: %q=%q", path, val)
+		ShowStack()
+	}
 
 	pp, err := PropPathFromUI(path)
 	if err != nil {
@@ -909,7 +1021,7 @@ func (e *Entity) ClearResourceSystemDBProperty(pps ...*PropPath) {
 	}
 
 	for _, uid := range uids {
-		v, xErr := r.FindVersion(uid, false, FOR_WRITE)
+		v, xErr := r.FindVersion(uid, false)
 		PanicIf(xErr != nil || v == nil, "%s/versions/%s: %s", r.XID, uid, xErr)
 		for _, pp := range pps {
 			v.SetSystemDBProperty(pp, nil)
@@ -1934,7 +2046,13 @@ var PropsFuncs = []*Attribute{
 					PanicIf(!ok, "e isn't a meta: %#v", e)
 
 					val := meta.GetAsString("defaultversionid")
-					ver, xErr := meta.Resource.FindVersion(val, false, FOR_READ)
+					// FOR_WRITE: this updateFn only runs while the Meta
+					// itself is being written (Meta.AccessMode ==
+					// FOR_WRITE at this point), so this FindVersion() must
+					// match, otherwise a plain FOR_READ lookup here can
+					// still be pinned to a stale RR snapshot from before
+					// another Tx's Version INSERT committed.
+					ver, xErr := meta.Resource.FindVersion(val, false)
 					if xErr != nil {
 						return xErr
 					}
@@ -2194,6 +2312,18 @@ func (e *Entity) Lock() bool { // did we lock it?
 		return false
 	}
 	Must(e.Refresh(FOR_WRITE))
+
+	// Resource/Meta/Version are logically one unit - Meta holds the
+	// data most callers actually care about (defaultversionid, epoch,
+	// etc) and CheckAncestors()/EnsureLatest() need a consistent view
+	// across all of a Resource's Versions to compute their answers, but
+	// individually FOR_WRITE-locking just "e" only ever locks e's own
+	// row. Whenever e is a Resource, Meta, or Version, also lock the
+	// whole Resource+Meta+Versions family together here, in one place,
+	// so callers never need to remember to do this themselves at each
+	// call site.
+	lockEntityFamily(e.tx, e)
+
 	return true
 }
 
@@ -3882,11 +4012,20 @@ func (e *Entity) SaveXrefCascadeInsert() {
 	// unique across the whole DB, only within one Registry) - never by
 	// a cached SID, so this always reflects reality even if the
 	// target didn't exist (or existed under a different SID) the last
-	// time this ran.
+	// time this ran. This is a source reading its xref TARGET's row,
+	// the mirror image of SaveXrefFanOutForTarget's target-reads-
+	// sources direction (which correctly uses FindResourceByXID(...,
+	// FOR_WRITE)) - so it must be FOR UPDATE too: a plain SELECT here
+	// would still be pinned to this Tx's RR snapshot and could copy
+	// stale target data into this source's mirror even after a
+	// concurrent Tx already committed a newer version of the target,
+	// which would then feed this source's Group constraint validation
+	// with stale mirrored data.
 	tResults := Query(e.tx, `
         SELECT m.SID, m.ResourceSID, r.Singular FROM Resources AS r
         JOIN Metas AS m ON (m.ResourceSID=r.SID)
-        WHERE r.RegistrySID=? AND r.Path=?`, e.Registry.DbSID, xRefPath)
+        WHERE r.RegistrySID=? AND r.Path=?
+        FOR UPDATE`, e.Registry.DbSID, xRefPath)
 	tRow := tResults.NextRow()
 	tResults.Close()
 	if tRow == nil {

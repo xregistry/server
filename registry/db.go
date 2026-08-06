@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -16,9 +17,48 @@ import (
 	"time"
 
 	log "github.com/duglin/dlog"
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-sql-driver/mysql"
 	. "github.com/xregistry/server/common"
 )
+
+// MySQL error numbers we treat as safe/expected to retry the whole HTTP
+// request for (see isRetryableDBErr()/ServeHTTP's retry loop) rather than
+// as a hard failure - both only ever happen because two Txs' row locks
+// (see entity.go's FOR_WRITE "FOR UPDATE" fetches) genuinely collided,
+// not because of a coding bug.
+const (
+	mysqlErrLockDeadlock    = 1213 // ER_LOCK_DEADLOCK
+	mysqlErrLockWaitTimeout = 1205 // ER_LOCK_WAIT_TIMEOUT
+)
+
+// isRetryableDBErr inspects a recovered panic value (or a plain error) and
+// reports whether it's a MySQL deadlock/lock-wait-timeout - the only two
+// conditions ServeHTTP's per-request retry loop should transparently retry
+// on a fresh Tx. Everything else (syntax errors, bugs, connection loss,
+// etc.) is NOT retryable and should keep surfacing exactly as it does
+// today (500 via the outer recover()).
+//
+// This codebase's Query()/doCount()/etc. always panic via
+// Must()/PanicIf()/Panicf() (see common/utils.go), which panic with a
+// formatted STRING (fmt.Sprintf(msg, args...)), not the original *error*
+// value - so the underlying *mysql.MySQLError is normally unwrappable
+// from the recovered panic value. Try errors.As() first (in case a
+// caller ever panics with the raw error directly), then fall back to
+// matching the well-known MySQL error text embedded in that string,
+// which is the case that matters in practice here.
+func isRetryableDBErr(v any) bool {
+	if err, ok := v.(error); ok {
+		var mysqlErr *mysql.MySQLError
+		if errors.As(err, &mysqlErr) {
+			return mysqlErr.Number == mysqlErrLockDeadlock ||
+				mysqlErr.Number == mysqlErrLockWaitTimeout
+		}
+	}
+
+	msg := fmt.Sprint(v)
+	return strings.Contains(msg, "Error 1213") ||
+		strings.Contains(msg, "Error 1205")
+}
 
 var DB *sql.DB
 var DB_Name = ""
@@ -230,8 +270,16 @@ func (tx *Tx) NewTx() *XRError {
 		return nil
 	}
 
+	// REPEATABLE READ (InnoDB's default) rather than READ COMMITTED: it
+	// gives every plain (non-locking) SELECT in this Tx one consistent
+	// snapshot/read-view established at the transaction's first read -
+	// effectively "snapshot at tx start" for our purposes - while
+	// SELECT ... FOR UPDATE reads (see entity.go's FOR_WRITE fetches)
+	// still always see latest-committed data and take real row locks.
+	// This combination is what makes the FOR_READ/FOR_WRITE distinction
+	// in Entity.AccessMode actually mean something at the DB level.
 	t, err := DB.BeginTx(context.Background(),
-		&sql.TxOptions{sql.LevelReadCommitted, false})
+		&sql.TxOptions{sql.LevelRepeatableRead, false})
 	if err != nil {
 		DB = nil
 		return NewXRError("server_error", "/").SetDetail(err.Error() + ".")

@@ -235,7 +235,7 @@ func (fx FormatXMLSchema) IsCompatible(
 	if err := checkXSDCompat(direction, oldBuf, newBuf); err != nil {
 		compat := newVersion.
 			Resource.
-			MustFindMeta(false, FOR_READ).
+			MustFindMeta(false).
 			GetAsString("compatibility")
 		return true, "", NewXRError(
 			"compatibility_violation", newVersion.XID,

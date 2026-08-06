@@ -385,6 +385,10 @@ var Type2Error = map[string]*XRError{
 		Code:  400,
 		Title: `The request would cause Version "<subject>" to be non-compliant. The Resource model is changing "hasdocument" to "true" but this Version already has data for the reserved attribute "<name>".`,
 	},
+	"server_busy": &XRError{
+		Code:  503,
+		Title: `The server could not complete "<subject>" due to a repeated database conflict with another request, please try again later.`,
+	},
 }
 
 func init() {

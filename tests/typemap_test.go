@@ -11,7 +11,7 @@ import (
 // "typemap" property anywhere in it.
 func checkNoTypeMap(t *testing.T, reg *registry.Registry) {
 	t.Helper()
-	res := XDoHTTP(t, reg, "GET", "/model", "")
+	res := XHTTP(t, reg, "GET", "/model", "", 200, "*")
 	if strings.Contains(res.body, "typemap") {
 		t.Fatalf("Model should not contain a typemap.\nGot:\n%s", res.body)
 	}

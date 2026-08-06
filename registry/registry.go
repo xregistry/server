@@ -680,6 +680,21 @@ func (reg *Registry) Update(obj Object, addType AddType) *XRError {
 	return nil
 }
 
+// FindGroup, unlike Resource's FindMeta/FindVersion, keeps its own
+// explicit accessMode arg rather than deriving it from a parent's lock
+// state - Group/Registry are NOT part of a lockEntityFamily() "family"
+// the way Resource+Meta+Version are, and don't need to be: a Group's own
+// row (epoch/modifiedat) is only ever mutated via an explicit Touch()/
+// Lock() call made right at the point of change (e.g. UpsertResource()
+// and Resource.Delete() both call g.Touch() when a child Resource is
+// added/removed, since that bumps the owning Group's epoch/modifiedat),
+// not by relying on whatever accessMode an earlier FindGroup() call used.
+// So a caller that fetches a Group FOR_READ and later needs to mutate it
+// is always safe as long as the actual mutation path itself locks first
+// (which every Group-mutating call site already does). Contrast this
+// with the bug class Resource/Meta/Version's family-locking exists to
+// prevent, where a decision (e.g. "does this Resource already exist?")
+// computed from an unlocked read could go stale before the write.
 func (reg *Registry) FindGroup(gType string, id string, anyCase bool, accessMode int) (*Group, *XRError) {
 	log.VPrintf(3, ">Enter: FindGroup(%s,%s,%v)", gType, id, anyCase)
 	defer log.VPrintf(3, "<Exit: FindGroup")
@@ -1376,7 +1391,7 @@ func (r *Registry) XID2Entity(xidStr string, path string) (*Entity, *XRError) {
 		return &res.Entity, nil
 	}
 
-	v, xErr := res.FindVersion(xid.VersionID, false, FOR_READ)
+	v, xErr := res.FindVersion(xid.VersionID, false)
 	if xErr != nil {
 		return nil, xErr
 	}
@@ -1470,7 +1485,7 @@ func (r *Registry) FindXIDVersion(xidStr string, path string) (*Version, *XRErro
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindVersion(xid.VersionID, false, FOR_READ)
+	return resource.FindVersion(xid.VersionID, false)
 }
 
 func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
@@ -1504,7 +1519,7 @@ func (r *Registry) FindXIDMeta(xidStr string, path string) (*Meta, *XRError) {
 	if xErr != nil || resource == nil {
 		return nil, xErr
 	}
-	return resource.FindMeta(false, FOR_READ)
+	return resource.FindMeta(false)
 }
 
 /*

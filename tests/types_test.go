@@ -262,7 +262,7 @@ func TestTypesBasic(t *testing.T) {
 
 	dir, _ := reg.AddGroup("dirs", "d1")
 	file, _ := dir.AddResource("files", "f1", "v1")
-	ver, _ := file.FindVersion("v1", false, registry.FOR_WRITE)
+	ver, _ := file.FindVersion("v1", false)
 
 	dir2, _ := reg.AddGroup("dirs", "dir2")
 
