@@ -3930,6 +3930,10 @@ func AbstractToModels(reg *Registry, abs string) (*GroupModel, *ResourceModel) {
 }
 
 func (attrs Attributes) Clone() Attributes {
+	if attrs == nil {
+		return nil
+	}
+
 	newAttrs := map[string]*Attribute{}
 
 	for key, attr := range attrs {
@@ -3940,13 +3944,67 @@ func (attrs Attributes) Clone() Attributes {
 }
 
 func (attr *Attribute) Clone(newName string) *Attribute {
-	// This should be deep! TODO
+	if attr == nil {
+		return nil
+	}
+
+	// Must be a deep copy: Attribute.Attributes/Item/IfValues are
+	// pointers/maps, so a shallow `newAttr := *attr` would leave the
+	// "clone" sharing the very same nested Item/Attributes/IfValues
+	// objects as attr - including, critically, the process-global
+	// template Attributes in OrderedSpecProps (shared_entity.go). Since
+	// GetPropsOrdered() (called on every LoadModel(), i.e. every HTTP
+	// request) clones from those globals and then calls SetModel() on
+	// the clone, a shallow clone here would mutate that shared global
+	// state (Item.Model, etc) from every concurrent request with no
+	// synchronization - a real, `-race`-confirmed data race. Cloning
+	// Attributes/Item/IfValues too ensures each clone owns its own,
+	// unshared copy of everything SetModel() will touch.
 	newAttr := *attr
+	newAttr.Attributes = attr.Attributes.Clone()
+	newAttr.Item = attr.Item.Clone()
+	newAttr.IfValues = attr.IfValues.Clone()
 	if newName != "" {
 		newAttr.Name = newName
 	}
 
 	return &newAttr
+}
+
+func (i *Item) Clone() *Item {
+	if i == nil {
+		return nil
+	}
+
+	newItem := *i
+	newItem.Attributes = i.Attributes.Clone()
+	newItem.Item = i.Item.Clone()
+
+	return &newItem
+}
+
+func (iv IfValues) Clone() IfValues {
+	if iv == nil {
+		return nil
+	}
+
+	newIfValues := IfValues{}
+	for key, val := range iv {
+		newIfValues[key] = val.Clone()
+	}
+
+	return newIfValues
+}
+
+func (iv *IfValue) Clone() *IfValue {
+	if iv == nil {
+		return nil
+	}
+
+	newIfValue := *iv
+	newIfValue.SiblingAttributes = iv.SiblingAttributes.Clone()
+
+	return &newIfValue
 }
 
 func (attr *Attribute) EnumsAsString() string {

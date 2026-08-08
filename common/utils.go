@@ -69,9 +69,10 @@ func PanicIf(b bool, msg string, args ...any) {
 		Panicf(msg, args...)
 	}
 }
+
 func Panicf(msg string, args ...any) {
-	log.Printf(msg, args...)
-	ShowStack()
+	// log.Printf(msg, args...)
+	// ShowStack()
 	panic(fmt.Sprintf(msg, args...))
 }
 
